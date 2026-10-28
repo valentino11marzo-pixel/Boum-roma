@@ -7,9 +7,71 @@ The legacy artefact renderer keeps its self-contained original layout.
 import re
 
 
+def _element(html, start, tag='div'):
+    depth = 0
+    for m in re.finditer(r'</?' + tag + r'\b[^>]*>', html[start:]):
+        depth += -1 if m.group().startswith('</') else 1
+        if depth == 0:
+            return html[start:start + m.end()]
+    raise ValueError('Flight detail: unclosed ' + tag)
+
+
+def refine(html):
+    """Small structural migration, also safe on an already composed template."""
+    if 'bfd-application-section' not in html:
+        anchor = html.index('<div class="container soldi">')
+        start = html.rfind('<section class="sezione">', 0, anchor)
+        section = _element(html, start, 'section')
+        related_start = section.index('    <div class="sale">', section.index('id="applica"'))
+        related = _element(section, related_start)
+        replacement = section.replace(related, '').replace('<section class="sezione">',
+            '<section class="sezione bfd-application-section">', 1)
+        html = html.replace(section, replacement, 1)
+        faq_start = html.index('<section class="sezione" id="chiedi">')
+        faq = _element(html, faq_start, 'section')
+        html = html.replace(faq, faq + '\n<section class="sezione bfd-related">'
+            '<div class="container">\n' + related + '\n</div></section>', 1)
+    if 'class="bfd-dossier"' in html and 'bfd-cost-breakdown' not in html:
+        start = html.index('<aside class="bfd-pass"')
+        ticket = _element(html, start, 'aside')
+        costs = _element(ticket, ticket.index('<div class="chiavi-cima">'))
+        rows = _element(costs, costs.index('<div class="voci">'))
+        compact = costs.replace(rows, '<details class="bfd-cost-breakdown">'
+            '<summary>Day-one breakdown <span aria-hidden="true">+</span></summary>'
+            + rows + '</details>')
+        actions = _element(ticket, ticket.index('<div class="bfd-pass-actions">'))
+        updated = ticket.replace(actions, '').replace(costs, compact + '\n' + actions)
+        updated = updated.replace('See next steps</a>', 'Apply for this home</a>')
+        updated = updated.replace('<p class="bfd-pass-note">Final terms in writing, before you pay.</p>',
+            '<p class="bfd-pass-note">Free to apply · no payment now</p>')
+        updated = updated.replace('<span><b>A person, with you.</b><small>Ask BOOM about this home</small></span>',
+            '<span>Ask a person</span>')
+        html = html.replace(ticket, updated, 1)
+    if 'bfd-cost-breakdown' in html:
+        actions = _element(html, html.index('<div class="bfd-pass-actions">'))
+        hold = re.search(r'<a class="bfd-hold".*?</a>', actions, re.S)
+        if hold:
+            html = html.replace(actions, actions.replace(hold.group(), ''), 1)
+            start = html.index('<details class="bfd-cost-breakdown">')
+            disclosure = _element(html, start, 'details')
+            html = html.replace(disclosure, disclosure.replace('</details>', hold.group() + '</details>'), 1)
+        start = html.index('<aside class="bfd-pass"')
+        ticket = _element(html, start, 'aside')
+        disclosure = _element(ticket, ticket.index('<details class="bfd-cost-breakdown">'), 'details')
+        outside = ticket.replace(disclosure, '')
+        extras = re.findall(r'<a class="bfd-money-link".*?</a>|<p class="flight-stay-note".*?</p>', outside, re.S)
+        if extras:
+            updated = ticket
+            for extra in extras:
+                updated = updated.replace(extra, '', 1)
+            updated = updated.replace(disclosure, disclosure.replace('</details>', ''.join(extras) + '</details>'), 1)
+            html = html.replace(ticket, updated, 1)
+    return re.sub(r'(?m)^[ \t]+$', '', html)
+
+
 def enhance(html):
     if 'class="bfd-dossier"' in html:
-        return html
+        return refine(html)
 
     def one(pattern, source, label):
         found = list(re.finditer(pattern, source, re.S))
@@ -112,11 +174,11 @@ def enhance(html):
         "        if (window.BOOM_FLIGHT_MAP) BOOM_FLIGHT_MAP.dress(mappaB, 'blocco-3d');\n"
         + map_anchor, 1)
     html = html.replace('</head>',
-        '<link rel="stylesheet" href="/assets/boom-flight-detail.css?v=20261028f">\n'
+        '<link rel="stylesheet" href="/assets/boom-flight-detail.css?v=20261028g">\n'
         '<noscript><style>.boom-flight-detail #posto[hidden]{display:block!important;'
         'margin-top:28px}.boom-flight-detail .bfd-tabs,.boom-flight-detail '
         '.bfd-open-photos{display:none}</style></noscript>\n</head>', 1)
     html = html.replace('</body>',
         '<script defer src="/js/flight-map.js?v=20261027a"></script>\n'
-        '<script defer src="/assets/boom-flight-detail.js?v=20261028f"></script>\n</body>', 1)
-    return '\n'.join(line.rstrip() for line in html.split('\n'))
+        '<script defer src="/assets/boom-flight-detail.js?v=20261028g"></script>\n</body>', 1)
+    return refine('\n'.join(line.rstrip() for line in html.split('\n')))

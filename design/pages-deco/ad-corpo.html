@@ -393,10 +393,10 @@
             <label>From<input type="date" id="stayMoveIn" aria-describedby="stayDatesError"></label>
             <label>Until<input type="date" id="stayMoveOut" aria-describedby="stayDatesError"></label>
           </div>
-          <div class="flight-stay-shortcut">
+          <details class="flight-stay-options"><summary>Choose by length <span aria-hidden="true">+</span></summary><div class="flight-stay-shortcut">
             <select id="durataSoggiorno" aria-label="Stay length shortcut"><option value="">Choose dates</option><option value="3">3 months</option><option value="6">6 months</option><option value="12">12 months</option><option value="18">18 months</option><option value="24">24 months</option></select>
             <button type="button" data-stay-clear>Clear dates</button>
-          </div>
+          </div></details>
           <output data-stay-summary aria-live="polite"></output>
           <p id="stayDatesError" role="alert" hidden></p>
         </div>

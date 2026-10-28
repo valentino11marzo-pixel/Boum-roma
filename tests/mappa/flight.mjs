@@ -265,4 +265,61 @@ check('An explicit empty/invalid shared home scope cannot silently expand to eve
  shareCtx.api.filter=()=>({budget:0,homes:[],homesActive:true});
  const shared=new URL(shareCtx.shareURL());assert.equal(shared.searchParams.get('homes'),'');assert.equal(shared.searchParams.has('homes'),true);
 });
+check('Partial map detail remains an honest, retryable state after the city becomes usable',()=>{
+ const classes=new Set(),retry={hidden:true},box={classList:{toggle:(key,on)=>on?classes.add(key):classes.delete(key)}};
+ const stateCtx={SKY_STATE:{catalogueStatus:'ready',mapStatus:'style',usable:false},window:{},skyEvent:()=>{},msg:()=>{},$:id=>id==='load'?box:id==='skyLoadRetry'?retry:null};
+ vm.createContext(stateCtx);vm.runInContext(extract(html,'skyState'),stateCtx);
+ stateCtx.skyState({usable:true});assert.equal(classes.has('usable'),true);assert.equal(classes.has('off'),false);
+ stateCtx.skyState({mapStatus:'partial'});assert.equal(retry.hidden,false);assert.equal(retry.textContent,'Retry map detail');assert.equal(classes.has('off'),false);
+ stateCtx.skyState({mapStatus:'ready'});assert.equal(retry.hidden,true);assert.equal(classes.has('off'),true);
+});
+await asyncCheck('The parent veil is released only after catalogue, pins and the first render, never by a fake ready state',async()=>{
+ let mapObject;const messages=[],timers=[],events=[];
+ class BoundaryMap{constructor(){this.handlers={};mapObject=this;}once(type,fn){this.handlers[type]=fn;}on(){}addControl(){}triggerRepaint(){this.repaint=true;}}
+ const bootCtx={maplibregl:{Map:BoundaryMap,NavigationControl:class{},FullscreenControl:class{}},
+  document:{documentElement:{classList:{contains:()=>true,add:()=>{}}}},window:{parent:{postMessage:m=>messages.push(m)}},
+  location:{origin:'https://www.boomrome.com'},SKY_REDUCED:{matches:false},SKY_STATE:{catalogueStatus:'ready',mapStatus:'loading',usable:false},
+  SKY_CATALOGUE_REQUEST:Promise.resolve([]),SKY_QUERY:new URLSearchParams(),MARKERS:[],SELECTED:null,PENDING_SELECT:'',
+  skyRenderOptions:()=>({}),waitForStyle:()=>Promise.resolve(),gradeColor:()=>{},buildAnchors:()=>{},buildMyPlaces:()=>{},
+  journeyFor:()=>{},setBudget:()=>{},clearSelection:()=>{},fitHomes:()=>{},applyFilter:()=>{},skyEvent:n=>events.push(n),
+  setTimeout:fn=>timers.push(fn)};
+ bootCtx.skyState=p=>Object.assign(bootCtx.SKY_STATE,p);
+ vm.createContext(bootCtx);vm.runInContext('async '+extract(html,'boot'),bootCtx);await bootCtx.boot();
+ assert.equal(messages.length,0);assert.equal(mapObject.repaint,true);assert.equal(bootCtx.SKY_STATE.mapStatus,'style');
+ mapObject.handlers.render();assert.equal(messages[0].t,'boomSkylineReady');assert.equal(bootCtx.SKY_STATE.usable,true);assert.equal(bootCtx.SKY_STATE.mapStatus,'style');
+ timers[0]();assert.equal(bootCtx.SKY_STATE.mapStatus,'partial');
+ mapObject.handlers.load();assert.equal(bootCtx.SKY_STATE.mapStatus,'ready');
+});
+check('Deferred embed start is visibility-gated, cancellable and idempotent; a gesture starts it immediately',()=>{
+ let task,reads=0,loads=0,cancels=0;
+ const startCtx={SKY_STARTED:false,SKY_IDLE:null,SKY_VISIBLE:false,document:{hidden:false},
+  window:{requestIdleCallback:true,cancelIdleCallback:true},requestIdleCallback:fn=>(task=fn,1),cancelIdleCallback:()=>cancels++,
+  fetchCatalogue:()=>{reads++;return Promise.resolve([]);},loadMapLibre:()=>loads++};
+ vm.createContext(startCtx);vm.runInContext(['cancelSkylineStart','startSkyline','scheduleSkyline'].map(n=>extract(html,n)).join('\n'),startCtx);
+ startCtx.scheduleSkyline();assert.equal(task,undefined);assert.equal(reads,0);
+ startCtx.SKY_VISIBLE=true;startCtx.scheduleSkyline();assert.equal(typeof task,'function');assert.equal(reads,0);
+ startCtx.cancelSkylineStart();assert.equal(cancels,1);assert.equal(startCtx.SKY_IDLE,null);
+ startCtx.document.hidden=true;startCtx.startSkyline();assert.equal(reads,0);
+ startCtx.document.hidden=false;startCtx.startSkyline();startCtx.startSkyline();startCtx.scheduleSkyline();assert.equal(reads,1);assert.equal(loads,1);
+ // Mutation: removing the visibility gate schedules work in an offscreen frame.
+ startCtx.SKY_STARTED=false;startCtx.SKY_VISIBLE=false;task=undefined;
+ vm.runInContext(extract(html,'scheduleSkyline').replace('||!SKY_VISIBLE',''),startCtx);startCtx.scheduleSkyline();
+ assert.throws(()=>assert.equal(task,undefined));
+});
+check('Retry preserves requested dates, the current camera, selected home, budget and public commute filter',()=>{
+ let target;const retryCtx={URL,Array,MAXFILTER:1500,TIENI:new Set(['one']),SELECTED:{__id:'one'},
+  location:{href:'https://www.boomrome.com/skyline?embed=1&preview=1&stay=6&moveIn=2027-01-31&moveOut=2027-07-31',replace:u=>target=u},
+  map:{getCenter:()=>({lng:12.485,lat:41.898}),getZoom:()=>13.4,getBearing:()=>-20,getPitch:()=>55},
+  window:{BOOM_MAPPA:true,BoomSkyline:{}},BOOM_MAPPA:{METE:[{slug:'termini'}]},$:()=>({value:'termini'}),document:{querySelector:()=>({dataset:{m:'25'}})}};
+ vm.createContext(retryCtx);vm.runInContext(extract(html,'retryCity'),retryCtx);retryCtx.retryCity();
+ const q=new URL(target,'https://www.boomrome.com').searchParams;
+ assert.equal(q.get('moveOut'),'2027-07-31');assert.equal(q.get('stay'),'6');assert.equal(q.get('home'),'one');assert.equal(q.get('homes'),'one');
+ assert.equal(q.get('budget'),'1500');assert.equal(q.get('place'),'termini');assert.equal(q.get('minutes'),'25');assert.equal(q.get('view'),'12.4850,41.8980,13.40,-20.0,55.0');
+ retryCtx.location.href+='&home=old';retryCtx.SELECTED=null;retryCtx.retryCity();
+ assert.equal(new URL(target,'https://www.boomrome.com').searchParams.has('home'),false);
+ // Before the engine/API exists, defaults must not replace the incoming brief.
+ delete retryCtx.window.BoomSkyline;retryCtx.location.href+='&budget=2100&place=sapienza&minutes=40';retryCtx.retryCity();
+ const untouched=new URL(target,'https://www.boomrome.com').searchParams;
+ assert.equal(untouched.get('budget'),'2100');assert.equal(untouched.get('place'),'sapienza');assert.equal(untouched.get('minutes'),'40');assert.equal(untouched.get('home'),'old');
+});
 console.log(`Skyline Flight: ${passed} passed, 0 failed`);

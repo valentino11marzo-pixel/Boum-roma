@@ -76,7 +76,9 @@ check(/Via dei Coronari 181\/184, 00186 Roma/.test(home) && /P\.IVA 17322991005/
 const faq = nodi.filter((n) => n['@type'] === 'FAQPage');
 check(faq.length === 1, 'un solo FAQPage', `ne trovo ${faq.length}`);
 const visibili = new Map();
-for (const m of home.matchAll(/<details[^>]*>\s*<summary>([\s\S]*?)<\/summary>([\s\S]*?)<\/details>/g)) {
+// A date-shortcut disclosure is a form control, not a published question.
+// All actual FAQ rows still have to match the schema word for word.
+for (const m of home.matchAll(/<details\b[^>]*class="[^"]*\bfaq-v\b[^"]*"[^>]*>\s*<summary>([\s\S]*?)<\/summary>([\s\S]*?)<\/details>/g)) {
   visibili.set(testo(m[1]), testo(m[2]));
 }
 const dichiarate = (faq[0]?.mainEntity || []).map((q) => [q.name, String(q.acceptedAnswer?.text || '')]);
@@ -89,8 +91,9 @@ for (const [q, r] of dichiarate) {
 }
 check(!diverse.length, 'ogni risposta del FAQPage e uguale a quella visibile (tag tolti, spazi collassati)',
   '\n      ' + diverse.join('\n      '));
-check(visibili.size === dichiarate.length, 'ogni <details> visibile della home e dichiarata nel FAQPage',
+check(visibili.size === dichiarate.length, 'ogni domanda FAQ visibile della home e dichiarata nel FAQPage',
   `${visibili.size} in pagina, ${dichiarate.length} dichiarate`);
+check(!dichiarate.some(([q]) => /Choose by length/.test(q)), 'i controlli del soggiorno non diventano domande FAQ');
 
 const fee = dichiarate.find(([q]) => q === 'Does BOOM charge broker fees?');
 check(!!fee && fee[1].includes("10% of one year's rent plus 22% VAT") && fee[1].includes('12.2%'),

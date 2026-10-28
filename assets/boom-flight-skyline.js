@@ -5,6 +5,8 @@
   var api = null, orbit = 0, lastFrame = 0, restoreFocus = null, mapInView = true;
   var reduced = matchMedia('(prefers-reduced-motion: reduce)');
   var query = new URLSearchParams(location.search);
+  var preview = document.documentElement.classList.contains('emb') && query.get('preview') === '1' && query.get('guide') !== '1' && query.get('places') !== '1';
+  document.documentElement.classList.toggle('sky-preview', preview);
   try{if(document.documentElement.classList.contains('emb')&&window.parent!==window&&window.parent.location.origin===location.origin)document.documentElement.classList.add('sky-consent-parent');}catch(_){}
   var $ = function (id) { return document.getElementById(id); };
   var el = function (tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
@@ -16,6 +18,22 @@
     + '<aside class="sky-flight-home" id="skyHome" aria-label="Selected apartment" hidden><button type="button" class="sky-home-close" id="skyHomeClose" aria-label="Close selected apartment">×</button><div class="sky-home-media"><img id="skyHomeImage" alt="" hidden><button type="button" id="skyHomeSave" class="sky-home-save" aria-pressed="false">Save home</button></div><div class="sky-home-copy"><span class="sky-home-zone" id="skyHomeZone"></span><h2 id="skyHomeName"></h2><p class="sky-home-precision" id="skyHomePrecision"></p><div class="sky-home-bottom"><span class="sky-home-price" id="skyHomePrice"></span><a id="skyHomeLink" href="/apartments">Explore home ↗</a></div></div></aside>'
     + '<p class="sky-flight-status" id="skyStatus" role="status" aria-live="polite"></p>';
   document.body.appendChild(screen);
+  var expand = el('a', 'sky-preview-expand', 'Expand ↗');
+  expand.href = '/skyline'; expand.target = '_top'; expand.setAttribute('aria-label', 'Open the full Skyline map and tools');
+  screen.querySelector('.sky-flight-tools').appendChild(expand);
+  function expandURL() {
+    var url = new URL(expand.href, location.origin);
+    if (api) {
+      var shared = new URL(shareURL());
+      ['view','home','homes','budget','place','minutes'].forEach(function (key) {
+        if (shared.searchParams.has(key)) url.searchParams.set(key, shared.searchParams.get(key));
+        else url.searchParams.delete(key);
+      });
+    }
+    // Keep the dates inherited by the existing stay runtime at capture.
+    expand.setAttribute('href', url.pathname + url.search + url.hash);
+  }
+  ['focusin','pointerdown','click','auxclick','contextmenu'].forEach(function (event) { expand.addEventListener(event, expandURL); });
 
   var share = el('dialog', 'sky-share-dialog');
   share.id = 'skyShareDialog';
@@ -226,7 +244,8 @@
     // The stable selected-home card replaces the marker popover; its contents
     // remain in core for older/no-controller clients and generator compatibility.
     api.markers.forEach(function (m) { m.setPopup(null); });
-    if(window.BOOM_FLIGHT_MAP&&BOOM_FLIGHT_MAP.dress(api.map,'sky-3d'))document.documentElement.classList.add('sky-map-styled');
+    if(document.documentElement.classList.contains('sky-map-styled')) { /* The core already dressed this style. */ }
+    else if(window.BOOM_FLIGHT_MAP&&BOOM_FLIGHT_MAP.dress(api.map,'sky-3d'))document.documentElement.classList.add('sky-map-styled');
     else document.documentElement.classList.add('sky-map-fallback');
     viewButtons();
     ['dragstart', 'zoomstart', 'rotatestart', 'pitchstart'].forEach(function (event) { api.map.on(event, function (e) { if (e.originalEvent) stopOrbit(); }); });

@@ -142,24 +142,26 @@
   var photoRequest = 0, photoSwipeUntil = 0;
   function mostra(i) {
     var request = ++photoRequest;
-    img.classList.remove('qui');
-    var v = variante(i);
-    if (v && (v.w480 || v.w960)) {
-      img.onload = function () { img.classList.add('qui'); img.onload = null; };
-      img.sizes = '100vw';
-      img.srcset = [v.w480 ? v.w480 + ' 480w' : '',
-        v.w960 ? v.w960 + ' 960w' : '', immagini[i] + ' 1920w']
-        .filter(Boolean).join(', ');
-      img.src = immagini[i];
-      if (img.complete && img.naturalWidth) {
-        img.classList.add('qui'); img.onload = null;
-      }
-    } else {
-      var pre = new Image();
-      pre.onload = function () { if (request !== photoRequest) return; img.removeAttribute('srcset');
-        img.src = pre.src; img.classList.add('qui'); };
-      pre.src = immagini[i];
-    }
+    var v = variante(i), pre = new Image();
+    var sizes = '(min-width: 761px) 74vw, 100vw';
+    var sources = v && (v.w480 || v.w960) ? [v.w480 ? v.w480 + ' 480w' : '',
+      v.w960 ? v.w960 + ' 960w' : '', immagini[i] + ' 1920w'].filter(Boolean).join(', ') : '';
+    /* Keep the decoded photograph in place while the next one loads.
+       Clearing its opacity before preload made every gesture a black frame. */
+    pre.onload = function () {
+      if (request !== photoRequest) return;
+      img.sizes = sizes;
+      if (sources) img.srcset = sources; else img.removeAttribute('srcset');
+      img.src = immagini[i]; img.classList.add('qui');
+      telaio.removeAttribute('data-photo-error');
+      if (!matchMedia('(prefers-reduced-motion: reduce)').matches && img.animate)
+        img.animate([{opacity:.88},{opacity:1}], {duration:160,easing:'ease-out'});
+    };
+    pre.onerror = function () {
+      if (request === photoRequest) telaio.setAttribute('data-photo-error', 'Photo unavailable. Choose another photograph.');
+    };
+    if (sources) { pre.sizes = sizes; pre.srcset = sources; }
+    pre.src = immagini[i];
     [].slice.call(rullino.children).forEach(function (b, k) {
       b.classList.toggle('qui', k === i);
       b.setAttribute('aria-pressed', String(k === i)); });
@@ -648,7 +650,7 @@
       var fatto = document.getElementById('applicaFatto');
       if (fatto) {
         fatto.classList.add('si');
-        fatto.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        fatto.scrollIntoView({ block: 'center', behavior: ridotto ? 'auto' : 'smooth' });
       }
     });
   })();

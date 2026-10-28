@@ -70,5 +70,24 @@
     if(!record.journey)out.push('Route still to verify; destination proximity is not a claim.');
     return out;
   }
-  return {rank:rank,directions:directions,addressDirections:addressDirections,share:share,reasons:reasons};
+  function homeKind(value){
+    var type=String(value||'').trim().toLowerCase();
+    if(type==='room'||type==='private room'||type==='shared room')return type;
+    if(/^(entire )?(apartment|flat|studio)$/.test(type))return 'apartment';
+    return null;
+  }
+  function tradeoff(record,records){
+    var kind=homeKind(record&&record.type),peers=(records||[]).filter(function(r){return r&&r.id!==record.id&&kind&&homeKind(r.type)===kind&&positive(r.rent)!==null;});
+    if(!kind||!peers.length)return {comparable:false,reason:kind?'No other '+kind+' shown for a like-for-like comparison.':'Home type needs confirmation before comparing.'};
+    var base=peers.slice().sort(function(a,b){return a.rent-b.rent||String(a.id).localeCompare(String(b.id));})[0];
+    // Compare space only within the same listed home type; do not turn missing
+    // fields or different journey models into a benefit claim.
+    var a=journey(record.journey),b=journey(base.journey);
+    var travel=a&&b&&a.fonte===b.fonte&&a.precision===b.precision&&a.destination&&b.destination&&a.destination.lat===b.destination.lat&&a.destination.lng===b.destination.lng;
+    return {comparable:true,referenceId:base.id,referenceName:base.name,kind:kind,
+      rentDelta:record.rent-base.rent,
+      areaDelta:positive(record.area)!==null&&positive(base.area)!==null?record.area-base.area:null,
+      minutesDelta:travel?record.journey.min-base.journey.min:null};
+  }
+  return {rank:rank,directions:directions,addressDirections:addressDirections,share:share,reasons:reasons,tradeoff:tradeoff,homeKind:homeKind};
 });

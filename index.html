@@ -2092,13 +2092,13 @@ body::before, body::after { z-index: 1 !important; }
 })();
 </script>
 <!-- BOOM_SCROLL:END -->
-<link rel="stylesheet" href="/assets/boom-flight-home.css?v=20261028f">
-<link rel="stylesheet" href="/assets/boom-flight.css?v=20261028f">
-<script defer src="/js/flight-engine.js?v=20261028f"></script>
-<script defer src="/assets/boom-flight.js?v=20261028f"></script>
-<script defer src="/js/stay-engine.js?v=20261028f"></script>
-<link rel="stylesheet" href="/assets/boom-flight-stay.css?v=20261028f">
-<script defer src="/assets/boom-flight-stay.js?v=20261028f"></script>
+<link rel="stylesheet" href="/assets/boom-flight-home.css?v=20261028g">
+<link rel="stylesheet" href="/assets/boom-flight.css?v=20261028g">
+<script defer src="/js/flight-engine.js?v=20261028g"></script>
+<script defer src="/assets/boom-flight.js?v=20261028g"></script>
+<script defer src="/js/stay-engine.js?v=20261028g"></script>
+<link rel="stylesheet" href="/assets/boom-flight-stay.css?v=20261028g">
+<script defer src="/assets/boom-flight-stay.js?v=20261028g"></script>
 </head>
 <body>
 
@@ -2156,18 +2156,58 @@ setTimeout(function () {
 </div>
 
 <!-- ══ HERO — la voce · il tabellone ══════════════════════════ -->
-<header class="hero flight-home-hero" data-flight-home="true">
+<header class="hero flight-home-hero" data-flight-home="true" data-flight-composition="4">
   <div class="hero-velo" aria-hidden="true"><div class="hero-glow"></div><canvas id="cartaRoma"></canvas></div>
   <div class="container hero-int">
-    <div class="flight-home-copy coro dentro-subito">
+<div class="flight-home-copy coro dentro-subito">
       <div class="hero-eyebrow"><b></b>Rome · International arrivals</div>
       <h1 class="hero-title">NEXT STOP.<span id="flapDays" class="flap-scale flight-home-word" data-word="ROME" aria-label="Rome">ROME</span><span class="flight-home-title-end">FEEL AT HOME.</span></h1>
       <p class="hero-sub">A home in Rome. A person on your side.<br>Your entire move, connected.</p>
-      <div class="flight-home-actions"><a class="btn btn-primary" href="/skyline">Enter Skyline <span aria-hidden="true">↗</span></a><a class="flight-home-agency" href="#perche">Meet your agency <span aria-hidden="true">→</span></a></div>
     </div>
-    <section class="flight-home-skyline" id="skyline" aria-label="Rome Skyline">
-      <div class="flight-home-skyline-heading"><div><span>SKYLINE</span><small>ROME, IN YOUR HANDS</small></div>
-        <a href="/skyline" class="flight-home-expand" aria-label="Open Skyline full screen">Explore full screen <span aria-hidden="true">↗</span></a></div>
+<div class="flight-home-command">
+    <form class="atterro" id="atterro" data-stay-page="home">
+        <div class="atterro-campo ac-stay flight-stay-fields">
+          <span>Your landing plan</span>
+          <div class="flight-stay-dates">
+            <label>From<input type="date" id="stayMoveIn" aria-describedby="stayDatesError"></label>
+            <label>Until<input type="date" id="stayMoveOut" aria-describedby="stayDatesError"></label>
+          </div>
+          <details class="flight-stay-options"><summary>Choose by length <span aria-hidden="true">+</span></summary><div class="flight-stay-shortcut">
+            <select id="durataSoggiorno" aria-label="Stay length shortcut"><option value="">Choose dates</option><option value="3">3 months</option><option value="6">6 months</option><option value="12">12 months</option><option value="18">18 months</option><option value="24">24 months</option></select>
+            <button type="button" data-stay-clear>Clear dates</button>
+          </div></details>
+          <output data-stay-summary aria-live="polite"></output>
+          <p id="stayDatesError" role="alert" hidden></p>
+        </div>
+        <span class="atterro-divisa" aria-hidden="true"></span>
+        <label class="atterro-campo">
+          <span>Budget</span>
+          <select id="quantoBudget" aria-label="Monthly budget">
+            <option value="">Any</option>
+            <option value="1000">up to €1,000</option>
+            <option value="1500">€1,000–1,500</option>
+            <option value="2000">€1,500–2,000</option>
+            <option value="9999">€2,000+</option>
+          </select></label>
+        <span class="atterro-divisa" aria-hidden="true"></span>
+        <label class="atterro-campo">
+          <span>Who's landing?</span>
+          <select id="chiAtterra" aria-label="Who is moving in">
+            <option value="">Choose</option>
+            <option value="solo">Just me</option>
+            <option value="couple">Couple</option>
+            <option value="family">Family</option>
+            <option value="flatmates">Flatmates</option>
+          </select></label>
+        <button type="submit" class="btn btn-primary" id="quandoVai">Find homes</button>
+      </form>
+    <p class="flight-stay-note" id="stayPreferenceNote" data-stay-note="home" hidden></p>
+    <p class="giorno-uno" id="giornoUno" hidden></p>
+
+  </div>
+<section class="flight-home-skyline" id="skyline" aria-label="Rome Skyline">
+      <div class="flight-home-skyline-heading"><div><span>SKYLINE</span><small>YOUR CITY. YOUR EVERYDAY.</small></div>
+        <a href="/skyline" class="flight-home-expand" aria-label="Open Skyline full screen">Explore Skyline <span aria-hidden="true">↗</span></a></div>
       <div class="cielo" id="cielo">
       <div class="cielo-mappa" id="cieloMappa"></div>
 
@@ -2191,82 +2231,18 @@ setTimeout(function () {
           Skyline</a>
       </div>
     </div>
-      <p class="flight-home-map-note">The real city. Your places. Homes to explore.</p>
+      <a class="flight-home-map-invite" href="/skyline?guide=1"><span><small>YOUR ROME</small>Find the balance that fits your life.</span><b>Find my balance <i aria-hidden="true">↗</i></b></a>
     </section>
-  </div>
-  <div class="container flight-home-command">
-    <form class="atterro" id="atterro" data-stay-page="home">
-        <div class="atterro-campo ac-stay flight-stay-fields">
-          <span>Your stay</span>
-          <div class="flight-stay-dates">
-            <label>From<input type="date" id="stayMoveIn" aria-describedby="stayDatesError"></label>
-            <label>Until<input type="date" id="stayMoveOut" aria-describedby="stayDatesError"></label>
-          </div>
-          <div class="flight-stay-shortcut">
-            <select id="durataSoggiorno" aria-label="Stay length shortcut"><option value="">Choose dates</option><option value="3">3 months</option><option value="6">6 months</option><option value="12">12 months</option><option value="18">18 months</option><option value="24">24 months</option></select>
-            <button type="button" data-stay-clear>Clear dates</button>
-          </div>
-          <output data-stay-summary aria-live="polite"></output>
-          <p id="stayDatesError" role="alert" hidden></p>
-        </div>
-        <span class="atterro-divisa" aria-hidden="true"></span>
-        <label class="atterro-campo">
-          <span>Budget</span>
-          <select id="quantoBudget" aria-label="Monthly budget">
-            <option value="">Any</option>
-            <option value="1000">up to €1,000</option>
-            <option value="1500">€1,000–1,500</option>
-            <option value="2000">€1,500–2,000</option>
-            <option value="9999">€2,000+</option>
-          </select></label>
-        <span class="atterro-divisa" aria-hidden="true"></span>
-        <label class="atterro-campo">
-          <span>Who's landing?</span>
-          <select id="chiAtterra" aria-label="Who is moving in">
-            <option value="">—</option>
-            <option value="solo">Just me</option>
-            <option value="couple">Couple</option>
-            <option value="family">Family</option>
-            <option value="flatmates">Flatmates</option>
-          </select></label>
-        <button type="submit" class="btn btn-primary" id="quandoVai">Find homes</button>
-      </form>
-    <p class="flight-stay-note" id="stayPreferenceNote" data-stay-note="home" hidden></p>
-    <p class="giorno-uno" id="giornoUno" hidden></p>
-    <div class="flight-home-proof"><div class="hero-fede">
+<div class="flight-home-proof"><div class="hero-fede">
         <svg class="hf-stripe" aria-label="Stripe" viewBox="0 0 468 222.5" xmlns="http://www.w3.org/2000/svg"> <path fill="#635BFF" d="M414 113.4c0-25.6-12.4-45.8-36.1-45.8-23.8 0-38.2 20.2-38.2 45.6 0 30.1 17 45.3 41.4 45.3 11.9 0 20.9-2.7 27.7-6.5v-20c-6.8 3.4-14.6 5.5-24.5 5.5-9.7 0-18.3-3.4-19.4-15.2h48.9c0-1.3.2-6.5.2-8.9zm-49.4-9.5c0-11.3 6.9-16 13.2-16 6.1 0 12.6 4.7 12.6 16h-25.8zm-63.5-36.3c-9.8 0-16.1 4.6-19.6 7.8l-1.3-6.2h-22v116.6l25-5.3.1-28.3c3.6 2.6 8.9 6.3 17.7 6.3 17.9 0 34.2-14.4 34.2-46.1-.1-29-16.6-44.8-34.1-44.8zm-6 68.9c-5.9 0-9.4-2.1-11.8-4.7l-.1-37.1c2.6-2.9 6.2-4.9 11.9-4.9 9.1 0 15.4 10.2 15.4 23.3 0 13.4-6.2 23.4-15.4 23.4zm-71.3-74.8l25.1-5.4V36l-25.1 5.3zm0 7.6h25.1v87.5h-25.1zm-26.9 7.4l-1.6-7.4h-21.6v87.5h25V97.5c5.9-7.7 15.9-6.3 19-5.2v-23c-3.2-1.2-14.9-3.4-20.8 7.4zm-50-29.8l-24.4 5.2-.1 80.1c0 14.8 11.1 25.7 25.9 25.7 8.2 0 14.2-1.5 17.5-3.3V135c-3.2 1.3-19 5.9-19-8.9V90.6h19V69.3h-19l.1-21.7zM79.3 94.7c0-3.9 3.2-5.4 8.5-5.4 7.6 0 17.2 2.3 24.8 6.4V72.2c-8.3-3.3-16.5-4.6-24.8-4.6C67.5 67.6 54 78.2 54 95.9c0 27.6 38 23.2 38 35.1 0 4.6-4 6.1-9.6 6.1-8.3 0-18.9-3.4-27.3-8v23.8c9.3 4 18.7 5.7 27.3 5.7 20.8 0 35.1-10.3 35.1-28.2-.1-29.8-38.2-24.5-38.2-35.7z"/> </svg>
         <span><b>Never pay a stranger</b> — every home walked in person
           · <a class="hf-come" href="#apparecchio">How it works ↓</a>
           · <a class="hf-come" href="/try">▶ Try it in 90s</a></span>
-      </div><ol class="flight-home-steps" aria-label="Your move with BOOM"><li><span>01</span> Explore</li><li><span>02</span> Choose</li><li><span>03</span> Sign</li><li><span>04</span> Land</li></ol></div>
+      </div><a class="flight-home-agency" href="#perche">Meet your agency <span aria-hidden="true">↗</span></a></div>
   </div>
 </header>
 
-<section class="sezione flight-home-arrivals" aria-labelledby="flightHomeArrivals">
-  <div class="container flight-home-arrivals-grid">
-    <div class="flight-home-board-wrap"><div class="flight-home-section-head"><div><span class="eyebrow"><i></i>The arrivals board</span><h2 class="titolo" id="flightHomeArrivals">Find your place.</h2></div><a class="btn-vai" href="/apartments">All apartments →</a></div>
-      <aside class="board quadro" aria-label="Live move-in board">
-      <span class="tacca"></span>
-      <div class="board-testa"><b>ROME · Move-in board</b>
-        <span class="board-live"><i></i>LIVE</span></div>
-      <div class="tab-colonne" aria-hidden="true"><span>Destination</span>
-        <span class="tc-p">€/mo</span><span>Status</span></div>
-      <div class="tab-righe" id="tabRighe" aria-live="off"></div>
-      <div class="board-piede"><span><b>9</b> homes available now</span>
-        <span>Rome · homes for living</span></div>
-    </aside>
-    </div>
-    <div class="flight-home-ecosystem flight-home-your-rome" data-flight-editorial="2">
-      <span class="eyebrow"><i></i>Your Rome · by Skyline</span>
-      <h2 class="titolo">Your campus.<br>Your budget. <span class="hl">Your balance.</span></h2>
-      <p>The centre is one possibility. Start with where you need to be, then compare the rent, space and journey that work for you.</p>
-      <div class="flight-route-signal" aria-hidden="true"><span>HOME</span><i><b></b></i><span>YOUR EVERYDAY</span></div>
-      <a class="flight-balance-cta" href="/skyline?guide=1">Find my balance <span aria-hidden="true">↗</span></a>
-      <a class="flight-balance-about" href="/your-rome">Explore campuses &amp; how it works →</a>
-      <p class="flight-balance-foot">Free to explore · share your search · no account needed</p>
-    </div>
-  </div>
-</section>
+
 
 <!-- ══ CASE DELLA SETTIMANA + COME FUNZIONA ══════════════════════════════ -->
 <section class="sezione flight-home-discovery">
@@ -2279,7 +2255,7 @@ setTimeout(function () {
         </div>
         <a class="btn-vai" href="/apartments">View all →</a>
       </div>
-      <div class="settimana coro">
+      <div class="settimana coro" id="flightHomeRail" aria-label="Available homes">
         <a class="casa-p" href="/listing/sr0rpLSqbpDMASkHINfx">
           <div class="home-foto">
             <img loading="lazy" decoding="async" src="https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fsr0rpLSqbpDMASkHINfx%2Fms6y4det_00_1f4b631c.jpg?alt=media"
@@ -2326,9 +2302,36 @@ setTimeout(function () {
           </div>
         </a>
       </div>
+      <div class="flight-rail-controls" hidden><span data-rail-position aria-live="polite">01 / 03</span><div><button type="button" data-rail-prev aria-label="Previous home" aria-controls="flightHomeRail">←</button><button type="button" data-rail-next aria-label="Next home" aria-controls="flightHomeRail">→</button></div></div>
     </div>
-
-    <div class="apparecchio quadro sale" id="apparecchio">
+  </div>
+</section>
+<section class="sezione flight-home-arrivals" aria-labelledby="flightHomeArrivals">
+  <div class="container flight-home-arrivals-grid">
+    <div class="flight-home-board-wrap"><div class="flight-home-section-head"><div><span class="eyebrow"><i></i>The arrivals board</span><h2 class="titolo" id="flightHomeArrivals">Find your place.</h2></div><a class="btn-vai" href="/apartments">All apartments →</a></div>
+      <aside class="board quadro" aria-label="Live move-in board">
+      <span class="tacca"></span>
+      <div class="board-testa"><b>ROME · Move-in board</b>
+        <span class="board-live"><i></i>LIVE</span></div>
+      <div class="tab-colonne" aria-hidden="true"><span>Destination</span>
+        <span class="tc-p">€/mo</span><span>Status</span></div>
+      <div class="tab-righe" id="tabRighe" aria-live="off"></div>
+      <div class="board-piede"><span><b>9</b> homes available now</span>
+        <span>Rome · homes for living</span></div>
+    </aside>
+    </div>
+    <div class="flight-home-ecosystem flight-home-your-rome" data-flight-editorial="2">
+      <span class="eyebrow"><i></i>Your Rome · by Skyline</span>
+      <h2 class="titolo">Your campus.<br>Your budget. <span class="hl">Your balance.</span></h2>
+      <p>The centre is one possibility. Start with where you need to be, then compare the rent, space and journey that work for you.</p>
+      <div class="flight-route-signal" aria-hidden="true"><span>HOME</span><i><b></b></i><span>YOUR EVERYDAY</span></div>
+      <a class="flight-balance-cta" href="/skyline?guide=1">Find my balance <span aria-hidden="true">↗</span></a>
+      <a class="flight-balance-about" href="/your-rome">Explore campuses &amp; how it works →</a>
+      <p class="flight-balance-foot">Free to explore · share your search · no account needed</p>
+    </div>
+  </div>
+</section>
+<section class="sezione flight-home-journey" aria-labelledby="flightJourneyTitle"><div class="container"><div class="flight-home-section-head"><div><span class="eyebrow"><i></i>From first look to first morning</span><h2 class="titolo" id="flightJourneyTitle">One move. <span class="hl">Four clear steps.</span></h2></div></div><div class="apparecchio quadro sale" id="apparecchio">
       <span class="tacca"></span>
       <div class="app-tabs" role="tablist" aria-label="How BOOM works">
         <button type="button" class="app-tab on" data-s="0" role="tab"
@@ -2344,10 +2347,10 @@ setTimeout(function () {
           id="appTab3" aria-controls="appScena3" tabindex="-1"
           aria-selected="false"><b>04</b><span>Get your keys</span><i></i></button>
       </div>
-      <div class="app-vetro" aria-hidden="true"><i></i><i></i><i></i>
-        <span>The BOOM journey · illustrative preview</span></div>
+      <div class="app-vetro"><i></i><i></i><i></i>
+        <span>How it works · illustrative preview</span><button type="button" data-journey-play aria-pressed="false">Play journey <span aria-hidden="true">▷</span></button></div>
       <div class="app-scena">
-        <div class="scena-p attiva" data-s="0" id="appScena0" role="tabpanel" aria-labelledby="appTab0">
+        <div class="scena-p attiva" data-s="0" id="appScena0" role="tabpanel" aria-labelledby="appTab0"><div class="flight-journey-visual" aria-hidden="true">
           <div class="s1-palco" aria-hidden="true">
             <div class="s1-fila">
               <figure class="s1-casa"><img loading="lazy" decoding="async" src="https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2Fttvrjazww9oe4tA0wHTf%2Fmrz6vxb9_00_18252691.jpg?alt=media" alt=""
@@ -2362,8 +2365,8 @@ setTimeout(function () {
             </div>
             <span class="s1-dito"></span>
           </div>
-        </div>
-        <div class="scena-p" data-s="1" id="appScena1" role="tabpanel" aria-labelledby="appTab1">
+        </div><div class="flight-journey-story"><span class="flight-journey-number">01 / YOUR MOVE</span><h3>Start with your everyday.</h3><p>Explore real homes, then weigh the space, rent and route to the places that matter to you.</p><a href="/skyline?guide=1">Find my balance <span aria-hidden="true">↗</span></a></div></div>
+        <div class="scena-p" data-s="1" id="appScena1" role="tabpanel" aria-labelledby="appTab1"><div class="flight-journey-visual" aria-hidden="true">
           <div class="sc-modulo">
             <label>Full name</label>
             <div class="sc-campo"><span class="sc-battuta b1">Anna Keller</span></div>
@@ -2376,8 +2379,8 @@ setTimeout(function () {
               <div><small>Your BOOM contact · after review</small>
                 Approved — ready to sign?<span class="vv">✓✓</span></div></div>
           </div>
-        </div>
-        <div class="scena-p" data-s="2" id="appScena2" role="tabpanel" aria-labelledby="appTab2">
+        </div><div class="flight-journey-story"><span class="flight-journey-number">02 / YOUR MOVE</span><h3>A real person reviews your move.</h3><p>Tell us who is moving and your exact dates. Review everything before you send. Applying is free; no payment is taken.</p><a href="/apartments">Choose your home <span aria-hidden="true">↗</span></a></div></div>
+        <div class="scena-p" data-s="2" id="appScena2" role="tabpanel" aria-labelledby="appTab2"><div class="flight-journey-visual" aria-hidden="true">
           <div class="sc-carta">
             <div class="sc-doc"><i></i><i></i><i></i>
               <div class="sc-firma"><svg viewBox="0 0 260 60" aria-hidden="true">
@@ -2398,8 +2401,8 @@ setTimeout(function () {
               Stripe</span><span class="s3-fatto">Paid ✓</span></div>
             <span class="sc-scudo">✓ Deposit protected</span>
           </div>
-        </div>
-        <div class="scena-p" data-s="3" id="appScena3" role="tabpanel" aria-labelledby="appTab3">
+        </div><div class="flight-journey-story"><span class="flight-journey-number">03 / YOUR MOVE</span><h3>Know what you are signing.</h3><p>Review the agreed lease and the move-in breakdown before signing or paying. Keep the next steps together.</p><a href="/your-money">How your money moves <span aria-hidden="true">↗</span></a></div></div>
+        <div class="scena-p" data-s="3" id="appScena3" role="tabpanel" aria-labelledby="appTab3"><div class="flight-journey-visual" aria-hidden="true">
           <div class="s4-palco" aria-hidden="true">
             <div class="s4-luce"></div>
             <div class="s4-serratura">
@@ -2423,11 +2426,9 @@ setTimeout(function () {
               <em>Tenant pass · Apple Wallet</em><i></i></div>
             <span class="sc-timbro">Your next chapter</span>
           </div>
-        </div>
+        </div><div class="flight-journey-story"><span class="flight-journey-number">04 / YOUR MOVE</span><h3>Land. Settle. Stay connected.</h3><p>Arrange your arrival with BOOM. Your tenant area keeps the contract, receipts and support close throughout your stay.</p><a href="/concierge">Explore arrival support <span aria-hidden="true">↗</span></a></div></div>
       </div>
-    </div>
-  </div>
-</section>
+    </div></div></section>
 
 <!-- ══ LA SKYLINE — lo strumento vero, dentro la pagina ════════════════ -->
 
@@ -2440,8 +2441,8 @@ setTimeout(function () {
   <div class="container">
     <div class="sale flight-service-heading">
       <span class="eyebrow"><i></i>Services · flat prices</span>
-      <h2 class="titolo">Pick the door that matches
-        <span class="hl">your situation</span>.</h2>
+      <h2 class="titolo">Your move.
+        <span class="hl">Your level of support.</span></h2>
       <p class="sotto">A dedicated search, or a hand with a home you found. Choose the support you need, with the scope and fee clear from the start. <a class="sotto-vai" href="/your-money">See how your money moves →</a></p>
     </div>
 
@@ -2452,7 +2453,7 @@ setTimeout(function () {
        style="--c:var(--c-pf);--ca:rgba(255,215,0,.16);--cb:rgba(255,215,0,.45)">
       <span class="alone"></span>
       <span class="filigrana"></span>
-      <span class="flight-ground-mark"><i aria-hidden="true"><b></b><b></b><b></b></i><span>BOOM / ON THE GROUND<small>In-person viewings in Rome</small></span></span>
+
       <span class="banda"><em>First class · Property Finding</em></span>
       <span class="corpo">
         <span class="testata">
@@ -2467,7 +2468,7 @@ setTimeout(function () {
             <span class="pkind">Flagship</span></span>
           <span class="promessa">A dedicated search across the Rome market, based on <b>your written criteria</b>. We organise viewings and help you choose.</span>
         </span>
-        <span class="dettagli"><span><em>Search brief</em><strong>Your criteria</strong></span><span><em>Options</em><strong>At least 3 in 15 days</strong></span><span><em>On success</em><strong>Credited to agency fee</strong></span></span></span><span class="perf perf-v"></span>
+        <span class="dettagli"><span><em>Search brief</em><strong>Your criteria</strong></span><span><em>Options</em><strong>At least 3 in 15 days</strong></span><span><em>On success</em><strong>Credited to agency fee</strong></span></span><span class="flight-ground-mark"><i aria-hidden="true"><b></b><b></b><b></b></i><span>BOOM / ON THE GROUND<small>In-person viewings in Rome</small></span></span></span><span class="perf perf-v"></span>
       <span class="stub">
         <span class="stub-riga"><span class="quota">€350</span>
           <span class="barcode"></span></span>
@@ -3041,69 +3042,7 @@ setTimeout(function () {
     }, 14000);
   })();
 
-  /* L'APPARECCHIO: le scene si avvicendano; il passaggio del mouse le
-     ferma (stai guardando), il click sceglie. Ogni attivazione riavvia
-     le animazioni della scena via reflow. */
-  (function () {
-    var app = document.getElementById('apparecchio');
-    if (!app) return;
-    var tabs = [].slice.call(app.querySelectorAll('.app-tab'));
-    var scene = [].slice.call(app.querySelectorAll('.scena-p'));
-    var DUR = 4600, qui = 0, giro = null;
-    app.style.setProperty('--app-durata', DUR + 'ms');
-    function mostra(n) {
-      qui = n;
-      tabs.forEach(function (t, i) {
-        t.classList.remove('on');
-        t.setAttribute('aria-selected', 'false');
-        if (i === n) { void t.offsetWidth; t.classList.add('on');
-          t.setAttribute('aria-selected', 'true'); }
-      });
-      scene.forEach(function (sc, i) {
-        sc.classList.remove('attiva');
-        if (i === n) { void sc.offsetWidth; sc.classList.add('attiva'); }
-      });
-    }
-    function avvia() {
-      ferma();
-      if (ridotto) return;
-      giro = setInterval(function () {
-        if (document.hidden) return;
-        mostra((qui + 1) % scene.length);
-      }, DUR);
-    }
-    function ferma() { if (giro) { clearInterval(giro); giro = null; } }
-    tabs.forEach(function (t) {
-      t.addEventListener('click', function () {
-        mostra(+t.dataset.s); avvia();
-      });
-    });
-    app.addEventListener('mouseenter', ferma);
-    app.addEventListener('mouseleave', avvia);
-    /* tastiera: frecce tra i tab; il focus ferma il giro (WCAG 2.2.2) */
-    app.addEventListener('focusin', ferma);
-    app.addEventListener('focusout', function (e) {
-      if (!app.contains(e.relatedTarget)) avvia();
-    });
-    app.querySelector('.app-tabs').addEventListener('keydown', function (e) {
-      var passo = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
-      if (!passo) return;
-      e.preventDefault();
-      var n2 = (qui + passo + tabs.length) % tabs.length;
-      mostra(n2);
-      tabs.forEach(function (t, i) {
-        t.tabIndex = i === n2 ? 0 : -1;
-      });
-      tabs[n2].focus();
-    });
-    /* parte solo quando l'apparecchio è in vista */
-    if ('IntersectionObserver' in window && !ridotto) {
-      new IntersectionObserver(function (r, io) {
-        if (!r[0].isIntersecting) return;
-        io.disconnect(); mostra(0); avvia();
-      }, { threshold: .35 }).observe(app);
-    } else mostra(0);
-  })();
+  /* The accessible Flight journey is controlled by boom-flight-home.js. */
 
   /* il pass: se hai scelto la data d'atterraggio, il pass la indossa */
   window.__passData = function (d) {
@@ -3817,7 +3756,7 @@ setTimeout(function () {
     var posto = document.getElementById('cieloMappa');
     if (!posto) return;
     var fr = document.createElement('iframe');
-    fr.src = '/skyline?embed=1';
+    fr.src = '/skyline?embed=1&preview=1';
     fr.title = 'BOOM Skyline 3D — Rome';
     fr.setAttribute('allow', 'fullscreen');
     fr.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border:0;';
@@ -3836,7 +3775,7 @@ setTimeout(function () {
   if ('IntersectionObserver' in window) {
     new IntersectionObserver(function (v, o) {
       if (v[0].isIntersecting) { o.disconnect(); finestra(); }
-    }, { rootMargin: '260px 0px' }).observe(telaio);
+    }, { rootMargin: '80px 0px' }).observe(telaio);
   } else { addEventListener('load', carica); }
 })();
 </script>
@@ -4744,6 +4683,6 @@ setTimeout(function () {
 <script defer src="/js/boom-consent.js"></script>
 
 <script defer src="/js/boom-track.js"></script>
-<script defer src="/assets/boom-flight-home.js?v=20261028f"></script>
+<script defer src="/assets/boom-flight-home.js?v=20261028g"></script>
 </body>
 </html>

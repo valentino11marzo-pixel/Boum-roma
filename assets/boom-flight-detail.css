@@ -192,3 +192,146 @@ html.boom-flight-detail .bfd-service-ticket .bfd-service-action{display:block;ma
 @media(prefers-reduced-motion:no-preference){html.boom-flight-detail .timbro-walk.giu{animation:bfd-badge-in .35s ease-out both}html.boom-flight-detail .bfd-apply-ready .ap-gruppo:not([hidden]),html.boom-flight-detail .bfd-apply-review:not([hidden]){animation:bfd-panel .2s ease-out both}@keyframes bfd-badge-in{from{opacity:0}to{opacity:1}}}
 @media(prefers-reduced-motion:reduce){html.boom-flight-detail .bfd-apply-steps button,html.boom-flight-detail #modApplica input,html.boom-flight-detail #modApplica select,html.boom-flight-detail .bfd-service-ticket{transition:none}html.boom-flight-detail .bfd-service-ticket:hover{transform:none}html.boom-flight-detail .timbro-walk.giu{animation:none}}
 @media print{html.boom-flight-detail .bfd-disclosure>*{display:block!important}html.boom-flight-detail #modApplica .ap-gruppo[hidden]{display:block!important}html.boom-flight-detail .bfd-apply-controls,html.boom-flight-detail .bfd-apply-steps,html.boom-flight-detail .bfd-apply-review{display:none!important}}
+
+/* One scene, one decision. The original application opens beside its home. */
+html.boom-flight-detail .casa>.container{max-width:1440px}
+html.boom-flight-detail .casa-briciole{margin-bottom:12px;font-size:12px}
+html.boom-flight-detail .bfd-heading{margin-bottom:17px}
+html.boom-flight-detail .bfd-heading h1{font-size:clamp(30px,3.2vw,44px)}
+html.boom-flight-detail .bfd-dossier{grid-template-columns:minmax(0,1fr) 300px;gap:28px}
+html.boom-flight-detail .bfd-tabs{margin-bottom:12px}
+html.boom-flight-detail .telaio{height:clamp(340px,calc(100svh - 330px),530px);min-height:0;aspect-ratio:auto;border-radius:16px}
+html.boom-flight-detail .telaio img{transition:none;object-position:center}
+html.boom-flight-detail .telaio[data-photo-error]::before{content:attr(data-photo-error);position:absolute;z-index:4;top:16px;left:16px;right:16px;background:#101013ed;border:1px solid #ffffff30;border-radius:8px;padding:10px 14px;font-size:12px;line-height:1.5;color:#eee}
+html.boom-flight-detail .rullino{gap:10px}
+html.boom-flight-detail .rullino button{width:88px;height:60px}
+html.boom-flight-detail .bfd-photo-caption{font-size:12px;margin-top:0}
+html.boom-flight-detail .bfd-photo-caption [role=status]{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+html.boom-flight-detail .bfd-photo-caption>span:last-child{color:#a5a5af;text-align:left}
+html.boom-flight-detail .pel-v{padding:12px 14px;align-items:center}
+html.boom-flight-detail .pel-v span{font-size:12px}
+html.boom-flight-detail .pel-v>span:last-child>b{display:none}
+html.boom-flight-detail .timbro-walk,html.boom-flight-detail .timbro-walk.giu{font-size:11px;white-space:nowrap;padding:6px 8px}
+html.boom-flight-detail .fatto b{font-size:21px}
+html.boom-flight-detail .fatto span{font-size:12px;letter-spacing:0;text-transform:none}
+html.boom-flight-detail .bfd-pass{padding:20px;border-radius:16px;top:calc(var(--flight-bar) + 16px)}
+html.boom-flight-detail .bfd-pass-code{font-size:10px;margin-bottom:12px}
+html.boom-flight-detail .bfd-pass-title{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+html.boom-flight-detail .bfd-pass .stato-grande{font-size:12px;letter-spacing:0;margin-top:0}
+html.boom-flight-detail .bfd-pass .canone-grande{min-height:0;margin-top:10px}
+html.boom-flight-detail .bfd-pass .canone-grande .flap-prezzo{font-size:34px}
+html.boom-flight-detail .bfd-pass .canone-grande small{font-size:12px;letter-spacing:0;text-transform:none;margin-top:7px}
+html.boom-flight-detail .bfd-perforation{margin:19px -20px 16px}
+html.boom-flight-detail .bfd-pass .chiavi-cima{gap:10px}
+html.boom-flight-detail .bfd-pass .chiavi-eti{font-size:12px;line-height:1.5;color:#aaaab5}
+html.boom-flight-detail .bfd-pass .flap-tot{font-size:24px;color:#f1ead1}
+html.boom-flight-detail .bfd-pass .chiavi-flap{margin-top:5px}
+html.boom-flight-detail .bfd-cost-breakdown{width:100%;min-width:0}
+html.boom-flight-detail .bfd-cost-breakdown>summary{display:flex;justify-content:space-between;align-items:center;gap:15px;min-height:38px;list-style:none;font-size:12px;line-height:1.5;color:#c3b876;cursor:pointer}
+html.boom-flight-detail .bfd-cost-breakdown>summary::-webkit-details-marker{display:none}
+html.boom-flight-detail .bfd-cost-breakdown[open]>summary span{transform:rotate(45deg)}
+html.boom-flight-detail .bfd-cost-breakdown>summary span{font-size:19px}
+html.boom-flight-detail .bfd-cost-breakdown>summary:focus-visible{outline:2px solid #FFD700;outline-offset:2px}
+html.boom-flight-detail .bfd-cost-breakdown .voci{padding:8px 0 12px;border-top:1px solid #ffffff16}
+html.boom-flight-detail .bfd-pass .voce>span,html.boom-flight-detail .bfd-pass .voce em{font-size:12px;line-height:1.55}
+html.boom-flight-detail .bfd-cost-breakdown .bfd-hold{display:block;padding:12px;border-radius:8px;font-size:12px;line-height:1.5;text-align:center;text-decoration:none;margin:5px 0}
+html.boom-flight-detail .bfd-cost-breakdown .bfd-hold[hidden]{display:none}
+html.boom-flight-detail .bfd-money-link{font-size:12px;padding:10px 0;line-height:1.5}
+html.boom-flight-detail .bfd-pass-actions{margin-top:12px}
+html.boom-flight-detail .bfd-pass-actions>a{min-height:48px;font-size:14px;border-radius:10px}
+html.boom-flight-detail .bfd-pass-note{font-size:12px;text-align:center;margin-top:9px;color:#b4b4bc}
+html.boom-flight-detail .bfd-person{display:inline-flex;gap:8px;border:0;margin:18px 0 0;padding:0;min-height:28px;font-size:12px;color:#dddde2}
+html.boom-flight-detail .bfd-person>span:last-child{font-size:14px}
+html.boom-flight-detail .bfd-viewing{display:block;min-height:28px;font-size:12px;margin:5px 0 0;color:#bfb4a0}
+html.boom-flight-detail .bfd-application-section[hidden]{display:none!important}
+html.boom-flight-detail .bfd-application-section .soldi{display:block;max-width:780px}
+html.boom-flight-detail .bfd-related .altre{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+html.boom-flight-detail .bfd-related .titolo{font-size:clamp(26px,3vw,36px)}
+html.boom-flight-detail #casa,html.boom-flight-detail #denaro,html.boom-flight-detail #chiedi{padding-top:42px;padding-bottom:42px}
+html.boom-flight-detail #casa .titolo,html.boom-flight-detail #denaro .titolo,html.boom-flight-detail #chiedi .titolo{font-size:clamp(27px,3vw,38px)}
+
+html.boom-flight-detail.bfd-app-open{overflow:hidden}
+html.boom-flight-detail.bfd-app-open .decisione{visibility:hidden;pointer-events:none}
+html.boom-flight-detail .bfd-application-sheet{position:fixed;inset:0 0 0 auto;margin:0 0 0 auto!important;width:min(620px,100vw);height:100dvh;max-width:100vw;max-height:100dvh;padding:0;border:0;border-left:1px solid #b3a65966;color:#f2f2f6;background:#0b0b0e;overflow-y:auto;overscroll-behavior:contain;box-shadow:-30px 0 100px #0008;color-scheme:dark}
+html.boom-flight-detail .bfd-application-sheet::backdrop{background:#0008;backdrop-filter:blur(5px)}
+html.boom-flight-detail .bfd-sheet-top{position:sticky;top:0;z-index:4;display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 26px;background:#0b0b0ef2;border-bottom:1px solid #ffffff12;backdrop-filter:blur(12px)}
+html.boom-flight-detail .bfd-sheet-top>span{font-size:10px;letter-spacing:.13em;color:#c8b76c}
+html.boom-flight-detail .bfd-sheet-top>button{font:inherit;font-size:12px;color:#dddde6;min-height:40px;padding:8px 12px;background:#ffffff08;border:1px solid #ffffff24;border-radius:8px;cursor:pointer}
+html.boom-flight-detail .bfd-sheet-context{display:flex;align-items:center;gap:16px;padding:22px 28px;border-bottom:1px dashed #c0b66d3b}
+html.boom-flight-detail .bfd-sheet-context>img{width:88px;height:66px;object-fit:cover;border-radius:8px;background:#17171b}
+html.boom-flight-detail .bfd-sheet-context b{display:block;font-weight:400;font-size:19px;line-height:1.3;color:#f2f2f5}
+html.boom-flight-detail .bfd-sheet-context span{display:block;font-size:13px;margin-top:7px;color:#d4c37a}
+html.boom-flight-detail .bfd-application-sheet #applica{padding:26px 28px 28px;border:0;border-radius:0;background:none;box-shadow:none;opacity:1;transform:none}
+html.boom-flight-detail .bfd-application-sheet #applica>.tacca,html.boom-flight-detail .bfd-application-sheet .bfd-application-code{display:none}
+html.boom-flight-detail .bfd-application-sheet #applica h3{font-size:24px;line-height:1.2}
+html.boom-flight-detail .bfd-application-sheet #applica>p{font-size:13px}
+html.boom-flight-detail .bfd-apply-steps{margin:22px 0 24px;gap:10px}
+html.boom-flight-detail .bfd-apply-steps button{font-size:12px;gap:7px}
+html.boom-flight-detail .bfd-apply-steps button:disabled{cursor:default}
+html.boom-flight-detail .bfd-apply-ready .ap-gruppo{min-height:245px}
+html.boom-flight-detail .bfd-apply-ready .ap-eti{font-size:13px;letter-spacing:0;margin-bottom:17px}
+html.boom-flight-detail #modApplica label,html.boom-flight-detail .ap-perche{font-size:13px}
+html.boom-flight-detail .bfd-apply-controls{position:sticky;bottom:-28px;z-index:3;padding:16px 0 20px;margin-top:20px;background:#0b0b0ef5;backdrop-filter:blur(12px);border-top:1px solid #ffffff18}
+html.boom-flight-detail .bfd-apply-controls>.btn{font-size:14px;min-height:50px;margin:0}
+html.boom-flight-detail .bfd-apply-controls>button{font-size:13px}
+html.boom-flight-detail .bfd-apply-ready .applica-nota,html.boom-flight-detail .bfd-apply-ready .applica-fede{font-size:12px;line-height:1.65}
+html.boom-flight-detail .bfd-apply-review>p{font-size:13px}
+html.boom-flight-detail .bfd-review-details{display:block;margin:22px 0}
+html.boom-flight-detail .bfd-review-details>section{padding:16px 0;border-top:1px solid #ffffff18}
+html.boom-flight-detail .bfd-review-details>section>div{display:flex;justify-content:space-between;align-items:center;gap:20px;margin-bottom:9px}
+html.boom-flight-detail .bfd-review-details b{font-size:14px;font-weight:400}
+html.boom-flight-detail .bfd-review-details button{font:inherit;font-size:12px;padding:8px 12px;min-height:36px;cursor:pointer;color:#d5c276;border:1px solid #ffffff23;border-radius:7px;background:transparent}
+html.boom-flight-detail .bfd-review-details dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 18px}
+html.boom-flight-detail .bfd-review-details dt{font-size:12px}
+html.boom-flight-detail .bfd-review-details dd{font-size:13px}
+html.boom-flight-detail .bfd-review-costs{padding:0 16px;background:none;border-color:#ffffff20}
+html.boom-flight-detail .bfd-review-costs>summary{display:flex;align-items:center;justify-content:space-between;gap:15px;list-style:none;min-height:52px;font-size:13px;cursor:pointer}
+html.boom-flight-detail .bfd-review-costs>summary::-webkit-details-marker{display:none}
+html.boom-flight-detail .bfd-review-costs>summary b{font-size:12px;font-weight:400;color:#cabb79}
+html.boom-flight-detail .bfd-review-costs p,html.boom-flight-detail .bfd-review-costs a,html.boom-flight-detail .bfd-review-costs dl>div{font-size:12px}
+html.boom-flight-detail .bfd-review-costs a{margin-bottom:10px}
+html.boom-flight-detail .bfd-sheet-top>button:focus-visible,html.boom-flight-detail .bfd-review-details button:focus-visible,html.boom-flight-detail .bfd-review-costs>summary:focus-visible{outline:2px solid #FFD700;outline-offset:3px}
+@media(max-width:1050px) and (min-width:761px){html.boom-flight-detail .bfd-dossier{grid-template-columns:minmax(0,1fr) 280px;gap:20px}html.boom-flight-detail .bfd-pass{padding:18px}}
+@media(max-width:760px){
+ html.boom-flight-detail .casa{padding-top:calc(var(--flight-bar) + 12px)}
+ html.boom-flight-detail .casa-briciole{margin-bottom:11px}
+ html.boom-flight-detail .bfd-heading{margin-bottom:15px}
+ html.boom-flight-detail .bfd-heading h1{font-size:30px}
+ html.boom-flight-detail .bfd-dossier{grid-template-columns:minmax(0,1fr);gap:16px}
+ html.boom-flight-detail .bfd-main,html.boom-flight-detail #bfd-home-panel:not([hidden]){display:contents}
+ html.boom-flight-detail .bfd-tabs{grid-row:1;margin:0}
+ html.boom-flight-detail .scena-casa,html.boom-flight-detail #posto{grid-row:2}
+ html.boom-flight-detail .telaio{height:clamp(245px,38svh,350px);min-height:0;aspect-ratio:auto}
+ html.boom-flight-detail .rullino button{width:76px;height:54px}
+ html.boom-flight-detail .bfd-photo-caption{display:none}
+ html.boom-flight-detail .bfd-pass{grid-row:3;display:grid;grid-template-columns:1fr 1fr;gap:5px 15px;padding:18px;position:static}
+ html.boom-flight-detail .bfd-pass-code{grid-column:1/-1;grid-row:1;margin-bottom:8px}
+ html.boom-flight-detail .bfd-pass .stato-grande{grid-column:1;grid-row:2;font-size:12px}
+ html.boom-flight-detail .bfd-pass .canone-grande{grid-column:1;grid-row:3;margin:0}
+ html.boom-flight-detail .bfd-pass .canone-grande .flap-prezzo{font-size:27px}
+ html.boom-flight-detail .bfd-pass .canone-grande small{margin-top:3px}
+ html.boom-flight-detail .bfd-pass .chiavi-cima{display:contents}
+ html.boom-flight-detail .bfd-pass .chiavi-numero{grid-column:2;grid-row:2/4;border-left:1px solid #ffffff18;padding-left:14px;align-self:center}
+ html.boom-flight-detail .bfd-pass .flap-tot{font-size:21px}
+ html.boom-flight-detail .bfd-cost-breakdown{grid-column:1/-1;grid-row:4;margin-top:7px}
+ html.boom-flight-detail .bfd-perforation{display:none}
+ html.boom-flight-detail .bfd-pass-actions{grid-column:1/-1;grid-row:5;margin-top:3px}
+ html.boom-flight-detail .bfd-pass-note{grid-column:1/-1;grid-row:6;margin:4px 0}
+ html.boom-flight-detail .bfd-person{grid-column:1;grid-row:7;margin:7px 0 0}
+ html.boom-flight-detail .bfd-viewing{grid-column:2;grid-row:7;align-self:center;margin:7px 0 0;font-size:12px;text-align:right}
+ html.boom-flight-detail .fatti{grid-row:4;margin:0;grid-template-columns:repeat(3,minmax(0,1fr))}
+ html.boom-flight-detail .pellicola{grid-row:5;margin:0}
+ html.boom-flight-detail .pel-v{align-items:flex-start;flex-direction:column;gap:6px}
+ html.boom-flight-detail .bfd-related .altre{grid-template-columns:1fr}
+ html.boom-flight-detail .bfd-application-sheet{width:100vw;border-left:0}
+ html.boom-flight-detail .bfd-sheet-top{padding:10px 18px}
+ html.boom-flight-detail .bfd-sheet-context{padding:17px 18px;gap:13px}
+ html.boom-flight-detail .bfd-sheet-context>img{width:76px;height:60px}
+ html.boom-flight-detail .bfd-sheet-context b{font-size:17px}
+ html.boom-flight-detail .bfd-application-sheet #applica{padding:22px 18px}
+ html.boom-flight-detail .bfd-apply-steps{gap:6px}
+ html.boom-flight-detail .bfd-apply-steps button{font-size:12px;gap:5px;flex-direction:column;align-items:flex-start}
+ html.boom-flight-detail .bfd-apply-controls{bottom:-22px}
+}
+@media(prefers-reduced-motion:no-preference){html.boom-flight-detail .bfd-application-sheet[open]{animation:bfd-sheet-in .24s cubic-bezier(.16,1,.3,1)}@keyframes bfd-sheet-in{from{opacity:.7;transform:translateX(18px)}to{opacity:1;transform:none}}}
+@media print{html.boom-flight-detail .bfd-application-sheet{display:none!important}}

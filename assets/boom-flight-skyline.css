@@ -165,3 +165,22 @@ html.sky-map-fallback:not(.sky-map-styled) #map .maplibregl-canvas{opacity:1;fil
 
 /* The embedding page owns its initial loader; failures remain actionable. */
 html.emb .load:not(.failed){display:none}
+
+/* A Home city preview has one view choice and one clear route into the full
+   workspace. Pins still open their real home, with the original save action. */
+.sky-preview-expand{display:none}
+html.sky-preview #filters,html.sky-preview .quad,html.sky-preview .count,html.sky-preview .sky-share-context,html.sky-preview .maplibregl-ctrl-group{display:none!important}
+html.sky-preview .sky-flight-tools{inset:14px 14px auto auto;max-width:none;gap:7px;flex-wrap:nowrap;justify-content:flex-end}
+html.sky-preview .sky-flight-tools>button{display:none!important}
+html.sky-preview .sky-preview-expand{display:inline-flex;align-items:center;justify-content:center;pointer-events:auto;min-height:42px;padding:9px 13px;border:1px solid #ffffff26;border-radius:10px;background:#11141be8;color:#f2e7b2;font-size:11px;white-space:nowrap;text-decoration:none}
+html.sky-preview .sky-view-toggle button{min-width:38px;min-height:36px;font-size:11px}
+html.sky-preview .sky-flight-home{left:12px;right:12px;bottom:23px;width:auto;max-width:440px;margin-left:auto;gap:12px;padding:10px}
+html.sky-preview .sky-flight-home>.sky-home-media{width:78px;height:100px}
+html.sky-preview .sky-home-copy h2{font-size:21px}
+html.sky-preview .sky-flight-home[hidden]{display:none}
+html.sky-preview .sky-home-bottom a{min-height:38px}
+html.sky-preview .maplibregl-ctrl-attrib{font-size:8px!important}
+html .load.usable:not(.off){top:auto;bottom:14px;transform:translateX(-50%);max-width:330px;padding:9px 13px;gap:5px}
+html .load.usable .dot,html .load.usable:not(.partial):not(.failed) .sky-load-list{display:none}
+html.emb .load.partial{display:flex}
+@media(pointer:coarse){html.sky-preview .sky-preview-expand,html.sky-preview .sky-view-toggle button{min-height:44px}}

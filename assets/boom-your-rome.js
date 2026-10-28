@@ -13,6 +13,7 @@
   }
   if(['rent','space','commute'].indexOf(q.get('priority'))>=0)priority.value=q.get('priority');
   arrival.value=state.moveIn||'';departure.value=state.moveOut||'';
+  if(state.moveIn||state.moveOut)document.getElementById('yrDates').open=true;
   function intent(){return {moveIn:arrival.value,moveOut:departure.value,durationMonths:!arrival.value&&!departure.value?state.durationMonths:null};}
   function path(){return S.withIntent(G.share({budget:Number(budget.value),place:place.value,priority:priority.value},M.DESTINATIONS,[]),intent());}
   function update(){
@@ -27,7 +28,7 @@
   form.addEventListener('change',update);
   form.addEventListener('submit',function(e){
     var error=S.validate(intent());
-    if(error){e.preventDefault();var field=error.field==='moveIn'?arrival:departure;field.setCustomValidity(error.message);field.reportValidity();document.getElementById('yrPlanStatus').textContent=error.message;return;}
+    if(error){e.preventDefault();document.getElementById('yrDates').open=true;var field=error.field==='moveIn'?arrival:departure;field.setCustomValidity(error.message);field.reportValidity();document.getElementById('yrPlanStatus').textContent=error.message;return;}
     e.preventDefault();location.assign(path());
   });
   update();

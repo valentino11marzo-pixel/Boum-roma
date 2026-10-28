@@ -1,56 +1,53 @@
-/* BOOM Flight / Home. Presentation only: the catalogue, forms, Solari
-   and the real Skyline retain their existing engines and DOM contracts. */
-.flight-home-hero { padding:112px 0 0; }
-.flight-home-hero .hero-int { grid-template-columns:minmax(0,.88fr) minmax(0,1.12fr); gap:16px; align-items:center; }
-.flight-home-hero .hero-velo { opacity:1; }
-.flight-home-copy { position:relative; z-index:3; padding:18px 0 28px; min-width:0; }
-/* The city is readable on first paint; movement belongs to the real flaps. */
-html.vivo .flight-home-copy.coro.dentro-subito .hero-title { opacity:1;transform:none;animation:none; }
-.flight-home-copy .hero-eyebrow { padding:0; border-radius:0; box-shadow:none; color:#b6b7bf; font-size:10px; letter-spacing:.19em; line-height:1.5; }
-.flight-home-copy .hero-eyebrow b { background:#FFD700; box-shadow:0 0 12px #ffd70033; }
-.flight-home-copy .hero-title { font-size:clamp(42px,4.05vw,58px); font-weight:200; line-height:1.05; letter-spacing:-.045em; margin-top:24px; text-wrap:initial; }
-.flight-home-copy .flight-home-word { display:block; font-size:clamp(68px,6.65vw,94px); line-height:1.27; min-width:3.64em; min-height:1.27em; letter-spacing:0; margin:8px 0 13px; color:#FFE55C; width:max-content; max-width:100%; }
-/* The background pulse belongs to cartaRoma(), the original Solari
-   canvas. Leave its cells, wave timing and visibility budget intact. */
-.flight-home-copy .flight-home-word { position:relative; isolation:isolate; display:flex; align-items:center; }
-.flight-home-word .fc2 { flex:none; }
-.flight-home-copy .flight-home-title-end { display:block; font-size:.9em; letter-spacing:-.045em; }
-.flight-home-copy .hero-sub { max-width:34ch; margin-top:23px; font-size:15px; line-height:1.75; color:#b6b7c0; }
-.flight-home-actions { display:flex; align-items:center; flex-wrap:wrap; gap:22px; margin-top:25px; }
-.flight-home-actions .btn { padding:14px 22px; min-height:46px; font-size:12px; letter-spacing:.01em; text-transform:none; gap:20px; }
-.flight-home-actions .btn span { font-size:19px; font-weight:300; }
-.flight-home-agency { display:inline-flex; align-items:center; gap:12px; min-height:44px; font-size:12px; color:#c2c3ca; }
-.flight-home-agency:hover { color:#FFD700; }
-.flight-home-skyline { position:relative; min-width:0; padding:0; }
-.flight-home-skyline .cielo { height:470px; margin:0; border:1px solid #ffffff14; border-radius:24px; clip-path:inset(0 round 24px); -webkit-clip-path:inset(0 round 24px); background:#0a0b0d; box-shadow:0 30px 100px -50px #000; }
-.flight-home-skyline-heading { position:relative; z-index:5; margin-bottom:10px; display:flex; align-items:center; justify-content:space-between; gap:14px; pointer-events:none; }
-.flight-home-skyline-heading>div { padding:6px 10px; background:#0a0b0dec; border:1px solid #ffffff14; border-radius:12px; }
-.flight-home-skyline-heading span { display:block; font-size:13px; font-weight:400; letter-spacing:.27em; color:#f3f3f5; }
-.flight-home-skyline-heading small { display:block; margin-top:3px; color:#9da0aa; font-size:8px; letter-spacing:.14em; }
-.flight-home-expand { pointer-events:auto; min-height:38px; display:inline-flex; align-items:center; gap:10px; padding:10px 13px; border:1px solid #ffffff24; border-radius:100px; font-size:10px; background:#0b0d10ed; color:#c5c6cf; }
-.flight-home-expand span { font-size:16px; letter-spacing:0; }
-.flight-home-expand:hover { color:#FFD700; border-color:#ffd70055; }
-.flight-home-map-note { display:none; position:absolute; bottom:17px; left:20px; right:20px; z-index:4; margin:0; width:max-content; max-width:calc(100% - 40px); padding:7px 10px; font-size:10px; color:#c2c5cf; line-height:1.4; background:#0a0b0de8; border:1px solid #ffffff12; border-radius:8px; pointer-events:none; }
-.flight-home-skyline .cielo-velo { background:#0a0b0d; }
-.flight-home-command { margin-top:23px; position:relative; z-index:3; }
-.flight-home-command .atterro { width:100%; margin:0; padding:10px; display:grid; grid-template-columns:1.2fr 1fr 1fr auto; gap:0; border:1px solid #ffffff21; background:linear-gradient(155deg,#1b1c20,#0d0e10 75%); border-radius:21px; box-shadow:inset 0 1px 0 #ffffff0c,0 20px 60px -35px #000; }
-.flight-home-command .atterro-divisa { display:none; }
-.flight-home-command .atterro-campo { padding:5px 19px; border-right:1px solid #ffffff13; min-width:0; }
-.flight-home-command .atterro-campo>span { color:#8f929f; font-size:10px; letter-spacing:.12em; line-height:1.5; }
-.flight-home-command .atterro-campo select { width:100%; max-width:100%; padding:5px 0; font-size:13px; color:#e6e6ec; min-height:32px; }
-.flight-home-command .atterro-data { min-height:32px; font-size:13px; color:#e6e6ec; }
-.flight-home-command .atterro .btn { margin-left:10px; min-width:180px; height:56px; border-radius:13px; font-size:12px; padding:12px 20px; letter-spacing:.03em; text-transform:none; }
-.flight-home-command .giorno-uno { margin-top:12px; }
-.flight-home-proof { display:flex; align-items:center; justify-content:space-between; gap:24px; padding:17px 1px 21px; border-bottom:1px solid #ffffff15; }
-.flight-home-proof .hero-fede { margin:0; border:0; box-shadow:none; padding:0; border-radius:0; }
-.flight-home-proof .hero-fede span { font-size:10.5px; color:#92959f; line-height:1.6; }
-.flight-home-proof .hero-fede span b { color:#c2c3c9; font-weight:400; }
-.flight-home-proof .hero-fede .hf-stripe { width:35px; }
-.flight-home-steps { display:flex; align-items:center; gap:16px; margin:0; padding:0; list-style:none; flex:none; }
-.flight-home-steps li { color:#8c8f99; font-size:10px; white-space:nowrap; }
-.flight-home-steps li:not(:first-child):before { content:''; width:16px; height:1px; background:#34363b; display:inline-block; vertical-align:middle; margin-right:12px; }
-.flight-home-steps li:first-child { color:#e3e3e8; }
-.flight-home-steps span { color:#c5b65c; font-size:9px; margin-right:6px; }
+/* BOOM Flight — one decision at a time, with the original Solari pulse,
+   real catalogue and one Skyline. DOM order is also the mobile order. */
+.flight-home-hero{padding:110px 0 0}
+.flight-home-hero .hero-velo{opacity:1}
+.flight-home-hero .hero-int{display:grid;grid-template-columns:minmax(0,.86fr) minmax(0,1.14fr);grid-template-areas:"copy skyline" "command skyline" "proof proof";gap:24px 44px;align-items:start;min-height:0}
+.flight-home-copy{grid-area:copy;position:relative;z-index:3;min-width:0;padding:8px 0 0}
+html.vivo .flight-home-copy.coro.dentro-subito .hero-title{opacity:1;transform:none;animation:none}
+.flight-home-copy .hero-eyebrow{padding:0;border:0;border-radius:0;background:none;box-shadow:none;color:#b6b7bf;font-size:11px;letter-spacing:.16em;line-height:1.5}
+.flight-home-copy .hero-eyebrow b{background:#ffd700;box-shadow:0 0 12px #ffd70055}
+.flight-home-copy .hero-title{font-size:clamp(32px,3.1vw,43px);font-weight:200;line-height:1.05;letter-spacing:-.045em;margin-top:20px;text-wrap:initial}
+.flight-home-copy .flight-home-word{position:relative;isolation:isolate;display:flex;align-items:center;font-size:clamp(70px,7vw,94px);line-height:1.27;min-width:3.64em;min-height:1.27em;letter-spacing:0;margin:0 0 5px;color:#ffe55c;width:max-content;max-width:100%}
+.flight-home-word .fc2{flex:none}
+.flight-home-copy .flight-home-title-end{display:block;font-size:.87em;letter-spacing:-.04em}
+.flight-home-copy .hero-sub{max-width:38ch;margin-top:17px;font-size:14px;line-height:1.65;color:#b6b7c0}
+.flight-home-command{grid-area:command;position:relative;z-index:3;min-width:0;margin:0}
+.flight-home-command .atterro{width:100%;margin:0;padding:16px;display:grid;grid-template-columns:1fr 1fr;gap:13px 0;border:1px solid #ffffff24;background:linear-gradient(145deg,#1a1b1fe8,#0d0e10f5 80%);border-radius:20px;box-shadow:inset 0 1px 0 #ffffff0c,0 20px 60px -35px #000;align-items:start}
+.flight-home-command .atterro:focus-within{border-color:#ffd70055}
+.flight-home-command .atterro-divisa{display:none}
+.flight-home-command .atterro-campo{padding:0 12px;min-width:0;border:0;border-right:1px solid #ffffff18}
+.flight-home-command .atterro-campo:nth-last-of-type(1){border-right:0}
+.flight-home-command .atterro-campo>span{font-size:11px;letter-spacing:.08em;color:#aeb0ba;line-height:1.5}
+.flight-home-command .atterro .ac-stay{grid-column:1/-1;border:0;border-bottom:1px solid #ffffff14;padding:0 0 10px}
+.flight-home-command .ac-stay>span{display:none}
+.flight-home-command .atterro-campo select{width:100%;max-width:100%;padding:5px 0;font-size:14px;min-height:34px;color:#eeeeef}
+.flight-home-command .atterro .btn{grid-column:1/-1;width:100%;min-height:48px;height:auto;margin:0;border-radius:12px;font-size:14px;letter-spacing:0;text-transform:none;padding:13px 20px}
+.flight-home-command .giorno-uno{margin-top:10px}
+.flight-home-command .flight-stay-note{font-size:12px}
+.flight-home-skyline{grid-area:skyline;position:relative;min-width:0;align-self:stretch;display:flex;flex-direction:column;padding:0}
+.flight-home-skyline-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:0 0 13px}
+.flight-home-skyline-heading>div>span{display:block;color:#f4f4f6;font-size:15px;font-weight:400;letter-spacing:.2em}
+.flight-home-skyline-heading small{display:block;margin-top:5px;font-size:10px;letter-spacing:.1em;color:#9c9fa9}
+.flight-home-expand{display:inline-flex;align-items:center;gap:12px;min-height:44px;font-size:12px;color:#d8d9df}
+.flight-home-expand>span{font-size:23px;color:#ffd700}
+.flight-home-expand:hover{color:#ffd700}
+.flight-home-skyline .cielo{flex:1;height:auto;min-height:470px;margin:0;border:1px solid #ffffff20;border-radius:24px;clip-path:inset(0 round 24px);-webkit-clip-path:inset(0 round 24px);background:#0a0b0d;box-shadow:0 30px 100px -50px #000}
+.flight-home-skyline .cielo-velo{background:#0a0b0d}
+.flight-home-map-invite{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-top:13px;padding:13px 2px 0;color:#e0e2e7;font-size:13px;line-height:1.5}
+.flight-home-map-invite small{display:block;color:#999fab;font-size:10px;letter-spacing:.12em;margin-bottom:3px}
+.flight-home-map-invite b{display:flex;align-items:center;gap:12px;font-weight:400;color:#ffe578;font-size:12px;white-space:nowrap}
+.flight-home-map-invite i{font-style:normal;font-size:22px}
+.flight-home-map-invite:hover b{color:#fff2af}
+.flight-home-map-invite:focus-visible{outline:2px solid #ffd700;outline-offset:4px}
+.flight-home-proof{grid-area:proof;display:flex;align-items:center;justify-content:space-between;gap:24px;padding:0 0 22px;border-bottom:1px solid #ffffff18}
+.flight-home-proof .hero-fede{margin:0;padding:0;border:0;border-radius:0;box-shadow:none}
+.flight-home-proof .hero-fede span{font-size:12px;line-height:1.6;color:#9b9eaa}
+.flight-home-proof .hero-fede span b{font-weight:400;color:#dbdce1}
+.flight-home-proof .hf-stripe{width:36px}
+.flight-home-agency{display:inline-flex;align-items:center;gap:12px;min-height:44px;flex:none;font-size:12px;color:#d8d9df}
+.flight-home-agency>span{color:#ffd700;font-size:20px}
+.flight-home-agency:hover{color:#ffd700}
 .flight-home-arrivals { padding:37px 0 40px; }
 .flight-home-arrivals-grid { display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr); gap:44px; align-items:start; }
 .flight-home-section-head { display:flex; align-items:end; justify-content:space-between; gap:18px; margin-bottom:20px; }
@@ -106,27 +103,27 @@ html.vivo .flight-home-discovery .coro .home-foto img { clip-path:none; transfor
 .flight-home-discovery .home-cuore:focus-visible { outline:2px solid #FFD700; outline-offset:3px; }
 
 /* Four readable departures, followed by the original working scenes. */
-.flight-home-discovery .apparecchio { border-radius:23px; box-shadow:inset 0 0 0 1px #ffd7002b,0 35px 80px -55px #000; }
-.flight-home-discovery .apparecchio>.tacca { display:none; }
-.flight-home-discovery .app-tabs { background:linear-gradient(160deg,#171719,#0c0d0f); }
-.flight-home-discovery .app-tab { display:flex; align-items:center; gap:15px; padding:24px 23px; min-height:87px; border-right:1px solid #ffffff0e; }
-.flight-home-discovery .app-tab:last-child { border-right:0; }
-.flight-home-discovery .app-tab b { font-size:29px; line-height:1; letter-spacing:-.035em; color:#747782; font-weight:200; }
-.flight-home-discovery .app-tab span { margin:0; font-size:13px; line-height:1.45; white-space:normal; overflow:visible; text-overflow:clip; letter-spacing:0; }
-.flight-home-discovery .app-tab.on { background:radial-gradient(ellipse at 50% 100%,#ffd70012,transparent 85%); }
-.flight-home-discovery .app-tab.on b { color:#FFD700; }
-.flight-home-discovery .app-tab i { height:2px; bottom:0; box-shadow:0 0 12px #ffd70055; }
-.flight-home-discovery .app-tab:focus-visible { outline:2px solid #FFD700; outline-offset:-4px; }
-.flight-home-discovery .app-vetro { padding:13px 20px; background:#0a0b0d; }
-.flight-home-discovery .app-vetro span { font-size:9px; color:#a0a3ad; letter-spacing:.14em; }
-.flight-home-discovery .app-scena { min-height:330px; background:radial-gradient(ellipse at 50% 100%,#ffd70008,transparent 65%),#08090b; }
-.flight-home-discovery .scena-p { padding:28px; }
-.flight-home-discovery .s1-fila { inset:18px 0 18px 18px; gap:18px; }
-.flight-home-discovery .s1-casa { border-radius:15px; }
-.flight-home-discovery .s1-casa img { filter:brightness(.96); }
-.flight-home-discovery .s1-casa figcaption { font-size:12px; padding:34px 18px 16px; }
-.flight-home-discovery .sc-modulo { max-width:350px; }
-.flight-home-discovery .sc-carta { max-width:350px; }
+.flight-home-journey .apparecchio { border-radius:23px; box-shadow:inset 0 0 0 1px #ffd7002b,0 35px 80px -55px #000; }
+.flight-home-journey .apparecchio>.tacca { display:none; }
+.flight-home-journey .app-tabs { background:linear-gradient(160deg,#171719,#0c0d0f); }
+.flight-home-journey .app-tab { display:flex; align-items:center; gap:15px; padding:24px 23px; min-height:87px; border-right:1px solid #ffffff0e; }
+.flight-home-journey .app-tab:last-child { border-right:0; }
+.flight-home-journey .app-tab b { font-size:29px; line-height:1; letter-spacing:-.035em; color:#747782; font-weight:200; }
+.flight-home-journey .app-tab span { margin:0; font-size:13px; line-height:1.45; white-space:normal; overflow:visible; text-overflow:clip; letter-spacing:0; }
+.flight-home-journey .app-tab.on { background:radial-gradient(ellipse at 50% 100%,#ffd70012,transparent 85%); }
+.flight-home-journey .app-tab.on b { color:#FFD700; }
+.flight-home-journey .app-tab i { height:2px; bottom:0; box-shadow:0 0 12px #ffd70055; }
+.flight-home-journey .app-tab:focus-visible { outline:2px solid #FFD700; outline-offset:-4px; }
+.flight-home-journey .app-vetro { padding:13px 20px; background:#0a0b0d; }
+.flight-home-journey .app-vetro span { font-size:9px; color:#a0a3ad; letter-spacing:.14em; }
+.flight-home-journey .app-scena { min-height:330px; background:radial-gradient(ellipse at 50% 100%,#ffd70008,transparent 65%),#08090b; }
+.flight-home-journey .scena-p { padding:28px; }
+.flight-home-journey .s1-fila { inset:18px 0 18px 18px; gap:18px; }
+.flight-home-journey .s1-casa { border-radius:15px; }
+.flight-home-journey .s1-casa img { filter:brightness(.96); }
+.flight-home-journey .s1-casa figcaption { font-size:12px; padding:34px 18px 16px; }
+.flight-home-journey .sc-modulo { max-width:350px; }
+.flight-home-journey .sc-carta { max-width:350px; }
 
 /* Keep the boarding passes as objects: foil, route, perforation, stub.
    Larger names and useful type take priority over decorative microcopy. */
@@ -161,141 +158,6 @@ html.vivo .flight-home-discovery .coro .home-foto img { clip-path:none; transfor
 .flight-home-services .bp .banda::after,
 .flight-home-services .bp .tratta .punto,
 .flight-home-services .bp .tratta::after { animation-play-state:var(--flight-ticket-motion,running); }
-@media(hover:hover) and (pointer:fine) {
-  html.vivo .flight-home-discovery .casa-p:hover .home-foto img { transform:scale(1.045); }
-  .flight-home-discovery .casa-p:hover { transform:translateY(-5px); box-shadow:inset 0 0 0 1px #ffd70040,0 28px 55px -34px #000; }
-}
-@media(max-width:1100px) {
-  .flight-home-hero .hero-int { grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr); }
-  .flight-home-copy .hero-title { font-size:45px; }
-  .flight-home-copy .flight-home-word { font-size:73px; }
-  .flight-home-skyline .cielo { height:470px; }
-  .flight-home-actions { gap:13px; }
-  .flight-home-actions .btn { padding-inline:17px; }
-  .flight-home-agency { font-size:11px; }
-  .flight-home-steps { display:none; }
-  .flight-home-command .atterro .btn { min-width:150px; }
-  .flight-home-arrivals-grid { gap:28px; }
-  .flight-home-arrivals .tab-zona { font-size:11px; }
-  .flight-home-discovery .settimana { gap:14px; }
-  .flight-home-discovery .casa-p .corpo { padding:17px; }
-  .flight-home-discovery .app-tab { padding:21px 16px; gap:11px; }
-  .flight-home-discovery .app-tab b { font-size:25px; }
-  .flight-home-discovery .app-tab span { font-size:12px; }
-}
-@media(max-width:760px) {
-  .flight-home-hero { padding-top:96px; }
-  .flight-home-hero .hero-velo { height:490px; bottom:auto; }
-  .flight-home-hero .hero-int { display:block; min-height:0; }
-  .flight-home-copy { padding:13px 3px 0; position:relative; pointer-events:none; }
-  .flight-home-copy a { pointer-events:auto; }
-  .flight-home-copy .hero-eyebrow { font-size:9px; letter-spacing:.15em; }
-  .flight-home-copy .hero-title { font-size:41px; margin-top:18px; letter-spacing:-.035em; }
-  .flight-home-copy .flight-home-word { font-size:65px; margin:0 0 5px; }
-  .flight-home-copy .flight-home-title-end { font-size:37px; }
-  .flight-home-copy .hero-sub { font-size:12px; margin-top:16px; max-width:29ch; }
-  .flight-home-actions { margin-top:18px; gap:17px; }
-  .flight-home-actions .btn { min-height:42px; padding:11px 17px; font-size:11px; }
-  .flight-home-agency { min-height:42px; font-size:11px; }
-  .flight-home-skyline { position:relative; inset:auto; margin-top:24px; }
-  .flight-home-skyline .cielo { height:360px; min-height:360px; border-radius:19px; clip-path:inset(0 round 19px); -webkit-clip-path:inset(0 round 19px); }
-  .flight-home-skyline:before { display:none; }
-  .flight-home-skyline-heading { position:relative; top:auto; left:auto; right:auto; margin-bottom:10px; }
-  .flight-home-skyline-heading>div { padding:6px 9px; }
-  .flight-home-skyline-heading span { font-size:10px; letter-spacing:.2em; }
-  .flight-home-skyline-heading small { display:none; }
-  .flight-home-expand { min-height:34px; font-size:9px; padding:7px 10px; }
-  .flight-home-expand span { font-size:14px; }
-  .flight-home-map-note { left:14px; bottom:14px; font-size:9px; max-width:calc(100% - 28px); }
-  .flight-home-command { margin-top:16px; }
-  .flight-home-command .atterro { grid-template-columns:1.15fr 1fr 1fr; gap:7px 0; padding:9px; border-radius:18px; }
-  .flight-home-command .atterro-campo { padding:3px 9px; }
-  .flight-home-command .atterro-campo:nth-last-of-type(1) { border-right:0; }
-  .flight-home-command .atterro-campo>span { font-size:8px; letter-spacing:.04em; }
-  .flight-home-command .atterro-campo select { font-size:12px; min-height:31px; }
-  .flight-home-command .atterro-data { gap:5px; font-size:12px; min-height:31px; }
-  .flight-home-command .atterro-data svg { width:12px; }
-  .flight-home-command .atterro .btn { grid-column:1/-1; width:100%; height:43px; min-height:43px; margin:0; border-radius:10px; font-size:12px; }
-  .flight-home-proof { padding:14px 0 16px; }
-  .flight-home-proof .hero-fede { align-items:flex-start; gap:10px; }
-  .flight-home-proof .hero-fede span { font-size:10px; }
-  .flight-home-proof .hero-fede .hf-stripe { margin-top:4px; width:31px; }
-  .flight-home-arrivals { padding-top:26px; }
-  .flight-home-arrivals-grid { grid-template-columns:1fr; gap:30px; }
-  .flight-home-section-head .titolo { font-size:29px; }
-  .flight-home-section-head .eyebrow { font-size:9px; }
-  .flight-home-section-head .btn-vai { font-size:10px; }
-  .flight-home-arrivals .board { min-height:335px; }
-  .flight-home-arrivals .tab-zona { font-size:13px; }
-  .flight-home-arrivals .tab-stato { font-size:10px; }
-  .flight-home-ecosystem .titolo { font-size:31px; }
-  .flight-home-discovery { padding-block:10px 42px; }
-  .flight-home-discovery .doppia { gap:30px; }
-  .flight-home-discovery .settimana-testa { gap:12px; }
-  .flight-home-discovery .settimana-testa .titolo { font-size:35px; }
-  .flight-home-discovery .settimana-testa .btn-vai { font-size:10px; }
-  .flight-home-discovery .settimana { grid-template-columns:minmax(0,1fr); margin-top:21px; gap:22px; }
-  .flight-home-discovery .casa-p .home-foto { aspect-ratio:4/3; }
-  .flight-home-discovery .casa-p .corpo { padding:19px 20px 20px; }
-  .flight-home-discovery .casa-p .nome { font-size:23px; }
-  .flight-home-discovery .casa-p .riga1 { gap:10px; }
-  .flight-home-discovery .casa-p .riga2 { margin-top:13px; }
-  .flight-home-discovery .apparecchio { border-radius:19px; }
-  .flight-home-discovery .app-tabs { grid-template-columns:repeat(2,minmax(0,1fr)); }
-  .flight-home-discovery .app-tab { min-height:83px; padding:18px 14px; gap:10px; }
-  .flight-home-discovery .app-tab:nth-child(2n) { border-right:0; }
-  .flight-home-discovery .app-tab:nth-child(-n+2) { border-bottom:1px solid #ffffff0e; }
-  .flight-home-discovery .app-tab b { font-size:26px; }
-  .flight-home-discovery .app-tab span { font-size:11.5px; }
-  .flight-home-discovery .app-vetro { padding:11px 14px; }
-  .flight-home-discovery .app-vetro span { font-size:8px; letter-spacing:.1em; }
-  .flight-home-discovery .app-scena { min-height:330px; }
-  .flight-home-discovery .scena-p { padding:22px 18px; }
-  .flight-home-discovery .s1-fila { inset:14px 0 14px 14px; gap:13px; }
-  .flight-home-services { padding-block:12px 40px; }
-  .flight-home-services>.container>.sale .titolo { font-size:35px; }
-  .flight-home-services>.container>.sale .sotto { font-size:13px; }
-  .flight-home-services .biglietteria { gap:22px; }
-  .flight-home-services .bp .corpo,
-  .flight-home-services .bp.eroe .corpo { padding:22px 19px 24px; }
-  .flight-home-services .bp .stub { padding:22px; }
-  .flight-home-services .bp.eroe .rotta { font-size:29px; margin-block:17px 20px; }
-  .flight-home-services .bp.eroe .pn { font-size:27px; }
-  .flight-home-services .bp.eroe .promessa { font-size:13px; }
-  .flight-home-services .bp .dettagli { gap:14px 18px; }
-  .flight-home-services .bp .quota { font-size:37px; }
-  .flight-home-services .bp.eroe .quota { font-size:42px; }
-}
-@media(max-width:360px) {
-  .flight-home-copy .hero-title { font-size:37px; }
-  .flight-home-copy .flight-home-title-end { font-size:33px; }
-  .flight-home-copy .flight-home-word { font-size:60px; }
-  .flight-home-actions { gap:12px; }
-  .flight-home-agency { font-size:10px; }
-  .flight-home-command .atterro-campo { padding-inline:5px; }
-  .flight-home-command .atterro-data svg { display:none; }
-  .flight-home-arrivals .tab-zona { font-size:11.5px; }
-  .flight-home-arrivals .tab-stato { font-size:8.5px; }
-  .flight-home-arrivals .board-piede { font-size:9px; padding-inline:12px; }
-  .flight-home-discovery .settimana-testa .titolo { font-size:31px; }
-  .flight-home-discovery .app-tab { padding-inline:12px; gap:8px; }
-  .flight-home-discovery .app-tab span { font-size:10.5px; }
-}
-@media(prefers-reduced-motion:reduce) {
-  .flight-home-copy *, .flight-home-door>span:last-child { animation:none!important; transition:none!important; }
-  .flight-home-copy { opacity:1; }
-  .flight-home-discovery .casa-p,
-  .flight-home-discovery .home-foto img,
-  .flight-home-discovery .home-cuore { transition:none!important; transform:none!important; }
-}
-/* Editorial pass: each section earns a separate job in the journey. */
-.flight-home-command .atterro { grid-template-columns:minmax(290px,1.8fr) minmax(130px,.85fr) minmax(130px,.85fr) auto; align-items:center; }
-.flight-home-command .atterro .ac-stay { padding-block:8px; }
-@media(max-width:760px) {
- .flight-home-command .atterro { grid-template-columns:1fr 1fr; gap:10px 0; }
- .flight-home-command .atterro .ac-stay { grid-column:1/-1; border-right:0; border-bottom:1px solid #ffffff14; padding-bottom:12px; }
- .flight-home-command .atterro .ac-stay>span { font-size:10px; display:block; margin-bottom:8px; }
-}
 .flight-home-your-rome { padding:28px 30px; border:1px solid #ffd70024; border-radius:22px; background:radial-gradient(ellipse at 95% 0,#ffd7000b,transparent 65%),linear-gradient(145deg,#151619,#0a0b0d); }
 .flight-home-your-rome .titolo { font-size:clamp(32px,3.3vw,45px); line-height:1.1; margin:17px 0; }
 .flight-home-your-rome>p { max-width:47ch; font-size:14px; line-height:1.7; }
@@ -452,3 +314,76 @@ html.vivo .flight-home-discovery .coro .home-foto img { clip-path:none; transfor
  .flight-home-founder .chi-num b { font-size:21px; }
  .flight-home-organisations .pronto { padding:26px; }
 }
+
+/* Photographs have a quiet frame; the rail uses native scrolling on phones. */
+.flight-home-discovery{padding:48px 0 36px}
+.flight-home-discovery .settimana{gap:24px}
+.flight-home-discovery .casa-p{border-radius:18px}
+.flight-home-discovery .casa-p .corpo{padding:18px 20px 22px}
+.flight-home-discovery .casa-chip{font-size:10px;letter-spacing:.07em}
+.flight-rail-controls{display:none}
+.flight-home-arrivals{padding:28px 0 48px}
+.flight-home-arrivals-grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:48px;align-items:center}
+.flight-home-arrivals .board{min-height:0}
+.flight-home-arrivals .board-live,.flight-home-arrivals .board-piede,.flight-home-arrivals .tab-stato{font-size:11px}
+.flight-home-arrivals .board-testa b,.flight-home-arrivals .tab-colonne{font-size:10px}
+.flight-home-arrivals .tab-prezzo{font-size:12px}
+.flight-home-section-head .eyebrow,.flight-home-ecosystem .eyebrow{font-size:11px}
+.flight-home-section-head .btn-vai{font-size:12px}
+.flight-home-your-rome .flight-balance-foot{font-size:12px;line-height:1.6}
+.flight-home-journey{padding:36px 0 64px}
+.flight-home-journey .flight-home-section-head .titolo{font-size:clamp(32px,3.6vw,48px)}
+.flight-home-journey .apparecchio{border:1px solid #ffffff20;border-radius:22px;box-shadow:none;background:#0b0c0e;overflow:hidden}
+.flight-home-journey .app-tab{min-height:76px;padding:18px 22px}
+.flight-home-journey .app-tab i{display:none}
+.flight-home-journey [data-playing=true] .app-tab.on i{display:block}
+.flight-home-journey .app-vetro{padding:11px 22px;gap:5px}
+.flight-home-journey .app-vetro>span{font-size:10px;letter-spacing:.06em}
+.flight-home-journey [data-journey-play]{margin-left:auto;min-height:38px;padding:6px 12px;border:1px solid #ffffff24;border-radius:20px;background:#17181b;color:#d6d8e0;font:inherit;font-size:12px;cursor:pointer;white-space:nowrap}
+.flight-home-journey [data-journey-play]>span{margin-left:7px;color:#ffd700}
+.flight-home-journey .app-scena{min-height:350px;perspective:1100px;background:radial-gradient(ellipse at 20% 100%,#ffd7000a,transparent 70%),#090a0c}
+.flight-home-journey .scena-p{transition:opacity .24s ease,transform .24s ease;transform-origin:center top;padding:0;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:24px;align-items:center}
+.flight-home-journey .scena-p.attiva{display:grid}.flight-home-journey .scena-p[hidden]{display:none!important}
+.flight-journey-visual{height:350px;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;min-width:0}
+.flight-journey-visual>.s1-palco,.flight-journey-visual>.s4-palco{position:relative;width:100%;height:100%}
+.flight-home-journey .s1-fila{inset:24px 0 24px 20px;gap:14px}
+.flight-home-journey .sc-modulo,.flight-home-journey .sc-carta{width:82%;max-width:340px}
+.flight-journey-story{padding:28px 34px 28px 0;min-width:0}
+.flight-journey-number{font-size:11px;letter-spacing:.13em;color:#b6aa6e}
+.flight-journey-story h3{margin:18px 0 14px;font-size:clamp(26px,2.7vw,36px);font-weight:300;letter-spacing:-.035em;line-height:1.18;color:#eeeef0}
+.flight-journey-story p{font-size:14px;line-height:1.75;color:#b1b4bf;max-width:37ch}
+.flight-journey-story>a{display:inline-flex;align-items:center;gap:18px;min-height:44px;margin-top:18px;color:#f2df77;font-size:13px}
+.flight-journey-story>a>span{font-size:22px}
+.flight-home-journey [data-motion=paused] .scena-p *{animation-play-state:paused!important}
+.flight-home-services .bp .situa{font-size:12px;letter-spacing:.06em}
+.flight-home-services .bp .dettagli em{font-size:10px}
+.flight-home-services .bp .dettagli strong{font-size:12px}
+.flight-home-services .bp.flight-ticket-main .rassicura{font-size:12px}
+.flight-home-services .bp.flight-ticket-main .barcode-sotto{font-size:10px;letter-spacing:.08em}
+.flight-home-services .bp.flight-ticket-main .compra{font-size:13px}
+.flight-home-services .bp.flight-ticket-main .rotta{margin:19px 0 20px}
+.flight-ground-mark{position:relative;top:auto;right:auto;display:flex;grid-column:auto;grid-row:auto;margin:16px 0 0;padding:0;font-size:10px;opacity:.75}
+.flight-ground-mark small{display:none}
+.flight-home-services .bp.eroe .situa{max-width:none}
+.flight-home-services .bp.flight-ticket-small .compra,.flight-home-services .bp.flight-ticket-small .rassicura{font-size:12px}.flight-home-services .bp.flight-ticket-small .compra{white-space:normal;text-align:center;line-height:1.4;width:100%;max-width:100%;min-height:44px;padding:11px 9px}
+.flight-home-services .bp.flight-ticket-small .quota{font-size:30px}
+.flight-home-services .ba-g,.flight-home-services .ba-ora{font-size:12px}
+.flight-home-concierge .mini6>span,.flight-home-founder .hero-azioni .btn{font-size:12px}
+.flight-home-discovery .casa-p:focus-visible,.flight-home-expand:focus-visible,.flight-home-agency:focus-visible,.flight-rail-controls button:focus-visible,.flight-home-journey button:focus-visible{outline:2px solid #ffd700;outline-offset:4px}
+@media(hover:hover) and (pointer:fine){html.vivo .flight-home-discovery .casa-p:hover .home-foto img{transform:scale(1.035)}.flight-home-discovery .casa-p:hover{transform:translateY(-4px);box-shadow:inset 0 0 0 1px #ffd70040,0 28px 55px -34px #000}}
+@media(max-width:1100px){.flight-home-hero .hero-int{gap:22px 26px}.flight-home-copy .hero-title{font-size:34px}.flight-home-copy .flight-home-word{font-size:74px}.flight-home-proof .hero-fede span{font-size:11px}.flight-home-arrivals-grid{gap:26px}.flight-home-journey .app-tab{padding:17px 14px;gap:10px}.flight-home-journey .app-tab b{font-size:25px}.flight-home-journey .app-tab span{font-size:12px}.flight-journey-story{padding-right:24px}}
+@media(max-width:760px){
+ .flight-home-hero{padding-top:92px}.flight-home-hero .hero-int{grid-template-columns:minmax(0,1fr);grid-template-areas:"copy" "command" "skyline" "proof";gap:20px}.flight-home-hero .hero-velo{height:570px;bottom:auto}
+ .flight-home-copy{padding:7px 2px 0}.flight-home-copy .hero-eyebrow{font-size:10px}.flight-home-copy .hero-title{font-size:31px;margin-top:15px}.flight-home-copy .flight-home-word{font-size:68px;margin:0}.flight-home-copy .flight-home-title-end{font-size:29px}.flight-home-copy .hero-sub{font-size:13px;line-height:1.65;margin-top:14px;max-width:37ch}
+ .flight-home-command .atterro{padding:14px;gap:11px 0;border-radius:17px}.flight-home-command .atterro-campo>span{font-size:11px}.flight-home-command .atterro-campo select{font-size:16px;min-height:38px}.flight-home-command .atterro .btn{min-height:48px}.flight-home-command .flight-stay-note{font-size:11px}
+ .flight-home-skyline{margin-top:5px}.flight-home-map-invite{font-size:12px;gap:12px}.flight-home-map-invite>span{max-width:22ch}.flight-home-map-invite b{font-size:11px}.flight-home-skyline .cielo{height:330px;min-height:330px;border-radius:19px;clip-path:inset(0 round 19px);-webkit-clip-path:inset(0 round 19px)}.flight-home-skyline-heading{margin-bottom:8px}.flight-home-skyline-heading>div>span{font-size:13px}.flight-home-skyline-heading small{display:none}.flight-home-expand{font-size:12px}
+ .flight-home-proof{align-items:flex-start;gap:14px;flex-direction:column;padding-bottom:16px}.flight-home-proof .hero-fede{align-items:flex-start;gap:10px}.flight-home-proof .hf-stripe{width:32px;margin-top:4px}.flight-home-proof .hero-fede span{font-size:11px}.flight-home-agency{min-height:32px}
+ .flight-home-discovery{padding:34px 0 22px}.flight-home-discovery .settimana-testa{gap:14px;align-items:end}.flight-home-discovery .settimana-testa .titolo{font-size:35px}.flight-home-discovery .settimana-testa .btn-vai{font-size:11px;letter-spacing:0}
+ .flight-home-discovery .settimana{display:flex;overflow-x:auto;overflow-y:hidden;gap:14px;margin:22px -16px 0;padding:2px 16px 16px;scroll-snap-type:x proximity;scroll-padding-inline:16px;scrollbar-width:none;overscroll-behavior-x:contain}.flight-home-discovery .settimana::-webkit-scrollbar{display:none}.flight-home-discovery .settimana .casa-p{flex:0 0 88%;min-width:0;scroll-snap-align:start}.flight-home-discovery .casa-p .nome{font-size:22px}.flight-home-discovery .casa-p .corpo{padding:18px}.flight-home-discovery .casa-p .home-foto{aspect-ratio:4/3}.flight-home-discovery .casa-p .canone .flap-scale{font-size:22px}
+ .flight-rail-controls:not([hidden]){display:flex;align-items:center;justify-content:space-between;color:#b6b8c0;font-size:12px;letter-spacing:.08em;padding:1px 0 0}.flight-rail-controls>div{display:flex;gap:8px}.flight-rail-controls button{width:44px;height:44px;border:1px solid #ffffff24;border-radius:50%;background:#0e0f12;color:#f0dc72;font:inherit;font-size:19px;cursor:pointer}.flight-rail-controls button:disabled{opacity:.25}
+ .flight-home-arrivals{padding:22px 0 24px}.flight-home-arrivals-grid{display:flex;flex-direction:column-reverse;gap:28px}.flight-home-arrivals-grid>div{width:100%}.flight-home-your-rome{padding:25px}.flight-home-your-rome .titolo{font-size:36px}.flight-home-section-head .titolo{font-size:30px}.flight-home-arrivals .tab-zona{font-size:13px}
+ .flight-home-journey{padding:25px 0 42px}.flight-home-journey .app-tabs{grid-template-columns:repeat(4,minmax(0,1fr))}.flight-home-journey .app-tab{display:flex;flex-direction:column;align-items:flex-start;gap:7px;min-height:94px;padding:15px 10px}.flight-home-journey .app-tab b{font-size:24px}.flight-home-journey .app-tab span{font-size:11px;line-height:1.4}.flight-home-journey .app-vetro{padding:8px 12px}.flight-home-journey .app-vetro>i{display:none}.flight-home-journey .app-vetro>span{font-size:10px;letter-spacing:0;margin:0;max-width:20ch}.flight-home-journey .app-scena{min-height:560px}.flight-home-journey .scena-p{grid-template-columns:minmax(0,1fr);gap:0}.flight-journey-visual{height:290px}.flight-journey-story{padding:14px 24px 26px}.flight-journey-story h3{font-size:28px;margin:13px 0 11px}.flight-journey-story p{font-size:13px;line-height:1.7}.flight-journey-story>a{margin-top:10px}.flight-home-journey .sc-modulo,.flight-home-journey .sc-carta{transform:scale(.87);transform-origin:center}
+ .flight-home-services{padding:18px 0 38px}.flight-home-services>.container>.flight-service-heading .titolo{font-size:35px}.flight-home-services .bp.flight-ticket-main .stub{grid-template-columns:1fr auto;gap:10px 12px}.flight-home-services .bp.flight-ticket-main .compra{grid-column:2;grid-row:1/3;padding:12px;font-size:12px}.flight-home-services .bp.flight-ticket-main .rassicura{grid-column:1/-1;grid-row:3;font-size:12px}.flight-home-services .bp.flight-ticket-main .quota{font-size:34px}.flight-home-services .bp.flight-ticket-main .barcode-sotto{font-size:9px}.flight-home-services .bp.flight-ticket-main .pn{font-size:27px}.flight-home-services .bp.flight-ticket-main .promessa{font-size:13px}.flight-home-services .bp.flight-ticket-main .dettagli{gap:12px}.flight-home-services .bp .dettagli strong{font-size:11px}.flight-home-services .bp.flight-ticket-small{grid-template-columns:18px minmax(0,1fr)}.flight-home-services .bp.flight-ticket-small .stub{grid-column:2;grid-row:2;border-left:0;border-top:1px dashed #ffffff22;display:flex;flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;padding:16px}.flight-home-services .bp.flight-ticket-small .rassicura{width:100%}.flight-home-services .bp.flight-ticket-small .compra{margin:0}.flight-home-services .bp.flight-ticket-small .corpo{padding:20px 18px}.flight-home-services .bp.flight-ticket-small .situa{font-size:11px}
+}
+@media(max-width:360px){.flight-home-copy .hero-title{font-size:28px}.flight-home-copy .flight-home-word{font-size:61px}.flight-home-copy .flight-home-title-end{font-size:27px}.flight-home-services .bp.flight-ticket-main .stub{grid-template-columns:1fr}.flight-home-services .bp.flight-ticket-main .compra{grid-column:1;grid-row:3}.flight-home-services .bp.flight-ticket-main .rassicura{grid-row:4}.flight-home-journey .app-tab{padding-inline:8px}.flight-home-journey .app-tab span{font-size:10px}}
+@media(prefers-reduced-motion:reduce){.flight-home-copy *,.flight-home-discovery .casa-p,.flight-home-discovery .home-foto img,.flight-home-journey .scena-p *{animation:none!important;transition:none!important}.flight-home-copy{opacity:1}.flight-home-discovery .casa-p,.flight-home-discovery .home-foto img{transform:none!important}}

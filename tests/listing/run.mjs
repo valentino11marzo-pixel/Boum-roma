@@ -772,8 +772,17 @@ if (!chromium) {
   try {
     const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
     const errors = [];
+    let releasePhoto;
+    const nextPhoto = new Promise(resolve => { releasePhoto = resolve; });
+    const testImage = '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300"><rect width="400" height="300" fill="#52677a"/></svg>';
     page.on('pageerror', (e) => errors.push(String(e)));
     await page.route('**/*', async (r) => {
+      if (r.request().url().endsWith('/foto-catalogo/coronari.jpg'))
+        return r.fulfill({status:200,contentType:'image/svg+xml',body:testImage});
+      if (r.request().url() === 'https://example.org/b.jpg') {
+        await nextPhoto;
+        return r.fulfill({status:200,contentType:'image/svg+xml',body:testImage});
+      }
       if (!r.request().url().startsWith(BASE)) return r.abort();
       // A later defer must still be pending when stay.js executes. Without
       // this, fast local assets hid the interactive-before-DOMContentLoaded
@@ -808,6 +817,7 @@ if (!chromium) {
       });
     });
     await page.goto(BASE + '/index.html', { waitUntil: 'load' });
+    await page.locator('.flight-stay-options>summary').click();
     await page.selectOption('#durataSoggiorno', '6');
     await page.fill('#stayMoveIn', FUT('01', '31'));
     await page.fill('#stayMoveOut', FUT('07', '31'));
@@ -829,10 +839,10 @@ if (!chromium) {
     await page.goto(BASE + '/index.html' + intent.search, { waitUntil: 'load' });
     await Promise.all([
       page.waitForURL(url => url.pathname === '/skyline'),
-      page.locator('.flight-home-actions a[href^="/skyline"]').click(),
+      page.locator('.flight-home-expand').click(),
     ]);
     await page.locator('#skyGuideOpen').click();
-    await page.locator('#skyGuidePriority').selectOption('space');
+    await page.locator('[data-guide-priority="space"]').click();
     await page.locator('[data-guide-home="A"]').click();
     check('Home → Skyline → See on map conserva la durata prima della scheda',
       new URL(page.url()).searchParams.get('stay') === '6'
@@ -885,6 +895,11 @@ if (!chromium) {
     await swipePhoto(-90, 8);
     check('foto: swipe orizzontale sfoglia e non apre la lente',
       await page.textContent('#contaFoto') !== photoBefore && await page.isHidden('#lente'));
+    check('foto: il preload lento mantiene la fotografia precedente, senza fotogramma nero',
+      await page.locator('#telaio>img').evaluate(img => img.naturalWidth > 0 && img.classList.contains('qui')
+        && getComputedStyle(img).opacity === '1' && img.src.endsWith('/foto-catalogo/coronari.jpg')));
+    releasePhoto();
+    await page.waitForFunction(() => document.querySelector('#telaio>img').src === 'https://example.org/b.jpg');
     await page.locator('#telaio').focus();
     await page.keyboard.press('ArrowLeft');
     check('foto: tastiera locale torna alla foto precedente',
@@ -897,11 +912,20 @@ if (!chromium) {
     check('foto: Escape richiude e restituisce il focus alla galleria',
       await page.isHidden('#lente') && await page.evaluate(() => document.activeElement.id) === 'telaio');
 
-    const nextStep = () => page.locator('.bfd-apply-controls .btn').click();
+    await page.locator('[data-bfd-apply]').click();
+    check('Apply: il ticket apre il modulo accanto alla casa senza scroll della pagina', await page.locator('#bfdApplicationSheet').isVisible());
+    const nextStep = () => page.locator('.bfd-apply-controls [data-bfd-next]').click();
     check('Apply: review non raggiungibile saltando i primi passaggi',
       await page.locator('.bfd-apply-steps button').nth(3).isDisabled()
       && await page.locator('#modApplica button[type="submit"]').isHidden());
     await page.fill('#apNome', 'Ada Lovelace');
+    await page.keyboard.press('Escape');
+    check('Apply: Escape chiude e restituisce il focus al ticket',
+      await page.locator('#bfdApplicationSheet').isHidden()
+      && await page.evaluate(() => document.activeElement.hasAttribute('data-bfd-apply')));
+    await page.locator('[data-bfd-apply]').click();
+    check('Apply: riaprire conserva i dati e il passo',
+      await page.inputValue('#apNome') === 'Ada Lovelace' && await page.locator('#apNome').isVisible());
     await page.locator('#apNome').press('Enter');
     check('Apply: Enter al primo passo avanza senza inviare',
       applyHits === 0 && await page.locator('#apMesi').isVisible()
@@ -1002,10 +1026,11 @@ if (!chromium) {
       const phone = await browser.newPage({viewport:{width:390,height:844},reducedMotion:'reduce'});
       await phone.route('**/*', r => r.request().url().startsWith(BASE) ? r.continue() : r.abort());
       await phone.goto(BASE + '/listing/A?stay=6', {waitUntil:'load'});
+      await phone.locator('[data-bfd-apply]').click();
       await phone.locator('.bfd-apply-steps').waitFor();
       await phone.fill('#apNome', 'Ada Phone');
       await phone.fill('#apTel', '+39 333 123 4567');
-      for (let i=0;i<3;i++) await phone.locator('.bfd-apply-controls .btn').click();
+      for (let i=0;i<3;i++) await phone.locator('.bfd-apply-controls [data-bfd-next]').click();
       const hitsBefore = applyHits;
       await Promise.all([
         phone.waitForResponse(r => r.url().endsWith('/api/apply-lead')),

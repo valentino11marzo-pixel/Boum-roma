@@ -6,7 +6,7 @@ committed Home and a future costruisci-portale.py output use this pass.
 """
 import re
 
-VERSION = '20261028f'
+VERSION = '20261028g'
 
 
 def _element(source, tag, marker):
@@ -100,12 +100,66 @@ def _editorial(source):
     return re.sub(r'(?m)^[ \t]+$', '', source)
 
 
+def _fluid_home(source):
+    """Keep the live objects; compose the first decision before the map on phones."""
+    if '<span class="flight-ground-mark">' in source:
+        badge = _element(source, 'span', '<span class="flight-ground-mark">')
+        ticket = _element(source, 'a', '<a class="bp eroe flight-ticket-main"')
+        body = _element(ticket, 'span', '<span class="corpo">')
+        if badge not in body:
+            source = source.replace(ticket, ticket.replace(badge, '', 1).replace(body, body[:-7] + badge + '</span>', 1), 1)
+    if 'data-flight-composition="4"' in source:
+        return re.sub(r'(?m)^[ \t]+$', '', source)
+    hero = _element(source, 'header', '<header class="hero flight-home-hero"')
+    copy = _element(hero, 'div', '<div class="flight-home-copy')
+    copy = re.sub(r'\s*<div class="flight-home-actions">.*?</div>', '', copy, count=1, flags=re.S)
+    scene = _element(hero, 'section', '<section class="flight-home-skyline"')
+    scene = scene.replace('ROME, IN YOUR HANDS', 'YOUR CITY. YOUR EVERYDAY.').replace('Explore full screen <span', 'Explore Skyline <span')
+    scene = scene.replace('<p class="flight-home-map-note">The real city. Your places. Homes to explore.</p>', '<a class="flight-home-map-invite" href="/skyline?guide=1"><span><small>YOUR ROME</small>Find the balance that fits your life.</span><b>Find my balance <i aria-hidden="true">↗</i></b></a>')
+    command = _element(hero, 'div', '<div class="container flight-home-command">')
+    proof = _element(command, 'div', '<div class="flight-home-proof">')
+    command = command.replace(proof, '').replace('class="container flight-home-command"', 'class="flight-home-command"')
+    shortcut = _element(command, 'div', '<div class="flight-stay-shortcut">')
+    command = command.replace(shortcut, '<details class="flight-stay-options"><summary>Choose by length <span aria-hidden="true">+</span></summary>' + shortcut + '</details>')
+    command = command.replace('<span>Your stay</span>', '<span>Your landing plan</span>', 1).replace('<option value="">—</option>', '<option value="">Choose</option>', 1)
+    proof = re.sub(r'<ol class="flight-home-steps".*?</ol>', '<a class="flight-home-agency" href="#perche">Meet your agency <span aria-hidden="true">↗</span></a>', proof, count=1, flags=re.S)
+    new = '<header class="hero flight-home-hero" data-flight-home="true" data-flight-composition="4">\n  <div class="hero-velo" aria-hidden="true"><div class="hero-glow"></div><canvas id="cartaRoma"></canvas></div>\n  <div class="container hero-int">\n' + copy + '\n' + command + '\n' + scene + '\n' + proof + '\n  </div>\n</header>'
+    source = source.replace(hero, new, 1)
+    # The photo collection earns first position. The original arrivals board
+    # remains visible and functional, without preceding the actual homes twice.
+    arrivals = _element(source, 'section', '<section class="sezione flight-home-arrivals"')
+    discovery = _element(source, 'section', '<section class="sezione flight-home-discovery"')
+    app = _element(discovery, 'div', '<div class="apparecchio quadro sale"')
+    stories = [
+        ('Start with your everyday.', 'Explore real homes, then weigh the space, rent and route to the places that matter to you.', '/skyline?guide=1', 'Find my balance'),
+        ('A real person reviews your move.', 'Tell us who is moving and your exact dates. Review everything before you send. Applying is free; no payment is taken.', '/apartments', 'Choose your home'),
+        ('Know what you are signing.', 'Review the agreed lease and the move-in breakdown before signing or paying. Keep the next steps together.', '/your-money', 'How your money moves'),
+        ('Land. Settle. Stay connected.', 'Arrange your arrival with BOOM. Your tenant area keeps the contract, receipts and support close throughout your stay.', '/concierge', 'Explore arrival support')
+    ]
+    for i, (title, body, href, cta) in enumerate(stories):
+        panel = _element(app, 'div', '<div class="scena-p' + (' attiva' if i == 0 else '') + '" data-s="' + str(i) + '"')
+        opening = panel[:panel.index('>') + 1]
+        revised = opening + '<div class="flight-journey-visual" aria-hidden="true">' + panel[len(opening):-6] + '</div><div class="flight-journey-story"><span class="flight-journey-number">0' + str(i + 1) + ' / YOUR MOVE</span><h3>' + title + '</h3><p>' + body + '</p><a href="' + href + '">' + cta + ' <span aria-hidden="true">↗</span></a></div></div>'
+        app = app.replace(panel, revised, 1)
+    app = app.replace('class="app-vetro" aria-hidden="true"', 'class="app-vetro"').replace('<span>The BOOM journey · illustrative preview</span>', '<span>How it works · illustrative preview</span><button type="button" data-journey-play aria-pressed="false">Play journey <span aria-hidden="true">▷</span></button>')
+    journey = '<section class="sezione flight-home-journey" aria-labelledby="flightJourneyTitle"><div class="container"><div class="flight-home-section-head"><div><span class="eyebrow"><i></i>From first look to first morning</span><h2 class="titolo" id="flightJourneyTitle">One move. <span class="hl">Four clear steps.</span></h2></div></div>' + app + '</div></section>'
+    discovery = discovery.replace(_element(discovery, 'div', '<div class="apparecchio quadro sale"'), '')
+    discovery = discovery.replace('<div class="settimana coro">', '<div class="settimana coro" id="flightHomeRail" aria-label="Available homes">', 1)
+    discovery = discovery.replace('\n    </div>\n\n    \n', '\n      <div class="flight-rail-controls" hidden><span data-rail-position aria-live="polite">01 / 03</span><div><button type="button" data-rail-prev aria-label="Previous home" aria-controls="flightHomeRail">←</button><button type="button" data-rail-next aria-label="Next home" aria-controls="flightHomeRail">→</button></div></div>\n    </div>\n', 1)
+    source = source.replace(arrivals, '', 1).replace(_element(source, 'section', '<section class="sezione flight-home-discovery"'), discovery + '\n' + arrivals + '\n' + journey, 1)
+    source = source.replace('Pick the door that matches\n        <span class="hl">your situation</span>.', 'Your move.\n        <span class="hl">Your level of support.</span>', 1)
+    # One controller owns the journey; no second autoplay clock.
+    source = re.sub(r"  /\* L'APPARECCHIO:.*?(?=  /\* il pass:)", '  /* The accessible Flight journey is controlled by boom-flight-home.js. */\n\n', source, count=1, flags=re.S)
+    source = source.replace("fr.src = '/skyline?embed=1';", "fr.src = '/skyline?embed=1&preview=1';", 1).replace("{ rootMargin: '260px 0px' }).observe(telaio)", "{ rootMargin: '80px 0px' }).observe(telaio)", 1)
+    return re.sub(r'(?m)^[ \t]+$', '', source)
+
+
 def enhance_home(source):
     source = _stay_intent(source)
     source = source.replace('<section class="sezione">\n  <div class="container doppia">', '<section class="sezione flight-home-discovery">\n  <div class="container doppia">', 1)
     source = source.replace('<section class="sezione" id="banchina">', '<section class="sezione flight-home-services" id="banchina">', 1)
     if 'data-flight-home="true"' in source:
-        return _editorial(source)
+        return _fluid_home(_editorial(source))
     hero = _element(source, 'header', '<header class="hero">')
     skyline = _element(source, 'section', '<section class="sezione" id="skyline">')
     form = _element(hero, 'form', '<form class="atterro" id="atterro" data-stay-page="home">') + '\n    <p class="flight-stay-note" id="stayPreferenceNote" data-stay-note="home" hidden></p>'
@@ -167,4 +221,4 @@ def enhance_home(source):
         source = source.replace('</body>', js + '\n</body>', 1)
     else:
         source = css + '\n' + source + '\n' + js
-    return _editorial(source)
+    return _fluid_home(_editorial(source))

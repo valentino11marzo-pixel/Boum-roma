@@ -17,3 +17,18 @@
 .durata-conto[hidden]{display:none!important}
 @media(max-width:400px){.flight-stay-dates{gap:8px}.flight-stay-dates input[type=date]{font-size:12px}}
 @media(pointer:coarse){.flight-stay-dates input[type=date],.flight-stay-shortcut button{min-height:44px}.flight-stay-dates input[type=date],.flight-stay-shortcut select{font-size:16px!important}.flight-stay-shortcut select{min-height:44px}}
+
+/* Optional length shortcuts never displace the two exact dates. */
+.flight-stay-options{min-width:0;font-size:12px;color:#b8bbc6}
+.flight-stay-options>summary{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:32px;cursor:pointer;list-style:none;font-size:12px}
+.flight-stay-options>summary::-webkit-details-marker{display:none}
+.flight-stay-options>summary>span{color:#ffd700;font-size:18px}
+.flight-stay-options[open]>summary>span{transform:rotate(45deg)}
+.flight-stay-options>summary:focus-visible{outline:1px solid #ffd700;outline-offset:3px}
+.flight-stay-options .flight-stay-shortcut{padding:3px 0 8px}
+.flight-stay-options .flight-stay-shortcut select{font-size:13px!important}
+.flight-stay-options .flight-stay-shortcut button{font-size:12px;min-height:38px}
+.flight-stay-dates label{font-size:12px;color:#b7bac5}
+.flight-stay-dates input[type=date]{font-size:15px;min-height:38px}
+[data-stay-summary]{font-size:11px;line-height:1.5}
+@media(max-width:760px){.flight-stay-dates input[type=date]{font-size:16px;min-height:40px}.flight-stay-options>summary{min-height:36px}}

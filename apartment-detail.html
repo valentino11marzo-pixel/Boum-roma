@@ -1801,14 +1801,14 @@ body::before, body::after { z-index: 1 !important; }
 })();
 </script>
 <!-- BOOM_SCROLL:END -->
-<link rel="stylesheet" href="/assets/boom-flight-detail.css?v=20261028f">
+<link rel="stylesheet" href="/assets/boom-flight-detail.css?v=20261028g">
 <noscript><style>.boom-flight-detail #posto[hidden]{display:block!important;margin-top:28px}.boom-flight-detail .bfd-tabs,.boom-flight-detail .bfd-open-photos{display:none}</style></noscript>
-<link rel="stylesheet" href="/assets/boom-flight.css?v=20261028f">
-<script defer src="/js/flight-engine.js?v=20261028f"></script>
-<script defer src="/assets/boom-flight.js?v=20261028f"></script>
-<script defer src="/js/stay-engine.js?v=20261028f"></script>
-<link rel="stylesheet" href="/assets/boom-flight-stay.css?v=20261028f">
-<script defer src="/assets/boom-flight-stay.js?v=20261028f"></script>
+<link rel="stylesheet" href="/assets/boom-flight.css?v=20261028g">
+<script defer src="/js/flight-engine.js?v=20261028g"></script>
+<script defer src="/assets/boom-flight.js?v=20261028g"></script>
+<script defer src="/js/stay-engine.js?v=20261028g"></script>
+<link rel="stylesheet" href="/assets/boom-flight-stay.css?v=20261028g">
+<script defer src="/assets/boom-flight-stay.js?v=20261028g"></script>
 </head>
 <body>
 <nav class="nav" id="nav">
@@ -2616,10 +2616,7 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
             <span class="flap-prezzo flap-scale" id="canoneCasa" data-p=""></span>
             <small>per month</small>
           </div>
-        <div class="bfd-pass-actions">
-          <a class="bfd-apply" href="#applica" data-bfd-apply>See next steps</a>
-          <a class="bfd-hold" href="#presaCasa" data-bfd-hold hidden>See hold options</a>
-        </div>
+
         <div class="bfd-perforation" aria-hidden="true"></div>
               <div class="chiavi-cima">
         <div class="chiavi-numero">
@@ -2627,7 +2624,7 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
           <div class="chiavi-flap"><span class="flap-tot" id="totFlap"
             data-p="" aria-live="polite"></span></div>
         </div>
-        <div class="voci">
+        <details class="bfd-cost-breakdown"><summary>Day-one breakdown <span aria-hidden="true">+</span></summary><div class="voci">
           <div class="voce"><span>First month's rent</span>
             <b id="voceCanone">—</b></div>
           <div class="voce"><span>Agency fee · incl. VAT, once<em>10% of a year's rent + 22% VAT</em></span>
@@ -2635,15 +2632,19 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
           <div class="voce torna"><span>Security deposit
             <em id="cauzioneNota">returned at the end, after the move-out check against the signed check-in report</em></span>
             <b id="voceCauzione">—</b></div>
-        </div>
+        </div><a class="bfd-hold" href="#presaCasa" data-bfd-hold hidden>See hold options</a><a class="bfd-money-link" href="#denaro">Costs and what’s included ↗</a><p class="flight-stay-note" data-stay-note="detail" hidden></p></details>
       </div>
+<div class="bfd-pass-actions">
+          <a class="bfd-apply" href="#applica" data-bfd-apply>Apply for this home</a>
+
+        </div>
 
 
-        <a class="bfd-money-link" href="#denaro">Costs and what’s included ↗</a>
-        <p class="flight-stay-note" data-stay-note="detail" hidden></p>
-        <p class="bfd-pass-note">Final terms in writing, before you pay.</p>
+
+
+        <p class="bfd-pass-note">Free to apply · no payment now</p>
         <a class="bfd-person" href="#chiedi" data-bfd-contact target="_blank" rel="noopener">
-          <span><b>A person, with you.</b><small>Ask BOOM about this home</small></span><span aria-hidden="true">↗</span>
+          <span>Ask a person</span><span aria-hidden="true">↗</span>
         </a>
         <a class="bfd-viewing" href="#porticine" data-bfd-viewing target="_blank" rel="noopener" hidden>See this home live ↗</a>
       </aside>
@@ -2780,7 +2781,7 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
 <!-- ══ QUELLO CHE CI CHIEDERESTI SU WHATSAPP ═════════════════════════════
      Ogni domanda che si ripete in chat e una cosa che questa pagina non
      diceva. Scritte una volta, qui. -->
-<section class="sezione">
+<section class="sezione bfd-application-section">
   <div class="container soldi">
     <div class="applica quadro sale" id="applica"><span class="tacca"></span>
       <div class="bfd-application-code"><span>BOOM / YOUR APPLICATION</span><span>ROM</span></div>
@@ -2910,14 +2911,7 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
       </div>
     </div>
 
-    <div class="sale">
-      <span class="eyebrow"><i></i>Not this one?</span>
-      <h2 class="titolo">Three more, <span class="hl">walked the same way</span>.</h2>
-      <div class="altre coro" id="altre" style="margin-top:20px"></div>
-      <p class="sotto" style="margin-top:16px">Nothing here?
-        <a href="/property-finding" style="color:var(--gold)">Put the hunt
-        engine on it →</a></p>
-    </div>
+
   </div>
 </section>
 
@@ -2941,6 +2935,16 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
       Something we haven't answered? <b>Ask a person →</b></a>
   </div>
 </section>
+<section class="sezione bfd-related"><div class="container">
+    <div class="sale">
+      <span class="eyebrow"><i></i>Not this one?</span>
+      <h2 class="titolo">Three more, <span class="hl">walked the same way</span>.</h2>
+      <div class="altre coro" id="altre" style="margin-top:20px"></div>
+      <p class="sotto" style="margin-top:16px">Nothing here?
+        <a href="/property-finding" style="color:var(--gold)">Put the hunt
+        engine on it →</a></p>
+    </div>
+</div></section>
 
 <!-- ══ COSA SUCCEDE DOPO ═════════════════════════════════════════════════ -->
 <section class="sezione bfd-next-section"><div class="container">
@@ -3324,24 +3328,26 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
   var photoRequest = 0, photoSwipeUntil = 0;
   function mostra(i) {
     var request = ++photoRequest;
-    img.classList.remove('qui');
-    var v = variante(i);
-    if (v && (v.w480 || v.w960)) {
-      img.onload = function () { img.classList.add('qui'); img.onload = null; };
-      img.sizes = '100vw';
-      img.srcset = [v.w480 ? v.w480 + ' 480w' : '',
-        v.w960 ? v.w960 + ' 960w' : '', immagini[i] + ' 1920w']
-        .filter(Boolean).join(', ');
-      img.src = immagini[i];
-      if (img.complete && img.naturalWidth) {
-        img.classList.add('qui'); img.onload = null;
-      }
-    } else {
-      var pre = new Image();
-      pre.onload = function () { if (request !== photoRequest) return; img.removeAttribute('srcset');
-        img.src = pre.src; img.classList.add('qui'); };
-      pre.src = immagini[i];
-    }
+    var v = variante(i), pre = new Image();
+    var sizes = '(min-width: 761px) 74vw, 100vw';
+    var sources = v && (v.w480 || v.w960) ? [v.w480 ? v.w480 + ' 480w' : '',
+      v.w960 ? v.w960 + ' 960w' : '', immagini[i] + ' 1920w'].filter(Boolean).join(', ') : '';
+    /* Keep the decoded photograph in place while the next one loads.
+       Clearing its opacity before preload made every gesture a black frame. */
+    pre.onload = function () {
+      if (request !== photoRequest) return;
+      img.sizes = sizes;
+      if (sources) img.srcset = sources; else img.removeAttribute('srcset');
+      img.src = immagini[i]; img.classList.add('qui');
+      telaio.removeAttribute('data-photo-error');
+      if (!matchMedia('(prefers-reduced-motion: reduce)').matches && img.animate)
+        img.animate([{opacity:.88},{opacity:1}], {duration:160,easing:'ease-out'});
+    };
+    pre.onerror = function () {
+      if (request === photoRequest) telaio.setAttribute('data-photo-error', 'Photo unavailable. Choose another photograph.');
+    };
+    if (sources) { pre.sizes = sizes; pre.srcset = sources; }
+    pre.src = immagini[i];
     [].slice.call(rullino.children).forEach(function (b, k) {
       b.classList.toggle('qui', k === i);
       b.setAttribute('aria-pressed', String(k === i)); });
@@ -4012,7 +4018,7 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
         var ok = document.getElementById('applicaFatto');
         if (ok) {
           ok.classList.add('si');
-          ok.scrollIntoView({ block: 'center', behavior: 'smooth' });
+          ok.scrollIntoView({ block: 'center', behavior: ridotto ? 'auto' : 'smooth' });
         }
       }
       if (window.boomTrack) boomTrack('apply_submit',
@@ -5263,6 +5269,6 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
 
 <script defer src="/js/boom-track.js"></script>
 <script defer src="/js/flight-map.js?v=20261027a"></script>
-<script defer src="/assets/boom-flight-detail.js?v=20261028f"></script>
+<script defer src="/assets/boom-flight-detail.js?v=20261028g"></script>
 </body>
 </html>

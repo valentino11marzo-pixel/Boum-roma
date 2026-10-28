@@ -18,6 +18,7 @@
     var sourceHold = byId('prVai'), sourceViewing = byId('portaVideo');
     var sourceContact = document.querySelector('.chiedi-wa');
     var mapStarted = false, fallbackMotion = null;
+    var openApplication = function () {};
     var reduced = matchMedia('(prefers-reduced-motion: reduce)');
 
     function visible(el) {
@@ -62,7 +63,10 @@
       if (!hasPlace && home && home.hidden) setView(false, false);
       if (apply) {
         apply.hidden = missing || !visible(byId('applica')) || !sourceApply;
-        if (sourceApply) apply.textContent = sourceApply.textContent.trim();
+        if (sourceApply) {
+          var action = sourceApply.textContent.trim();
+          apply.textContent = action === 'Send application' || /^Reserve from /.test(action) ? 'Apply for this home' : action;
+        }
       }
       if (hold) {
         hold.hidden = missing || !visible(byId('presaCasa')) || !sourceHold;
@@ -110,9 +114,10 @@
       hint.textContent = roll.children.length > 1 ? 'Swipe to explore · arrow keys when focused' : 'Open the photograph to explore';
       caption.append(position, hint); roll.after(caption);
       frame.setAttribute('aria-describedby', caption.id);
-      function photoPosition() { position.textContent = 'Photo ' + (counter && counter.textContent || '1 / 1'); }
+      function photoPosition() { position.textContent = 'Photo ' + (counter && counter.textContent || '1 / 1') + (frame.getAttribute('data-photo-error') ? '. ' + frame.getAttribute('data-photo-error') : ''); }
       photoPosition();
       if (counter) new MutationObserver(photoPosition).observe(counter, {childList:true, characterData:true, subtree:true});
+      new MutationObserver(photoPosition).observe(frame, {attributes:true,attributeFilter:['data-photo-error']});
     }
 
     // A view over the original application, never another application state.
@@ -124,6 +129,63 @@
       if (groups.length !== 3) return;
       var labels = ['You', 'Your stay', 'Your profile', 'Review'];
       var step = 0, restoreAfterValidation = false;
+      var sheet = null, opener = null;
+      if (window.HTMLDialogElement && HTMLDialogElement.prototype.showModal) {
+        var inlineSection = box.closest('.bfd-application-section');
+        sheet = document.createElement('dialog'); sheet.className = 'bfd-application-sheet';
+        sheet.id = 'bfdApplicationSheet'; sheet.setAttribute('aria-label', 'Apply for this home');
+        var top = document.createElement('div'); top.className = 'bfd-sheet-top';
+        var code = document.createElement('span'); code.textContent = 'BOOM / YOUR APPLICATION';
+        var close = document.createElement('button'); close.type = 'button';
+        close.setAttribute('aria-label', 'Close application'); close.textContent = 'Close ×';
+        close.addEventListener('click', function () { sheet.close(); }); top.append(code, close);
+        var context = document.createElement('div'); context.className = 'bfd-sheet-context';
+        var firstPhoto = document.querySelector('#rullino img');
+        if (firstPhoto) { var thumb = document.createElement('img'); thumb.src = firstPhoto.src; thumb.alt = ''; context.append(thumb); }
+        var info = document.createElement('div'), name = document.createElement('b'), price = document.createElement('span');
+        info.append(name, price); context.append(info);
+        function houseContext() {
+          name.textContent = byId('nomeCasa').textContent;
+          price.textContent = (byId('canoneCasa').dataset.p || '') + ' / month';
+        }
+        houseContext();
+        var contextWatch = new MutationObserver(houseContext);
+        contextWatch.observe(byId('nomeCasa'), {childList:true,characterData:true,subtree:true});
+        contextWatch.observe(byId('canoneCasa'), {attributes:true,attributeFilter:['data-p']});
+        sheet.append(top, context, box); document.body.appendChild(sheet);
+        if (inlineSection) inlineSection.hidden = true;
+        function restorePage() {
+          document.documentElement.classList.remove('bfd-app-open');
+          if (location.hash === '#applica') history.replaceState(history.state, '', location.pathname + location.search);
+          if (opener && opener.isConnected) opener.focus({preventScroll:true});
+        }
+        sheet.addEventListener('close', restorePage);
+        sheet.addEventListener('click', function (event) {
+          if (event.target !== sheet) return;
+          var r = sheet.getBoundingClientRect();
+          if (event.clientX < r.left || event.clientX > r.right || event.clientY < r.top || event.clientY > r.bottom) sheet.close();
+        });
+        openApplication = function (from) {
+          if (box.style.display === 'none' || sheet.open) return;
+          opener = from || document.activeElement;
+          sheet.showModal(); document.documentElement.classList.add('bfd-app-open');
+          var target = step === 3 ? byId('bfdReviewTitle') : groups[step].querySelector('input,select');
+          if (form.style.display === 'none') target = byId('applicaFatto').querySelector('b');
+          if (target) { if (!target.matches('input,select')) target.tabIndex = -1; target.focus({preventScroll:true}); }
+        };
+        document.addEventListener('click', function (event) {
+          var link = event.target.closest('a[href="#applica"]');
+          if (!link || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+          event.preventDefault(); openApplication(link);
+        }, true);
+        sheet.addEventListener('click', function (event) {
+          var link = event.target.closest('a[href^="#"]');
+          if (link && link.hash !== '#applica') sheet.close();
+        });
+        window.addEventListener('pageshow', function () {
+          document.documentElement.classList.toggle('bfd-app-open', sheet.open);
+        });
+      }
       var nav = document.createElement('ol'); nav.className = 'bfd-apply-steps';
       nav.setAttribute('aria-label', 'Application steps');
       var buttons = labels.map(function (label, i) {
@@ -143,14 +205,15 @@
       });
       var review = document.createElement('section'); review.className = 'bfd-apply-review'; review.hidden = true;
       review.setAttribute('aria-labelledby', 'bfdReviewTitle');
-      review.innerHTML = '<h4 id="bfdReviewTitle" tabindex="-1">Ready for a human review.</h4><p>Check your details before sending. This application does not reserve the home or take a payment.</p><dl class="bfd-review-details"></dl><div class="bfd-review-costs"><span>THE CURRENT LISTING ESTIMATE</span><dl></dl><p>These are the listing’s costs, not a charge today. Final dates, lease terms and the full cost are confirmed in writing.</p><a href="#denaro">Read costs and exclusions ↗</a></div>';
+      review.innerHTML = '<h4 id="bfdReviewTitle" tabindex="-1">Check it. Then send.</h4><p>This application does not reserve the home or take a payment. A person reviews your request.</p><div class="bfd-review-details"></div><details class="bfd-review-costs"><summary><span>Listing costs</span><b>View breakdown +</b></summary><dl></dl><p>Final dates, lease terms and the full cost are confirmed in writing.</p><a href="#denaro">Read costs and exclusions ↗</a></details>';
       form.insertBefore(review, sourceApply);
       var controls = document.createElement('div'); controls.className = 'bfd-apply-controls';
       var back = document.createElement('button'); back.type = 'button'; back.textContent = '← Back';
-      var next = document.createElement('button'); next.type = 'button'; next.className = 'btn btn-primary';
+      var next = document.createElement('button'); next.type = 'button'; next.className = 'btn btn-primary'; next.dataset.bfdNext = '';
       back.addEventListener('click', function () { show(step - 1, true); });
       next.addEventListener('click', function () { if (canAdvance()) show(step + 1, true); });
       controls.append(back, next); form.insertBefore(controls, sourceApply);
+      controls.appendChild(sourceApply);
       function value(id) {
         var field = byId(id); if (!field) return '';
         if (field.tagName === 'SELECT') return field.value && field.selectedOptions[0] ? field.selectedOptions[0].textContent : '';
@@ -163,12 +226,22 @@
       function summary() {
         var details = review.querySelector('.bfd-review-details'), costs = review.querySelector('.bfd-review-costs dl');
         details.replaceChildren(); costs.replaceChildren();
-        [['Name','apNome'],['Email','apMail'],['WhatsApp','apTel'],['Move-in','apQuando'],['Move-out','apUscita'],['Length requested','apMesi'],['Household','apChi'],['Signers','apFirme'],['Situation','apLavoro'],['Monthly income','apReddito'],['Guarantor','apGarante']].forEach(function (field) { row(details, field[0], value(field[1])); });
+        [
+          ['You', [['Name','apNome'],['Email','apMail'],['WhatsApp','apTel']]],
+          ['Your stay', [['Move-in','apQuando'],['Move-out','apUscita'],['Length requested','apMesi'],['Household','apChi'],['Signers','apFirme']]],
+          ['Your profile', [['Situation','apLavoro'],['Monthly income','apReddito'],['Guarantor','apGarante']]]
+        ].forEach(function (group, i) {
+          var section = document.createElement('section'), head = document.createElement('div'), title = document.createElement('b');
+          title.textContent = group[0]; var edit = document.createElement('button'); edit.type = 'button'; edit.textContent = 'Edit'; edit.disabled = sourceApply.disabled;
+          edit.setAttribute('aria-label', 'Edit ' + group[0].toLowerCase()); edit.addEventListener('click', function () { show(i, true); });
+          head.append(title, edit); section.append(head); var dl = document.createElement('dl'); section.append(dl);
+          group[1].forEach(function (field) { var text = value(field[1]); if (text) row(dl, field[0], text); });
+          if (!dl.children.length) row(dl, 'Optional details', 'You can discuss these with us');
+          details.append(section);
+        });
         [['Monthly rent','voceCanone'],['Agency fee, incl. VAT','voceOnorario'],['Security deposit','voceCauzione']].forEach(function (field) {
           var amount = byId(field[1]); row(costs, field[0], amount ? amount.textContent.trim() : 'To confirm');
         });
-        var period = form.querySelector('[data-stay-summary]');
-        if (period && period.textContent.trim()) row(details, 'Requested period', period.textContent.trim());
       }
       function dateInvalid() {
         return ['apQuando', 'apUscita'].map(byId).find(function (field) { return field && !field.checkValidity(); });
@@ -221,6 +294,7 @@
       function sending() {
         var busy = sourceApply.disabled;
         buttons.forEach(function (button, i) { button.disabled = busy || i > step + 1; });
+        review.querySelectorAll('button').forEach(function (button) { button.disabled = busy; });
         back.disabled = busy; next.disabled = busy;
         nav.hidden = form.style.display === 'none';
       }
@@ -237,6 +311,7 @@
         });
       }
       if (location.hash === '#casa') setView(false, false);
+      if (location.hash === '#applica') openApplication();
     }
     document.addEventListener('click', function (e) {
       var link = e.target.closest('a[href="#posto"]');

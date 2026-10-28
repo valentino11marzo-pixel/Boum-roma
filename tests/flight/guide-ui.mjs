@@ -11,12 +11,12 @@ const root = fileURLToPath(new URL('../../', import.meta.url));
 const assets = ['js/mappa-engine.js','js/flight-engine.js', 'js/skyline-guide-engine.js',
   'js/stay-engine.js', 'js/listing-facts.js', 'js/dispo-engine.js',
   'assets/boom-skyline-guide.js'];
-const files = new Map([...assets,'assets/boom-your-rome.js','assets/boom-your-rome.css','assets/boom-flight.js','assets/boom-flight.css','js/boom-consent.js'].map(p => ['/' + p, readFileSync(root + p, 'utf8')]));
+const files = new Map([...assets,'assets/boom-your-rome.js','assets/boom-your-rome.css','assets/boom-flight.js','assets/boom-flight.css','js/boom-consent.js','js/boom-track.js','assets/boom-skyline-guide.css'].map(p => ['/' + p, readFileSync(root + p, 'utf8')]));
 files.set('/your-rome',readFileSync(root+'your-rome.html','utf8'));
-const fixture = `<!doctype html><html lang="en"><head><meta charset="utf-8"></head>
+const fixture = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/assets/boom-skyline-guide.css"><style>body{margin:0;font-family:Arial,sans-serif;background:#08090b}</style></head>
 <body><div class="sky-flight-tools"></div><script>
   window.BOOM_MAPPA={METE:[{slug:'colosseo',nome:'Colosseum',lat:41.89,lng:12.49}]};
-  window.__guideTest={budget:0,scope:null,status:'ready',homes:[
+  window.__guideTest={budget:Number(new URLSearchParams(location.search).get('budget'))||0,scope:null,status:'ready',homes:[
     {id:'room',name:'Test room',type:'Room',price:1200,sqm:25,bedrooms:1,status:'available'},
     {id:'unclear',name:'Test apartment',price:1300,sqm:70,bedrooms:2,status:'available'},
     {id:'unmapped',name:'Unmapped home',price:800,sqm:100,status:'available'}
@@ -72,11 +72,15 @@ try {
     } catch (error) { fail++; console.log('  ✗ ' + name + ' — ' + error.message.split('\n')[0]); }
   }
   const refresh = () => page.evaluate(() => window.dispatchEvent(new CustomEvent('boom:skyline-journeys')));
+  async function edit(name){if(await page.locator('[data-guide-edit="'+name+'"]').first().getAttribute('aria-expanded')!=='true')await page.locator('[data-guide-edit="'+name+'"]').first().click();}
+  async function chooseBudget(value){await edit('budget');await page.locator('#skyGuideBudget').selectOption(value);}
+  async function choosePlace(value){await edit('place');await page.locator('#skyGuidePlace').selectOption(value);}
+
 
   await check('budget zero remains every budget, including after closing and reopening', async () => {
     assert.equal(await page.locator('#skyGuideBudget').inputValue(), '0');
-    await page.locator('#skyGuideBudget').selectOption('1500');
-    await page.locator('#skyGuideBudget').selectOption('0');
+    await chooseBudget('1500');
+    await chooseBudget('0');
     await page.locator('#skyGuideClose').click();
     await page.locator('#skyGuideOpen').click();
     assert.equal(await page.locator('#skyGuideBudget').inputValue(), '0');
@@ -120,18 +124,20 @@ try {
     assert.doesNotMatch(href, /Private|51\.509|-0\.12/);
   });
   await check('address-only campus keeps options and labels missing journey estimates', async () => {
-    await page.locator('#skyGuidePlace').selectOption('rufa-ostiense');
-    await page.locator('#skyGuidePriority').selectOption('commute');
+    await choosePlace('rufa-ostiense');
+    await page.locator('[data-guide-priority=commute]').click();
     assert.equal(await page.locator('.sky-guide-card').count(), 2);
     assert.match(await page.locator('#skyGuideSummary').innerText(), /Journey estimates unavailable.*ordered by rent/);
+    await page.locator('.sky-guide-method>summary').click();
     assert.match(await page.locator('#skyGuideDestination').innerText(), /Via Giuseppe Libetta 7/);
+    await page.locator('.sky-guide-home-details>summary').first().click();
     assert.doesNotMatch(await page.locator('.sky-guide-trip').first().innerText(), /≈\d+ min/);
     const link=new URL(await page.locator('a[href^="https://www.google.com/maps/dir/"]').first().getAttribute('href'));
     assert.equal(link.searchParams.get('destination'),'Via Giuseppe Libetta 7, Rome');
   });
   await check('sharing keeps public preferences; shortlist and stay require explicit inclusion', async () => {
-    await page.locator('#skyGuidePlace').selectOption('rufa-ostiense');
-    await page.locator('#skyGuidePriority').selectOption('space');
+    await choosePlace('rufa-ostiense');
+    await page.locator('[data-guide-priority=space]').click();
     await page.locator('#skyGuideShare summary').click();
     let url=new URL(await page.locator('#skyGuideShareURL').inputValue());
     assert.equal(url.origin,'https://www.boomrome.com');assert.equal(url.searchParams.get('place'),'rufa-ostiense');
@@ -141,6 +147,39 @@ try {
     url=new URL(await page.locator('#skyGuideShareURL').inputValue());
     assert.equal(url.searchParams.get('homes'),'unclear,room');assert.equal(url.searchParams.get('stay'),'6');
     assert.doesNotMatch(url.href,/Private|51\.509|-0\.12/);
+  });
+  await check('results are first, editors are optional and mobile primary action is in the opening viewport',async()=>{
+    assert.equal(await page.locator('#skyGuideBudgetQuestion').isVisible(),false);
+    assert.equal(await page.locator('#skyGuidePlaceQuestion').isVisible(),false);
+    assert.equal(await page.locator('[data-guide-priority]').count(),3);
+    const bounds=await page.locator('[data-guide-home=room]').boundingBox();
+    assert.ok(bounds.y+bounds.height<=844,'first home primary action is visible without scrolling');
+    assert.equal(await page.locator('#skyGuideResults').evaluate(n=>getComputedStyle(n).scrollSnapType),'x');
+  });
+  await check('async journey refresh keeps the same card and photo containers without moving the rail',async()=>{
+    await page.evaluate(()=>{window.__oldCard=document.querySelector('.sky-guide-card');window.__oldMedia=window.__oldCard.querySelector('.sky-guide-media');});
+    await refresh();
+    assert.equal(await page.evaluate(()=>window.__oldCard===document.querySelector('.sky-guide-card')&&window.__oldMedia===document.querySelector('.sky-guide-media')),true);
+    await page.locator('#skyGuideNext').click();await page.waitForTimeout(300);
+    assert.match(await page.locator('#skyGuidePosition').innerText(),/^02/);
+    const left=await page.locator('#skyGuideResults').evaluate(n=>n.scrollLeft);await refresh();
+    assert.ok(Math.abs((await page.locator('#skyGuideResults').evaluate(n=>n.scrollLeft))-left)<2);
+  });
+  await check('returning from a home keeps the brief and restores a direct way back to the options',async()=>{
+    await chooseBudget('1500');await choosePlace('rufa-ostiense');await page.locator('[data-guide-priority=space]').click();
+    await page.locator('#skyGuideDone').click();await page.locator('[data-guide-home=unclear]').click();
+    assert.equal(await page.locator('#skyGuide').evaluate(d=>d.open),false);
+    assert.equal(await page.locator('#skyGuideOpen').innerText(),'Back to my options');await page.locator('#skyGuideOpen').click();
+    assert.equal(await page.locator('#skyGuideBudget').inputValue(),'1500');assert.equal(await page.locator('#skyGuidePlace').inputValue(),'rufa-ostiense');
+    assert.equal(await page.locator('[data-guide-priority=space]').getAttribute('aria-pressed'),'true');
+  });
+  await check('a changed public brief survives reload and opens straight on the options',async()=>{
+    await chooseBudget('1500');await choosePlace('rufa-ostiense');await page.locator('[data-guide-priority=space]').click();
+    await page.reload({waitUntil:'load'});assert.equal(await page.locator('#skyGuide').evaluate(d=>d.open),true);
+    assert.equal(await page.locator('#skyGuideBudget').inputValue(),'1500');assert.equal(await page.locator('#skyGuidePlace').inputValue(),'rufa-ostiense');
+    assert.equal(await page.locator('[data-guide-priority=space]').getAttribute('aria-pressed'),'true');
+    assert.equal(await page.locator('#skyGuidePlaceQuestion').isVisible(),false);
+    assert.doesNotMatch(page.url(),/Private|51\.509/);
   });
   await check('Escape closes the native modal and restores focus to its opener', async () => {
     await page.keyboard.press('Escape');
@@ -161,6 +200,7 @@ try {
     assert.equal(await page.locator('iframe').count(),0);
   });
   await checkLanding('Date fields stay inside the planner on desktop and mobile',async()=>{
+    await page.locator('#yrDates summary').click();
     for(const width of [1280,390]){
       await page.setViewportSize({width,height:900});
       const bounds=await page.evaluate(()=>{const form=document.getElementById('yourRomeForm').getBoundingClientRect();return [...document.querySelectorAll('#yourRomeForm input[type=date]')].map(n=>{const box=n.getBoundingClientRect();return {inside:box.left>=form.left&&box.right<=form.right,width:box.width};});});
@@ -168,15 +208,15 @@ try {
     }
   });
   await checkLanding('Your Rome carries an irregular requested stay and public preferences to Skyline',async()=>{
-    await page.locator('#yrPlace').selectOption('rufa-ostiense');await page.locator('[name=priority]').selectOption('space');
-    await page.locator('#yrMoveIn').fill('2027-01-31');await page.locator('#yrMoveOut').fill('2027-05-14');
+    await page.locator('#yrPlace').selectOption('rufa-ostiense');await page.locator('.yr-priority label').filter({has:page.locator('input[value=space]')}).click();
+    await page.locator('#yrDates summary').click();await page.locator('#yrMoveIn').fill('2027-01-31');await page.locator('#yrMoveOut').fill('2027-05-14');
     await page.locator('.yr-launch').click();
     await page.waitForURL('**/skyline?**',{timeout:5000});
     const url=new URL(page.url());assert.equal(url.searchParams.get('moveIn'),'2027-01-31');assert.equal(url.searchParams.get('moveOut'),'2027-05-14');
     assert.equal(url.searchParams.has('stay'),false);assert.equal(url.searchParams.get('place'),'rufa-ostiense');assert.equal(url.searchParams.get('priority'),'space');
   });
   await checkLanding('An incomplete requested stay explains the missing date instead of navigating',async()=>{
-    await page.locator('#yrMoveIn').fill('2027-01-31');await page.locator('.yr-launch').click();
+    await page.locator('#yrDates summary').click();await page.locator('#yrMoveIn').fill('2027-01-31');await page.locator('.yr-launch').click();
     assert.equal(new URL(page.url()).pathname,'/your-rome');assert.match(await page.locator('#yrPlanStatus').innerText(),/departure date/i);
   });
   await checkLanding('Leaving Flight for a service without transition opt-in keeps native navigation error-free',async()=>{

@@ -58,3 +58,14 @@ assert.equal(new URL(G.share({includeHomes:true,homes:['unknown']},M.DESTINATION
 assert.equal(G.addressDirections({lat:41.9,lng:12.5},'Via Giuseppe Libetta 7, Rome'),'https://www.google.com/maps/dir/?api=1&origin=41.9,12.5&destination=Via%20Giuseppe%20Libetta%207%2C%20Rome&travelmode=transit');
 assert.equal(G.addressDirections({lat:null,lng:null},'Campus'),null);
 console.log('  ✓ Your Rome: verified campus addresses, unknown coordinates, no borrowed GTFS, explainable ranking and public opt-in shares');
+const flatA={id:'a',name:'A',type:'Apartment',rent:1200,area:50,journey:{...trip,min:20,precision:'zone'}};
+const flatB={id:'b',name:'B',type:'Apartment',rent:1450,area:70,journey:{...trip,min:15,precision:'zone'}};
+assert.deepEqual(G.tradeoff(flatB,[flatA,flatB]),{comparable:true,referenceId:'a',referenceName:'A',kind:'apartment',rentDelta:250,areaDelta:20,minutesDelta:-5});
+assert.equal(G.tradeoff({...flatB,type:'Room'},[flatA,flatB]).comparable,false,'rooms and apartments never claim equivalent space gains');
+assert.equal(G.tradeoff({...flatB,type:''},[flatA]).comparable,false,'unknown type is not guessed');
+assert.equal(G.tradeoff({...flatB,area:null},[flatA]).areaDelta,null);
+assert.equal(G.tradeoff({...flatB,journey:{...flatB.journey,fonte:'rete'}},[flatA]).minutesDelta,null,'different trip models are not comparable');
+assert.equal(G.tradeoff({...flatB,journey:{...flatB.journey,destination:{lat:42,lng:12}}},[flatA]).minutesDelta,null,'different destinations are not comparable');
+console.log('  ✓ Immediate trade-offs compare equivalent listed home types and matching travel models only');
+
+assert.equal(G.tradeoff({...flatA,type:'Private room'},[{...flatB,type:'Shared room'}]).comparable,false,'private and shared rooms are distinct rental types');

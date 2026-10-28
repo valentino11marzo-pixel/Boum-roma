@@ -15,13 +15,13 @@
   var steps=[
     {title:'Il tuo punto di partenza.',note:'Il pulso giallo attraversa il pattern Solari originale. Scegli inizio e fine soggiorno, poi esplora Skyline.',name:'Home',url:'/'},
     {title:'Scegli una casa. Guarda come vivi.',note:'Filtra le case, passa tra lista e Skyline. “On Skyline” raggiunge la casa selezionata senza perdere la ricerca.',name:'Apartments',url:'/apartments'},
-    {title:'Tutto quello che serve per decidere.',note:'Foto da esplorare, costi leggibili e Apply in quattro passaggi con riepilogo prima dell’invio.',name:'Apartment Details',url:null},
-    {title:'La tua Roma prende forma.',note:'Your Rome: scegli il campus preciso, confronta le possibilità e condividi la tua ricerca. Find my balance ti accompagna nella scelta.',name:'Skyline',url:'/skyline'}
+    {title:'Tutto quello che serve per decidere.',note:'Foto senza scatti, un biglietto leggibile e Apply accanto alla casa: quattro passaggi, riepilogo e dati conservati.',name:'Apartment Details',url:null},
+    {title:'La tua Roma prende forma.',note:'Your Rome: scegli il campus preciso, confronta le possibilità e condividi la tua ricerca. Find my balance ti accompagna nella scelta.',name:'Skyline',url:'/skyline?guide=1'}
   ];
   var current=0, running=false, timer, loadTimer, orbitTimer, detailPath=null, tourOrbit=null, cleanup=[];
   function stopTourOrbit() {if(tourOrbit&&tourOrbit.isConnected&&tourOrbit.getAttribute('aria-pressed')==='true')tourOrbit.click();tourOrbit=null;}
   function watchInteractions(doc,documents,frames) {
-    if(!doc||documents.has(doc))return;documents.add(doc);
+    if(!doc||!doc.documentElement||documents.has(doc))return;documents.add(doc);
     function interacted(){if(running)pause('Esplora liberamente · percorso in pausa');}
     doc.addEventListener('pointerdown',interacted,true);doc.addEventListener('keydown',interacted,true);
     cleanup.push(function(){doc.removeEventListener('pointerdown',interacted,true);doc.removeEventListener('keydown',interacted,true);});
@@ -56,6 +56,7 @@
     try {
       var doc=frame.contentDocument, nested=doc.querySelector('#cieloMappa iframe');
       if(nested)doc=nested.contentDocument;
+      if(doc&&doc.querySelector('#skyGuide:not([hidden])'))return;
       var orbit=doc&&doc.getElementById('skyOrbit');
       if(orbit&&!orbit.disabled){if(orbit.getAttribute('aria-pressed')!=='true'){orbit.click();tourOrbit=orbit;}return;}
     }catch(_){}

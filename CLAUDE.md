@@ -3056,6 +3056,14 @@ Find my balance spiega ordine/compromessi e condivide solo preferenze pubbliche,
 Home conserva Solari e foil, dà priorità a PFS/DAS e raccoglie gli approfondimenti; Apply ha quattro step e riepilogo senza cambiare submit/idempotenza.
 Foto: swipe solo orizzontale, frecce nel focus gallery. Generator parity, calendario, salvataggi, UI guida e listingssr verificano il percorso.
 
+Flight 28/10, composizione fluida: Home porta date/budget/persone prima della mappa nel DOM;
+Skyline embedded usa preview minima e avvio differito, primo render separato da tile complete e retry parziale.
+Le case precedono il racconto; rail mobile nativa e quattro passi con Play esplicito, pausa fuori vista/riduzione movimento.
+Find my balance apre risultati subito, modifica un campo alla volta, conserva card/focus/brief pubblico tra mappa e ritorno;
+confronti solo fra tipi equivalenti e fonti espandibili. Your Rome mantiene tracker dietro consenso e directory indicizzabile.
+Detail: foto decodificata prima del cambio, ticket compatto, stesso Apply in dialog contestuale con dati/focus preservati;
+no-JS inline, costi e idempotenza originali. Test flighthomeui, flightguideui, mappapreview, flightstayui e listingssr.
+
 ### POST `/api/search/save`
 Public save-search endpoint for the apartments discovery page. Body
 `{ email, label?, criteria{q,budgetMax,moveIn,moveOut,durationMonths,beds,baths,furnished,video,

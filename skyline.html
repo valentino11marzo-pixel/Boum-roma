@@ -20,7 +20,7 @@
 <script defer src="/js/flight-map.js?v=20261027a"></script>
 <script defer src="/js/listing-facts.js"></script>
 <script defer src="/js/dispo-engine.js"></script>
-<script defer src="/assets/boom-flight-skyline.js?v=20261028f"></script>
+<script defer src="/assets/boom-flight-skyline.js?v=20261028g"></script>
 <style>
 :root{--gold:#FFD700;--gold2:#FFA500;--bg:#08080A;--card:#0E0E12;--line:rgba(255,255,255,.09);--t1:#fff;--t2:#aaa;--t3:#777;--disp:'Helvetica Neue',Helvetica,Inter,Arial,sans-serif}
 *{margin:0;padding:0;box-sizing:border-box}
@@ -218,7 +218,7 @@ html.sky-map-styled #map .maplibregl-canvas,html.sky-map-fallback #map .maplibre
 <script src="/js/boom-geo.js"></script>
 <script src="/js/tempi-engine.js"></script>
 <script src="/js/mappa-engine.js"></script>
-<script>if(/[?&]embed=1/.test(location.search)){document.documentElement.classList.add('emb');var _b=document.createElement('base');_b.target='_top';document.head.appendChild(_b);}</script>
+<script>if(/[?&]embed=1/.test(location.search)){document.documentElement.classList.add('emb');var _p=new URLSearchParams(location.search);if(_p.get('preview')==='1'&&_p.get('guide')!=='1'&&_p.get('places')!=='1')document.documentElement.classList.add('sky-preview');var _b=document.createElement('base');_b.target='_top';document.head.appendChild(_b);}</script>
 <!-- BOOM_SCROLL:START -->
 <style>
 /* boom-scroll.css — IL CONTRATTO DI SCORRIMENTO, in una copia sola.
@@ -335,15 +335,15 @@ body::before, body::after { z-index: 1 !important; }
 })();
 </script>
 <!-- BOOM_SCROLL:END -->
-<link rel="stylesheet" href="/assets/boom-flight-skyline.css?v=20261028f">
-<link rel="stylesheet" href="/assets/boom-flight.css?v=20261028f">
-<script defer src="/js/flight-engine.js?v=20261028f"></script>
-<script defer src="/assets/boom-flight.js?v=20261028f"></script>
-<link rel="stylesheet" href="/assets/boom-skyline-guide.css?v=20261028f">
-<script defer src="/js/stay-engine.js?v=20261028f"></script>
-<script defer src="/assets/boom-flight-stay.js?v=20261028f"></script>
-<script defer src="/js/skyline-guide-engine.js?v=20261028f"></script>
-<script defer src="/assets/boom-skyline-guide.js?v=20261028f"></script>
+<link rel="stylesheet" href="/assets/boom-flight-skyline.css?v=20261028g">
+<link rel="stylesheet" href="/assets/boom-flight.css?v=20261028g">
+<script defer src="/js/flight-engine.js?v=20261028g"></script>
+<script defer src="/assets/boom-flight.js?v=20261028g"></script>
+<link rel="stylesheet" href="/assets/boom-skyline-guide.css?v=20261028g">
+<script defer src="/js/stay-engine.js?v=20261028g"></script>
+<script defer src="/assets/boom-flight-stay.js?v=20261028g"></script>
+<script defer src="/js/skyline-guide-engine.js?v=20261028g"></script>
+<script defer src="/assets/boom-skyline-guide.js?v=20261028g"></script>
 </head>
 <body>
 <div id="map" aria-label="Interactive map of BOOM homes in Rome"></div>
@@ -422,30 +422,33 @@ var SKY_QUERY=new URLSearchParams(location.search);
 var SKY_REDUCED=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)');
 function skyMotion(ms){return SKY_REDUCED&&SKY_REDUCED.matches?0:ms;}
 function skyEvent(name,detail){window.dispatchEvent(new CustomEvent('boom:skyline-'+name,{detail:detail||{}}));}
-var SKY_STATE={catalogueStatus:'loading',mapStatus:'loading',count:0,error:null};
+var SKY_STATE={catalogueStatus:'loading',mapStatus:'loading',count:0,error:null,usable:false};
 function skyState(patch){
   Object.assign(SKY_STATE,patch);window.BoomSkylineState=Object.assign({},SKY_STATE);
   skyEvent('state',window.BoomSkylineState);
   var box=$('load');if(!box)return;
   var failed=SKY_STATE.catalogueStatus==='error'||SKY_STATE.mapStatus==='error'||SKY_STATE.mapStatus==='context-lost';
   box.classList.toggle('failed',failed);
+  box.classList.toggle('usable',!!SKY_STATE.usable);
+  box.classList.toggle('partial',SKY_STATE.mapStatus==='partial');
   box.classList.toggle('off',SKY_STATE.catalogueStatus==='ready'&&SKY_STATE.mapStatus==='ready');
-  var retry=$('skyLoadRetry');if(retry)retry.hidden=!failed;
+  var retry=$('skyLoadRetry');if(retry){retry.hidden=!failed&&SKY_STATE.mapStatus!=='partial';retry.textContent=SKY_STATE.mapStatus==='partial'?'Retry map detail':'Retry map';}
   if(SKY_STATE.mapStatus==='context-lost')msg('The city view paused. Recovering the map…');
   else if(SKY_STATE.catalogueStatus==='error')msg('Homes could not load. Retry or open the apartment list.');
   else if(SKY_STATE.mapStatus==='error')msg('The city view could not connect. Your saved homes are safe.');
   else if(SKY_STATE.catalogueStatus==='empty')msg('No homes in the current catalogue. Try the apartment list.');
-  else if(SKY_STATE.catalogueStatus==='ready')msg(SKY_STATE.mapStatus==='partial'?'Homes are ready. Some map detail is still loading.':'Homes are ready. Drawing the city…');
+  else if(SKY_STATE.catalogueStatus==='ready')msg(SKY_STATE.mapStatus==='partial'?'Homes are ready. Some city detail has not loaded.':'Homes are ready. Drawing the city…');
   else msg('Finding homes in Rome…');
 }
 function mapFailure(code){
   skyState({mapStatus:'error',error:code||'map'});
   var q=$('quad'),note=$('quadN'),box=$('load');if(!q||!note)return;
+  if(document.documentElement.classList.contains('sky-preview')){if(box)box.style.display='';return;}
   if(box)box.style.display='none';
   q.classList.remove('chiuso');q.classList.add('sky-expanded');
   var head=$('quadCapo');if(head)head.setAttribute('aria-expanded','true');
   note.innerHTML='The city map could not connect. Your places and the city directory still work — or open the <a href="/apartments" style="color:var(--gold)">list view</a>. ';
-  var retry=document.createElement('button');retry.className='sky-load-retry';retry.type='button';retry.textContent='Retry map';retry.addEventListener('click',function(){location.reload();});note.appendChild(retry);
+  var retry=document.createElement('button');retry.className='sky-load-retry';retry.type='button';retry.textContent='Retry map';retry.addEventListener('click',retryCity);note.appendChild(retry);
 }
 function fetchCatalogue(){
   var controller=typeof AbortController==='function'?new AbortController():null;
@@ -863,7 +866,13 @@ async function boot(){
   if(SKY_QUERY.has('budget'))setBudget(SKY_QUERY.get('budget'));
   applyFilter();
   skyEvent('ready',{api:window.BoomSkyline});
-  if(window.parent!==window)window.parent.postMessage({t:'boomSkylineReady'},location.origin);
+  // Usable means the catalogue/pins exist and the map has painted once.
+  // It does not claim that all third-party tiles have completed loading.
+  map.once('render',function(){
+    skyState({usable:true});
+    if(window.parent!==window)window.parent.postMessage({t:'boomSkylineReady'},location.origin);
+  });
+  map.triggerRepaint();
   if(PENDING_SELECT)window.BoomSkyline.select(PENDING_SELECT,{fly:!SKY_QUERY.get('view')});
   // A slow third-party tile must not turn a usable catalogue into an endless wait.
   setTimeout(function(){if(SKY_STATE.mapStatus==='style')skyState({mapStatus:'partial'});},12000);
@@ -1106,10 +1115,26 @@ async function boot(){
 })();
 /* ══ /QUADRANTE:JS ══ */
 
-var SKY_CATALOGUE_REQUEST=fetchCatalogue();
+function retryCity(){
+  // A retry keeps the current camera and chosen home; no cache or new store.
+  var url=new URL(location.href);
+  if(!window.BoomSkyline){location.replace(url.pathname+url.search+url.hash);return;}
+  url.searchParams.set('budget',String(MAXFILTER));
+  if(TIENI!==null&&TIENI.size<=30)url.searchParams.set('homes',Array.from(TIENI).join(','));
+  var destination=$('qfMeta'),minutes=document.querySelector('#qfMin button.on');
+  if(destination&&window.BOOM_MAPPA&&BOOM_MAPPA.METE.some(function(p){return p.slug===destination.value;}))url.searchParams.set('place',destination.value);
+  if(minutes&&['15','25','40'].indexOf(minutes.dataset.m)>=0)url.searchParams.set('minutes',minutes.dataset.m);else url.searchParams.delete('minutes');
+  if(map)try{
+    var center=map.getCenter();
+    url.searchParams.set('view',[center.lng.toFixed(4),center.lat.toFixed(4),map.getZoom().toFixed(2),map.getBearing().toFixed(1),map.getPitch().toFixed(1)].join(','));
+    if(SELECTED)url.searchParams.set('home',SELECTED.__id);else url.searchParams.delete('home');
+  }catch(_){}
+  location.replace(url.pathname+url.search+url.hash);
+}
+var SKY_CATALOGUE_REQUEST=null,SKY_STARTED=false,SKY_IDLE=null,SKY_OBSERVER=null,SKY_VISIBLE=false;
 skyState({});
-var retry=$('skyLoadRetry');if(retry)retry.addEventListener('click',function(){location.reload();});
-(function loadMapLibre(){
+var retry=$('skyLoadRetry');if(retry)retry.addEventListener('click',retryCity);
+function loadMapLibre(){
   function start(){boot().catch(function(){mapFailure('map');});}
   if(window.maplibregl)return start();
   if(!document.querySelector('link[href*="maplibre-gl"][href$=".css"]')){
@@ -1121,7 +1146,35 @@ var retry=$('skyLoadRetry');if(retry)retry.addEventListener('click',function(){l
   s.addEventListener('load',function(){clearTimeout(timer);start();},{once:true});
   s.addEventListener('error',function(){clearTimeout(timer);mapFailure('map-script');},{once:true});
   if(!existing){s.src='https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.min.js';document.head.appendChild(s);}
-})();
+}
+function cancelSkylineStart(){
+  if(SKY_IDLE!==null){if(window.cancelIdleCallback)cancelIdleCallback(SKY_IDLE);else clearTimeout(SKY_IDLE);SKY_IDLE=null;}
+}
+function startSkyline(){
+  cancelSkylineStart();
+  if(SKY_STARTED||document.hidden)return;
+  SKY_STARTED=true;SKY_CATALOGUE_REQUEST=fetchCatalogue();loadMapLibre();
+}
+function scheduleSkyline(){
+  if(SKY_STARTED||SKY_IDLE!==null||document.hidden||!SKY_VISIBLE)return;
+  SKY_IDLE=window.requestIdleCallback?requestIdleCallback(startSkyline,{timeout:900}):setTimeout(startSkyline,120);
+}
+if(document.documentElement.classList.contains('emb')){
+  // Only an actually visible embed starts its network work. Preserve the
+  // same iframe, map and camera on scroll/BFCache; never reload on resume.
+  if(window.IntersectionObserver){
+    SKY_OBSERVER=new IntersectionObserver(function(entries){
+      SKY_VISIBLE=entries[0].isIntersecting;
+      if(SKY_VISIBLE){scheduleSkyline();if(map)map.resize();}
+      else{cancelSkylineStart();if(map)map.stop();}
+    },{threshold:0});SKY_OBSERVER.observe($('map'));
+  }else{SKY_VISIBLE=true;scheduleSkyline();}
+  document.addEventListener('pointerdown',startSkyline,{once:true,passive:true});
+  document.addEventListener('keydown',startSkyline,{once:true});
+  window.addEventListener('pagehide',function(){cancelSkylineStart();if(SKY_OBSERVER)SKY_OBSERVER.disconnect();});
+  window.addEventListener('pageshow',function(e){if(e.persisted){if(SKY_OBSERVER)SKY_OBSERVER.observe($('map'));else scheduleSkyline();}});
+}else startSkyline();
+document.addEventListener('visibilitychange',function(){if(document.hidden)cancelSkylineStart();else if(document.documentElement.classList.contains('emb'))scheduleSkyline();else startSkyline();});
 })();
 </script>
 

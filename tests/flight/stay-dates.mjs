@@ -42,7 +42,7 @@ try{
  async function check(name,fn){try{errors.length=0;await fn();assert.deepEqual(errors,[]);console.log('  ✓ '+name);pass++;}catch(e){console.log('  ✗ '+name+' — '+e.message);fail++;}}
  const params=()=>new URL(page.url()).searchParams;
  await check('Home → catalogue → Skyline → Apply carries exact dates and the original arrival filter',async()=>{
-  await goto('/');await page.locator('#durataSoggiorno').selectOption('6');
+  await goto('/');await page.locator('.flight-stay-options>summary').click();await page.locator('#durataSoggiorno').selectOption('6');
   await page.locator('#stayMoveIn').fill('2027-01-31');
   assert.equal(await page.locator('#stayMoveOut').inputValue(),'2027-07-31');
   await Promise.all([page.waitForURL('**/apartments?**'),page.locator('#atterro button[type="submit"]').click()]);
@@ -87,6 +87,7 @@ try{
  });
  await check('Clear removes both dates and the arrival filter; browser history restores a whole request',async()=>{
   await goto('/apartments?stay=6&moveIn=2027-01-31&moveOut=2027-07-31');
+  await page.locator('.flight-stay-options>summary').click();
   await page.locator('[data-stay-clear]').click();
   assert.equal(params().has('stay'),false);assert.equal(await page.locator('#stayMoveIn').inputValue(),'');
   assert.equal(await page.locator('#quandoData').inputValue(),'');
