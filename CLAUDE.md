@@ -8736,13 +8736,14 @@ const { user, profile } = await BoomPortal.requireAuth(
 
 **Safari desktop hardening** (a wedged WebKit used to leave the logged-in
 pages on their loader with no signal at all):
-- `js/firebase-config.js` — the 12 pages that load it used to call
-  `enablePersistence({synchronizeTabs:true})` **synchronously on the boot
-  path**. On WebKit that IndexedDB + WebLocks handshake stalls for seconds
-  and the auth guard's first read looks hung. Now deferred to an idle
-  callback, skipped on iOS, no `synchronizeTabs` on Safari, escape hatch
-  `?nopersist=1` / `localStorage.boom_no_persist='1'` — the same treatment
-  `js/portal-app.js` already applied to portal.html.
+- **Avvio senza cache disco (27/10/2026):** `firebase-config.js` e
+  `portal-app.js` usano la cache Firestore in memoria predefinita. La vecchia
+  `enablePersistence` differita poteva bloccare IndexedDB prima della lettura
+  del profilo anche in Chrome; riprovare la stessa coda non la sbloccava.
+  Nessun flag o recupero richiesto; Auth conserva la propria persistenza.
+  Nessuna cancellazione automatica dei database o scritture pendenti; la coda
+  Firestore offline non sopravvive più alla chiusura della pagina. Test `safari`:
+  cache bloccata, reload, seconda scheda e due mutazioni che ripristinano il guasto.
 - `BoomPortal.withTimeout(promise, ms)` — a Firestore read that never
   settles is a loader that never leaves. `requireAuth` reads the profile
   under a 7s watchdog, retries `{source:'server'}`, then gives up loudly.

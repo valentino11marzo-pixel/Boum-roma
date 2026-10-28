@@ -9,6 +9,7 @@
 //
 // Richiede playwright-core + il Chromium preinstallato dell'ambiente.
 
+import assert from 'node:assert/strict';
 import { loadChromium, launchOptions } from '../_browser.mjs';
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
@@ -47,13 +48,21 @@ function stub({ mode, role }) {
     docs: rows.map((d, i) => ({ id: 'd' + i, data: () => d, exists: true })),
   });
   const never = () => new Promise(() => {});
+  window.cacheProbe = { diskStarted: false, reads: 0, deletes: 0 };
+  if (mode === 'cacheHang') {
+    // Force the old idle callback ahead of Auth: its disk-open never settles,
+    // and subsequent SDK reads queue behind it. A profile timeout/retry cannot
+    // unblock that queue. No recovery flag or query parameter in this fixture.
+    window.requestIdleCallback = cb => { cb({ timeRemaining: () => 50 }); return 1; };
+    indexedDB.deleteDatabase = () => { window.cacheProbe.deletes++; throw Error('must not delete pending writes'); };
+  }
   const profile = Object.assign(snap([]), { exists: true, data: () => ({ role, name: 'Test' }) });
   const q = {
     where: () => q, orderBy: () => q, limit: () => q, doc: () => q,
-    get: () => (mode === 'profileHang' ? never() : Promise.resolve(profile)),
+    get: () => { window.cacheProbe.reads++; return mode === 'profileHang' || window.cacheProbe.diskStarted ? never() : Promise.resolve(profile); },
     onSnapshot: (...args) => {
       const onData = args.find(arg => typeof arg === 'function');
-      if (mode === 'silentChannel') return () => {};      // non chiama mai nulla
+      if (mode === 'silentChannel' || window.cacheProbe.diskStarted) return () => {};      // non chiama mai nulla
       setTimeout(() => onData(snap([])), 20);
       return () => {};
     },
@@ -79,7 +88,7 @@ function stub({ mode, role }) {
   });
   const firestoreFn = () => ({
     collection: () => q, doc: () => q,
-    enablePersistence: () => Promise.resolve(),
+    enablePersistence: () => { if (mode !== 'cacheHang') return Promise.resolve(); window.cacheProbe.diskStarted = true; return never(); },
     batch: () => ({ set() {}, update() {}, delete() {}, commit: () => Promise.resolve() }),
   });
   window.firebase = {
@@ -105,6 +114,10 @@ function stub({ mode, role }) {
 }
 
 const CASES = [
+  ...['portal', 'pre-agreement-admin'].flatMap(page => [
+    { name: page + ': disk cache blocked, normal URL + reload + second tab', page, role: 'admin', mode: 'cacheHang', wait: 6000, expect: 'app' },
+    { name: page + ': mutation restores disk persistence → boot blocks', page, role: 'admin', mode: 'cacheHang', wait: 3000, expect: 'stuck', restorePersistence: true },
+  ]),
   { name: 'console pre-agreement: boot normale',        page: 'pre-agreement-admin', role: 'admin',  mode: 'ok',            wait: 1400, expect: 'app' },
   { name: '/casa: boot normale',                        page: 'tenant',              role: 'tenant', mode: 'ok',            wait: 1400, expect: 'app' },
   { name: 'manuale: boot normale',                      page: 'manuale',             role: 'admin',  mode: 'ok',            wait: 1400, expect: 'app' },
@@ -131,22 +144,30 @@ const browser = await chromium.launch(launchOptions());
 let pass = 0, fail = 0;
 
 for (const c of CASES) {
-  const ctx = await browser.newContext({
-    // UA di Safari desktop: attiva i rami Safari-specifici (grazia di 3s sul
-    // null spurio, persistence senza synchronizeTabs).
+  const ctx = await browser.newContext(c.mode === 'cacheHang' ? {} : {
+    // Cache regressions use Chromium's real UA (the production incident).
+    // Existing resilience cases keep Safari's auth grace and boot branches.
     userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 '
       + '(KHTML, like Gecko) Version/18.3 Safari/605.1.15',
   });
   const page = await ctx.newPage();
   const crashes = [];
   page.on('pageerror', (e) => crashes.push(e.message));
-  await page.addInitScript(stub, { mode: c.mode, role: c.role });
+  await ctx.addInitScript(stub, { mode: c.mode, role: c.role });
   // gli SDK Firebase da CDN non servono: lo stub è già a posto. REGEX, non
   // glob: l'host reale è www.gstatic.com e il glob non lo prendeva — le altre
   // pagine sopravvivevano lo stesso (lo stub è già iniettato), ma portal.html
   // ha un onerror che sostituisce il body con "Errore Caricamento Script", e
   // il test avrebbe misurato quello invece del boot.
-  await page.route(/gstatic\.com/, (r) => r.fulfill({ status: 200, contentType: 'application/javascript', body: '' }));
+  await ctx.route(/gstatic\.com/, (r) => r.fulfill({ status: 200, contentType: 'application/javascript', body: '' }));
+  if (c.restorePersistence) {
+    const file = c.page === 'portal' ? 'js/portal-app.js' : 'js/firebase-config.js';
+    const original = await readFile(join(ROOT, file), 'utf8');
+    const mutant = original.replace('const db = firebase.firestore();',
+      'const db = firebase.firestore(); db.enablePersistence({synchronizeTabs:true});');
+    assert.notEqual(mutant, original, 'mutation applied to real entry point');
+    await ctx.route('**/' + file, r => r.fulfill({status: 200, contentType: 'application/javascript', body: mutant}));
+  }
   if (c.breakApp) {
     await page.route(/\/js\/portal-app\.js/, (r) => r.fulfill({
       status: 200, contentType: 'application/javascript',
@@ -178,6 +199,28 @@ for (const c of CASES) {
   console.log(`${ok ? '\x1b[32m✓\x1b[0m' : '\x1b[31m✗\x1b[0m'} ${c.name} — atteso ${c.expect}, ottenuto ${state}`
     + (unexpected.length ? ` [crash: ${unexpected[0]}]` : ''));
   ok ? pass++ : fail++;
+  if (c.mode === 'cacheHang' && !c.restorePersistence) {
+    async function assertNormalBoot(tab) {
+      await tab.waitForFunction(() => {
+        const loader = document.getElementById('loading') || document.getElementById('load');
+        return window.cacheProbe.reads > 0 && loader && getComputedStyle(loader).display === 'none';
+      }, null, { timeout: 10000 });
+      assert.equal(new URL(tab.url()).search, '', 'no recovery parameter');
+      assert.deepEqual(await tab.evaluate(() => ({
+        disk: cacheProbe.diskStarted, deletes: cacheProbe.deletes,
+        flag: localStorage.getItem('boom_no_persist'), recovery: !!document.getElementById('bp-recovery'),
+      })), {disk: false, deletes: 0, flag: null, recovery: false});
+    }
+    await assertNormalBoot(page);
+    await page.reload({waitUntil: 'domcontentloaded'});
+    await assertNormalBoot(page);
+    const second = await ctx.newPage();
+    second.on('pageerror', (e) => crashes.push(e.message));
+    await second.goto(`http://127.0.0.1:${PORT}/${c.page}.html`, {waitUntil: 'domcontentloaded'});
+    await assertNormalBoot(second);
+    await assertNormalBoot(page);
+    assert.deepEqual(crashes, [], 'no crashes after reload or second tab');
+  }
   await ctx.close();
 }
 

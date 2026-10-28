@@ -247,35 +247,10 @@ window.__portalAppLoaded = true; // sentinella per la via d'uscita anti-spinner-
         } catch (e) { /* nessun beacon è meglio di un boot rotto */ }
     })();
 
-    // Offline persistence — IndexedDB on Safari (especially iOS) is notoriously
-    // slow at cold-start and ITP wipes it every 7 days anyway, making the cost
-    // higher than the benefit. We:
-    //   1) Defer the call out of the critical boot path (idle callback / timeout).
-    //   2) Skip it on iOS Safari (the platform that suffers the most from it).
-    //   3) Drop synchronizeTabs on Safari (the BroadcastChannel/WebLocks dance
-    //      causes 1-2s stalls there).
-    function startFirestorePersistence() {
-        const ua = (navigator.userAgent || '').toLowerCase();
-        const isSafariUA = /^((?!chrome|android|crios|fxios).)*safari/.test(ua);
-        const isIOS      = /iphone|ipad|ipod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-        // Safari in navigazione privata / con i cookie bloccati fa LANCIARE
-        // localStorage, non lo restituisce vuoto. js/firebase-config.js lo
-        // avvolge già; qui no, e l'eccezione moriva dentro l'idle callback
-        // lasciando la persistenza spenta senza dirlo. Stesso trattamento.
-        try {
-            if (location.search.includes('nopersist=1')) return;
-            if (localStorage.getItem('boom_no_persist') === '1') return;
-        } catch (e) { return; } // storage negato → niente persistenza, mai un crash
-        if (isIOS) return; // iOS Safari + persistence = 3-5s stall, not worth it.
-        const opts = isSafariUA ? {} : { synchronizeTabs: true };
-        db.enablePersistence(opts).catch(err => {
-            if (err.code === 'failed-precondition') console.warn('Persistence: multiple tabs open');
-            else if (err.code === 'unimplemented') console.warn('Persistence: browser not supported');
-            else console.warn('Persistence init:', err.message || err);
-        });
-    }
-    if ('requestIdleCallback' in window) requestIdleCallback(startFirestorePersistence, { timeout: 2000 });
-    else setTimeout(startFirestorePersistence, 0);
+    // Firestore uses its default memory cache. Do not enable disk persistence:
+    // an IndexedDB open/lease can stall the SDK queue before the profile read,
+    // even when enablePersistence is deferred. Auth persistence is independent.
+    // Keep existing disk data untouched (it may contain unacknowledged writes).
 
     // ═══════════════════════════════════════════════════════════════════════════
     // COMPANY INFO - UPDATE THESE FOR YOUR BUSINESS
