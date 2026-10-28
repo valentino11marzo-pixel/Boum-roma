@@ -140,6 +140,10 @@ firebase.json             Firebase deploy config (firestore + storage rules)
 | `sw.js` | Service worker (network-first HTML, cache-first static). |
 
 ### SmartLink annunci esterni (BOOM Tools)
+Dal 28/10 il lettore HTTP verifica l'identità dell'annuncio prima di seguire un redirect: un altro ID, portale o sottodominio non riceve una seconda richiesta e non può prestare dati/foto al link iniziale.
+Restano ammessi il percorso invariato e gli alias bare/www della stessa fonte; lo slash finale è equivalente soltanto sulle route con ID numerico riconosciute. Il controllo vale sui redirect ricevuti, senza tentare URL alternativi dopo un blocco.
+Il parser JSON-LD condiviso con PFS legge il vero attributo `type` anche con altri attributi o virgolette singole. I prezzi decimali standard, per esempio `1500.00`, conservano il valore: prima la rimozione della punteggiatura produceva `150000`.
+Regressioni in `tests/smartlink/run.mjs` sul parser e sull'extractor reali con rete simulata: dati strutturati, prezzi, redirect e una sola richiesta in caso di fonte negata. Queste correzioni non sbloccano l'accesso ai nuovi annunci Immobiliare.
 Dal 26/10 l'archivio riconosce lo stesso ID Immobiliare nelle quattro forme HTTPS con/senza `www` e slash finale; l'equivalenza vale solo per confronti/letture dei record BOOM, senza cambiare `normalizeUrl` o provare altre destinazioni della fonte.
 `_reuse` cerca le varianti in parallelo, deduplica e sceglie la pubblicazione BOOM più recente (`createdAt`, ripiego su `observedAt`), conservando la data originale dell'osservazione. Una query fallita o satura a 50 risultati non certifica un'ultima versione.
 `extract` con `archiveOnly:true` legge esclusivamente `smartlinks`: il Portal lo usa prima di accodare al lettore centrale. Foto già su Storage restano disponibili senza un lettore online o nuovi caricamenti dal telefono; risposte tardive sono scartate.
