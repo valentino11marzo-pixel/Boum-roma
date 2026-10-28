@@ -3,3 +3,17 @@
 .foglio-filtri>.ac-data{margin:18px 0;padding:12px 14px;border:1px solid var(--line,#333);max-width:260px}
 .foglio-filtri>.ac-data>span{display:block;font-size:11px;color:var(--text-3,#a8a8a8);margin-bottom:5px}
 .bfd-pass .flight-stay-note{margin:0 0 12px}
+.flight-stay-fields{min-width:0;gap:7px!important}
+.flight-stay-dates{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
+.flight-stay-dates label{display:grid;gap:4px;min-width:0;font-size:10px;color:var(--text-3,#aaa)}
+.flight-stay-dates input[type=date]{appearance:auto;-webkit-appearance:auto;min-width:0;width:100%;max-width:100%;box-sizing:border-box;border:0;border-bottom:1px solid #ffffff24;border-radius:0;background:transparent;color:#f2f2f4;font:inherit;font-size:13px;min-height:34px;padding:3px 0;color-scheme:dark}
+.flight-stay-dates input:focus-visible{outline:1px solid #ffd700;outline-offset:3px}
+.flight-stay-dates input[aria-invalid=true]{border-bottom-color:#ff9d89}
+.flight-stay-shortcut{display:flex;align-items:center;justify-content:space-between;gap:10px;min-width:0}
+.flight-stay-shortcut select{max-width:100%!important;min-width:0;font-size:11px!important}
+.flight-stay-shortcut button{flex:none;border:0;background:transparent;color:var(--text-3,#aaa);font:inherit;font-size:10px;text-decoration:underline;text-underline-offset:3px;padding:7px 0;cursor:pointer}
+[data-stay-summary]{display:block;font-size:10px;line-height:1.4;color:var(--text-3,#aaa);overflow-wrap:anywhere}
+#stayDatesError,#apStayError{font-size:12px;line-height:1.4;color:#ffb5a6;margin:3px 0 0}
+.durata-conto[hidden]{display:none!important}
+@media(max-width:400px){.flight-stay-dates{gap:8px}.flight-stay-dates input[type=date]{font-size:12px}}
+@media(pointer:coarse){.flight-stay-dates input[type=date],.flight-stay-shortcut button{min-height:44px}.flight-stay-dates input[type=date],.flight-stay-shortcut select{font-size:16px!important}.flight-stay-shortcut select{min-height:44px}}

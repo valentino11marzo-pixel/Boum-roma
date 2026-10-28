@@ -7,6 +7,20 @@
   if (!home || home.dataset.flightHomePresentation) return;
   home.dataset.flightHomePresentation = 'true';
 
+  // Facts stay in the server HTML. Progressive disclosure shortens the
+  // reading path without removing content from no-script visitors.
+  document.querySelectorAll('[data-flight-disclosure]').forEach(function (button) {
+    var panel = document.getElementById(button.dataset.flightDisclosure);
+    if (!panel) return;
+    button.hidden = false;
+    panel.hidden = true;
+    button.setAttribute('aria-expanded', 'false');
+    button.addEventListener('click', function () {
+      panel.hidden = !panel.hidden;
+      button.setAttribute('aria-expanded', String(!panel.hidden));
+    });
+  });
+
   // Rest the existing ticket foil and route animations outside the viewport.
   // The original product demo and the canvas keep their own controllers.
   var tickets = document.querySelector('.flight-home-services .biglietteria');

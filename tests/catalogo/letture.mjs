@@ -556,6 +556,24 @@ console.log('\n6 · le altre superfici: concierge, Commerciale, Segretaria, Segu
   const rejectedStay = COLLS.savedSearches.get(invalidStay.data?.id);
   check('Un range ambiguo non diventa una durata esatta sul server',
     invalidStay.statusCode === 200 && rejectedStay?.criteria?.durationMonths === null && rejectedStay.criteria.beds === 0);
+  const datedSearch = mkRes();
+  await save({ method:'POST', headers:{'x-forwarded-for':'10.6.6.8'}, body:{email:'dated@test.boom',
+    criteria:{moveIn:'2027-01-31',moveOut:'2027-05-01',durationMonths:12,beds:0}} },datedSearch);
+  const dated = COLLS.savedSearches.get(datedSearch.data?.id);
+  check('Date esatte salvate: l’uscita resta e i giorni extra non diventano 12 mesi',
+    datedSearch.statusCode===200 && dated.criteria.moveIn==='2027-01-31' && dated.criteria.moveOut==='2027-05-01' && dated.criteria.durationMonths===null);
+  const datedDigest=digestHtml({id:'dated',email:'dated@test.boom',criteria:dated.criteria},[withId(MONO)]);
+  check('Digest porta entrambe le date fino alla scheda senza promettere copertura della data di uscita',
+    /3 months \+ 1 day/.test(datedDigest) && /moveIn=2027-01-31&moveOut=2027-05-01/.test(datedDigest)
+    && /Departure does not filter/.test(datedDigest)
+    && matches({moveOut:'2035-01-01'},withId(MONO)) === matches({},withId(MONO)));
+  for(const moveOut of ['2027-01-01','2027-04-29','2027-02-30','2038-01-31']) {
+    const badDates=mkRes();
+    await save({method:'POST',headers:{'x-forwarded-for':'10.6.6.9'},body:{email:'invalid@test.boom',
+      criteria:{moveIn:'2027-01-31',moveOut}}},badDates);
+    check('La ricerca rifiuta la coppia di date invalida prima di salvarla: '+moveOut,
+      badDates.statusCode===400 && badDates.data?.error==='invalid_stay');
+  }
   check('digest: «2 bed» per Capri, «1 bed» per Cappellari, mai il testo libero né «3 bed»',
     /· 2 bed · /.test(dig) && /· 1 bed · /.test(dig) && !/Living|3 bed/.test(dig), (dig.match(/· [^<]*bed · /g) || []).join(' | '));
   const dz = digestHtml({ id: 's', email: 'a@b.c' }, [{ id: 'z', name: 'Zero', price: 900, bedrooms: 0 }, { id: 'u', name: 'Ignota', price: 900 }]);

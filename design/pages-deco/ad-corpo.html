@@ -387,16 +387,19 @@
         <p class="disco-sotto">Every home walked in person. Explore the city, then find the one that fits your everyday.</p>
 
         <form class="atterro cerca" id="atterro" data-stay-page="apartments">
-          <label class="atterro-campo ac-stay">
-          <span>Length of stay</span>
-          <select id="durataSoggiorno" aria-label="Length of stay" aria-describedby="stayPreferenceNote">
-            <option value="">Not sure yet</option>
-            <option value="3">3 months</option>
-            <option value="6">6 months</option>
-            <option value="12">12 months</option>
-            <option value="18">18 months</option>
-            <option value="24">24 months</option>
-          </select></label>
+          <div class="atterro-campo ac-stay flight-stay-fields">
+          <span>Your stay</span>
+          <div class="flight-stay-dates">
+            <label>From<input type="date" id="stayMoveIn" aria-describedby="stayDatesError"></label>
+            <label>Until<input type="date" id="stayMoveOut" aria-describedby="stayDatesError"></label>
+          </div>
+          <div class="flight-stay-shortcut">
+            <select id="durataSoggiorno" aria-label="Stay length shortcut"><option value="">Choose dates</option><option value="3">3 months</option><option value="6">6 months</option><option value="12">12 months</option><option value="18">18 months</option><option value="24">24 months</option></select>
+            <button type="button" data-stay-clear>Clear dates</button>
+          </div>
+          <output data-stay-summary aria-live="polite"></output>
+          <p id="stayDatesError" role="alert" hidden></p>
+        </div>
           <span class="atterro-divisa" aria-hidden="true"></span>
           <label class="atterro-campo">
             <span>Budget</span>

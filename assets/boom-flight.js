@@ -8,6 +8,17 @@
     // A retry can land on a 503/non-opted-in page. That is an expected
     // cancellation, not a page error or a reason to intercept navigation.
     transition.ready.catch(function () {});
+    if (event.type === 'pageswap') {
+      // Only these public pages load the Flight opt-in stylesheet. Chromium
+      // can reject an inaccessible transition promise in a non-opted-in
+      // destination, so stop the animation before leaving for a service page.
+      // The navigation itself is still native and is never intercepted.
+      var destination;
+      try { destination = new URL(event.activation.entry.url); } catch (_) {}
+      if (!destination || destination.origin !== location.origin ||
+          !/^\/(?:|index(?:\.html)?|apartments(?:\.html)?|apartment-detail(?:\.html)?|skyline(?:\.html)?|your-rome(?:\.html)?|listing\/[A-Za-z0-9_-]+)\/?$/.test(destination.pathname))
+        transition.skipTransition();
+    }
     transition.finished.then(function () {
       if (event.type !== 'pagereveal') return;
       requestAnimationFrame(function () { window.dispatchEvent(new Event('resize')); });
@@ -65,7 +76,7 @@
   }
   function build() {
     dialog = el('dialog','flight-dialog'); dialog.setAttribute('aria-labelledby','flight-move-title');
-    dialog.innerHTML = '<div class="flight-dialog-top"><div><span class="flight-kicker">BOOM · Your Rome</span><h2 id="flight-move-title">Your move.</h2></div><button type="button" class="flight-close" aria-label="Close Your move">×</button></div><div class="flight-dialog-body"><p>Your homes. Your everyday places. One place to come back to.</p><h3>Saved homes</h3><ul class="flight-saved"></ul><a class="flight-primary" data-flight-sky href="/skyline"><span>Explore Rome in Skyline</span><span aria-hidden="true">↗</span></a><button class="flight-copy" type="button">Copy my Skyline link ↗</button><p class="flight-status" role="status"></p><input class="flight-link-fallback" aria-label="Your Skyline link" readonly hidden><h3>Your everyday</h3><div data-flight-places></div><a class="flight-secondary" href="/skyline?places=1">Manage my places <span aria-hidden="true">↗</span></a><h3>Your next step</h3><a class="flight-secondary" href="/property-finding">Find a home with BOOM <span aria-hidden="true">↗</span></a><a class="flight-secondary" href="/login">My tenant portal <span aria-hidden="true">↗</span></a><p class="flight-device">Saved on this browser. Your Skyline link includes up to 20 home IDs only; personal places stay private. Availability and prices are checked again when a home opens.</p></div>';
+    dialog.innerHTML = '<div class="flight-dialog-top"><div><span class="flight-kicker">BOOM · Your Rome</span><h2 id="flight-move-title">Your move.</h2></div><button type="button" class="flight-close" aria-label="Close Your move">×</button></div><div class="flight-dialog-body"><p>Your homes. Your everyday places. One place to come back to.</p><h3>Saved homes</h3><ul class="flight-saved"></ul><a class="flight-primary" data-flight-sky href="/skyline"><span>Explore Rome in Skyline</span><span aria-hidden="true">↗</span></a><button class="flight-copy" type="button">Copy my Skyline link ↗</button><p class="flight-status" role="status"></p><input class="flight-link-fallback" aria-label="Your Skyline link" readonly hidden><h3>Your everyday</h3><div data-flight-places></div><a class="flight-secondary" href="/skyline?places=1">Manage my places <span aria-hidden="true">↗</span></a><a class="flight-secondary" href="/your-rome">Your Rome · find your balance <span aria-hidden="true">↗</span></a><h3>Your next step</h3><a class="flight-secondary" href="/property-finding">Find a home with BOOM <span aria-hidden="true">↗</span></a><a class="flight-secondary" href="/login">My tenant portal <span aria-hidden="true">↗</span></a><p class="flight-device">Saved on this browser. Your Skyline link includes up to 20 home IDs only; personal places stay private. Availability and prices are checked again when a home opens.</p></div>';
     document.body.appendChild(dialog);
     dialog.querySelector('.flight-close').addEventListener('click',function(){dialog.close();});
     dialog.addEventListener('click',function(e){if(e.target===dialog){var b=dialog.getBoundingClientRect();if(e.clientX<b.left||e.clientX>b.right)dialog.close();}});

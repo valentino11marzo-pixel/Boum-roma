@@ -3048,24 +3048,17 @@ riusa Mappa/Tempi e coordinate vere, `setBudget` conserva i filtri; `homes=` res
 Test `mappaflight`: readiness, errori, scope vuoto, viaggio pubblico e mutazione dei pin.
 
 
-Durata Flight: il primo campo Home/Apartments è `Length of stay`, da 3 mesi (Condizioni 3.1);
-`js/stay-engine.js` valida la preferenza, `?stay=` la porta alla scheda e all’apply.
-Il catalogo pubblico non dichiara min/max di contratto: la durata NON filtra le case;
-UI e digest lo dicono, mentre `savedSearches.criteria.durationMonths` conserva la richiesta.
-La data rimane nei filtri avanzati (`dal`/`moveIn`); la scheda usa il conto già esistente.
-Niente conto snapshot Home né nuova aritmetica; il prefill aspetta DOMContentLoaded anche
-con defer lenti, così il default non sovrascrive la richiesta. Prove: `flight`, `letture`, `vetrina`, `listingssr`.
-
-La Home ingrandisce foto, demo 01–04 e biglietti originali; il foil si ferma fuori vista.
-`Find my balance` ordina le case mappate per canone, area o tragitto: budget mai alzato,
-nessuno score inventato; tipo, area, date e precisione restano quelli dichiarati.
-`skyline-guide-engine` deriva i risultati, `journeyFor` riusa Tempi/Mappa; Google Maps
-riceve solo la rotta pubblica scelta. Errori distinti da zero risultati, focus conservato.
-Prove: `flight`, `flightguideui`, `mappaflight`, `scroll`; generatori idempotenti.
+Flight 28/10, iterazione Your Rome: Home/Apartments chiedono ingresso e uscita esatti;
+`stay-engine` propaga `moveIn`/`moveOut` fino a saved search e Apply, con scorciatoie mesi e validazione calendario.
+La durata non filtra l’eligibilità delle case; frazioni di mese non producono totali soggiorno inventati.
+`/your-rome` espone directory campus e FAQ indicizzabili; `DESTINATIONS` mantiene indirizzi/fonti separati dai nove punti GTFS.
+Find my balance spiega ordine/compromessi e condivide solo preferenze pubbliche, case/date opzionali; niente punteggi sintetici.
+Home conserva Solari e foil, dà priorità a PFS/DAS e raccoglie gli approfondimenti; Apply ha quattro step e riepilogo senza cambiare submit/idempotenza.
+Foto: swipe solo orizzontale, frecce nel focus gallery. Generator parity, calendario, salvataggi, UI guida e listingssr verificano il percorso.
 
 ### POST `/api/search/save`
 Public save-search endpoint for the apartments discovery page. Body
-`{ email, label?, criteria{q,budgetMax,moveIn,durationMonths,beds,baths,furnished,video,
+`{ email, label?, criteria{q,budgetMax,moveIn,moveOut,durationMonths,beds,baths,furnished,video,
 zones[],feats[]}, resultCount?, company(honeypot) }`. Validates email,
 honeypot + per-IP rate limit (same hardening as `/api/canone-lead`), writes
 to the `savedSearches` collection under admin creds (`status:'active'`,

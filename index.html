@@ -2092,13 +2092,13 @@ body::before, body::after { z-index: 1 !important; }
 })();
 </script>
 <!-- BOOM_SCROLL:END -->
-<link rel="stylesheet" href="/assets/boom-flight-home.css?v=20261028e">
-<link rel="stylesheet" href="/assets/boom-flight.css?v=20261028e">
-<script defer src="/js/flight-engine.js?v=20261028e"></script>
-<script defer src="/assets/boom-flight.js?v=20261028e"></script>
-<script defer src="/js/stay-engine.js?v=20261028e"></script>
-<link rel="stylesheet" href="/assets/boom-flight-stay.css?v=20261028e">
-<script defer src="/assets/boom-flight-stay.js?v=20261028e"></script>
+<link rel="stylesheet" href="/assets/boom-flight-home.css?v=20261028f">
+<link rel="stylesheet" href="/assets/boom-flight.css?v=20261028f">
+<script defer src="/js/flight-engine.js?v=20261028f"></script>
+<script defer src="/assets/boom-flight.js?v=20261028f"></script>
+<script defer src="/js/stay-engine.js?v=20261028f"></script>
+<link rel="stylesheet" href="/assets/boom-flight-stay.css?v=20261028f">
+<script defer src="/assets/boom-flight-stay.js?v=20261028f"></script>
 </head>
 <body>
 
@@ -2163,7 +2163,7 @@ setTimeout(function () {
       <div class="hero-eyebrow"><b></b>Rome · International arrivals</div>
       <h1 class="hero-title">NEXT STOP.<span id="flapDays" class="flap-scale flight-home-word" data-word="ROME" aria-label="Rome">ROME</span><span class="flight-home-title-end">FEEL AT HOME.</span></h1>
       <p class="hero-sub">A home in Rome. A person on your side.<br>Your entire move, connected.</p>
-      <div class="flight-home-actions"><a class="btn btn-primary" href="/skyline">Enter Skyline <span aria-hidden="true">↗</span></a><a class="flight-home-agency" href="#banchina">Meet your agency <span aria-hidden="true">→</span></a></div>
+      <div class="flight-home-actions"><a class="btn btn-primary" href="/skyline">Enter Skyline <span aria-hidden="true">↗</span></a><a class="flight-home-agency" href="#perche">Meet your agency <span aria-hidden="true">→</span></a></div>
     </div>
     <section class="flight-home-skyline" id="skyline" aria-label="Rome Skyline">
       <div class="flight-home-skyline-heading"><div><span>SKYLINE</span><small>ROME, IN YOUR HANDS</small></div>
@@ -2196,16 +2196,19 @@ setTimeout(function () {
   </div>
   <div class="container flight-home-command">
     <form class="atterro" id="atterro" data-stay-page="home">
-        <label class="atterro-campo ac-stay">
-          <span>Length of stay</span>
-          <select id="durataSoggiorno" aria-label="Length of stay" aria-describedby="stayPreferenceNote">
-            <option value="">Not sure yet</option>
-            <option value="3">3 months</option>
-            <option value="6">6 months</option>
-            <option value="12">12 months</option>
-            <option value="18">18 months</option>
-            <option value="24">24 months</option>
-          </select></label>
+        <div class="atterro-campo ac-stay flight-stay-fields">
+          <span>Your stay</span>
+          <div class="flight-stay-dates">
+            <label>From<input type="date" id="stayMoveIn" aria-describedby="stayDatesError"></label>
+            <label>Until<input type="date" id="stayMoveOut" aria-describedby="stayDatesError"></label>
+          </div>
+          <div class="flight-stay-shortcut">
+            <select id="durataSoggiorno" aria-label="Stay length shortcut"><option value="">Choose dates</option><option value="3">3 months</option><option value="6">6 months</option><option value="12">12 months</option><option value="18">18 months</option><option value="24">24 months</option></select>
+            <button type="button" data-stay-clear>Clear dates</button>
+          </div>
+          <output data-stay-summary aria-live="polite"></output>
+          <p id="stayDatesError" role="alert" hidden></p>
+        </div>
         <span class="atterro-divisa" aria-hidden="true"></span>
         <label class="atterro-campo">
           <span>Budget</span>
@@ -2253,14 +2256,14 @@ setTimeout(function () {
         <span>Rome · homes for living</span></div>
     </aside>
     </div>
-    <div class="flight-home-ecosystem">
-      <span class="eyebrow"><i></i>One agency. The whole move.</span>
-      <h2 class="titolo">From first search<br>to your first morning.</h2>
-      <p>Find with us, bring a home you found, or let us handle the search. One connected path to your life in Rome.</p>
-      <a class="flight-home-door" href="/property-finding"><span>I’m still searching<small>Property Finding · the wider Rome market</small></span><span aria-hidden="true">↗</span></a>
-      <a class="flight-home-door" href="/deal-assistance"><span>I’ve found a home<small>A person to help with the next steps</small></span><span aria-hidden="true">↗</span></a>
-      <a class="flight-home-door" href="/concierge"><span>I’m getting ready to land<small>Your arrival and everyday support</small></span><span aria-hidden="true">↗</span></a>
-      <div class="flight-home-desks"><span>YOUR TENANT-SIDE DESKS</span><a href="/madrid">MADRID ↗</a><a href="/barcelona">BARCELONA ↗</a></div>
+    <div class="flight-home-ecosystem flight-home-your-rome" data-flight-editorial="2">
+      <span class="eyebrow"><i></i>Your Rome · by Skyline</span>
+      <h2 class="titolo">Your campus.<br>Your budget. <span class="hl">Your balance.</span></h2>
+      <p>The centre is one possibility. Start with where you need to be, then compare the rent, space and journey that work for you.</p>
+      <div class="flight-route-signal" aria-hidden="true"><span>HOME</span><i><b></b></i><span>YOUR EVERYDAY</span></div>
+      <a class="flight-balance-cta" href="/skyline?guide=1">Find my balance <span aria-hidden="true">↗</span></a>
+      <a class="flight-balance-about" href="/your-rome">Explore campuses &amp; how it works →</a>
+      <p class="flight-balance-foot">Free to explore · share your search · no account needed</p>
     </div>
   </div>
 </section>
@@ -2333,16 +2336,16 @@ setTimeout(function () {
           aria-selected="true"><b>01</b><span>Browse &amp; choose</span><i></i></button>
         <button type="button" class="app-tab" data-s="1" role="tab"
           id="appTab1" aria-controls="appScena1" tabindex="-1"
-          aria-selected="false"><b>02</b><span>Apply · 2 min</span><i></i></button>
+          aria-selected="false"><b>02</b><span>Apply &amp; review</span><i></i></button>
         <button type="button" class="app-tab" data-s="2" role="tab"
           id="appTab2" aria-controls="appScena2" tabindex="-1"
           aria-selected="false"><b>03</b><span>Sign &amp; pay</span><i></i></button>
         <button type="button" class="app-tab" data-s="3" role="tab"
           id="appTab3" aria-controls="appScena3" tabindex="-1"
-          aria-selected="false"><b>04</b><span>Move in · 48h</span><i></i></button>
+          aria-selected="false"><b>04</b><span>Get your keys</span><i></i></button>
       </div>
       <div class="app-vetro" aria-hidden="true"><i></i><i></i><i></i>
-        <span>boomrome.com — live product</span></div>
+        <span>The BOOM journey · illustrative preview</span></div>
       <div class="app-scena">
         <div class="scena-p attiva" data-s="0" id="appScena0" role="tabpanel" aria-labelledby="appTab0">
           <div class="s1-palco" aria-hidden="true">
@@ -2370,7 +2373,7 @@ setTimeout(function () {
               <span>Income</span><span>Consent</span></div>
             <div class="sc-invia">Submit application</div>
             <div class="sc-risposta"><i>B</i>
-              <div><small>Real human · 1h 47m later</small>
+              <div><small>Your BOOM contact · after review</small>
                 Approved — ready to sign?<span class="vv">✓✓</span></div></div>
           </div>
         </div>
@@ -2418,7 +2421,7 @@ setTimeout(function () {
                     </g>
                 </svg> Boom</b><span>Prenestino Two-Bath</span>
               <em>Tenant pass · Apple Wallet</em><i></i></div>
-            <span class="sc-timbro">Move-in confirmed · 48h</span>
+            <span class="sc-timbro">Your next chapter</span>
           </div>
         </div>
       </div>
@@ -2435,32 +2438,21 @@ setTimeout(function () {
      catalogo l'hai visto. -->
 <section class="sezione flight-home-services" id="banchina">
   <div class="container">
-    <div class="sale">
+    <div class="sale flight-service-heading">
       <span class="eyebrow"><i></i>Services · flat prices</span>
       <h2 class="titolo">Pick the door that matches
         <span class="hl">your situation</span>.</h2>
-      <p class="sotto">Every price is flat and written here — and most of it
-        comes back: credited to your agency fee when you rent with us, or
-        refunded if we don't deliver.
-        <a class="sotto-vai" href="/your-money">How your money
-          moves →</a></p>
+      <p class="sotto">A dedicated search, or a hand with a home you found. Choose the support you need, with the scope and fee clear from the start. <a class="sotto-vai" href="/your-money">See how your money moves →</a></p>
     </div>
 
     <div class="biglietteria coro" id="prBiglietti" style="margin-top:clamp(22px,2.6vw,34px)">
 
     <!-- ══ L'AMMIRAGLIA · FIRST CLASS ══ -->
-    <a class="bp eroe" href="/property-finding"
+    <a class="bp eroe flight-ticket-main" href="/property-finding"
        style="--c:var(--c-pf);--ca:rgba(255,215,0,.16);--cb:rgba(255,215,0,.45)">
       <span class="alone"></span>
       <span class="filigrana"></span>
-      <svg class="timbro" viewBox="0 0 80 80" aria-hidden="true">
-        <circle class="t-est" cx="40" cy="40" r="32"/>
-        <circle class="t-int" cx="40" cy="40" r="19"/>
-        <defs><path id="tCurva" d="M 40 14 a 26 26 0 1 1 -0.01 0"/></defs>
-        <text class="t-curvo"><textPath href="#tCurva" textLength="163"
-          lengthAdjust="spacingAndGlyphs">WALKED IN PERSON · BOOM ROME · </textPath></text>
-        <text class="t-stella" x="40" y="44.5">★</text>
-      </svg>
+      <span class="flight-ground-mark"><i aria-hidden="true"><b></b><b></b><b></b></i><span>BOOM / ON THE GROUND<small>In-person viewings in Rome</small></span></span>
       <span class="banda"><em>First class · Property Finding</em></span>
       <span class="corpo">
         <span class="testata">
@@ -2473,67 +2465,20 @@ setTimeout(function () {
         <span class="vendita">
           <span class="pnome"><span class="pn">Property Finding</span>
             <span class="pkind">Flagship</span></span>
-          <span class="promessa">Your private hunter on the whole Rome
-            market — <b>off-market included</b>, every shortlist walked
-            in person before you see it.</span>
+          <span class="promessa">A dedicated search across the Rome market, based on <b>your written criteria</b>. We organise viewings and help you choose.</span>
         </span>
-        <span class="dettagli">
-          <span><em>Passenger</em><strong>You</strong></span>
-          <span><em>Issuer</em><strong>BOOM Roma</strong></span>
-          <span class="acceso"><em>Class</em><strong>First</strong></span>
-          <span><em>Coverage</em><strong>Whole market</strong></span>
-          <span class="acceso"><em>Refund</em><strong>Full</strong></span>
-        </span>
-      </span>
-      <span class="perf perf-v"></span>
+        <span class="dettagli"><span><em>Search brief</em><strong>Your criteria</strong></span><span><em>Options</em><strong>At least 3 in 15 days</strong></span><span><em>On success</em><strong>Credited to agency fee</strong></span></span></span><span class="perf perf-v"></span>
       <span class="stub">
         <span class="stub-riga"><span class="quota">€350</span>
           <span class="barcode"></span></span>
         <span class="barcode-sotto">BOOM·ROME · FIRST · PF-0350</span>
         <span class="compra">Start the hunt · €350<i>→</i></span>
-        <span class="rassicura"><span><b>Zero risk:</b> deducted on
-          success, refunded in full if we don't deliver.</span></span>
+        <span class="rassicura"><span>€350 refunded if we do not present at least 3 matching options within 15 days. Terms §4.2.</span></span>
       </span>
     </a>
 
     <!-- ══ VIRTUAL VIEWING · LIVE ══ -->
-    <a class="bp vv" href="/virtual-viewing"
-       style="--c:var(--c-vv);--ca:rgba(0,255,136,.14);--cb:rgba(0,255,136,.4)">
-      <span class="alone"></span>
-      <span class="banda"><em>Virtual Viewing</em></span>
-      <span class="corpo">
-        <span class="testata">
-          <span class="situa">Found it, can't fly?</span>
-          <span class="numero">N° VV-0089</span>
-        </span>
-        <span class="rotta"><b>YOU</b>
-          <span class="tratta"><i class="punto"></i></span>
-          <b>THE DOOR</b></span>
-        <span class="vendita">
-          <span class="pnome"><span class="pn">Virtual Viewing</span>
-            <span class="pkind">Live</span></span>
-          <span class="promessa">See any home <b>live on video</b>
-            before you fly — the red flags said out loud.</span>
-        </span>
-        <span class="dettagli">
-          <span class="acceso"><em>Boarding</em><strong>Live video</strong></span>
-          <span><em>Delivery</em><strong>Apple Wallet</strong></span>
-          <span><em>Seat</em><strong>Front row</strong></span>
-        </span>
-      </span>
-      <span class="perf perf-h"></span>
-      <span class="stub">
-        <span class="stub-riga"><span class="quota">€89</span>
-          <span class="barcode"></span></span>
-        <span class="barcode-sotto">BOOM·ROME · LIVE · VV-0089</span>
-        <span class="compra">Book a live tour · €89<i>→</i></span>
-        <span class="rassicura"><span><b>Credited</b> if you rent with
-          us · BOOM homes: free, always.</span></span>
-      </span>
-    </a>
-
-    <!-- ══ DEAL ASSISTANCE · PROTECTION ══ -->
-    <a class="bp da" href="/deal-assistance"
+    <a class="bp da flight-ticket-main" href="/deal-assistance"
        style="--c:var(--c-da);--ca:rgba(157,140,255,.15);--cb:rgba(157,140,255,.4)">
       <span class="alone"></span>
       <span class="banda"><em>Deal Assistance</em></span>
@@ -2568,8 +2513,44 @@ setTimeout(function () {
       </span>
     </a>
 
+    <!-- ══ DEAL ASSISTANCE · PROTECTION ══ -->
+    <a class="bp vv flight-ticket-small" href="/virtual-viewing"
+       style="--c:var(--c-vv);--ca:rgba(0,255,136,.14);--cb:rgba(0,255,136,.4)">
+      <span class="alone"></span>
+      <span class="banda"><em>Virtual Viewing</em></span>
+      <span class="corpo">
+        <span class="testata">
+          <span class="situa">Found it, can't fly?</span>
+          <span class="numero">N° VV-0089</span>
+        </span>
+        <span class="rotta"><b>YOU</b>
+          <span class="tratta"><i class="punto"></i></span>
+          <b>THE DOOR</b></span>
+        <span class="vendita">
+          <span class="pnome"><span class="pn">Virtual Viewing</span>
+            <span class="pkind">Live</span></span>
+          <span class="promessa">See any home <b>live on video</b>
+            before you fly — the red flags said out loud.</span>
+        </span>
+        <span class="dettagli">
+          <span class="acceso"><em>Boarding</em><strong>Live video</strong></span>
+          <span><em>Delivery</em><strong>Apple Wallet</strong></span>
+          <span><em>Seat</em><strong>Front row</strong></span>
+        </span>
+      </span>
+      <span class="perf perf-h"></span>
+      <span class="stub">
+        <span class="stub-riga"><span class="quota">€89</span>
+          <span class="barcode"></span></span>
+        <span class="barcode-sotto">BOOM·ROME · LIVE · VV-0089</span>
+        <span class="compra">Book a live tour · €89<i>→</i></span>
+        <span class="rassicura"><span><b>Credited</b> if you rent with
+          us · BOOM homes: free, always.</span></span>
+      </span>
+    </a>
+
     <!-- ══ CONTRACT CHECK · EXPRESS ══ -->
-    <a class="bp cc" href="/contract-check-express"
+    <a class="bp cc flight-ticket-small" href="/contract-check-express"
        style="--c:var(--c-cc);--ca:rgba(62,211,255,.14);--cb:rgba(62,211,255,.4)">
       <span class="alone"></span>
       <span class="banda"><em>Contract Check</em></span>
@@ -2658,10 +2639,10 @@ setTimeout(function () {
 
     <div class="banchina sale" style="margin-top:clamp(16px,2vw,24px)">
 
-      <div class="ba-garanzie" aria-label="Guarantees">
+      <div class="ba-garanzie" aria-label="Your safeguards">
         <span class="ba-g">Stripe — a receipt for every line</span>
         <span class="ba-g">Deposit checked against the signed check-in report</span>
-        <span class="ba-g">Refunded or credited if we don't deliver</span>
+        <span class="ba-g">Service scope and terms shown before checkout</span>
         <span class="ba-g">Egidi Immobiliare S.r.l. — licensed agency</span>
         <span class="ba-g">BOOM® · EU trade mark 019317594</span>
       </div>
@@ -2675,12 +2656,7 @@ setTimeout(function () {
         <a class="bp-vai" href="/apartments">Browse the homes →</a>
       </div>
 
-      <div class="ba-cifre">
-        <div><b>48h</b><span>fastest move-in</span></div>
-        <div><b>4.9★</b><span>on Google · 47 reviews</span></div>
-        <div><b>100%</b><span>walked in person</span></div>
-        <div><b>€0</b><span>hidden fees</span></div>
-      </div>
+
       <div class="ba-ora">
         <span class="ba-viva"><span class="pt"></span>Rome
           <span class="orologio-roma" id="oraRoma">—:—</span></span>
@@ -2693,41 +2669,12 @@ setTimeout(function () {
 </section>
 
 <!-- ══ CONCIERGE — «life doesn't stop at the apartment» ══════════════════ -->
-<section class="sezione">
-  <div class="container">
-    <div class="testa-fila sale">
-      <div>
-        <span class="eyebrow"><i></i>After you move in</span>
-        <h2 class="titolo">Life doesn't stop <span class="hl">at the apartment</span></h2>
-      </div>
-      <a class="vai-testa" href="/concierge">All concierge services →</a>
-    </div>
-    <div class="griglia6 coro">
-      <div class="mini6"><svg viewBox="0 0 40 40"><path d="M20 6v8M20 26v8M6 20h8M26 20h8M10.2 10.2l5.6 5.6M24.2 24.2l5.6 5.6M29.8 10.2l-5.6 5.6M15.8 24.2l-5.6 5.6"/></svg>
-        <h3 class="mini6-nome">Codice fiscale</h3><span>Before you land</span></div>
-      <div class="mini6"><svg viewBox="0 0 40 40"><path d="M6 26l28-12-10 14-4-5-6 6-2-6z"/></svg>
-        <h3 class="mini6-nome">Move-in Pack</h3><span>€149</span></div>
-      <div class="mini6"><svg viewBox="0 0 40 40"><path d="M22 5L10 22h8l-2 13 12-17h-8z"/></svg>
-        <h3 class="mini6-nome">Deep clean</h3><span>€119 once</span></div>
-      <div class="mini6"><svg viewBox="0 0 40 40"><path d="M12 5h12l6 6v24H12z"/><path d="M24 5v6h6M17 19h8M17 24h8M17 29h5"/></svg>
-        <h3 class="mini6-nome">Italian SIM</h3><span>€40</span></div>
-      <div class="mini6"><svg viewBox="0 0 40 40"><circle cx="15" cy="15" r="7"/><path d="M20 20l13 13M27 27l4-4M31 31l3-3"/></svg>
-        <h3 class="mini6-nome">Healthcare enrollment</h3><span>€120</span></div>
-      <div class="mini6"><svg viewBox="0 0 40 40"><path d="M6 13l14-7 14 7v14l-14 7-14-7z"/><path d="M6 13l14 7 14-7M20 20v14"/></svg>
-        <h3 class="mini6-nome">A named human</h3><span>Included</span></div>
-    </div>
-  </div>
-</section>
-
-<!-- ══ IL LANDING PASS — la metafora resa servizio ═══════════════════════ -->
-<section class="sezione">
+<section class="sezione flight-home-aftercare">
   <div class="container pass-fila">
     <div class="sale">
       <span class="eyebrow"><i></i>After you sign</span>
       <h2 class="titolo">Travel light. Your rental<br><span class="hl">lives in your pocket.</span></h2>
-      <p class="sotto">Most agencies disappear at the keys. That's where
-        we clock in: your pass, your rent, your receipts and a named person
-        — in your pocket for the whole stay.</p>
+      <p class="sotto">Your contract, receipts and support stay connected throughout your tenancy. A real person behind the interface.</p>
       <div class="pass-lista">
         <div class="pass-voce"><i></i>Your tenant pass in Apple Wallet —
           issued with your contract</div>
@@ -2765,6 +2712,34 @@ setTimeout(function () {
     </div>
   </div>
 </section>
+<section class="sezione flight-home-concierge">
+  <div class="container">
+    <div class="testa-fila sale">
+      <div>
+        <span class="eyebrow"><i></i>After you move in</span>
+        <h2 class="titolo">Life doesn't stop <span class="hl">at the apartment</span></h2>
+      </div>
+      <a class="vai-testa" href="/concierge">All concierge services →</a>
+    </div>
+    <div class="griglia6 coro">
+      <div class="mini6"><svg viewBox="0 0 40 40"><path d="M20 6v8M20 26v8M6 20h8M26 20h8M10.2 10.2l5.6 5.6M24.2 24.2l5.6 5.6M29.8 10.2l-5.6 5.6M15.8 24.2l-5.6 5.6"/></svg>
+        <h3 class="mini6-nome">Codice fiscale</h3><span>Before you land</span></div>
+      <div class="mini6"><svg viewBox="0 0 40 40"><path d="M6 26l28-12-10 14-4-5-6 6-2-6z"/></svg>
+        <h3 class="mini6-nome">Move-in Pack</h3><span>€149</span></div>
+      <div class="mini6"><svg viewBox="0 0 40 40"><path d="M22 5L10 22h8l-2 13 12-17h-8z"/></svg>
+        <h3 class="mini6-nome">Deep clean</h3><span>€119 once</span></div>
+      <div class="mini6"><svg viewBox="0 0 40 40"><path d="M12 5h12l6 6v24H12z"/><path d="M24 5v6h6M17 19h8M17 24h8M17 29h5"/></svg>
+        <h3 class="mini6-nome">Italian SIM</h3><span>€40</span></div>
+      <div class="mini6"><svg viewBox="0 0 40 40"><circle cx="15" cy="15" r="7"/><path d="M20 20l13 13M27 27l4-4M31 31l3-3"/></svg>
+        <h3 class="mini6-nome">Healthcare enrollment</h3><span>€120</span></div>
+      <div class="mini6"><svg viewBox="0 0 40 40"><path d="M6 13l14-7 14 7v14l-14 7-14-7z"/><path d="M6 13l14 7 14-7M20 20v14"/></svg>
+        <h3 class="mini6-nome">A named human</h3><span>Included</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ IL LANDING PASS — la metafora resa servizio ═══════════════════════ -->
+
 
 <!-- il banner delle recensioni sta dove parla la persona -->
 <div class="container">
@@ -2778,7 +2753,7 @@ setTimeout(function () {
 <!-- ══ PERCHÉ ESISTIAMO — una voce sola: la sua ═════════════════════════
      Erano due sezioni che dicevano la stessa cosa da due angoli. Ora il
      motto e il titolo, la storia il sottotitolo, i sei dolori la prova. -->
-<section class="sezione fond-sezione" id="perche">
+<section class="sezione fond-sezione flight-home-founder" id="perche">
   <canvas class="mosaico-fondo" id="mosaicoFond" aria-hidden="true"></canvas>
   <div class="container">
 
@@ -2808,7 +2783,9 @@ setTimeout(function () {
       </div>
     </div>
 
-    <p class="dolori-capo"><b>Six things this market does to people</b> — and
+    <div class="flight-home-difference">
+      <button type="button" class="flight-disclosure" data-flight-disclosure="flightDifference" aria-expanded="true" aria-controls="flightDifference" hidden>What changes when you rent with BOOM <span aria-hidden="true">+</span></button>
+      <div id="flightDifference">    <p class="dolori-capo"><b>Six things this market does to people</b> — and
       what we do instead.</p>
 <div class="dolori coro">
       <div class="dolore"><svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="13"/><path d="M20 12v8l6 4"/></svg><b>Weeks of searching, alone</b><span>Move in as fast as 48h</span></div>
@@ -2827,6 +2804,7 @@ setTimeout(function () {
         wish existed when we moved here.</p>
     </div>
 
+</div></div>
     <div class="chi-num coro" id="aboutNum">
       <div><b data-fine="6" data-suff="+">6+</b><span>Years in Rome Real Estate</span></div>
       <div><b>REA</b><span>Registered agency · RM-1710623</span></div>
@@ -2838,7 +2816,7 @@ setTimeout(function () {
 </section>
 
 <!-- ══ ORGANIZZAZIONI + READY FOR ROME ═══════════════════════════════════ -->
-<section class="sezione">
+<section class="sezione flight-home-organisations">
   <div class="container org-fila">
     <div>
       <div class="sale">
@@ -2865,7 +2843,7 @@ setTimeout(function () {
     </div>
     <div class="pronto sale">
       <h2>Ready for <span class="hl">Rome?</span></h2>
-      <p>Stop fighting the system. Let us handle it.</p>
+      <p>Start with a home, a campus or a conversation.</p>
       <div class="pronto-azioni">
         <a class="btn btn-primary" href="/apartments">View Apartments</a>
         <a class="btn btn-secondary" href="https://wa.me/393313251961"
@@ -4766,6 +4744,6 @@ setTimeout(function () {
 <script defer src="/js/boom-consent.js"></script>
 
 <script defer src="/js/boom-track.js"></script>
-<script defer src="/assets/boom-flight-home.js?v=20261028e"></script>
+<script defer src="/assets/boom-flight-home.js?v=20261028f"></script>
 </body>
 </html>

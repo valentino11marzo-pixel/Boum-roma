@@ -1801,14 +1801,14 @@ body::before, body::after { z-index: 1 !important; }
 })();
 </script>
 <!-- BOOM_SCROLL:END -->
-<link rel="stylesheet" href="/assets/boom-flight-detail.css?v=20261028e">
+<link rel="stylesheet" href="/assets/boom-flight-detail.css?v=20261028f">
 <noscript><style>.boom-flight-detail #posto[hidden]{display:block!important;margin-top:28px}.boom-flight-detail .bfd-tabs,.boom-flight-detail .bfd-open-photos{display:none}</style></noscript>
-<link rel="stylesheet" href="/assets/boom-flight.css?v=20261028e">
-<script defer src="/js/flight-engine.js?v=20261028e"></script>
-<script defer src="/assets/boom-flight.js?v=20261028e"></script>
-<script defer src="/js/stay-engine.js?v=20261028e"></script>
-<link rel="stylesheet" href="/assets/boom-flight-stay.css?v=20261028e">
-<script defer src="/assets/boom-flight-stay.js?v=20261028e"></script>
+<link rel="stylesheet" href="/assets/boom-flight.css?v=20261028f">
+<script defer src="/js/flight-engine.js?v=20261028f"></script>
+<script defer src="/assets/boom-flight.js?v=20261028f"></script>
+<script defer src="/js/stay-engine.js?v=20261028f"></script>
+<link rel="stylesheet" href="/assets/boom-flight-stay.css?v=20261028f">
+<script defer src="/assets/boom-flight-stay.js?v=20261028f"></script>
 </head>
 <body>
 <nav class="nav" id="nav">
@@ -2546,7 +2546,7 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
         </div>
         <div id="bfd-home-panel" role="tabpanel" aria-labelledby="bfd-home-tab" tabindex="0">
           <div class="scena-casa">
-      <div class="telaio" id="telaio">
+      <div class="telaio" id="telaio" tabindex="0" role="region" aria-label="Apartment photographs">
         <button type="button" class="sfoglia prec" id="foPrec"
           aria-label="Previous photo"><svg viewBox="0 0 24 24"
           aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
@@ -2557,7 +2557,7 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
 
         <div class="telaio-basso"><button type="button" class="bfd-open-photos" data-bfd-photos>View all photos <span aria-hidden="true">↗</span></button></div>
       </div>
-      <div class="rullino" id="rullino"></div>
+      <div class="rullino" id="rullino" role="group" aria-label="Choose a photograph"></div>
     </div>
 
     <div class="pellicola coro" id="pellicola"></div>
@@ -2674,15 +2674,14 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
   <div class="container">
     <div class="sale">
       <span class="eyebrow"><i></i>The money, in the open</span>
-      <h2 class="titolo">What you pay to get the keys — <span class="hl">all of
-        it</span>.</h2>
+      <h2 class="titolo">Your costs. <span class="hl">Explained.</span></h2>
       <p class="sotto">No agency surprise on signing day. Every figure below is
         written into your pre-agreement before a single euro moves.</p>
     </div>
 
     <div class="chiavi quadro sale"><span class="tacca"></span>
 
-      <div class="chiavi-compra">
+      <details class="chiavi-compra bfd-disclosure"><summary><span>What the agency fee includes</span><small>Contract, registration, portal and support</small></summary>
         <p class="chiavi-capo"><b>The agency fee is not a door charge.</b>
           <span id="chiaviOnorario">—</span> is what the whole thing costs,
           once, and this is what it buys:</p>
@@ -2708,7 +2707,7 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
             first message to the day you hand the keys back. Not a rota, not
             a form.</span></li>
         </ul>
-      </div>
+      </details>
 
       <div class="chiavi-fondo">
         <span class="chiavi-scudo"><svg viewBox="0 0 24 24" aria-hidden="true">
@@ -2781,88 +2780,10 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
 <!-- ══ QUELLO CHE CI CHIEDERESTI SU WHATSAPP ═════════════════════════════
      Ogni domanda che si ripete in chat e una cosa che questa pagina non
      diceva. Scritte una volta, qui. -->
-<section class="sezione" id="chiedi">
-  <div class="container">
-    <div class="sale">
-      <span class="eyebrow"><i></i>Before you ask</span>
-      <h2 class="titolo">Everything people ask us <span class="hl">on
-        WhatsApp</span>.</h2>
-      <p class="sotto">Answered here so you don't have to ask — and so the
-        answer is the same one, every time, in writing.</p>
-    </div>
-    <div class="chiedi-lista coro" id="chiediLista"></div>
-    <a class="chiedi-wa" href="https://wa.me/393313251961" target="_blank"
-      rel="noopener">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 3.5A10.4 10.4 0
-        0 0 3.6 16.1L2.5 21.5l5.5-1.1A10.4 10.4 0 1 0 20.5 3.5z"/>
-        <path d="M8.3 7.6c.3-.1.6 0 .8.3l1 1.7c.2.3.1.6-.1.8l-.7.7c.6 1.3 1.6
-        2.3 2.9 2.9l.7-.7c.2-.2.5-.3.8-.1l1.7 1c.3.2.4.5.3.8-.4 1.1-1.6
-        1.7-2.7 1.4-2.9-.8-5.1-3-5.9-5.9-.3-1.1.3-2.3 1.2-2.9z"
-        class="acc"/></svg>
-      Something we haven't answered? <b>Ask a person →</b></a>
-  </div>
-</section>
-
-<!-- ══ COSA SUCCEDE DOPO ═════════════════════════════════════════════════ -->
-<section class="sezione">
-  <div class="container">
-    <div class="sale">
-      <span class="eyebrow"><i></i>From here to the keys</span>
-      <h2 class="titolo">Four steps, and <span class="hl">nothing hidden
-        between them</span>.</h2>
-    </div>
-    <div class="dopo coro">
-      <div class="tempo"><b>01</b><h4>You apply</h4>
-        <p>Two minutes. We reply in person — no automated maybe.</p></div>
-      <div class="tempo"><b>02</b><h4>We agree the terms</h4>
-        <p>A written pre-agreement: rent, deposit, fee, dates. You read it
-          before anything is paid.</p></div>
-      <div class="tempo"><b>03</b><h4>You sign from your phone</h4>
-        <p>Magic-link signature, legally valid, no printer. We register the
-          contract with the Agenzia delle Entrate.</p></div>
-      <div class="tempo"><b>04</b><h4>You get the keys</h4>
-        <p>Your tenant pass lands in Apple Wallet. Rent, documents and
-          maintenance live in your pocket.</p></div>
-    </div>
-  </div>
-</section>
-
-<!-- ══ APPLY + ALTRE CASE ════════════════════════════════════════════════ -->
-<!-- ══ LE PORTICINE — i servizi, dove servono e senza rumore ═════════════ -->
-<section class="sezione" id="porticine">
-  <div class="container">
-    <div class="sale">
-      <span class="eyebrow"><i></i>Services · flat prices</span>
-      <h2 class="titolo">Three ways we can <span class="hl">step in</span>.</h2>
-    </div>
-    <div class="porticine sale">
-      <a class="porticina" id="portaVideo" href="#" target="_blank"
-        rel="noopener">
-        <b>See this flat live, from anywhere</b>
-        <span>A BOOM agent walks it on live video — you direct, you ask,
-          we answer on camera.</span>
-        <i class="verde">Free — our home, our job</i>
-      </a>
-      <a class="porticina" href="/property-finding">
-        <b>Let the machine hunt for you</b>
-        <span>Your brief becomes a live search: the whole market,
-          off-market included, human-verified.</span>
-        <i>€350 · deducted on success — refunded if we fail</i>
-      </a>
-      <a class="porticina" href="/deal-assistance">
-        <b>Found one on a portal?</b>
-        <span>We verify the landlord, the papers and the price — then
-          negotiate. Start with an €89 live viewing of their listing,
-          credited if you rent through us.</span>
-        <i>€249 · flat</i>
-      </a>
-    </div>
-  </div>
-</section>
-
 <section class="sezione">
   <div class="container soldi">
     <div class="applica quadro sale" id="applica"><span class="tacca"></span>
+      <div class="bfd-application-code"><span>BOOM / YOUR APPLICATION</span><span>ROM</span></div>
       <h3>Apply for <span class="hl" id="applicaNome">this home</span></h3>
       <p id="applicaSotto">Tell us when you land and who's coming. We'll come
         back to you in person.</p>
@@ -2892,7 +2813,10 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
           <div class="ap-due">
             <div class="campo"><label for="apQuando">Move-in date</label>
               <input id="apQuando" name="quando" type="date"></div>
-            <div class="campo"><label for="apMesi">How long</label>
+            <div class="campo"><label for="apUscita">Move-out date</label><input id="apUscita" name="uscita" type="date"></div>
+          </div>
+          <div class="ap-due">
+            <div class="campo"><label for="apMesi">Length of stay</label>
               <select id="apMesi" name="mesi">
                     <option value="3">3 months</option>
                 <option value="6">6 months</option>
@@ -2901,6 +2825,7 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
                 <option value="24">24 months</option>
               </select></div>
           </div>
+          <p id="apStayError" role="alert" hidden></p><output class="bfd-stay-summary" data-stay-summary aria-live="polite"></output>
           <div class="ap-due">
             <div class="campo"><label for="apChi">Who's landing</label>
               <select id="apChi" name="chi">
@@ -2921,8 +2846,7 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
 
         <div class="ap-gruppo">
           <span class="ap-eti">3 · The part landlords ask about</span>
-          <p class="ap-perche">We ask now so we can tell you where you stand
-            <b>before</b> you apply — not after you've hoped for two weeks.</p>
+          <p class="ap-perche">This helps us assess your request against the landlord’s requirements. Share what you can; a person confirms the next steps with you.</p>
           <div class="ap-due">
             <div class="campo"><label for="apLavoro">Your situation</label>
               <select id="apLavoro" name="occupazione">
@@ -2960,8 +2884,7 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
         <p class="applica-fede">Egidi Immobiliare S.r.l., licensed agency
           · BOOM® EU trade mark 019317594 · payments via Stripe, receipted</p>
         <p class="applica-nota">Your application goes straight to a person — a named human
-          replies during office hours (Rome time) and it becomes your written
-          pre-agreement.</p>
+          replies during office hours (Rome time). If we can move forward, the agreed terms become your written pre-agreement.</p>
       </form>
 
       <div class="applica-fatto" id="applicaFatto">
@@ -2997,6 +2920,78 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
     </div>
   </div>
 </section>
+
+<section class="sezione" id="chiedi">
+  <div class="container">
+    <div class="sale">
+      <span class="eyebrow"><i></i>Before you ask</span>
+      <h2 class="titolo">Before you <span class="hl">decide</span>.</h2>
+      <p class="sotto">Answered here so you don't have to ask — and so the
+        answer is the same one, every time, in writing.</p>
+    </div>
+    <div class="chiedi-lista coro" id="chiediLista"></div>
+    <a class="chiedi-wa" href="https://wa.me/393313251961" target="_blank"
+      rel="noopener">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 3.5A10.4 10.4 0
+        0 0 3.6 16.1L2.5 21.5l5.5-1.1A10.4 10.4 0 1 0 20.5 3.5z"/>
+        <path d="M8.3 7.6c.3-.1.6 0 .8.3l1 1.7c.2.3.1.6-.1.8l-.7.7c.6 1.3 1.6
+        2.3 2.9 2.9l.7-.7c.2-.2.5-.3.8-.1l1.7 1c.3.2.4.5.3.8-.4 1.1-1.6
+        1.7-2.7 1.4-2.9-.8-5.1-3-5.9-5.9-.3-1.1.3-2.3 1.2-2.9z"
+        class="acc"/></svg>
+      Something we haven't answered? <b>Ask a person →</b></a>
+  </div>
+</section>
+
+<!-- ══ COSA SUCCEDE DOPO ═════════════════════════════════════════════════ -->
+<section class="sezione bfd-next-section"><div class="container">
+<details class="bfd-disclosure bfd-next"><summary><span>From application to your keys</span><small>The four steps after you choose a home</small></summary>
+<div class="dopo coro">
+      <div class="tempo"><b>01</b><h4>You apply</h4>
+        <p>Tell us about your stay. A person reviews your application.</p></div>
+      <div class="tempo"><b>02</b><h4>We agree the terms</h4>
+        <p>A written pre-agreement: rent, deposit, fee, dates. You read it
+          before anything is paid.</p></div>
+      <div class="tempo"><b>03</b><h4>You sign from your phone</h4>
+        <p>Magic-link signature, legally valid, no printer. We register the
+          contract with the Agenzia delle Entrate.</p></div>
+      <div class="tempo"><b>04</b><h4>You get the keys</h4>
+        <p>Your tenant pass lands in Apple Wallet. Rent, documents and
+          maintenance live in your pocket.</p></div>
+    </div>
+
+</details></div></section>
+
+<!-- ══ APPLY + ALTRE CASE ════════════════════════════════════════════════ -->
+<!-- ══ LE PORTICINE — i servizi, dove servono e senza rumore ═════════════ -->
+<section class="sezione bfd-service-section" id="porticine">
+  <div class="container">
+    <div class="sale"><span class="eyebrow"><i></i>BOOM / alternative routes</span>
+      <h2 class="titolo">A person for <span class="hl">your next move.</span></h2>
+      <p class="sotto">See this home with us, extend your search, or bring a home you found elsewhere.</p></div>
+    <div class="porticine sale">
+      <a class="porticina bfd-service-ticket" id="portaVideo" href="#" target="_blank" rel="noopener">
+        <span class="bfd-service-code">01 / THIS HOME</span><b>See it live.</b>
+        <span>A BOOM agent walks this home on video. You direct the visit and ask your questions.</span>
+        <i class="verde">Free · BOOM-listed home</i><span class="bfd-service-action">Arrange a viewing ↗</span>
+      </a>
+      <a class="porticina bfd-service-ticket" href="/property-finding">
+        <span class="bfd-service-code">02 / THE WIDER MARKET</span><b>Property Finding</b>
+        <span>A search against your agreed brief, across the Rome market, with visits and negotiation.</span>
+        <i>€350 · deducted from the agency fee on success</i>
+        <span class="bfd-service-terms">Full refund if fewer than 3 matching options are presented within 15 days, under Terms §4.2.</span>
+        <span class="bfd-service-action">Explore the search ↗</span>
+      </a>
+      <a class="porticina bfd-service-ticket" href="/deal-assistance">
+        <span class="bfd-service-code">03 / A HOME YOU FOUND</span><b>Deal Assistance</b>
+        <span>Your Italian contract reviewed in English, landlord and ownership checks, and negotiation before signing.</span>
+        <i>€249 · one-off</i><span class="bfd-service-terms">An existing €49 Contract Check is credited towards this service.</span>
+        <span class="bfd-service-action">Review the service ↗</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+
 
 <!-- ══ LA LENTE — la foto a tutto schermo ════════════════════════════════ -->
 <div class="lente" id="lente" hidden role="dialog" aria-modal="true"
@@ -3326,7 +3321,9 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
     var v = c.varianti && c.varianti[i];
     return (v && v.src === immagini[i]) ? v : null;
   }
+  var photoRequest = 0, photoSwipeUntil = 0;
   function mostra(i) {
+    var request = ++photoRequest;
     img.classList.remove('qui');
     var v = variante(i);
     if (v && (v.w480 || v.w960)) {
@@ -3341,12 +3338,13 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
       }
     } else {
       var pre = new Image();
-      pre.onload = function () { img.removeAttribute('srcset');
+      pre.onload = function () { if (request !== photoRequest) return; img.removeAttribute('srcset');
         img.src = pre.src; img.classList.add('qui'); };
       pre.src = immagini[i];
     }
     [].slice.call(rullino.children).forEach(function (b, k) {
-      b.classList.toggle('qui', k === i); });
+      b.classList.toggle('qui', k === i);
+      b.setAttribute('aria-pressed', String(k === i)); });
   }
   immagini.forEach(function (u, i) {
     var b = document.createElement('button');
@@ -3382,22 +3380,27 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
         new Image().src = immagini[(qui - 1 + immagini.length) % immagini.length];
       } catch (e) {}
       if (conta) conta.textContent = (qui + 1) + ' / ' + immagini.length;
-      var b = rullino.children[qui]; if (b && b.scrollIntoView)
-        b.scrollIntoView({ block:'nearest', inline:'center', behavior:'smooth' });
+      var b = rullino.children[qui]; if (b && rullino.scrollTo)
+        rullino.scrollTo({ left:b.offsetLeft - rullino.offsetLeft - (rullino.clientWidth - b.offsetWidth) / 2,
+          behavior:ridotto ? 'auto' : 'smooth' });
     }
     prec.addEventListener('click', function () { vai(-1); });
     succ.addEventListener('click', function () { vai(1); });
     /* il gesto piu' ripetuto: lo swipe sul telaio (il pattern della
        lente, riusato) — e la prossima foto si precarica da sola */
     (function () {
-      var x0 = null;
+      var touch = null;
       telaio.addEventListener('touchstart', function (e) {
-        x0 = e.touches[0].clientX; }, { passive: true });
+        touch = e.touches.length === 1 ? { x:e.touches[0].clientX, y:e.touches[0].clientY } : null;
+      }, { passive:true });
+      telaio.addEventListener('touchcancel', function () { touch = null; }, { passive:true });
       telaio.addEventListener('touchend', function (e) {
-        if (x0 === null) return;
-        var dx = e.changedTouches[0].clientX - x0; x0 = null;
-        if (Math.abs(dx) > 40) vai(dx < 0 ? 1 : -1);
-      }, { passive: true });
+        if (!touch || !e.changedTouches.length) return;
+        var dx=e.changedTouches[0].clientX-touch.x, dy=e.changedTouches[0].clientY-touch.y; touch=null;
+        if (Math.abs(dx)>48 && Math.abs(dx)>Math.abs(dy)*1.35) {
+          photoSwipeUntil=Date.now()+450; vai(dx<0?1:-1);
+        }
+      }, { passive:true });
     })();
     [].slice.call(rullino.children).forEach(function (b, k) {
       b.addEventListener('click', function () {
@@ -3406,6 +3409,8 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
     });
     addEventListener('keydown', function (e) {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (!telaio.contains(e.target) && !rullino.contains(e.target)) return;
+      if (e.target === telaio && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); telaio.click(); return; }
       var t = e.target.tagName;
       if (t === 'INPUT' || t === 'TEXTAREA' || t === 'SELECT') return;
       var l = document.getElementById('lente');
@@ -3771,6 +3776,7 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
     tasti.forEach(function (t) {
       t.addEventListener('click', function () { conta(Number(t.dataset.m)); });
     });
+    window.BoomStayQuote = { setMonths:conta };
     conta(12);
     rifaiDurata = function () { conta(mScelto); };
   })();
@@ -3976,6 +3982,7 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
         return;
       }
       var d = new FormData(f);
+      var requestedStay = window.BOOM_STAY && BOOM_STAY.normalize ? BOOM_STAY.normalize({moveIn:d.get('quando'),moveOut:d.get('uscita'),durationMonths:d.get('mesi')}) : null;
       /* il corpo di /api/apply-lead, campo per campo */
       var corpo = {
         name: d.get('nome'), email: d.get('email'), phone: d.get('telefono'),
@@ -3990,7 +3997,9 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
         waitlist: !c.libera && c.lane !== 'ahead',
         income: d.get('reddito'), guarantor: d.get('garante'),
         household: d.get('chi'), occupation: d.get('occupazione'),
-        moveIn: d.get('quando'), durationMonths: Number(d.get('mesi')) || null,
+        moveIn: requestedStay ? requestedStay.moveIn : d.get('quando'),
+        moveOut: requestedStay ? requestedStay.moveOut : d.get('uscita'),
+        durationMonths: requestedStay ? requestedStay.durationMonths : Number(d.get('mesi')) || null,
         /* in piu, per il pre-accordo: quante firme ci saranno */
         signers: Number(d.get('firmatari')) || 1,
         requestId: apReq,                 /* idempotenza: un lead per pagina */
@@ -4073,7 +4082,7 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
       document.documentElement.style.overflow = '';
     }
     telaio.addEventListener('click', function (e) {
-      if (e.target.closest('button')) return;  /* frecce e cuore sono loro */
+      if (e.target.closest('button') || Date.now() < photoSwipeUntil) return;  /* buttons and swipes have their own action */
       var k = 0;
       [].slice.call(rullino.children).forEach(function (b, i) {
         if (b.classList.contains('qui')) k = i; });
@@ -4092,14 +4101,16 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
       if (e.key === 'ArrowLeft') apri(qui - 1);
       if (e.key === 'ArrowRight') apri(qui + 1);
     });
-    var x0 = null;
+    var lensTouch = null;
     lente.addEventListener('touchstart', function (e) {
-      x0 = e.touches[0].clientX; }, { passive: true });
+      lensTouch=e.touches.length===1?{x:e.touches[0].clientX,y:e.touches[0].clientY}:null;
+    }, { passive:true });
+    lente.addEventListener('touchcancel', function () { lensTouch=null; }, { passive:true });
     lente.addEventListener('touchend', function (e) {
-      if (x0 === null) return;
-      var dx = e.changedTouches[0].clientX - x0; x0 = null;
-      if (Math.abs(dx) > 40) apri(qui + (dx < 0 ? 1 : -1));
-    }, { passive: true });
+      if (!lensTouch || !e.changedTouches.length) return;
+      var dx=e.changedTouches[0].clientX-lensTouch.x, dy=e.changedTouches[0].clientY-lensTouch.y; lensTouch=null;
+      if (Math.abs(dx)>48 && Math.abs(dx)>Math.abs(dy)*1.35) apri(qui+(dx<0?1:-1));
+    }, { passive:true });
     if (immagini.length < 2) {
       document.getElementById('lentePrec').style.display = 'none';
       document.getElementById('lenteSucc').style.display = 'none';
@@ -5252,6 +5263,6 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
 
 <script defer src="/js/boom-track.js"></script>
 <script defer src="/js/flight-map.js?v=20261027a"></script>
-<script defer src="/assets/boom-flight-detail.js?v=20261028e"></script>
+<script defer src="/assets/boom-flight-detail.js?v=20261028f"></script>
 </body>
 </html>

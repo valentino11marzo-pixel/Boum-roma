@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
 import {readFileSync} from 'node:fs';
 import './guide.mjs';
+import './your-rome.mjs';
 import './stay.mjs';
 const require=createRequire(import.meta.url);
 const F=require('../../js/flight-engine.js');

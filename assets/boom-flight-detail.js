@@ -95,6 +95,140 @@
       var frame = byId('telaio');
       if (frame) frame.click();
     });
+    var frame = byId('telaio'), roll = byId('rullino'), counter = byId('contaFoto');
+    if (frame) frame.addEventListener('keydown', function (e) {
+      if (e.target === frame && (e.key === 'Enter' || e.key === ' ')) {
+        e.preventDefault(); e.stopPropagation(); frame.click();
+      }
+    });
+    if (roll && roll.children.length) {
+      var caption = document.createElement('p'); caption.className = 'bfd-photo-caption';
+      caption.id = 'bfdPhotoHelp';
+      var position = document.createElement('span');
+      position.setAttribute('role', 'status'); position.setAttribute('aria-live', 'polite');
+      var hint = document.createElement('span');
+      hint.textContent = roll.children.length > 1 ? 'Swipe to explore · arrow keys when focused' : 'Open the photograph to explore';
+      caption.append(position, hint); roll.after(caption);
+      frame.setAttribute('aria-describedby', caption.id);
+      function photoPosition() { position.textContent = 'Photo ' + (counter && counter.textContent || '1 / 1'); }
+      photoPosition();
+      if (counter) new MutationObserver(photoPosition).observe(counter, {childList:true, characterData:true, subtree:true});
+    }
+
+    // A view over the original application, never another application state.
+    // Fields, error handling, request ID and the only submit handler stay in regia.
+    (function applicationBoarding() {
+      var form = byId('modApplica'), box = byId('applica');
+      if (!form || !box || !sourceApply) return;
+      var groups = Array.prototype.slice.call(form.querySelectorAll('.ap-gruppo'));
+      if (groups.length !== 3) return;
+      var labels = ['You', 'Your stay', 'Your profile', 'Review'];
+      var step = 0, restoreAfterValidation = false;
+      var nav = document.createElement('ol'); nav.className = 'bfd-apply-steps';
+      nav.setAttribute('aria-label', 'Application steps');
+      var buttons = labels.map(function (label, i) {
+        var item = document.createElement('li'), button = document.createElement('button');
+        button.type = 'button'; button.innerHTML = '<b>0' + (i + 1) + '</b><span>' + label + '</span>';
+        button.addEventListener('click', function () {
+          if (i <= step) show(i, true);
+          else if (i === step + 1 && canAdvance()) show(i, true);
+        });
+        item.appendChild(button); nav.appendChild(item); return button;
+      });
+      form.before(nav);
+      groups.forEach(function (group, i) {
+        var heading = group.querySelector('.ap-eti');
+        if (heading) { heading.id = 'bfdApplyHeading' + i; heading.tabIndex = -1; group.setAttribute('aria-labelledby', heading.id); }
+        group.setAttribute('role', 'group');
+      });
+      var review = document.createElement('section'); review.className = 'bfd-apply-review'; review.hidden = true;
+      review.setAttribute('aria-labelledby', 'bfdReviewTitle');
+      review.innerHTML = '<h4 id="bfdReviewTitle" tabindex="-1">Ready for a human review.</h4><p>Check your details before sending. This application does not reserve the home or take a payment.</p><dl class="bfd-review-details"></dl><div class="bfd-review-costs"><span>THE CURRENT LISTING ESTIMATE</span><dl></dl><p>These are the listing’s costs, not a charge today. Final dates, lease terms and the full cost are confirmed in writing.</p><a href="#denaro">Read costs and exclusions ↗</a></div>';
+      form.insertBefore(review, sourceApply);
+      var controls = document.createElement('div'); controls.className = 'bfd-apply-controls';
+      var back = document.createElement('button'); back.type = 'button'; back.textContent = '← Back';
+      var next = document.createElement('button'); next.type = 'button'; next.className = 'btn btn-primary';
+      back.addEventListener('click', function () { show(step - 1, true); });
+      next.addEventListener('click', function () { if (canAdvance()) show(step + 1, true); });
+      controls.append(back, next); form.insertBefore(controls, sourceApply);
+      function value(id) {
+        var field = byId(id); if (!field) return '';
+        if (field.tagName === 'SELECT') return field.value && field.selectedOptions[0] ? field.selectedOptions[0].textContent : '';
+        return field.value.trim();
+      }
+      function row(dl, label, text) {
+        var r = document.createElement('div'), dt = document.createElement('dt'), dd = document.createElement('dd');
+        dt.textContent = label; dd.textContent = text || 'Not provided'; r.append(dt, dd); dl.appendChild(r);
+      }
+      function summary() {
+        var details = review.querySelector('.bfd-review-details'), costs = review.querySelector('.bfd-review-costs dl');
+        details.replaceChildren(); costs.replaceChildren();
+        [['Name','apNome'],['Email','apMail'],['WhatsApp','apTel'],['Move-in','apQuando'],['Move-out','apUscita'],['Length requested','apMesi'],['Household','apChi'],['Signers','apFirme'],['Situation','apLavoro'],['Monthly income','apReddito'],['Guarantor','apGarante']].forEach(function (field) { row(details, field[0], value(field[1])); });
+        [['Monthly rent','voceCanone'],['Agency fee, incl. VAT','voceOnorario'],['Security deposit','voceCauzione']].forEach(function (field) {
+          var amount = byId(field[1]); row(costs, field[0], amount ? amount.textContent.trim() : 'To confirm');
+        });
+        var period = form.querySelector('[data-stay-summary]');
+        if (period && period.textContent.trim()) row(details, 'Requested period', period.textContent.trim());
+      }
+      function dateInvalid() {
+        return ['apQuando', 'apUscita'].map(byId).find(function (field) { return field && !field.checkValidity(); });
+      }
+      function canAdvance() {
+        if (step === 0) { var name = byId('apNome'); if (name && !name.reportValidity()) return false; }
+        if (step === 1) { var invalid = dateInvalid(); if (invalid) { invalid.reportValidity(); return false; } }
+        return true;
+      }
+      function show(n, focus) {
+        step = Math.max(0, Math.min(3, n));
+        groups.forEach(function (group, i) { group.hidden = i !== step; });
+        review.hidden = step !== 3; sourceApply.hidden = step !== 3;
+        back.hidden = step === 0; next.hidden = step === 3;
+        next.textContent = step === 2 ? 'Review application →' : 'Continue →';
+        buttons.forEach(function (button, i) {
+          if (i === step) button.setAttribute('aria-current', 'step'); else button.removeAttribute('aria-current');
+          button.disabled = sourceApply.disabled || i > step + 1;
+        });
+        if (step === 3) summary();
+        if (focus) {
+          var heading = step === 3 ? byId('bfdReviewTitle') : groups[step].querySelector('.ap-eti');
+          if (heading) { heading.focus({preventScroll:true}); heading.scrollIntoView({block:'nearest', behavior:'auto'}); }
+        }
+      }
+      document.addEventListener('boom:stay-invalid', function () { show(1, false); });
+      form.addEventListener('submit', function (event) {
+        if (step !== 3) { event.preventDefault(); event.stopImmediatePropagation(); if (canAdvance()) show(step + 1, true); return; }
+        var invalid = dateInvalid();
+        if (invalid) { event.preventDefault(); event.stopImmediatePropagation(); show(1, false); invalid.reportValidity(); return; }
+        // Let the original validator focus its existing fields (including its
+        // email OR phone rule). Restore the appropriate step before next paint.
+        groups.forEach(function (group) { group.hidden = false; });
+        restoreAfterValidation = true;
+      }, true);
+      // This bubble listener runs AFTER regia's original submit listener.
+      // A promise here would run at the capture-listener microtask checkpoint,
+      // hiding the fields before the original validator can focus an error.
+      form.addEventListener('submit', function () {
+        if (!restoreAfterValidation) return;
+        restoreAfterValidation = false;
+        var active = document.activeElement, found = groups.findIndex(function (group) { return group.contains(active); });
+        show(found >= 0 ? found : 3, false);
+        if (found >= 0 && active) active.focus({preventScroll:true});
+      });
+      var reviewCosts = new MutationObserver(function () { if (step === 3) summary(); });
+      ['voceCanone', 'voceOnorario', 'voceCauzione'].forEach(function (id) {
+        var amount = byId(id); if (amount) reviewCosts.observe(amount, {childList:true,characterData:true,subtree:true});
+      });
+      function sending() {
+        var busy = sourceApply.disabled;
+        buttons.forEach(function (button, i) { button.disabled = busy || i > step + 1; });
+        back.disabled = busy; next.disabled = busy;
+        nav.hidden = form.style.display === 'none';
+      }
+      var stateWatch = new MutationObserver(sending);
+      stateWatch.observe(sourceApply, {attributes:true, attributeFilter:['disabled']});
+      stateWatch.observe(form, {attributes:true, attributeFilter:['style']});
+      box.classList.add('bfd-apply-ready'); show(0, false); sending();
+    })();
     function openHash() {
       if (location.hash === '#posto') {
         setView(true, false);

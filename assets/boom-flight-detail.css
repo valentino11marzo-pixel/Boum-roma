@@ -101,3 +101,94 @@ html.boom-flight-detail .bfd-viewing[hidden]{display:none}
 @media(prefers-reduced-motion:no-preference){html.boom-flight-detail .bfd-main.bfd-changed>[role=tabpanel]:not([hidden]){animation:bfd-panel .28s cubic-bezier(.16,1,.3,1) both}@keyframes bfd-panel{from{opacity:.5;transform:translateY(5px)}to{opacity:1;transform:none}}}
 @media(prefers-reduced-motion:reduce){html.boom-flight-detail .bfd-main *,html.boom-flight-detail .bfd-pass *{scroll-behavior:auto!important}html.boom-flight-detail .bfd-tabs button,html.boom-flight-detail .rullino button,html.boom-flight-detail .telaio img,html.boom-flight-detail .bfd-pass-actions>a{transition:none}}
 @media print{html.boom-flight-detail .bfd-dossier{display:block}html.boom-flight-detail .bfd-pass{position:static;break-inside:avoid}html.boom-flight-detail #posto[hidden],html.boom-flight-detail #bfd-home-panel[hidden]{display:block!important}html.boom-flight-detail .bfd-tabs,html.boom-flight-detail .bfd-save,html.boom-flight-detail .bfd-open-photos{display:none}}
+
+/* A photograph first; navigation belongs to the gallery, not to the page. */
+html.boom-flight-detail .telaio{touch-action:pan-y pinch-zoom;cursor:zoom-in}
+html.boom-flight-detail .telaio:focus-visible{outline:2px solid #FFD700;outline-offset:5px}
+html.boom-flight-detail .rullino{scroll-snap-type:x proximity;overscroll-behavior-x:contain;padding:5px 2px 8px;scroll-padding-inline:2px;scrollbar-width:thin;scrollbar-color:#645a25 transparent}
+html.boom-flight-detail .rullino button{scroll-snap-align:center;flex-shrink:0}
+html.boom-flight-detail .bfd-photo-caption{display:flex;justify-content:space-between;gap:12px;margin-top:5px;font-size:10px;line-height:1.5;letter-spacing:.02em;color:#9c9ca6}
+html.boom-flight-detail .bfd-photo-caption [role=status]{color:#dedee3;white-space:nowrap}
+html.boom-flight-detail .bfd-photo-caption>span:last-child{text-align:right}
+html.boom-flight-detail .timbro-walk,html.boom-flight-detail .timbro-walk.giu{display:inline-flex;align-items:center;gap:6px;max-width:100%;padding:5px 8px;border:1px solid #ffd70032;border-radius:5px;transform:none;rotate:none;box-shadow:none;text-shadow:none;font-family:var(--mono,monospace);font-size:9px;line-height:1.5;letter-spacing:.04em;color:#dbc660;background:#ffd70008;animation:none}
+html.boom-flight-detail .timbro-walk svg{width:14px;height:14px}
+
+/* Keep the amounts visible. Expand the explanation only when it is wanted. */
+html.boom-flight-detail .bfd-disclosure{border:1px solid #ffffff16;border-radius:14px;background:#0b0b0e;overflow:hidden}
+html.boom-flight-detail #denaro .chiavi-compra{margin-top:18px;padding:0;border:1px solid #ffffff16}
+html.boom-flight-detail .bfd-disclosure>summary{position:relative;display:flex;flex-direction:column;gap:5px;list-style:none;padding:20px 54px 20px 20px;cursor:pointer;font-size:14px;line-height:1.45;color:#eeeef2}
+html.boom-flight-detail .bfd-disclosure>summary::-webkit-details-marker{display:none}
+html.boom-flight-detail .bfd-disclosure>summary::after{content:'+';position:absolute;right:21px;top:21px;font-size:22px;line-height:1;color:#FFD700;font-weight:300}
+html.boom-flight-detail .bfd-disclosure[open]>summary::after{content:'−'}
+html.boom-flight-detail .bfd-disclosure>summary small{font-size:11px;font-weight:400;line-height:1.5;color:#9c9ca8}
+html.boom-flight-detail .bfd-disclosure>summary:focus-visible{outline:2px solid #FFD700;outline-offset:-4px}
+html.boom-flight-detail .bfd-disclosure[open]>summary{border-bottom:1px solid #ffffff12}
+html.boom-flight-detail .chiavi-compra>*:not(summary){margin-left:20px;margin-right:20px}
+html.boom-flight-detail .chiavi-compra>*:last-child{margin-bottom:20px}
+html.boom-flight-detail .bfd-next-section{padding-top:22px;padding-bottom:22px}
+html.boom-flight-detail .bfd-next .dopo{margin:0;padding:24px;gap:24px}
+html.boom-flight-detail .bfd-next .coro,html.boom-flight-detail .bfd-next .coro>*{opacity:1;transform:none;translate:none}
+
+/* Four short steps around the original application and its original handler. */
+html.boom-flight-detail #applica{scroll-margin-top:calc(var(--flight-bar) + 24px);padding:clamp(22px,3vw,36px);border:1px solid #bbaa4745;border-radius:20px;background:radial-gradient(ellipse at 100% 0,#ffd70009,transparent 60%),#0b0b0e;box-shadow:inset 0 1px 0 #ffffff09}
+html.boom-flight-detail .bfd-application-code{display:flex;align-items:center;justify-content:space-between;gap:14px;padding-bottom:18px;margin-bottom:23px;border-bottom:1px dashed #c9bb5c43;font-size:9px;line-height:1.4;letter-spacing:.14em;color:#bdad58}
+html.boom-flight-detail .bfd-application-code b{font-size:15px;letter-spacing:.1em;color:#f0e7b4;font-weight:400}
+html.boom-flight-detail #applica h3{font-size:clamp(28px,3vw,38px);line-height:1.12;letter-spacing:-.035em}
+html.boom-flight-detail #applica>p{max-width:57ch;line-height:1.65}
+html.boom-flight-detail .bfd-apply-ready .passi{display:none}
+html.boom-flight-detail .bfd-apply-steps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;list-style:none;margin:26px 0 24px;padding:0}
+html.boom-flight-detail .bfd-apply-steps button{display:flex;align-items:center;gap:7px;width:100%;min-height:45px;padding:8px 0 12px;background:none;border:0;border-bottom:1px solid #ffffff1c;color:#8d8d99;font:inherit;font-size:10px;text-align:left;cursor:pointer;transition:color .18s,border-color .18s}
+html.boom-flight-detail .bfd-apply-steps button b{display:grid;place-items:center;flex-shrink:0;width:22px;height:22px;border:1px solid currentColor;border-radius:50%;font-size:10px;font-weight:400}
+html.boom-flight-detail .bfd-apply-steps button[aria-current=step]{color:#FFD700;border-bottom-color:#FFD700}
+html.boom-flight-detail .bfd-apply-steps button:focus-visible{outline:2px solid #FFD700;outline-offset:3px;border-radius:3px}
+html.boom-flight-detail .bfd-apply-steps button:disabled{cursor:wait;opacity:.55}
+html.boom-flight-detail .bfd-apply-ready .ap-gruppo{border:0;margin:0;padding:0;min-width:0}
+html.boom-flight-detail .bfd-apply-ready .ap-eti{font-size:11px;line-height:1.6;letter-spacing:.08em;color:#d9d9e0;margin-bottom:18px}
+html.boom-flight-detail .bfd-apply-ready .ap-eti:focus,html.boom-flight-detail #bfdReviewTitle:focus{outline:none}
+html.boom-flight-detail #modApplica label{font-size:11px;line-height:1.5;color:#bdbdc7}
+html.boom-flight-detail #modApplica input:not([type=checkbox]),html.boom-flight-detail #modApplica select{min-height:48px;border-radius:9px;border:1px solid #ffffff25;background:#060608;color:#f5f5f8;padding:12px;font-size:14px;transition:border-color .18s,box-shadow .18s}
+html.boom-flight-detail #modApplica input:focus,html.boom-flight-detail #modApplica select:focus{border-color:#FFD700;outline:none;box-shadow:0 0 0 3px #ffd70012}
+html.boom-flight-detail #modApplica [aria-invalid=true]{border-color:#ed9b85!important}
+html.boom-flight-detail #apStayError{margin:9px 0;font-size:12px;line-height:1.6;color:#ffc0ac}
+html.boom-flight-detail [data-stay-summary]{display:block;margin:8px 0 14px;font-size:11px;line-height:1.6;color:#dbcb78}
+html.boom-flight-detail [data-stay-summary]:empty{display:none}
+html.boom-flight-detail .bfd-apply-controls{display:flex;align-items:center;gap:12px;margin-top:22px;padding-top:20px;border-top:1px dashed #ffffff24}
+html.boom-flight-detail .bfd-apply-controls>button{min-height:48px;padding:12px 17px;border:1px solid #ffffff20;border-radius:10px;background:transparent;color:#d3d3dd;font:inherit;font-size:12px;cursor:pointer}
+html.boom-flight-detail .bfd-apply-controls>.btn{flex:1;width:auto;margin:0;background:#FFD700;color:#090909;border-color:#FFD700}
+html.boom-flight-detail .bfd-apply-controls>button:focus-visible{outline:2px solid #FFD700;outline-offset:4px}
+html.boom-flight-detail #modApplica [hidden],html.boom-flight-detail .bfd-apply-steps[hidden]{display:none!important}
+html.boom-flight-detail .bfd-apply-review h4{font-family:var(--display);font-size:25px;line-height:1.2;font-weight:400;letter-spacing:-.02em;color:#f2f2f5}
+html.boom-flight-detail .bfd-apply-review>p{font-size:12px;line-height:1.7;margin-top:10px;color:#b2b2be}
+html.boom-flight-detail .bfd-review-details{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 20px;margin:23px 0}
+html.boom-flight-detail .bfd-review-details>div{min-width:0;padding-bottom:12px;border-bottom:1px solid #ffffff10}
+html.boom-flight-detail .bfd-review-details dt{font-size:10px;color:#9696a3;line-height:1.5;margin-bottom:5px}
+html.boom-flight-detail .bfd-review-details dd{font-size:12px;line-height:1.5;color:#eeeef2;overflow-wrap:anywhere}
+html.boom-flight-detail .bfd-review-costs{padding:18px;border:1px solid #d7be3d32;border-radius:12px;background:#ffd70005}
+html.boom-flight-detail .bfd-review-costs>span{font-size:9px;line-height:1.5;letter-spacing:.12em;color:#ccbc65}
+html.boom-flight-detail .bfd-review-costs dl{margin:12px 0}
+html.boom-flight-detail .bfd-review-costs dl>div{display:flex;align-items:baseline;justify-content:space-between;gap:16px;padding:6px 0;font-size:11px;line-height:1.5}
+html.boom-flight-detail .bfd-review-costs dt{color:#aeacb4}
+html.boom-flight-detail .bfd-review-costs dd{font-size:14px;color:#f0e5b3;text-align:right}
+html.boom-flight-detail .bfd-review-costs p,html.boom-flight-detail .bfd-review-costs a{font-size:11px;line-height:1.65;color:#aaa8b1}
+html.boom-flight-detail .bfd-review-costs a{display:inline-block;margin-top:9px;min-height:28px;color:#ded2a1;text-underline-offset:4px}
+html.boom-flight-detail .bfd-apply-ready .applica-nota{font-size:10.5px;line-height:1.65}
+
+/* The service ticket states its scope and price before the next action. */
+html.boom-flight-detail .bfd-service-section{padding-top:35px;padding-bottom:45px}
+html.boom-flight-detail .bfd-service-section .titolo{font-size:clamp(28px,3.5vw,43px);line-height:1.15}
+html.boom-flight-detail .bfd-service-section .sotto{max-width:65ch;font-size:13px;line-height:1.7;margin-top:12px}
+html.boom-flight-detail .bfd-service-ticket{padding:24px;border:1px solid #ffffff1d;border-radius:16px;gap:12px;background:linear-gradient(150deg,#131315,#09090b);min-width:0;transition:border-color .2s,background .2s,transform .2s}
+html.boom-flight-detail .bfd-service-ticket::before{display:none}
+html.boom-flight-detail .bfd-service-ticket:hover{background:#141417;border-color:#c5b64370;transform:translateY(-3px)}
+html.boom-flight-detail .bfd-service-ticket:focus-visible{outline:2px solid #FFD700;outline-offset:4px}
+html.boom-flight-detail .bfd-service-ticket .bfd-service-code{display:flex;justify-content:space-between;gap:12px;font-size:9px;letter-spacing:.1em;color:#ada36f;border-bottom:1px dashed #ffffff2b;padding-bottom:18px;margin-bottom:5px}
+html.boom-flight-detail .bfd-service-ticket>b{font-size:21px;line-height:1.25;font-weight:400;letter-spacing:-.02em;color:#f5f5f7}
+html.boom-flight-detail .bfd-service-ticket>span:not(.bfd-service-code){font-size:12px;line-height:1.65;color:#b1b1bd}
+html.boom-flight-detail .bfd-service-ticket>i{font-size:18px;line-height:1.4;color:#ecd45f;margin:0;padding:5px 0}
+html.boom-flight-detail .bfd-service-ticket .bfd-service-terms{font-size:10.5px!important;line-height:1.65;color:#9696a4!important}
+html.boom-flight-detail .bfd-service-ticket .bfd-service-action{display:block;margin-top:auto;padding-top:18px;border-top:1px solid #ffffff10;color:#e6d17b!important;font-size:11px!important}
+@media(min-width:1000px){html.boom-flight-detail .soldi{grid-template-columns:minmax(0,1.2fr) minmax(0,.8fr);align-items:start}html.boom-flight-detail .altre{padding-top:10px}}
+@media(max-width:760px){html.boom-flight-detail .telaio{aspect-ratio:1.3}html.boom-flight-detail .rullino button{width:70px;height:56px}html.boom-flight-detail .bfd-photo-caption{font-size:9px}html.boom-flight-detail #applica{padding:22px 18px;border-radius:16px}html.boom-flight-detail .bfd-apply-steps{gap:5px;margin:22px 0}html.boom-flight-detail .bfd-apply-steps button{gap:5px;font-size:9px}html.boom-flight-detail #modApplica input:not([type=checkbox]),html.boom-flight-detail #modApplica select{font-size:16px}html.boom-flight-detail .bfd-review-details{gap:12px 14px}html.boom-flight-detail .bfd-next .dopo{padding:20px}html.boom-flight-detail .bfd-service-section{padding-top:26px;padding-bottom:30px}html.boom-flight-detail .bfd-service-ticket{padding:22px}html.boom-flight-detail .bfd-disclosure>summary{padding:18px 45px 18px 18px}}
+@media(prefers-reduced-motion:no-preference){html.boom-flight-detail .timbro-walk.giu{animation:bfd-badge-in .35s ease-out both}html.boom-flight-detail .bfd-apply-ready .ap-gruppo:not([hidden]),html.boom-flight-detail .bfd-apply-review:not([hidden]){animation:bfd-panel .2s ease-out both}@keyframes bfd-badge-in{from{opacity:0}to{opacity:1}}}
+@media(prefers-reduced-motion:reduce){html.boom-flight-detail .bfd-apply-steps button,html.boom-flight-detail #modApplica input,html.boom-flight-detail #modApplica select,html.boom-flight-detail .bfd-service-ticket{transition:none}html.boom-flight-detail .bfd-service-ticket:hover{transform:none}html.boom-flight-detail .timbro-walk.giu{animation:none}}
+@media print{html.boom-flight-detail .bfd-disclosure>*{display:block!important}html.boom-flight-detail #modApplica .ap-gruppo[hidden]{display:block!important}html.boom-flight-detail .bfd-apply-controls,html.boom-flight-detail .bfd-apply-steps,html.boom-flight-detail .bfd-apply-review{display:none!important}}

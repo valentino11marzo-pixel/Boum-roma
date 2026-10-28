@@ -43,7 +43,9 @@ def enhance(html):
         '<h2 class="titolo">Your everyday. <span class="hl">Around here.</span></h2>', place, count=1)
 
     cost_start = html.index('      <div class="chiavi-cima">')
-    cost_end = html.index('      <div class="chiavi-compra">', cost_start)
+    fee_anchor = one(r'      <(?:div|details) class="chiavi-compra\b[^"]*">',
+        html, 'agency fee explanation').group()
+    cost_end = html.index(fee_anchor, cost_start)
     costs = html[cost_start:cost_end]
     costs = costs.replace('Due on day one — all of it, in writing', 'Day one · rent + fee + deposit')
     costs = costs.replace("Agency fee — 10% of a year's rent + 22% VAT, once",
@@ -96,7 +98,7 @@ def enhance(html):
     html = html.replace(place_match.group(), '', 1)
     # Move the actual cost slots, not a computed copy of their amounts.
     html = html[:html.index('      <div class="chiavi-cima">')] + \
-        html[html.index('      <div class="chiavi-compra">'):]
+        html[html.index(fee_anchor):]
     html = html.replace(hero, dossier, 1)
     html = html.replace('<html lang="en">', '<html lang="en" class="boom-flight-detail">', 1)
     if 'class="boom-flight-detail"' not in html:
@@ -110,11 +112,11 @@ def enhance(html):
         "        if (window.BOOM_FLIGHT_MAP) BOOM_FLIGHT_MAP.dress(mappaB, 'blocco-3d');\n"
         + map_anchor, 1)
     html = html.replace('</head>',
-        '<link rel="stylesheet" href="/assets/boom-flight-detail.css?v=20261028e">\n'
+        '<link rel="stylesheet" href="/assets/boom-flight-detail.css?v=20261028f">\n'
         '<noscript><style>.boom-flight-detail #posto[hidden]{display:block!important;'
         'margin-top:28px}.boom-flight-detail .bfd-tabs,.boom-flight-detail '
         '.bfd-open-photos{display:none}</style></noscript>\n</head>', 1)
     html = html.replace('</body>',
         '<script defer src="/js/flight-map.js?v=20261027a"></script>\n'
-        '<script defer src="/assets/boom-flight-detail.js?v=20261028e"></script>\n</body>', 1)
+        '<script defer src="/assets/boom-flight-detail.js?v=20261028f"></script>\n</body>', 1)
     return '\n'.join(line.rstrip() for line in html.split('\n'))

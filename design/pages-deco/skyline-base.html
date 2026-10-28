@@ -20,7 +20,7 @@
 <script defer src="/js/flight-map.js?v=20261027a"></script>
 <script defer src="/js/listing-facts.js"></script>
 <script defer src="/js/dispo-engine.js"></script>
-<script defer src="/assets/boom-flight-skyline.js?v=20261028e"></script>
+<script defer src="/assets/boom-flight-skyline.js?v=20261028f"></script>
 <style>
 :root{--gold:#FFD700;--gold2:#FFA500;--bg:#08080A;--card:#0E0E12;--line:rgba(255,255,255,.09);--t1:#fff;--t2:#aaa;--t3:#777;--disp:'Helvetica Neue',Helvetica,Inter,Arial,sans-serif}
 *{margin:0;padding:0;box-sizing:border-box}
@@ -250,15 +250,15 @@ body::before, body::after { z-index: 1 !important; }
 })();
 </script>
 <!-- BOOM_SCROLL:END -->
-<link rel="stylesheet" href="/assets/boom-flight-skyline.css?v=20261028e">
-<link rel="stylesheet" href="/assets/boom-flight.css?v=20261028e">
-<script defer src="/js/flight-engine.js?v=20261028e"></script>
-<script defer src="/assets/boom-flight.js?v=20261028e"></script>
-<link rel="stylesheet" href="/assets/boom-skyline-guide.css?v=20261028e">
-<script defer src="/js/stay-engine.js?v=20261028e"></script>
-<script defer src="/assets/boom-flight-stay.js?v=20261028e"></script>
-<script defer src="/js/skyline-guide-engine.js?v=20261028e"></script>
-<script defer src="/assets/boom-skyline-guide.js?v=20261028e"></script>
+<link rel="stylesheet" href="/assets/boom-flight-skyline.css?v=20261028f">
+<link rel="stylesheet" href="/assets/boom-flight.css?v=20261028f">
+<script defer src="/js/flight-engine.js?v=20261028f"></script>
+<script defer src="/assets/boom-flight.js?v=20261028f"></script>
+<link rel="stylesheet" href="/assets/boom-skyline-guide.css?v=20261028f">
+<script defer src="/js/stay-engine.js?v=20261028f"></script>
+<script defer src="/assets/boom-flight-stay.js?v=20261028f"></script>
+<script defer src="/js/skyline-guide-engine.js?v=20261028f"></script>
+<script defer src="/assets/boom-skyline-guide.js?v=20261028f"></script>
 </head>
 <body>
 <div id="map" aria-label="Interactive map of BOOM homes in Rome"></div>
@@ -679,7 +679,7 @@ function applyFilter(){
     el.classList.toggle('dim',!ok); if(ok)shown++;
     el.hidden=!ok;el.tabIndex=ok?0:-1;
   });
-  var c=$('count'); if(c){c.style.display='block'; c.innerHTML='<b>'+shown+'</b> '+(shown===1?'home':'homes')+(MAXFILTER?' under '+fmt(MAXFILTER):' across Rome')+'<span class="hint"> · choose a home to explore</span>';}
+  var c=$('count'); if(c){c.style.display='block'; if(SKY_STATE.catalogueStatus==='loading')c.textContent='Finding homes…'; else if(SKY_STATE.catalogueStatus==='error')c.textContent='Homes could not load'; else c.innerHTML='<b>'+shown+'</b> '+(shown===1?'home':'homes')+(MAXFILTER?' under '+fmt(MAXFILTER):' across Rome')+'<span class="hint"> · choose a home to explore</span>';}
   if(SELECTED&&SELECTED.classList.contains('dim'))clearSelection();
   skyEvent('filter',{count:shown});
 }
@@ -693,12 +693,13 @@ function setBudget(value){
 function journeyFor(id,publicSlug){
   var M=window.BOOM_MAPPA,T=window.BOOM_TEMPI;
   if(!M)return null;
-  var target=M.METE.find(function(p){return p.slug===publicSlug;});
+  var target=M.destination?M.destination(publicSlug):M.METE.find(function(p){return p.slug===publicSlug;});
   var marker=MARKERS.find(function(m){return m.getElement().__id===String(id);});
-  if(!target||!marker)return null;
+  if(!target||!marker||typeof target.lat!=='number'||typeof target.lng!=='number'||!isFinite(target.lat)||!isFinite(target.lng))return null;
   var el=marker.getElement(),co=el.__co;
   if(!co||!isFinite(co[0])||!isFinite(co[1]))return null;
-  var eta=T&&TEMPI_DATI?T.eta(TEMPI_DATI,co[1],co[0],publicSlug):null;
+  var gridSlug=target.gridSlug||(M.METE.some(function(p){return p.slug===publicSlug;})?publicSlug:null);
+  var eta=gridSlug&&T&&TEMPI_DATI?T.eta(TEMPI_DATI,co[1],co[0],gridSlug):null;
   var time=M.tempo(M.km(co[1],co[0],target.lat,target.lng),eta);if(!time)return null;
   return {min:time.min,fonte:time.fonte,testo:time.testo,precision:el.__precision,
     origin:{lat:co[1],lng:co[0]},destination:{lat:target.lat,lng:target.lng,slug:target.slug,name:target.nome}};

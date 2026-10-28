@@ -117,3 +117,9 @@ html.boom-flight-apartments body #serbaStatus{min-height:1.5em;color:#ffd700;fon
  html.boom-flight-apartments.flight-apartments-map body #muro .flight-pin-button{width:44px;min-height:44px;right:4px}
 }
 @media(prefers-reduced-motion:reduce){html.boom-flight-apartments body .casa-p,html.boom-flight-apartments body .casa-p .home-foto img,html.boom-flight-apartments body .casa-p .home-foto button{transition:none;transform:none!important}}
+/* Exact dates belong together; budget and household remain at a glance. */
+html.boom-flight-apartments body .disco-testa>.coro{grid-template-columns:minmax(0,.72fr) minmax(560px,1.28fr);column-gap:35px}
+html.boom-flight-apartments body .disco .atterro{grid-template-columns:minmax(265px,1.8fr) minmax(100px,.8fr) minmax(100px,.8fr);align-items:center;border-radius:16px}
+html.boom-flight-apartments body .disco .atterro .ac-stay>span{display:block;margin-bottom:8px}
+@media(max-width:1100px){html.boom-flight-apartments body .disco-testa>.coro{display:block}html.boom-flight-apartments body .disco .atterro{margin-top:20px}}
+@media(max-width:640px){html.boom-flight-apartments body .disco .atterro{grid-template-columns:1fr 1fr;gap:10px 0}html.boom-flight-apartments body .disco .atterro .ac-stay{grid-column:1/-1;border:0;border-bottom:1px solid #ffffff15;padding:5px 8px 12px}}
