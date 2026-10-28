@@ -3032,6 +3032,14 @@ La scheda ricompone gli slot SSR e i conti veri nel Landing Plan; `<body>` resta
 precisione dei pin e tempi reali restano ai motori Geo/Mappa. Generatori conservano i layer.
 Test: `flight`, `mappaflight`, `listingssr`, `vetrina`, `hometruth`, `cielo`, `seo`.
 
+Flight 28/10: il pulso segue la cerniera Solari, si ferma fuori schermo e rispetta
+reduced motion. Compare Skyline deriva fino a 3 salvati da catalogo/Facts/Dispo/Geo;
+selettore solo in memoria, niente nuovo archivio, Fly to rispetta i filtri attivi.
+Apartments riserva la vista prima del paint e non scrive `view` al boot/resize;
+scheda e ricerca partono a DOM-ready. Transizioni native fra pagine, locali sulle
+tab WebGL; `/flight-preview` mostra il percorso reale in desktop/mobile (noindex).
+Verifica: `vetrina`, `scroll`, `listingssr`, `mappaflight` e percorso browser completo.
+
 ### POST `/api/search/save`
 Public save-search endpoint for the apartments discovery page. Body
 `{ email, label?, criteria{q,budgetMax,moveIn,beds,baths,furnished,video,

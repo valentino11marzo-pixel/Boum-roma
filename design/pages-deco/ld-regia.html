@@ -12,7 +12,8 @@
 <script src="/js/listing-facts.js"></script>
 <script>
 /* LA REGIA DELLA CASA — una casa alla volta, dal catalogo vero.
-   Parte al load: il motore Solari è concatenato DOPO questo script. */
+   Parte al DOM pronto: i motori concatenati dopo sono già definiti;
+   le foto iniziano subito, la mappa resta attivata dalla sua interazione. */
 (function () {
   'use strict';
   function via() {
@@ -1371,7 +1372,8 @@
     if (/id=/.test(location.hash)) location.reload();
   });
   }
-  if (document.readyState === 'complete') via();
-  else addEventListener('load', via);
+  if (document.readyState === 'loading')
+    document.addEventListener('DOMContentLoaded', via, { once: true });
+  else via();
 })();
 </script>

@@ -4,10 +4,31 @@
 .flight-home-hero .hero-int { grid-template-columns:minmax(0,.88fr) minmax(0,1.12fr); gap:16px; align-items:center; }
 .flight-home-hero .hero-velo { opacity:.12; }
 .flight-home-copy { position:relative; z-index:3; padding:18px 0 28px; min-width:0; }
+/* The city is readable on first paint; movement belongs to the real flaps. */
+html.vivo .flight-home-copy.coro.dentro-subito .hero-title { opacity:1;transform:none;animation:none; }
 .flight-home-copy .hero-eyebrow { padding:0; border-radius:0; box-shadow:none; color:#b6b7bf; font-size:10px; letter-spacing:.19em; line-height:1.5; }
 .flight-home-copy .hero-eyebrow b { background:#FFD700; box-shadow:0 0 12px #ffd70033; }
 .flight-home-copy .hero-title { font-size:clamp(42px,4.55vw,64px); font-weight:200; line-height:1.05; letter-spacing:-.045em; margin-top:24px; text-wrap:initial; }
 .flight-home-copy .flight-home-word { display:block; font-size:clamp(68px,7.2vw,100px); line-height:1.27; min-width:3.64em; min-height:1.27em; letter-spacing:0; margin:5px 0 10px; color:#FFE55C; width:max-content; max-width:100%; }
+/* The aperture belongs to the real Solari hinge. It never covers the
+   city or changes the size reserved for its four mechanical cells. */
+.flight-home-copy .flight-home-word { position:relative; isolation:isolate; display:flex; align-items:center; }
+.flight-home-word .fc2 { flex:none; }
+.flight-home-word::before { content:''; position:absolute; inset:-30px -16px; z-index:-1; pointer-events:none; background:radial-gradient(ellipse at var(--flight-light-x,50%) var(--flight-light-y,50%),#ffd70020,transparent 64%); opacity:.45; transition:opacity .6s ease; }
+.flight-home-word::after { content:''; position:absolute; z-index:7; left:calc(50% - .035em); top:50%; width:34px; height:34px; margin:-17px; border:1px solid #ffd70045; border-radius:50%; pointer-events:none; background:radial-gradient(circle,#fff4bd 0 1px,#ffd700bb 1.5px 2px,transparent 3px); box-shadow:0 0 18px #ffd70016,inset 0 0 12px #ffd7000b; opacity:.4; transform:scale(.8); }
+.flight-home-motion .flight-home-word::after { animation:flight-home-aperture 7.6s cubic-bezier(.22,.61,.36,1) infinite; }
+.flight-home-word.flight-home-energized::before { opacity:.95; }
+.flight-home-word.flight-home-energized .fc2 s { background:linear-gradient(90deg,#070707 0%,#ffd70025 47%,#ffe68f6b 50%,#ffd70025 53%,#070707 100%); }
+.flight-home-word.flight-home-energized::after { animation:flight-home-impulse 1.5s cubic-bezier(.16,1,.3,1) both; }
+@keyframes flight-home-aperture {
+  0%,60%,100% { opacity:.3; transform:scale(.8); }
+  18% { opacity:.72; transform:scale(1); }
+  38% { opacity:.12; transform:scale(1.6); }
+}
+@keyframes flight-home-impulse {
+  0% { opacity:.8; transform:scale(.65); }
+  100% { opacity:0; transform:scale(2); }
+}
 .flight-home-copy .flight-home-title-end { display:block; font-size:.9em; letter-spacing:-.045em; }
 .flight-home-copy .hero-sub { max-width:34ch; margin-top:23px; font-size:15px; line-height:1.75; color:#b6b7c0; }
 .flight-home-actions { display:flex; align-items:center; flex-wrap:wrap; gap:22px; margin-top:25px; }
@@ -147,4 +168,6 @@
 @media(prefers-reduced-motion:reduce) {
   .flight-home-copy *, .flight-home-door>span:last-child { animation:none!important; transition:none!important; }
   .flight-home-copy { opacity:1; }
+  .flight-home-word::before { transition:none; opacity:.3; }
+  .flight-home-word::after { animation:none!important; opacity:.3; transform:scale(.8); }
 }

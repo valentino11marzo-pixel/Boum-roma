@@ -11,7 +11,7 @@
   var money = function (v) { return '€' + Math.round(Number(v)).toLocaleString('en-US'); };
   var screen = el('div', 'sky-flight');
   screen.innerHTML = '<div class="sky-flight-heading"><span>ROM / YOUR CITY, IN VIEW</span><h1>Skyline<span> by BOOM</span></h1><p>Choose a home. See how your life connects.</p></div>'
-    + '<div class="sky-flight-tools" role="group" aria-label="Map view"><div class="sky-view-toggle"><button type="button" id="sky2d" aria-pressed="false" disabled>2D</button><button type="button" id="sky3d" aria-pressed="true" disabled>3D</button></div><button type="button" id="skyOrbit" aria-pressed="false" disabled>Orbit</button><button type="button" id="skyReset" disabled>Reset view</button><button type="button" id="skyShare" class="sky-share-button" disabled>Share Skyline ↗</button></div>'
+    + '<div class="sky-flight-tools" role="group" aria-label="Map view"><div class="sky-view-toggle"><button type="button" id="sky2d" aria-pressed="false" disabled>2D</button><button type="button" id="sky3d" aria-pressed="true" disabled>3D</button></div><button type="button" id="skyOrbit" aria-pressed="false" disabled>Orbit</button><button type="button" id="skyReset" disabled>Reset view</button><button type="button" id="skyCompare" class="sky-compare-button" aria-haspopup="dialog">Compare · 0</button><button type="button" id="skyShare" class="sky-share-button" title="Share Skyline" disabled>Share Skyline ↗</button></div>'
     + '<div class="sky-share-context" id="skyShared" hidden><span>A shared view of Rome</span><button type="button" id="skyAllHomes">Explore all homes ↗</button></div>'
     + '<aside class="sky-flight-home" id="skyHome" aria-label="Selected apartment" hidden><button type="button" class="sky-home-close" id="skyHomeClose" aria-label="Close selected apartment">×</button><div class="sky-home-media"><img id="skyHomeImage" alt="" hidden><button type="button" id="skyHomeSave" class="sky-home-save" aria-pressed="false">Save home</button></div><div class="sky-home-copy"><span class="sky-home-zone" id="skyHomeZone"></span><h2 id="skyHomeName"></h2><p class="sky-home-precision" id="skyHomePrecision"></p><div class="sky-home-bottom"><span class="sky-home-price" id="skyHomePrice"></span><a id="skyHomeLink" href="/apartments">Explore home ↗</a></div></div></aside>'
     + '<p class="sky-flight-status" id="skyStatus" role="status" aria-live="polite"></p>';
@@ -23,6 +23,90 @@
   share.innerHTML = '<button type="button" class="sky-dialog-close" id="skyShareClose" aria-label="Close sharing">×</button><span class="sky-share-label">BOOM / SKYLINE PASS</span><h2 id="skyShareTitle">Could this be<br>your Rome?</h2><p>Send this view, selected home and budget. Include a public destination below to share its commute filter. Your private places stay on your device.</p><label class="sky-share-place"><input type="checkbox" id="skySharePlace"> Include the public destination: <strong id="skyPlaceName">Termini</strong></label><label class="sky-link-label" for="skyShareURL">Your Skyline link</label><input id="skyShareURL" class="sky-share-url" readonly><div class="sky-share-actions"><button type="button" id="skyCopyLink">Copy link</button><button type="button" id="skyNativeShare" hidden>Share…</button></div><p id="skyShareResult" class="sky-share-result" role="status"></p>';
   document.body.appendChild(share);
 
+  var comparePaths=null,compareOpener=null;
+  var compareDialog=el('dialog','sky-compare-dialog');
+  compareDialog.id='skyCompareDialog';compareDialog.setAttribute('aria-labelledby','skyCompareTitle');
+  compareDialog.innerHTML='<header class="sky-compare-head"><div><span class="sky-share-label">BOOM / YOUR SHORTLIST</span><h2 id="skyCompareTitle">Find your kind of Rome.</h2></div><button type="button" id="skyCompareClose" class="sky-dialog-close" aria-label="Close comparison">×</button></header>'
+    +'<ol class="sky-compare-steps" aria-label="Your next steps"><li><b>01</b> Save homes</li><li class="current" aria-current="step"><b>02</b> Compare</li><li><b>03</b> Explore &amp; plan a viewing</li></ol>'
+    +'<div id="skyCompareBody"></div><p class="sky-compare-status" id="skyCompareStatus" role="status" aria-live="polite"></p>';
+  document.body.appendChild(compareDialog);
+
+  function compareRecords(paths) {
+    var F=window.BOOM_FLIGHT;
+    return F&&F.compare?F.compare(paths,api&&api.catalogue?api.catalogue():[],{facts:window.BOOM_FACTS,dispo:window.BOOM_DISPO,geo:window.BOOM_GEO}):[];
+  }
+  function closeCompare() {compareDialog.close();}
+  function syncCompare() {
+    var paths=readSaved()||[];
+    $('skyCompare').textContent='Compare · '+paths.length;
+    $('skyCompare').setAttribute('aria-label','Compare saved homes, '+paths.length+' saved');
+    if(compareDialog.open)renderCompare();
+  }
+  function renderCompare() {
+    var paths=readSaved()||[],body=$('skyCompareBody'),pickerBefore=body.querySelector('details');
+    var keepPicker=pickerBefore&&pickerBefore.open;
+    body.replaceChildren();$('skyCompareStatus').textContent='';
+    comparePaths=(comparePaths||paths.slice(0,3)).filter(function(path){return paths.indexOf(path)>=0;}).slice(0,3);
+    if(paths.length===1)comparePaths=paths.slice();
+    compareDialog.dataset.homeCount=String(comparePaths.length);
+    if(!paths.length){
+      comparePaths=null;
+      var empty=el('div','sky-compare-empty');
+      empty.appendChild(el('span','sky-compare-empty-number','01'));
+      empty.appendChild(el('h3','','Start with a home that catches your eye.'));
+      empty.appendChild(el('p','','Choose a price pin on the map, then tap Save home on its photo. Come back here to compare up to three homes side by side.'));
+      var back=el('button','sky-compare-return','Explore Skyline ↗');back.type='button';back.addEventListener('click',closeCompare);empty.appendChild(back);body.appendChild(empty);return;
+    }
+    if(!api||!window.BOOM_FLIGHT||!BOOM_FLIGHT.compare){body.appendChild(el('p','sky-compare-note','Loading the current catalogue. Your saved homes are still on this device.'));return;}
+    var intro=el('div','sky-compare-intro');
+    intro.appendChild(el('p','',comparePaths.length+' of '+paths.length+' saved '+(paths.length===1?'home':'homes')+' in this comparison'));
+    intro.appendChild(el('span','','Monthly rent only · fees and bills are on each home’s page'));
+    body.appendChild(intro);
+    if(paths.length>1){
+      var picker=el('details','sky-compare-picker');picker.open=!!keepPicker;
+      picker.appendChild(el('summary','','Choose up to 3 saved homes'));
+      var choices=el('div','sky-compare-choices');
+      paths.forEach(function(path){
+        var record=compareRecords([path])[0];if(!record)return;
+        var label=el('label',''),input=el('input','');input.type='checkbox';input.value=path;input.checked=comparePaths.indexOf(path)>=0;input.dataset.comparePath=path;
+        label.appendChild(input);var name=el('span','',record.name);if(record.missing)name.appendChild(el('small','','Not in the current catalogue'));label.appendChild(name);choices.appendChild(label);
+      });
+      picker.appendChild(choices);body.appendChild(picker);
+    }
+    if(!comparePaths.length){body.appendChild(el('p','sky-compare-note','Choose a saved home above to begin. Removing a home from this comparison keeps it saved in Your move.'));return;}
+    if(comparePaths.length>1){var hint=el('p','sky-compare-swipe','Swipe across to compare each home →');body.appendChild(hint);}
+    var columns=el('div','sky-compare-columns');columns.style.setProperty('--compare-count',String(comparePaths.length));columns.setAttribute('tabindex','0');columns.setAttribute('aria-label','Homes compared side by side');
+    compareRecords(comparePaths).forEach(function(record,index){
+      var card=el('article','sky-compare-card');
+      var media=el('div','sky-compare-media');
+      if(record.image){var img=el('img','');img.src=record.image;img.alt=record.name;img.loading='lazy';img.addEventListener('error',function(){this.hidden=true;});media.appendChild(img);}
+      else media.appendChild(el('span','sky-compare-no-photo','Photo not available'));
+      media.appendChild(el('span','sky-compare-number',String(index+1).padStart(2,'0')));card.appendChild(media);
+      var heading=el('div','sky-compare-card-head');heading.appendChild(el('span','sky-compare-zone',record.zone));heading.appendChild(el('h3','',record.name));card.appendChild(heading);
+      var facts=el('dl','sky-compare-facts');
+      function fact(label,value,cls){var row=el('div',cls||'');row.appendChild(el('dt','',label));row.appendChild(el('dd','',value));facts.appendChild(row);}
+      fact('Monthly rent',record.rent==null?'Ask BOOM':money(record.rent),'sky-compare-rent');
+      fact('Floor area',record.area==null?'Not listed':record.area+' m²');
+      fact('Bedrooms',record.bedrooms==null?'Not listed':record.bedrooms===0?'Studio':String(record.bedrooms));
+      fact('Availability',record.availability,'sky-compare-availability');
+      fact('Map precision',record.precision==='exact'?'Address located':record.precision==='street'?'Street located':record.precision==='zone'?'Approximate area':'Location to confirm');
+      card.appendChild(facts);
+      var actions=el('div','sky-compare-card-actions'),fly=el('button','sky-compare-fly','Fly to ↗');fly.type='button';fly.dataset.compareFly=record.id;
+      var marker=api.markers.find(function(m){return m.getElement().__id===record.id;});
+      fly.disabled=!marker||marker.getElement().classList.contains('dim');
+      if(fly.disabled)fly.title=marker?'Outside your active map filters':'No active map pin for this home';
+      actions.appendChild(fly);
+      var open=el('a','sky-compare-explore',record.missing?'Check listing ↗':'Explore home ↗');open.href=record.path;if(window.parent!==window)open.target='_top';actions.appendChild(open);card.appendChild(actions);
+      if(fly.disabled)card.appendChild(el('p','sky-compare-map-note',marker?'Outside current map filters. Open the home to see its details.':'This home has no active pin in this map.'));
+      columns.appendChild(card);
+    });
+    body.appendChild(columns);
+    body.appendChild(el('p','sky-compare-note','Next: open the home you like to see the full costs, confirm its availability and ask BOOM about a viewing. A saved home is not a reservation.'));
+  }
+  function openCompare() {
+    stopOrbit();compareOpener=document.activeElement;renderCompare();
+    if(!compareDialog.open)compareDialog.showModal();$('skyCompareClose').focus();
+  }
   function status(text) { $('skyStatus').textContent = text; }
   function stopOrbit() {
     if (orbit) cancelAnimationFrame(orbit);
@@ -64,6 +148,7 @@
     button.setAttribute('aria-pressed',String(saved));
     button.setAttribute('aria-label',saved?'Remove saved home':'Save this home');
     button.textContent=saved?'Saved ✓':'Save home';
+    syncCompare();
   }
   function toggleSaved() {
     // Read at the gesture: another page/frame may have changed the shortlist
@@ -158,13 +243,29 @@
     if (api.selected()) selection({ listing: api.selected().__listing, precision: api.selected().__precision });
     // A share camera is explicit; preserve it after an incoming home selection.
     if (camera && query.get('home')) { api.select(query.get('home'), { fly: false }); api.map.stop(); api.map.jumpTo(camera); }
+    syncCompare();
     status('Rome is ready. Choose a price pin to explore a home.');
   }
   var quadHead=$('quadCapo');
+  function compactQuad(){return innerWidth<=640||document.documentElement.classList.contains('emb');}
+  function syncQuad(){
+    if(!quadHead)return;
+    var compact=compactQuad(),quad=$('quad'),expanded=!compact||quad.classList.contains('sky-expanded');
+    // Keep the original Quadrante's collapsed class in step with Flight.
+    quad.classList.toggle('chiuso',compact&&!expanded);
+    quadHead.setAttribute('aria-expanded',String(expanded));
+    quadHead.setAttribute('tabindex',compact?'0':'-1');
+    quadHead.setAttribute('aria-label',compact?(expanded?'Hide city connections':'Show city connections'):'City connections');
+    if(compact)quadHead.setAttribute('role','button');else quadHead.removeAttribute('role');
+    var home=$('skyHome');
+    if(home&&!home.hidden){var height=home.getBoundingClientRect().height;if(height)document.documentElement.style.setProperty('--sky-home-height',Math.ceil(height)+'px');}
+  }
   if(quadHead){
-    quadHead.setAttribute('tabindex','0');quadHead.setAttribute('role','button');quadHead.setAttribute('aria-label','Show or hide city connections');
-    quadHead.addEventListener('click',function(e){if(e.target.closest('button'))return;if((innerWidth<=640&&$('quad').classList.contains('scelta'))||document.documentElement.classList.contains('emb')){$('quad').classList.toggle('sky-expanded');quadHead.setAttribute('aria-expanded',String($('quad').classList.contains('sky-expanded')));}});
-    quadHead.addEventListener('keydown',function(e){if(e.target===quadHead&&(e.key==='Enter'||e.key===' ')){e.preventDefault();quadHead.click();}});
+    quadHead.addEventListener('click',function(e){if(e.target.closest('button')||!compactQuad())return;$('quad').classList.toggle('sky-expanded');syncQuad();});
+    quadHead.addEventListener('keydown',function(e){if(compactQuad()&&e.target===quadHead&&(e.key==='Enter'||e.key===' ')){e.preventDefault();quadHead.click();}});
+    window.addEventListener('resize',syncQuad,{passive:true});
+    if(window.ResizeObserver)new ResizeObserver(syncQuad).observe($('skyHome'));
+    syncQuad();
   }
   $('sky2d').addEventListener('click', function () { setView(false); });
   $('sky3d').addEventListener('click', function () { setView(true); });
@@ -176,6 +277,28 @@
   });
   $('skyReset').addEventListener('click', function () { if (api) { stopOrbit(); api.clear(); api.reset(); } });
   $('skyShare').addEventListener('click', openShare);
+  $('skyCompare').addEventListener('click',openCompare);
+  $('skyCompareClose').addEventListener('click',closeCompare);
+  compareDialog.addEventListener('close',function(){if(compareOpener&&compareOpener.isConnected)compareOpener.focus();});
+  compareDialog.addEventListener('click',function(e){
+    if(e.target===compareDialog){var r=compareDialog.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)closeCompare();return;}
+    var button=e.target.closest('button[data-compare-fly]');if(!button||!api)return;
+    if(api.select(button.dataset.compareFly)){closeCompare();}
+    else $('skyCompareStatus').textContent='This home is outside the current map filters. Open its page or adjust the filters to see it here.';
+  });
+  function changeCompare(e){
+    var input=e.target.closest('input[data-compare-path]');if(!input)return;
+    var paths=readSaved()||[],path=input.dataset.comparePath;
+    comparePaths=(comparePaths||[]).filter(function(p){return paths.indexOf(p)>=0;});
+    if(paths.indexOf(path)<0){renderCompare();return;}
+    if(input.checked){
+      if(comparePaths.indexOf(path)<0&&comparePaths.length>=3){input.checked=false;$('skyCompareStatus').textContent='Compare up to three homes. Untick one to make room for another.';return;}
+      if(comparePaths.indexOf(path)<0)comparePaths.push(path);
+    }else comparePaths=comparePaths.filter(function(p){return p!==path;});
+    renderCompare();
+    var next=Array.from(compareDialog.querySelectorAll('input[data-compare-path]')).find(function(n){return n.dataset.comparePath===path;});if(next)next.focus();
+  }
+  compareDialog.addEventListener('change',changeCompare);
   $('skyHomeSave').addEventListener('click',toggleSaved);
   window.addEventListener('storage',function(e){if(e.key==='boomSalvate'||e.key===null)syncSaved();});
   window.addEventListener('boom:move',syncSaved);
@@ -201,7 +324,7 @@
   window.addEventListener('keydown', function (e) { if (e.key === 'Escape') stopOrbit(); });
   window.addEventListener('boom:skyline-ready', function (e) { attach(e.detail.api); });
   window.addEventListener('boom:skyline-selection', function (e) { selection(e.detail); });
-  window.addEventListener('boom:skyline-filter', function (e) { if (api && e.detail.count === 0) status('No homes match these filters. Try another budget or destination.'); });
+  window.addEventListener('boom:skyline-filter', function (e) { if(compareDialog.open)renderCompare(); if (api && e.detail.count === 0) status('No homes match these filters. Try another budget or destination.'); });
   if (window.BoomSkyline) attach(window.BoomSkyline);
   if(query.get('places')==='1'&&$('mieiChip'))$('mieiChip').click();
   var places=$('mieiVelo');

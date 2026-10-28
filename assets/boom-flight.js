@@ -1,5 +1,20 @@
 (function () {
   'use strict';
+  /* Snapshot hit testing cannot see the live fixed bar. Once navigation
+     settles, ask the existing scroll contract to measure it again. */
+  function navigationTransition(event) {
+    var transition = event.viewTransition;
+    if (!transition) return;
+    // A retry can land on a 503/non-opted-in page. That is an expected
+    // cancellation, not a page error or a reason to intercept navigation.
+    transition.ready.catch(function () {});
+    transition.finished.then(function () {
+      if (event.type !== 'pagereveal') return;
+      requestAnimationFrame(function () { window.dispatchEvent(new Event('resize')); });
+    }, function () {});
+  }
+  window.addEventListener('pageswap', navigationTransition);
+  window.addEventListener('pagereveal', navigationTransition);
   var F = window.BOOM_FLIGHT; if (!F) return;
   if (new URLSearchParams(location.search).get('embed') === '1') return;
   var dialog, opener, known = {}, fetchPromise;

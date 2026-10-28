@@ -1,6 +1,7 @@
 <script>
 /* LA REGIA DELLA DISCOVERY — il tabellone è il filtro.
-   Parte al load: il motore Solari è concatenato DOPO questo script. */
+   Parte al DOM pronto: il Solari concatenato dopo è già definito,
+   senza aspettare foto e iframe per attivare filtri e conteggio. */
 (function () {
   'use strict';
   function via() {
@@ -458,8 +459,9 @@
 
   aggiorna();
   }
-  if (document.readyState === 'complete') via();
-  else addEventListener('load', via);
+  if (document.readyState === 'loading')
+    document.addEventListener('DOMContentLoaded', via, { once: true });
+  else via();
 })();
 </script>
 
@@ -566,25 +568,28 @@
   /* ── la vista: griglia ⇄ skyline ── */
   var cieloBox = per('#vistaCielo'), vg = per('#vGriglia'), vc = per('#vCielo');
   var contoRiga = per('.muro-conto'), vuoto = per('#vuoto');
-  function vista(mappa) {
+  function vista(mappa, persist) {
     if (!cieloBox) return;
     if (mappa && window.BoomCielo && BoomCielo.apri) BoomCielo.apri();
     var split = mappa && matchMedia('(min-width:1050px)').matches;
     document.body.classList.toggle('flight-split', split);
+    document.documentElement.classList.toggle('flight-apartments-map', !!mappa);
     cieloBox.hidden = !mappa;
     muro.style.display = mappa && !split ? 'none' : '';
     if (contoRiga) contoRiga.style.display = '';
     if (vuoto) vuoto.style.display = mappa && !split ? 'none' : '';
     if (vg) { vg.classList.toggle('on', !mappa); vg.setAttribute('aria-pressed', String(!mappa)); }
     if (vc) { vc.classList.toggle('on', mappa); vc.classList.remove('pulsa'); vc.setAttribute('aria-pressed', String(mappa)); }
-    try { var u = new URL(location.href); u.searchParams.set('view', mappa ? 'skyline' : 'grid'); history.replaceState(null, '', u.pathname + u.search + u.hash); } catch (_) {}
+    // The automatic desktop layout and resizing do not rewrite a search URL.
+    if (persist) try { var u = new URL(location.href); u.searchParams.set('view', mappa ? 'skyline' : 'grid'); history.replaceState(null, '', u.pathname + u.search + u.hash); } catch (_) {}
     if (mappa) sincronia();
   }
-  matchMedia('(min-width:1050px)').addEventListener('change', function () { vista(!cieloBox.hidden); });
-  if (vg) vg.addEventListener('click', function () { vista(false); });
-  if (vc) vc.addEventListener('click', function () { vista(true); });
+  window.BoomApartmentsView = { show: vista };
+  matchMedia('(min-width:1050px)').addEventListener('change', function () { vista(!cieloBox.hidden, false); });
+  if (vg) vg.addEventListener('click', function () { vista(false, true); });
+  if (vc) vc.addEventListener('click', function () { vista(true, true); });
   if (sky) sky.addEventListener('click', function () {
-    vista(true);
+    vista(true, true);
     try { cieloBox.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
     catch (e) {}
   });

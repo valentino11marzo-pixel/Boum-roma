@@ -17,7 +17,7 @@
     var sourceApply = document.querySelector('#modApplica button[type="submit"]');
     var sourceHold = byId('prVai'), sourceViewing = byId('portaVideo');
     var sourceContact = document.querySelector('.chiedi-wa');
-    var mapStarted = false;
+    var mapStarted = false, fallbackMotion = null;
     var reduced = matchMedia('(prefers-reduced-motion: reduce)');
 
     function visible(el) {
@@ -26,6 +26,7 @@
     function setView(everyday, focus) {
       if (!home || !place || !tabHome || !tabPlace) return;
       if (everyday && tabPlace.disabled) everyday = false;
+      var changed = home.hidden !== everyday;
       home.hidden = everyday;
       place.hidden = !everyday;
       tabHome.setAttribute('aria-selected', String(!everyday));
@@ -33,18 +34,28 @@
       tabHome.tabIndex = everyday ? -1 : 0;
       tabPlace.tabIndex = everyday ? 0 : -1;
       if (focus) (everyday ? tabPlace : tabHome).focus();
-      main.classList.add('bfd-changed');
+      if (changed) main.classList.add('bfd-changed');
       if (everyday && !mapStarted) {
         var start = byId('bloccoVia');
         if (start) { mapStarted = true; start.click(); }
       }
-      // A MapLibre canvas returning from display:none needs a fresh size.
+      // Keep the live WebGL canvas out of root view-transition snapshots.
+      // Its panel changes immediately, with local CSS motion only.
       if (everyday) requestAnimationFrame(function () {
         window.dispatchEvent(new Event('resize'));
       });
     }
     function sync() {
       var missing = !visible(byId('denaro'));
+      // Recovery is a plain navigation: a 503 response cannot participate
+      // in the visual handoff between two complete listing documents.
+      if (missing && !fallbackMotion) {
+        fallbackMotion = document.createElement('style');
+        fallbackMotion.textContent = '@view-transition{navigation:none}';
+        document.head.appendChild(fallbackMotion);
+      } else if (!missing && fallbackMotion) {
+        fallbackMotion.remove(); fallbackMotion = null;
+      }
       pass.hidden = missing;
       var hasPlace = !missing && place && place.style.display !== 'none';
       if (tabPlace) { tabPlace.disabled = !hasPlace; tabPlace.hidden = !hasPlace; }
@@ -151,10 +162,10 @@
     // Keep motion preferences current for our presentation layer.
     function motion() { root.classList.toggle('bfd-reduced', reduced.matches); }
     if (reduced.addEventListener) reduced.addEventListener('change', motion);
-    sync(); motion(); openHash();
+    refreshSaved(); motion(); openHash();
   }
-  // The existing inline regia initialises on load. This layer runs after
-  // it, preserving its ownership of listing state, gallery and forms.
+  // This static deferred layer follows the regia's earlier DOM-ready
+  // listener. Photos/forms do not wait for remote media to finish loading.
   if (document.readyState === 'complete') setTimeout(ready, 0);
-  else window.addEventListener('load', function () { setTimeout(ready, 0); }, { once: true });
+  else document.addEventListener('DOMContentLoaded', function () { setTimeout(ready, 0); }, { once: true });
 })();

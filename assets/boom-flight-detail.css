@@ -1,11 +1,15 @@
+/* Snapshot hit testing may briefly report a zero-height navigation. Reserve its space. */
+html.boom-flight-detail{--flight-bar:max(98px,var(--boom-barra,98px))}
+@media(max-width:760px){html.boom-flight-detail{--flight-bar:max(76px,var(--boom-barra,76px))}}
 /* BOOM Flight / the home dossier. The existing listing, money and map
    controllers keep their nodes and remain the only source of facts. */
-html.boom-flight-detail .casa{padding-top:calc(var(--boom-barra,92px) + 14px);padding-bottom:26px}
+html.boom-flight-detail .casa{padding-top:calc(var(--flight-bar) + 14px);padding-bottom:26px}
 html.boom-flight-detail .casa>.container{max-width:1320px}
 html.boom-flight-detail .casa-briciole{margin-bottom:16px;font-size:11px;letter-spacing:.025em}
 html.boom-flight-detail .bfd-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:22px;margin-bottom:20px}
+html.boom-flight-detail .bfd-heading>div:first-child{min-width:0}
 html.boom-flight-detail .bfd-kicker{display:none;margin-bottom:12px;font-size:10px;line-height:1.4;letter-spacing:.2em;color:var(--gold,#FFD700);text-transform:uppercase}
-html.boom-flight-detail .bfd-heading h1{font-size:clamp(30px,3.4vw,46px);font-weight:250;line-height:1.08;letter-spacing:-.035em;text-wrap:balance}
+html.boom-flight-detail .bfd-heading h1{font-size:clamp(30px,3.4vw,46px);font-weight:250;line-height:1.08;letter-spacing:-.035em;text-wrap:balance;overflow-wrap:anywhere}
 html.boom-flight-detail .bfd-heading .dove{margin-top:6px;font-size:13px;color:var(--text-2);line-height:1.5}
 html.boom-flight-detail .bfd-save{display:flex;align-items:center;gap:10px;flex:none;font-size:11px;color:var(--text-2)}
 html.boom-flight-detail .bfd-save .home-cuore{position:static;width:44px;height:44px;border-radius:50%;background:#141416;border:1px solid rgba(255,255,255,.13);font-size:21px;color:#d5d5db}
@@ -39,7 +43,7 @@ html.boom-flight-detail .fatto:first-child{padding-left:0}
 html.boom-flight-detail .fatto:last-child{border-right:0}
 html.boom-flight-detail .fatto b{font-size:19px;color:#f5f5f7;font-weight:300;overflow-wrap:anywhere}
 html.boom-flight-detail .fatto span{font-size:9px;line-height:1.6;letter-spacing:.12em;color:#a9a9b2}
-html.boom-flight-detail .bfd-pass{position:sticky;top:calc(var(--boom-barra,92px) + 20px);padding:18px 22px 20px;border-radius:20px;border:1px solid rgba(255,215,0,.22);background:radial-gradient(ellipse at 100% 0,rgba(255,215,0,.065),transparent 54%),linear-gradient(145deg,#1a1a1e,#101013 63%,#0b0b0d);box-shadow:inset 0 1px 0 #ffffff12,0 22px 64px -25px #0009;min-width:0}
+html.boom-flight-detail .bfd-pass{position:sticky;top:calc(var(--flight-bar) + 20px);padding:18px 22px 20px;border-radius:20px;border:1px solid rgba(255,215,0,.22);background:radial-gradient(ellipse at 100% 0,rgba(255,215,0,.065),transparent 54%),linear-gradient(145deg,#1a1a1e,#101013 63%,#0b0b0d);box-shadow:inset 0 1px 0 #ffffff12,0 22px 64px -25px #0009;min-width:0}
 html.boom-flight-detail .bfd-pass-code{display:flex;justify-content:space-between;gap:12px;font-size:10px;letter-spacing:.21em;color:#c6b66e;text-transform:uppercase;margin-bottom:10px}
 html.boom-flight-detail .bfd-pass-title{font-size:21px;font-weight:300;letter-spacing:-.015em;line-height:1.25;color:#f6f6f8}
 html.boom-flight-detail .bfd-pass .stato-grande{display:inline-block;padding:0;margin-top:7px;background:none;backdrop-filter:none;-webkit-backdrop-filter:none;font-size:10px;line-height:1.5;letter-spacing:.09em;color:#c1c2c9}
@@ -73,7 +77,7 @@ html.boom-flight-detail .bfd-person{display:flex;align-items:center;justify-cont
 html.boom-flight-detail .bfd-person b{display:block;font-size:12px;line-height:1.4;font-weight:400}
 html.boom-flight-detail .bfd-person small{display:block;margin-top:4px;font-size:10.5px;line-height:1.45;color:#a6a6b0}
 html.boom-flight-detail .bfd-person>span:last-child{font-size:19px;color:var(--gold,#FFD700)}
-html.boom-flight-detail #posto{padding:0;margin:0;min-width:0;scroll-margin-top:calc(var(--boom-barra,92px) + 18px)}
+html.boom-flight-detail #posto{padding:0;margin:0;min-width:0;scroll-margin-top:calc(var(--flight-bar) + 18px)}
 html.boom-flight-detail #posto>.container{width:100%;max-width:none;padding:0}
 html.boom-flight-detail #posto .titolo{font-size:clamp(26px,2.6vw,36px);margin-top:8px;line-height:1.15}
 html.boom-flight-detail #posto .sotto{font-size:12px;max-width:58ch;margin-top:10px}
@@ -87,12 +91,12 @@ html.boom-flight-detail #posto .luoghi-testa>span{font-size:11px}
 html.boom-flight-detail #posto .sale,html.boom-flight-detail #posto .coro,html.boom-flight-detail .bfd-pass .sale{opacity:1;transform:none;translate:none}
 html.boom-flight-detail #denaro .chiavi{border-radius:18px}
 html.boom-flight-detail #denaro .chiavi-compra{border-top:0;padding-top:0}
-html.boom-flight-detail .rotaia{top:var(--boom-barra,92px);z-index:35}
+html.boom-flight-detail .rotaia{top:var(--flight-bar);z-index:35}
 html.boom-flight-detail .bfd-viewing{margin-top:12px;display:inline-flex;align-items:center;gap:9px;min-height:44px;font-size:11px;color:#c6c6cf;text-decoration:none}
 html.boom-flight-detail .bfd-viewing[hidden]{display:none}
 @media(min-width:1100px){html.boom-flight-detail .bfd-dossier{grid-template-columns:minmax(0,1fr) 348px;gap:30px}}
 @media(max-width:999px){html.boom-flight-detail .bfd-dossier{grid-template-columns:minmax(0,1fr) 305px;gap:20px}html.boom-flight-detail .bfd-pass{padding:20px 18px}html.boom-flight-detail .bfd-perforation{margin-left:-18px;margin-right:-18px}html.boom-flight-detail .telaio{min-height:340px}html.boom-flight-detail .fatti{grid-template-columns:repeat(3,minmax(0,1fr))}html.boom-flight-detail .fatto{padding:13px 10px}html.boom-flight-detail .fatto:first-child{padding-left:10px}}
-@media(max-width:760px){html.boom-flight-detail .casa{padding-top:calc(var(--boom-barra,76px) + 19px);padding-bottom:16px}html.boom-flight-detail .casa-briciole{margin-bottom:19px}html.boom-flight-detail .bfd-heading{align-items:center;margin-bottom:22px;gap:12px}html.boom-flight-detail .bfd-heading h1{font-size:34px}html.boom-flight-detail .bfd-heading .dove{font-size:12px}html.boom-flight-detail .bfd-kicker{font-size:9px;letter-spacing:.15em;margin-bottom:9px}html.boom-flight-detail .bfd-save>span{display:none}html.boom-flight-detail .bfd-dossier{grid-template-columns:1fr;gap:25px}html.boom-flight-detail .bfd-tabs{margin-bottom:14px;width:100%}html.boom-flight-detail .bfd-tabs button{flex:1;padding:0 12px}html.boom-flight-detail .telaio{min-height:0;aspect-ratio:1.15;border-radius:16px}html.boom-flight-detail .bfd-pass{position:relative;top:auto;width:100%;padding:23px 22px}html.boom-flight-detail .bfd-pass .canone-grande .flap-prezzo{font-size:38px}html.boom-flight-detail .bfd-pass .voce>span{max-width:70%}html.boom-flight-detail .bfd-perforation{margin-left:-22px;margin-right:-22px}html.boom-flight-detail #posto .blocco3d{height:360px}html.boom-flight-detail #posto .vicini{grid-template-columns:repeat(2,minmax(0,1fr))}html.boom-flight-detail .bfd-pass-actions>a{min-height:50px}html.boom-flight-detail .bfd-viewing{margin-top:4px}html.boom-flight-detail .casa>.container{padding-left:16px;padding-right:16px}}
+@media(max-width:760px){html.boom-flight-detail .casa{padding-top:calc(var(--flight-bar) + 19px);padding-bottom:16px}html.boom-flight-detail .casa-briciole{margin-bottom:19px}html.boom-flight-detail .bfd-heading{align-items:center;margin-bottom:22px;gap:12px}html.boom-flight-detail .bfd-heading h1{font-size:34px}html.boom-flight-detail .bfd-heading .dove{font-size:12px}html.boom-flight-detail .bfd-kicker{font-size:9px;letter-spacing:.15em;margin-bottom:9px}html.boom-flight-detail .bfd-save>span{display:none}html.boom-flight-detail .bfd-dossier{grid-template-columns:1fr;gap:25px}html.boom-flight-detail .bfd-tabs{margin-bottom:14px;width:100%}html.boom-flight-detail .bfd-tabs button{flex:1;padding:0 12px}html.boom-flight-detail .telaio{min-height:0;aspect-ratio:1.15;border-radius:16px}html.boom-flight-detail .bfd-pass{position:relative;top:auto;width:100%;padding:23px 22px}html.boom-flight-detail .bfd-pass .canone-grande .flap-prezzo{font-size:38px}html.boom-flight-detail .bfd-pass .voce>span{max-width:70%}html.boom-flight-detail .bfd-perforation{margin-left:-22px;margin-right:-22px}html.boom-flight-detail #posto .blocco3d{height:360px}html.boom-flight-detail #posto .vicini{grid-template-columns:repeat(2,minmax(0,1fr))}html.boom-flight-detail .bfd-pass-actions>a{min-height:50px}html.boom-flight-detail .bfd-viewing{margin-top:4px}html.boom-flight-detail .casa>.container{padding-left:16px;padding-right:16px}}
 @media(max-width:359px){html.boom-flight-detail .bfd-heading h1{font-size:29px}html.boom-flight-detail .bfd-pass{padding:21px 18px}html.boom-flight-detail .bfd-perforation{margin-left:-18px;margin-right:-18px}html.boom-flight-detail .bfd-pass .canone-grande .flap-prezzo{font-size:33px}html.boom-flight-detail .fatto b{font-size:17px}}
 @media(prefers-reduced-motion:no-preference){html.boom-flight-detail .bfd-main.bfd-changed>[role=tabpanel]:not([hidden]){animation:bfd-panel .28s cubic-bezier(.16,1,.3,1) both}@keyframes bfd-panel{from{opacity:.5;transform:translateY(5px)}to{opacity:1;transform:none}}}
 @media(prefers-reduced-motion:reduce){html.boom-flight-detail .bfd-main *,html.boom-flight-detail .bfd-pass *{scroll-behavior:auto!important}html.boom-flight-detail .bfd-tabs button,html.boom-flight-detail .rullino button,html.boom-flight-detail .telaio img,html.boom-flight-detail .bfd-pass-actions>a{transition:none}}

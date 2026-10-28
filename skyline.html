@@ -18,7 +18,9 @@
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=optional" rel="stylesheet" media="print" onload="this.media='all'">
 <script defer src="/js/flight-map.js?v=20261027a"></script>
-<script defer src="/assets/boom-flight-skyline.js?v=20261027a"></script>
+<script defer src="/js/listing-facts.js"></script>
+<script defer src="/js/dispo-engine.js"></script>
+<script defer src="/assets/boom-flight-skyline.js?v=20261028a"></script>
 <style>
 :root{--gold:#FFD700;--gold2:#FFA500;--bg:#08080A;--card:#0E0E12;--line:rgba(255,255,255,.09);--t1:#fff;--t2:#aaa;--t3:#777;--disp:'Helvetica Neue',Helvetica,Inter,Arial,sans-serif}
 *{margin:0;padding:0;box-sizing:border-box}
@@ -331,10 +333,10 @@ body::before, body::after { z-index: 1 !important; }
 })();
 </script>
 <!-- BOOM_SCROLL:END -->
-<link rel="stylesheet" href="/assets/boom-flight-skyline.css?v=20261027a">
-<link rel="stylesheet" href="/assets/boom-flight.css?v=20261027a">
-<script defer src="/js/flight-engine.js?v=20261027a"></script>
-<script defer src="/assets/boom-flight.js?v=20261027a"></script>
+<link rel="stylesheet" href="/assets/boom-flight-skyline.css?v=20261028a">
+<link rel="stylesheet" href="/assets/boom-flight.css?v=20261028a">
+<script defer src="/js/flight-engine.js?v=20261028a"></script>
+<script defer src="/assets/boom-flight.js?v=20261028a"></script>
 </head>
 <body>
 <div id="map" aria-label="Interactive map of BOOM homes in Rome"></div>
@@ -733,7 +735,7 @@ function applyFilter(){
     el.classList.toggle('dim',!ok); if(ok)shown++;
     el.hidden=!ok;el.tabIndex=ok?0:-1;
   });
-  var c=$('count'); if(c){c.style.display='block'; c.innerHTML='<b>'+shown+'</b> homes'+(MAXFILTER?' under '+fmt(MAXFILTER):' across Rome')+'<span class="hint"> · choose a home to explore</span>';}
+  var c=$('count'); if(c){c.style.display='block'; c.innerHTML='<b>'+shown+'</b> '+(shown===1?'home':'homes')+(MAXFILTER?' under '+fmt(MAXFILTER):' across Rome')+'<span class="hint"> · choose a home to explore</span>';}
   if(SELECTED&&SELECTED.classList.contains('dim'))clearSelection();
   skyEvent('filter',{count:shown});
 }
@@ -766,7 +768,7 @@ async function boot(){
     makePin(l,co,base); bounds.extend(co); placed++;
   });
   if(placed){
-    window.BoomSkyline={map:map,markers:MARKERS,
+    window.BoomSkyline={map:map,markers:MARKERS,catalogue:function(){return listings.slice();},
       select:function(id,opts){var m=MARKERS.find(function(m){return m.getElement().__id===String(id);});return m?selectHome(m.getElement(),opts):false;},
       clear:clearSelection,reset:fitHomes,
       selected:function(){return SELECTED;},

@@ -79,7 +79,7 @@ const saveCtx={
   window:{BOOM_FLIGHT:FLIGHT,dispatchEvent:e=>savedEvents.push(e.type)},
   api:{selected:()=>({__id:'real-home'})}, $:()=>saveButton,
   localStorage:{getItem:key=>{assert.equal(key,'boomSalvate');return rawSaved;},setItem:(key,value)=>{assert.equal(key,'boomSalvate');if(storageFail)throw Error('quota');rawSaved=value;}},
-  CustomEvent:class{constructor(type){this.type=type;}},status:t=>saveNotices.push(t)
+  CustomEvent:class{constructor(type){this.type=type;}},status:t=>saveNotices.push(t),syncCompare:()=>{}
 };
 vm.createContext(saveCtx);
 vm.runInContext(['savedPath','readSaved','syncSaved','toggleSaved'].map(n=>extract(ui,n)).join('\n'),saveCtx);
@@ -98,5 +98,96 @@ check('Removing a selected home preserves the rest and a storage sync refreshes 
 check('A failed save neither changes persisted homes nor announces a successful move update',()=>{
   rawSaved='[]';saveCtx.syncSaved();storageFail=true;const before=savedEvents.length;saveCtx.toggleSaved();
   assert.equal(rawSaved,'[]');assert.equal(saveButton.attrs['aria-pressed'],'false');assert.equal(savedEvents.length,before);assert.match(saveNotices.at(-1),/could not save/);
+});
+// Compare uses the very same fact/date/precision engines as the public detail.
+const FACTS=require('../../js/listing-facts.js');
+const DISPO=require('../../js/dispo-engine.js');
+const GEO=require('../../js/boom-geo.js');
+const options={facts:FACTS,dispo:DISPO,geo:GEO,today:'2026-10-28'};
+const catalogue=[
+  {id:'one',name:'One bedroom',price:'1500',sqm:'60',bedrooms:1,beds:'3',status:'available',availableFrom:'2027-02-01',image:'https://images.example.test/one.jpg'},
+  {id:'studio',name:'Studio',price:0,sqm:'',bedrooms:0,beds:'2',status:'available',availableDate:'ask the owner',image:'javascript:alert(1)'},
+  {id:'unknown',name:'Unknown facts',price:'€1,500',sqm:'60 sqm',beds:'contact us',status:'available',availableDate:'ask the owner'},
+  {id:'rented',name:'Rented home',status:'rented',availableDate:'2027-02-01'},
+  {id:'draft',name:'Unpublished address',status:'draft',image:'https://images.example.test/private.jpg'}
+];
+const knownPaths=catalogue.map(l=>'/listing/'+l.id);
+check('Compare deduplicates canonical saved paths, preserves their order and caps at three',()=>{
+  const before=JSON.stringify(catalogue);
+  const result=FLIGHT.compare(['/listing/studio','https://evil.test/one','/listing/one','/listing/studio','/listing/unknown','/listing/rented'],catalogue,options);
+  assert.deepEqual(result.map(r=>r.id),['studio','one','unknown']);
+  assert.equal(JSON.stringify(catalogue),before);
+});
+check('Compare preserves structured bedrooms and a true studio without turning unknowns into zero',()=>{
+  const result=FLIGHT.compare(knownPaths,catalogue,options);
+  assert.equal(result[0].bedrooms,1);assert.equal(result[1].bedrooms,0);assert.equal(result[2].bedrooms,null);
+});
+check('Compare never presents zero, missing or formatted free text as a confirmed rent/area',()=>{
+  const [one,studio,unknown]=FLIGHT.compare(knownPaths,catalogue,options);
+  assert.equal(one.rent,1500);assert.equal(one.area,60);
+  assert.equal(studio.rent,null);assert.equal(studio.area,null);
+  assert.equal(unknown.rent,null);assert.equal(unknown.area,null);
+  assert.equal(studio.image,'');assert.equal(one.image,catalogue[0].image);
+});
+check('Compare respects future dates, unknown dates and a rented home’s legacy text',()=>{
+  const future=FLIGHT.compare(['/listing/one'],catalogue,options)[0];
+  const unknown=FLIGHT.compare(['/listing/unknown'],catalogue,options)[0];
+  const rented=FLIGHT.compare(['/listing/rented'],catalogue,options)[0];
+  assert.equal(future.lane,'ahead');assert.match(future.availability,/2027/);
+  assert.equal(unknown.availability,'Ask us for the date');
+  assert.equal(rented.lane,'closed');assert.equal(rented.availability,'Rented');
+});
+check('Compare retains removed saved entries as unknown and does not reveal a draft',()=>{
+  const result=FLIGHT.compare(['/listing/removed','/listing/draft'],catalogue,options);
+  assert.deepEqual(result.map(r=>r.missing),[true,true]);
+  assert.equal(result[1].name,'Saved home');assert.equal(result[1].image,'');
+  assert.equal(result[0].rent,null);assert.equal(result[0].precision,'none');
+  assert.equal(FLIGHT.compare(['/listing/one'],catalogue,{})[0].bedrooms,null);
+});
+check('Compare’s bedroom regression detects replacing the structured engine with legacy beds',()=>{
+  const source=fs.readFileSync(new URL('../../js/flight-engine.js',import.meta.url),'utf8');
+  const mutant={module:{exports:{}}};vm.createContext(mutant);
+  vm.runInContext(source.replace('facts.bedroomsOf(l)','Number(l.beds)'),mutant);
+  assert.notEqual(mutant.module.exports.compare(['/listing/one'],catalogue,options)[0].bedrooms,1);
+});
+// Execute the actual picker handler: it has no storage writes of its own.
+let latestPaths=['/listing/one','/listing/studio','/listing/unknown','/listing/rented'];
+const comparisonStatus={textContent:''};let compareRenders=0;
+const pickerCtx={comparePaths:latestPaths.slice(0,3),readSaved:()=>latestPaths,
+  renderCompare:()=>compareRenders++,compareDialog:{querySelectorAll:()=>[]},$:()=>comparisonStatus};
+vm.createContext(pickerCtx);vm.runInContext(extract(ui,'changeCompare'),pickerCtx);
+function change(path,checked){const input={dataset:{comparePath:path},checked,closest(){return this;}};pickerCtx.changeCompare({target:input});return input;}
+check('A fourth comparison is rejected without removing any saved home',()=>{
+  const fourth=change('/listing/rented',true);assert.equal(fourth.checked,false);
+  assert.equal(pickerCtx.comparePaths.length,3);assert.equal(latestPaths.length,4);assert.match(comparisonStatus.textContent,/three homes/);
+  assert.equal(compareRenders,0);
+});
+check('A comparison slot can be replaced and stale entries from another frame are pruned',()=>{
+  change('/listing/studio',false);change('/listing/rented',true);
+  assert.deepEqual(Array.from(pickerCtx.comparePaths),['/listing/one','/listing/unknown','/listing/rented']);
+  latestPaths=['/listing/one','/listing/unknown'];change('/listing/rented',true);
+  assert.deepEqual(Array.from(pickerCtx.comparePaths),latestPaths);
+});
+// Minimal DOM boundary for the empty → first-save transition in the real renderer.
+class CompareNode extends Element {
+  constructor(){super();this.children=[];this.dataset={};this.style={setProperty(){}};}
+  appendChild(node){this.children.push(node);return node;}
+  replaceChildren(){this.children=[];}
+  querySelector(){return null;}
+}
+const compareBody=new CompareNode(),compareUiStatus=new CompareNode();let renderSaved=[];
+const renderCtx={readSaved:()=>renderSaved,comparePaths:null,compareDialog:new CompareNode(),
+  $:id=>id==='skyCompareBody'?compareBody:compareUiStatus,
+  el:(tag,cls,text)=>Object.assign(new CompareNode(),{tag,className:cls,textContent:text}),
+  closeCompare(){},api:{markers:[]},window:{BOOM_FLIGHT:FLIGHT},BOOM_FLIGHT:FLIGHT,
+  compareRecords:paths=>FLIGHT.compare(paths,catalogue,options),money:n=>'€'+n};
+renderCtx.window.parent=renderCtx.window;
+vm.createContext(renderCtx);vm.runInContext(extract(ui,'renderCompare'),renderCtx);
+check('Opening an empty comparison does not trap the first subsequently saved home',()=>{
+  renderCtx.renderCompare();assert.equal(renderCtx.comparePaths,null);
+  renderSaved=['/listing/one'];renderCtx.renderCompare();
+  assert.deepEqual(Array.from(renderCtx.comparePaths),renderSaved);
+  assert.equal(renderCtx.compareDialog.dataset.homeCount,'1');
+  assert.ok(compareBody.children.some(n=>n.className==='sky-compare-columns'));
 });
 console.log(`Skyline Flight: ${passed} passed, 0 failed`);

@@ -1801,11 +1801,11 @@ body::before, body::after { z-index: 1 !important; }
 })();
 </script>
 <!-- BOOM_SCROLL:END -->
-<link rel="stylesheet" href="/assets/boom-flight-detail.css?v=20261027a">
+<link rel="stylesheet" href="/assets/boom-flight-detail.css?v=20261028a">
 <noscript><style>.boom-flight-detail #posto[hidden]{display:block!important;margin-top:28px}.boom-flight-detail .bfd-tabs,.boom-flight-detail .bfd-open-photos{display:none}</style></noscript>
-<link rel="stylesheet" href="/assets/boom-flight.css?v=20261027a">
-<script defer src="/js/flight-engine.js?v=20261027a"></script>
-<script defer src="/assets/boom-flight.js?v=20261027a"></script>
+<link rel="stylesheet" href="/assets/boom-flight.css?v=20261028a">
+<script defer src="/js/flight-engine.js?v=20261028a"></script>
+<script defer src="/assets/boom-flight.js?v=20261028a"></script>
 </head>
 <body>
 <nav class="nav" id="nav">
@@ -3085,7 +3085,8 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
 <script src="/js/listing-facts.js"></script>
 <script>
 /* LA REGIA DELLA CASA — una casa alla volta, dal catalogo vero.
-   Parte al load: il motore Solari è concatenato DOPO questo script. */
+   Parte al DOM pronto: i motori concatenati dopo sono già definiti;
+   le foto iniziano subito, la mappa resta attivata dalla sua interazione. */
 (function () {
   'use strict';
   function via() {
@@ -4795,8 +4796,9 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
     if (/id=/.test(location.hash)) location.reload();
   });
   }
-  if (document.readyState === 'complete') via();
-  else addEventListener('load', via);
+  if (document.readyState === 'loading')
+    document.addEventListener('DOMContentLoaded', via, { once: true });
+  else via();
 })();
 </script>
 
@@ -5243,6 +5245,6 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
 
 <script defer src="/js/boom-track.js"></script>
 <script defer src="/js/flight-map.js?v=20261027a"></script>
-<script defer src="/assets/boom-flight-detail.js?v=20261027a"></script>
+<script defer src="/assets/boom-flight-detail.js?v=20261028a"></script>
 </body>
 </html>
