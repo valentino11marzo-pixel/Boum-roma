@@ -1,16 +1,22 @@
 """Stable Flight asset seam for generated public pages. Does not read catalogue data."""
 import re
 
-VERSION = '20261028a'
+VERSION = '20261028d'
 
 def enhance(html, page):
-    html = re.sub(r'((?:/assets/boom-flight(?:-[a-z]+)?\.(?:css|js)|/js/flight-engine\.js)\?v=)[^"\s>]+',
+    html = re.sub(r'((?:/assets/boom-flight(?:-[a-z]+)?\.(?:css|js)|/js/(?:flight|stay)-engine\.js)\?v=)[^"\s>]+',
                   lambda m: m.group(1) + VERSION, html)
     assets = [
         '<link rel="stylesheet" href="/assets/boom-flight.css?v=' + VERSION + '">',
         '<script defer src="/js/flight-engine.js?v=' + VERSION + '"></script>',
         '<script defer src="/assets/boom-flight.js?v=' + VERSION + '"></script>',
     ]
+    assets += ['<script defer src="/js/stay-engine.js?v=' + VERSION + '"></script>']
+    if page in ('home', 'apartments', 'detail', 'skyline'):
+        assets += [
+            '<link rel="stylesheet" href="/assets/boom-flight-stay.css?v=' + VERSION + '">',
+            '<script defer src="/assets/boom-flight-stay.js?v=' + VERSION + '"></script>',
+        ]
     if page == 'apartments':
         # Reserve the actual first view before paint. This is presentation only;
         # it never serializes a default view into the visitor's search URL.

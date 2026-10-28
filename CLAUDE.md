@@ -3032,17 +3032,39 @@ La scheda ricompone gli slot SSR e i conti veri nel Landing Plan; `<body>` resta
 precisione dei pin e tempi reali restano ai motori Geo/Mappa. Generatori conservano i layer.
 Test: `flight`, `mappaflight`, `listingssr`, `vetrina`, `hometruth`, `cielo`, `seo`.
 
-Flight 28/10: il pulso segue la cerniera Solari, si ferma fuori schermo e rispetta
-reduced motion. Compare Skyline deriva fino a 3 salvati da catalogo/Facts/Dispo/Geo;
+Flight 28/10: il pulso resta quello del canvas Solari originale, prima attenuato
+dal layer Flight; niente anello o secondo clock. Compare deriva fino a 3 salvati da Facts/Dispo/Geo;
 selettore solo in memoria, niente nuovo archivio, Fly to rispetta i filtri attivi.
 Apartments riserva la vista prima del paint e non scrive `view` al boot/resize;
 scheda e ricerca partono a DOM-ready. Transizioni native fra pagine, locali sulle
 tab WebGL; `/flight-preview` mostra il percorso reale in desktop/mobile (noindex).
 Verifica: `vetrina`, `scroll`, `listingssr`, `mappaflight` e percorso browser completo.
 
+Skyline 28/10: catalogo/CDN/stile partono in parallelo; i pin non aspettano tutte le tile.
+Palette a `style.load`, camera già sul centro; DEM solo nel dettaglio ravvicinato,
+canvas mobile limitato e movimento fermo fuori vista. Errori/timeout hanno Retry e lista.
+`BoomSkyline.state()`/evento `state` distinguono catalogo, stile e rendering; `journeyFor`
+riusa Mappa/Tempi e coordinate vere, `setBudget` conserva i filtri; `homes=` resta vuoto.
+Test `mappaflight`: readiness, errori, scope vuoto, viaggio pubblico e mutazione dei pin.
+
+
+Durata Flight: il primo campo Home/Apartments è `Length of stay`, in mesi esatti;
+`js/stay-engine.js` valida la preferenza, `?stay=` la porta alla scheda e all’apply.
+Il catalogo pubblico non dichiara min/max di contratto: la durata NON filtra le case;
+UI e digest lo dicono, mentre `savedSearches.criteria.durationMonths` conserva la richiesta.
+La data rimane nei filtri avanzati (`dal`/`moveIn`); la scheda usa il conto già esistente.
+Niente conto snapshot Home né nuova aritmetica. Prove: `flight`, `letture`, `vetrina`.
+
+La Home ingrandisce foto, demo 01–04 e biglietti originali; il foil si ferma fuori vista.
+`Find my balance` ordina le case mappate per canone, area o tragitto: budget mai alzato,
+nessuno score inventato; tipo, area, date e precisione restano quelli dichiarati.
+`skyline-guide-engine` deriva i risultati, `journeyFor` riusa Tempi/Mappa; Google Maps
+riceve solo la rotta pubblica scelta. Errori distinti da zero risultati, focus conservato.
+Prove: `flight`, `flightguideui`, `mappaflight`, `scroll`; generatori idempotenti.
+
 ### POST `/api/search/save`
 Public save-search endpoint for the apartments discovery page. Body
-`{ email, label?, criteria{q,budgetMax,moveIn,beds,baths,furnished,video,
+`{ email, label?, criteria{q,budgetMax,moveIn,durationMonths,beds,baths,furnished,video,
 zones[],feats[]}, resultCount?, company(honeypot) }`. Validates email,
 honeypot + per-IP rate limit (same hardening as `/api/canone-lead`), writes
 to the `savedSearches` collection under admin creds (`status:'active'`,

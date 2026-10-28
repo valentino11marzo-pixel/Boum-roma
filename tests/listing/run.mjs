@@ -795,7 +795,22 @@ if (!chromium) {
         },
       });
     });
-    await page.goto(BASE + '/listing/A', { waitUntil: 'load' });
+    await page.goto(BASE + '/index.html', { waitUntil: 'load' });
+    await page.selectOption('#durataSoggiorno', '6');
+    await page.selectOption('#quantoBudget', '2000');
+    await page.selectOption('#chiAtterra', 'couple');
+    await Promise.all([
+      page.waitForURL(url => url.pathname === '/apartments'),
+      page.click('#quandoVai'),
+    ]);
+    const intent = new URL(page.url());
+    check('Home → Apartments: durata, budget e persone viaggiano nel vero submit',
+      intent.searchParams.get('stay') === '6' && /budget=2000/.test(intent.hash)
+      && /chi=couple/.test(intent.hash));
+    check('Apartments rilegge la durata, con data rimasta tra i filtri avanzati',
+      await page.inputValue('#durataSoggiorno') === '6'
+      && await page.locator('#foglioVelo #quandoData').count() === 1);
+    await page.goto(BASE + '/listing/A' + intent.search, { waitUntil: 'load' });
     await page.waitForTimeout(1200);
     const prezzo = await page.evaluate(() => {
       const h = document.getElementById('canoneCasa');
@@ -813,6 +828,17 @@ if (!chromium) {
     check('bollette: il paragrafo dice «bills included» per la casa etichettata',
       /bills included/.test(await page.textContent('#chiaviFuori')));
     check('onorario IVA compresa in pagina (€2,635)', (await page.textContent('#voceOnorario')).trim() === '€2,635');
+    check('durata: ?stay=6 prefilla apply e calcolo esistente, con termini da confermare',
+      await page.inputValue('#apMesi') === '6'
+      && await page.getAttribute('.durata-tasti .on', 'data-m') === '6'
+      && /10,800/.test(await page.textContent('#durCanoni'))
+      && /6 months requested.*confirmed/.test(await page.textContent('.bfd-pass [data-stay-note]')));
+    await page.selectOption('#apMesi', '18');
+    check('durata: modificare apply aggiorna lo stesso conto e l’URL, senza una seconda aritmetica',
+      await page.getAttribute('.durata-tasti .on', 'data-m') === '18'
+      && /32,400/.test(await page.textContent('#durCanoni'))
+      && new URL(page.url()).searchParams.get('stay') === '18');
+    await page.selectOption('#apMesi', '6');
 
     const leadsGA = () => page.evaluate(() => (window.dataLayer || [])
       .map((a) => Array.prototype.slice.call(a))
@@ -844,6 +870,7 @@ if (!chromium) {
     check('APPLY 400: niente «Sent», form visibile, bottone riattivato, errore col WhatsApp',
       applyHits === 1 && !st400.fatto && st400.form && !st400.btn && /\+39 331 325 1961/.test(st400.err) && st400.conv === 0, JSON.stringify(st400));
     check('APPLY 400: nessun generate_lead (la validazione o il server dicono no)', (await leadsGA()) === 0);
+    check('APPLY: la durata richiesta arriva nel payload reale durationMonths', applyBodies[0]?.durationMonths === 6);
 
     // 3) rete caduta → stesso trattamento
     applyMode = 'down';

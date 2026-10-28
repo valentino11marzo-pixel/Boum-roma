@@ -1,0 +1,5 @@
+.flight-stay-note{font-size:11px;line-height:1.5;color:var(--text-3,#a8a8a8);margin:9px 0 0;max-width:72ch}
+.flight-stay-note[hidden]{display:none!important}
+.foglio-filtri>.ac-data{margin:18px 0;padding:12px 14px;border:1px solid var(--line,#333);max-width:260px}
+.foglio-filtri>.ac-data>span{display:block;font-size:11px;color:var(--text-3,#a8a8a8);margin-bottom:5px}
+.bfd-pass .flight-stay-note{margin:0 0 12px}

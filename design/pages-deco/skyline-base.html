@@ -20,12 +20,14 @@
 <script defer src="/js/flight-map.js?v=20261027a"></script>
 <script defer src="/js/listing-facts.js"></script>
 <script defer src="/js/dispo-engine.js"></script>
-<script defer src="/assets/boom-flight-skyline.js?v=20261028a"></script>
+<script defer src="/assets/boom-flight-skyline.js?v=20261028d"></script>
 <style>
 :root{--gold:#FFD700;--gold2:#FFA500;--bg:#08080A;--card:#0E0E12;--line:rgba(255,255,255,.09);--t1:#fff;--t2:#aaa;--t3:#777;--disp:'Helvetica Neue',Helvetica,Inter,Arial,sans-serif}
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{height:100%;background:var(--bg);color:var(--t1);font-family:Inter,system-ui,sans-serif;font-weight:300;overflow:hidden;-webkit-font-smoothing:antialiased}
-#map{position:absolute;inset:0}
+#map{position:absolute;inset:0;background:#090b0e}
+#map .maplibregl-canvas{opacity:0}
+html.sky-map-styled #map .maplibregl-canvas,html.sky-map-fallback #map .maplibregl-canvas{opacity:1}
 .maplibregl-ctrl-attrib{font-size:9px!important;opacity:.45}
 .bar{position:absolute;top:0;left:0;right:0;z-index:10;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px clamp(16px,4vw,32px);background:linear-gradient(180deg,rgba(8,8,10,.92),rgba(8,8,10,0));pointer-events:none}
 .bar>*{pointer-events:auto}
@@ -248,10 +250,15 @@ body::before, body::after { z-index: 1 !important; }
 })();
 </script>
 <!-- BOOM_SCROLL:END -->
-<link rel="stylesheet" href="/assets/boom-flight-skyline.css?v=20261028a">
-<link rel="stylesheet" href="/assets/boom-flight.css?v=20261028a">
-<script defer src="/js/flight-engine.js?v=20261028a"></script>
-<script defer src="/assets/boom-flight.js?v=20261028a"></script>
+<link rel="stylesheet" href="/assets/boom-flight-skyline.css?v=20261028d">
+<link rel="stylesheet" href="/assets/boom-flight.css?v=20261028d">
+<script defer src="/js/flight-engine.js?v=20261028d"></script>
+<script defer src="/assets/boom-flight.js?v=20261028d"></script>
+<link rel="stylesheet" href="/assets/boom-skyline-guide.css?v=20261028d">
+<script defer src="/js/stay-engine.js?v=20261028d"></script>
+<script defer src="/assets/boom-flight-stay.js?v=20261028d"></script>
+<script defer src="/js/skyline-guide-engine.js?v=20261028d"></script>
+<script defer src="/assets/boom-skyline-guide.js?v=20261028d"></script>
 </head>
 <body>
 <div id="map" aria-label="Interactive map of BOOM homes in Rome"></div>
@@ -288,7 +295,8 @@ body::before, body::after { z-index: 1 !important; }
 <div class="load" id="load">
   <div class="dot"></div>
   <div class="t">BOOM · Skyline</div>
-  <div class="s" id="loadMsg" role="status">Mapping Rome…</div>
+  <div class="s" id="loadMsg" role="status">Finding homes in Rome…</div>
+  <button class="sky-load-retry" id="skyLoadRetry" type="button" hidden>Retry map</button>
   <a class="sky-load-list" href="/apartments">Open the apartment list ↗</a>
 </div>
 
@@ -306,6 +314,54 @@ var SKY_QUERY=new URLSearchParams(location.search);
 var SKY_REDUCED=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)');
 function skyMotion(ms){return SKY_REDUCED&&SKY_REDUCED.matches?0:ms;}
 function skyEvent(name,detail){window.dispatchEvent(new CustomEvent('boom:skyline-'+name,{detail:detail||{}}));}
+var SKY_STATE={catalogueStatus:'loading',mapStatus:'loading',count:0,error:null};
+function skyState(patch){
+  Object.assign(SKY_STATE,patch);window.BoomSkylineState=Object.assign({},SKY_STATE);
+  skyEvent('state',window.BoomSkylineState);
+  var box=$('load');if(!box)return;
+  var failed=SKY_STATE.catalogueStatus==='error'||SKY_STATE.mapStatus==='error'||SKY_STATE.mapStatus==='context-lost';
+  box.classList.toggle('failed',failed);
+  box.classList.toggle('off',SKY_STATE.catalogueStatus==='ready'&&SKY_STATE.mapStatus==='ready');
+  var retry=$('skyLoadRetry');if(retry)retry.hidden=!failed;
+  if(SKY_STATE.mapStatus==='context-lost')msg('The city view paused. Recovering the map…');
+  else if(SKY_STATE.catalogueStatus==='error')msg('Homes could not load. Retry or open the apartment list.');
+  else if(SKY_STATE.mapStatus==='error')msg('The city view could not connect. Your saved homes are safe.');
+  else if(SKY_STATE.catalogueStatus==='empty')msg('No homes in the current catalogue. Try the apartment list.');
+  else if(SKY_STATE.catalogueStatus==='ready')msg(SKY_STATE.mapStatus==='partial'?'Homes are ready. Some map detail is still loading.':'Homes are ready. Drawing the city…');
+  else msg('Finding homes in Rome…');
+}
+function mapFailure(code){
+  skyState({mapStatus:'error',error:code||'map'});
+  var q=$('quad'),note=$('quadN'),box=$('load');if(!q||!note)return;
+  if(box)box.style.display='none';
+  q.classList.remove('chiuso');q.classList.add('sky-expanded');
+  var head=$('quadCapo');if(head)head.setAttribute('aria-expanded','true');
+  note.innerHTML='The city map could not connect. Your places and the city directory still work — or open the <a href="/apartments" style="color:var(--gold)">list view</a>. ';
+  var retry=document.createElement('button');retry.className='sky-load-retry';retry.type='button';retry.textContent='Retry map';retry.addEventListener('click',function(){location.reload();});note.appendChild(retry);
+}
+function fetchCatalogue(){
+  var controller=typeof AbortController==='function'?new AbortController():null;
+  var timer=setTimeout(function(){if(controller)controller.abort();},15000);
+  return fetch('/api/listings',{cache:'no-store',signal:controller?controller.signal:undefined}).then(function(r){
+    if(!r.ok)throw new Error('catalogue-http');return r.json();
+  }).then(function(j){
+    var listings=j&&Array.isArray(j.listings)?j.listings:(Array.isArray(j)?j:null);
+    if(!listings)throw new Error('catalogue-shape');
+    skyState({catalogueStatus:listings.length?'ready':'empty',count:listings.length});return listings;
+  }).catch(function(){skyState({catalogueStatus:'error',error:'catalogue'});return [];}).finally(function(){clearTimeout(timer);});
+}
+function waitForStyle(m){
+  // style.load is the mutation boundary; load waits for visible tile resources.
+  return new Promise(function(resolve,reject){
+    var timer=setTimeout(function(){m.off('style.load',ready);reject(new Error('style-timeout'));},20000);
+    function ready(){clearTimeout(timer);resolve();}
+    m.once('style.load',ready);
+  });
+}
+function skyRenderOptions(){
+  var compact=innerWidth<=640||document.documentElement.classList.contains('emb');
+  return {antialias:!compact,pixelRatio:Math.min(window.devicePixelRatio||1,compact?1.5:2),fadeDuration:SKY_REDUCED&&SKY_REDUCED.matches?0:180};
+}
 function skyId(id){return /^[A-Za-z0-9_-]{1,100}$/.test(String(id||''))?String(id):'';}
 PENDING_SELECT=skyId(SKY_QUERY.get('home'));
 function clearSelection(){
@@ -467,10 +523,18 @@ function gradeColor(){
       var firstSym=(map.getStyle().layers.find(function(L){return L.type==='symbol'})||{}).id;
       map.addLayer({id:'sky-sat-l',type:'raster',source:'sky-sat',layout:{visibility:'none'},paint:{'raster-opacity':1,'raster-fade-duration':300}},firstSym);
     }catch(e){}
-    try{
-      map.addSource('sky-dem',{type:'raster-dem',tiles:['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],encoding:'terrarium',tileSize:256,maxzoom:13});
-      map.setTerrain({source:'sky-dem',exaggeration:1.15});
-    }catch(e){}
+    // Building geometry is already in the vector tiles. Terrain is a separate
+    // raster download: request it only for a deliberate close view, never boot.
+    var terrainOn=false;
+    function syncTerrain(){
+      var use=map.getZoom()>=14.6&&map.getPitch()>30&&!document.hidden&&!(SKY_REDUCED&&SKY_REDUCED.matches);
+      if(use===terrainOn)return;
+      try{
+        if(use&&!map.getSource('sky-dem'))map.addSource('sky-dem',{type:'raster-dem',tiles:['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],encoding:'terrarium',tileSize:256,maxzoom:13});
+        map.setTerrain(use?{source:'sky-dem',exaggeration:1.15}:null);terrainOn=use;
+      }catch(e){}
+    }
+    map.on('moveend',syncTerrain);document.addEventListener('visibilitychange',syncTerrain);
     var srcs=Object.keys(map.getStyle().sources||{});
     var src=srcs.find(function(s){return /openmaptiles|vector|planet/i.test(s);})||srcs[0];
     if(src)map.addLayer({id:'sky-3d',type:'fill-extrusion',source:src,'source-layer':'building',minzoom:13,paint:{'fill-extrusion-color':['interpolate',['linear'],['coalesce',['get','render_height'],10],0,'#B8AD97',14,'#C8BDA5',32,'#D6CBB2',60,'#E2D8C0',110,'#EFE6CF'],'fill-extrusion-height':['coalesce',['get','render_height'],12],'fill-extrusion-base':['coalesce',['get','render_min_height'],0],'fill-extrusion-opacity':.92}});
@@ -495,7 +559,7 @@ function gradeColor(){
    una volta, ogni superficie risponde. Qui diventano ancore VIVE. ── */
 var TIENI=null, VICINO=false;
 var SHARED_IDS=(SKY_QUERY.get('homes')||'').split(',').map(skyId).filter(Boolean).slice(0,30);
-if(SHARED_IDS.length)TIENI=new Set(SHARED_IDS);
+if(SKY_QUERY.has('homes'))TIENI=new Set(SHARED_IDS);
 var MYP=[];
 function mieiLetti(){try{return JSON.parse(localStorage.getItem('boom:pois')||'[]')}catch(e){return[]}}
 function mieiSerba(a){try{localStorage.setItem('boom:pois',JSON.stringify(a.slice(0,4)))}catch(e){}}
@@ -620,24 +684,44 @@ function applyFilter(){
   skyEvent('filter',{count:shown});
 }
 
+function setBudget(value){
+  var budget=Number(value);if(!Number.isFinite(budget)||budget<0)return false;
+  MAXFILTER=budget;
+  [].forEach.call(document.querySelectorAll('#filters .chip[data-max]'),function(c){c.classList.toggle('on',Number(c.dataset.max)===budget);});
+  applyFilter();return true;
+}
+function journeyFor(id,publicSlug){
+  var M=window.BOOM_MAPPA,T=window.BOOM_TEMPI;
+  if(!M)return null;
+  var target=M.METE.find(function(p){return p.slug===publicSlug;});
+  var marker=MARKERS.find(function(m){return m.getElement().__id===String(id);});
+  if(!target||!marker)return null;
+  var el=marker.getElement(),co=el.__co;
+  if(!co||!isFinite(co[0])||!isFinite(co[1]))return null;
+  var eta=T&&TEMPI_DATI?T.eta(TEMPI_DATI,co[1],co[0],publicSlug):null;
+  var time=M.tempo(M.km(co[1],co[0],target.lat,target.lng),eta);if(!time)return null;
+  return {min:time.min,fonte:time.fonte,testo:time.testo,precision:el.__precision,
+    origin:{lat:co[1],lng:co[0]},destination:{lat:target.lat,lng:target.lng,slug:target.slug,name:target.nome}};
+}
 async function boot(){
-  var listings=[];
-  try{ var r=await fetch('/api/listings',{cache:'no-store'}); var j=await r.json(); listings=(j&&Array.isArray(j.listings))?j.listings:(Array.isArray(j)?j:[]); }catch(e){}
-  if(!listings.length){ msg('Could not load listings — try the list view.'); return; }
   var EMB=document.documentElement.classList.contains('emb');
-  map=new maplibregl.Map({container:'map',style:'https://tiles.openfreemap.org/styles/liberty',center:ROME,zoom:11.2,pitch:SKY_REDUCED&&SKY_REDUCED.matches?0:55,bearing:-12,antialias:true,
-    /* in finestra (home/discovery) la rotella scorre la PAGINA: lo zoom
-       vuole Ctrl+scroll (due dita su touch) — mai piu' lo scroll del
-       sito che si impalla dentro la mappa */
-    cooperativeGestures:EMB});
+  // The catalogue request has already started beside the MapLibre download.
+  // Start at the useful city view: no first tile load at z11 followed by a fly-in.
+  map=new maplibregl.Map(Object.assign({container:'map',style:'https://tiles.openfreemap.org/styles/liberty',center:[12.485,41.898],zoom:13.4,pitch:SKY_REDUCED&&SKY_REDUCED.matches?0:55,bearing:-20,
+    cooperativeGestures:EMB},skyRenderOptions()));
+  var styleReady=waitForStyle(map);
+  map.once('load',function(){skyState({mapStatus:'ready',error:SKY_STATE.catalogueStatus==='error'?'catalogue':null});});
+  map.on('webglcontextlost',function(){skyState({mapStatus:'context-lost',error:'webgl'});});
+  map.on('webglcontextrestored',function(){map.once('render',function(){skyState({mapStatus:'ready',error:SKY_STATE.catalogueStatus==='error'?'catalogue':null});});});
   map.addControl(new maplibregl.NavigationControl({visualizePitch:true}),'bottom-right');
   map.addControl(new maplibregl.FullscreenControl(),'bottom-right');
-  await new Promise(function(res){ map.on('load',res); });
+  await styleReady;
+  if(SKY_STATE.mapStatus==='error'&&window.__quadrante)window.__quadrante.riposo();
+  if(SKY_STATE.mapStatus!=='ready')skyState({mapStatus:'style',error:SKY_STATE.catalogueStatus==='error'?'catalogue':null});
   gradeColor();
-  buildAnchors();
-  buildMyPlaces();
-  $('load').classList.add('off');
-  var bounds=new maplibregl.LngLatBounds(), placed=0;
+  if(window.BOOM_FLIGHT_MAP&&BOOM_FLIGHT_MAP.dress(map,'sky-3d'))document.documentElement.classList.add('sky-map-styled');
+  buildAnchors();buildMyPlaces();
+  var listings=await SKY_CATALOGUE_REQUEST,placed=0;
   listings.forEach(function(l){
     if(String(l.status||'').toLowerCase()==='draft' || !l.name) return;
     var base=null, la=num(l.lat), ln=num(l.lng);
@@ -645,22 +729,23 @@ async function boot(){
     if(!base) return;
     var prec=window.BOOM_GEO?BOOM_GEO.pinPrecision(l).level:'zone';
     var co=(prec==='exact'||prec==='street')?base.slice():spread(base);
-    makePin(l,co,base); bounds.extend(co); placed++;
+    makePin(l,co,base);placed++;
   });
-  if(placed){
-    window.BoomSkyline={map:map,markers:MARKERS,catalogue:function(){return listings.slice();},
-      select:function(id,opts){var m=MARKERS.find(function(m){return m.getElement().__id===String(id);});return m?selectHome(m.getElement(),opts):false;},
-      clear:clearSelection,reset:fitHomes,
-      selected:function(){return SELECTED;},
-      filter:function(){return {budget:MAXFILTER,homes:TIENI?Array.from(TIENI):[]};},
-      selectPublicPlace:function(slug){var m=document.getElementById('qfMeta');if(!m)return false;var found=[].some.call(m.options,function(o){return o.value===slug;});if(found){m.value=slug;m.dispatchEvent(new Event('change'));}return found;}
-    };
-    var budget=Number(SKY_QUERY.get('budget'));if([1500,2000,2500].indexOf(budget)>=0){MAXFILTER=budget;[].forEach.call(document.querySelectorAll('#filters .chip[data-max]'),function(c){c.classList.toggle('on',Number(c.dataset.max)===budget);});}
-    applyFilter();fitHomes();
-    skyEvent('ready',{api:window.BoomSkyline});
-    if(PENDING_SELECT)window.BoomSkyline.select(PENDING_SELECT,{fly:!SKY_QUERY.get('view')});
-  }
-  else { msg('No mappable homes yet — try the list view.'); $('load').classList.remove('off'); }
+  window.BoomSkyline={map:map,markers:MARKERS,catalogue:function(){return listings.slice();},
+    state:function(){return Object.assign({},SKY_STATE);},journeyFor:journeyFor,setBudget:setBudget,
+    select:function(id,opts){var m=MARKERS.find(function(m){return m.getElement().__id===String(id);});return m?selectHome(m.getElement(),opts):false;},
+    clear:clearSelection,reset:fitHomes,
+    selected:function(){return SELECTED;},
+    filter:function(){return {budget:MAXFILTER,homesActive:TIENI!==null,homes:TIENI?Array.from(TIENI):[]};},
+    selectPublicPlace:function(slug){var m=document.getElementById('qfMeta');if(!m)return false;var found=[].some.call(m.options,function(o){return o.value===slug;});if(found){m.value=slug;m.dispatchEvent(new Event('change'));}return found;}
+  };
+  if(SKY_QUERY.has('budget'))setBudget(SKY_QUERY.get('budget'));
+  applyFilter();
+  skyEvent('ready',{api:window.BoomSkyline});
+  if(window.parent!==window)window.parent.postMessage({t:'boomSkylineReady'},location.origin);
+  if(PENDING_SELECT)window.BoomSkyline.select(PENDING_SELECT,{fly:!SKY_QUERY.get('view')});
+  // A slow third-party tile must not turn a usable catalogue into an endless wait.
+  setTimeout(function(){if(SKY_STATE.mapStatus==='style')skyState({mapStatus:'partial'});},12000);
 }
 
 [].forEach.call(document.querySelectorAll('#filters .chip[data-max]'),function(c){
@@ -734,13 +819,21 @@ async function boot(){
   invito();
 })();
 
+var SKY_CATALOGUE_REQUEST=fetchCatalogue();
+skyState({});
+var retry=$('skyLoadRetry');if(retry)retry.addEventListener('click',function(){location.reload();});
 (function loadMapLibre(){
-  if(window.maplibregl)return boot();
-  var css=document.createElement('link');css.rel='stylesheet';css.href='https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css';document.head.appendChild(css);
-  var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.min.js';
-  s.onload=function(){ boot().catch(function(e){console.error('Skyline:',e);msg('Something went wrong — try the list view.');}); };
-  s.onerror=function(){ msg('Map engine unavailable — open the list view.'); };
-  document.head.appendChild(s);
+  function start(){boot().catch(function(){mapFailure('map');});}
+  if(window.maplibregl)return start();
+  if(!document.querySelector('link[href*="maplibre-gl"][href$=".css"]')){
+    var css=document.createElement('link');css.rel='stylesheet';css.href='https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css';document.head.appendChild(css);
+  }
+  var existing=document.querySelector('script[src*="maplibre-gl"][src$=".js"]');
+  var s=existing||document.createElement('script');
+  var timer=setTimeout(function(){mapFailure('map-script');},15000);
+  s.addEventListener('load',function(){clearTimeout(timer);start();},{once:true});
+  s.addEventListener('error',function(){clearTimeout(timer);mapFailure('map-script');},{once:true});
+  if(!existing){s.src='https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.min.js';document.head.appendChild(s);}
 })();
 })();
 </script>

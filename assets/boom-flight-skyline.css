@@ -145,3 +145,23 @@ html.emb .count{top:72px}
   html .quad.sky-expanded{max-height:max(84px,calc(100dvh - 250px));overflow-y:auto;overscroll-behavior:contain}
   html.sky-has-home .quad.sky-expanded{max-height:max(84px,calc(100dvh - var(--sky-home-height,139px) - 250px))}
 }
+
+/* Loading is a small, honest status surface. The city, pins and navigation
+   remain usable while third-party tiles complete or a retry is offered. */
+html .load{inset:auto;left:50%;top:50%;transform:translate(-50%,-50%);width:min(310px,calc(100vw - 48px));padding:17px 20px;gap:8px;border:1px solid #ffffff21;border-radius:14px;background:#10141be8;box-shadow:0 15px 50px #0007;backdrop-filter:blur(12px);pointer-events:none;transition:opacity .2s,visibility .2s}
+html .load .t{display:none}html .load .dot{width:6px;height:6px;box-shadow:0 0 15px #ffd70050}
+html .load .s{font-size:11px;line-height:1.6;color:#c9cdd7;text-align:center}
+html .load .sky-load-list{font-size:10px;margin-top:0;padding:4px 0;pointer-events:auto;min-height:32px;display:flex;align-items:center}
+.sky-load-retry{pointer-events:auto;font:500 11px Inter,sans-serif;min-height:38px;padding:8px 15px;background:#ffe27b;border:1px solid #ffedaa;border-radius:8px;color:#17140c;cursor:pointer}
+.sky-load-retry[hidden]{display:none}html .load.failed .dot{animation:none;background:#a1a6b1;box-shadow:none}
+html .load.off{pointer-events:none}html .load.off a,html .load.off button{pointer-events:none}
+@media(max-width:640px){html .load{top:47%;width:min(285px,calc(100vw - 48px));padding:14px 18px}html.emb .load{top:47%;max-width:270px}}
+
+/* Reveal the base cartography only after Flight's palette is applied at
+   style.load; pins and controls do not wait for the tile-complete load event. */
+#map .maplibregl-canvas{opacity:0}
+html.sky-map-styled #map .maplibregl-canvas{opacity:1}
+html.sky-map-fallback:not(.sky-map-styled) #map .maplibregl-canvas{opacity:1;filter:brightness(.45) saturate(.7)}
+
+/* The embedding page owns its initial loader; failures remain actionable. */
+html.emb .load:not(.failed){display:none}

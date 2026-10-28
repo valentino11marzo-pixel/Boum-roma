@@ -224,6 +224,12 @@ cielo_js = '''<script>
     fr.setAttribute('allow', 'fullscreen');
     fr.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border:0;';
     var velo = document.getElementById('cieloVelo');
+    window.addEventListener('message', function (event) {
+      if (event.origin !== location.origin || event.source !== fr.contentWindow || !event.data || event.data.t !== 'boomSkylineReady') return;
+      pronta = true;
+      if (velo) velo.classList.add('via');
+      manda();
+    });
     fr.addEventListener('load', function () {
       pronta = true;
       if (velo) velo.classList.add('via');

@@ -15,6 +15,14 @@
   }
   window.addEventListener('pageswap', navigationTransition);
   window.addEventListener('pagereveal', navigationTransition);
+  // The map can be usable before third-party tiles finish loading. Only the
+  // owned same-origin Skyline frame may release the host's loading veil.
+  window.addEventListener('message', function(event) {
+    if(event.origin!==location.origin||!event.data||event.data.t!=='boomSkylineReady')return;
+    var frame=document.querySelector('#cieloMappa iframe');
+    if(!frame||event.source!==frame.contentWindow)return;
+    var veil=document.getElementById('cieloVelo');if(veil)veil.classList.add('via');
+  });
   var F = window.BOOM_FLIGHT; if (!F) return;
   if (new URLSearchParams(location.search).get('embed') === '1') return;
   var dialog, opener, known = {}, fetchPromise;

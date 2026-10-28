@@ -190,4 +190,79 @@ check('Opening an empty comparison does not trap the first subsequently saved ho
   assert.equal(renderCtx.compareDialog.dataset.homeCount,'1');
   assert.ok(compareBody.children.some(n=>n.className==='sky-compare-columns'));
 });
+// Real journey/readiness adapters: only network/MapLibre boundaries are doubled.
+const MAPPA=require('../../js/mappa-engine.js'),TEMPI=require('../../js/tempi-engine.js');
+const journeyPin={__id:'journey-home',__co:[12.4,41.8],__markerCo:[12.8,42.2],__precision:'zone'};
+const journeyCtx={window:{BOOM_MAPPA:MAPPA,BOOM_TEMPI:TEMPI},MARKERS:[{getElement:()=>journeyPin}],
+ TEMPI_DATI:{meta:{lat0:41.79,lng0:12.39,dLat:.02,dLng:.02,righe:1,colonne:1},griglie:{termini:TEMPI.codifica(25)}}};
+vm.createContext(journeyCtx);vm.runInContext(extract(html,'journeyFor'),journeyCtx);
+check('Public journey uses real coordinates and the existing GTFS grid, preserving zone precision',()=>{
+ const result=journeyCtx.journeyFor('journey-home','termini');
+ assert.equal(result.min,25);assert.equal(result.fonte,'rete');assert.equal(result.precision,'zone');
+ assert.equal(result.origin.lat,41.8);assert.equal(result.origin.lng,12.4);assert.equal(result.destination.slug,'termini');
+});
+check('Public journey rejects private/custom destinations and declares missing-grid estimates',()=>{
+ assert.equal(journeyCtx.journeyFor('journey-home','private-office'),null);
+ assert.equal(journeyCtx.journeyFor('unknown','termini'),null);
+ journeyCtx.TEMPI_DATI=null;const result=journeyCtx.journeyFor('journey-home','termini');
+ assert.equal(result.fonte,'stima');assert.ok(result.testo.startsWith('≈'));
+});
+check('The journey regression detects accidentally reading the fanned marker coordinate',()=>{
+ const mutant=vm.createContext({...journeyCtx});
+ vm.runInContext(extract(html,'journeyFor').replace('co=el.__co','co=el.__markerCo'),mutant);
+ assert.notEqual(mutant.journeyFor('journey-home','termini').origin.lat,41.8);
+});
+let filterCalls=0;const scope=new Set(['one']),commute=['one'];
+const budgetCtx={MAXFILTER:1500,TIENI:scope,commute,document:{querySelectorAll:()=>[]},applyFilter:()=>filterCalls++};
+vm.createContext(budgetCtx);vm.runInContext(extract(html,'setBudget'),budgetCtx);
+check('Guidance can set a custom budget without clearing the shared home or commute scope',()=>{
+ assert.equal(budgetCtx.setBudget(2300),true);assert.equal(budgetCtx.MAXFILTER,2300);
+ assert.equal(budgetCtx.TIENI,scope);assert.equal(budgetCtx.commute,commute);assert.equal(filterCalls,1);
+ assert.equal(budgetCtx.setBudget(Infinity),false);assert.equal(budgetCtx.setBudget(-1),false);assert.equal(filterCalls,1);
+ assert.equal(budgetCtx.setBudget(0),true);assert.equal(budgetCtx.MAXFILTER,0);
+});
+const qualityCtx={innerWidth:390,document:{documentElement:{classList:{contains:()=>false}}},window:{devicePixelRatio:3},SKY_REDUCED:{matches:false}};
+vm.createContext(qualityCtx);vm.runInContext(extract(html,'skyRenderOptions'),qualityCtx);
+check('Compact maps bound high-DPI canvas work and reduced motion removes tile fades',()=>{
+ const mobile=qualityCtx.skyRenderOptions();assert.equal(mobile.pixelRatio,1.5);assert.equal(mobile.antialias,false);
+ qualityCtx.innerWidth=1280;assert.equal(qualityCtx.skyRenderOptions().pixelRatio,2);
+ qualityCtx.SKY_REDUCED.matches=true;assert.equal(qualityCtx.skyRenderOptions().fadeDuration,0);
+});
+const asyncCheck=async(name,fn)=>{await fn();passed++;console.log('  ✓ '+name);};
+await asyncCheck('Map initialization can proceed at style.load without waiting for load/idle tiles',async()=>{
+ let timeout,off=false;const events={};
+ const waitCtx={setTimeout:fn=>(timeout=fn,1),clearTimeout:()=>{},Promise,Error};vm.createContext(waitCtx);
+ vm.runInContext(extract(html,'waitForStyle'),waitCtx);
+ const ready=waitCtx.waitForStyle({once:(event,fn)=>events[event]=fn,off:()=>off=true});
+ assert.deepEqual(Object.keys(events),['style.load']);events['style.load']();await ready;assert.equal(off,false);
+ const failure=waitCtx.waitForStyle({once:()=>{},off:()=>off=true});timeout();await assert.rejects(failure,/style-timeout/);assert.equal(off,true);
+});
+await asyncCheck('Catalogue HTTP failure stays an error, rather than a fake empty catalogue',async()=>{
+ let requestCount=0;const states=[];
+ const fetchCtx={fetch:async()=>{requestCount++;return {ok:false};},setTimeout:()=>1,clearTimeout:()=>{},AbortController,
+ skyState:s=>states.push(s)};
+ vm.createContext(fetchCtx);vm.runInContext(extract(html,'fetchCatalogue'),fetchCtx);
+ const request=fetchCtx.fetchCatalogue();assert.equal(requestCount,1);const homes=await request;
+ assert.equal(homes.length,0);assert.equal(states.at(-1).catalogueStatus,'error');
+ fetchCtx.fetch=async()=>({ok:true,json:async()=>({listings:[]})});await fetchCtx.fetchCatalogue();
+ assert.equal(states.at(-1).catalogueStatus,'empty');
+});
+await asyncCheck('A stalled catalogue request is aborted and exposes a retryable state',async()=>{
+ let timeout;const states=[];
+ const fetchCtx={fetch:(url,options)=>new Promise((resolve,reject)=>options.signal.addEventListener('abort',()=>reject(Error('aborted')))),
+ setTimeout:fn=>(timeout=fn,1),clearTimeout:()=>{},AbortController,skyState:s=>states.push(s)};
+ vm.createContext(fetchCtx);vm.runInContext(extract(html,'fetchCatalogue'),fetchCtx);
+ const request=fetchCtx.fetchCatalogue();timeout();await request;
+ assert.equal(states.at(-1).catalogueStatus,'error');assert.equal(states.at(-1).error,'catalogue');
+});
+check('An explicit empty/invalid shared home scope cannot silently expand to every home',()=>{
+ const source=html.slice(html.indexOf('var TIENI=null'),html.indexOf('var MYP=[]'));
+ for(const query of ['homes=','homes=invalid%2Fid']){
+  const scopeCtx={SKY_QUERY:new URLSearchParams(query),Set,skyId:id=>/^[A-Za-z0-9_-]{1,100}$/.test(id)?id:''};
+  vm.createContext(scopeCtx);vm.runInContext(source,scopeCtx);assert.equal(scopeCtx.TIENI.size,0);
+ }
+ const none={SKY_QUERY:new URLSearchParams(''),Set,skyId:id=>id};vm.createContext(none);vm.runInContext(source,none);assert.equal(none.TIENI,null);
+ shareCtx.api.filter=()=>({budget:0,homes:[],homesActive:true});
+ const shared=new URL(shareCtx.shareURL());assert.equal(shared.searchParams.get('homes'),'');assert.equal(shared.searchParams.has('homes'),true);
+});
 console.log(`Skyline Flight: ${passed} passed, 0 failed`);

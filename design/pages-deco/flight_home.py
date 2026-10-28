@@ -1,12 +1,12 @@
 """BOOM Flight: rearrange the existing Home, keeping its live instruments.
 
 This is a final, idempotent presentation pass. It never builds a second
-catalogue, changes a form field or replaces the Skyline engine. Both the
+catalogue or replaces the Skyline engine. Stay is a requested preference. Both the
 committed Home and a future costruisci-portale.py output use this pass.
 """
 import re
 
-VERSION = '20261028a'
+VERSION = '20261028d'
 
 
 def _element(source, tag, marker):
@@ -20,12 +20,28 @@ def _element(source, tag, marker):
     raise ValueError('Unclosed Home element: ' + marker)
 
 
+
+def _stay_intent(source):
+    field = '<label class="atterro-campo ac-stay">\n          <span>Length of stay</span>\n          <select id="durataSoggiorno" aria-label="Length of stay" aria-describedby="stayPreferenceNote">\n            <option value="">Not sure yet</option>\n            <option value="1">1 month</option>\n            <option value="3">3 months</option>\n            <option value="6">6 months</option>\n            <option value="12">12 months</option>\n            <option value="18">18 months</option>\n            <option value="24">24 months</option>\n          </select></label>'
+    source = re.sub('<div class="atterro-campo ac-data">\\s*<span id="quandoEti">.*?</div>', lambda _: field, source, count=1, flags=re.S)
+    source = source.replace('<form class="atterro" id="atterro">', '<form class="atterro" id="atterro" data-stay-page="home">', 1)
+    source = re.sub('/\\* «when do you land\\?» — il campo data NATIVO.*?\\n  \\}\\)\\(\\);', '/* Stay intent is carried by boom-flight-stay.js; no snapshot match count. */', source, count=1, flags=re.S)
+    if 'id="stayPreferenceNote"' not in source:
+        start = source.index('<form class="atterro"')
+        end = source.index('</form>', start) + len('</form>')
+        source = source[:end] + '\n    <p class="flight-stay-note" id="stayPreferenceNote" data-stay-note="home" hidden></p>' + source[end:]
+    return source
+
+
 def enhance_home(source):
+    source = _stay_intent(source)
+    source = source.replace('<section class="sezione">\n  <div class="container doppia">', '<section class="sezione flight-home-discovery">\n  <div class="container doppia">', 1)
+    source = source.replace('<section class="sezione" id="banchina">', '<section class="sezione flight-home-services" id="banchina">', 1)
     if 'data-flight-home="true"' in source:
         return source
     hero = _element(source, 'header', '<header class="hero">')
     skyline = _element(source, 'section', '<section class="sezione" id="skyline">')
-    form = _element(hero, 'form', '<form class="atterro" id="atterro">')
+    form = _element(hero, 'form', '<form class="atterro" id="atterro" data-stay-page="home">') + '\n    <p class="flight-stay-note" id="stayPreferenceNote" data-stay-note="home" hidden></p>'
     faith = _element(hero, 'div', '<div class="hero-fede">')
     board = _element(hero, 'aside', '<aside class="board quadro"')
     board = re.sub(r'<span>Catalogue updated <b>[^<]+</b></span>', '<span>Rome · homes for living</span>', board)

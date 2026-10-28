@@ -295,6 +295,7 @@
     var forma = document.getElementById('serbaForma');
     function criteri() {
       return { q: stato.q, budgetMax: stato.budget || null,
+        durationMonths: window.BOOM_STAY ? BOOM_STAY.read(location.search) : null,
         moveIn: stato.dal, beds: stato.letti === '' ? null : +stato.letti,
         baths: stato.bagni === '' ? null : +stato.bagni,
         furnished: stato.arredata, video: stato.video,
@@ -311,6 +312,7 @@
       if (c.video) p.push('video-verified');
       if (c.feats.length) p.push(c.feats.join(', '));
       if (c.moveIn) p.push('from ' + c.moveIn);
+      if (c.durationMonths) p.push(BOOM_STAY.label(c.durationMonths) + ' requested');
       return p.length ? p.join(' · ') : 'Any home in Rome';
     }
     document.getElementById('serba').addEventListener('click', function () {

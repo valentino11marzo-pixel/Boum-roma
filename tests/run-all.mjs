@@ -266,6 +266,7 @@ const SUITES = [
   { name: 'desktopui', file: 'tests/desktop/ui.mjs',      what: 'D1 BOOM OS in un browser vero: ⌘K, chord, peek drawer, il confine dei 920px attraversato nei due sensi' },
   { name: 'mappaflight', file: 'tests/mappa/flight.mjs', what: 'Skyline Flight: selezione, condivisione, precisione, camera e bridge sicuri' },
   { name: 'flight', file: 'tests/flight/run.mjs', what: 'Flight: salvati sicuri condivisibili, privacy dei luoghi, vero salva ricerca con errori/retry e invii concorrenti' },
+  { name: 'flightguideui', file: 'tests/flight/guide-ui.mjs', what: 'Skyline guidance: budget zero, scope vuoto, focus asincrono, durata, tipi e errori senza falsi risultati' },
   { name: 'mappa',    file: 'tests/mappa/run.mjs',          what: 'la mappa e un motore solo: mete e coordinate combaciano con la griglia dei tempi, ogni minuto dichiara se è misurato o stimato, le vicine si ordinano per TEMPO e non per linea d\'aria, e il filtro per minuti non promette ciò che non ha misurato' },
   { name: 'mappaui',  file: 'tests/mappa/ui.mjs',           what: 'il Quadrante in un browser vero: regge anche quando la mappa non carica, a riposo non mostra colonne morte, e ogni numero porta il proprio grado di verità' },
   { name: 'telefono', file: 'tests/telefono/run.mjs',      what: 'il sito sotto un dito: a 390px con puntatore grossolano nessun campo di un modulo sta sotto i 16px — su iPhone farebbe zoomare la pagina al primo tap' },

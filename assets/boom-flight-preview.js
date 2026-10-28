@@ -13,10 +13,10 @@
   else window.addEventListener('resize',sizePreview);
   var play=document.getElementById('playTour'), status=document.getElementById('tourStatus');
   var steps=[
-    {title:'Il tuo punto di partenza.',note:'Il Solari respira sulla cerniera centrale. Skyline è già una città da esplorare.',name:'Home',url:'/'},
+    {title:'Il tuo punto di partenza.',note:'Il pulso giallo attraversa il pattern Solari originale. Parti dalla durata del soggiorno, poi esplora Skyline.',name:'Home',url:'/'},
     {title:'Scegli una casa. Guarda come vivi.',note:'Filtra le case, passa tra lista e Skyline. “On Skyline” raggiunge la casa selezionata senza perdere la ricerca.',name:'Apartments',url:'/apartments'},
     {title:'Tutto quello che serve per decidere.',note:'Foto, spazi, costi e disponibilità. “Your everyday” apre il quartiere; il Landing Plan raccoglie i conti.',name:'Apartment Details',url:null},
-    {title:'La tua Roma prende forma.',note:'Attiva Orbit, salva le case, poi apri Compare: fino a tre opzioni, dati reali e un volo verso ciascuna.',name:'Skyline',url:'/skyline'}
+    {title:'La tua Roma prende forma.',note:'Apri Find my balance: budget, spazio e tragitto per scegliere la tua Roma. Orbit e Compare restano a un tocco.',name:'Skyline',url:'/skyline'}
   ];
   var current=0, running=false, timer, loadTimer, orbitTimer, detailPath=null, tourOrbit=null, cleanup=[];
   function stopTourOrbit() {if(tourOrbit&&tourOrbit.isConnected&&tourOrbit.getAttribute('aria-pressed')==='true')tourOrbit.click();tourOrbit=null;}

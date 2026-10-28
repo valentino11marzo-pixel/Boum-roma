@@ -769,11 +769,15 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
       </div>
 
       <div class="durata">
-        <span class="durata-eti">And if you stay longer — how long?</span>
+        <span class="durata-eti">Estimate your stay</span>
+        <p class="flight-stay-note">Choose a length to plan costs. The lease length still needs confirmation for this home.</p>
         <div class="durata-tasti" role="group" aria-label="Length of stay">
+          <button type="button" data-m="1">1 month</button>
           <button type="button" data-m="3">3 months</button>
           <button type="button" data-m="6">6 months</button>
           <button type="button" data-m="12" class="on">12 months</button>
+          <button type="button" data-m="18">18 months</button>
+          <button type="button" data-m="24">24 months</button>
         </div>
         <div class="durata-conto">
           <div><span>Rent for the whole stay</span><b id="durCanoni">—</b></div>
@@ -975,11 +979,12 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
               <input id="apQuando" name="quando" type="date"></div>
             <div class="campo"><label for="apMesi">How long</label>
               <select id="apMesi" name="mesi">
+                <option value="1">1 month</option>
                 <option value="3">3 months</option>
                 <option value="6">6 months</option>
                 <option value="12" selected>12 months</option>
                 <option value="18">18 months</option>
-                <option value="24">24 months or more</option>
+                <option value="24">24 months</option>
               </select></div>
           </div>
           <div class="ap-due">

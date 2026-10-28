@@ -17,7 +17,7 @@
 //   email:        string            // required — the alert channel
 //   label?:       string            // user's name for this search
 //   criteria: {                     // the discovery page's S state
-//     q?, budgetMax?, moveIn?, beds?, baths?, furnished?, video?,
+//     q?, budgetMax?, moveIn?, durationMonths?, beds?, baths?, furnished?, video?,
 //     zones?: string[], feats?: string[]
 //   },
 //   resultCount?: number            // matches at save time (context for ops)
@@ -26,6 +26,7 @@
 // Response 200: { ok: true, id }  |  4xx/5xx: { ok: false, error }
 
 import { fsCreate, logActivity } from '../homie/_lib.js';
+import STAY from '../../js/stay-engine.js';
 
 // ── Best-effort in-memory rate limit (per warm instance) ──
 const HITS = new Map(); // ip -> [timestamps]
@@ -69,6 +70,8 @@ export default async function handler(req, res) {
     q:         clip(c.q, 120),
     budgetMax: num(c.budgetMax),
     moveIn:    clip(c.moveIn, 10),
+    // Requested length, not an assertion about the listings' lease terms.
+    durationMonths: STAY.months(c.durationMonths),
     beds:      num(c.beds),
     baths:     num(c.baths),
     furnished: !!c.furnished,

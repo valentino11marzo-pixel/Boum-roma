@@ -2,7 +2,7 @@
  * BOOM_MAPPA and Pendolare engines. No catalogue, routing or personal-data store. */
 (function () {
   'use strict';
-  var api = null, orbit = 0, lastFrame = 0, restoreFocus = null;
+  var api = null, orbit = 0, lastFrame = 0, restoreFocus = null, mapInView = true;
   var reduced = matchMedia('(prefers-reduced-motion: reduce)');
   var query = new URLSearchParams(location.search);
   try{if(document.documentElement.classList.contains('emb')&&window.parent!==window&&window.parent.location.origin===location.origin)document.documentElement.classList.add('sky-consent-parent');}catch(_){}
@@ -115,7 +115,7 @@
     $('skyOrbit').textContent = 'Orbit';
   }
   function frame(time) {
-    if (!api || document.hidden || reduced.matches) return stopOrbit();
+    if (!api || !mapInView || document.hidden || reduced.matches) return stopOrbit();
     var elapsed = lastFrame ? Math.min(80, time - lastFrame) : 0;
     lastFrame = time;
     api.map.jumpTo({ bearing: api.map.getBearing() + elapsed * .004 });
@@ -126,6 +126,7 @@
     var three = api.map.getPitch() > 10;
     $('sky2d').setAttribute('aria-pressed', String(!three));
     $('sky3d').setAttribute('aria-pressed', String(three));
+    if(api.map.getLayer('sky-3d'))api.map.setLayoutProperty('sky-3d','visibility',three?'visible':'none');
   }
   function setView(three) {
     if (!api) return;
@@ -200,7 +201,7 @@
     var filter = api.filter();
     var known = new Set(api.markers.map(function (mk) { return mk.getElement().__id; }));
     var homes = filter.homes.filter(function (id) { return known.has(id); }).slice(0, 30);
-    if (homes.length) url.searchParams.set('homes', homes.join(','));
+    if (homes.length||filter.homesActive) url.searchParams.set('homes', homes.join(','));
     if (filter.budget) url.searchParams.set('budget', String(filter.budget));
     var destination = $('qfMeta');
     var includePlace=$('skySharePlace').checked && destination && window.BOOM_MAPPA && BOOM_MAPPA.METE.some(function (p) { return p.slug === destination.value; });
@@ -225,10 +226,19 @@
     // The stable selected-home card replaces the marker popover; its contents
     // remain in core for older/no-controller clients and generator compatibility.
     api.markers.forEach(function (m) { m.setPopup(null); });
-    if(window.BOOM_FLIGHT_MAP)BOOM_FLIGHT_MAP.dress(api.map,'sky-3d');
+    if(window.BOOM_FLIGHT_MAP&&BOOM_FLIGHT_MAP.dress(api.map,'sky-3d'))document.documentElement.classList.add('sky-map-styled');
+    else document.documentElement.classList.add('sky-map-fallback');
     viewButtons();
     ['dragstart', 'zoomstart', 'rotatestart', 'pitchstart'].forEach(function (event) { api.map.on(event, function (e) { if (e.originalEvent) stopOrbit(); }); });
     api.map.on('pitchend', viewButtons);
+    api.map.on('webglcontextlost',pauseMap);
+    if(window.IntersectionObserver){
+      var mapVisibility=new IntersectionObserver(function(entries){
+        mapInView=entries[0].isIntersecting;
+        if(!mapInView)pauseMap();else if(!document.hidden)api.map.resize();
+      },{threshold:0});
+      mapVisibility.observe(api.map.getContainer());
+    }
     api.map.getCanvas().addEventListener('pointerdown', stopOrbit, { passive: true });
     api.map.getCanvas().addEventListener('wheel', stopOrbit, { passive: true });
     var camera = validCamera(query.get('view'));
@@ -238,7 +248,7 @@
       var minutes = query.get('minutes');
       if (['15', '25', '40'].indexOf(minutes) >= 0) { var btn = document.querySelector('#qfMin button[data-m="' + minutes + '"]'); if (btn) btn.click(); }
     }
-    if (query.get('homes')) $('skyShared').hidden = false;
+    if (query.has('homes')) $('skyShared').hidden = false;
     api.shareURL = shareURL;
     if (api.selected()) selection({ listing: api.selected().__listing, precision: api.selected().__precision });
     // A share camera is explicit; preserve it after an incoming home selection.
@@ -319,7 +329,16 @@
     $('skyNativeShare').hidden = false;
     $('skyNativeShare').addEventListener('click', function () { updateShare(); navigator.share({ title: 'BOOM Skyline · your Rome', url: $('skyShareURL').value }).catch(function (e) { if (e.name !== 'AbortError') $('skyShareResult').textContent = 'Use Copy link to share this view.'; }); });
   }
-  document.addEventListener('visibilitychange', function () { if (document.hidden) stopOrbit(); });
+  function pauseMap(){stopOrbit();if(api)api.map.stop();}
+  document.addEventListener('visibilitychange',function(){if(document.hidden)pauseMap();else if(api&&mapInView)api.map.resize();});
+  window.addEventListener('pagehide',pauseMap);
+  window.addEventListener('pageshow',function(e){if(e.persisted&&api)api.map.resize();});
+  window.addEventListener('boom:skyline-state',function(e){
+    var state=e.detail||{},usable=!!api&&state.mapStatus!=='error'&&state.mapStatus!=='context-lost';
+    ['sky2d','sky3d','skyReset'].forEach(function(id){$(id).disabled=!usable;});
+    $('skyOrbit').disabled=!usable||reduced.matches;
+    if(state.mapStatus==='context-lost'||state.mapStatus==='error')pauseMap();
+  });
   reduced.addEventListener('change', function () { stopOrbit(); $('skyOrbit').disabled = !api || reduced.matches; if (api && reduced.matches) { api.map.stop(); api.map.jumpTo({ pitch: 0 }); } });
   window.addEventListener('keydown', function (e) { if (e.key === 'Escape') stopOrbit(); });
   window.addEventListener('boom:skyline-ready', function (e) { attach(e.detail.api); });

@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
 import {readFileSync} from 'node:fs';
+import './guide.mjs';
+import './stay.mjs';
 const require=createRequire(import.meta.url);
 const F=require('../../js/flight-engine.js');
 const S=require('../../assets/boom-flight-search.js');

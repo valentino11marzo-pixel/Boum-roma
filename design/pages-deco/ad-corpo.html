@@ -386,14 +386,18 @@
         <h1>Find your place.<br><span class="hl">In your Rome.</span></h1>
         <p class="disco-sotto">Every home walked in person. Explore the city, then find the one that fits your everyday.</p>
 
-        <form class="atterro cerca" id="atterro">
-          <div class="atterro-campo ac-data">
-          <span id="quandoEti">When do you land?</span>
-          <label class="atterro-data" id="quandoBtn">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14a1.5 1.5 0 0 1 1.5 1.5V19a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 19V7.5A1.5 1.5 0 0 1 5 6zM8 3.5v5m8-5v5M3.5 11h17"/></svg>
-            <span id="quandoTesto">Any date</span>
-            <input type="date" id="quandoData" aria-labelledby="quandoEti"></label>
-          </div>
+        <form class="atterro cerca" id="atterro" data-stay-page="apartments">
+          <label class="atterro-campo ac-stay">
+          <span>Length of stay</span>
+          <select id="durataSoggiorno" aria-label="Length of stay" aria-describedby="stayPreferenceNote">
+            <option value="">Not sure yet</option>
+            <option value="1">1 month</option>
+            <option value="3">3 months</option>
+            <option value="6">6 months</option>
+            <option value="12">12 months</option>
+            <option value="18">18 months</option>
+            <option value="24">24 months</option>
+          </select></label>
           <span class="atterro-divisa" aria-hidden="true"></span>
           <label class="atterro-campo">
             <span>Budget</span>
@@ -415,6 +419,7 @@
               <option value="flatmates">Flatmates</option>
             </select></label>
         </form>
+        <p class="flight-stay-note" id="stayPreferenceNote" data-stay-note="results" hidden></p>
       </div>
 
       <details class="flight-zones"><summary>Choose a neighbourhood <span>ROME</span></summary>
@@ -513,6 +518,7 @@ VISTA_CIELO
         <button type="button" class="pulisci" id="serbaChiudi">Not now</button>
         <button type="submit" class="btn btn-primary">Save search</button>
       </div>
+      <p class="flight-stay-note" data-stay-note="results" hidden></p>
       <p class="serba-nota">New matching homes, by email. Unsubscribe in one click. <a href="/privacy">Privacy policy</a>.</p>
       <p id="serbaStatus" role="status" aria-live="polite"></p>
     </form>
@@ -526,6 +532,13 @@ VISTA_CIELO
     <div class="foglio-testa"><b id="foglioTit">Fine-tune the list</b>
       <button type="button" class="foglio-x" id="foglioChiudi"
         aria-label="Close filters">✕</button></div>
+    <div class="atterro-campo ac-data">
+          <span id="quandoEti">Move-in date</span>
+          <label class="atterro-data" id="quandoBtn">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14a1.5 1.5 0 0 1 1.5 1.5V19a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 19V7.5A1.5 1.5 0 0 1 5 6zM8 3.5v5m8-5v5M3.5 11h17"/></svg>
+            <span id="quandoTesto">Any date</span>
+            <input type="date" id="quandoData" aria-labelledby="quandoEti"></label>
+          </div>
     <div class="gruppo" role="group" aria-label="Bathrooms">
       <span>Baths</span>
       <button type="button" data-f="bagni" data-v="">Any</button>
