@@ -34,7 +34,12 @@
     var mapped=new Set(api.markers.map(function(m){return m.getElement().__id;}));
     return catalogue.filter(function(l){return mapped.has(String(l.id))&&(!filter.homesActive||scope.indexOf(String(l.id))>=0);}).map(function(l){
       var record=BOOM_FLIGHT.compare([BOOM_FLIGHT.listing(l.id)],catalogue,{facts:window.BOOM_FACTS,dispo:window.BOOM_DISPO,geo:window.BOOM_GEO})[0];
-      if(record){record.journey=api.journeyFor?api.journeyFor(record.id,$('skyGuidePlace').value):null;record.type=typeof l.type==='string'?l.type.trim():'';}
+      if(record){
+        record.journey=api.journeyFor?api.journeyFor(record.id,$('skyGuidePlace').value):null;
+        record.type=typeof l.type==='string'?l.type.trim():'';
+        var marker=api.markers.find(function(m){return m.getElement().__id===record.id;});
+        record.outsideMapTime=!!(marker&&marker.getElement().classList.contains('fuoriTempo'));
+      }
       return record;
     }).filter(Boolean);
   }
@@ -73,7 +78,9 @@
       fact('Type as listed',r.type||'To confirm');fact('Listed area',r.area?r.area+' m²':'Area to confirm');fact('Bedrooms',r.bedrooms==null?'To confirm':r.bedrooms===0?'Studio':String(r.bedrooms));fact('Move-in',r.availability);content.appendChild(facts);
       var trip=el('p','sky-guide-trip');
       if(r.journey){var j=r.journey;trip.appendChild(el('span','','≈'+j.min+' min'+(j.fonte==='piedi'?' walk':'')+' to '+place.nome));trip.appendChild(el('small','',(j.fonte==='rete'?'Timetable model · not live':j.fonte==='piedi'?'Walking estimate · straight-line distance':'Rough distance estimate · route not measured')+(j.precision==='exact'?'':' · approximate starting point')));}
-      else {trip.appendChild(el('span','','Journey to '+(place?place.nome:'your destination')+' to confirm'));trip.appendChild(el('small','','No usable location or travel data for this home.'));}content.appendChild(trip);
+      else {trip.appendChild(el('span','','Journey to '+(place?place.nome:'your destination')+' to confirm'));trip.appendChild(el('small','','No usable location or travel data for this home.'));}
+      if(r.outsideMapTime)trip.appendChild(el('small','','Outside the map’s current time filter. You can still explore the home details.'));
+      content.appendChild(trip);
       var actions=el('div','sky-guide-actions'),fly=el('button','','See on map ↗');fly.type='button';fly.dataset.guideHome=r.id;
       fly.disabled=!api.markers.some(function(m){return m.getElement().__id===r.id;});if(fly.disabled)fly.title='Location not available on Skyline';actions.appendChild(fly);
       var detail=el('a','','Home details ↗');detail.href=stayLink(r.path);if(parent!==window)detail.target='_top';actions.appendChild(detail);content.appendChild(actions);

@@ -6,7 +6,7 @@ committed Home and a future costruisci-portale.py output use this pass.
 """
 import re
 
-VERSION = '20261028d'
+VERSION = '20261028e'
 
 
 def _element(source, tag, marker):
@@ -22,7 +22,7 @@ def _element(source, tag, marker):
 
 
 def _stay_intent(source):
-    field = '<label class="atterro-campo ac-stay">\n          <span>Length of stay</span>\n          <select id="durataSoggiorno" aria-label="Length of stay" aria-describedby="stayPreferenceNote">\n            <option value="">Not sure yet</option>\n            <option value="1">1 month</option>\n            <option value="3">3 months</option>\n            <option value="6">6 months</option>\n            <option value="12">12 months</option>\n            <option value="18">18 months</option>\n            <option value="24">24 months</option>\n          </select></label>'
+    field = '<label class="atterro-campo ac-stay">\n          <span>Length of stay</span>\n          <select id="durataSoggiorno" aria-label="Length of stay" aria-describedby="stayPreferenceNote">\n            <option value="">Not sure yet</option>\n            <option value="3">3 months</option>\n            <option value="6">6 months</option>\n            <option value="12">12 months</option>\n            <option value="18">18 months</option>\n            <option value="24">24 months</option>\n          </select></label>'
     source = re.sub('<div class="atterro-campo ac-data">\\s*<span id="quandoEti">.*?</div>', lambda _: field, source, count=1, flags=re.S)
     source = source.replace('<form class="atterro" id="atterro">', '<form class="atterro" id="atterro" data-stay-page="home">', 1)
     source = re.sub('/\\* «when do you land\\?» — il campo data NATIVO.*?\\n  \\}\\)\\(\\);', '/* Stay intent is carried by boom-flight-stay.js; no snapshot match count. */', source, count=1, flags=re.S)

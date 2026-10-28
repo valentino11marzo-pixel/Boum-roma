@@ -83,6 +83,9 @@
   }
   // Run after the original DOM-ready regia has registered its money/apply
   // handlers; never wait for external images or the map to finish loading.
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { setTimeout(ready, 0); }, { once: true });
-  else setTimeout(ready, 0);
+  // A defer script sees "interactive" even while later defer scripts are
+  // still loading. Starting then would catch the regia's initial 12-month
+  // quote as a visitor choice and overwrite ?stay= before the real prefill.
+  if (document.readyState === 'complete') setTimeout(ready, 0);
+  else document.addEventListener('DOMContentLoaded', function () { setTimeout(ready, 0); }, { once: true });
 })();

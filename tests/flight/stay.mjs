@@ -8,8 +8,8 @@ let checks=0;
 function check(name,fn){fn();checks++;console.log('  ✓ '+name);}
 check('Stay is an exact requested length; ranges, coercions and arbitrary input are rejected',()=>{
  for(const n of S.choices){assert.equal(S.months(n),n);assert.equal(S.months(String(n)),n);}
- for(const n of [null,undefined,true,{},[],0,-1,1.5,4,48,'6-12','12+',' 6 ','1e1','6 months'])assert.equal(S.months(n),null);
- assert.equal(S.label(1),'1 month');assert.equal(S.label(6),'6 months');assert.equal(S.label('12+'),'');
+ for(const n of [null,undefined,true,{},[],0,-1,1,2,1.5,4,48,'6-12','12+',' 6 ','1e1','6 months'])assert.equal(S.months(n),null);
+ assert.equal(S.label(1),'');assert.equal(S.read('?stay=1'),null);assert.equal(S.label(6),'6 months');assert.equal(S.label('12+'),'');
 });
 check('Stay survives local navigation without losing advanced filters or hash',()=>{
  const path=S.withStay('/apartments?q=Prati&view=skyline#budget=1500&chi=couple',6);

@@ -5,7 +5,8 @@
   else root.BOOM_STAY = factory();
 })(typeof window !== 'undefined' ? window : globalThis, function () {
   'use strict';
-  var choices = [1, 3, 6, 12, 18, 24];
+  // BOOM Terms 3.1: stays start at three months; home-specific terms still need confirmation.
+  var choices = [3, 6, 12, 18, 24];
   function months(value) {
     if (typeof value !== 'number' && typeof value !== 'string') return null;
     if (!/^\d{1,2}$/.test(String(value))) return null;

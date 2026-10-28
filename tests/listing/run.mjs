@@ -734,6 +734,10 @@ if (!chromium) {
   const applyBodies = [];
   const server = createServer(async (req, res) => {
     const p = decodeURIComponent(req.url.split('?')[0]);
+    if (p === '/skyline') {
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      return res.end(src('tests/flight/stay-skyline-fixture.html'));
+    }
     if (p.startsWith('/listing/')) {
       const lid = decodeURIComponent(p.slice('/listing/'.length));
       // il ripiego del server su un guasto (503, template nudo) per una casa
@@ -769,7 +773,15 @@ if (!chromium) {
     const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
     const errors = [];
     page.on('pageerror', (e) => errors.push(String(e)));
-    await page.route('**/*', (r) => (r.request().url().startsWith(BASE) ? r.continue() : r.abort()));
+    await page.route('**/*', async (r) => {
+      if (!r.request().url().startsWith(BASE)) return r.abort();
+      // A later defer must still be pending when stay.js executes. Without
+      // this, fast local assets hid the interactive-before-DOMContentLoaded
+      // race that replaced the requested 6 months with the initial 12.
+      if (r.request().url().includes('/assets/boom-flight-detail.js'))
+        await new Promise(resolve => setTimeout(resolve, 900));
+      return r.continue();
+    });
     await page.addInitScript(() => {
       window.__conv = [];
       window.addEventListener('boom-conversion', (e) => window.__conv.push(e.detail));
@@ -810,8 +822,25 @@ if (!chromium) {
     check('Apartments rilegge la durata, con data rimasta tra i filtri avanzati',
       await page.inputValue('#durataSoggiorno') === '6'
       && await page.locator('#foglioVelo #quandoData').count() === 1);
-    await page.goto(BASE + '/listing/A' + intent.search, { waitUntil: 'load' });
+    await page.goto(BASE + '/index.html' + intent.search, { waitUntil: 'load' });
+    await Promise.all([
+      page.waitForURL(url => url.pathname === '/skyline'),
+      page.locator('.flight-home-actions a[href^="/skyline"]').click(),
+    ]);
+    await page.locator('#skyGuideOpen').click();
+    await page.locator('#skyGuidePriority').selectOption('space');
+    await page.locator('[data-guide-home="A"]').click();
+    check('Home → Skyline → See on map conserva la durata prima della scheda',
+      new URL(page.url()).searchParams.get('stay') === '6'
+      && !(await page.locator('#skyHome').isHidden()));
+    await Promise.all([
+      page.waitForURL(url => url.pathname === '/listing/A'),
+      page.locator('#skyHomeLink').click(),
+    ]);
     await page.waitForTimeout(1200);
+    check('Explore home + defer lento: la durata richiesta non diventa il default iniziale 12',
+      new URL(page.url()).searchParams.get('stay') === '6'
+      && await page.inputValue('#apMesi') === '6');
     const prezzo = await page.evaluate(() => {
       const h = document.getElementById('canoneCasa');
       const testi = [...h.childNodes].filter((n) => n.nodeType === 3 && n.textContent.trim()).length;

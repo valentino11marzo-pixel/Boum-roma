@@ -3048,12 +3048,13 @@ riusa Mappa/Tempi e coordinate vere, `setBudget` conserva i filtri; `homes=` res
 Test `mappaflight`: readiness, errori, scope vuoto, viaggio pubblico e mutazione dei pin.
 
 
-Durata Flight: il primo campo Home/Apartments è `Length of stay`, in mesi esatti;
+Durata Flight: il primo campo Home/Apartments è `Length of stay`, da 3 mesi (Condizioni 3.1);
 `js/stay-engine.js` valida la preferenza, `?stay=` la porta alla scheda e all’apply.
 Il catalogo pubblico non dichiara min/max di contratto: la durata NON filtra le case;
 UI e digest lo dicono, mentre `savedSearches.criteria.durationMonths` conserva la richiesta.
 La data rimane nei filtri avanzati (`dal`/`moveIn`); la scheda usa il conto già esistente.
-Niente conto snapshot Home né nuova aritmetica. Prove: `flight`, `letture`, `vetrina`.
+Niente conto snapshot Home né nuova aritmetica; il prefill aspetta DOMContentLoaded anche
+con defer lenti, così il default non sovrascrive la richiesta. Prove: `flight`, `letture`, `vetrina`, `listingssr`.
 
 La Home ingrandisce foto, demo 01–04 e biglietti originali; il foil si ferma fuori vista.
 `Find my balance` ordina le case mappate per canone, area o tragitto: budget mai alzato,

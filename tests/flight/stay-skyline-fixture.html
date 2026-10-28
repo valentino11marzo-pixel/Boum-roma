@@ -1,0 +1,32 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<style>@view-transition{navigation:auto}</style>
+<script defer src="/js/stay-engine.js"></script>
+<script defer src="/assets/boom-flight-stay.js"></script>
+</head><body>
+<!-- Actual guide and selected-home controllers. Only the map/catalogue
+     boundary is synthetic; /listing/A is served by the real SSR handler. -->
+<script src="/js/flight-engine.js"></script>
+<script src="/js/listing-facts.js"></script>
+<script src="/js/dispo-engine.js"></script>
+<script src="/assets/boom-flight-skyline.js"></script>
+<script>
+  window.BOOM_MAPPA={METE:[{slug:'colosseo',nome:'Colosseum',lat:41.89,lng:12.49}]};
+  var home={id:'A',name:'Fixture home',type:'Apartment',price:1800,sqm:70,bedrooms:2,status:'available'};
+  var pin=document.createElement('div');pin.__id='A';
+  window.BoomSkyline={
+    catalogue:function(){return [home];},
+    filter:function(){return {budget:2000,homesActive:false,homes:[]};},
+    state:function(){return {catalogueStatus:'ready'};},
+    markers:[{getElement:function(){return pin;}}],
+    journeyFor:function(){return null;},setBudget:function(){},
+    selectPublicPlace:function(){return true;},
+    select:function(id){
+      if(id!=='A')return false;
+      window.dispatchEvent(new CustomEvent('boom:skyline-selection',{detail:{listing:home,precision:'zone'}}));
+      return true;
+    }
+  };
+</script>
+<script src="/js/skyline-guide-engine.js"></script>
+<script src="/assets/boom-skyline-guide.js"></script>
+</body></html>
