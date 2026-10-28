@@ -174,11 +174,11 @@ def enhance(html):
         "        if (window.BOOM_FLIGHT_MAP) BOOM_FLIGHT_MAP.dress(mappaB, 'blocco-3d');\n"
         + map_anchor, 1)
     html = html.replace('</head>',
-        '<link rel="stylesheet" href="/assets/boom-flight-detail.css?v=20261028g">\n'
+        '<link rel="stylesheet" href="/assets/boom-flight-detail.css?v=20261028h">\n'
         '<noscript><style>.boom-flight-detail #posto[hidden]{display:block!important;'
         'margin-top:28px}.boom-flight-detail .bfd-tabs,.boom-flight-detail '
         '.bfd-open-photos{display:none}</style></noscript>\n</head>', 1)
     html = html.replace('</body>',
         '<script defer src="/js/flight-map.js?v=20261027a"></script>\n'
-        '<script defer src="/assets/boom-flight-detail.js?v=20261028g"></script>\n</body>', 1)
+        '<script defer src="/assets/boom-flight-detail.js?v=20261028h"></script>\n</body>', 1)
     return refine('\n'.join(line.rstrip() for line in html.split('\n')))

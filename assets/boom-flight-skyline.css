@@ -180,6 +180,8 @@ html.sky-preview .sky-home-copy h2{font-size:21px}
 html.sky-preview .sky-flight-home[hidden]{display:none}
 html.sky-preview .sky-home-bottom a{min-height:38px}
 html.sky-preview .maplibregl-ctrl-attrib{font-size:8px!important}
+/* The preview has no bottom workspace; attribution belongs at the map edge. */
+html.sky-preview .maplibregl-ctrl-bottom-right{bottom:5px;right:6px}
 html .load.usable:not(.off){top:auto;bottom:14px;transform:translateX(-50%);max-width:330px;padding:9px 13px;gap:5px}
 html .load.usable .dot,html .load.usable:not(.partial):not(.failed) .sky-load-list{display:none}
 html.emb .load.partial{display:flex}

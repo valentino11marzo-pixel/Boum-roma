@@ -1,7 +1,7 @@
 """Stable Flight asset seam for generated public pages. Does not read catalogue data."""
 import re
 
-VERSION = '20261028g'
+VERSION = '20261028h'
 
 def enhance(html, page):
     html = re.sub(r'((?:/assets/boom-flight(?:-[a-z]+)?\.(?:css|js)|/js/(?:flight|stay)-engine\.js)\?v=)[^"\s>]+',

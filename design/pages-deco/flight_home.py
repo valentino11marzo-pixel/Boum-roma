@@ -6,7 +6,7 @@ committed Home and a future costruisci-portale.py output use this pass.
 """
 import re
 
-VERSION = '20261028g'
+VERSION = '20261028h'
 
 
 def _element(source, tag, marker):
