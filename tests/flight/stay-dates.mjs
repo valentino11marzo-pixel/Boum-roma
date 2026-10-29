@@ -10,11 +10,12 @@ const form=p=>read(p).match(/<form\b[^>]*id="atterro"[\s\S]*?<\/form>/)[0];
 const detail=read('apartment-detail.html');
 const input=id=>detail.match(new RegExp('<input\\b[^>]*id="'+id+'"[^>]*>'))[0];
 const select=detail.match(/<select id="apMesi"[\s\S]*?<\/select>/)[0];
+const household=detail.match(/<select id="apChi"[\s\S]*?<\/select>/)[0];
 const scripts='<script defer src="/js/stay-engine.js"></script><script defer src="/assets/boom-flight-stay.js"></script>';
 const links='<a id="listing" href="/listing/fixture">Explore home</a><a id="skyline" href="/skyline?guide=1">Skyline</a><a id="rome" href="/your-rome">Your Rome</a>';
 function html(path){
  let content=path==='/'?form('index.html'):path==='/apartments'?form('apartments.html')+'<input id="quandoData" type="date"><button id="pulisci">Reset</button>':path.startsWith('/listing/')?
- '<form id="modApplica">'+input('apQuando')+input('apUscita')+select+'<p id="apStayError" role="alert" hidden></p><output data-stay-summary></output><button type="submit">Send</button></form><div class="durata-tasti"><button data-m="6">6 months</button><button data-m="12">12 months</button></div><div class="durata-conto">Existing quote</div>':'';
+ '<form id="modApplica">'+input('apQuando')+input('apUscita')+select+household+'<p id="apStayError" role="alert" hidden></p><output data-stay-summary></output><button type="submit">Send</button></form><div class="durata-tasti"><button data-m="6">6 months</button><button data-m="12">12 months</button></div><div class="durata-conto">Existing quote</div>':'';
  return '<!doctype html><html><head><meta charset="utf-8">'+scripts+'</head><body>'+content+links+`<script>
  window.__quoteCalls=[]; window.__submitted=0; window.__arrivalChanges=[];
  window.BoomStayQuote={setMonths:function(n){__quoteCalls.push(n);document.dispatchEvent(new CustomEvent('boom:durata',{detail:n}));}};
@@ -100,6 +101,35 @@ try{
   await goto('/apartments?stay=6&moveIn=2027-01-31&moveOut=2027-07-31');
   await page.locator('#rome').focus();assert.match(await page.locator('#rome').getAttribute('href'),/moveOut=2027-07-31/);
   await page.locator('#listing').dispatchEvent('contextmenu');assert.match(await page.locator('#listing').getAttribute('href'),/stay=6&moveIn=2027-01-31&moveOut=2027-07-31/);
+ });
+ await check('Explicit household links prefill the real Apply select and its submitted form value',async()=>{
+  for(const people of ['solo','couple','family','flatmates']){
+   await goto('/listing/fixture?people='+people+'&stay=6&moveIn=2027-01-31&moveOut=2027-07-31');
+   assert.equal(await page.locator('#apChi').inputValue(),people);
+   assert.equal(await page.evaluate(()=>new FormData(document.getElementById('modApplica')).get('chi')),people);
+   assert.equal(await page.locator('#apMesi').inputValue(),'6');
+  }
+ });
+ await check('Unknown households and a hash-only value do not invent an Apply selection',async()=>{
+  for(const query of ['?people=all','?people=Couple','?people=%3Cscript%3E','?people=','?stay=6#people=couple']){
+   await goto('/listing/fixture'+query);
+   assert.equal(await page.locator('#apChi').inputValue(),'');
+  }
+ });
+ await check('A user-edited household survives history, date/quote restoration and a persisted lifecycle',async()=>{
+  await goto('/listing/fixture?people=couple&stay=6&moveIn=2027-01-31&moveOut=2027-07-31');
+  await page.locator('#apChi').selectOption('family');
+  await page.evaluate(()=>{
+   history.pushState({},'','?people=solo&stay=3&moveIn=2027-01-31&moveOut=2027-04-30');
+   dispatchEvent(new PopStateEvent('popstate'));BoomStayQuote.setMonths(12);
+   dispatchEvent(new PageTransitionEvent('pagehide',{persisted:true}));dispatchEvent(new PageTransitionEvent('pageshow',{persisted:true}));
+  });
+  await page.waitForTimeout(30);
+  assert.equal(await page.locator('#apChi').inputValue(),'family');
+  assert.equal(await page.evaluate(()=>new FormData(document.getElementById('modApplica')).get('chi')),'family');
+  await page.goBack();await page.waitForTimeout(30);
+  assert.equal(await page.locator('#apChi').inputValue(),'family');
+  assert.equal(await page.locator('#apUscita').inputValue(),'2027-07-31');
  });
 }finally{if(browser)await browser.close();await new Promise(r=>server.close(r));}
 console.log(`Stay dates browser: ${pass} passed, ${fail} failed`);if(fail)process.exitCode=1;

@@ -202,6 +202,13 @@
     // Keep legacy arrival hashes usable; new links carry both civil dates.
     window.addEventListener('hashchange', function () { if (!syncing) restore(); });
     var initial = current();
+    // A link can prefill the original Apply once. History, late catalogue/
+    // quote events and BFCache must never overwrite a person's form edits.
+    var household = byId('apChi'), people = new URLSearchParams(location.search).get('people');
+    if (household && !household.value && ['solo', 'couple', 'family', 'flatmates'].indexOf(people) >= 0) {
+      household.value = people;
+      household.dispatchEvent(new Event('change', { bubbles: true }));
+    }
     // Do not present the listing's release date as an arrival chosen by the
     // visitor. Empty arrival stays empty until they choose it explicitly.
     fields(initial); arrivalFilter(initial.moveIn);

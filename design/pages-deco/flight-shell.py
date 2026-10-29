@@ -2,10 +2,11 @@
 import re
 
 VERSION = '20261028h'
+STAY_VERSION = '20261029a'
 
 def enhance(html, page):
     html = re.sub(r'((?:/assets/boom-flight(?:-[a-z]+)?\.(?:css|js)|/js/(?:flight|stay)-engine\.js)\?v=)[^"\s>]+',
-                  lambda m: m.group(1) + VERSION, html)
+                  lambda m: m.group(1) + (STAY_VERSION if 'boom-flight-stay.' in m.group(1) else VERSION), html)
     assets = [
         '<link rel="stylesheet" href="/assets/boom-flight.css?v=' + VERSION + '">',
         '<script defer src="/js/flight-engine.js?v=' + VERSION + '"></script>',
@@ -14,8 +15,8 @@ def enhance(html, page):
     assets += ['<script defer src="/js/stay-engine.js?v=' + VERSION + '"></script>']
     if page in ('home', 'apartments', 'detail', 'skyline'):
         assets += [
-            '<link rel="stylesheet" href="/assets/boom-flight-stay.css?v=' + VERSION + '">',
-            '<script defer src="/assets/boom-flight-stay.js?v=' + VERSION + '"></script>',
+            '<link rel="stylesheet" href="/assets/boom-flight-stay.css?v=' + STAY_VERSION + '">',
+            '<script defer src="/assets/boom-flight-stay.js?v=' + STAY_VERSION + '"></script>',
         ]
     if page == 'apartments':
         # Reserve the actual first view before paint. This is presentation only;

@@ -27,6 +27,7 @@
 .flight-stay-options>summary:focus-visible{outline:1px solid #ffd700;outline-offset:3px}
 .flight-stay-options .flight-stay-shortcut{padding:3px 0 8px}
 .flight-stay-options .flight-stay-shortcut select{font-size:13px!important}
+@media(pointer:coarse){.flight-stay-options .flight-stay-shortcut select{font-size:16px!important;min-height:44px}}
 .flight-stay-options .flight-stay-shortcut button{font-size:12px;min-height:38px}
 .flight-stay-dates label{font-size:12px;color:#b7bac5}
 .flight-stay-dates input[type=date]{font-size:15px;min-height:38px}

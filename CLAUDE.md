@@ -3064,6 +3064,14 @@ confronti solo fra tipi equivalenti e fonti espandibili. Your Rome mantiene trac
 Detail: foto decodificata prima del cambio, ticket compatto, stesso Apply in dialog contestuale con dati/focus preservati;
 no-JS inline, costi e idempotenza originali. Test flighthomeui, flightguideui, mappapreview, flightstayui e listingssr.
 
+Flight Next 29/10: `/flight-next` è una proposta interattiva isolata e noindex: Home, ricerca e dettaglio
+ricompongono Solari originale, catalogo pubblico e un solo iframe Skyline conservato tra le viste.
+`boom-flight-next-data` usa Facts/Dispo; prezzi ignoti, guasti e disponibilità rimangono espliciti, nessun secondo archivio.
+Date, filtri e history restano nella URL, cuori in `boomSalvate`; foto scorrono in rail nativa e in fullscreen.
+La CTA apre l’Apply originale con date e `people`: prefill allowlist una sola volta, solo se #apChi vuoto;
+le scelte successive del candidato prevalgono su history, refresh e BFCache. Nessun nuovo submit o calcolo costi.
+`flightnextdata`, `flightnextmap`, `flightnextui`, `flightstayui` verificano il percorso; `telefono` copre anche il select durata a16px.
+
 ### POST `/api/search/save`
 Public save-search endpoint for the apartments discovery page. Body
 `{ email, label?, criteria{q,budgetMax,moveIn,moveOut,durationMonths,beds,baths,furnished,video,
