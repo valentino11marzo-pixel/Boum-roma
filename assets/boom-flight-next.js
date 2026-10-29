@@ -126,7 +126,27 @@
   }
   function openDialog(dialog,opener){lastOpener=opener||document.activeElement;dialog.showModal();}
   function editStay(opener){byId('nextDialogIn').value=state.stay.moveIn||'';byId('nextDialogOut').value=state.stay.moveOut||'';byId('nextDialogPeople').value=state.people;byId('nextDialogError').hidden=true;openDialog(byId('nextStayDialog'),opener);}
-  function guide(opener){var mount=byId('nextGuideMount');if(!mount.firstChild){var frame=document.createElement('iframe');frame.title='Your Rome — find my balance';frame.src=S.withIntent('/skyline?guide=1'+(state.budget?'&budget='+state.budget:'')+(opener&&opener.dataset.place?'&place='+encodeURIComponent(opener.dataset.place):''),state.stay);mount.appendChild(frame);}openDialog(byId('nextGuideDialog'),opener);}
+  function guide(opener){
+    var mount=byId('nextGuideMount');
+    if(!mount.firstChild){
+      var frame=document.createElement('iframe');frame.title='Your Rome — find my balance';
+      frame.src=S.withIntent('/skyline?guide=1'+(state.budget?'&budget='+state.budget:'')+(opener&&opener.dataset.place?'&place='+encodeURIComponent(opener.dataset.place):''),state.stay);
+      frame.addEventListener('load',function(){
+        try{
+          var doc=frame.contentDocument;if(!doc||frame.contentWindow.location.origin!==location.origin)return;
+          var style=doc.createElement('style');style.textContent='#skyGuideClose{display:none!important}';doc.head.appendChild(style);
+          doc.addEventListener('keydown',function(e){if(e.key==='Escape'){e.preventDefault();e.stopImmediatePropagation();byId('nextGuideDialog').close();}},true);
+          doc.addEventListener('click',function(e){
+            var a=e.target.closest('a[href]');if(!a||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return;
+            var target=new URL(a.href,location.origin),match=target.pathname.match(/^\/listing\/([A-Za-z0-9_-]+)$/);
+            if(target.origin===location.origin&&match&&getHome(match[1])){e.preventDefault();byId('nextGuideDialog').close();navigate('detail',match[1]);}
+          });
+        }catch(_){/* External service pages keep their own native navigation. */}
+      });
+      mount.appendChild(frame);
+    }
+    M.hide();openDialog(byId('nextGuideDialog'),opener);
+  }
   function photos(index,opener){var c=getHome(state.home);if(!c||!c.images.length)return;var mount=byId('nextFullPhotos');mount.innerHTML=c.images.map(function(src,i){return '<figure><img src="'+esc(src)+'" alt="'+esc(c.name)+' — photo '+(i+1)+'" loading="lazy"><figcaption>'+String(i+1).padStart(2,'0')+' / '+String(c.images.length).padStart(2,'0')+' · '+esc(c.name)+'</figcaption></figure>';}).join('');openDialog(byId('nextPhotoDialog'),opener);mount.scrollLeft=Math.min(index,c.images.length-1)*mount.clientWidth;}
   function updateFilters(){commit(true);syncControls();renderResults();}
   function resetFilters(){state.budget='';state.type='';state.saved=false;updateFilters();}
@@ -167,7 +187,7 @@
   byId('nextStayForm').addEventListener('submit',function(e){e.preventDefault();var requested={moveIn:byId('nextDialogIn').value,moveOut:byId('nextDialogOut').value},error=S.validate(requested);byId('nextDialogError').hidden=!error;if(error){byId('nextDialogError').textContent=error.message;byId(error.field==='moveIn'?'nextDialogIn':'nextDialogOut').focus();return;}state.stay=S.normalize(requested);state.people=byId('nextDialogPeople').value;commit(true);syncControls();if(state.view==='detail')renderDetail();byId('nextStayDialog').close();});
   byId('nextClearDates').addEventListener('click',function(){state.stay=S.normalize();commit(true);syncControls();if(state.view==='detail')renderDetail();byId('nextStayDialog').close();});
   byId('nextMotionToggle').addEventListener('click',function(e){var b=e.currentTarget,paused=b.getAttribute('aria-pressed')!=='true';b.setAttribute('aria-pressed',String(paused));b.innerHTML=paused?'Resume motion <span aria-hidden="true">▷</span>':'Pause motion <span aria-hidden="true">Ⅱ</span>';if(window.BoomFlightNextMotion)window.BoomFlightNextMotion.setPaused(paused);});
-  document.querySelectorAll('dialog').forEach(function(dialog){dialog.addEventListener('close',function(){if(dialog.id==='nextGuideDialog')byId('nextGuideMount').replaceChildren();if(lastOpener&&lastOpener.isConnected)lastOpener.focus({preventScroll:true});});});
+  document.querySelectorAll('dialog').forEach(function(dialog){dialog.addEventListener('close',function(){if(dialog.id==='nextGuideDialog'){byId('nextGuideMount').replaceChildren();if(state.view==='home')M.mount(byId('nextHomeMap'));else if(state.view==='apartments'&&state.layout==='skyline')M.mount(byId('nextApartmentsMap'));}if(lastOpener&&lastOpener.isConnected)lastOpener.focus({preventScroll:true});});});
   window.addEventListener('popstate',function(){readURL();showPage(true);});
   window.addEventListener('storage',function(e){if(e.key==='boomSalvate'){syncSaved();if(state.view==='apartments'&&state.saved)renderResults();}});
   window.addEventListener('focus',syncSaved);
