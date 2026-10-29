@@ -9,7 +9,8 @@ const RULES = (await import('../../js/smartlink-engine.js')).default;
 const PHOTO = (await import('../../js/smartlink-photo.js')).default;
 const { toFsFields } = await import('../../api/homie/_lib.js');
 const { default: extract } = await import('../../api/smartlink/extract.js');
-const { parseSmartLinkPage } = await import('../../api/smartlink/_extract.js');
+const { parseSmartLinkPage, extractListing } = await import('../../api/smartlink/_extract.js');
+const { parseListing } = await import('../../api/pfs/_fetch.js');
 const { default: importPhoto } = await import('../../api/smartlink/import-photo.js');
 const { default: create } = await import('../../api/smartlink/create.js');
 const { default: read } = await import('../../api/smartlink/read.js');
@@ -125,6 +126,104 @@ try {
   assert.deepEqual(subitoParsed.images,[subitoPhoto,subitoPhoto2].map(url=>url+'?rule=fullscreen-1x-auto'),'Gallery variants deduplicate; recommendation photos excluded');
   const noGallery=parseSmartLinkPage(subitoHtml.replace(/<figure\b[\s\S]*?<\/figure>/g,'').replace(/<section\b[\s\S]*?<\/section>/g,''),subitoUrl);
   assert.deepEqual(noGallery.images,[]);assert.equal(noGallery.data.sqm,null);assert.equal(noGallery.data.rooms,null);
+
+  const schemaUrl='https://www.idealista.it/immobile/123456789/';
+  const schemaPhoto='https://img.idealista.it/photo.jpg';
+  const schema=price=>JSON.stringify({'@type':'Apartment',name:'Bilocale strutturato',offers:{price},floorSize:{value:55},numberOfRooms:2,image:[schemaPhoto]});
+  const schemaHtml=(price,attrs='type="application/ld+json"')=>`<script ${attrs}>${schema(price)}</script>`;
+  function verifyStructuredParser(parse) {
+    assert.deepEqual(parse(schemaHtml('1500.00'),schemaUrl).data,{title:'Bilocale strutturato',price:1500,sqm:55,rooms:2});
+    for(const attrs of ['id="listing" type="application/ld+json"','type = \'application/ld+json\' nonce="fixture"',
+      'TYPE="APPLICATION/LD+JSON"','type=application/ld+json','data-note="a > b" type="application/ld+json"']) {
+      const result=parse(schemaHtml('1500.00',attrs),schemaUrl);
+      assert.equal(result.data.price,1500,'Other attributes must not hide the listing JSON-LD');
+      assert.deepEqual(result.images,[schemaPhoto]);
+    }
+    for(const attrs of ['data-type="application/ld+json"','type="application/json"',
+      'data-note="type=\'application/ld+json\'"','type="application/json" type="application/ld+json"']) {
+      assert.equal(parse(schemaHtml('1500.00',attrs),schemaUrl).data.price,null,'Only the real first type attribute authorizes JSON-LD parsing');
+    }
+  }
+  verifyStructuredParser(parseSmartLinkPage);
+  for(const [input,expected] of [[1500,1500],[1500.5,1500.5],['1500.00',1500],[' 1500.50 ',1500.5],['1.200',1.2]]) {
+    // PFS retains decimal precision; SmartLink retains its existing integer display contract.
+    assert.equal(parseListing(schemaHtml(input),schemaUrl).price,expected);
+    assert.equal(parseSmartLinkPage(schemaHtml(input),schemaUrl).data.price,Math.round(expected));
+  }
+  for(const input of [null,true,false,0,-1200,'-1200','1.200,50','1500 euro',['1500'],{value:1500}]) {
+    assert.equal(parseListing(schemaHtml(input),schemaUrl).price,null,'Ambiguous structured prices are not converted by deleting punctuation');
+    assert.equal(parseSmartLinkPage(schemaHtml(input),schemaUrl).data.price,null);
+    assert.equal(parseListing(schemaHtml(input)+'<p>€ 900</p>',schemaUrl).price,900,'The existing visible-price fallback remains available');
+  }
+  const fallback='<h1>Casa visibile</h1><p>€ 1.500 · 55 m² · 2 locali</p>';
+  assert.deepEqual(parseSmartLinkPage('<script type="application/ld+json">not JSON</script>'+fallback,schemaUrl).data,
+    {title:'Casa visibile',price:1500,sqm:55,rooms:2});
+  const pfsFallback=parseListing(fallback,schemaUrl);
+  assert.equal(pfsFallback.bedrooms,2);assert.equal(pfsFallback.sourceUrl,schemaUrl);
+
+  async function verifyRedirects(read) {
+    const priorFetch=globalThis.fetch;
+    const attempt=async(start,location,allowed,status=302)=>{
+      const calls=[];
+      globalThis.fetch=async(input,opts)=>{
+        assert.equal(opts.redirect,'manual');calls.push(String(input));
+        return calls.length===1?new Response('',{status,headers:location?{location}:{}}):
+          new Response(schemaHtml('1900.00'),{headers:{'content-type':'text/html'}});
+      };
+      const result=await read(start);
+      assert.equal(result.source.url,start);
+      if(allowed) {
+        assert.equal(result.status,'partial');assert.equal(result.data.price,1900);
+        assert.deepEqual(calls,[start,RULES.normalizeUrl(new URL(location,start).href).url]);
+      } else {
+        assert.equal(result.status,'unavailable');assert.equal(result.data,undefined);assert.equal(result.images,undefined);
+        assert.deepEqual(calls,[start],'A changed listing must be rejected before fetching its page');
+      }
+    };
+    try {
+      await attempt(schemaUrl,'/immobile/987654321/',false);
+      await attempt(schemaUrl,'https://www.immobiliare.it/annunci/123456789/',false);
+      await attempt(schemaUrl,'https://www.idealista.it/affitto-case/roma/',false);
+      await attempt(schemaUrl,'https://m.idealista.it/immobile/123456789/',false);
+      await attempt(schemaUrl,'https://user:pass@www.idealista.it/immobile/123456789/',false);
+      await attempt(schemaUrl,'https://www.idealista.it:8443/immobile/123456789/',false);
+      await attempt(schemaUrl,'https://idealista.it.evil.example/immobile/123456789/',false);
+      await attempt(schemaUrl,null,false);
+      await attempt(schemaUrl,null,false,403);
+      for(const [start,next] of [
+        [schemaUrl,'https://idealista.it/immobile/123456789'],
+        ['https://immobiliare.it/annunci/123456789','https://www.immobiliare.it/annunci/123456789/'],
+        ['https://www.casa.it/immobili/123456789/','https://casa.it/immobili/123456789'],
+        [subitoUrl,subitoUrl.replace('www.subito.it','subito.it')],
+        ['https://it.casafari.com/estate/sharepage/test/23310686611','?utm_source=share'],
+      ]) await attempt(start,next,true);
+    } finally {globalThis.fetch=priorFetch;}
+  }
+  await verifyRedirects(extractListing);
+
+  // Mutations execute the real parser/extractor with the same assertions; no
+  // source requests and no product files rewritten during the test.
+  const extractorURL=new URL('../../api/smartlink/_extract.js',import.meta.url);
+  const parserURL=new URL('../../api/pfs/_fetch.js',import.meta.url);
+  const extractorCode=readFileSync(extractorURL,'utf8');
+  const parserCode=readFileSync(parserURL,'utf8');
+  const dataModule=code=>'data:text/javascript,'+encodeURIComponent(code);
+  const loadExtractor=async(code,pfsURL=parserURL.href)=>import(dataModule(code
+    .replace("'../../js/smartlink-engine.js'",JSON.stringify(new URL('../../js/smartlink-engine.js',import.meta.url).href))
+    .replace("'../pfs/_fetch.js'",JSON.stringify(pfsURL))));
+  const mutate=(code,before,after)=>{assert.ok(code.includes(before),'Mutation target must exist');return code.replace(before,after);};
+  const badPrice=mutate(parserCode,'if (Number.isFinite(price) && price > 0) out.price = price;',
+    "if (rawPrice) out.price = parseInt(String(rawPrice).replace(/\\D/g, ''), 10);");
+  const badTag=mutate(parserCode,
+    "if (!type || (type[2] ?? type[3] ?? type[4] ?? '').trim().toLowerCase() !== 'application/ld+json') continue;",
+    "if (attrs !== ' type=\"application/ld+json\"') continue;");
+  for(const code of [badPrice,badTag]) {
+    const mutant=await loadExtractor(extractorCode,dataModule(code));
+    assert.throws(()=>verifyStructuredParser(mutant.parseSmartLinkPage),{code:'ERR_ASSERTION'});
+  }
+  const badRedirect=mutate(extractorCode,'if (!next || !sameRedirectListing(startUrl,next.url)) return null;','if (!next) return null;');
+  const redirectMutant=await loadExtractor(badRedirect);
+  await assert.rejects(()=>verifyRedirects(redirectMutant.extractListing),{code:'ERR_ASSERTION'});
   assert.equal(EXT.canonical('https://www.immobiliare.it/annunci/124483437/?utm=x#foto20'),'https://www.immobiliare.it/annunci/124483437/');
   const oldDom=globalThis.document;
   globalThis.document={ images:[
