@@ -64,23 +64,29 @@
     <priority>0.88</priority>
   </url>
   <url>
+    <loc>https://www.boomrome.com/istanbul</loc>
+    <lastmod>2026-10-25</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <!-- LE CITTÀ (20/10/2026, Barcellona dal 22/10): solo i desk live:true di build-cities.mjs.
          Parigi e Berlino restano bozze noindex: entrano qui il
          giorno in cui il loro JSON passa a live:true. -->
     <loc>https://www.boomrome.com/amsterdam</loc>
-    <lastmod>2026-10-22</lastmod>
+    <lastmod>2026-10-26</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.85</priority>
   </url>
   <url>
     <loc>https://www.boomrome.com/barcelona</loc>
-    <lastmod>2026-10-22</lastmod>
+    <lastmod>2026-10-26</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.85</priority>
   </url>
   <url>
     <loc>https://www.boomrome.com/madrid</loc>
-    <lastmod>2026-10-22</lastmod>
+    <lastmod>2026-10-26</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.85</priority>
   </url>
@@ -332,7 +338,7 @@
   </url>
   <url>
     <loc>https://www.boomrome.com/privacy</loc>
-    <lastmod>2026-10-22</lastmod>
+    <lastmod>2026-10-26</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.30</priority>
   </url>

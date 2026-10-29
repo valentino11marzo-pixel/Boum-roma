@@ -148,6 +148,36 @@ check('volo: bmCode è derivato e deterministico',
   SC.bmCode('a1B2c3d4e5') === 'BM A1B2' && SC.bmCode('a1B2c3d4e5') === SC.bmCode('a1B2c3d4e5'));
 check('volo: senza id niente numero', SC.bmCode('') === null && SC.bmCode(null) === null);
 
+/* ── il numero di fascicolo dei desk città (v1.4): fileCode, FNV-1a sull'id intero ── */
+const FILE_RE = /^BM [A-HJ-NP-Z2-9]{5}$/;
+check('fascicolo: "BM " + 5 caratteri dall\'alfabeto senza I/O/0/1, deterministico',
+  FILE_RE.test(SC.fileCode('city_abcd1234xyz')) && SC.fileCode('city_abcd1234xyz') === SC.fileCode('city_abcd1234xyz')
+  && SC.FILE_ALPHABET === 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789');
+// vettori FNV-1a 32 bit di riferimento (fnv1a("a") = 0xe40c292c, fnv1a("foobar") = 0xbf9cf968),
+// ridotti a mano coi 5 prelievi h & 31: il codice È FNV-1a, non un hash qualsiasi
+check('fascicolo: è FNV-1a 32 bit (vettori di riferimento "a" e "foobar")',
+  SC.fileCode('a') === 'BM NKL2A' && SC.fileCode('foobar') === 'BM JM833');
+check('fascicolo: senza id niente numero', SC.fileCode('') === null && SC.fileCode(null) === null && SC.fileCode(undefined) === null);
+check('fascicolo: id quasi identici danno numeri diversi (l\'ultimo carattere conta)',
+  SC.fileCode('city_abcdefgh1') !== SC.fileCode('city_abcdefgh2') && SC.fileCode('svc_cslivea1') !== SC.fileCode('svc_cslivea2'));
+{
+  // mille id col lungo prefisso comune che la pagina genera davvero
+  // (Date.now in base 36 + coda casuale): nessuna collisione
+  const seen = new Set(); let lcg = 12345; const ts = (1792627200000).toString(36);
+  for (let i = 0; i < 1000; i++) {
+    lcg = (Math.imul(lcg, 1103515245) + 12345) >>> 0;
+    seen.add(SC.fileCode('city_' + ts + lcg.toString(36).padStart(7, '0')));
+  }
+  const seq = new Set(); for (let i = 0; i < 1000; i++) seq.add(SC.fileCode('city_' + ts + String(i).padStart(8, '0')));
+  check('fascicolo: 1.000 id con lo stesso prefisso (un timestamp) non collidono — né casuali né in sequenza',
+    seen.size === 1000 && seq.size === 1000 && [...seen].every((c) => FILE_RE.test(c)));
+}
+check('fascicolo: bmCode delle visite non cambia (i primi 4 caratteri, come prima)',
+  SC.bmCode('city_abcd1234xyz') === 'BM CITY' && SC.fileCode('city_abcd1234xyz') !== SC.bmCode('city_abcd1234xyz'));
+const scaloSrc = readFileSync(new URL('../../js/scalo-codes.js', import.meta.url), 'utf8');
+check('fascicolo: il file dichiara il soprannome — MAI una chiave di ricerca',
+  /MAI una chiave/.test(scaloSrc) && /fileCode: fileCode/.test(scaloSrc));
+
 /* ── viewing.html (W1): il flight status dice solo ciò che è vero ──────── */
 
 check('viewing: carica il lessico condiviso',

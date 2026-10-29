@@ -18,7 +18,7 @@ import { fmtViewingCard, viewingKeyboard } from './_viewings.js';
 import { loadViewing } from '../viewings/_apply.js';
 import { replyLang } from '../_lang.js';
 import { pendingNewLeads } from '../leads/_fresh.js';
-import { isReunion, reunionReplyText, isB2B, b2bSide, b2bReplyText, isCityMarket, cityMarketOf, cityLabel, cityReplyText, cityPhone } from '../_market.js';
+import { isReunion, reunionReplyText, isB2B, b2bSide, b2bReplyText, isCityMarket, cityMarketOf, cityLabel, cityReplyText, cityPhone, originOf } from '../_market.js';
 
 const MAX_PER_RUN = 10; // cap so a backlog doesn't spam Telegram
 const esc = s => String(s || '').replace(/[&<>]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[c]));
@@ -202,6 +202,10 @@ export default async function handler(req, res) {
       const src = isReunion(l) ? '🇷🇪 La Réunion'
         : isCityMarket(l) ? cityLabel(l)
         : isB2B(l) ? (b2bSide(l) === 'owner' ? '🔑 proprietario' : '🏢 ente / azienda')
+        // Un inquilino di Roma che arriva da İstanbul (/istanbul): la porta
+        // resta scritta anche quando il brief del Brain sostituisce il
+        // messaggio, e la macchina di Roma lo lavora al completo.
+        : originOf(l) ? `${originOf(l).flag} ${esc(originOf(l).label)}${String(l.source || '') === 'whatsapp' ? ' · 💬 WhatsApp' : ''}`
         : String(l.source || '') === 'whatsapp' ? '💬 ti ha scritto su WhatsApp'
         : esc(l.source || '?');
       const head = l.grade

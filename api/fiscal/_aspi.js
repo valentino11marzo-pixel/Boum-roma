@@ -46,7 +46,8 @@
 //   - 'registered' non si degrada: registrationStatus passa a 'sent' solo
 //     da pending/assente.
 
-import { fsGet, fsCreate, fsPatch, fsList } from '../homie/_lib.js';
+import { fsGet, fsCreate, fsPatch, fsList, fsGetVersioned, fsCommit } from '../homie/_lib.js';
+import { externalTermsValid } from '../contracts/_external.js';
 import { sendEmail } from '../agent/_lib.js';
 import { shell, row, para, fine } from '../preagreement/_notify.js';
 import { buildFascicolo } from './fascicolo.js';
@@ -212,13 +213,15 @@ export function aspiChecklist(contract, property, kind) {
   const items = [];
   const push = (key, label, state, url, hint) => items.push({ key, label, state, url: url || '', hint: hint || '' });
 
-  const contractUrl = c.signedPdfUrl || c.generatedPDF || '';
-  if (c.signedPdfUrl) push('contratto', 'Contratto firmato (PDF con firme)', 'ok', c.signedPdfUrl);
-  else if (c.generatedPDF) push('contratto', 'Contratto (PDF non firmato digitalmente)', 'warn', c.generatedPDF,
-    'firma su carta? il PDF allegato è senza firme — se hai la scansione firmata mandala in risposta alla stessa email');
-  else push('contratto', 'Contratto (PDF)', 'missing', '',
-    'genera il PDF dalla riga contratto (🔄 Rigenera PDF) — senza contratto la richiesta NON parte');
+  const contractUrl = c.signedPdfUrl || '';
+  push('contratto', 'Contratto definitivo firmato', contractUrl ? 'ok' : 'missing', contractUrl,
+    contractUrl ? '' : 'Completa Magic Sign oppure carica qui il contratto firmato esternamente. La bozza non si invia.');
   items[items.length - 1].blocking = !contractUrl;
+
+  if (c.externalSignedDocument) {
+    push('scheda_canone','Scheda di calcolo canone',c.schedaCanoneUrl?'ok':'missing',c.schedaCanoneUrl,'Al referente partono solo il definitivo firmato e questa scheda. Gli altri documenti restano nel pacchetto interno.');
+    return items;
+  }
 
   push('id_conduttore', 'Documento identità conduttore', idTenant.length ? 'ok' : 'missing', idTenant[0] && idTenant[0].url,
     idTenant.length ? '' : 'manda al conduttore il suo link /scheda (Share Hub) — upload con OCR');
@@ -315,7 +318,7 @@ export function buildAspiEmail({ contract, property, kind, checklist, settings, 
 }
 
 // ── Allegati (best-effort, budget 18MB — i link nel corpo restano) ───────
-async function fetchAttachment(url, filename, contentType) {
+async function fetchAttachment(url, filename, contentType, maxBytes = 8 * 1024 * 1024) {
   if (!url) return null;
   try {
     const r = await Promise.race([
@@ -324,7 +327,7 @@ async function fetchAttachment(url, filename, contentType) {
     ]);
     if (!r || !r.ok) return null;
     const content = Buffer.from(await r.arrayBuffer());
-    if (!content.length || content.length > 8 * 1024 * 1024) return null;
+    if (!content.length || content.length > maxBytes) return null;
     return contentType ? { filename, content, contentType } : { filename, content };
   } catch (e) { console.warn('[aspi] attachment', filename, e.message); return null; }
 }
@@ -421,6 +424,10 @@ export async function sendAspiRequest(contractId, opts = {}) {
   const property = (opts.preloaded && opts.preloaded.property)
     || (contract.propertyId ? await fsGet('properties/' + contract.propertyId).catch(() => null) : null) || {};
 
+  if (!externalTermsValid(contract,property)) return {ok:false,error:'signed_terms_changed'};
+  const external = !!contract.externalSignedDocument;
+  if (external && contract.registrationStatus==='registered') return {ok:false,error:'already_registered'};
+
   // I documenti d'identità anche dai profili delle parti (api/sign/_iddocs.js).
   contract.identityDocs = (await withProfileDocs(contract, property)).identityDocs || contract.identityDocs;
   const ov = opts.overrides || {};
@@ -452,7 +459,7 @@ export async function sendAspiRequest(contractId, opts = {}) {
   // Per l'asseverazione la scheda di calcolo È il fascicolo fiscale: se
   // manca si genera QUI (best-effort — senza zona/mq il PDF nasce comunque
   // con le pagine RLI e la checklist lo dichiara).
-  if (wantsAss && !contract.fascicoloFiscaleUrl) {
+  if ((wantsAss || external) && !contract.schedaCanoneUrl) {
     try {
       const fasc = await buildFascicolo(contractId, { contract, property });
       if (fasc && fasc.ok) { contract.fascicoloFiscaleUrl = fasc.url; if (fasc.schedaUrl) contract.schedaCanoneUrl = fasc.schedaUrl; }
@@ -466,17 +473,21 @@ export async function sendAspiRequest(contractId, opts = {}) {
 
   // ── Allegati: contratto, certificato, identità (+ asseverazione set) ──
   const wanted = [];
-  wanted.push([contract.signedPdfUrl || contract.generatedPDF, 'BOOM_Contratto' + (contract.signedPdfUrl ? '_firmato' : '') + '.pdf', 'application/pdf']);
-  if (contract.signingCertificateUrl) wanted.push([contract.signingCertificateUrl, 'BOOM_Certificato_firma_FES.pdf', 'application/pdf']);
+  wanted.push([contract.signedPdfUrl, 'BOOM_Contratto' + (contract.signedPdfUrl ? '_firmato' : '') + '.pdf', 'application/pdf']);
+  if (!external && contract.signingCertificateUrl) wanted.push([contract.signingCertificateUrl, 'BOOM_Certificato_firma_FES.pdf', 'application/pdf']);
   const docs = (Array.isArray(contract.identityDocs) ? contract.identityDocs : []).filter(d => d && d.url);
   const seen = new Set();
   let idN = 0, exN = 0;
-  for (const d of docs.slice(0, 8)) {
+  for (const d of (external ? [] : docs.slice(0, 8))) {
     if (seen.has(d.url)) continue; seen.add(d.url);
     if (d.kind === 'extra') { exN++; wanted.push([d.url, 'Attestazione_esigenza_' + exN + extOf(d.url, '.pdf'), null]); }
     else { idN++; wanted.push([d.url, 'Documento_' + (d.role === 'landlord' ? 'locatore' : 'conduttore') + '_' + idN + '_' + safeName(d.name || 'id') + extOf(d.url, '.jpg'), null]); }
   }
-  if (wantsAss) {
+  if (external) {
+    if (!contract.schedaCanoneUrl) return {ok:false,error:'scheda_required'};
+    wanted.push([contract.schedaCanoneUrl,'BOOM_Scheda_calcolo_canone_ARPE.pdf','application/pdf']);
+  }
+  if (wantsAss && !external) {
     // Ad ARPE va la scheda DA SOLA (Allegato 2/B); il fascicolo intero solo
     // per i contratti nati prima che la scheda avesse il suo PDF.
     const schedaHref = contract.schedaCanoneUrl || contract.fascicoloFiscaleUrl;
@@ -492,14 +503,32 @@ export async function sendAspiRequest(contractId, opts = {}) {
   let budget = 18 * 1024 * 1024;
   for (const [url, name, ct] of wanted) {
     if (budget <= 0) break;
-    const att = await fetchAttachment(url, name, ct);
+    const att = await fetchAttachment(url, name, ct, external ? 15 * 1024 * 1024 : undefined);
     if (att && att.content.length <= budget) { attachments.push(att); budget -= att.content.length; }
+  }
+
+  if (!attachments.some(a=>a.filename === wanted[0][1]) || (external && attachments.length !== 2)) {
+    return {ok:false,error:'required_attachment_unavailable',checklist};
   }
 
   const { subject, html } = buildAspiEmail({
     contract, property, kind, checklist, settings,
     note: clip(opts.note, 500), attachedNames: attachments.map(a => a.filename),
   });
+
+  // An external-contract retry cannot send twice after a lost HTTP response.
+  let cafClaim = null;
+  if (external) {
+    const v = await fsGetVersioned('contracts/'+contractId);
+    if (!v || v.data.externalSignedDocument?.sha256 !== contract.externalSignedDocument.sha256 || !externalTermsValid(v.data,property)) return {ok:false,error:'signed_terms_changed'};
+    if (v.data.registrationStatus==='registered') return {ok:false,error:'already_registered'};
+    const old = v.data.registrationCafDelivery;
+    if (old?.status === 'sent') return {ok:true,duplicate:true,kind:old.kind||kind,to:old.to,attachments:old.attachments||[],missing:[],invoice:null};
+    if (old) return {ok:false,error:'caf_delivery_uncertain'};
+    cafClaim = {status:'sending',kind,to:settings.email,at:new Date().toISOString(),signedHash:contract.externalSignedDocument.sha256,attachments:attachments.map(a=>a.filename)};
+    try { await fsCommit([{docPath:'contracts/'+contractId,fields:{registrationCafDelivery:cafClaim},precondition:{updateTime:v.updateTime}}]); }
+    catch(e) { if(e.conflict)return {ok:false,error:'caf_delivery_uncertain'}; throw e; }
+  }
 
   // Operatore SEMPRE in copia: l'email È il registro dell'invio.
   const cc = [ADMIN_EMAIL, settings.cc].filter(Boolean).join(', ');
@@ -509,6 +538,7 @@ export async function sendAspiRequest(contractId, opts = {}) {
       new Promise((_, rej) => setTimeout(() => rej(new Error('email_timeout')), 25000)),
     ]);
   } catch (e) {
+    if (cafClaim) await fsPatch('contracts/'+contractId,{registrationCafDelivery:{...cafClaim,status:'uncertain'}}).catch(()=>{});
     console.warn('[aspi] send failed:', e.message);
     return { ok: false, error: 'email_failed', detail: e.message, checklist };
   }
@@ -517,6 +547,7 @@ export async function sendAspiRequest(contractId, opts = {}) {
 
   // ── Stato sul contratto (i badge Burocrazia leggono registrationStatus) ─
   const patch = {
+    ...(cafClaim ? {registrationCafDelivery:{...cafClaim,status:'sent'}} : {}),
     aspiRequestedAt: new Date().toISOString(),
     aspiRequestKind: kind,
     aspiRequestTo: settings.email,
@@ -526,7 +557,18 @@ export async function sendAspiRequest(contractId, opts = {}) {
   if (kind !== 'asseverazione' && contract.registrationStatus !== 'registered') {
     patch.registrationStatus = 'sent';
   }
-  try { await fsPatch('contracts/' + contractId, patch); } catch (e) { console.warn('[aspi] patch:', e.message); }
+  if (external) {
+    let saved=false;
+    for (let n=0;n<4&&!saved;n++) {
+      const v=await fsGetVersioned('contracts/'+contractId);
+      if (!v || v.data.registrationCafDelivery?.status!=='sending') break;
+      const fields={...patch,aspiRequestCount:(Number(v.data.aspiRequestCount)||0)+1};
+      if (v.data.registrationStatus==='registered') delete fields.registrationStatus;
+      try {await fsCommit([{docPath:'contracts/'+contractId,fields,precondition:{updateTime:v.updateTime}}]);saved=true;}
+      catch(e){if(!e.conflict)break;}
+    }
+    if(!saved)return {ok:false,error:'caf_delivery_uncertain'};
+  } else try { await fsPatch('contracts/' + contractId, patch); } catch (e) { console.warn('[aspi] patch:', e.message); }
 
   // ── La fattura col markup (idempotente: una pratica, una fattura) ─────
   const bill = opts.bill !== undefined ? !!opts.bill : settings.autoInvoice;

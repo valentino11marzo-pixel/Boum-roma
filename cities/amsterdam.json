@@ -6,6 +6,7 @@
   "live": true,
   "mode": "search",
   "config": {},
+  "updated": "2026-10-26",
   "meta": {
     "title": "Tenant-side rental agent for expats in Amsterdam — BOOM",
     "description": "Apartment search for expats in Amsterdam, tenant side only: a Dutch-format dossier, applications sent as listings appear, viewings attended, contract checked.",
@@ -18,386 +19,96 @@
     "audience": "Expats and internationals relocating to Amsterdam",
     "description": "Rental search in Amsterdam on the tenant's side only: Dutch-format application dossier within one working day of the tenant's papers, applications sent as listings appear, attended viewings with live video and written report, negotiation of rent, deposit and service costs, contract check against Dutch law, BRP registration confirmed in writing. Flat fees paid by the tenant, nothing from landlords or platforms."
   },
-  "nav": {
-    "how": "How it works",
-    "services": "Services",
-    "checks": "Before you sign",
-    "faq": "FAQ",
-    "desk": "tenant side"
-  },
   "hero": {
     "h1Before": "Your home in",
-    "lead": "Found by someone on your side. Three taps say which service fits, and what it costs."
-  },
-  "form": {
-    "name": {
-      "label": "Your name",
-      "placeholder": "Anna Keller"
-    },
-    "email": {
-      "label": "Email",
-      "placeholder": "anna@company.com"
-    },
-    "moveIn": {
-      "label": "Move-in",
-      "unsure": "Not sure yet"
-    },
-    "budget": {
-      "label": "Monthly budget"
-    },
-    "budgetOptions": [
-      "Under €1,500",
-      "€1,500 – €2,000",
-      "€2,000 – €2,500",
-      "€2,500 – €3,500",
-      "€3,500+"
-    ],
-    "service": {
-      "label": "Service",
-      "none": "Which service? Three taps tell you ↑",
-      "from": "from your check-in",
-      "change": "change",
-      "unsure": "Not sure yet",
-      "unsureSub": "advise me"
-    },
-    "more": "More details (optional)",
-    "phone": {
-      "label": "Phone or WhatsApp",
-      "placeholder": "+31 …",
-      "sub": "optional"
-    },
-    "situation": {
-      "label": "Who's moving",
-      "placeholder": "Couple, relocating with employer"
-    },
-    "areas": {
-      "label": "Neighbourhoods",
-      "placeholder": "De Pijp, Oud-West, Jordaan…"
-    },
-    "message": {
-      "label": "Anything else",
-      "placeholder": "Start date, pets, parking, a listing you already found…"
-    },
-    "consentLead": "Used only to reply to you —",
-    "consentAlt": "Prefer WhatsApp or email?",
-    "sentBefore": "Your file is",
-    "sentEm": "open.",
-    "errors": {
-      "name": "Your name, so we know who we're writing to.",
-      "contact": "An email or a number — otherwise we can't reply.",
-      "email": "That email looks incomplete — could you check it?",
-      "net": "The send failed on our side. Try again, or email us directly at hello@boom-rome.com."
-    },
-    "sending": "Opening your file…",
-    "sentNext": [
-      [
-        "{when}",
-        "Valentino writes back by email, or WhatsApp if you left a number."
-      ],
-      [
-        "Nothing to prepare",
-        "We tell you on the call what papers matter."
-      ],
-      [
-        "Nothing by then?",
-        "Write to {email}."
-      ]
-    ],
-    "sentWhenDefault": "Same working day"
-  },
-  "how": {
-    "num": "01 — HOW IT WORKS",
-    "h2": "From the first call",
-    "h2g": "to the keys.",
-    "steps": [
-      {
-        "k": "1 · Brief",
-        "v": "A free call",
-        "s": "Budget, move-in date, neighbourhoods, who's moving, how your income reads on paper. We tell you what your budget buys today."
-      },
-      {
-        "k": "2 · Dossier & applications",
-        "v": "Dutch-format, one working day",
-        "s": "Income proof, employer statement, ID, references, motivation letter in Dutch and English. Then we apply as listings go live."
-      },
-      {
-        "k": "3 · Viewing & contract",
-        "v": "A BOOM person in the room",
-        "s": "Live video walkthrough and a written report. Rent, deposit, service costs and contract type checked against Dutch law before you sign. Then keys and BRP."
-      }
-    ]
+    "lead": "We search, apply, attend the viewings and check the lease.",
+    "leadStrong": "We work exclusively for you; never paid by landlords.",
+    "faresHead": {
+      "b": "Flat fees",
+      "span": "No percentage of your rent"
+    }
   },
   "pricing": {
-    "num": "02 — SERVICES & FEES",
-    "h2": "Flat fees.",
-    "h2g": "No percentage of your rent.",
-    "sub": "You pay for the work, and only you pay. VAT included.",
     "plans": [
       {
         "id": "full-search",
         "label": "Full Search",
-        "se": "Full Search · end to end",
         "name": "We search. You choose.",
+        "price": 500,
+        "condition": "flat · incl. VAT",
+        "conditionLong": "VAT included. Invoice from Egidi Immobiliare S.r.l.",
         "includes": [
           "Every working day: Pararius, Funda, agencies",
-          "Applications as listings appear",
+          "Motivation letter, applications as listings appear",
           "One attended viewing (more: €149 each)",
           "Rent negotiated, contract checked, BRP supported",
           "Until you sign, or you say stop"
         ],
-        "price": 500,
-        "featured": true,
-        "offerDescription": "Search, Dutch-format dossier, applications as listings appear, one attended viewing, negotiation and contract check, until the tenant signs or stops the search.",
-        "condition": "flat · incl. VAT",
-        "conditionLong": "VAT included. Invoice from Egidi Immobiliare S.r.l."
+        "offerDescription": "Search, Dutch-format dossier and motivation letter, applications as listings appear, one attended viewing, negotiation and contract check, until the tenant signs or stops the search.",
+        "when": "Haven't started yet"
       },
       {
         "id": "application-pack",
         "label": "Application Pack",
-        "se": "Application Pack",
         "name": "You search. We make you win.",
-        "text": "The paperwork that wins Dutch applications.",
+        "price": 199,
+        "condition": "flat · incl. VAT",
+        "conditionLong": "VAT included. Invoice from Egidi Immobiliare S.r.l.",
         "includes": [
           "Dutch-format dossier, one working day from your papers",
           "Motivation letter, Dutch + English",
           "Income and guarantor strategy",
           "Contract review before you sign"
         ],
-        "price": 199,
         "offerDescription": "Dutch-format rental dossier within one working day of your papers, motivation letter, income and guarantor strategy, contract review.",
-        "condition": "flat · incl. VAT",
-        "conditionLong": "VAT included. Invoice from Egidi Immobiliare S.r.l."
+        "when": "Found one, or shortlisted and already in Amsterdam"
       },
       {
         "id": "attended-viewing",
         "label": "Attended Viewing",
         "unit": "per viewing",
-        "se": "Attended Viewing",
         "name": "Eyes on the ground.",
-        "text": "Shortlisted, and still abroad? We go.",
+        "price": 149,
+        "condition": "per viewing · incl. VAT",
+        "conditionLong": "VAT included. Invoice from Egidi Immobiliare S.r.l.",
         "includes": [
           "A BOOM person attends in your place",
           "Live video walkthrough",
           "Written report: light, noise, damp, neighbours, commute",
           "A straight recommendation"
         ],
-        "price": 149,
         "offerDescription": "A BOOM person attends the viewing in your place, with live video and a written report.",
-        "condition": "per viewing · incl. VAT",
-        "conditionLong": "VAT included. Invoice from Egidi Immobiliare S.r.l."
+        "when": "Shortlisted, still abroad"
       }
-    ],
-    "note": "Pay by card on this page when you start; the invoice comes from Egidi Immobiliare S.r.l. No percentage of your rent. Nothing from landlords or platforms."
+    ]
   },
-  "checkin": {
-    "num": "Check-in · {n} of 3",
+  "stub": {
+    "notSure": "Not sure which fare? On a free call we say which fits, or that none does."
+  },
+  "how": {
+    "h2": "From the first call",
+    "h2g": "to the keys.",
     "steps": [
       {
-        "id": "stage",
-        "label": "Where are you in the search?",
-        "options": [
-          {
-            "id": "zero",
-            "t": "Haven't started",
-            "f": "you haven't started",
-            "code": "START"
-          },
-          {
-            "id": "shortlist",
-            "t": "I have a shortlist",
-            "f": "you have a shortlist",
-            "code": "SHORTLIST"
-          },
-          {
-            "id": "found",
-            "t": "Found one, need to apply",
-            "f": "you've found one and need to apply",
-            "code": "APPLYING"
-          }
-        ]
+        "k": "1 · Brief",
+        "h": "A free call",
+        "p": "Dates, budget, who's moving. We tell you what your budget buys today."
       },
       {
-        "id": "where",
-        "label": "Where are you right now?",
-        "options": [
-          {
-            "id": "abroad",
-            "t": "Still abroad",
-            "f": "you're still abroad",
-            "code": "ABROAD"
-          },
-          {
-            "id": "here",
-            "t": "Already in Amsterdam",
-            "f": "you're already in Amsterdam",
-            "code": "IN TOWN"
-          }
-        ]
+        "k": "2 · Your file",
+        "h": "Dutch-format, one working day",
+        "p": "Dossier and motivation letter from your papers. Applications as listings appear."
       },
       {
-        "id": "when",
-        "label": "When do you move in?",
-        "options": [
-          {
-            "id": "soon",
-            "t": "Within 4 weeks",
-            "f": "within four weeks",
-            "code": "T-4W"
-          },
-          {
-            "id": "months",
-            "t": "In 1–3 months",
-            "f": "in one to three months",
-            "code": "T-3M"
-          },
-          {
-            "id": "later",
-            "t": "Later, flexible",
-            "f": "later",
-            "code": "OPEN"
-          }
-        ]
+        "k": "3 · Viewing & lease",
+        "h": "A BOOM person in the room",
+        "p": "Live video and a written report. The contract checked against Dutch law before you sign."
       }
-    ],
-    "rules": [
-      {
-        "when": {
-          "stage": "zero"
-        },
-        "plan": "full-search",
-        "why": "Starting from zero: we search, apply, attend and check the contract — end to end."
-      },
-      {
-        "when": {
-          "stage": "found"
-        },
-        "plan": "application-pack",
-        "why": "You found it. What wins it is the file, in the Dutch format."
-      },
-      {
-        "when": {
-          "stage": "shortlist",
-          "where": "abroad"
-        },
-        "plan": "attended-viewing",
-        "why": "You chose, you're away: a BOOM person goes, films it live and writes it down."
-      },
-      {
-        "when": {
-          "stage": "shortlist",
-          "where": "here"
-        },
-        "plan": "application-pack",
-        "why": "You'll attend yourself. What wins the application is the file."
-      }
-    ],
-    "notes": {
-      "when": {
-        "soon": "Four weeks is tight: the file must be ready before the right listing appears.",
-        "months": "Good timing: the dossier is ready before the listings are.",
-        "later": "No rush: open the file now, the search starts when you say."
-      }
-    },
-    "dossier": {
-      "label": "What do you already hold?",
-      "sub": "Tap what you have. A Dutch landlord asks for most of these eight.",
-      "items": [
-        {
-          "id": "id",
-          "t": "Passport or EU ID"
-        },
-        {
-          "id": "contract",
-          "t": "Employment contract"
-        },
-        {
-          "id": "employer",
-          "t": "Employer statement (werkgeversverklaring)"
-        },
-        {
-          "id": "payslips",
-          "t": "Last three payslips"
-        },
-        {
-          "id": "reference",
-          "t": "Previous landlord reference"
-        },
-        {
-          "id": "guarantor",
-          "t": "A guarantor, if your income falls short"
-        },
-        {
-          "id": "bank",
-          "t": "Three months of bank statements"
-        },
-        {
-          "id": "letter",
-          "t": "Motivation letter, Dutch and English"
-        }
-      ],
-      "fixable": [
-        "letter",
-        "employer",
-        "reference"
-      ],
-      "resultAll": "All eight in hand. Full Search and the Application Pack put them in the Dutch format; Full Search also applies as listings appear.",
-      "resultSome": "{have} of 8 in hand. Missing: {missing}. The Application Pack writes the letter; it and Full Search format your file. For the rest we tell you exactly what to ask your employer, your bank and your last landlord.",
-      "skipped": "Tap the papers you hold above and we say what we would fix first.",
-      "eyebrow": "Your papers"
-    },
-    "result": {
-      "eyebrow": "Your plan",
-      "change": "change"
-    },
-    "pass": {
-      "title": "Your boarding pass",
-      "name": {
-        "label": "Passenger (optional)",
-        "placeholder": "Anna K."
-      },
-      "from": {
-        "label": "From (optional)",
-        "placeholder": "LON"
-      },
-      "save": "Save image",
-      "shareBtn": "Share",
-      "saved": "Saved",
-      "guest": "A tenant",
-      "foot": "boomrome.com/amsterdam",
-      "side": "Tenant side",
-      "fields": {
-        "passenger": "Passenger",
-        "plan": "Plan",
-        "price": "Price",
-        "boarding": "Boarding",
-        "file": "File",
-        "papers": "Papers"
-      }
-    },
-    "refusal": "Four weeks is tight. We say so in the first call.",
-    "pending": {
-      "eyebrow": "Two plans fit",
-      "text": "One more answer decides: {plans}."
-    },
-    "landing": {
-      "partial": "{n} of 3 answered, from the link you received. {left} to your plan.",
-      "friend": "Your friend's answers. Change any of them, then your plan is yours.",
-      "blank": "Your plan prints here as you answer."
-    },
-    "share": {
-      "lead": "Know someone moving too?",
-      "whatsapp": "WhatsApp",
-      "copy": "Copy link",
-      "copied": "Link copied",
-      "plan": "BOOM {city}: a rental agent on the tenant's side, flat fees. My plan in three taps: {url}",
-      "pass": "BOOM {city} — a rental agent on the tenant's side, flat fees. Check in, 20 seconds: {url}"
-    }
+    ]
   },
   "checks": {
-    "num": "03 — BEFORE YOU SIGN",
-    "h2": "Six things we check",
+    "h2": "What we check",
     "h2g": "before you sign.",
-    "sub": "Put in writing on every contract.",
     "items": [
       {
         "id": "deposit",
@@ -418,28 +129,51 @@
         "text": "Many Amsterdam homes fall under the points system. An asking rent above the legal maximum is leverage. We run the check."
       },
       {
-        "id": "service-costs",
-        "title": "Service costs",
-        "at": "servicekosten",
-        "text": "\"€1,800 + €250 service costs\" often hides charges the law does not allow. We separate legitimate from padding."
-      },
-      {
         "id": "contract",
         "title": "Contract type",
         "at": "since 2024",
         "text": "Since 2024 the default contract is indefinite. Fixed-term offers are the exception, with conditions. We check which one you are handed."
+      }
+    ]
+  },
+  "papers": {
+    "summary": "The papers a Dutch landlord asks for",
+    "at": "8 papers",
+    "items": [
+      "Passport or EU ID",
+      "Employment contract",
+      "Employer statement (werkgeversverklaring)",
+      "Last three payslips",
+      "Previous landlord reference",
+      "A guarantor, if your income falls short",
+      "Three months of bank statements",
+      "Motivation letter, Dutch and English"
+    ],
+    "tail": "The rest we go through on the free call."
+  },
+  "faq": {
+    "h2": "Questions.",
+    "items": [
+      {
+        "q": "Isn't it illegal for agents to charge tenants in the Netherlands?",
+        "a": "It is illegal for an agent to charge you when they also act for the landlord — what most \"free\" agencies do. An agent you hire, who works only for you, may charge you for the work. BOOM Amsterdam is that agent (aanhuurmakelaar): hired and paid by the tenant only."
       },
       {
-        "id": "income",
-        "title": "Income rules",
-        "at": "on paper",
-        "text": "New job, freelance, non-euro salary: each has a right way to be presented. We write it so a Dutch landlord reads it as safe."
+        "q": "What happens on the free call?",
+        "a": "A call with Valentino, by phone or WhatsApp, at a time that suits you both. We hear your dates, budget and who is moving, say which service fits, or that none does, and which papers you are missing. Nothing is charged for the call. Full Search is refunded in full if we decline the search in the first call."
+      },
+      {
+        "q": "How do I avoid a rental scam in Amsterdam from abroad?",
+        "a": "Never pay a deposit or first rent for a home nobody on your side has seen. With Attended Viewing (€149) a BOOM person visits it in your place, with live video and a written report. With Full Search or Application Pack we also check the contract, and confirm in writing that you can register (BRP) at the address, before you sign."
+      },
+      {
+        "q": "What if you don't find anything?",
+        "a": "We tell you in the first call if your budget and timeline don't fit the market; if BOOM declines the search then, the €500 Full Search fee is refunded in full. Once we take it on, the search runs until you sign or stop it, and the fee pays for the work, not for a result."
       }
     ]
   },
   "bref": {
     "h2": "BOOM Amsterdam — fact sheet",
-    "ref": "REF · AMSTERDAM / TENANT SIDE",
     "rows": [
       {
         "dt": "Who",
@@ -477,71 +211,78 @@
       }
     ]
   },
-  "faq": {
-    "num": "04 — QUESTIONS",
-    "h2": "The questions",
-    "h2g": "we get asked.",
-    "items": [
-      {
-        "q": "Isn't it illegal for agents to charge tenants in the Netherlands?",
-        "a": "It is illegal for an agent to charge you when they also act for the landlord — what most \"free\" agencies do. An agent you hire, who works only for you, may charge you for the work. BOOM Amsterdam is that agent (aanhuurmakelaar): hired and paid by the tenant only."
-      },
-      {
-        "q": "Which service is mine?",
-        "checkin": true
-      },
-      {
-        "q": "How fast will I have an apartment?",
-        "a": "Budget and move-in date decide it. A complete Dutch-format dossier and applications sent as listings appear are what shorten it. Nobody can promise a date in Amsterdam. Anyone who does is selling you something else."
-      },
-      {
-        "q": "Do I need to be in Amsterdam?",
-        "a": "No. A BOOM person attends viewings in your place, with live video and a written report. The contract is checked and signed remotely. You arrive for the keys and the BRP appointment."
-      },
-      {
-        "q": "How do I avoid a rental scam in Amsterdam from abroad?",
-        "a": "Never pay a deposit or first rent for a home nobody on your side has seen. With Attended Viewing (€149) a BOOM person visits it in your place, with live video and a written report. With Full Search or Application Pack we also check the contract, and confirm in writing that you can register (BRP) at the address, before you sign."
-      },
-      {
-        "q": "What if you don't find anything?",
-        "a": "We tell you in the first call if your budget and timeline don't fit the market; if BOOM declines the search then, the €500 Full Search fee is refunded in full. Once we take it on, the search runs until you sign or stop it, and the fee pays for the work, not for a result."
-      },
-      {
-        "q": "How do I pay?",
-        "a": "By card on this page (Stripe) when you start; the invoice comes from Egidi Immobiliare S.r.l. Flat fees, VAT included. Nothing from landlords, their agents or platforms."
-      },
-      {
-        "q": "What do you do with my data?",
-        "a": "Used to answer you and run your search; if you stop at the payment, we ask once whether you have questions. No resale, no mailing lists. Ask us to delete it; invoices and payment records stay, as the law requires."
-      }
+  "footer": {
+    "statement": "BOOM Amsterdam acts solely as a tenant-side search agent (aanhuurmakelaar). We do not list properties, represent landlords, or receive remuneration from landlords or their agents."
+  },
+  "desk": {
+    "person": "Valentino Egidi",
+    "role": "tenant-side agent",
+    "timeZone": "Europe/Rome",
+    "tzLabel": "CET/CEST",
+    "hours": {
+      "from": "09:00",
+      "to": "19:00"
+    },
+    "days": [
+      1,
+      2,
+      3,
+      4,
+      5
     ]
   },
-  "footer": {
-    "tagline": "Born in Rome, built for people who move countries. The same rules in Amsterdam: one side of the table, flat fees, everything in writing.",
-    "statement": "BOOM Amsterdam acts solely as a tenant-side search agent (aanhuurmakelaar). We do not list properties, represent landlords, or receive remuneration from landlords or their agents."
+  "door": {
+    "label": "Start with a free call"
+  },
+  "form": {
+    "name": {
+      "label": "Your name",
+      "placeholder": "Anna Keller"
+    },
+    "contact": {
+      "label": "Email or WhatsApp number",
+      "placeholder": "anna@company.com or +31 …"
+    },
+    "consentLead": "Used only to reply to you —",
+    "consentAlt": "Prefer WhatsApp or email?",
+    "errors": {
+      "name": "Your name, so we know who we're writing to.",
+      "contact": "An email or a number — otherwise we can't reply.",
+      "email": "That email looks incomplete — could you check it?",
+      "net": "The send failed on our side. Try again, or email us directly at hello@boom-rome.com."
+    },
+    "sending": "Opening your file…",
+    "sentNext": [
+      [
+        "{when}",
+        "Valentino writes to set your free call."
+      ],
+      [
+        "Nothing to prepare",
+        "On the call we say which papers matter."
+      ],
+      [
+        "Nothing by then?",
+        "Write to {email}."
+      ]
+    ],
+    "sentWhenDefault": "Same working day"
   },
   "checkout": true,
   "checkoutCopy": {
-    "title": "Start with BOOM Amsterdam",
-    "note": "Choose the service and pay by card. Tick “Start now” and the desk starts in its first open hour; without it, we start when your 14-day withdrawal period ends.",
     "noteLabel": "A listing you already found, or anything we should know",
     "notePlaceholder": "https://www.pararius.com/… · move-in 1 February",
     "btnSubNow": "Starts in the desk’s first open hour · Stripe",
     "btnSubWait": "Starts when your 14 days end · Stripe",
     "altLead": "Prefer to talk first?",
-    "altLink": "Open a file, no payment",
+    "altLink": "Start with a free call, no card",
     "startNow": "Start now: I ask BOOM to begin before my 14-day withdrawal period ends, and I understand that once the service is fully performed I can no longer withdraw.",
     "withdrawal": "Withdrawal: 14 days from payment, by email to {email} or with the {form}. If you asked us to start and then withdraw, we refund the price minus the work already done. Without the tick, we start when the 14 days end.",
     "fine": "Secure card payment by Stripe. Invoice from Egidi Immobiliare S.r.l., VAT included. Full Search is refunded in full if we decline the search in the first call.",
     "errors": {
       "name": "Your name, so we know who we're working for.",
       "email": "A valid email — the invoice and your file go there.",
-      "phone": "That number looks incomplete — could you check it?",
-      "net": "Checkout hiccuped on our side — try again, or open a file and we'll send a payment link."
-    },
-    "offer": {
-      "lead": "Want the work to start?",
-      "sub": "Stripe · the desk writes within its first open hour"
+      "net": "Checkout hiccuped on our side — try again, or start with a free call instead."
     },
     "paid": {
       "before": "Paid — your file",
@@ -575,59 +316,15 @@
           "the work as written on this page"
         ]
       ],
-      "recourse": "Nothing by then? Write to {email}.",
-      "wait": "You did not tick “Start now”: we start when your 14 days end. Sooner? Write to {email}."
+      "wait": "You did not tick “Start now”: we start when your 14 days end. Sooner? Write to {email}.",
+      "pending": "Payment being confirmed. Your confirmation comes by email.",
+      "unconfirmed": "Not confirmed yet. If no email reaches you, write to the desk.",
+      "startsNow": "The desk’s first open hour",
+      "startsWait": "From {date}, after your 14-day withdrawal period"
     }
-  },
-  "facts": [
-    {
-      "key": "paid",
-      "label": "Paid by",
-      "text": "We work exclusively for you; never paid by landlords."
-    },
-    {
-      "key": "abroad",
-      "label": "From abroad",
-      "text": "Yes. Live video at the viewing, a written report, the contract checked before you sign."
-    },
-    {
-      "key": "nothing",
-      "label": "If we say no",
-      "text": "Full Search is refunded in full if we decline the search in the first call."
-    }
-  ],
-  "factsDerived": {
-    "answers": "Who answers",
-    "company": "The company",
-    "answersLine": "same working day",
-    "deskLine": "desk {days} {from} to {to} {tz}"
-  },
-  "desk": {
-    "person": "Valentino Egidi",
-    "role": "tenant-side agent",
-    "timeZone": "Europe/Rome",
-    "tzLabel": "CET/CEST",
-    "hours": {
-      "from": "09:00",
-      "to": "19:00"
-    },
-    "days": [
-      1,
-      2,
-      3,
-      4,
-      5
-    ]
-  },
-  "door": {
-    "label": "Open my file",
-    "sub": "free · same-day reply",
-    "skip": "Rather write first? Open a file",
-    "stripSub": "free · same-day reply"
   },
   "till": {
     "label": "Pay and start",
     "labelWait": "Pay and book"
-  },
-  "updated": "2026-10-22"
+  }
 }

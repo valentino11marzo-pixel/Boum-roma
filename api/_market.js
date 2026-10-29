@@ -211,7 +211,7 @@ export function b2bReplyText(lead = {}) {
 // first call — the sheet, the FAQ and the build's guard say the same.
 export const CITY_PLANS = {
   'full-search':      { eur: 500, label: 'Full Search',      per: 'flat',
-    desc: 'Search on the tenant\'s side: local-format dossier within one working day of your papers, applications sent as listings appear, one attended viewing with live video and written report, negotiation, contract checked before you sign; it runs until you sign or tell us to stop. Refunded in full if we decline the search in the first call.' },
+    desc: 'Search on the tenant\'s side: local-format dossier and cover letter within one working day of your papers, applications sent as listings appear, one attended viewing with live video and written report, negotiation, contract checked before you sign; it runs until you sign or tell us to stop. Refunded in full if we decline the search in the first call.' },
   'application-pack': { eur: 199, label: 'Application Pack', per: 'flat',
     desc: 'The dossier that wins applications: local format within one working day of your papers, cover letter, income and guarantor strategy, contract review before you sign.' },
   'attended-viewing': { eur: 149, label: 'Attended Viewing', per: 'per viewing',
@@ -253,6 +253,17 @@ export function cityOffer(cityKey, planId) {
 }
 
 /**
+ * The id of the lead the SERVICE webhook writes for a paid Stripe session:
+ * leads/svc_<session id, alphanumerics only, 30 characters>. One copy, read
+ * by the webhook (which writes it) and by /api/city-lead (whose GET ?paid=
+ * reads it back to confirm a payment the page cannot prove on its own).
+ * @param {string} sessionId
+ */
+export function serviceLeadId(sessionId) {
+  return 'svc_' + String(sessionId).replace(/[^a-zA-Z0-9]/g, '').substring(0, 30);
+}
+
+/**
  * The desk a WhatsApp message names. Every WhatsApp link on a city page opens
  * with a prefilled line ("Hi BOOM Amsterdam, I'm moving to Amsterdam.",
  * build-cities.mjs waHref): it is the only trace a chat carries of the page
@@ -285,11 +296,16 @@ export function cityFromText(text) {
  * @param {string} cityKey
  * @returns {string|null}
  */
-const DIAL = { nl: '31', es: '34', fr: '33', de: '49' };
+// 'tr' (25/10/2026): the /istanbul page (api/leads/web.js, form 'istanbul')
+// reads a Turkish number with phoneE164 below — Turkish mobiles are 5xx plus
+// seven digits, typed with or without the trunk 0. Before, '0532 123 45 67'
+// became '+39532…' at the Telegram card and the client's WhatsApp reply was
+// never matched to the lead. The city desks never name 'tr'.
+const DIAL = { nl: '31', es: '34', fr: '33', de: '49', tr: '90' };
 // National significant number per desk country (trunk 0 dropped). NL and FR
 // have 9 digits; ES 9 digits starting 6-9, no trunk 0; DE varies in length,
 // so it is read only when typed WITH its trunk 0.
-const NSN = { nl: /^[1-9]\d{8}$/, fr: /^[1-9]\d{8}$/, es: /^[6789]\d{8}$/, de: /^[1-9]\d{5,10}$/ };
+const NSN = { nl: /^[1-9]\d{8}$/, fr: /^[1-9]\d{8}$/, es: /^[6789]\d{8}$/, de: /^[1-9]\d{5,10}$/, tr: /^5\d{9}$/ };
 function nationalOf(d, country) {
   if (country === 'es') return NSN.es.test(d) ? d : null;
   if (country === 'de') return d.startsWith('0') && NSN.de.test(d.slice(1)) ? d.slice(1) : null;
@@ -312,6 +328,67 @@ export function cityPhone(raw, cityKey) {
   if (d.startsWith(cc) && nationalOf(d.slice(cc.length), c.country)) return '+' + cc + nationalOf(d.slice(cc.length), c.country);
   const n = nationalOf(d, c.country);
   return n ? '+' + cc + n : null;
+}
+
+/**
+ * The same reading as cityPhone, keyed by COUNTRY instead of by desk — for a
+ * page that is not a city desk but knows its visitor's country (/istanbul:
+ * 'tr'). E.164, or null when the number has no shape of that country; the
+ * caller then keeps what was typed (an Italian '333 1234567' typed on the
+ * Turkish page still reads as Italian at the card, as before).
+ * cityPhone stays as it is (the city work is its own).
+ * @param {string} raw
+ * @param {string} country  a key of DIAL ('tr', 'nl', …)
+ * @returns {string|null}
+ */
+export function phoneE164(raw, country) {
+  let s = String(raw || '').trim().replace(/\(\s*0\s*\)/g, '').replace(/[\s().\-\/]/g, '');
+  if (!s) return null;
+  if (s.startsWith('00')) s = '+' + s.slice(2);
+  if (s.startsWith('+')) {
+    const d = s.slice(1).replace(/\D/g, '');
+    return d.length >= 8 && d.length <= 15 ? '+' + d : null;
+  }
+  const c = String(country || '').toLowerCase();
+  const cc = DIAL[c];
+  if (!cc) return null;
+  const d = s.replace(/\D/g, '');
+  if (d.startsWith(cc) && nationalOf(d.slice(cc.length), c)) return '+' + cc + nationalOf(d.slice(cc.length), c);
+  const n = nationalOf(d, c);
+  return n ? '+' + cc + n : null;
+}
+
+/**
+ * WHERE A ROME TENANT IS MOVING FROM — not a market. A lead from /istanbul
+ * is a Rome tenant like any other (the Rome machine works it in full: Brain,
+ * card, Commerciale, Segretaria — notRomeTenant stays null); `origin` only
+ * names the door, so the Telegram card can say «🇹🇷 İstanbul → Roma» even
+ * when the Lead Brain's brief replaces the message. Two witnesses: `origin`
+ * (the page's door, and the WhatsApp marker below) and sourceRef 'istanbul'.
+ * Never read from `intent`: the AI grader rewrites it.
+ */
+export const ORIGINS = {
+  istanbul: { flag: '🇹🇷', label: 'İstanbul → Roma', url: 'https://www.boomrome.com/istanbul' },
+};
+export function originOf(lead = {}) {
+  if (!lead || typeof lead !== 'object') return null;
+  const o = String(lead.origin || '').toLowerCase();
+  if (ORIGINS[o]) return ORIGINS[o];
+  if (String(lead.sourceRef || '').toLowerCase() === 'istanbul') return ORIGINS.istanbul;
+  return null;
+}
+
+/**
+ * The WhatsApp marker of /istanbul: the page pre-fills «Merhaba BOOM,
+ * İstanbul'dan Roma'ya taşınıyorum. (Moving from Istanbul to Rome.)» (or the
+ * English first). Both halves count; 'İ' is written out because a /i regex
+ * does not fold the dotted capital. The key of ORIGINS, or null.
+ * @param {string} text
+ * @returns {string|null}
+ */
+const ISTANBUL_TEXT_RE = /[İIi]stanbul['’]dan Roma['’]ya|from [İIi]stanbul to Rome/i;
+export function originFromText(text) {
+  return ISTANBUL_TEXT_RE.test(String(text || '')) ? 'istanbul' : null;
 }
 
 /**
@@ -364,9 +441,10 @@ export function cityLabel(lead = {}) {
 
 /**
  * Il messaggio WhatsApp già scritto per un lead di città: in inglese (la
- * pagina è in inglese e la persona si sta trasferendo da fuori), con le SOLE
- * domande che il modulo non ha già risposto, e il link della SUA pagina —
- * mai /apartments di Roma.
+ * pagina è in inglese e la persona si sta trasferendo da fuori), e il link
+ * della SUA pagina — mai /apartments di Roma. Sui desk che vendono propone
+ * la chiamata gratuita che la porta promette (col numero di fascicolo);
+ * sui desk in apertura chiede le SOLE cose che il modulo non ha già detto.
  * @param {object} lead
  * @returns {string}
  */
@@ -402,14 +480,45 @@ export function cityReplyText(lead = {}) {
     return `Hi${first ? ' ' + first : ''}, Valentino here from BOOM 👋 I saw you started ${plan} for ${c.label} and stopped at the payment. ` +
       `Anything I can answer before you decide? Happy to do a quick call.\n${c.url}`;
   }
+  // A desk that sells (v1.4, 22/10): the door reads "Start with a free call"
+  // and the OPEN card promises "Valentino writes to set your free call". The
+  // ready reply SETS the call — never a written questionnaire (the call
+  // covers dates, budget and who is moving, says the FAQ) and never "I'll
+  // come back today" (one more hop before the call). It names the file
+  // number the ticket printed, so the two match. A lead that came from
+  // elsewhere (a WhatsApp message carrying the desk marker) did not tap the
+  // door: it is thanked for its message and offered the same call.
+  if (cityMode(lead) !== 'waitlist') {
+    const file = lead.city && typeof lead.city.file === 'string' ? lead.city.file.trim() : '';
+    const opener = lead.intent === 'city_search'
+      ? `You asked for a free call about your move to ${c.label}`
+      : `Thanks for your message about your move to ${c.label}. The first step is a free call`;
+    // never "this week": the desk is Mon–Fri, and a reply sent on a Friday
+    // evening or a weekend would offer a week already spent (review 22/10)
+    return `Hi${first ? ' ' + first : ''}, Valentino here from BOOM 👋 ${opener}${file ? ` (your file ${file})` : ''}.\n` +
+      `By phone or WhatsApp — which day and time suit you?\n${c.url}`;
+  }
   const q = asks.length
     ? `To set up the search properly: ${asks.join(', ')}? `
     : 'I have your dates, budget and situation. ';
-  // A waitlist desk never promises a search it cannot run yet: the reply says
-  // where the desk stands and what can be done today.
-  const next = cityMode(lead) === 'waitlist'
-    ? `The ${c.label} desk is opening with ${c.partner || 'a licensed partner'}, so I can't start a search there yet. I'll come back today with where we stand and what we can already do for you.`
-    : "I'll come back today with how we'd run it and the next step.";
+  // A waitlist desk never promises a search it cannot run yet (nor a call:
+  // its door is "Open my file"): the reply says where the desk stands and
+  // what can be done today. And its OPEN card promises "Our first reply says
+  // which papers matter" (review 22/10): this reply IS that first reply. The
+  // papers the Check-in found missing are named — only when the page's list
+  // reached us whole: the door records it (city.dossierClipped, measured on
+  // the posted value; the stored length is no witness, a cut on a space
+  // leaves 199 characters) and a paper cut in half is not a paper. A lead
+  // without the flag (filed before it) is never named. All in hand is said
+  // so; otherwise the reply says it will name them.
+  const doss = String((lead.city && lead.city.dossier) || '').trim();
+  const whole = !!lead.city && lead.city.dossierClipped === false;
+  const missing = whole ? ((/·\s*missing:\s*(.+)$/.exec(doss) || [])[1] || '').replace(/[\s.]+$/, '') : '';
+  const held = /^(\d+)\/(\d+)$/.exec(doss);
+  const papers = missing ? `From your check-in, the papers to start gathering: ${missing}. `
+    : held && held[1] === held[2] ? 'Your check-in says your papers are all in hand. ' : '';
+  const next = `The ${c.label} desk is opening with ${c.partner || 'a licensed partner'}, so I can't start a search there yet. ${papers}` +
+    `I'll come back today with where we stand${papers ? ' and what we can already do for you' : ', what we can already do for you and which papers to start gathering'}.`;
   return `Hi${first ? ' ' + first : ''}, Valentino here from BOOM 👋 Thanks for your message about your move to ${c.label}.\n` +
     `${q}${next}\n${c.url}`;
 }

@@ -247,35 +247,10 @@ window.__portalAppLoaded = true; // sentinella per la via d'uscita anti-spinner-
         } catch (e) { /* nessun beacon è meglio di un boot rotto */ }
     })();
 
-    // Offline persistence — IndexedDB on Safari (especially iOS) is notoriously
-    // slow at cold-start and ITP wipes it every 7 days anyway, making the cost
-    // higher than the benefit. We:
-    //   1) Defer the call out of the critical boot path (idle callback / timeout).
-    //   2) Skip it on iOS Safari (the platform that suffers the most from it).
-    //   3) Drop synchronizeTabs on Safari (the BroadcastChannel/WebLocks dance
-    //      causes 1-2s stalls there).
-    function startFirestorePersistence() {
-        const ua = (navigator.userAgent || '').toLowerCase();
-        const isSafariUA = /^((?!chrome|android|crios|fxios).)*safari/.test(ua);
-        const isIOS      = /iphone|ipad|ipod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-        // Safari in navigazione privata / con i cookie bloccati fa LANCIARE
-        // localStorage, non lo restituisce vuoto. js/firebase-config.js lo
-        // avvolge già; qui no, e l'eccezione moriva dentro l'idle callback
-        // lasciando la persistenza spenta senza dirlo. Stesso trattamento.
-        try {
-            if (location.search.includes('nopersist=1')) return;
-            if (localStorage.getItem('boom_no_persist') === '1') return;
-        } catch (e) { return; } // storage negato → niente persistenza, mai un crash
-        if (isIOS) return; // iOS Safari + persistence = 3-5s stall, not worth it.
-        const opts = isSafariUA ? {} : { synchronizeTabs: true };
-        db.enablePersistence(opts).catch(err => {
-            if (err.code === 'failed-precondition') console.warn('Persistence: multiple tabs open');
-            else if (err.code === 'unimplemented') console.warn('Persistence: browser not supported');
-            else console.warn('Persistence init:', err.message || err);
-        });
-    }
-    if ('requestIdleCallback' in window) requestIdleCallback(startFirestorePersistence, { timeout: 2000 });
-    else setTimeout(startFirestorePersistence, 0);
+    // Firestore uses its default memory cache. Do not enable disk persistence:
+    // an IndexedDB open/lease can stall the SDK queue before the profile read,
+    // even when enablePersistence is deferred. Auth persistence is independent.
+    // Keep existing disk data untouched (it may contain unacknowledged writes).
 
     // ═══════════════════════════════════════════════════════════════════════════
     // COMPANY INFO - UPDATE THESE FOR YOUR BUSINESS
@@ -7608,7 +7583,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             </div>
             ${newLeads.length > 0 ? `<div class="dash-list" style="margin-top:14px">
                 ${newLeads.slice(0, 3).map(l => {
-                    const lang = l.language === 'en' ? '🇬🇧' : '🇮🇹';
+                    const lang = l.language === 'en' ? '🇬🇧' : l.language === 'tr' ? '🇹🇷' : '🇮🇹';
                     const when = l.createdAt ? _humanAgo(l.createdAt) : '';
                     return `<div class="dash-row" data-tone="gold">
                         <span class="dash-row-icon">${lang}</span>
@@ -9102,7 +9077,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     const isDiscarded = l.status === 'discarded';
                     const isResponded = l.status === 'responded';
                     const timeAgo = l.createdAt ? getTimeAgo(l.createdAt) : '';
-                    const lang = l.language === 'en' ? '🇬🇧' : '🇮🇹';
+                    const lang = l.language === 'en' ? '🇬🇧' : l.language === 'tr' ? '🇹🇷' : '🇮🇹';
                     
                     return `<div class="list-item" style="padding:16px;cursor:pointer;${isNew ? 'border-left:3px solid var(--gold);' : ''}${isDiscarded ? 'opacity:0.5;' : ''}" onclick="viewLead('${l.id}')">
                         <div class="list-icon" style="background:${isNew ? 'var(--gold-light)' : isConverted ? 'var(--green-light)' : isResponded ? 'var(--blue-light)' : 'var(--bg-elevated)'}">
@@ -9348,7 +9323,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         let prefill = { name: '', email: '', phone: '', language: 'it', zone: '', budget: 0, propertyId: '', propertyTitle: '', codiceFiscale: '', address: '' };
         if (sourceKind === 'lead' && sourceId) {
             const l = (S.leads || []).find(x => x.id === sourceId) || {};
-            Object.assign(prefill, { name: l.name || '', email: l.email || '', phone: l.phone || '', language: (l.language || 'it').toLowerCase(), zone: l.zone || '', budget: l.budget || 0, propertyTitle: l.propertyTitle || '' });
+            Object.assign(prefill, { name: l.name || '', email: l.email || '', phone: l.phone || '', language: ((l.language || 'it').toLowerCase() === 'tr' ? 'en' : (l.language || 'it').toLowerCase()), zone: l.zone || '', budget: l.budget || 0, propertyTitle: l.propertyTitle || '' });
         } else if (sourceKind === 'pfsClient' && sourceId) {
             const c = (S.pfsClients || []).find(x => x.id === sourceId) || {};
             Object.assign(prefill, { name: c.name || '', email: c.email || '', phone: c.phone || '', zone: c.zone || '', budget: c.budget || 0 });
@@ -10018,7 +9993,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
         const timelineBody = events.length ? `<div style="padding:0 16px">${events.slice(0, 30).map(ev => `<div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px"><span style="flex-shrink:0">${ev.icon}</span><div style="flex:1"><div>${esc(ev.text)}</div><div style="font-size:11px;color:var(--text-muted)">${fmtDate(ev.ts)}</div></div>${ev.link ? `<a class="btn btn-xs btn-secondary" onclick="event.stopPropagation()">apri</a>` : ''}</div>`).join('')}</div>` : null;
 
-        const personLanguageFlag = language === 'en' || language === 'EN' ? '🇬🇧' : '🇮🇹';
+        const personLanguageFlag = language === 'en' || language === 'EN' ? '🇬🇧' : String(language).toLowerCase() === 'tr' ? '🇹🇷' : '🇮🇹';
 
         return `<div class="page-header">
             <div>
@@ -25646,7 +25621,101 @@ ${esc(data.description || '')}</textarea></div>
     }
     window.sendAspiBill = sendAspiBill;
     window._aspiRenderKind = _aspiRenderKind;
+    // External signed original → registration → archives, in the existing panel.
+    function _externalPanel(st) {
+        const x = st.external; if (!x) return '';
+        const who = v => v === 'tenant' ? 'inquilino' : v === 'landlord' ? 'proprietario' : 'co-conduttore ' + (Number(v.slice(2)) + 1);
+        const links = [[x.signedPdfUrl,'Contratto firmato'],[x.sheetUrl,'Dati per RLI'],[x.packUrl,'Scarica fascicolo ZIP']]
+            .filter(v => /^https:\/\//.test(v[0] || '')).map(v => `<a class="btn btn-secondary" href="${esc(v[0])}" target="_blank" rel="noopener">${v[1]}</a>`).join(' ');
+        if (x.document) {
+            const prep = x.preparation || {}, steps = prep.steps || {}, pg = x.progress || {};
+            const labels = {preagreement:'Console pre-agreement',archive:'Contratto nei portali',deadline:'Scadenza registrazione',dossier:'Scheda e fascicolo',sheet:'Dati per RLI',pack:'Pacchetto documenti'};
+            const problems = (steps.pack?.missing || []).map(v=>typeof v === 'string' ? v : v.label || v.name || '').filter(Boolean);
+            return `<section aria-label="Percorso registrazione" style="padding:14px;border:1px solid var(--border);border-radius:10px;margin-bottom:14px">
+                <strong>Contratto firmato esternamente · stessa pratica</strong>
+                <p style="font-size:12px">Originale di ${esc(x.document.pages)} pagine · stipula ${esc(x.document.signedDate)} · controllo dell’operatore registrato.</p>
+                ${!x.termsValid ? '<p role="alert" style="color:var(--red)">I dati sono cambiati dopo la verifica del firmato. Ripristina i dati coerenti con il documento prima di procedere.</p>' : ''}
+                <div style="display:flex;gap:6px;flex-wrap:wrap">${links}</div>
+                <p style="font-size:12px">${Object.entries(labels).filter(([k])=>!steps[k]?.skipped).map(([k,l]) => `${steps[k]?.ok ? '✓' : '⚠'} ${l}`).join(' · ')}</p>
+                ${x.missingProfiles.length ? `<p role="alert">Documenti non consegnabili: collega il profilo di ${x.missingProfiles.map(who).map(esc).join(', ')} alla pratica.</p>` : ''}
+                ${problems.length ? `<p style="font-size:12px">Allegati da completare: ${problems.map(esc).join(', ')}.</p>` : ''}
+                ${x.receiptArchive && !x.receiptArchive.ok ? '<p role="alert">La ricevuta è salvata, ma manca ancora la pubblicazione in uno o più portali. Riprendi il completamento.</p>' : ''}
+                <button class="btn btn-secondary" onclick="prepareExternalPractice()">${prep.status === 'pending' ? 'Prepara registrazione e documenti' : 'Aggiorna / riprendi completamento'}</button>
+                ${['sending','uncertain'].includes(st.state.cafDelivery?.status) ? `<div role="alert"><p>Invio al referente da verificare. Controlla la posta o chiedi al referente prima di riprovare.</p><label><input type="checkbox" id="cafVerified"> Ho verificato l’esito dell’invio.</label><input class="form-input" id="cafEvidence" placeholder="Come hai verificato l’esito"><button class="btn btn-secondary" onclick="resolveExternalCaf('sent')">Confermo ricevuto</button> <button class="btn btn-secondary" onclick="resolveExternalCaf('not_sent')">Confermo non inviato · sblocca nuovo invio</button></div>` : ''}
+                <p style="font-size:12px">Invio al referente: contratto firmato e scheda canone. Per RLI usa i dati e il pacchetto qui sopra; salva sotto il punto raggiunto. L’accesso SPID si esegue sul portale AdE.</p>
+                <div class="form-group"><label class="form-label" for="extChannel">Canale</label><select id="extChannel" class="form-select"><option value="rli" ${pg.channel !== 'caf' ? 'selected' : ''}>RLI diretto</option><option value="caf" ${pg.channel === 'caf' ? 'selected' : ''}>CAF / referente</option></select></div>
+                <div class="form-group"><label class="form-label" for="extStage">Punto raggiunto</label><select id="extStage" class="form-select">${[['prepared','Documenti preparati'],['draft','Bozza salvata'],['awaiting_spid','Attesa accesso SPID'],['submitted','Trasmessa · attesa ricevuta'],['rejected','Scartata · da correggere']].map(([v,l])=>`<option value="${v}" ${pg.stage===v?'selected':''}>${l}</option>`).join('')}</select></div>
+                <div class="form-group"><label class="form-label" for="extReference">Riferimento bozza / protocollo / pratica</label><input class="form-input" id="extReference" maxlength="180" value="${esc(pg.reference||'')}"></div>
+                <div class="form-group"><label class="form-label" for="extProgressNote">Prossimo passo o motivo dello scarto</label><textarea class="form-textarea" id="extProgressNote" maxlength="1000">${esc(pg.note||'')}</textarea></div>
+                <button class="btn btn-secondary" onclick="saveExternalProgress()" ${st.state.registrationStatus==='registered'?'disabled':''}>Salva avanzamento</button>
+                <p style="font-size:12px">La pratica si chiude con «Registrato: carica ricevuta», dopo l’esito positivo.</p><p id="externalStatus" role="status"></p>
+            </section>`;
+        }
+        if (!x.canAdopt) return '';
+        const t=x.terms, p=t.property||{}, money=v=>v&&typeof v==='object' ? v.amount ?? v.monthly ?? '' : v ?? '';
+        return `<details style="padding:14px;border:1px solid var(--border);border-radius:10px;margin-bottom:14px"><summary style="cursor:pointer;font-weight:600">Hai firmato fuori da Magic Sign? Carica il definitivo</summary>
+            <p>${x.missingProfiles.length ? 'Prima collega alla pratica i profili delle parti mancanti: '+x.missingProfiles.map(who).map(esc).join(', ')+'. ' : ''}Confronta tutte le pagine del PDF firmato con questi dati. Se differiscono, correggi prima i dati della pratica.</p>
+            ${x.missingProfiles.map(party=>`<div class="form-group"><label class="form-label" for="extProfile-${party}">Collega profilo ${esc(who(party))}</label><select class="form-select" id="extProfile-${party}"><option value="">Scegli la persona nell’archivio Utenti</option>${(S.users||[]).filter(u=>u.role===(party==='landlord'?'landlord':'tenant')).map(u=>`<option value="${esc(u.id)}">${esc(u.name||'')} · ${esc(u.email||'')} · ${esc(u.cf||u.codiceFiscale||'')}</option>`).join('')}</select><label><input type="checkbox" id="extProfileConfirm-${party}"> Ho verificato che il profilo è della parte indicata nel contratto.</label><button class="btn btn-secondary" onclick="linkExternalProfile('${party}')">Collega e rileggi la pratica</button></div>`).join('')}
+            <dl style="font-size:13px"><dt>Immobile / unità</dt><dd>${esc(p.address||p.name||t.propertyId)} · ${esc(t.roomName||t.roomId||t.unit||p.unit||'')} · piano ${esc(t.floor||p.floor||'—')} · interno ${esc(t.internal||p.internal||'—')}</dd><dt>Parti</dt><dd>${esc(t.tenantName||'—')} (${esc(t.tenantCF||'CF mancante')}) · ${esc(t.landlordName||'—')} (${esc(t.landlordCF||'CF mancante')})${t.coTenants.map(c=>' · '+esc(c.name)+' ('+esc(c.cf||'CF mancante')+')').join('')}</dd><dt>Durata / importi</dt><dd>${esc(t.startDate||'—')} → ${esc(t.endDate||'—')} · canone €${esc(money(t.canone)||money(t.rent))} · deposito €${esc(money(t.deposit))}</dd></dl>
+            <div class="form-group"><label class="form-label" for="extSignedFile">PDF completo con tutte le firme · massimo 15 MB</label><input class="form-input" id="extSignedFile" type="file" accept="application/pdf,.pdf" onchange="previewExternalFile()"><span id="extPreview"></span></div>
+            <div class="form-group"><label class="form-label" for="extSignedDate">Data di stipula riportata nel contratto</label><input class="form-input" id="extSignedDate" type="date" max="${new Date().toISOString().slice(0,10)}"></div>
+            <label style="display:block;margin:10px 0"><input type="checkbox" id="extComplete"> Ho controllato tutte le pagine e le firme di tutte le parti.</label>
+            <label style="display:block;margin:10px 0"><input type="checkbox" id="extTerms"> Ho verificato che parti, immobile, condizioni e importi coincidono con la pratica.</label>
+            ${x.signed.length ? `<label style="display:block;margin:10px 0"><input type="checkbox" id="extArchive"> Archivia le firme precedenti di ${x.signed.map(v=>esc(v.name||v.role)).join(', ')}: valgono sulla precedente versione, non sul nuovo PDF.</label>` : ''}
+            <button class="btn" onclick="adoptExternalPractice()">Acquisisci firmato e continua</button><p id="externalStatus" role="status"></p>
+        </details>`;
+    }
+    let _extPreviewUrl = null, _aspiOpenRun = 0;
+    function previewExternalFile() {
+        if (_extPreviewUrl) URL.revokeObjectURL(_extPreviewUrl);
+        const f=document.getElementById('extSignedFile')?.files?.[0], el=document.getElementById('extPreview');
+        _extPreviewUrl=f?URL.createObjectURL(f):null;
+        if(el) el.innerHTML=f?`<a href="${esc(_extPreviewUrl)}" target="_blank" rel="noopener">Apri e controlla ${esc(f.name)}</a>`:'';
+    }
+    async function _externalCall(st, body) {
+        if (!auth.currentUser || auth.currentUser.uid !== st.actorUid) throw Error('Sessione cambiata: riapri la pratica.');
+        const token=await auth.currentUser.getIdToken();
+        if(auth.currentUser?.uid!==st.actorUid) throw Error('Sessione cambiata.');
+        const r=await fetch('/api/fiscal/registra',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({contractId:st.contractId,...body})});
+        const j=await r.json();
+        if(auth.currentUser?.uid!==st.actorUid || window._aspiStatus!==st) throw Error('La pratica aperta è cambiata. Riaprila per verificare l’esito.');
+        if(!j.ok) throw Error(({review_changed:'La pratica è cambiata: riaprila e ricontrolla i dati.',pdf_unreadable:'PDF protetto o illeggibile: esporta un PDF leggibile.',signed_terms_changed:'Dati cambiati dopo la firma: verifica la pratica.',registration_evidence_required:'Servono codice, ricevuta e conferma dell’esito positivo.',party_profiles_required:'Collega prima i profili di inquilino, proprietario e co-conduttori alla pratica, poi riaprila.',reference_required:'Indica il riferimento per poter riprendere la pratica.',rejection_reason_required:'Indica il motivo dello scarto.',delivery_still_running:'Invio ancora in corso: attendi almeno 90 secondi prima di verificarlo.',caf_delivery_uncertain:'Esito dell’invio incerto: verifica e risolvi dal pannello della pratica.',preparation_running:'Completamento già in corso. Riapri la pratica tra poco.'})[j.error]||j.error||'Operazione non confermata.');
+        return j;
+    }
+    async function _externalAction(work) {
+        const st=window._aspiStatus; if(!st || st.externalBusy) return;
+        st.externalBusy=true;
+        const el=document.getElementById('externalStatus'); if(el)el.textContent='Salvo e verifico il completamento…';
+        try { await work(st); if(el?.isConnected && window._aspiStatus===st && auth.currentUser?.uid===st.actorUid) await openAspi(st.contractId); }
+        catch(e){if(window._aspiStatus===st && auth.currentUser?.uid===st.actorUid && el?.isConnected)el.textContent=e.message;}
+        finally {st.externalBusy=false;}
+    }
+    function adoptExternalPractice() {return _externalAction(async st=>{
+        const f=document.getElementById('extSignedFile')?.files?.[0];
+        if(!f || f.size>15*1024*1024)throw Error('Scegli un PDF entro 15 MB.');
+        const body={op:'external-adopt',version:st.external.version,termsHash:st.external.termsHash,fileName:f.name,
+            signedDate:document.getElementById('extSignedDate').value,confirmComplete:document.getElementById('extComplete').checked,
+            confirmTerms:document.getElementById('extTerms').checked,archivePreviousSignatures:!!document.getElementById('extArchive')?.checked};
+        if(!body.confirmComplete||!body.confirmTerms||!body.signedDate||(st.external.signed.length&&!body.archivePreviousSignatures))throw Error('Completa data e verifiche del documento.');
+        if(f.size>3*1024*1024){
+            const ref=storage.ref('contracts/'+st.contractId+'/external-incoming/'+crypto.randomUUID()+'.pdf');
+            await ref.put(f,{contentType:'application/pdf'});body.fileUrl=await ref.getDownloadURL();
+        }else body.pdfBase64=await new Promise((ok,ko)=>{const r=new FileReader();r.onload=()=>ok(String(r.result));r.onerror=()=>ko(Error('Lettura file fallita.'));r.readAsDataURL(f);});
+        await _externalCall(st,body);
+        const el=document.getElementById('externalStatus');if(el)el.textContent='Firmato salvato. Preparo registrazione e documenti…';
+        try {await _externalCall(st,{op:'external-prepare'});}
+        catch(e){toast('warning','Firmato salvato. Usa «Riprendi completamento» nella pratica: '+e.message);}
+    });}
+    function prepareExternalPractice(){return _externalAction(st=>_externalCall(st,{op:'external-prepare'}));}
+    function saveExternalProgress(){return _externalAction(st=>_externalCall(st,{op:'progress',version:st.external.version,
+        channel:document.getElementById('extChannel').value,stage:document.getElementById('extStage').value,
+        reference:document.getElementById('extReference').value,note:document.getElementById('extProgressNote').value}));}
+    function linkExternalProfile(party){return _externalAction(st=>_externalCall(st,{op:'external-party',version:st.external.version,party,userId:document.getElementById('extProfile-'+party)?.value,confirm:!!document.getElementById('extProfileConfirm-'+party)?.checked}));}
+    function resolveExternalCaf(outcome){return _externalAction(st=>_externalCall(st,{op:'caf-resolve',version:st.external.version,outcome,confirm:!!document.getElementById('cafVerified')?.checked,note:document.getElementById('cafEvidence')?.value}));}
+    Object.assign(window,{previewExternalFile,adoptExternalPractice,prepareExternalPractice,saveExternalProgress,resolveExternalCaf,linkExternalProfile});
+
     async function openAspi(contractId) {
+        const openingUid = auth.currentUser?.uid, openingRun = ++_aspiOpenRun;
         toast('info', '🏛 Leggo lo stato della pratica…');
         let st = null;
         try {
@@ -25659,7 +25728,9 @@ ${esc(data.description || '')}</textarea></div>
             st = await r.json().catch(() => null);
         } catch (e) { console.warn('[aspi]', e); }
         if (!st || !st.ok) return toast('error', 'ASPI: ' + ((st && st.error) || 'stato non disponibile'));
-        st.contractId = contractId;
+        if (!openingUid || auth.currentUser?.uid !== openingUid || openingRun !== _aspiOpenRun) return;
+        if (_extPreviewUrl) { URL.revokeObjectURL(_extPreviewUrl); _extPreviewUrl = null; }
+        st.contractId = contractId; st.actorUid = openingUid;
         window._aspiStatus = st;
         const s = st.settings;
         const sent = st.state.aspiRequestedAt;
@@ -25683,9 +25754,10 @@ ${esc(data.description || '')}</textarea></div>
                     <button class="btn btn-xs btn-secondary" onclick="editAspiSettings()" title="Cambia destinatario (settings/registrazione)">✎</button>
                 </div>
                 ${st.state.registrationStatus === 'registered' ? `<div style="font-size:12px;background:rgba(52,199,89,.08);border-radius:8px;padding:8px 12px;margin-bottom:12px">✓ Registrato${st.state.rliRegisteredAt ? ' il ' + esc(String(st.state.rliRegisteredAt).slice(0, 10)) : ''}${st.state.registrationCode ? ' · codice ' + esc(st.state.registrationCode) : ''}${st.state.registrationReceiptUrl ? ` · <a href="${esc(st.state.registrationReceiptUrl)}" target="_blank" rel="noopener">ricevuta</a>` : ' · ricevuta non ancora caricata'}${st.state.registrationReceiptSentAt ? ' · invii registrati (dettagli sotto)' : ''}</div>` : ''}
+                ${_externalPanel(st)}
                 ${_aspiDeliveryNotes(st.state)}
                 ${_aspiBankForm(contractId, st.bank)}
-                ${sent ? `<div style="font-size:12px;color:var(--text-muted);background:rgba(52,199,89,.08);border-radius:8px;padding:8px 12px;margin-bottom:12px">✓ Già inviato il ${esc(String(sent).slice(0, 10))} (${esc(st.state.aspiRequestKind || '')}) a ${esc(st.state.aspiRequestTo || '')} — ripremere Invia = re-invio aggiornato, la fattura NON si duplica.</div>` : ''}
+                ${sent ? `<div style="font-size:12px;color:var(--text-muted);background:rgba(52,199,89,.08);border-radius:8px;padding:8px 12px;margin-bottom:12px">✓ Già inviato il ${esc(String(sent).slice(0, 10))} (${esc(st.state.aspiRequestKind || '')}) a ${esc(st.state.aspiRequestTo || '')} — ${st.external?.document ? 'invio del definitivo registrato; un retry non rimanda la stessa email.' : 'ripremere Invia = re-invio aggiornato, la fattura NON si duplica.'}</div>` : ''}
                 <div class="form-group" style="margin-bottom:10px">
                     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;padding:4px 0"><input type="radio" name="aspiKind" value="completo" ${st.kind === 'completo' ? 'checked' : ''} onchange="_aspiRenderKind()"> Registrazione RLI <strong>+ attestazione canone concordato</strong> · fattura €${s.prezzi.completo}</label>
                     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;padding:4px 0"><input type="radio" name="aspiKind" value="registrazione" ${st.kind === 'registrazione' ? 'checked' : ''} onchange="_aspiRenderKind()"> Solo registrazione RLI · fattura €${s.prezzi.registrazione}</label>
@@ -25703,7 +25775,7 @@ ${esc(data.description || '')}</textarea></div>
                 <button class="btn btn-secondary" onclick="closeModal()">Annulla</button>
                 <button class="btn btn-secondary" onclick="openRegistered('${contractId}')">✓ Registrato: carica ricevuta</button>
                 <button class="btn btn-secondary" id="aspiBillBtn" onclick="sendAspiBill('${contractId}')" title="Crea la fattura senza rimandare l'email ad ASPI">🧾 Solo la fattura</button>
-                <button class="btn" id="aspiSendBtn" onclick="sendAspi('${contractId}')">✉ Invia a ${esc(s.referente || 'referente')}</button>
+                <button class="btn" id="aspiSendBtn" onclick="sendAspi('${contractId}')" ${st.external?.document && st.state.registrationStatus==='registered' ? 'disabled' : ''}>${st.external?.document && st.state.registrationStatus==='registered' ? 'Registrazione completata' : '✉ Invia a ' + esc(s.referente || 'referente')}</button>
             </div>
         </div></div>`;
         _aspiRenderKind();
@@ -25748,6 +25820,7 @@ ${esc(data.description || '')}</textarea></div>
             const j = await r.json().catch(() => null);
             if (!r.ok || !j || !j.ok) throw new Error(j && j.error === 'iban_invalid' ? 'IBAN non valido: controlla tutte le cifre.' : 'Dati non salvati. Riprova.');
             st.bank = j.bank;
+            if (st.external && j.version) st.external.version = j.version;
             const summary = document.getElementById('aspiBankSummary');
             if (summary) summary.textContent = 'Conto per registrazione · ' + (j.bank.ready ? 'compilato' : 'da completare');
             ibanEl.value = j.bank.rliDebitIban; holderEl.value = j.bank.rliDebitHolder;
@@ -25801,7 +25874,7 @@ ${esc(data.description || '')}</textarea></div>
             if (!j || !j.ok) {
                 if (btnEl) { btnEl.disabled = false; btnEl.textContent = '✉ Invia'; }
                 return toast('error', j && j.error === 'contratto_pdf_mancante'
-                    ? 'Manca il PDF del contratto: 🔄 Rigenera PDF, poi riprova'
+                    ? 'Manca il definitivo firmato: completa Magic Sign oppure acquisisci il firmato esterno'
                     : 'ASPI: ' + ((j && j.error) || 'invio fallito'));
             }
             closeModal();
@@ -25809,7 +25882,7 @@ ${esc(data.description || '')}</textarea></div>
             // parziale, già emessa da un invio precedente, coperta da un'altra,
             // o non creata perché le fatture non si leggevano
             const m = _aspiInvoiceMsg(j.invoice);
-            toast(m.level, `✉ Inviato a ${j.to} — ${(j.attachments || []).length} allegati${m.txt}`);
+            toast(m.level, `✉ ${j.duplicate ? 'Già inviato' : 'Inviato'} a ${j.to} — ${(j.attachments || []).length} allegati${m.txt}`);
             if (Array.isArray(j.missing) && j.missing.length) {
                 toast('error', '⚠ Dichiarati mancanti nell\'email: ' + j.missing.slice(0, 3).join(', ') + (j.missing.length > 3 ? '…' : ''));
             }
@@ -25897,15 +25970,19 @@ ${esc(data.description || '')}</textarea></div>
     // bottoni (✓ RLI e 🏛️ Registrazione AdE) che scrivevano campi diversi.
     function markRliRegistered(contractId) { return openRegistered(contractId); }
     function openRegistered(contractId) {
-        const c = (S.contracts || []).find(x => x.id === contractId) || {};
+        const local = (S.contracts || []).find(x => x.id === contractId) || {};
         const today = new Date().toISOString().slice(0, 10);
-        const has = !!c.registrationReceiptUrl;
+        const st = window._aspiStatus?.contractId === contractId ? window._aspiStatus : null;
+        const c = {...local,...(st?.state||{})};
+        const external = st?.external?.document || c.externalSignedDocument;
+        const has = !!(st?.state?.registrationReceiptUrl || c.registrationReceiptUrl);
         document.getElementById('modals').innerHTML = `<div class="modal-overlay active" onclick="if(event.target===this)closeModal()"><div class="modal">
             <div class="modal-header"><h3 class="modal-title">✓ Contratto registrato</h3><button class="modal-close" onclick="closeModal()">×</button></div>
             <div class="modal-body">
                 <div class="form-group"><label class="form-label">Data di registrazione</label><input class="form-input" type="date" id="regDate" max="${today}" value="${esc(String(c.rliRegisteredAt || today).slice(0, 10))}"></div>
                 <div class="form-group"><label class="form-label">Codice identificativo del contratto</label><input class="form-input" id="regCode" value="${esc(c.registrationCode || '')}" placeholder="es. TXX26T012345000AB"></div>
-                <div class="form-group"><label class="form-label">Ricevuta (PDF o foto)${has ? ' — già caricata, scegline un\'altra per sostituirla' : ''}</label><input class="form-input" type="file" id="regFile" accept="application/pdf,image/jpeg,image/png"></div>
+                <div class="form-group"><label class="form-label">Ricevuta (PDF o foto)${has ? (external ? ' — già acquisita: puoi riprendere archivio e consegna' : ' — già caricata, scegline un\'altra per sostituirla') : ''}</label><input class="form-input" type="file" id="regFile" accept="application/pdf,image/jpeg,image/png"></div>
+                ${external ? `<input type="hidden" id="regSignedHash" value="${esc(external.sha256)}"><label style="display:block;margin:12px 0"><input type="checkbox" id="regEvidence"> Ho verificato che la ricevuta conferma la registrazione di questo contratto: non è la sola trasmissione né uno scarto.</label>` : ''}
                 <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12.5px"><input type="checkbox" id="regNotify" checked> Manda la ricevuta a inquilino, co-conduttori e proprietario</label>
                 <div style="font-size:11.5px;color:var(--text-muted);margin-top:8px">Una volta per file: risalvare con la stessa ricevuta non la rimanda.</div>
             </div>
@@ -25926,7 +26003,7 @@ ${esc(data.description || '')}</textarea></div>
         const btnEl = document.getElementById('regSaveBtn');
         if (btnEl) { btnEl.disabled = true; btnEl.textContent = '⏳ Salvo…'; }
         try {
-            const body = { op: 'registered', contractId, date, code, notify };
+            const body = { op: 'registered', contractId, date, code, notify, confirmReceipt:!!document.getElementById('regEvidence')?.checked, signedHash:document.getElementById('regSignedHash')?.value };
             if (f) {
                 body.base64 = await new Promise((ok, ko) => { const r = new FileReader(); r.onload = () => ok(String(r.result)); r.onerror = () => ko(new Error('lettura file')); r.readAsDataURL(f); });
                 body.contentType = f.type; body.name = f.name;
@@ -25936,7 +26013,7 @@ ${esc(data.description || '')}</textarea></div>
             const j = await r.json().catch(() => null);
             if (!j || !j.ok) {
                 if (btnEl) { btnEl.disabled = false; btnEl.textContent = 'Salva'; }
-                const why = { bad_date: 'data non valida', future_date: 'data nel futuro', bad_code: 'codice non valido', bad_type: 'serve un PDF, JPG o PNG', bad_file: 'il file non è leggibile', file_too_large: 'file oltre 3 MB' }[j && j.error];
+                const why = { registration_evidence_required:'servono codice, ricevuta e conferma dell’esito positivo', signed_document_changed:'il documento è cambiato: riapri la pratica', receipt_already_recorded:'ricevuta definitiva già acquisita: il recupero conserva file, codice e data registrati', registration_before_signature:'data precedente alla stipula', signed_terms_changed:'i dati non coincidono più con il firmato', bad_date: 'data non valida', future_date: 'data nel futuro', bad_code: 'codice non valido', bad_type: 'serve un PDF, JPG o PNG', bad_file: 'il file non è leggibile', file_too_large: 'file oltre 3 MB' }[j && j.error];
                 return toast('error', 'Registrazione: ' + (why || (j && j.error) || 'non salvata'));
             }
             closeModal();
@@ -25950,6 +26027,7 @@ ${esc(data.description || '')}</textarea></div>
             else if (j.skipped === 'already_sent') parts.push('ricevuta già inviata a tutti');
             const whoIt = (w) => w === 'tenant' ? 'inquilino' : w === 'landlord' ? 'proprietario' : /^co\d+$/.test(w) ? 'co-conduttore ' + (Number(w.slice(2)) + 1) : w;
             const bad = [];
+            if (j.archive && !j.archive.ok) bad.push('ricevuta salvata; pubblicazione nei portali da completare dal pannello registrazione');
             if (j.failed && j.failed.length) bad.push('NON inviata a ' + j.failed.map(whoIt).join(', ') + ' (risalva per riprovare solo a loro)');
             if (j.uncertain && j.uncertain.length) bad.push('esito incerto per ' + j.uncertain.map(whoIt).join(', ') + ' — verifica prima di rimandare');
             toast(bad.length ? 'warning' : 'success', parts.concat(bad).join(' · '));
@@ -28417,7 +28495,7 @@ IBAN: ${l.iban || '-'}`;
         smartLinkBusy=false;
         smartLinkStopPolling(); smartLinkJob=null;
         smartLinkArea?.destroy();
-        smartLinkClearPhotos();
+        smartLinkClearPhotos(); smartLinkResetFieldState();
         document.getElementById('modals').innerHTML = `
         <div class="modal-overlay active sl-studio-overlay" onclick="if(event.target===this)smartLinkClose()">
           <div class="modal sl-studio" role="dialog" aria-modal="true" aria-labelledby="sl_studio_title">
@@ -28445,17 +28523,50 @@ IBAN: ${l.iban || '-'}`;
         smartLinkRecent();
     }
 
-    let smartLinkArea, smartLinkJob=null, smartLinkArchive=null, smartLinkPollTimer, smartLinkPollVersion=0;
+    let smartLinkArea, smartLinkJob=null, smartLinkArchive=null, smartLinkRadar=null, smartLinkPollTimer, smartLinkPollVersion=0;
+    const smartLinkFields=['title','price','zone','sqm','rooms'];
+    let smartLinkFieldSnapshots={};
+    function smartLinkResetFieldState() { smartLinkFieldSnapshots={}; }
+    // Un nuovo campione sostituisce gli autofill invariati; le modifiche dell'operatore restano.
+    function smartLinkPrepareFields() {
+        const retained={};
+        smartLinkFields.forEach(key=>{
+            const el=document.getElementById('sl_'+key), prior=smartLinkFieldSnapshots[key];
+            if(!el) return;
+            if(prior && !prior.manual && el.value===prior.value) {
+                el.value='';
+                if(key==='zone' || key==='title') smartLinkArea?.reset();
+            } else if(prior || el.value) retained[key]={value:el.value,historical:prior?.historical===true,manual:true};
+        });
+        smartLinkFieldSnapshots=retained;
+    }
+    function smartLinkApplyFields(data,historical=false) {
+        smartLinkFields.forEach(key=>{
+            const el=document.getElementById('sl_'+key);
+            if(el && !el.value && !smartLinkFieldSnapshots[key]?.manual && data?.[key]) {
+                el.value=data[key]; smartLinkFieldSnapshots[key]={value:el.value,historical};
+            }
+        });
+    }
+    function smartLinkHasHistoricalData() {
+        return smartLinkFields.some(key=>{
+            const value=document.getElementById('sl_'+key)?.value || '', prior=smartLinkFieldSnapshots[key];
+            return !!value.trim() && prior?.historical===true && (prior.manual===true || value!==prior.value);
+        });
+    }
+    function smartLinkHistoryNotice() {
+        return smartLinkHasHistoricalData()?' Hai conservato modifiche a dati di una precedente importazione. La scheda non li indicherà come rilevati oggi.':'';
+    }
     function smartLinkStopPolling() { clearTimeout(smartLinkPollTimer); smartLinkPollVersion++; }
     let smartLinkPhotoItems = [], smartLinkPhotoGeneration = 0, smartLinkPhotoPending = Promise.resolve(), smartLinkPhotoPreparing = false, smartLinkBusy = false;
     function smartLinkClearPhotos() {
-        smartLinkPhotoGeneration++; smartLinkArchive=null;
+        smartLinkPhotoGeneration++; smartLinkArchive=null; smartLinkRadar=null;
         smartLinkPhotoItems.forEach(item => URL.revokeObjectURL(item.url));
         smartLinkPhotoItems = [];
         smartLinkPhotoPending = Promise.resolve();
         smartLinkPhotoPreparing = false;
     }
-    function smartLinkClose() { if (smartLinkBusy) { toast('info','Attendi il caricamento delle foto'); return; } smartLinkStopPolling(); smartLinkJob=null; document.getElementById('sl_lightbox')?.remove(); smartLinkClearPhotos(); smartLinkArea?.destroy(); smartLinkArea=null; closeModal(); }
+    function smartLinkClose() { if (smartLinkBusy) { toast('info','Attendi il caricamento delle foto'); return; } smartLinkStopPolling(); smartLinkJob=null; document.getElementById('sl_lightbox')?.remove(); smartLinkClearPhotos(); smartLinkResetFieldState(); smartLinkArea?.destroy(); smartLinkArea=null; closeModal(); }
 
     function smartLinkSourceChanged() {
         const source = document.getElementById('sl_source');
@@ -28465,6 +28576,7 @@ IBAN: ${l.iban || '-'}`;
         smartLinkStopPolling(); smartLinkJob=null;
         const importButton=document.getElementById('sl_import'); if(importButton) importButton.disabled=false;
         ['title','price','zone','sqm','rooms','note'].forEach(k => { const el=document.getElementById('sl_'+k); if (el) el.value=''; });
+        smartLinkResetFieldState();
         document.getElementById('sl_photos').value=''; smartLinkClearPhotos(); smartLinkRenderPhotos();
         smartLinkArea?.reset();
         document.getElementById('sl_key').value=window.crypto.randomUUID();
@@ -28513,7 +28625,7 @@ IBAN: ${l.iban || '-'}`;
     function smartLinkResume(job) {
         if(smartLinkBusy) return;
         const source=document.getElementById('sl_source'); source.value=job.sourceUrl;
-        smartLinkSourceChanged(); smartLinkStopPolling(); smartLinkClearPhotos();
+        smartLinkSourceChanged(); smartLinkPrepareFields(); smartLinkStopPolling(); smartLinkClearPhotos();
         document.getElementById('sl_key').value=job.draftKey;
         document.getElementById('sl_draft_key').value=job.draftKey;
         const create=document.getElementById('sl_create');create.disabled=false;delete create.dataset.created;create.textContent='Crea SmartLink BOOM ↗';
@@ -28540,7 +28652,8 @@ IBAN: ${l.iban || '-'}`;
         if(job.status==='ready') {
             const key=document.getElementById('sl_draft_key').value;
             smartLinkPhotoItems=(job.images || []).filter(url=>window.BOOM_SMARTLINK.validImageUrl(url,key)).map((url,i)=>({remoteUrl:url,url,name:'Foto annuncio '+(i+1)}));
-            ['title','price','zone','sqm','rooms'].forEach(k=>{const el=document.getElementById('sl_'+k);if(el && !el.value && job.data?.[k]) el.value=job.data[k];});
+            smartLinkApplyFields(job.data);
+            status.textContent+=smartLinkHistoryNotice();
             smartLinkArea?.suggest(job.data?.zone || job.data?.title || '');
             smartLinkRenderPhotos(`${smartLinkPhotoItems.length} foto pronte. La prima è la copertina.${job.missingPhotos?' '+job.missingPhotos+' foto non sono state recuperate.':''}`);
         } else smartLinkRenderPhotos(active?'Recupero automatico in corso…':'Nessuna foto importata.');
@@ -28565,6 +28678,7 @@ IBAN: ${l.iban || '-'}`;
         const source=window.BOOM_SMARTLINK.normalizeUrl(document.getElementById('sl_source')?.value);
         const status=document.getElementById('sl_status');
         if(!source) {status.textContent='Incolla il link completo di un annuncio supportato.';return;}
+        smartLinkPrepareFields();
         smartLinkStopPolling();
         const version=smartLinkPollVersion;
         if(smartLinkJob || document.getElementById('sl_create')?.dataset.created==='1') document.getElementById('sl_key').value=window.crypto.randomUUID();
@@ -28581,6 +28695,16 @@ IBAN: ${l.iban || '-'}`;
             document.getElementById('sl_connection').hidden=capabilities.enabled!==false || document.documentElement.dataset.boomSmartlinkExtension!=='1';
             if(capabilities.enabled===false) {await smartLinkExtractDirect(source,version,useConnectedBrowser===true);return;}
             if(capabilities.enabled!==true) throw new Error('queue_unavailable');
+            // Il controllo dell'archivio non apre la fonte né richiede il lettore.
+            const token=await auth.currentUser.getIdToken();
+            const archiveResponse=await fetch('/api/smartlink/extract',{method:'POST',signal:AbortSignal.timeout(25000),headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({url:source.url,archiveOnly:true})});
+            if(version!==smartLinkPollVersion) return;
+            const archived=await archiveResponse.json();
+            if(version!==smartLinkPollVersion) return;
+            if(!archiveResponse.ok || !archived.ok) throw new Error('archive_unavailable');
+            if(archived.photoOrigin==='boom_archive' && archived.images?.length) {
+                await smartLinkExtractDirect(source,version,false,archived);return;
+            }
             status.textContent='Salvo la richiesta di importazione…';
             const result=await smartLinkJobRequest('',{url:source.url,draftKey:document.getElementById('sl_key').value});
             if(version!==smartLinkPollVersion) return;
@@ -28589,7 +28713,7 @@ IBAN: ${l.iban || '-'}`;
             if(['queued','reading'].includes(result.job.status)) smartLinkPoll(result.job.id,version);
         } catch(error) {
             if(version!==smartLinkPollVersion) return;
-            const messages={reader_not_enabled:'Il lettore centrale BOOM deve ancora essere attivato. Questa richiesta non è partita.',too_many_pending:'Hai già cinque importazioni in attesa. Riprendile dalle importazioni recenti.'};
+            const messages={reader_not_enabled:'Il lettore centrale BOOM deve ancora essere attivato. Questa richiesta non è partita.',too_many_pending:'Hai già cinque importazioni in attesa. Riprendile dalle importazioni recenti.',archive_unavailable:'L’archivio BOOM non è raggiungibile. Nessuna nuova richiesta è partita: riprova tra poco.'};
             status.textContent=messages[error.message] || 'Non ho conferma del salvataggio. Premi di nuovo Importa: la stessa richiesta non verrà duplicata.';
             document.getElementById('sl_import').disabled=false;smartLinkRenderPhotos('Foto non ancora importate.');
             smartLinkPhotoPreparing=false;
@@ -28610,14 +28734,14 @@ IBAN: ${l.iban || '-'}`;
         });
     }
 
-    async function smartLinkExtractDirect(source,version,useConnectedBrowser=false) {
+    async function smartLinkExtractDirect(source,version,useConnectedBrowser=false,archivedResult=null) {
         const status=document.getElementById('sl_status');
         const current=()=>version===smartLinkPollVersion;
         status.textContent='Cerco la casa nell’archivio BOOM e nella fonte. Tieni aperta questa pagina…';
         try {
             const token=await auth.currentUser.getIdToken();
-            let data={images:[],data:{}};
-            try {
+            let data=archivedResult || {images:[],data:{}};
+            if(!archivedResult) try {
                 const response=await fetch('/api/smartlink/extract',{method:'POST',signal:AbortSignal.timeout(35000),headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({url:source.url})});
                 const result=await response.json();
                 if(response.ok && result.ok) data=result;
@@ -28629,10 +28753,11 @@ IBAN: ${l.iban || '-'}`;
                 if(browserResult?.images?.length) {
                     const fields={...(browserResult.data || {})};
                     Object.entries(data.data || {}).forEach(([k,v])=>{if(v) fields[k]=v;});
-                    data={images:browserResult.images,data:fields};
+                    data={images:browserResult.images,data:fields,...(data.radar?{radar:data.radar}:{})};
                 }
             }
-            ['title','price','zone','sqm','rooms'].forEach(k=>{const el=document.getElementById('sl_'+k);if(el && !el.value && data.data?.[k]) el.value=data.data[k];});
+            smartLinkRadar=/^h_[a-f0-9]{16}$/.test(data.radar?.id || '') ? {id:data.radar.id} : null;
+            smartLinkApplyFields(data.data,!!smartLinkRadar || data.photoOrigin==='boom_archive');
             smartLinkArea?.suggest(data.data?.zone || data.data?.title || '');
             if(data.photoOrigin==='boom_archive' && /^[A-Za-z0-9_-]{20}$/.test(data.archive?.id || '')) {
                 const images=(Array.isArray(data.images)?data.images:[]).filter(window.BOOM_SMARTLINK.validPublicImageUrl).slice(0,12);
@@ -28641,7 +28766,7 @@ IBAN: ${l.iban || '-'}`;
                     smartLinkPhotoItems=images.map((url,i)=>({url,remoteUrl:url,name:'Foto archivio '+(i+1)}));
                     const date=Date.parse(data.archive.observedAt);
                     const when=Number.isFinite(date)?' del '+new Intl.DateTimeFormat('it-IT',{day:'numeric',month:'long',year:'numeric'}).format(new Date(date)):'';
-                    status.textContent='Foto recuperate dall’archivio BOOM'+when+'. Prezzo e disponibilità vanno riconfermati: la fonte non è stata riletta.';
+                    status.textContent='Foto recuperate dall’archivio BOOM'+when+'. Prezzo e disponibilità vanno riconfermati: la fonte non è stata riletta.'+smartLinkHistoryNotice();
                     smartLinkRenderPhotos(images.length+' foto già archiviate, pronte senza caricamenti. Scegli ordine e copertina.');
                     return;
                 }
@@ -28665,7 +28790,7 @@ IBAN: ${l.iban || '-'}`;
             }
             if(!current()) return;
             smartLinkRenderPhotos(smartLinkPhotoItems.length?`${smartLinkPhotoItems.length} foto importate. La prima è la copertina.${failed?' '+failed+' non disponibili.':''}`:'Le foto sono state trovate, ma il download è bloccato dalla fonte.');
-            status.textContent=smartLinkPhotoItems.length?'Controlla dati, foto, copertina e zona prima di creare.':'Nessuna foto pronta. La scheda non può essere pubblicata senza foto.';
+            status.textContent=smartLinkPhotoItems.length?(smartLinkRadar?'Sono presenti dati già archiviati dal Radar BOOM. Canone e disponibilità vanno riconfermati; la scheda non li indicherà come verificati oggi.':'Controlla dati, foto, copertina e zona prima di creare.')+smartLinkHistoryNotice():'Nessuna foto pronta. La scheda non può essere pubblicata senza foto.';
         } catch {
             if(current()) {status.textContent='Lettura non riuscita. Riprova.';smartLinkRenderPhotos('Foto non disponibili.');}
         } finally {
@@ -28781,8 +28906,10 @@ IBAN: ${l.iban || '-'}`;
                 images.push(url);
             }
             const map=smartLinkArea.value();
+            const historicalData=smartLinkHasHistoricalData();
+            if(historicalData) document.getElementById('sl_status').textContent=smartLinkHistoryNotice().trim();
             const token = await auth.currentUser.getIdToken();
-            const r = await fetch('/api/smartlink/create', { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + token }, body:JSON.stringify({ idempotencyKey:key, draftKey, ...(smartLinkArchive?{archiveId:smartLinkArchive.id}:{}), sourceUrl:source.url, title:value('title'), price:value('price'), zone:value('zone'), sqm:value('sqm'), rooms:value('rooms'), note:value('note'), images, map }) });
+            const r = await fetch('/api/smartlink/create', { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + token }, body:JSON.stringify({ idempotencyKey:key, draftKey, ...(smartLinkArchive?{archiveId:smartLinkArchive.id}:{}), ...(smartLinkRadar?{radarId:smartLinkRadar.id}:{}), ...(historicalData?{historicalData:true}:{}), sourceUrl:source.url, title:value('title'), price:value('price'), zone:value('zone'), sqm:value('sqm'), rooms:value('rooms'), note:value('note'), images, map }) });
             const d = await r.json();
             if(r.status===409 && d.error==='publication_conflict') {
                 publicationConflict=true;

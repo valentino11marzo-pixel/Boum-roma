@@ -60,6 +60,10 @@ const fromFsV = (v) => {
 };
 globalThis.__stripeCalls = [];
 let failClientMail = false;
+// a transient Firestore failure on a GET, injected per document path: the
+// next n reads answer 503 (review 22/10: the file_ref read is retried once,
+// and a read that fails twice is written on the lead, never taken as absent)
+const failGets = new Map(), getReads = new Map();
 globalThis.fetch = async (url, opts = {}) => {
   url = String(url);
   if (url.includes('identitytoolkit')) return okJson({ idToken: 'tok', users: [{ localId: 'admin1' }] });
@@ -83,20 +87,29 @@ globalThis.fetch = async (url, opts = {}) => {
       return okJson({ name: 'projects/p/databases/(default)/documents/' + key });
     }
     if (opts.method === 'PATCH') { const flat = store.get(clean) || {}; for (const [k, v] of Object.entries(JSON.parse(opts.body).fields || {})) flat[k] = fromFsV(v); store.set(clean, flat); return okJson({}); }
+    getReads.set(clean, (getReads.get(clean) || 0) + 1);
+    if ((failGets.get(clean) || 0) > 0) { failGets.set(clean, failGets.get(clean) - 1); return new Response('unavailable', { status: 503 }); }
     const doc = store.get(clean);
     if (!doc) return new Response('not found', { status: 404 });
-    // top-level scalars only (what readDoc reads back)
+    // scalars AND maps, like the real Firestore: the webhook's readDoc
+    // flattens maps to null on its own, fsGet (the file_ref check, the
+    // GET ?paid= of /api/city-lead) reads the nested `city` block
+    const toFsV = (v) => {
+      if (v === null || v === undefined) return { nullValue: null };
+      if (typeof v === 'string') return { stringValue: v };
+      if (typeof v === 'boolean') return { booleanValue: v };
+      if (typeof v === 'number') return Number.isInteger(v) ? { integerValue: String(v) } : { doubleValue: v };
+      if (Array.isArray(v)) return { arrayValue: { values: v.map(toFsV) } };
+      if (typeof v === 'object') { const f = {}; for (const [k, x] of Object.entries(v)) f[k] = toFsV(x); return { mapValue: { fields: f } }; }
+      return { nullValue: null };
+    };
     const fields = {};
-    for (const [k, v] of Object.entries(doc)) {
-      if (typeof v === 'string') fields[k] = { stringValue: v };
-      else if (typeof v === 'boolean') fields[k] = { booleanValue: v };
-      else if (typeof v === 'number') fields[k] = Number.isInteger(v) ? { integerValue: String(v) } : { doubleValue: v };
-    }
-    return okJson({ name: clean, fields });
+    for (const [k, v] of Object.entries(doc)) fields[k] = toFsV(v);
+    return okJson({ name: 'projects/p/databases/(default)/documents/' + clean, fields });
   }
   throw new Error('fetch non stubbata: ' + url);
 };
-const mkRes = () => ({ code: 0, body: null, setHeader() {}, status(c) { this.code = c; return this; }, json(o) { this.body = o; return this; }, send(t) { this.body = t; return this; }, end() { return this; } });
+const mkRes = () => ({ code: 0, body: null, headers: {}, setHeader(k, v) { this.headers[String(k).toLowerCase()] = v; }, status(c) { this.code = c; return this; }, json(o) { this.body = o; return this; }, send(t) { this.body = t; return this; }, end() { return this; } });
 let ipSeq = 0;
 const post = async (handler, body, ip) => { const r = mkRes(); await handler({ method: 'POST', headers: { 'x-forwarded-for': ip || `10.7.0.${++ipSeq}` }, body, socket: {} }, r); return r; };
 const stream = (obj) => ({ method: 'POST', headers: { 'stripe-signature': 'sig' }, async *[Symbol.asyncIterator]() { yield Buffer.from(JSON.stringify(obj)); } });
@@ -106,7 +119,10 @@ const { default: checkout } = await import('../../api/service-checkout.js');
 const { default: webhook, withdrawalWindow, HOLIDAY_KEYS } = await import('../../api/stripe-webhook.js');
 // the lead the webhook writes: leads/svc_<session id, alphanumerics only, 30 chars>
 const svcLead = (sid) => store.get('leads/svc_' + sid.replace(/[^a-zA-Z0-9]/g, '').substring(0, 30));
-const { CITY_MARKETS, CITY_PLANS, cityOffer, isCityMarket, cityReplyText, cityLabel, cityMode } = await import('../../api/_market.js');
+const { CITY_MARKETS, CITY_PLANS, cityOffer, isCityMarket, cityReplyText, cityLabel, cityMode, serviceLeadId } = await import('../../api/_market.js');
+const { default: cityLead } = await import('../../api/city-lead.js');
+const SCALO = (await import('../../js/scalo-codes.js')).default;
+const getPaid = async (q, ip) => { const r = mkRes(); await cityLead({ method: 'GET', headers: { 'x-forwarded-for': ip || `10.8.0.${++ipSeq}` }, query: q, url: '/api/city-lead' }, r); return r; };
 const ANNA = { name: 'Anna Keller', email: 'anna@example.com' };
 
 // ── 1 · the offer resolver: what may be sold, and why not ──────────────────
@@ -148,8 +164,11 @@ check(/Refunded in full if we decline the search in the first call/.test(CITY_PL
     'the Stripe product is named for the desk and the plan, with the refund rule');
   check(call.metadata.service === 'SERVICE' && call.metadata.kind === 'full-search' && call.metadata.city === 'amsterdam' && call.metadata.market === 'amsterdam' && call.metadata.notes === 'move-in 1 Feb' && call.metadata.amount_eur === '500',
     'the metadata carries the city twice (city, market) for the webhook');
-  check(call.success_url === 'https://www.boomrome.com/amsterdam?paid=full-search&start=0&session_id={CHECKOUT_SESSION_ID}#contact' && call.cancel_url === 'https://www.boomrome.com/amsterdam#services',
-    'success lands back on the city page (?paid=<plan>&start=0), cancel on its plates — never the Rome thank-you page');
+  // review 22/10: no #contact on the success URL — a fragment makes the
+  // browser re-apply its own scroll at `load` (late in production: gtag.js
+  // holds it) and undo the page's landing on the ticket
+  check(call.success_url === 'https://www.boomrome.com/amsterdam?paid=full-search&start=0&session_id={CHECKOUT_SESSION_ID}' && call.cancel_url === 'https://www.boomrome.com/amsterdam#fares',
+    'success lands back on the city page (?paid=<plan>&start=0, no fragment: the page lands on the ticket itself), cancel on its plates — never the Rome thank-you page', call.success_url);
   check(call.metadata.start_now === '0', 'no tick posted: start_now "0" — the work waits for the 14 days');
   await post(checkout, { city: 'amsterdam', kind: 'application-pack', ...ANNA, startNow: true });
   const ticked = globalThis.__stripeCalls.at(-1);
@@ -164,7 +183,7 @@ check(/Refunded in full if we decline the search in the first call/.test(CITY_PL
   const r3 = await post(checkout, { city: 'barcelona', kind: 'full-search', ...ANNA });
   const c3 = globalThis.__stripeCalls.at(-1);
   check(r3.code === 200 && c3.line_items[0].price_data.unit_amount === 50000 && c3.metadata.city === 'barcelona' && c3.metadata.start_now === '0'
-    && c3.success_url === 'https://www.boomrome.com/barcelona?paid=full-search&start=0&session_id={CHECKOUT_SESSION_ID}#contact' && c3.cancel_url === 'https://www.boomrome.com/barcelona#services',
+    && c3.success_url === 'https://www.boomrome.com/barcelona?paid=full-search&start=0&session_id={CHECKOUT_SESSION_ID}' && c3.cancel_url === 'https://www.boomrome.com/barcelona#fares',
     'barcelona (live from 22/10): Full Search €500 opens a Stripe session that comes back to /barcelona', JSON.stringify(c3 && { s: c3.success_url, m: c3.metadata }));
   check(/until you sign or tell us to stop/.test(c3.line_items[0].price_data.product_data.description || ''), 'the Full Search product says how long the search runs (the founder, 22/10): until you sign or tell us to stop');
 }
@@ -196,7 +215,13 @@ check(/Refunded in full if we decline the search in the first call/.test(CITY_PL
     'paid:true, status new (the Brain sees it), a TENANT with intent city_order', JSON.stringify(lead));
   check(lead && lead.market === 'amsterdam' && lead.sourceRef === 'city-amsterdam' && isCityMarket(lead) && cityMode(lead) === 'search' && cityLabel(lead) === '🇳🇱 Amsterdam',
     'the lead carries the MARKET: api/_market.js recognises Amsterdam — the Commerciale stands down, the card names the city');
-  check(lead && /^AMSTERDAM — paid order · Full Search · €500 paid\. Notes: move-in 1 Feb\.$/.test(lead.message), 'the summary the operator reads: the city, "paid order", the plan, the amount', lead && lead.message);
+  const fileAms = SCALO.fileCode(serviceLeadId('cs_city_ams_1'));
+  // the file number sits in the HEAD (review 22/10): the Telegram card quotes
+  // the first 240 characters, and a long note used to push it out
+  check(lead && /^AMSTERDAM — paid order · Full Search · €500 paid · file BM [A-HJ-NP-Z2-9]{5}\. Notes: move-in 1 Feb\.$/.test(lead.message) && lead.message.startsWith('AMSTERDAM — paid order · Full Search · €500 paid · file ' + fileAms + '. '),
+    'the summary the operator reads: the city, "paid order", the plan, the amount and the file number — then the notes', lead && lead.message);
+  check(lead && lead.city && lead.city.file === fileAms && /^BM [A-HJ-NP-Z2-9]{5}$/.test(fileAms) && lead.city.fileLeadId === null,
+    'no file_ref: the paid lead\'s file number is fileCode of its own id (svc_…), and no fileLeadId', lead && JSON.stringify(lead.city));
   check(lead && lead.phone === '+31612345678', 'the phone Stripe collected lands on the lead when the sheet left it empty');
   const reply = cityReplyText({ ...lead, city: { serviceLabel: 'Full Search' } });
   check(/Payment received for Full Search in Amsterdam/.test(reply) && reply.endsWith(CITY_MARKETS.amsterdam.url), 'the pre-written WhatsApp reply acknowledges the payment and links /amsterdam');
@@ -207,6 +232,8 @@ check(/Refunded in full if we decline the search in the first call/.test(CITY_PL
   check(client && client.to_email === 'anna@example.com' && /Your Amsterdam — Full Search starts now/.test(client.heading) && client.portal_link === 'https://www.boomrome.com/amsterdam' && /Brief call|brief call/i.test(client.r1_label) && /Dossier in one working day/.test(client.r2_label),
     'the client\'s email: the desk\'s own next steps, the CTA back to the city page — never the Rome catalogue', client && JSON.stringify([client.heading, client.portal_link, client.r1_label]));
   const r2 = await webhook(stream(event(meta, { id: 'cs_city_ams_1' })), mkRes());
+  check(admin && admin.closing.includes('Your file: ' + fileAms) && client && client.closing.includes('Your file: ' + fileAms) && client.closing.startsWith('Your file: ' + fileAms + '. '),
+    'both city emails carry "Your file: BM XXXXX" — the client\'s as its first line', admin && JSON.stringify([admin.closing.slice(0, 80), client && client.closing.slice(0, 80)]));
   check(r2.body && r2.body.duplicate === true && emails.length === e0 + 2, 'a Stripe retry of the same session: duplicate, no second email');
 }
 // the 14-day withdrawal right, on the durable medium (Directive 2011/83/EU art. 8(7)).
@@ -222,7 +249,7 @@ check(/Refunded in full if we decline the search in the first call/.test(CITY_PL
   await webhook(stream(ev0), mkRes());
   const lead0 = svcLead('cs_city_mad_wait');
   const admin0 = emails[e0], client0 = emails[e0 + 1];
-  check(lead0 && /^MADRID — paid order · Full Search · €500 paid\. Start: NOT asked to start now\. Withdrawal period runs to the end of 30 March 2026; the work begins on 31 March 2026\./.test(lead0.message),
+  check(lead0 && /^MADRID — paid order · Full Search · €500 paid · file BM [A-HJ-NP-Z2-9]{5}\. Start: NOT asked to start now\. Withdrawal period runs to the end of 30 March 2026; the work begins on 31 March 2026\./.test(lead0.message),
     'no tick: the start line comes FIRST in the lead, with the last day of the period and the day the work begins (Rome calendar, across the DST change)', lead0 && lead0.message);
   check(lead0 && lead0.city && lead0.city.startNow === false && lead0.city.workFrom === '2026-03-31' && lead0.city.withdrawalEndsOn === '2026-03-30' && lead0.city.workFromLabel === '31 March 2026',
     'no tick: the lead carries the choice and the dates as fields, not only as words', lead0 && JSON.stringify(lead0.city));
@@ -255,7 +282,13 @@ check(/Refunded in full if we decline the search in the first call/.test(CITY_PL
   // 2026, +14 = Thursday 24 September, La Mercè (a working day in Madrid)
   const evB = event({ ...base, city: 'barcelona', market: 'barcelona', name: 'Marta Puig', email: 'marta@example.com' }, { id: 'cs_city_bcn_hol' });
   evB.data.object.metadata.start_now = '0'; evB.created = Date.UTC(2026, 8, 10, 10, 0, 0) / 1000;
+  const eB = emails.length;
   await webhook(stream(evB), mkRes());
+  // the till promises documents in Catalan or Spanish and the fulls oficials:
+  // the operator's email of a Barcelona order reminds him of both (the check
+  // read meta.city.slug, which CITY_MARKETS never had — it never fired)
+  const opB = emails.slice(eB).find((m) => m.to_email === 'valentino@boom-rome.com');
+  check(opB && /Catalan or Spanish/.test(opB.intro || '') && /fulls oficials/.test(opB.intro || ''), 'a Barcelona order: the operator\'s email reminds him of the Catalan or Spanish documents and the fulls oficials', opB && String(opB.intro).slice(-260));
   const leadB = svcLead('cs_city_bcn_hol');
   check(leadB && leadB.market === 'barcelona' && leadB.city && leadB.city.withdrawalEndsOn === '2026-09-25' && leadB.city.workFrom === '2026-09-28' && /^BARCELONA — paid order · Full Search · €500 paid/.test(leadB.message),
     'a Barcelona order: the webhook passes the desk\'s holiday key (es-bcn) — La Mercè moves the end of the period, which the Madrid calendar would not', leadB && JSON.stringify([leadB.message, leadB.city]));
@@ -283,7 +316,7 @@ check(/Refunded in full if we decline the search in the first call/.test(CITY_PL
   await webhook(stream(event({ ...base, start_now: '1' }, { id: 'cs_city_mad_now' })), mkRes());
   const lead1 = svcLead('cs_city_mad_now');
   const client1 = emails[e1 + 1];
-  check(lead1 && /^MADRID — paid order · Full Search · €500 paid\. Start: asked to start now \(inside the 14-day withdrawal period\)\./.test(lead1.message) && lead1.city.startNow === true && lead1.city.workFrom === null,
+  check(lead1 && /^MADRID — paid order · Full Search · €500 paid · file BM [A-HJ-NP-Z2-9]{5}\. Start: asked to start now \(inside the 14-day withdrawal period\)\./.test(lead1.message) && lead1.city.startNow === true && lead1.city.workFrom === null,
     'the tick: the lead says the payer asked to start now', lead1 && lead1.message);
   check(client1 && /starts now$/.test(client1.heading) && /Here's exactly what happens next/.test(client1.intro) && /You asked us to start straight away/.test(client1.closing) && /refund the price minus the work already done/.test(client1.closing)
     && /model withdrawal form at https:\/\/www\.boomrome\.com\/withdrawal/.test(client1.closing),
@@ -397,12 +430,129 @@ check(/Refunded in full if we decline the search in the first call/.test(CITY_PL
   const lead = store.get('leads/svc_csrome1');
   check(r.code === 200 && lead && lead.market === undefined && lead.intent === 'service' && !isCityMarket(lead) && emails.length === e0 + 2 && /VIRTUAL VIEWING/.test(emails[e0].heading) && emails[e0 + 1].portal_link === 'https://www.boomrome.com/apartments.html',
     'a Rome service: no market, intent service, the Rome emails — unchanged');
+  check(!/Your file:|· file BM/.test(JSON.stringify([emails.slice(e0), lead && lead.message])) && !(lead && lead.city), 'a Rome service gets no file number (the file is a city-desk idea)');
 }
 {
   // a city the registry does not know cannot be smuggled into a market
   const r = await webhook(stream(event({ service: 'SERVICE', kind: 'full-search', city: 'gotham', name: 'X', email: 'x@y.z' }, { id: 'cs_gotham_1' })), mkRes());
   const lead = store.get('leads/svc_csgotham1');
   check(r.code === 200 && lead && lead.market === undefined && !isCityMarket(lead) && lead.intent === 'service', 'an unknown city in the metadata files a plain service lead, never an invented market');
+}
+
+// ── 3b · one file number per person (v1.4): city-lead → till → webhook → GET ?paid= ──
+{
+  // serviceLeadId is the formula the webhook used inline until v1.4, in one copy
+  const before14 = (sid) => 'svc_' + String(sid).replace(/[^a-zA-Z0-9]/g, '').substring(0, 30);
+  const sids = ['cs_city_ams_1', 'cs_live_a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8', 'cs_test_x', 'cs_test_a-b.c_d/e', ''];
+  check(sids.every((sid) => serviceLeadId(sid) === before14(sid)), 'serviceLeadId(session.id) is exactly the svc_ formula the webhook used before v1.4', JSON.stringify(sids.map((x) => [serviceLeadId(x), before14(x)])));
+  const wh = read('api/stripe-webhook.js');
+  const svcSrc = wh.slice(wh.indexOf('async function handleService'), wh.indexOf('async function handleReserve'));
+  check(/const svcId = serviceLeadId\(session\.id\);/.test(svcSrc) && !/session\.id\.replace\(/.test(svcSrc) && !/'svc_' \+/.test(svcSrc),
+    'the SERVICE branch takes its lead id from serviceLeadId — no second copy of the formula in the webhook');
+
+  // the till: a pattern-valid fileRef travels as metadata, on city offers only
+  const tillWith = async (body) => { const n = globalThis.__stripeCalls.length; const r = await post(checkout, body); return { r, call: globalThis.__stripeCalls.length > n ? globalThis.__stripeCalls.at(-1) : null }; };
+  const good = await tillWith({ city: 'amsterdam', kind: 'full-search', ...ANNA, fileRef: 'city_abcd1234xyz' });
+  check(good.r.code === 200 && good.call && good.call.metadata.file_ref === 'city_abcd1234xyz', 'a city order with a valid fileRef: it travels as metadata.file_ref');
+  const bad = ['city_ABCD1234', 'city_short', 'leads/city_abcd1234', 'city_abcd1234/../x', 'svc_abcd12345678', 'city_' + 'a'.repeat(49), 12345678, { x: 1 }];
+  const badRuns = [];
+  for (const fileRef of bad) badRuns.push(await tillWith({ city: 'amsterdam', kind: 'application-pack', ...ANNA, fileRef }));
+  check(badRuns.every(({ r, call }) => r.code === 200 && call && !('file_ref' in call.metadata)),
+    'anything else (upper case, too short, a path, another prefix, too long, not a string) is ignored in silence: the payment still opens, without file_ref',
+    JSON.stringify(badRuns.map(({ r, call }) => [r.code, call && call.metadata.file_ref])));
+  const rome = await tillWith({ kind: 'contract-check-express', ...ANNA, phone: '333', fileRef: 'city_abcd1234xyz' });
+  check(rome.r.code === 200 && rome.call && !('file_ref' in rome.call.metadata), 'a Rome service ignores fileRef');
+  const tillSrc = read('api/service-checkout.js');
+  check(/const fileRef = offer && typeof body\.fileRef === 'string' && FILE_REF_RE\.test\(body\.fileRef\)/.test(tillSrc) && /const FILE_REF_RE = \/\^city_\[a-z0-9_\]\{8,48\}\$\/;/.test(tillSrc),
+    'the till reads fileRef only on a city offer, against /^city_[a-z0-9_]{8,48}$/');
+
+  // the round trip: the visitor opens a file, pays, and the page asks
+  const ipRT = '10.9.9.1';
+  const open = await post(cityLead, { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com', service: 'full-search', requestId: 'rtrip0001aa' }, '10.9.0.1');
+  const openId = 'city_rtrip0001aa';
+  const openFile = SCALO.fileCode(openId);
+  check(open.code === 200 && open.body.id === openId && open.body.file === openFile && /^BM [A-HJ-NP-Z2-9]{5}$/.test(openFile)
+    && store.get('leads/' + openId) && store.get('leads/' + openId).city.file === openFile,
+    'city-lead opens the file: { ok, id, file } with file = fileCode(id), written on lead.city.file', JSON.stringify(open.body));
+  const sid = 'cs_test_RoundTrip0001abcd';
+  const pend0 = await getPaid({ paid: sid, city: 'amsterdam' }, ipRT);
+  check(pend0.code === 200 && pend0.body.ok === true && pend0.body.pending === true && pend0.headers['cache-control'] === 'no-store',
+    'GET ?paid= before the webhook: pending, Cache-Control no-store', JSON.stringify([pend0.code, pend0.body, pend0.headers]));
+  const till = await tillWith({ city: 'amsterdam', kind: 'full-search', ...ANNA, fileRef: open.body.id });
+  check(till.call && till.call.metadata.file_ref === openId, 'the page posts fileRef = city_<requestId>: the till carries it to Stripe');
+  const e0 = emails.length;
+  const evRT = event({ ...till.call.metadata }, { id: sid, customer_details: { email: 'anna@example.com', phone: '+31612345678' } }); evRT.created = Date.UTC(2026, 9, 20, 10, 0, 0) / 1000;
+  await webhook(stream(evRT), mkRes());
+  const paidLead = svcLead(sid);
+  check(paidLead && paidLead.city && paidLead.city.file === openFile && paidLead.city.fileLeadId === openId && paidLead.message.includes(' · €500 paid · file ' + openFile + '. '),
+    'the webhook reuses the number of the file the visitor opened (same city): city.file, city.fileLeadId, the summary', paidLead && JSON.stringify([paidLead.message, paidLead.city]));
+  const adminRT = emails[e0], clientRT = emails[e0 + 1];
+  check(adminRT && adminRT.closing.includes('Your file: ' + openFile) && clientRT && clientRT.closing.startsWith('Your file: ' + openFile + '. '),
+    'both emails carry the SAME number the page showed when the file opened');
+  const paid = await getPaid({ paid: sid, city: 'amsterdam' }, ipRT);
+  check(paid.code === 200 && paid.body.paid === true && paid.body.plan === 'full-search' && paid.body.file === openFile && paid.body.startNow === false && paid.body.workFromLabel === '4 November 2026'
+    && Object.keys(paid.body).sort().join() === 'file,ok,paid,plan,startNow,workFromLabel' && paid.headers['cache-control'] === 'no-store',
+    'GET ?paid= after the webhook: paid, the plan, the SAME file, startNow and the webhook\'s start date — those six keys and nothing else', JSON.stringify(paid.body));
+  const raw = JSON.stringify(paid.body);
+  check(!/anna|keller|example\.com|\+31|500|eur/i.test(raw), 'the paid answer carries no name, email, phone or amount', raw);
+  const other = await getPaid({ paid: sid, city: 'madrid' }, ipRT);
+  check(other.code === 200 && other.body.pending === true && !('file' in other.body) && Object.keys(other.body).sort().join() === 'ok,pending',
+    'the same session asked for ANOTHER city: pending — nothing leaks across desks', JSON.stringify(other.body));
+  const bads = await Promise.all([
+    getPaid({ paid: sid, city: 'paris' }), getPaid({ paid: sid, city: 'berlin' }), getPaid({ paid: sid, city: 'gotham' }), getPaid({ paid: sid, city: 'constructor' }),
+    getPaid({ paid: 'cs_live_short', city: 'amsterdam' }), getPaid({ paid: 'pi_123456789abc', city: 'amsterdam' }), getPaid({ paid: 'cs_test_abc/../x1234', city: 'amsterdam' }), getPaid({ city: 'amsterdam' }),
+  ]);
+  check(bads.every((r) => r.code === 400 && r.body.ok === false && r.headers['cache-control'] === 'no-store'),
+    'a waitlist desk, an unknown city, a malformed or missing session id: 400 (still no-store)', JSON.stringify(bads.map((r) => r.code)));
+  // a lead under that id that is NOT a paid city order answers pending
+  store.set('leads/' + serviceLeadId('cs_test_NotPaid00001'), { market: 'amsterdam', name: 'X', city: { paid: false, service: 'full-search', file: 'BM AAAAA' } });
+  store.set('leads/' + serviceLeadId('cs_test_RomeOrder0001'), { intent: 'service', paid: true, name: 'Ada' });
+  const np = await getPaid({ paid: 'cs_test_NotPaid00001', city: 'amsterdam' });
+  const ro = await getPaid({ paid: 'cs_test_RomeOrder0001', city: 'amsterdam' });
+  check(np.body.pending === true && ro.body.pending === true, 'a lead that is not a paid city order (paid:false, a Rome service) answers pending');
+  let lastRL;
+  for (let i = 0; i < 31; i++) lastRL = await getPaid({ paid: 'cs_test_RateLimit00001', city: 'amsterdam' }, '10.9.9.77');
+  check(lastRL.code === 429 && lastRL.headers['cache-control'] === 'no-store', 'GET ?paid= has its own per-IP limit: 30 per 10 minutes');
+  const put = mkRes(); await cityLead({ method: 'PUT', headers: {}, body: {} }, put);
+  const opt = mkRes(); await cityLead({ method: 'OPTIONS', headers: {} }, opt);
+  check(put.code === 405 && opt.code === 204 && /GET/.test(opt.headers['access-control-allow-methods'] || ''), 'OPTIONS / GET / POST; anything else 405');
+
+  // a reference from ANOTHER city never lends its number; neither does one naming nothing
+  const mad = await post(cityLead, { city: 'madrid', name: 'Luis Gómez', email: 'luis@example.com', service: 'full-search', requestId: 'rtripmad01' }, '10.9.0.2');
+  check(mad.code === 200 && mad.body.file === SCALO.fileCode('city_rtripmad01'), 'a Madrid file opened');
+  await webhook(stream(event({ service: 'SERVICE', kind: 'full-search', city: 'amsterdam', market: 'amsterdam', name: 'Luis Gómez', email: 'luis@example.com', start_now: '1', file_ref: 'city_rtripmad01' }, { id: 'cs_test_CrossCity0001' })), mkRes());
+  const cross = svcLead('cs_test_CrossCity0001');
+  check(cross && cross.city.file === SCALO.fileCode(serviceLeadId('cs_test_CrossCity0001')) && cross.city.file !== mad.body.file && cross.city.fileLeadId === null,
+    'an Amsterdam order whose file_ref names a MADRID lead: the number is NOT reused (own fileCode, no fileLeadId)', cross && JSON.stringify(cross.city));
+  await webhook(stream(event({ service: 'SERVICE', kind: 'attended-viewing', city: 'amsterdam', market: 'amsterdam', name: 'Z', email: 'z@example.com', start_now: '1', file_ref: 'city_doesnotexist01' }, { id: 'cs_test_Ghost00001' })), mkRes());
+  const ghost = svcLead('cs_test_Ghost00001');
+  check(ghost && ghost.city.file === SCALO.fileCode(serviceLeadId('cs_test_Ghost00001')) && ghost.city.fileLeadId === null, 'a file_ref that names no lead: the order\'s own number');
+  check(getReads.get('leads/city_doesnotexist01') === 1 && !('fileRefUnverified' in ghost.city), 'a 404 is an answer: read once, not retried, nothing marked unverified');
+
+  // a transient Firestore error on the file_ref read (review 22/10): one
+  // retry, and the visitor keeps ONE number; two failures keep the order's
+  // own number and say so on the lead — the paid order never fails over it
+  const blip = await post(cityLead, { city: 'amsterdam', name: 'Ada Lind', email: 'ada@example.com', service: 'full-search', requestId: 'blip0001aaa' }, '10.9.0.3');
+  failGets.set('leads/city_blip0001aaa', 1);
+  const rb = mkRes();
+  await webhook(stream(event({ service: 'SERVICE', kind: 'full-search', city: 'amsterdam', market: 'amsterdam', name: 'Ada Lind', email: 'ada@example.com', start_now: '1', file_ref: 'city_blip0001aaa' }, { id: 'cs_test_Blip0000001' })), rb);
+  const blipLead = svcLead('cs_test_Blip0000001');
+  check(rb.code === 200 && blipLead && blipLead.city.file === blip.body.file && blipLead.city.fileLeadId === 'city_blip0001aaa' && !('fileRefUnverified' in blipLead.city) && getReads.get('leads/city_blip0001aaa') === 2,
+    'one 503 on the file_ref read: retried once, the visitor keeps the number the OPEN ticket showed', blipLead && JSON.stringify([blipLead.city, getReads.get('leads/city_blip0001aaa')]));
+  const down = await post(cityLead, { city: 'amsterdam', name: 'Bo Lind', email: 'bo@example.com', service: 'full-search', requestId: 'down0001aaa' }, '10.9.0.4');
+  failGets.set('leads/city_down0001aaa', 2);
+  const rd = mkRes();
+  await webhook(stream(event({ service: 'SERVICE', kind: 'full-search', city: 'amsterdam', market: 'amsterdam', name: 'Bo Lind', email: 'bo@example.com', start_now: '1', file_ref: 'city_down0001aaa' }, { id: 'cs_test_Down0000001' })), rd);
+  const downLead = svcLead('cs_test_Down0000001');
+  check(rd.code === 200 && downLead && downLead.paid === true && downLead.city.file === SCALO.fileCode(serviceLeadId('cs_test_Down0000001')) && downLead.city.file !== down.body.file
+    && downLead.city.fileLeadId === null && downLead.city.fileRefUnverified === 'city_down0001aaa' && getReads.get('leads/city_down0001aaa') === 2,
+    'two 503s: the paid order still lands (200, paid), with its own number and fileRefUnverified naming the file it could not check', downLead && JSON.stringify(downLead.city));
+  // the number in the HEAD: a long note never pushes it out of the card's 240 characters
+  const longNote = 'We arrive with two cats and need a ground floor near Zuid, ideally with a balcony and a lift, please.';
+  await webhook(stream(event({ service: 'SERVICE', kind: 'full-search', city: 'amsterdam', market: 'amsterdam', name: 'Cy Lind', email: 'cy@example.com', start_now: '0', notes: longNote, listing: 'https://www.pararius.com/apartment-for-rent/amsterdam/abcdef12/some-long-street-name' }, { id: 'cs_test_LongNote0001' })), mkRes());
+  const longLead = svcLead('cs_test_LongNote0001');
+  check(longLead && longLead.message.length > 240 && longLead.message.slice(0, 240).includes('file ' + longLead.city.file) && longLead.message.includes(longNote),
+    'a long note and a listing URL: the file number is still inside the first 240 characters the Telegram card quotes', longLead && `${longLead.message.length}: ${longLead.message.slice(0, 120)}`);
 }
 
 // ── 4 · the joints, on the source ──────────────────────────────────────────
@@ -421,7 +571,7 @@ check(/Refunded in full if we decline the search in the first call/.test(CITY_PL
   const com = read('api/employees/commerciale.js');
   check(com.indexOf('if (isCityMarket(lead)) continue;') > -1 && com.indexOf('if (isCityMarket(lead)) continue;') < com.indexOf('proposeFirstReply(lead'), 'the Commerciale stands down on a paid city order too (the guard reads the market, not the intent)');
   const js = read('assets/boom-city.js');
-  check(/C\.CHECKOUT === true \? (?:document\.getElementById|\$)\('ov'\) : null/.test(js) && /if \(C\.CHECKOUT !== true \|\| !form\) return;/.test(js),
+  check(/var sell = C\.CHECKOUT === true;/.test(js) && /var till = sell \? \$\('till'\) : null, tf = sell \? \$\('tillForm'\) : null/.test(js) && /function handleReturn\(\) \{\s*if \(!sell\) return;/.test(js),
     'the page JS mounts the till and reads ?paid= ONLY when the build set CHECKOUT true');
   check(/city: C\.SLUG, kind: id/.test(js) && !/\beur:\s*p\.eur\b/.test(js.slice(js.indexOf('function pay()'), js.indexOf('go.addEventListener'))),
     'the sheet posts the city and the plan id — never a price');

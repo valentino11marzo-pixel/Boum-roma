@@ -9,7 +9,8 @@ const RULES = (await import('../../js/smartlink-engine.js')).default;
 const PHOTO = (await import('../../js/smartlink-photo.js')).default;
 const { toFsFields } = await import('../../api/homie/_lib.js');
 const { default: extract } = await import('../../api/smartlink/extract.js');
-const { parseSmartLinkPage } = await import('../../api/smartlink/_extract.js');
+const { parseSmartLinkPage, extractListing } = await import('../../api/smartlink/_extract.js');
+const { parseListing } = await import('../../api/pfs/_fetch.js');
 const { default: importPhoto } = await import('../../api/smartlink/import-photo.js');
 const { default: create } = await import('../../api/smartlink/create.js');
 const { default: read } = await import('../../api/smartlink/read.js');
@@ -21,7 +22,7 @@ function response() {
 }
 function request(method, body, token='admin') { return { method, body, headers:{ authorization:'Bearer '+token }, query:body }; }
 const docs = new Map();
-let remoteFetches = 0, writes = 0, remoteResult = 'blocked', archiveUnavailable = false;
+let remoteFetches = 0, writes = 0, remoteResult = 'blocked', archiveUnavailable = false, radarUnavailable = false, radarReads = 0, archiveQueries = 0;
 const sourcePhoto='https://pwm.im-cdn.it/image/1823571757/m-c.jpg';
 const photoBytes=Buffer.from([0xff,0xd8,0xff,0xe0,0x00,0x10]);
 const subitoUrl='https://www.subito.it/appartamenti/bilocale-test-roma-123456.htm';
@@ -57,6 +58,7 @@ globalThis.fetch = async (input, opts={}) => {
   }
   if (u.hostname === 'firestore.googleapis.com') {
     if(u.pathname.endsWith(':runQuery')) {
+      archiveQueries++;
       if(archiveUnavailable) return new Response('',{status:503});
       const q=JSON.parse(opts.body).structuredQuery, filter=q.where.fieldFilter;
       assert.equal(q.from[0].collectionId,'smartlinks');assert.equal(filter.field.fieldPath,'sourceUrl');
@@ -64,6 +66,7 @@ globalThis.fetch = async (input, opts={}) => {
       return Response.json(matches.slice(0,q.limit).map(([,document])=>({document})));
     }
     const path = u.pathname.split('/documents/')[1] || '';
+    if(path.startsWith('pfsProperties/')) {radarReads++;if(radarUnavailable) return new Response('',{status:503});}
     if (opts.method === 'POST') {
       writes++;
       const id = u.searchParams.get('documentId') || 'log';
@@ -81,7 +84,7 @@ globalThis.fetch = async (input, opts={}) => {
   if (u.hostname === 'www.subito.it') return new Response(subitoHtml,{headers:{'content-type':'text/html'}});
   assert.equal(u.hostname, 'www.immobiliare.it');
   if (remoteResult === 'blocked') return new Response('', { status:403 });
-  return new Response('<html><script type="application/ld+json">{"@type":"Apartment","name":"Bilocale Test","offers":{"price":"1200"},"floorSize":{"value":62},"numberOfRooms":2,"image":["'+sourcePhoto+'","https://evil.example/photo.jpg"]}</script></html>', { headers:{ 'content-type':'text/html' } });
+  return new Response('<html><script type="application/ld+json">{"@type":"Apartment","name":"Bilocale Test","offers":{"price":"1200"},"floorSize":{"value":62},"numberOfRooms":2,"image":'+(remoteResult==='no-images'?'[]':'["'+sourcePhoto+'","https://evil.example/photo.jpg"]')+'}</script></html>', { headers:{ 'content-type':'text/html' } });
 };
 try {
   const oldBitmap=globalThis.createImageBitmap, oldDocument=globalThis.document;
@@ -123,6 +126,104 @@ try {
   assert.deepEqual(subitoParsed.images,[subitoPhoto,subitoPhoto2].map(url=>url+'?rule=fullscreen-1x-auto'),'Gallery variants deduplicate; recommendation photos excluded');
   const noGallery=parseSmartLinkPage(subitoHtml.replace(/<figure\b[\s\S]*?<\/figure>/g,'').replace(/<section\b[\s\S]*?<\/section>/g,''),subitoUrl);
   assert.deepEqual(noGallery.images,[]);assert.equal(noGallery.data.sqm,null);assert.equal(noGallery.data.rooms,null);
+
+  const schemaUrl='https://www.idealista.it/immobile/123456789/';
+  const schemaPhoto='https://img.idealista.it/photo.jpg';
+  const schema=price=>JSON.stringify({'@type':'Apartment',name:'Bilocale strutturato',offers:{price},floorSize:{value:55},numberOfRooms:2,image:[schemaPhoto]});
+  const schemaHtml=(price,attrs='type="application/ld+json"')=>`<script ${attrs}>${schema(price)}</script>`;
+  function verifyStructuredParser(parse) {
+    assert.deepEqual(parse(schemaHtml('1500.00'),schemaUrl).data,{title:'Bilocale strutturato',price:1500,sqm:55,rooms:2});
+    for(const attrs of ['id="listing" type="application/ld+json"','type = \'application/ld+json\' nonce="fixture"',
+      'TYPE="APPLICATION/LD+JSON"','type=application/ld+json','data-note="a > b" type="application/ld+json"']) {
+      const result=parse(schemaHtml('1500.00',attrs),schemaUrl);
+      assert.equal(result.data.price,1500,'Other attributes must not hide the listing JSON-LD');
+      assert.deepEqual(result.images,[schemaPhoto]);
+    }
+    for(const attrs of ['data-type="application/ld+json"','type="application/json"',
+      'data-note="type=\'application/ld+json\'"','type="application/json" type="application/ld+json"']) {
+      assert.equal(parse(schemaHtml('1500.00',attrs),schemaUrl).data.price,null,'Only the real first type attribute authorizes JSON-LD parsing');
+    }
+  }
+  verifyStructuredParser(parseSmartLinkPage);
+  for(const [input,expected] of [[1500,1500],[1500.5,1500.5],['1500.00',1500],[' 1500.50 ',1500.5],['1.200',1.2]]) {
+    // PFS retains decimal precision; SmartLink retains its existing integer display contract.
+    assert.equal(parseListing(schemaHtml(input),schemaUrl).price,expected);
+    assert.equal(parseSmartLinkPage(schemaHtml(input),schemaUrl).data.price,Math.round(expected));
+  }
+  for(const input of [null,true,false,0,-1200,'-1200','1.200,50','1500 euro',['1500'],{value:1500}]) {
+    assert.equal(parseListing(schemaHtml(input),schemaUrl).price,null,'Ambiguous structured prices are not converted by deleting punctuation');
+    assert.equal(parseSmartLinkPage(schemaHtml(input),schemaUrl).data.price,null);
+    assert.equal(parseListing(schemaHtml(input)+'<p>€ 900</p>',schemaUrl).price,900,'The existing visible-price fallback remains available');
+  }
+  const fallback='<h1>Casa visibile</h1><p>€ 1.500 · 55 m² · 2 locali</p>';
+  assert.deepEqual(parseSmartLinkPage('<script type="application/ld+json">not JSON</script>'+fallback,schemaUrl).data,
+    {title:'Casa visibile',price:1500,sqm:55,rooms:2});
+  const pfsFallback=parseListing(fallback,schemaUrl);
+  assert.equal(pfsFallback.bedrooms,2);assert.equal(pfsFallback.sourceUrl,schemaUrl);
+
+  async function verifyRedirects(read) {
+    const priorFetch=globalThis.fetch;
+    const attempt=async(start,location,allowed,status=302)=>{
+      const calls=[];
+      globalThis.fetch=async(input,opts)=>{
+        assert.equal(opts.redirect,'manual');calls.push(String(input));
+        return calls.length===1?new Response('',{status,headers:location?{location}:{}}):
+          new Response(schemaHtml('1900.00'),{headers:{'content-type':'text/html'}});
+      };
+      const result=await read(start);
+      assert.equal(result.source.url,start);
+      if(allowed) {
+        assert.equal(result.status,'partial');assert.equal(result.data.price,1900);
+        assert.deepEqual(calls,[start,RULES.normalizeUrl(new URL(location,start).href).url]);
+      } else {
+        assert.equal(result.status,'unavailable');assert.equal(result.data,undefined);assert.equal(result.images,undefined);
+        assert.deepEqual(calls,[start],'A changed listing must be rejected before fetching its page');
+      }
+    };
+    try {
+      await attempt(schemaUrl,'/immobile/987654321/',false);
+      await attempt(schemaUrl,'https://www.immobiliare.it/annunci/123456789/',false);
+      await attempt(schemaUrl,'https://www.idealista.it/affitto-case/roma/',false);
+      await attempt(schemaUrl,'https://m.idealista.it/immobile/123456789/',false);
+      await attempt(schemaUrl,'https://user:pass@www.idealista.it/immobile/123456789/',false);
+      await attempt(schemaUrl,'https://www.idealista.it:8443/immobile/123456789/',false);
+      await attempt(schemaUrl,'https://idealista.it.evil.example/immobile/123456789/',false);
+      await attempt(schemaUrl,null,false);
+      await attempt(schemaUrl,null,false,403);
+      for(const [start,next] of [
+        [schemaUrl,'https://idealista.it/immobile/123456789'],
+        ['https://immobiliare.it/annunci/123456789','https://www.immobiliare.it/annunci/123456789/'],
+        ['https://www.casa.it/immobili/123456789/','https://casa.it/immobili/123456789'],
+        [subitoUrl,subitoUrl.replace('www.subito.it','subito.it')],
+        ['https://it.casafari.com/estate/sharepage/test/23310686611','?utm_source=share'],
+      ]) await attempt(start,next,true);
+    } finally {globalThis.fetch=priorFetch;}
+  }
+  await verifyRedirects(extractListing);
+
+  // Mutations execute the real parser/extractor with the same assertions; no
+  // source requests and no product files rewritten during the test.
+  const extractorURL=new URL('../../api/smartlink/_extract.js',import.meta.url);
+  const parserURL=new URL('../../api/pfs/_fetch.js',import.meta.url);
+  const extractorCode=readFileSync(extractorURL,'utf8');
+  const parserCode=readFileSync(parserURL,'utf8');
+  const dataModule=code=>'data:text/javascript,'+encodeURIComponent(code);
+  const loadExtractor=async(code,pfsURL=parserURL.href)=>import(dataModule(code
+    .replace("'../../js/smartlink-engine.js'",JSON.stringify(new URL('../../js/smartlink-engine.js',import.meta.url).href))
+    .replace("'../pfs/_fetch.js'",JSON.stringify(pfsURL))));
+  const mutate=(code,before,after)=>{assert.ok(code.includes(before),'Mutation target must exist');return code.replace(before,after);};
+  const badPrice=mutate(parserCode,'if (Number.isFinite(price) && price > 0) out.price = price;',
+    "if (rawPrice) out.price = parseInt(String(rawPrice).replace(/\\D/g, ''), 10);");
+  const badTag=mutate(parserCode,
+    "if (!type || (type[2] ?? type[3] ?? type[4] ?? '').trim().toLowerCase() !== 'application/ld+json') continue;",
+    "if (attrs !== ' type=\"application/ld+json\"') continue;");
+  for(const code of [badPrice,badTag]) {
+    const mutant=await loadExtractor(extractorCode,dataModule(code));
+    assert.throws(()=>verifyStructuredParser(mutant.parseSmartLinkPage),{code:'ERR_ASSERTION'});
+  }
+  const badRedirect=mutate(extractorCode,'if (!next || !sameRedirectListing(startUrl,next.url)) return null;','if (!next) return null;');
+  const redirectMutant=await loadExtractor(badRedirect);
+  await assert.rejects(()=>verifyRedirects(redirectMutant.extractListing),{code:'ERR_ASSERTION'});
   assert.equal(EXT.canonical('https://www.immobiliare.it/annunci/124483437/?utm=x#foto20'),'https://www.immobiliare.it/annunci/124483437/');
   const oldDom=globalThis.document;
   globalThis.document={ images:[
@@ -177,6 +278,23 @@ try {
   await extract(request('POST',{ url:'https://www.immobiliare.it/annunci/123/' },'tenant'), r);
   assert.equal(r.code, 403);
   assert.equal(remoteFetches, 0);
+  // Il preflight centrale consulta soltanto l'archivio BOOM, anche su miss/errore.
+  const preflightRemote=remoteFetches,preflightRadar=radarReads;
+  r=response();await extract(request('POST',{url:canonical.url,archiveOnly:true}),r);
+  assert.equal(r.code,200);assert.equal(r.body.status,'unavailable');assert.deepEqual(r.body.images,[]);
+  assert.equal(remoteFetches,preflightRemote);assert.equal(radarReads,preflightRadar);
+  archiveUnavailable=true;
+  r=response();await extract(request('POST',{url:canonical.url,archiveOnly:true}),r);
+  assert.equal(r.code,503);assert.equal(r.body.error,'archive_unavailable');
+  assert.equal(remoteFetches,preflightRemote);assert.equal(radarReads,preflightRadar);archiveUnavailable=false;
+  const queriesBeforeInvalid=archiveQueries;
+  for(const archiveOnly of ['true',1,null,{}]) {
+    r=response();await extract(request('POST',{url:canonical.url,archiveOnly}),r);
+    assert.equal(r.code,400);assert.equal(r.body.error,'invalid_request');
+  }
+  r=response();await extract(request('POST',{url:canonical.url,archiveOnly:true},'tenant'),r);
+  assert.equal(r.code,403);assert.equal(archiveQueries,queriesBeforeInvalid);
+  assert.equal(remoteFetches,preflightRemote);assert.equal(radarReads,preflightRadar);
   r=response();await extract(request('POST',{url:subitoUrl}),r);
   assert.equal(r.code,200);assert.equal(r.body.data.price,1500);assert.equal(r.body.images.length,2);
   r=response();await importPhoto(request('POST',{sourceUrl:subitoUrl,imageUrl:subitoPhoto}),r);
@@ -189,17 +307,53 @@ try {
   await extract(request('POST',{ url:'https://www.immobiliare.it/annunci/123/' }), r);
   assert.equal(r.body.status, 'unavailable');
   const cacheId='h_'+(await import('node:crypto')).createHash('sha1').update('https://www.immobiliare.it/annunci/123/').digest('hex').slice(0,16);
-  docs.set('pfsProperties/'+cacheId,{ name:'projects/test/databases/(default)/documents/pfsProperties/'+cacheId, fields:toFsFields({sourceUrl:'https://www.immobiliare.it/annunci/123/',images:[sourcePhoto]}) });
+  const setRadar=(id,value)=>docs.set('pfsProperties/'+id,{name:'projects/test/databases/(default)/documents/pfsProperties/'+id,fields:toFsFields(value)});
+  const radarDate='2026-10-01T12:00:00.000Z';
+  const radarSample={sourceUrl:canonical.url,images:[sourcePhoto],title:'Bilocale dal Radar',zone:'Cipro',price:1800,sqm:75,rooms:3,bedrooms:1,
+    scrapedAt:radarDate,lastSeenAt:new Date().toISOString()};
+  setRadar(cacheId,radarSample);
   r=response();
   await extract(request('POST',{ url:'https://www.immobiliare.it/annunci/123/' }),r);
   assert.equal(r.body.photoOrigin,'radar');
   assert.deepEqual(r.body.images,[sourcePhoto]);
+  assert.deepEqual(r.body.radar,{id:cacheId,archivedAt:radarDate});
+  assert.deepEqual(r.body.data,{title:'Bilocale dal Radar',zone:'Cipro',price:1800,sqm:75,rooms:3});
+  assert.equal(r.body.createdBy,undefined);assert.equal(r.body.data.bedrooms,undefined);
+  setRadar(cacheId,{...radarSample,sourceUrl:canonical.url.replace('123','999')});
+  r=response();await extract(request('POST',{url:canonical.url}),r);
+  assert.equal(r.body.status,'unavailable');assert.equal(r.body.radar,undefined);assert.equal(r.body.images?.length || 0,0);
+  setRadar(cacheId,{...radarSample,rooms:null,bedrooms:4,sqm:null,size:68,scrapedAt:'2099-01-01T00:00:00Z'});
+  r=response();await extract(request('POST',{url:canonical.url}),r);
+  assert.equal(r.body.data.rooms,undefined,'Bedrooms are not evidence of total rooms');
+  assert.equal(r.body.data.sqm,68);assert.equal(r.body.radar.archivedAt,null,'A future scrape time or lastSeenAt cannot certify the archive date');
+  const legacyRadarUrl='https://immobiliare.it/annunci/123';
+  const legacyCacheId='h_'+(await import('node:crypto')).createHash('sha1').update(legacyRadarUrl).digest('hex').slice(0,16);
+  docs.delete('pfsProperties/'+cacheId);setRadar(legacyCacheId,{...radarSample,sourceUrl:legacyRadarUrl});
+  r=response();await extract(request('POST',{url:canonical.url}),r);
+  assert.equal(r.body.radar.id,legacyCacheId);assert.equal(r.body.data.price,1800,'Stored equivalent listing URLs reuse the same Radar facts');
+  docs.delete('pfsProperties/'+legacyCacheId);setRadar(cacheId,radarSample);
+  radarUnavailable=true;
+  r=response();await extract(request('POST',{url:canonical.url}),r);
+  assert.equal(r.body.status,'unavailable');assert.equal(r.body.radar,undefined);radarUnavailable=false;
+  remoteResult='no-images';
+  r=response();await extract(request('POST',{url:canonical.url}),r);
+  assert.equal(r.body.photoOrigin,'radar');assert.equal(r.body.radar.id,cacheId);
+  assert.equal(r.body.data.title,'Bilocale Test');assert.equal(r.body.data.price,1200);
+  assert.equal(r.body.data.sqm,62);assert.equal(r.body.data.rooms,2,'Older cached values never replace fresh source facts');
+  assert.equal(r.body.data.zone,'Cipro');
   remoteResult = 'ok';
   r = response();
   await extract(request('POST',{ url:'https://www.immobiliare.it/annunci/123/' }), r);
   assert.equal(r.body.data.price, 1200);
   assert.equal(r.body.data.sqm, 62);
   assert.deepEqual(r.body.images,[sourcePhoto]);
+  assert.equal(r.body.photoOrigin,undefined,'Fresh source photos keep their origin even when one field is filled from Radar');
+  assert.equal(r.body.radar.id,cacheId);
+  // Un campione senza fatti utili né foto valide non attiva una provenienza finta.
+  setRadar(cacheId,{sourceUrl:canonical.url,images:['https://evil.example/photo.jpg'],title:42,price:true,sqm:[],rooms:false});
+  remoteResult='blocked';r=response();await extract(request('POST',{url:canonical.url}),r);
+  assert.equal(r.body.status,'unavailable');assert.equal(r.body.radar,undefined);
+  setRadar(cacheId,radarSample);remoteResult='ok';
 
   r=response();
   await importPhoto(request('POST',{sourceUrl:canonical.url,imageUrl:sourcePhoto},'tenant'),r);
@@ -215,6 +369,12 @@ try {
 
   r = response();
   const createBody = { idempotencyKey:'11111111-1111-4111-8111-111111111111', sourceUrl:canonical.url, price:1200, title:'Bilocale Test', note:'Da vedere', images:[photo], map:{lat:41.9075,lng:12.4475,label:'Cipro',precision:'exact'} };
+  const invalidHistoricalWrites=writes;
+  for(const historicalData of [null,'true',1,{},[]]) {
+    r=response();await create(request('POST',{...createBody,historicalData}),r);
+    assert.equal(r.code,400);assert.equal(r.body.error,'invalid_request');
+  }
+  assert.equal(writes,invalidHistoricalWrites);
   await create(request('POST',{...createBody,images:[]}),r);
   assert.equal(r.code,400);
   assert.equal(r.body.error,'photos_required');
@@ -228,12 +388,65 @@ try {
   const id = r.body.id;
   assert.equal(id.length, 20);
   assert.ok(docs.has('smartlinks/' + id));
+  assert.ok(Number.isFinite(Date.parse(docs.get('smartlinks/'+id).fields.createdAt.stringValue)),'Every new publication records its creation date');
   assert.ok(writes >= 1);
   r = response();
   await create(request('POST',createBody), r);
   assert.equal(r.code, 200);
   assert.equal(r.body.id, id);
   assert.equal(r.body.duplicate, true);
+  assert.equal(docs.get('smartlinks/'+id).fields.historicalData.booleanValue,false);
+  delete docs.get('smartlinks/'+id).fields.historicalData;
+  r=response();await create(request('POST',{...createBody,historicalData:false}),r);
+  assert.equal(r.code,200,'Legacy missing historicalData normalizes to false');
+  r=response();await create(request('POST',{...createBody,sourceUrl:'https://immobiliare.it/annunci/123'}),r);
+  assert.equal(r.code,200);assert.equal(r.body.id,id,'Equivalent URL spelling remains the same idempotent publication');
+
+  const radarBody={...createBody,idempotencyKey:'77777777-7777-4777-8777-777777777777',draftKey:createBody.idempotencyKey,radarId:cacheId,price:1800};
+  const radarWrites=writes;
+  for(const extra of [{radarId:'../../users/admin'},{radarId:'h_0000000000000000'},{radarId:[]},{radarId:null},{archiveId:id},{sourceUrl:canonical.url.replace('123','999')}]) {
+    r=response();await create(request('POST',{...radarBody,...extra}),r);
+    assert.equal(r.code,400);assert.equal(r.body.error,'invalid_radar');
+  }
+  r=response();await create(request('POST',radarBody,'tenant'),r);assert.equal(r.code,403);
+  radarUnavailable=true;
+  r=response();await create(request('POST',radarBody),r);assert.equal(r.code,503);assert.equal(r.body.error,'radar_unavailable');
+  radarUnavailable=false;assert.equal(writes,radarWrites,'Failed reference checks never publish');
+  r=response();await create(request('POST',{...radarBody,images:[]}),r);
+  assert.equal(r.code,400);assert.equal(r.body.error,'photos_required');
+  r=response();await create(request('POST',{...radarBody,images:[sourcePhoto]}),r);
+  assert.equal(r.code,400,'Radar does not authorize raw source URLs as published photos');
+  r=response();await create(request('POST',radarBody),r);assert.equal(r.code,201);
+  const radarSmartLinkId=r.body.id,radarStored=docs.get('smartlinks/'+radarSmartLinkId).fields;
+  assert.deepEqual(radarStored.observedAt,{nullValue:null});assert.equal(radarStored.reusedFrom.stringValue,'radar:'+cacheId);
+  assert.ok(Number.isFinite(Date.parse(radarStored.createdAt.stringValue)));
+  r=response();await read(request('GET',{id:radarSmartLinkId}),r);
+  assert.equal(r.body.listing.price,1800);assert.equal(r.body.listing.observedAt,null,'An archived Radar price is never dated today');
+  assert.equal(r.body.listing.reusedFrom,undefined);assert.equal(r.body.listing.radarId,undefined);
+  r=response();await create(request('POST',{...radarBody,sourceUrl:legacyRadarUrl}),r);assert.equal(r.code,200);
+  r=response();await create(request('POST',{...radarBody,radarId:undefined}),r);
+  assert.equal(r.code,409);assert.equal(r.body.error,'publication_conflict','A retry cannot erase the Radar provenance');
+  r=response();await create(request('POST',{...radarBody,price:1900}),r);assert.equal(r.code,409);
+  docs.get('smartlinks/'+radarSmartLinkId).fields.active={booleanValue:false};
+
+  const historicalBody={...createBody,idempotencyKey:'88888888-8888-4888-8888-888888888888',draftKey:createBody.idempotencyKey,historicalData:true,price:1800};
+  r=response();await create(request('POST',{...historicalBody,images:[sourcePhoto]}),r);
+  assert.equal(r.code,400,'Historical fields cannot authorize an unarchived source photo');
+  r=response();await create(request('POST',{...historicalBody,images:[]}),r);assert.equal(r.code,400);
+  r=response();await create(request('POST',historicalBody),r);assert.equal(r.code,201);
+  const historicalId=r.body.id;
+  assert.equal(docs.get('smartlinks/'+historicalId).fields.historicalData.booleanValue,true);
+  assert.equal(docs.get('smartlinks/'+historicalId).fields.reusedFrom,undefined,'Historical flag does not invent archive provenance');
+  r=response();await read(request('GET',{id:historicalId}),r);
+  assert.equal(r.body.listing.observedAt,null,'Retained historical values cannot acquire a fresh observation date');
+  assert.equal(r.body.listing.historicalData,undefined);
+  r=response();await create(request('POST',historicalBody),r);assert.equal(r.code,200);
+  for(const historicalData of [false,undefined]) {
+    r=response();await create(request('POST',{...historicalBody,historicalData}),r);
+    assert.equal(r.code,409);assert.equal(r.body.error,'publication_conflict','A retry cannot remove the historical-data qualification');
+  }
+  r=response();await create(request('POST',{...createBody,historicalData:true}),r);assert.equal(r.code,409);
+  docs.get('smartlinks/'+historicalId).fields.active={booleanValue:false};
 
   // Una chiave conferma il contenuto già pubblicato, non perde modifiche successive.
   for(const changed of [{price:1600},{title:'Titolo aggiornato'},{note:'Nota aggiornata'},
@@ -283,6 +496,10 @@ try {
   assert.equal(r.body.archive.observedAt,originalDate);assert.deepEqual(r.body.images,[photo]);
   assert.equal(remoteFetches,remoteBefore,'An archived listing does not contact the protected source');
   assert.equal(r.body.data.price,1200);assert.equal(r.body.data.note,undefined);assert.equal(r.body.createdBy,undefined);
+  const archiveOnlyRadarBefore=radarReads;
+  r=response();await extract(request('POST',{url:canonical.url,archiveOnly:true}),r);
+  assert.equal(r.body.photoOrigin,'boom_archive');assert.equal(r.body.archive.id,id);
+  assert.equal(remoteFetches,remoteBefore);assert.equal(radarReads,archiveOnlyRadarBefore);
   const reuseKey='33333333-3333-4333-8333-333333333333';
   const reuse={...createBody,idempotencyKey:reuseKey,archiveId:id};
   const expectReuseRejected=async(body)=>{const out=response();await create(request('POST',body),out);assert.equal(out.code,400);};
@@ -299,6 +516,17 @@ try {
   assert.deepEqual(r.body.listing.images,[photo]);assert.equal(r.body.listing.observedAt,originalDate,'Reusing photos must not certify fresh source data');
   assert.equal(r.body.listing.reusedFrom,undefined);assert.equal(r.body.listing.sourceUrl,undefined);
   docs.get('smartlinks/'+reusedId).fields.active={booleanValue:false};
+  const mixedArchive={...reuse,idempotencyKey:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',historicalData:true};
+  r=response();await create(request('POST',{...mixedArchive,images:[photo.replace('22222222','99999999')]}),r);
+  assert.equal(r.code,400,'Historical flag does not relax archive ownership checks');
+  r=response();await create(request('POST',mixedArchive),r);assert.equal(r.code,201);
+  const mixedId=r.body.id;
+  assert.equal(docs.get('smartlinks/'+mixedId).fields.reusedFrom.stringValue,id);
+  r=response();await read(request('GET',{id:mixedId}),r);
+  assert.equal(r.body.listing.observedAt,null,'Older retained fields invalidate even the current archive observation date');
+  r=response();await create(request('POST',mixedArchive),r);assert.equal(r.code,200);
+  r=response();await create(request('POST',{...mixedArchive,historicalData:false}),r);assert.equal(r.code,409);
+  docs.get('smartlinks/'+mixedId).fields.active={booleanValue:false};
   archiveUnavailable=true;
   r=response();await extract(request('POST',{url:canonical.url}),r);
   assert.equal(r.body.data.price,1200,'A failed archive query still permits direct source reading');

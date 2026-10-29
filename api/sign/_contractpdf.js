@@ -36,7 +36,7 @@
 import crypto from 'node:crypto';
 import jspdfNS from 'jspdf';
 import CONTRACT_PDF from '../../js/contract-pdf.js';
-import { fsGet, fsPatch, fsList } from '../homie/_lib.js';
+import { fsGet, fsGetVersioned, fsCommit, fsList } from '../homie/_lib.js';
 import { storageUpload } from '../agent/_lib.js';
 
 const jsPDF = jspdfNS.jsPDF || jspdfNS.default || jspdfNS;
@@ -79,7 +79,7 @@ export async function resolveLandlord(contract, property) {
 }
 
 export const hasAnySignature = (c) => !!(
-  c && (c.tenantSignature || c.landlordSignature
+  c && (c.externalSignedDocument || c.tenantSignature || c.landlordSignature
     || (Array.isArray(c.coTenants) && c.coTenants.some(x => x && x.signature)))
 );
 
@@ -182,8 +182,17 @@ export async function ensureContractPdf(contractId, preloaded = null, opts = {})
   // property dal contratto, tenant da users, landlord da property.ownerId.
   // Tutto opzionale: il modulo stampa i puntini dove mancano i dati,
   // esattamente come farebbe il portal.
+  const versioned = await fsGetVersioned('contracts/' + contractId);
+  if (!versioned) return null;
+  if (hasAnySignature(versioned.data) || isUploadedPdf(versioned.data)) return versioned.data.signedPdfUrl || versioned.data.generatedPDF || null;
   const r = await renderContractPdf(contractId, contract);
   if (!r) return null;
-  await fsPatch('contracts/' + contractId, r.fields);
-  return r.url;
+  try {
+    await fsCommit([{docPath:'contracts/'+contractId,fields:r.fields,precondition:{updateTime:versioned.updateTime}}]);
+    return r.url;
+  } catch(e) {
+    if (!e.conflict) throw e;
+    const latest = await fsGet('contracts/'+contractId);
+    return latest?.signedPdfUrl || latest?.generatedPDF || null;
+  }
 }

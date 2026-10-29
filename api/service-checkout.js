@@ -23,6 +23,14 @@
 // collects one at checkout); the webhook files the lead with market = the
 // city, so the Commerciale stands down and the Telegram card speaks of the
 // right city — the same door as /api/city-lead, with the money in.
+//
+// ONE NUMBER PER PERSON (v1.4): a city order may carry `fileRef`, the id of
+// the lead /api/city-lead opened for this visitor in this tab
+// (city_<requestId>). Only a city offer reads it, only when it matches
+// /^city_[a-z0-9_]{8,48}$/, and it travels as metadata.file_ref — nothing
+// more: the webhook decides whether that lead exists in the SAME city
+// before reusing its file number. Anything else is ignored in silence (a
+// bad reference must never block a payment); Rome services ignore it.
 
 import Stripe from 'stripe';
 import { CATALOG } from './_catalog.js';
@@ -44,6 +52,7 @@ function rateLimited(ip) {
 }
 
 const clip = (v, n = 200) => (v == null ? '' : String(v).trim().slice(0, n));
+const FILE_REF_RE = /^city_[a-z0-9_]{8,48}$/;
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -73,6 +82,9 @@ export default async function handler(req, res) {
     if (!svc) return res.status(400).json({ ok: false, error: 'unknown_service' });
   }
 
+  // city offers only: a pattern-valid reference to the file this visitor opened
+  const fileRef = offer && typeof body.fileRef === 'string' && FILE_REF_RE.test(body.fileRef) ? body.fileRef : null;
+
   const name  = clip(body.name, 120);
   const email = clip(body.email, 160);
   const phone = clip(body.phone, 40);
@@ -100,6 +112,7 @@ export default async function handler(req, res) {
         service: 'SERVICE',
         kind,
         ...(offer ? { city: offer.city, market: offer.city } : {}),
+        ...(fileRef ? { file_ref: fileRef } : {}),
         name, email, phone,
         listing: clip(body.listing, 400),
         notes: clip(body.notes, 400),
@@ -117,12 +130,16 @@ export default async function handler(req, res) {
       // thank-you page — and the Pacchetto carries its «inizio subito» choice
       // there, so the page says the right time (48 hours from the data, or
       // after the 14 days).
+      // No #contact on the way back (review 22/10): the page lands the payer
+      // on the ticket itself, and a fragment makes the browser re-apply its
+      // own scroll to #contact at `load` — which, with gtag.js holding `load`
+      // in production, arrives AFTER the page's landing and undoes it.
       success_url: offer
-        ? `${offer.url}?paid=${encodeURIComponent(kind)}&start=${body.startNow === true ? '1' : '0'}&session_id={CHECKOUT_SESSION_ID}#contact`
+        ? `${offer.url}?paid=${encodeURIComponent(kind)}&start=${body.startNow === true ? '1' : '0'}&session_id={CHECKOUT_SESSION_ID}`
         : 'https://www.boomrome.com/thank-you.html?service=' + encodeURIComponent(body.kind) +
           (body.kind === 'concordato-pack' ? '&start=' + (body.startNow === true ? '1' : '0') : '') +
           '&session_id={CHECKOUT_SESSION_ID}',
-      cancel_url: offer ? `${offer.url}#services` : 'https://www.boomrome.com' + svc.cancel,
+      cancel_url: offer ? `${offer.url}#fares` : 'https://www.boomrome.com' + svc.cancel,
     });
     return res.status(200).json({ ok: true, url: session.url });
   } catch (err) {

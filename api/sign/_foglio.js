@@ -164,7 +164,7 @@ export function sheetRows({ contract, property }) {
   } else {
     rows.push(R('Esigenza transitoria', v(read('transitionalReason')), (read('esigenzaDi') === 'locatore' ? 'dichiarata dal locatore' : 'dichiarata dal conduttore') + (read('transitionalDocs') ? ' · documentata con: ' + esc(read('transitionalDocs')) : '')));
   }
-  rows.push(R('Stipula', rli.stipula ? esc(dIT(rli.stipula)) : ND, 'firma elettronica (FES, art. 21 CAD) con certificato'));
+  rows.push(R('Stipula', rli.stipula ? esc(dIT(rli.stipula)) : ND, c.externalSignedDocument ? 'firma esterna, originale verificato dall’operatore' : 'firma elettronica (FES, art. 21 CAD) con certificato'));
   rows.push(R('Registrazione entro', rli.registrationDeadline ? `<b>${esc(dIT(rli.registrationDeadline))}</b>` : ND, rli.registrationFrom ? '30 giorni da ' + esc(dIT(rli.registrationFrom)) + (rli.stipula && rli.decorrenza && rli.stipula < rli.decorrenza ? ' (stipula)' : ' (decorrenza)') : null));
   rows.push(R('Parti', `${rli.nLocatori} locatore · ${rli.nConduttori} conduttor${rli.nConduttori === 1 ? 'e' : 'i'}`));
   legal.forEach(l => rows.push(R('Durata di legge', l.ok ? 'conforme' : '<b>NON conforme</b>', esc(l.note.it) + (l.ok ? '' : ' — durata pattuita ' + l.months + ' mesi'))));

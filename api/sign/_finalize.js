@@ -14,6 +14,7 @@
 // Note: the RLI registration deadline + monthly payments are created by
 // api/magic-sign/submit; finalize adds everything else.
 
+import { prepareExternal } from '../contracts/_external.js';
 import crypto from 'node:crypto';
 // pdf-lib is imported statically: a lazy `await import('pdf-lib')` is not
 // traced by Vercel's bundler and fails at runtime in production.
@@ -77,6 +78,7 @@ async function loadParties(contract) {
 
 export async function finalizeContract(contract){
   if(!contract || !contract.id) return { ok:false, error:'no_contract' };
+  if(contract.externalSignedDocument) return prepareExternal(contract.id);
   if(contract.finalizedAt) return { ok:true, skipped:true };
 
   const now = new Date();

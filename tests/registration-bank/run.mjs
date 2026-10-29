@@ -54,11 +54,11 @@ globalThis.fetch = async (input, options = {}) => {
     if (mask.length !== Object.keys(patch).length || !mask.every(key => Object.hasOwn(patch, key))) throw new Error('Wrong update mask');
     writes.push({ path, patch });
     store.set(path, { ...(store.get(path) || {}), ...patch });
-    return okJson({ name: nameOf(path), fields: fields(store.get(path)) });
+    return okJson({ name: nameOf(path), updateTime:'2026-10-01T00:00:00Z', fields: fields(store.get(path)) });
   }
   if (options.method && options.method !== 'GET') throw new Error('Unexpected Firestore mutation');
   reads.push(path);
-  return store.has(path) ? okJson({ name: nameOf(path), fields: fields(store.get(path)) }) : new Response('missing', { status: 404 });
+  return store.has(path) ? okJson({ name: nameOf(path), updateTime:'2026-10-01T00:00:00Z', fields: fields(store.get(path)) }) : new Response('missing', { status: 404 });
 };
 
 const IBAN = 'IT79O0123456789000012345678'; // sintetico: CIN O, non zero

@@ -38,6 +38,7 @@ export default async function handler(req, res) {
   if (!hit) return res.status(404).json({ ok: false, error: 'invalid_or_used' });
 
   const { contract, role, coIndex } = hit;
+  if (contract.externalSignedDocument) return res.status(410).json({ok:false,error:'already_signed',role,signatureStatus:'complete',signedAt:contract.fullySignedAt});
   const coT = role === 'cotenant' ? (contract.coTenants || [])[coIndex] || {} : null;
 
   // Sequential signing (BOOM protocol): il LATO CONDUTTORI firma per primo

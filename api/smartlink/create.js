@@ -2,6 +2,7 @@
 import crypto from 'node:crypto';
 import { requireRole } from '../_auth.js';
 import { fsCreate, fsGet, logActivity, readJson } from '../homie/_lib.js';
+import { readRadarListing, validRadarId } from './_radar.js';
 import RULES from '../../js/smartlink-engine.js';
 
 export default async function handler(req, res) {
@@ -12,12 +13,17 @@ export default async function handler(req, res) {
   let body;
   try { body = await readJson(req); }
   catch { return res.status(400).json({ ok: false, error: 'invalid_json' }); }
+  if(body?.historicalData!==undefined && typeof body.historicalData!=='boolean') return res.status(400).json({ok:false,error:'invalid_request'});
   const now=new Date().toISOString();
   if(body?.draftKey!=null && !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(body.draftKey)) return res.status(400).json({ok:false,error:'invalid_draft_key'});
   const archiveId=body?.archiveId;
   if(archiveId!=null && (typeof archiveId!=='string' || !/^[A-Za-z0-9_-]{20}$/.test(archiveId))) return res.status(400).json({ok:false,error:'invalid_archive'});
+  const radarId=body?.radarId;
+  if(radarId!==undefined && (!validRadarId(radarId) || archiveId!=null)) return res.status(400).json({ok:false,error:'invalid_radar'});
   const record = RULES.makeRecord(archiveId ? {...body,images:[]} : body || {}, now);
   if (!record) return res.status(400).json({ ok: false, error: 'invalid_smartlink_data' });
+  record.createdAt=now;
+  record.historicalData=body?.historicalData===true;
   if(archiveId) {
     let archive;
     try {archive=await fsGet('smartlinks/'+archiveId);}
@@ -29,8 +35,19 @@ export default async function handler(req, res) {
     const date=Date.parse(archive.observedAt);
     record.observedAt=Number.isFinite(date)&&date<=Date.now()?new Date(date).toISOString():null;
     record.reusedFrom=archiveId;
-    record.createdAt=now;
   }
+  if(radarId) {
+    let radar;
+    try {radar=await readRadarListing(radarId,RULES.normalizeUrl(record.sourceUrl));}
+    catch {return res.status(503).json({ok:false,error:'radar_unavailable'});}
+    if(!radar) return res.status(400).json({ok:false,error:'invalid_radar'});
+    // scrapedAt/lastSeenAt del Radar non provano che il canone sia attuale.
+    record.observedAt=null;
+    record.reusedFrom='radar:'+radarId;
+  }
+  // Campi manuali conservati da un import precedente possono essere più
+  // vecchi anche delle foto correnti. Il flag non autorizza alcuna foto.
+  if(record.historicalData) record.observedAt=null;
   if (!record.images.length) return res.status(400).json({ ok:false, error:'photos_required' });
   const key = String(body.idempotencyKey || '');
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(key)) {
@@ -46,7 +63,7 @@ export default async function handler(req, res) {
     if (e.exists) {
       try {
         const existing = await fsGet('smartlinks/' + id);
-        if (existing?.createdBy === actor.uid && existing?.sourceUrl === record.sourceUrl) {
+        if (existing?.createdBy === actor.uid && RULES.sameListingUrl(existing?.sourceUrl,record.sourceUrl)) {
           if(!RULES.samePublication(existing,record)) return res.status(409).json({ok:false,error:'publication_conflict'});
           return res.status(200).json({ ok: true, id, url: `https://www.boomrome.com/smartlink.html?id=${id}`, duplicate: true });
         }

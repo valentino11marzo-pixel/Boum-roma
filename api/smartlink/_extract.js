@@ -2,6 +2,22 @@
 import RULES from '../../js/smartlink-engine.js';
 import { parseListing } from '../pfs/_fetch.js';
 
+function sameRedirectListing(startUrl, nextUrl) {
+  const start=new URL(startUrl), next=new URL(nextUrl);
+  if(start.origin===next.origin && start.pathname===next.pathname) return true;
+  const provider=RULES.SOURCES.find(({host})=>[host,'www.'+host].includes(start.hostname) &&
+    [host,'www.'+host].includes(next.hostname));
+  if(!provider) return false;
+  if(start.pathname===next.pathname) return true;
+  const route={
+    'immobiliare.it':/^\/annunci\/(\d+)\/?$/,
+    'idealista.it':/^\/immobile\/(\d+)\/?$/,
+    'casa.it':/^\/immobili\/(\d+)\/?$/,
+  }[provider.host];
+  const id=route && start.pathname.match(route)?.[1];
+  return !!id && id===next.pathname.match(route)?.[1];
+}
+
 async function getHtml(startUrl) {
   let url = startUrl;
   for (let i = 0; i < 3; i++) {
@@ -11,8 +27,10 @@ async function getHtml(startUrl) {
       signal: AbortSignal.timeout(8000),
     });
     if ([301, 302, 303, 307, 308].includes(r.status)) {
-      const next = RULES.normalizeUrl(new URL(r.headers.get('location') || '', url).toString());
-      if (!next) return null;
+      const location=r.headers.get('location');
+      if(!location) return null;
+      const next = RULES.normalizeUrl(new URL(location, url).toString());
+      if (!next || !sameRedirectListing(startUrl,next.url)) return null;
       url = next.url;
       continue;
     }
