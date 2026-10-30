@@ -3,6 +3,7 @@ import vm from 'node:vm';
 import crypto from 'node:crypto';
 import {readFileSync} from 'node:fs';
 import RULES from '../../js/smartlink-engine.js';
+import SHARE from '../../js/smartlink-share-engine.js';
 class Element {
   constructor(){this.value='';this.dataset={};this.disabled=false;this.children=[];this.isConnected=true;this.classList={add(){},remove(){}};}
   set value(v){this._value=String(v);} get value(){return this._value || '';}
@@ -14,17 +15,27 @@ const nodes=new Map(),get=id=>{if(!nodes.has(id)) nodes.set(id,new Element());re
 let submitted=0,published,finishPost,enabled=true,finishDirect,directCount=0,holdCapability=false,finishCapability,photoImports=0,directPayload;
 let createMode='ok',allowUploads=false,uploadCount=0,downloadLookupFails=false;
 let archiveOnlyCount=0,archiveOnlyPayload,archiveOnlyFailure=false,holdArchive=false,finishArchive;
+let clipboardText='',clipboardReads=0,holdClipboard=false,finishClipboard,clipboardDenied=false;
+let holdPhoto=false,finishPhoto,holdBlob=false,finishBlob,holdPrepare=false,finishPrepare,failPhotoAt=0;
+let holdUpload=false,finishUpload,holdToken=false,finishToken,tokenReads=0,downloadLookups=0;
+const requests=[],events=[];
 async function until(predicate) {for(let i=0;i<100&&!predicate();i++) await Promise.resolve();assert.ok(predicate(),'Expected request was not reached');}
 const source='https://www.immobiliare.it/annunci/124483437/';
 const key=crypto.randomUUID(),photo=n=>`https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/${encodeURIComponent('smartlinks/'+key+'/'+n+'1111111-1111-4111-8111-111111111111.webp')}?alt=media`;
 const ready={id:'Abcd1234Efgh5678ijkl',sourceUrl:source,draftKey:key,status:'ready',data:{title:'Bilocale',zone:'Cipro',price:1500},images:[photo(1),photo(2)]};
-const context={window:{crypto,BOOM_SMARTLINK:RULES,BOOM_SMARTLINK_PHOTO:{prepare:async blob=>blob}},URL,Promise,console,encodeURIComponent,AbortSignal,setTimeout:()=>1,clearTimeout:()=>{},
+const getIdToken=async()=>{tokenReads++;events.push('token');if(holdToken) return new Promise(resolve=>{finishToken=()=>resolve('admin');});return 'admin';};
+const context={window:{crypto,BOOM_SMARTLINK:RULES,BOOM_SMARTLINK_SHARE:SHARE,BOOM_SMARTLINK_PHOTO:{prepare:async blob=>{
+  if(holdPrepare) return new Promise(resolve=>{finishPrepare=()=>resolve(blob);});return blob;
+}}},URL,Promise,console,encodeURIComponent,AbortSignal,setTimeout:()=>1,clearTimeout:()=>{},
   document:{getElementById:get,createElement:()=>new Element(),querySelector:()=>get('body'),documentElement:{dataset:{}}},
-  auth:{currentUser:{getIdToken:async()=>'admin'}},toast(){},closeModal(){},esc:String,
+  S:{profile:{id:'admin',role:'admin'}},auth:{currentUser:{uid:'admin',getIdToken}},
+  isAdmin:()=>context.S.profile?.role==='admin',toast(){},closeModal(){for(const node of nodes.values()) node.isConnected=false;},esc:String,
+  navigator:{clipboard:{readText(){clipboardReads++;events.push('clipboard');if(clipboardDenied) return Promise.reject(new Error('denied'));if(holdClipboard) return new Promise(resolve=>{finishClipboard=()=>resolve(clipboardText);});return Promise.resolve(clipboardText);}}},
   storage:{ref(){if(!allowUploads) throw new Error('An archived photo must not be reuploaded from the phone');return {child(path){return {
-    async put(){uploadCount++;},async getDownloadURL(){if(downloadLookupFails){downloadLookupFails=false;throw new Error('lookup interrupted');}return 'https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/'+encodeURIComponent(path)+'?alt=media';}
+    async put(){uploadCount++;if(holdUpload) return new Promise(resolve=>{finishUpload=resolve;});},async getDownloadURL(){downloadLookups++;if(downloadLookupFails){downloadLookupFails=false;throw new Error('lookup interrupted');}return 'https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/'+encodeURIComponent(path)+'?alt=media';}
   };}};}},
   fetch:async(url,opts={})=>{
+    requests.push({url,method:opts.method || 'GET',body:opts.body?JSON.parse(opts.body):null});
     if(url==='/api/smartlink/jobs?capabilities=1') {
       if(holdCapability) return new Promise(resolve=>{finishCapability=()=>resolve({ok:true,json:async()=>({ok:true,enabled})});});
       return {ok:true,json:async()=>({ok:true,enabled})};
@@ -38,7 +49,14 @@ const context={window:{crypto,BOOM_SMARTLINK:RULES,BOOM_SMARTLINK_PHOTO:{prepare
       }
       directCount++;return new Promise(resolve=>{finishDirect=()=>resolve({ok:true,json:async()=>directPayload || ({ok:true,data:{title:'Casa diretta',zone:'Cipro'},images:['https://pwm.im-cdn.it/image/123/m-c.jpg']})});});
     }
-    if(url==='/api/smartlink/import-photo') {photoImports++;return {ok:true,blob:async()=>new Blob(['test'],{type:'image/webp'})};}
+    if(url==='/api/smartlink/import-photo') {
+      photoImports++;
+      const result={ok:photoImports!==failPhotoAt,blob:async()=>{
+        const blob=new Blob(['test'],{type:'image/webp'});
+        if(holdBlob) return new Promise(resolve=>{finishBlob=()=>resolve(blob);});return blob;
+      }};
+      if(holdPhoto) return new Promise(resolve=>{finishPhoto=()=>resolve(result);});return result;
+    }
     if(url==='/api/smartlink/create'){
       published=JSON.parse(opts.body);
       if(createMode==='lost'){createMode='ok';throw new Error('response lost after save');}
@@ -50,6 +68,9 @@ const context={window:{crypto,BOOM_SMARTLINK:RULES,BOOM_SMARTLINK_PHOTO:{prepare
   }};
 const sourceCode=readFileSync(new URL('../../js/portal-app.js',import.meta.url),'utf8');
 const start=sourceCode.indexOf('    function openExternalSmartLink() {'),end=sourceCode.indexOf('    // ═════════',sourceCode.indexOf('    async function smartLinkCreate()'));
+const proofStart=sourceCode.indexOf('    function portalSessionProof() {'),proofEnd=sourceCode.indexOf('    function portalSessionReset() {',proofStart);
+assert.ok(proofStart>=0 && proofEnd>proofStart);
+vm.runInNewContext('var portalSessionGeneration=1;\n'+sourceCode.slice(proofStart,proofEnd),context);
 vm.runInNewContext(sourceCode.slice(start,end)+"\nsmartLinkArea={reset(){},suggest(){},ready(){return true;},value(){return null;},destroy(){}};",context);
 get('sl_source').value=source;context.smartLinkSourceChanged();
 const first=context.smartLinkExtract();await until(()=>finishPost);
@@ -240,4 +261,139 @@ await directImport({ok:true,data:{price:2100},images:directPhotos});
 await context.smartLinkCreate();assert.equal(published.price,'2100');assert.equal(published.historicalData,undefined);
 context.smartLinkClose();
 assert.ok(archiveOnlyCount>=4);
-console.log('SmartLink Studio: gated rollout, source races, resume, archive-first central mode, Radar provenance and loss-safe retries ✓');
+
+// The Safari action drives the real controller, validator, image preparation and
+// create proposal. Only clipboard, auth, network and Storage are simulated.
+const sharePacket=(count=2,expected=count)=>({kind:SHARE.KIND,version:SHARE.VERSION,
+  sourceUrl:source,pageUrl:source,capturedAt:'2026-10-01T12:00:00.000Z',
+  data:{title:'Casa da Safari',price:1400,zone:'Cipro',sqm:65,rooms:3},
+  images:Array.from({length:count},(_,i)=>`https://pwm.im-cdn.it/image/${1000+i}/m-c.jpg`),
+  gallery:{expected,found:count}});
+function session(uid='admin',role='admin',reset=true) {
+  vm.runInNewContext('portalSessionGeneration++;',context);
+  context.auth.currentUser=uid?{uid,getIdToken}:null;
+  context.S.profile=uid?{id:uid,role}:null;
+  if(reset) context.smartLinkResetSession();
+}
+function shareStudio() {
+  session();startStudio();published=null;createMode='ok';allowUploads=true;
+  clipboardDenied=false;holdClipboard=false;holdPhoto=false;holdBlob=false;holdPrepare=false;holdUpload=false;holdToken=false;
+  finishClipboard=finishPhoto=finishBlob=finishPrepare=finishUpload=finishToken=null;
+  failPhotoAt=0;
+}
+const currentPhotoCount=()=>vm.runInNewContext('smartLinkPhotoItems.length',context);
+const shareState=()=>vm.runInNewContext('smartLinkShare',context);
+shareStudio();await directImport(radarPayload);get('sl_price').value='9999';
+clipboardText=JSON.stringify(sharePacket(13));events.length=0;
+const safariRequests=requests.length,safariUploads=uploadCount;
+const safariImport=context.smartLinkPasteShare();
+assert.deepEqual(events,['clipboard'],'Clipboard read happens synchronously in the tap, before token/network awaits');
+await safariImport;
+assert.equal(currentPhotoCount(),13,'The Safari path retains photos beyond the old twelve-photo cap');
+assert.equal(get('sl_price').value,'1400');assert.equal(get('sl_source').value,source);
+assert.equal(published,null,'Importing a share never publishes');
+assert.equal(requests.slice(safariRequests).length,13);
+assert.ok(requests.slice(safariRequests).every(r=>r.url==='/api/smartlink/import-photo' && r.method==='POST'),
+  'Safari must not fetch listing HTML, queue a job, invoke an extension or call any other network path');
+await context.smartLinkCreate();
+assert.equal(published,null,'Review checkbox is required even when the advertised gallery count matches');
+assert.equal(uploadCount,safariUploads,'An unreviewed share does not start Storage uploads');
+context.smartLinkShareReview(true);await context.smartLinkCreate();
+assert.equal(published.images.length,13);assert.equal(uploadCount-safariUploads,13);
+assert.equal(published.historicalData,true,'An older clipboard capture cannot become verified today');
+assert.equal(published.archiveId,undefined);assert.equal(published.radarId,undefined);
+const firstShareKey=published.idempotencyKey;
+await context.smartLinkPasteShare(JSON.stringify(sharePacket(1)));
+assert.notEqual(get('sl_key').value,firstShareKey,'A new share of the same URL starts a new publication key');
+assert.equal(shareState().checked,false,'A new import cannot inherit the prior gallery approval');
+published=null;await context.smartLinkCreate();assert.equal(published,null);
+
+// Invalid clipboard content is lossless for the current draft; manual paste is
+// a real fallback when Safari does not expose clipboard.readText to this tap.
+const preserved={source:get('sl_source').value,title:get('sl_title').value,key:get('sl_key').value,photos:currentPhotoCount()};
+const invalidRequests=requests.length;
+clipboardText='not a BOOM share';await context.smartLinkPasteShare();
+assert.deepEqual({source:get('sl_source').value,title:get('sl_title').value,key:get('sl_key').value,photos:currentPhotoCount()},preserved);
+assert.equal(requests.length,invalidRequests,'Invalid clipboard data cannot trigger a photo or listing request');
+clipboardDenied=true;await context.smartLinkPasteShare();
+assert.equal(get('sl_share_manual').open,true);assert.equal(currentPhotoCount(),preserved.photos);
+const readsBeforeManual=clipboardReads;
+await context.smartLinkPasteShare(JSON.stringify(sharePacket(2,null)));
+assert.equal(clipboardReads,readsBeforeManual,'Manual paste never requests clipboard permission again');
+assert.equal(currentPhotoCount(),2);assert.match(get('sl_share_status').textContent,/non indica il totale/);
+published=null;await context.smartLinkCreate();assert.equal(published,null,'Unknown gallery totals still require explicit human review');
+context.smartLinkClose();
+
+// A known missing photo and an actual CDN download failure are distinct, but
+// both prevent publishing; checking a hidden review control cannot waive them.
+shareStudio();
+await context.smartLinkPasteShare(JSON.stringify(sharePacket(2,3)));
+assert.equal(currentPhotoCount(),2);assert.match(get('sl_share_status').textContent,/incompleta/);
+context.smartLinkShareReview(true);await context.smartLinkCreate();assert.equal(published,null);
+assert.equal(get('sl_share_review').hidden,true);
+shareStudio();failPhotoAt=photoImports+1;
+const failedRequests=requests.length;
+await context.smartLinkPasteShare(JSON.stringify(sharePacket(2)));
+assert.equal(currentPhotoCount(),1);assert.equal(shareState().failed,1);
+assert.equal(requests.length-failedRequests,2,'A blocked photo is not retried through an alternative endpoint');
+context.smartLinkShareReview(true);await context.smartLinkCreate();assert.equal(published,null);
+assert.equal(get('sl_share_review').hidden,true);
+
+// Auth is checked before clipboard access, not merely when the server receives
+// a photo request. Keep the DOM alive to prove session identity independently.
+shareStudio();session('tenant','tenant',false);
+const tenantReads=clipboardReads,tenantRequests=requests.length;
+await context.smartLinkPasteShare(JSON.stringify(sharePacket()));await context.smartLinkPasteShare();
+assert.equal(clipboardReads,tenantReads);assert.equal(requests.length,tenantRequests);
+
+for(const change of ['source','close','account','same-account-new-session']) {
+  shareStudio();clipboardText=JSON.stringify(sharePacket());holdClipboard=true;
+  const before={photos:photoImports,tokens:tokenReads};
+  const pending=context.smartLinkPasteShare();await until(()=>finishClipboard);
+  if(change==='source') {get('sl_source').value=source.replace('124483437','87654321');context.smartLinkSourceChanged();}
+  if(change==='close') context.smartLinkClose();
+  if(change==='account') session('assistant','admin',false);
+  if(change==='same-account-new-session') session('admin','admin',false);
+  finishClipboard();await pending;holdClipboard=false;
+  assert.equal(photoImports,before.photos,`A late clipboard result after ${change} must not download photos`);
+  assert.equal(tokenReads,before.tokens,`A late clipboard result after ${change} must not read a new user's token`);
+  assert.equal(currentPhotoCount(),0);
+}
+
+// Delayed network bytes and image decoding must also be discarded after logout;
+// no next image is fetched and no object URL is inserted into the next session.
+for(const stage of ['response','blob','prepare']) {
+  shareStudio();
+  if(stage==='response') holdPhoto=true;
+  if(stage==='blob') holdBlob=true;
+  if(stage==='prepare') holdPrepare=true;
+  const before=photoImports;
+  const pending=context.smartLinkPasteShare(JSON.stringify(sharePacket(2)));
+  await until(()=>stage==='response'?finishPhoto:stage==='blob'?finishBlob:finishPrepare);
+  session(null);
+  const finish=stage==='response'?finishPhoto:stage==='blob'?finishBlob:finishPrepare;
+  finish();await pending;
+  assert.equal(photoImports,before+1,`Logout during ${stage} stops the remaining photo requests`);
+  assert.equal(currentPhotoCount(),0);assert.equal(shareState(),null);
+  assert.equal(published,null);
+}
+
+// Storage upload and token acquisition are the publication boundaries. Losing
+// the session in either await must never create a SmartLink with the next user.
+shareStudio();await context.smartLinkPasteShare(JSON.stringify(sharePacket(2)));
+context.smartLinkShareReview(true);holdUpload=true;
+const beforeUpload={uploads:uploadCount,lookups:downloadLookups};
+const uploadPending=context.smartLinkCreate();await until(()=>finishUpload);
+session(null);finishUpload();await uploadPending;
+assert.equal(uploadCount,beforeUpload.uploads+1);assert.equal(downloadLookups,beforeUpload.lookups);
+assert.equal(published,null,'Logout during the first upload must not publish or upload the next photo');
+assert.equal(currentPhotoCount(),0);
+
+shareStudio();await context.smartLinkPasteShare(JSON.stringify(sharePacket(1)));
+context.smartLinkShareReview(true);holdToken=true;
+const tokenPending=context.smartLinkCreate();await until(()=>finishToken);
+session('assistant','admin',false);finishToken();await tokenPending;
+assert.equal(published,null,'An old create token result cannot publish after an account change');
+assert.equal(get('sl_create').dataset.created,undefined,'A stale response must not present success in the current Studio');
+session();context.smartLinkClose();
+console.log('SmartLink Studio: Safari share, complete-gallery review, 13 photos, clipboard/session races, historical data and loss-safe publication ✓');
