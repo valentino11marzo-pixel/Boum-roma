@@ -28,6 +28,15 @@ export async function fetchHtml(url, { timeoutMs = 8000 } = {}) {
 export function extractListingUrls(html, portal) {
   const urls = new Set();
   if (!html) return [];
+  // idealista.com (Spagna): ramo a sé, gli altri portali come prima.
+  if (portal === 'idealista_es') {
+    let m;
+    const abs = /https?:\/\/www\.idealista\.com\/(?:(?:en|es|ca|it|pt|de|fr)\/)?inmueble\/(\d{5,12})\/?/gi;
+    while ((m = abs.exec(html)) && urls.size < 60) urls.add('https://www.idealista.com/inmueble/' + m[1] + '/');
+    const rel = /href="\/(?:(?:en|es|ca|it|pt|de|fr)\/)?inmueble\/(\d{5,12})\/?"/gi;
+    while ((m = rel.exec(html)) && urls.size < 60) urls.add('https://www.idealista.com/inmueble/' + m[1] + '/');
+    return [...urls];
+  }
   if (portal !== 'idealista') {
     let m;
     const abs = /https?:\/\/www\.immobiliare\.it\/annunci\/(\d+)\/?/gi;

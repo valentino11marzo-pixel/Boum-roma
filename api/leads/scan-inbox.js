@@ -28,6 +28,9 @@ import { reportHealth } from '../pfs/_health.js';
 import { parseModelJson } from '../_modeljson.js';
 import { runBudget } from '../_budget.js';
 import { ai } from '../_ai.js';
+// ?mode=bounces — i rimbalzi delle email ai clienti (api/leads/_rimbalzi.js):
+// stesso file perché vercel.json è al limite delle 50 regole functions.
+import { bouncesHandler } from './_rimbalzi.js';
 
 const LOOKBACK_DAYS = 2;
 const AI_BUDGET_PER_RUN = 8;
@@ -69,6 +72,7 @@ function matchListing(title, listings) {
 }
 
 export default async function handler(req, res) {
+  if (String(req.query?.mode || '') === 'bounces') return bouncesHandler(req, res);
   const actor = await requireCronOrAdmin(req, res);
   if (!actor) return;
   const dry = String((req.query && req.query.dry) || '') === '1';

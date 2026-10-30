@@ -30,6 +30,7 @@
 import crypto from 'node:crypto';
 import { fsList, fsPatch, fsGet, readJson, logActivity } from '../homie/_lib.js';
 import { scoreMatch, DEFAULT_THRESHOLD } from '../homie/_match.js';
+import RM from '../../js/radar-markets.js';
 
 const ADMIN_ROLES = new Set(['admin', 'owner', 'landlord']);
 const ACTIVE_STAGES = new Set([
@@ -110,6 +111,21 @@ export default async function handler(req, res) {
   }
   const stableId = stableIdFromUrl(sourceUrl);
 
+  // La città del test: dichiarata (deve essere accesa) o letta dal dominio.
+  const marketIn = body.market == null || body.market === '' ? null : String(body.market).trim().toLowerCase();
+  if (marketIn && !RM.isEnabledMarket(marketIn)) {
+    return res.status(400).json({ ok: false, error: 'market_invalid', detail: 'market must be one of ' + RM.enabledIds().join(', ') });
+  }
+  const mres = RM.resolveListingMarket({ sourceUrl, source: body.source || 'manual', explicit: marketIn, text: body.title || body.address });
+  // Un URL che non dice niente (un portale romano minore, una fonte a mano)
+  // resta di Roma come prima; un idealista.com senza città o due prove in
+  // conflitto no: si chiede di dichiararla.
+  const needsCity = RM.marketOfUrl(sourceUrl) === 'needs_city';
+  const testMarket = mres.market || (!needsCity && mres.reason !== 'market_conflict' ? 'roma' : null);
+  if (!testMarket) {
+    return res.status(400).json({ ok: false, error: mres.reason || 'market_unknown', detail: 'non so di quale città è questo annuncio: dichiara market' });
+  }
+
   const property = {
     sourceUrl,
     source: String(body.source || 'manual').toLowerCase(),
@@ -122,6 +138,7 @@ export default async function handler(req, res) {
     bathrooms: typeof body.bathrooms === 'number' ? body.bathrooms : (parseInt(body.bathrooms, 10) || null),
     images: sanitizeImages(body.images),
     description: body.description || null,
+    market: testMarket,
   };
 
   const threshold = Number.isFinite(body.threshold) ? body.threshold : DEFAULT_THRESHOLD;
@@ -200,6 +217,9 @@ export default async function handler(req, res) {
     if (!r.wouldPush) continue;
 
     const client = clients.find(c => c.id === r.clientId);
+    // La seconda cintura (come in _ingest.js): un annuncio non entra MAI nel
+    // mazzo di un cliente di un'altra città, qualunque cosa dica il punteggio.
+    if (RM.clientMarket(client) !== testMarket) { skipped.push({ clientId: r.clientId, name: r.name, score: r.score, reason: 'other_market' }); continue; }
     const existing = Array.isArray(client.portalProperties) ? client.portalProperties : [];
     const entry = {
       id: stableId,
@@ -216,6 +236,7 @@ export default async function handler(req, res) {
       addedAt: now.toISOString(),
       addedBy: 'admin:' + profile.id,
       matchReasons: r.reasons,
+      market: testMarket,
     };
     const existingActivity = Array.isArray(client.portalActivity) ? client.portalActivity : [];
     const newActivity = existingActivity.concat([{

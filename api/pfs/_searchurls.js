@@ -22,6 +22,8 @@
 // emitted (locali≠bedrooms mapping over-filters); scoring handles beds.
 
 import { clientBudgetRange } from '../homie/_match.js';
+import RADAR from '../../js/radar-engine.js';
+import RM from '../../js/radar-markets.js';
 
 // Verified Immobiliare zone slugs (path: /affitto-case/roma/<slug>/)
 const IMMOBILIARE_ZONES = {
@@ -89,4 +91,46 @@ export function buildSearchUrls(client) {
   }
 
   return out;
+}
+
+// ── Le città fuori Roma: idealista.com (radar per mercato, 25/10/2026) ─────
+// Grammatica VERIFICATA da risultati di ricerca del 25/10/2026 (il sandbox non
+// apre idealista.com): /alquiler-viviendas/<città>-<città>/ e i distretti
+// sotto. Il segmento del PREZZO non è verificato, quindi NON si genera: il
+// filtro prezzo si imposta a mano sul portale (la label lo dice) e l'URL
+// finale torna in pfs-command come urlOverride. Niente camere, niente ordine.
+// Fuori da questa mappa → la città intera, mai uno slug indovinato.
+export const IDEALISTA_ES_SCOPES = {
+  'Madrid · Centro': 'madrid/centro',
+  'Madrid · Chamberí': 'madrid/chamberi',
+  'Madrid · Retiro': 'madrid/retiro',
+  'Madrid · Salamanca': 'madrid/barrio-de-salamanca',
+  'Madrid · Tetuán': 'madrid/tetuan',
+  'Barcelona · Eixample': 'barcelona/eixample',
+  'Barcelona · Gràcia': 'barcelona/gracia',
+  'Barcelona · Sant Martí': 'barcelona/sant-marti',
+  'Barcelona · Sants-Montjuïc': 'barcelona/sants-montjuic',
+};
+
+// → la lista di ricerche per QUALSIASI cliente. Roma = buildSearchUrls, identico.
+export function buildSearchUrlsFor(client) {
+  const market = RM.clientMarket(client);
+  if (market === 'roma') return buildSearchUrls(client);
+  if (!market) return [];
+  const conf = RM.MARKETS[market];
+  if (!conf || !conf.idealistaCity) return [];
+  const range = clientBudgetRange(client) || {};
+  const max = isFinite(range.max) && range.max !== Infinity ? Math.round(range.max) : null;
+  const first = firstZone(client);
+  const hit = first ? RADAR.inferZone(first, market) : null;
+  const canonical = hit ? hit.zone : null;
+  const scope = (canonical && IDEALISTA_ES_SCOPES[canonical]) || conf.idealistaCity;
+  const label = `Idealista.com · ${canonical || conf.labelEn}${max ? ' · ≤€' + max : ''} — filtro prezzo da impostare sul portale`;
+  return [{
+    portal: 'idealista_es',
+    url: `https://www.idealista.com/alquiler-viviendas/${scope}/`,
+    label,
+    zone: canonical || null,
+    market,
+  }];
 }

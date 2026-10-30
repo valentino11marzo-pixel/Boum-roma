@@ -26,6 +26,7 @@
 // giro di cron, gli annunci ingeriti in sequenza si vedano tra loro.
 
 import RADAR from '../../js/radar-engine.js';
+import RM from '../../js/radar-markets.js';
 import { fsGet, fsPatch, fsList } from '../homie/_lib.js';
 import { tgNotify } from '../pfs/_health.js';
 
@@ -95,6 +96,9 @@ export async function radarTap(stableId, property, opts = {}) {
 
     const subject = {
       id: stableId,
+      // La città entra nell'impronta: due città diverse non sono MAI la stessa
+      // casa (twinScore lo rifiuta prima di guardare il resto).
+      market: property.market || null,
       source: property.source, zone: zoneName, zoneSlug,
       price: property.price, sqm: property.sqm,
       bedrooms: property.bedrooms, title: property.title, address: property.address,
@@ -170,14 +174,17 @@ export async function radarTap(stableId, property, opts = {}) {
             score: fiuto.score, eurSqm: fiuto.eurSqm, vsMedianPct: fiuto.vsMedianPct,
             reasons: fiuto.reasons.slice(0, 3),
             clusterId, multiPortal: cluster.multiPortal,
+            market: property.market || null,
           });
           await fsPatch('radarState/occasioni', { items: items.slice(-OCCASIONI_CAP), updatedAt: now });
 
           if ((!already || drop) && process.env.TELEGRAM_BOT_TOKEN) {
             const clusterLine = cluster.multiPortal ? `\n🔁 Su ${cluster.sources.length} portali (${esc(cluster.sources.join(', '))})` : '';
             const paLine = cluster.privateAndAgency ? '\n👥 Pubblicata sia da privato che da agenzia' : '';
+            const cityTag = property.market && property.market !== 'roma'
+              ? `${RM.marketFlag(property.market)} ${esc(RM.marketLabel(property.market, 'it'))} · ` : '';
             await tgNotify(
-              `💎 <b>OCCASIONE — ${esc(zoneName || 'zona n/d')}</b> · ${fiuto.score}/100${drop ? ' · ⬇️ ribasso' : ''}\n` +
+              `💎 ${cityTag}<b>OCCASIONE — ${esc(zoneName || 'zona n/d')}</b> · ${fiuto.score}/100${drop ? ' · ⬇️ ribasso' : ''}\n` +
               `${esc(property.title || property.address || 'Annuncio')}\n` +
               `${esc(listingLine(property))} · ${fiuto.eurSqm} €/mq (${fiuto.vsMedianPct}% vs mediana)\n` +
               `${esc(fiuto.reasons.slice(0, 3).join(' · '))}${clusterLine}${paLine}\n\n` +
