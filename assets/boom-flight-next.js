@@ -17,18 +17,19 @@
     state.budget = ['1000','1500','2000','3000','5000'].includes(q.get('budget')) ? q.get('budget') : '';
     state.people = ['solo','couple','family','flatmates'].includes(q.get('people')) ? q.get('people') : '';
     state.type = (q.get('type') || '').slice(0,50); state.saved = q.get('saved') === '1';
-    state.layout = q.get('layout') === 'gallery' ? 'gallery' : 'skyline';
+    state.layout = ['gallery','skyline'].includes(q.get('layout')) ? q.get('layout') : (window.BoomFlightDirections ? window.BoomFlightDirections.defaultLayout : 'skyline');
     state.stay = S.intent(location.search);
   }
   function url(view, home) {
     var q = new URLSearchParams();
+    if (window.BoomFlightDirections) q.set('direction',window.BoomFlightDirections.name);
     if (view !== 'home') q.set('view',view);
     if (view === 'detail' && home) q.set('home',home);
     if (state.budget) q.set('budget',state.budget);
     if (state.people) q.set('people',state.people);
     if (state.type) q.set('type',state.type);
     if (state.saved) q.set('saved','1');
-    if (state.layout === 'gallery') q.set('layout','gallery');
+    if (state.layout === 'gallery' || window.BoomFlightDirections) q.set('layout',state.layout);
     return S.withIntent('/flight-next' + (q.size ? '?' + q : ''),state.stay);
   }
   function commit(replace) { history[replace ? 'replaceState' : 'pushState']({},'',url(state.view,state.home)); }
@@ -118,6 +119,7 @@
     if(state.view==='home'){M.mount(byId('nextHomeMap'));M.scope(exploreHomes().map(function(c){return c.id;}));M.setBudget(0);document.title='BOOM — Your next chapter, Rome.';}
     else if(state.view==='apartments'){renderResults();if(state.layout==='skyline')M.mount(byId('nextApartmentsMap'));else M.hide();document.title='Your possibilities in Rome — BOOM';}
     else{M.hide();renderDetail();}
+    if(window.BoomFlightDirections)window.BoomFlightDirections.render({state:state,catalogue:catalogue,url:url});
     if(focus){window.scrollTo({top:0,behavior:'instant'});var heading=state.view==='detail'?byId('nextDetailTitle'):state.view==='apartments'?byId('nextAptsTitle'):byId('nextHeroTitle');if(heading){heading.setAttribute('tabindex','-1');heading.focus({preventScroll:true});}}
   }
   function navigate(view,home) {
@@ -179,7 +181,7 @@
     else if(b.hasAttribute('data-share-home')){var c=getHome(state.home);if(c)navigator.clipboard.writeText(location.origin+c.canonicalUrl).then(function(){announce('Home link copied. Your personal dates stay private.');},function(){announce('Copy the link from your browser to share this home.');});}
     else if(b.hasAttribute('data-services')){e.preventDefault();if(state.view!=='home'){state.view='home';state.home='';commit();showPage(false);}byId('services').scrollIntoView({behavior:reduce()?'instant':'smooth'});}
   });
-  function selectCard(scroll){document.querySelectorAll('.next-results [data-home-id]').forEach(function(c){var yes=c.dataset.homeId===selected;c.dataset.selected=String(yes);if(yes&&scroll){var rail=byId('nextResults');if(innerWidth<761){rail.scrollTo({left:c.offsetLeft-rail.offsetLeft-20,behavior:reduce()?'instant':'smooth'});}else{var panel=byId('nextResults').parentElement;panel.scrollTo({top:c.offsetTop-panel.offsetTop-55,behavior:reduce()?'instant':'smooth'});}}});}
+  function selectCard(scroll){document.querySelectorAll('.next-results [data-home-id]').forEach(function(c){var yes=c.dataset.homeId===selected;c.dataset.selected=String(yes);if(yes&&scroll){var rail=byId('nextResults');if(innerWidth<761){if(rail.scrollWidth>rail.clientWidth+2){rail.scrollTo({left:c.offsetLeft-rail.offsetLeft-20,behavior:reduce()?'instant':'smooth'});}else{c.scrollIntoView({block:'nearest',behavior:reduce()?'instant':'smooth'});}}else{var panel=byId('nextResults').parentElement;panel.scrollTo({top:c.offsetTop-panel.offsetTop-55,behavior:reduce()?'instant':'smooth'});}}});}
   window.addEventListener('boom-next:map-select',function(e){selected=e.detail.id;var c=getHome(selected);if(!c)return;if(state.view==='home'){document.querySelector('.city-caption').innerHTML='<span class="city-selected">'+(c.image?'<img src="'+esc(c.image)+'" alt="">':'')+'<span>'+esc(c.name)+'<small>'+esc(c.zone)+' · '+esc(money(c.price))+(c.price?' / month':'')+'</small></span></span><a href="'+esc(url('detail',c.id))+'" data-home="'+esc(c.id)+'">Explore this home <span aria-hidden="true">↗</span></a>';}else selectCard(true);});
   byId('nextFilterBudget').addEventListener('change',function(e){state.budget=e.target.value;updateFilters();});
   byId('nextFilterType').addEventListener('change',function(e){state.type=e.target.value;updateFilters();});

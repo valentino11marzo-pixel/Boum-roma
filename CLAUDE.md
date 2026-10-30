@@ -3075,6 +3075,12 @@ confronti solo fra tipi equivalenti e fonti espandibili. Your Rome mantiene trac
 Detail: foto decodificata prima del cambio, ticket compatto, stesso Apply in dialog contestuale con dati/focus preservati;
 no-JS inline, costi e idempotenza originali. Test flighthomeui, flightguideui, mappapreview, flightstayui e listingssr.
 
+Flight Lab 31/10: `/flight-lab` confronta Atlas, Residence e Club sulle stesse viste reali di `/flight-next?direction=…`, senza cambiare il sito pubblico.
+Le composizioni riusano catalogo, Solari, iframe Skyline, salvataggi e Apply; nessun secondo catalogo o nuovo handler di invio.
+Residence usa una foto realmente restituita dal catalogo pubblico (fallback a una casa pubblica non chiusa); Atlas sposta la stessa mappa nel primo schermo.
+Il laboratorio mantiene una sola preview, conserva in memoria le preferenze durante il confronto e accetta messaggi solo dall'iframe/origine previsti.
+Le direzioni sono conservate durante il percorso e il layout Skyline esplicito sopravvive a reload/Back; il laboratorio resta noindex.
+
 Flight Next 29/10: `/flight-next` è una proposta interattiva isolata e noindex: Home, ricerca e dettaglio
 ricompongono Solari originale, catalogo pubblico e un solo iframe Skyline conservato tra le viste.
 `boom-flight-next-data` usa Facts/Dispo; prezzi ignoti, guasti e disponibilità rimangono espliciti, nessun secondo archivio.

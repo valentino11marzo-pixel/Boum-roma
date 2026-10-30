@@ -274,6 +274,7 @@ const SUITES = [
   { name: 'flightnextdata', file: 'tests/flight/next-data.mjs', what: 'Flight Next: live catalogue shape, real facts, unknown fields, safe images and filters' },
   { name: 'flightnextmap', file: 'tests/flight/next-map.mjs', what: 'Flight Next: one Skyline iframe, empty scope, secure events, retained WebGL, precision and fallback' },
   { name: 'flightnextui', file: 'tests/flight/next-ui.mjs', what: 'Flight Next: responsive Home to homes to detail and original Apply, shared saves, dates, filters and retry' },
+  { name: 'flightdirectionsui', file: 'tests/flight/directions-ui.mjs', what: 'Atlas, Residence and Club: shared dates and Apply, persistent map choice, responsive views and bounded comparison frame messages' },
   { name: 'flighthomeui', file: 'tests/flight/home-ui.mjs', what: 'Home mobile/desktop: date prima della mappa, rail nativa, passi deliberati, riduzione movimento e ripresa senza perdita stato' },
   { name: 'flightguideui', file: 'tests/flight/guide-ui.mjs', what: 'Skyline guidance: budget zero, scope vuoto, focus asincrono, durata, tipi e errori senza falsi risultati' },
   { name: 'flightstayui', file: 'tests/flight/stay-dates.mjs', what: 'Date precise Home→Apartments→Skyline→Apply, quote originali, giorni extra, errori, clear e history senza invii' },
