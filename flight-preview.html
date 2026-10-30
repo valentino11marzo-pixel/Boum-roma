@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="color-scheme" content="dark">
+  <title>BOOM Flight · Il percorso</title>
+  <link rel="icon" href="/favicon.ico">
+  <link rel="stylesheet" href="/assets/boom-flight-preview.css?v=20261028h">
+  <script defer src="/js/flight-engine.js?v=20261028h"></script>
+  <script defer src="/assets/boom-flight-preview.js?v=20261028h"></script>
+</head>
+<body>
+  <header class="studio-header">
+    <a class="studio-brand" href="/" aria-label="BOOM Home">BOOM<span>FLIGHT / DESIGN PREVIEW</span></a>
+    <div class="studio-viewport" role="group" aria-label="Formato della preview"><button type="button" data-device="desktop" aria-pressed="true">Desktop</button><button type="button" data-device="mobile" aria-pressed="false">Mobile <span>390</span></button></div>
+    <a class="studio-open" id="openPage" href="/" target="_blank" rel="noopener">Apri la pagina <span aria-hidden="true">↗</span></a>
+  </header>
+  <main>
+    <section class="studio-heading" aria-labelledby="studioTitle"><div><span class="studio-eyebrow"><i></i> IL SITO REALE, IN MOVIMENTO</span><h1 id="studioTitle">Rome. Ready for takeoff.</h1></div><p>Dal primo sguardo alla tua prossima casa.<br>Esplora liberamente, oppure avvia il percorso.</p></section>
+    <nav class="studio-route" aria-label="Tappe del percorso">
+      <button type="button" data-step="0" aria-current="step"><small>01 / DISCOVER</small><span>Home</span></button><b aria-hidden="true">↗</b>
+      <button type="button" data-step="1"><small>02 / EXPLORE</small><span>Apartments</span></button><b aria-hidden="true">↗</b>
+      <button type="button" data-step="2"><small>03 / LAND</small><span>Apartment Details</span></button><b aria-hidden="true">↗</b>
+      <button type="button" data-step="3"><small>04 / YOUR ROME</small><span>Skyline</span></button>
+      <button type="button" id="playTour" class="studio-play" aria-pressed="false">▶ Avvia il percorso</button>
+    </nav>
+    <div class="studio-stage" id="stage">
+      <div class="studio-frame" id="frameShell"><div class="studio-chrome"><span class="studio-lights" aria-hidden="true">● ● ●</span><span id="routeLabel">BOOM / Home</span><span class="studio-live"><i></i> LIVE</span></div><div class="studio-screen" id="screen"><iframe id="sitePreview" src="/" title="BOOM: Home, Apartments, dettaglio e Skyline" allow="fullscreen"></iframe></div></div>
+    </div>
+    <footer class="studio-console"><div><span class="studio-number" id="stepNumber">01</span><div><h2 id="stepTitle">Il tuo punto di partenza.</h2><p id="stepNote">Il pulso giallo attraversa il pattern Solari originale. Scegli inizio e fine soggiorno, poi esplora Skyline.</p></div></div><div class="studio-controls"><span id="tourStatus" role="status">Preview interattiva</span><button id="previousStep" type="button" aria-label="Tappa precedente">←</button><button id="nextStep" type="button" aria-label="Tappa successiva">→</button></div></footer>
+    <p class="studio-footnote">Pagine e catalogo reali. Puoi usare tutti i controlli; il percorso si ferma quando interagisci. Il confronto Skyline usa le case che salvi con il cuore. <a href="/your-rome">Apri Your Rome · Find my balance ↗</a></p>
+  </main>
+</body>
+</html>

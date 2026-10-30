@@ -520,5 +520,22 @@ section('7. Nessuno torna alla lettura a caso');
   ok('apply-lead: l\'email all\'operatore parte DOPO la scrittura (mai un avviso di un lead perso)', iCreate > -1 && iMail > iCreate);
 }
 
+section('8. Il soggiorno richiesto porta anche l’uscita, senza arrotondare giorni o inventare idoneità');
+{
+  resetMails();
+  const dated=await post(applyHandler,pageBody({moveIn:'2027-01-31',moveOut:'2027-05-01',durationMonths:12}));
+  const lead=docOf('leads/'+dated.body?.id);
+  ok('Coppia precisa nel lead e nel messaggio, giorni extra non arrotondati a mesi',dated.statusCode===200
+    && lead.raw.moveIn==='2027-01-31' && lead.raw.moveOut==='2027-05-01' && lead.raw.durationMonths===null
+    && /move-out 2027-05-01/.test(lead.message) && !/12 months/.test(lead.message));
+  ok('L’operatore riceve l’uscita richiesta',mails().some(m=>/Uscita richiesta/.test(m.html)&&/01\/05\/2027/.test(m.html)));
+  const exact=await post(applyHandler,pageBody({moveIn:'2027-01-31',moveOut:'2027-04-30',durationMonths:12}));
+  ok('Le date esplicite vincono sulla scorciatoia stantia',docOf('leads/'+exact.body?.id).raw.durationMonths===3);
+  for(const moveOut of ['2027-01-01','2027-04-29','2027-02-30','2038-01-31']) {
+    const before=DB.size; resetMails();
+    const bad=await post(applyHandler,pageBody({moveIn:'2027-01-31',moveOut}));
+    ok('Date invalide rifiutate senza lead né email: '+moveOut,bad.statusCode===400 && bad.body?.error==='invalid_stay' && DB.size===before && mails().length===0);
+  }
+}
 console.log(`\n\x1b[1m${fail ? '\x1b[31m' : '\x1b[32m'}Apply: ${pass} passed, ${fail} failed\x1b[0m`);
 process.exit(fail ? 1 : 0);

@@ -1,0 +1,340 @@
+/* CLUB / one arrival pass, a live arrivals board, a home with human support.
+   Presentation only: the form, catalogue, map, saves and Apply keep their engines. */
+body[data-direction="club"] {
+  --gold:#FFD700;
+  --ink:#08080a;
+  --surface:#131315;
+  --line:#ffffff25;
+  --muted:#a6a6aa;
+  color:#f5f4ed;
+  background:var(--ink);
+}
+body[data-direction="club"] .next-nav { background:#08080af5; border-bottom-color:#ffffff30; }
+body[data-direction="club"] .next-brand>span { font-weight:500; letter-spacing:.15em; }
+body[data-direction="club"] .next-nav nav>a,
+body[data-direction="club"] .next-nav nav>button { font-size:12px; letter-spacing:.02em; }
+body[data-direction="club"] .next-saved { border-left:1px solid var(--line); padding-left:24px; }
+body[data-direction="club"] .button { border-radius:1px; font-weight:500; }
+body[data-direction="club"] .eyebrow { color:#b7b5a9; letter-spacing:.1em; }
+
+/* The existing search section is the ticket stub, never a second form. */
+body[data-direction="club"] #nextHero {
+  display:block; height:auto; min-height:0; max-height:none;
+  padding:78px 4.2vw 16px; overflow:hidden; background:var(--ink);
+  --next-solari-field-opacity:.63;
+}
+body[data-direction="club"] #nextHero:after { background:linear-gradient(0deg,#08080a,transparent 24%,transparent 84%,#08080a80); }
+body[data-direction="club"] .hero-orientation { top:24px; color:#aaa99f; font-size:9px; }
+body[data-direction="club"] #directionClubTicket {
+  display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);
+  position:relative; z-index:1; max-width:1320px; margin:auto;
+  border:1px solid #ffffff46; border-radius:9px; min-height:420px;
+  background:#0b0b0dc9; box-shadow:0 22px 65px #0005;
+}
+body[data-direction="club"] .hero-centre {
+  padding:42px clamp(24px,3.4vw,54px) 38px; text-align:left;
+  display:flex; flex-direction:column; justify-content:center; min-width:0;
+}
+body[data-direction="club"] .hero-centre .eyebrow { color:var(--gold); margin-bottom:31px; font-size:10px; }
+body[data-direction="club"] .hero-centre h1 { align-items:flex-start; gap:20px; }
+body[data-direction="club"] .hero-pretitle { font-size:clamp(23px,2.7vw,40px); font-weight:300; letter-spacing:-.04em; max-width:360px; line-height:1.08; }
+body[data-direction="club"] #nextHero #nextDestinationBoard { font-size:clamp(76px,8.7vw,125px); --oro-flap:#FFD700; margin-left:-.02em; }
+body[data-direction="club"] .hero-promise { color:#d1cfc3; margin:27px 0 0; max-width:340px; font-size:17px; line-height:1.5; letter-spacing:-.02em; }
+body[data-direction="club"] #nextSearch {
+  position:relative; min-width:0; display:flex; flex-direction:column; justify-content:center;
+  padding:38px clamp(24px,3vw,48px) 28px;
+  color:#14140e; background:#FFD700; border-radius:0 8px 8px 0;
+  border-left:1px dashed #08080a85; color-scheme:light;
+}
+body[data-direction="club"] #nextSearch:before,
+body[data-direction="club"] #nextSearch:after {
+  content:""; position:absolute; width:22px; height:22px; border-radius:50%;
+  background:var(--ink); left:-12px; top:-12px; pointer-events:none;
+}
+body[data-direction="club"] #nextSearch:after { top:auto; bottom:-12px; }
+body[data-direction="club"] #nextSearchForm {
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr); border:0;
+  padding:0; min-height:0; gap:21px 24px; align-items:stretch;
+}
+body[data-direction="club"] #nextSearchForm>label {
+  padding:0 0 10px!important; min-height:75px; border:0; border-bottom:1px solid #08080a55;
+}
+body[data-direction="club"] #nextSearchForm label>span { font-size:10px; color:#48400e; font-weight:500; margin-bottom:13px; letter-spacing:.06em; }
+body[data-direction="club"] #nextSearchForm input,
+body[data-direction="club"] #nextSearchForm select { color:#111109; height:37px; font-size:16px; font-weight:500; padding-left:0; border-radius:0; }
+body[data-direction="club"] #nextSearchForm select option { background:#fff9d9; color:#111; }
+body[data-direction="club"] #nextSearchForm .search-submit {
+  grid-column:1/-1; margin:3px 0 0; min-height:59px; height:auto;
+  background:#10110c; color:#FFD700; border:1px solid #10110c;
+  padding:17px 22px; font-size:18px;
+}
+body[data-direction="club"] #nextSearchForm .search-submit:hover { background:#25261a; }
+body[data-direction="club"] #nextSearch :is(button,a,input,select):focus-visible { outline-color:#111109; outline-offset:4px; }
+body[data-direction="club"] #nextSearch .search-caption { display:block; color:#49400b; font-size:11px; padding:16px 0 0; line-height:1.5; }
+body[data-direction="club"] #nextSearch .search-caption>span { display:block; }
+body[data-direction="club"] #nextSearch .search-caption>span+span { margin-top:7px; color:#242209; font-weight:500; }
+body[data-direction="club"] #nextSearchError { color:#621309; font-size:13px; padding-bottom:0; }
+body[data-direction="club"] .hero-bottom { position:relative; inset:auto; max-width:1320px; margin:12px auto 0; font-size:9px; color:#aaa99f; }
+body[data-direction="club"] .hero-bottom>span { display:block; }
+body[data-direction="club"] .hero-bottom a { margin-left:auto; }
+body[data-direction="club"] .hero-bottom button { border-left:1px solid var(--line); padding-left:20px; }
+
+/* The city is the next room in the same experience. */
+body[data-direction="club"] .next-section { padding-block:74px; }
+body[data-direction="club"] .chapter-heading { align-items:flex-start; gap:35px; }
+body[data-direction="club"] .chapter-heading h2 { font-size:clamp(43px,5.5vw,80px); font-weight:400; letter-spacing:-.055em; }
+body[data-direction="club"] .chapter-heading em { color:#a2a19b; }
+body[data-direction="club"] .chapter-aside { padding-top:31px; font-size:15px; }
+body[data-direction="club"] .next-city-scene { border-radius:0; border-color:#ffffff40; }
+body[data-direction="club"] .city-heading { padding:19px 24px; background:#151517; }
+body[data-direction="club"] .skyline-word { font-weight:500; letter-spacing:.21em; color:var(--gold); }
+body[data-direction="club"] .city-heading>span:last-child { font-size:10px; color:#c1bfae; }
+body[data-direction="club"] .city-caption { background:#141415; }
+body[data-direction="club"] .campus-line { border-bottom:1px solid var(--line); padding-block:15px; }
+body[data-direction="club"] .campus-line button,
+body[data-direction="club"] .campus-line a { min-height:44px; font-size:12px; }
+body[data-direction="club"] .homes-chapter { padding-top:32px; }
+body[data-direction="club"] .next-home-rail .next-card-image { border-radius:0; aspect-ratio:1.3; }
+body[data-direction="club"] .next-home-rail .next-card-info { border-bottom:1px solid var(--line); padding-bottom:18px; }
+body[data-direction="club"] .next-home-rail .card-price { border-top-style:dashed; }
+body[data-direction="club"] .services-chapter { background:#101012; border-block:1px solid var(--line); }
+body[data-direction="club"] .next-tickets { gap:0; border:1px solid #ffffff38; }
+body[data-direction="club"] .next-ticket { border-radius:0; padding:30px 34px 26px; border:0; box-shadow:none; }
+body[data-direction="club"] .next-ticket:hover { transform:translateY(-3px); }
+body[data-direction="club"] .ticket-gold { color:#19180b; background:#FFD700; }
+body[data-direction="club"] .ticket-dark { background:#171719; border-left:1px dashed #ffffff50; }
+body[data-direction="club"] .ticket-route { font-weight:500; letter-spacing:-.06em; margin:23px 0; }
+body[data-direction="club"] .route-line>span { background:#FFD700; }
+body[data-direction="club"] .ticket-dark .route-line>span { background:#171719; }
+body[data-direction="club"] .next-ticket h3 { font-size:clamp(30px,3.3vw,46px); line-height:1.05; font-weight:400; }
+body[data-direction="club"] .ticket-top,
+body[data-direction="club"] .ticket-terms { opacity:.8; }
+body[data-direction="club"] .ticket-stub:before,
+body[data-direction="club"] .ticket-stub:after { display:none; }
+body[data-direction="club"] .next-journey { padding-top:80px; }
+body[data-direction="club"] .next-journey li { border-bottom-style:dashed; }
+body[data-direction="club"] .next-signoff { text-align:left; padding-inline:4.2vw; background:none; border-top:1px solid var(--line); }
+body[data-direction="club"] .next-signoff>img { margin:0 0 28px; }
+body[data-direction="club"] .next-signoff h2 { font-weight:400; }
+
+/* Arrivals board: photographs stay generous; each row is one real home. */
+body[data-direction="club"] .next-discovery-heading { padding-block:31px 24px; }
+body[data-direction="club"] .next-discovery-heading h1 { font-size:clamp(40px,4.5vw,66px); font-weight:400; }
+body[data-direction="club"] .next-view-switch { border-radius:0; padding:3px; }
+body[data-direction="club"] .next-view-switch button { border-radius:0; min-height:44px; }
+body[data-direction="club"] .next-view-switch button[aria-pressed="true"] { background:var(--gold); color:#111; }
+body[data-direction="club"] .next-filter-bar { background:#131315; border-color:#ffffff30; }
+body[data-direction="club"] .next-discovery { grid-template-columns:minmax(440px,1.08fr) minmax(0,1fr); }
+body[data-direction="club"] .next-results-panel { padding:18px 26px 35px 4.2vw; }
+body[data-direction="club"] .results-caption { font:11px/1.6 monospace; color:#b1afa4; margin-bottom:9px; }
+body[data-direction="club"] .results-caption button { min-height:44px; }
+body[data-direction="club"] .next-discovery .next-results { display:grid; grid-template-columns:minmax(0,1fr); gap:0; overflow:visible; margin:0; padding:0; }
+body[data-direction="club"] .next-results .next-card {
+  display:grid; grid-template-columns:150px minmax(0,1fr); gap:20px;
+  padding:23px 0; border-bottom:1px solid #ffffff29; min-width:0;
+}
+body[data-direction="club"] .next-discovery .next-results .next-card-image { aspect-ratio:auto; height:184px; border-radius:0; }
+body[data-direction="club"] .next-results .next-card-image>a { display:block; height:100%; }
+body[data-direction="club"] .next-results .next-card-image img { width:100%; height:100%; object-fit:cover; }
+body[data-direction="club"] .next-results .card-save { width:44px; height:44px; top:7px; right:7px; background:#08080ad9; }
+body[data-direction="club"] .next-results .card-status { top:auto; bottom:9px; left:8px; right:8px; width:fit-content; max-width:calc(100% - 16px); white-space:normal; font-size:11px; line-height:1.35; padding:7px 9px; background:#08080aeb; border:1px solid #ffffff32; }
+body[data-direction="club"] .next-results .next-card-info { min-width:0; padding:0; display:flex; flex-direction:column; }
+body[data-direction="club"] .next-results .card-location { font:10px/1.5 monospace; letter-spacing:.05em; color:#b5b2a4; }
+body[data-direction="club"] .next-results .next-card-info h3 { font-size:25px; line-height:1.1; margin-top:7px; font-weight:400; overflow-wrap:anywhere; }
+body[data-direction="club"] .next-results .card-facts { margin-top:10px; font-size:12px; gap:7px 12px; line-height:1.5; }
+body[data-direction="club"] .next-results .card-price { padding-top:13px; margin-top:auto; border:0; gap:6px; flex-wrap:wrap; }
+body[data-direction="club"] .next-results .card-price strong { font-size:29px; font-weight:400; }
+body[data-direction="club"] .next-results .card-price small { font-size:11px; }
+body[data-direction="club"] .next-results .card-price :is(button,a) { min-width:44px; min-height:44px; }
+body[data-direction="club"] .next-results .next-card[data-selected="true"] { border-bottom-color:var(--gold); }
+body[data-direction="club"] .next-results .next-card[data-selected="true"] .next-card-image { box-shadow:0 0 0 1px var(--gold); }
+body[data-direction="club"] .next-discovery[data-layout="gallery"] .next-results { max-width:1140px; margin:auto; }
+body[data-direction="club"] .next-discovery[data-layout="gallery"] .next-card { grid-template-columns:240px minmax(0,1fr); gap:35px; }
+body[data-direction="club"] .next-discovery[data-layout="gallery"] .next-card-image { height:200px; }
+body[data-direction="club"] .next-discovery[data-layout="gallery"] .next-card-info h3 { font-size:34px; }
+body[data-direction="club"] .next-discovery[data-layout="gallery"] .card-price { max-width:480px; }
+
+/* Home dossier: a photographic window and an explicit decision stub. */
+body[data-direction="club"] #nextDetailContent {
+  display:grid; grid-template-columns:minmax(0,1fr) 340px; column-gap:28px;
+  max-width:1600px; margin:auto; padding:0 4.2vw;
+}
+body[data-direction="club"] .detail-heading { grid-column:1/-1; padding:24px 0; }
+body[data-direction="club"] .detail-breadcrumb { margin-bottom:16px; font:11px/1.5 monospace; }
+body[data-direction="club"] .detail-breadcrumb a { min-height:44px; }
+body[data-direction="club"] .detail-title-row h1 { font-weight:400; font-size:clamp(38px,4.4vw,65px); }
+body[data-direction="club"] .detail-actions button { border-radius:0; width:44px; height:44px; }
+body[data-direction="club"] .next-photo-rail { grid-column:1; grid-row:2; height:460px; padding:0; gap:12px; scroll-padding-left:0; min-width:0; }
+body[data-direction="club"] .next-photo-rail button { flex-basis:94%; max-width:none; border-radius:0; }
+body[data-direction="club"] .photo-controls { grid-column:1; grid-row:3; padding:10px 0 0; }
+body[data-direction="club"] .photo-controls button { width:44px; height:44px; }
+body[data-direction="club"] .photo-controls>button { width:auto; }
+body[data-direction="club"] .detail-decision {
+  grid-column:2; grid-row:2 / 4; align-self:start;
+  margin:0; padding:28px; display:flex; flex-direction:column; align-items:stretch; gap:0;
+  border:0; border-radius:0; background:#FFD700; color:#15150b; position:relative;
+}
+body[data-direction="club"] .decision-price { padding-bottom:25px; }
+body[data-direction="club"] .decision-price .eyebrow { color:#524a13; font-size:10px; margin-bottom:12px; }
+body[data-direction="club"] .decision-price strong { font-size:57px; font-weight:400; }
+body[data-direction="club"] .decision-price small { display:block; font-size:13px; margin:5px 0 0; color:#4b430e; }
+body[data-direction="club"] .decision-status { padding:21px 0; border:0; border-top:1px dashed #08080a70; font-size:16px; }
+body[data-direction="club"] .decision-status small { font-size:12px; color:#4b430e; margin-top:11px; line-height:1.6; }
+body[data-direction="club"] .decision-cta { position:relative; margin:0 -28px; padding:24px 28px 0; border-top:1px dashed #08080a70; }
+body[data-direction="club"] .decision-cta:before,
+body[data-direction="club"] .decision-cta:after { content:""; position:absolute; top:-10px; left:-10px; width:20px; height:20px; border-radius:50%; background:var(--ink); pointer-events:none; }
+body[data-direction="club"] .decision-cta:after { left:auto; right:-10px; }
+body[data-direction="club"] .decision-cta .button { background:#11120d; color:#FFD700; min-height:58px; font-size:16px; }
+body[data-direction="club"] .decision-cta>small { font-size:11px; color:#4b430e; line-height:1.5; }
+body[data-direction="club"] .detail-decision :is(button,a):focus-visible { outline-color:#111; }
+body[data-direction="club"] .detail-body { grid-column:1/-1; width:100%; padding:55px 0 75px; gap:70px; }
+body[data-direction="club"] .detail-body h2 { font-size:45px; font-weight:400; }
+body[data-direction="club"] .detail-support { border-top:1px dashed #ffffff50; }
+body[data-direction="club"] .detail-stay { border-color:#ffffff50; }
+body[data-direction="club"] .detail-stay button { min-height:44px; }
+
+@media(min-width:1500px) {
+  body[data-direction="club"] .next-results .next-card { grid-template-columns:190px minmax(0,1fr); }
+  body[data-direction="club"] .next-results .next-card-info h3 { font-size:29px; }
+}
+@media(max-width:1050px) {
+  body[data-direction="club"] #directionClubTicket { grid-template-columns:minmax(0,1fr) minmax(0,1fr); }
+  body[data-direction="club"] .hero-centre { padding-inline:25px; }
+  body[data-direction="club"] #nextHero #nextDestinationBoard { font-size:clamp(70px,8.3vw,90px); }
+  body[data-direction="club"] #nextSearch { padding-inline:24px; }
+  body[data-direction="club"] #nextSearchForm { column-gap:16px; }
+  body[data-direction="club"] .hero-promise { font-size:16px; }
+  body[data-direction="club"] .next-discovery { grid-template-columns:minmax(390px,1.15fr) minmax(0,1fr); }
+  body[data-direction="club"] .next-results-panel { padding-inline:24px; }
+  body[data-direction="club"] .next-results .next-card { grid-template-columns:123px minmax(0,1fr); gap:16px; }
+  body[data-direction="club"] .next-results .next-card-info h3 { font-size:22px; }
+  body[data-direction="club"] .next-results .card-price strong { font-size:26px; }
+  body[data-direction="club"] #nextDetailContent { grid-template-columns:minmax(0,1fr) 300px; gap:0 20px; }
+  body[data-direction="club"] .detail-decision { padding:24px; }
+  body[data-direction="club"] .decision-cta { margin-inline:-24px; padding-inline:24px; }
+  body[data-direction="club"] .decision-price strong { font-size:49px; }
+}
+@media(max-width:760px) {
+  body[data-direction="club"] .next-nav { padding-inline:18px; gap:12px; }
+  body[data-direction="club"] .next-brand { gap:8px; }
+  body[data-direction="club"] .next-brand>span { font-size:20px; }
+  body[data-direction="club"] .next-nav nav { gap:15px; }
+  body[data-direction="club"] .next-nav nav>a,
+  body[data-direction="club"] .next-nav nav>button { font-size:11px; }
+  body[data-direction="club"] .next-saved { padding-left:12px; min-width:32px; }
+  body[data-direction="club"] #nextHero { padding:53px 18px 9px; }
+  body[data-direction="club"] .hero-orientation { top:15px; left:18px; right:18px; font-size:7px; }
+  body[data-direction="club"] #directionClubTicket { grid-template-columns:minmax(0,1fr); min-height:0; }
+  body[data-direction="club"] .hero-centre { padding:25px 25px 27px; }
+  body[data-direction="club"] .hero-centre .eyebrow { font-size:9px; margin-bottom:20px; }
+  body[data-direction="club"] .hero-centre h1 { gap:15px; }
+  body[data-direction="club"] .hero-pretitle { font-size:25px; max-width:260px; }
+  body[data-direction="club"] #nextHero #nextDestinationBoard { font-size:clamp(61px,18vw,99px); }
+  body[data-direction="club"] .hero-promise { margin:16px 0 0; font-size:14px; max-width:290px; line-height:1.5; }
+  body[data-direction="club"] #nextSearch { padding:25px 24px 23px; border:0; border-top:1px dashed #08080a85; border-radius:0 0 8px 8px; }
+  body[data-direction="club"] #nextSearch:before { top:-11px; left:-11px; }
+  body[data-direction="club"] #nextSearch:after { top:-11px; bottom:auto; left:auto; right:-11px; }
+  body[data-direction="club"] #nextSearchForm { gap:19px 18px; }
+  body[data-direction="club"] #nextSearchForm>label { min-height:67px; padding:0 0 8px!important; }
+  body[data-direction="club"] #nextSearchForm label>span { font-size:9px; letter-spacing:.025em; margin-bottom:7px; }
+  body[data-direction="club"] #nextSearchForm input,
+  body[data-direction="club"] #nextSearchForm select { font-size:16px; height:36px; }
+  body[data-direction="club"] #nextSearchForm .search-submit { min-height:54px; padding:14px 17px; font-size:17px; margin-top:1px; }
+  body[data-direction="club"] #nextSearch .search-caption { font-size:10px; padding-top:12px; }
+  body[data-direction="club"] #nextSearch .search-caption>span+span { margin-top:5px; }
+  body[data-direction="club"] .hero-bottom { margin-top:4px; gap:12px; }
+  body[data-direction="club"] .hero-bottom>span { display:none; }
+  body[data-direction="club"] .hero-bottom a { margin-left:0; font-size:8px; gap:14px; }
+  body[data-direction="club"] .hero-bottom button { padding-left:12px; font-size:8px; }
+  body[data-direction="club"] .next-section { padding:55px 20px; }
+  body[data-direction="club"] .chapter-heading h2 { font-size:43px; }
+  body[data-direction="club"] .chapter-aside { padding-top:0; font-size:14px; }
+  body[data-direction="club"] .city-heading { padding:17px; }
+  body[data-direction="club"] .city-heading>span:last-child { font-size:8px; }
+  body[data-direction="club"] .campus-line { gap:4px 23px; }
+  body[data-direction="club"] .campus-line button,
+  body[data-direction="club"] .campus-line a { font-size:11px; }
+  body[data-direction="club"] .homes-chapter { padding-top:8px; }
+  body[data-direction="club"] .next-tickets { gap:0; }
+  body[data-direction="club"] .next-ticket { padding:28px 25px 22px; }
+  body[data-direction="club"] .ticket-dark { border-left:0; border-top:1px dashed #ffffff50; }
+  body[data-direction="club"] .next-ticket h3 { font-size:35px; }
+  body[data-direction="club"] .next-signoff { padding-inline:20px; }
+  body[data-direction="club"] .next-discovery-heading { padding:23px 20px 20px; display:block; }
+  body[data-direction="club"] .next-discovery-heading h1 { font-size:40px; }
+  body[data-direction="club"] .next-view-switch { display:inline-flex; margin-top:17px; }
+  body[data-direction="club"] .next-view-switch button { padding:10px 23px; font-size:12px; }
+  body[data-direction="club"] .next-discovery { display:flex; }
+  body[data-direction="club"] .next-discovery>.next-map-slot { height:260px; min-height:260px; }
+  body[data-direction="club"] .next-results-panel,
+  body[data-direction="club"] .next-discovery[data-layout="gallery"]>.next-results-panel { padding:16px 20px 32px; }
+  body[data-direction="club"] .next-discovery .next-results { display:grid; overflow:visible; gap:0; margin:0; padding:0; }
+  body[data-direction="club"] .next-results .next-card,
+  body[data-direction="club"] .next-discovery[data-layout="gallery"] .next-card { grid-template-columns:110px minmax(0,1fr); gap:15px; padding:20px 0; }
+  body[data-direction="club"] .next-discovery .next-results .next-card-image { height:188px; aspect-ratio:auto; }
+  body[data-direction="club"] .next-results .next-card-info h3,
+  body[data-direction="club"] .next-discovery[data-layout="gallery"] .next-card-info h3 { font-size:23px; }
+  body[data-direction="club"] .next-results .card-facts { font-size:11px; gap:5px 8px; margin-top:9px; }
+  body[data-direction="club"] .next-results .card-price { padding-top:12px; }
+  body[data-direction="club"] .next-results .card-price strong { font-size:27px; }
+  body[data-direction="club"] .next-results .card-price small { font-size:10px; }
+  body[data-direction="club"] .next-results .card-location { font-size:10px; }
+  body[data-direction="club"] .next-results .card-status { font-size:11px; padding:6px; left:7px; bottom:7px; max-width:calc(100% - 14px); }
+  body[data-direction="club"] .results-note { font-size:11px; }
+  body[data-direction="club"] #nextDetailContent { display:block; padding-inline:20px; }
+  body[data-direction="club"] .detail-heading { padding:15px 0 22px; }
+  body[data-direction="club"] .detail-breadcrumb { font-size:10px; margin-bottom:13px; }
+  body[data-direction="club"] .detail-title-row h1 { font-size:38px; }
+  body[data-direction="club"] .detail-title-row .card-facts { font-size:12px; line-height:1.5; }
+  body[data-direction="club"] .next-photo-rail { height:285px; margin-inline:-20px; padding-inline:20px; scroll-padding-left:20px; }
+  body[data-direction="club"] .next-photo-rail button { flex-basis:94%; }
+  body[data-direction="club"] .photo-controls { padding:9px 0 17px; font-size:11px; }
+  body[data-direction="club"] .photo-controls>button { font-size:11px; }
+  body[data-direction="club"] .detail-decision { padding:20px 25px; display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:0 18px; }
+  body[data-direction="club"] .decision-price { padding-bottom:16px; }
+  body[data-direction="club"] .decision-price strong { font-size:43px; }
+  body[data-direction="club"] .decision-price .eyebrow { font-size:9px; }
+  body[data-direction="club"] .decision-price small { font-size:11px; }
+  body[data-direction="club"] .decision-status { padding:0 0 14px; border:0; font-size:14px; }
+  body[data-direction="club"] .decision-status small { font-size:11px; line-height:1.5; }
+  body[data-direction="club"] .decision-cta { grid-column:1/-1; padding:15px 25px 0; margin:0 -25px; }
+  body[data-direction="club"] .detail-body { padding:40px 0 60px; gap:40px; }
+  body[data-direction="club"] .detail-body h2 { font-size:37px; }
+  body[data-direction="club"] .detail-stay { padding:17px; }
+}
+@media(max-width:370px) {
+  body[data-direction="club"] .next-nav { padding-inline:13px; gap:9px; }
+  body[data-direction="club"] .next-brand>span { font-size:18px; }
+  body[data-direction="club"] .next-nav nav { gap:10px; }
+  body[data-direction="club"] .next-saved { padding-left:9px; }
+  body[data-direction="club"] #nextHero { padding-inline:13px; }
+  body[data-direction="club"] .hero-centre { padding-inline:21px; }
+  body[data-direction="club"] #nextSearch { padding-inline:18px; }
+  body[data-direction="club"] #nextSearchForm { column-gap:12px; }
+  body[data-direction="club"] #nextSearchForm label>span { font-size:8px; }
+  body[data-direction="club"] .next-results-panel,
+  body[data-direction="club"] .next-discovery[data-layout="gallery"]>.next-results-panel { padding-inline:15px; }
+  body[data-direction="club"] .next-results .next-card,
+  body[data-direction="club"] .next-discovery[data-layout="gallery"] .next-card { grid-template-columns:96px minmax(0,1fr); gap:13px; }
+  body[data-direction="club"] .next-results .next-card-info h3,
+  body[data-direction="club"] .next-discovery[data-layout="gallery"] .next-card-info h3 { font-size:21px; }
+  body[data-direction="club"] .next-results .card-price strong { font-size:25px; }
+  body[data-direction="club"] .detail-decision { padding:20px; column-gap:13px; }
+  body[data-direction="club"] .decision-price strong { font-size:38px; }
+  body[data-direction="club"] .decision-cta { margin-inline:-20px; padding-inline:20px; }
+}
+@media(min-width:1060px) {
+  body[data-direction="club"] .next-discovery[data-layout="gallery"] .next-card { grid-template-columns:210px minmax(0,1fr); gap:30px; }
+  body[data-direction="club"] .next-discovery[data-layout="gallery"] .next-card-image { height:162px; }
+  body[data-direction="club"] .next-discovery[data-layout="gallery"] .next-card-info { display:grid; grid-template-columns:minmax(0,1fr) 205px; column-gap:25px; align-content:center; }
+  body[data-direction="club"] .next-discovery[data-layout="gallery"] .card-location { grid-column:1; margin:0; }
+  body[data-direction="club"] .next-discovery[data-layout="gallery"] .next-card-info h3 { grid-column:1; font-size:31px; margin:12px 0; }
+  body[data-direction="club"] .next-discovery[data-layout="gallery"] .card-facts { grid-column:1; margin:0; }
+  body[data-direction="club"] .next-discovery[data-layout="gallery"] .card-price { grid-column:2; grid-row:1 / 4; margin:0; padding:14px 0 14px 26px; border-left:1px dashed #ffffff40; align-content:center; justify-content:flex-start; align-self:stretch; }
+  body[data-direction="club"] .next-discovery[data-layout="gallery"] .card-price strong { font-size:35px; }
+  body[data-direction="club"] .next-discovery[data-layout="gallery"] .card-price button { margin:5px 0 0 auto; }
+}
+@media(prefers-reduced-motion:reduce) {
+  body[data-direction="club"] .next-ticket:hover,
+  body[data-direction="club"] .button:hover { transform:none; }
+}

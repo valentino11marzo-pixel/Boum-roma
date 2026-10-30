@@ -363,6 +363,33 @@ await check('status draft resta fuori', () => !r.bozza);
 await check('il lavoro storico dell\'idrante continua (build → Rented)',
   () => r.buildRented);
 
+// Stay is a declared preference, never an invented listing eligibility rule.
+const stayResult = await page.evaluate(() => {
+  const before = document.getElementById('conto').textContent;
+  const select = document.getElementById('durataSoggiorno');
+  select.value = '6'; select.dispatchEvent(new Event('change', { bubbles: true }));
+  const card = document.querySelector('.casa-p[data-id="nuova1"]');
+  card.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+  document.getElementById('serba').click();
+  const result = { before, after: document.getElementById('conto').textContent,
+    search: location.search, href: card.getAttribute('href'),
+    canonical: card.dataset.chiave,
+    note: document.getElementById('stayPreferenceNote').textContent,
+    summary: document.getElementById('serbaSunto').textContent,
+    dateInAdvanced: !!document.querySelector('#foglioVelo #quandoData') };
+  document.getElementById('serbaChiudi').click();
+  return result;
+});
+await check('durata: preferenza esplicita, nessuna casa nascosta per termini ignoti', () =>
+  stayResult.before === stayResult.after && stayResult.search === '?stay=6'
+  && /does not narrow the results/.test(stayResult.note));
+await check('durata: link alla casa e ricerca salvata la conservano; il cuore resta canonico', () =>
+  stayResult.href === '/listing/nuova1?stay=6' && stayResult.canonical === '/listing/nuova1'
+  && /6 months requested/.test(stayResult.summary) && stayResult.dateInAdvanced);
+await page.evaluate(() => document.getElementById('pulisci').click());
+await check('pulisci cancella anche la preferenza durata', async () =>
+  await page.evaluate(() => !location.search && !document.getElementById('durataSoggiorno').value));
+
 // ── i filtri VERI mordono sulla carta innestata ─────────────────────────
 await page.evaluate(() => { location.hash = '#zona=Prati'; });
 await page.waitForTimeout(300);

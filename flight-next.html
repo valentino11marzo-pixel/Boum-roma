@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="robots" content="noindex,nofollow"><meta name="theme-color" content="#070709">
+  <title>BOOM — Your next chapter, Rome.</title>
+  <link rel="icon" href="/assets/icons/favicon-32.png">
+  <link rel="stylesheet" href="/assets/boom-flight-next.css?v=20261031a">
+  <link rel="stylesheet" href="/assets/boom-flight-next-motion.css?v=20261029a">
+  <link rel="stylesheet" href="/assets/boom-direction-atlas.css?v=20261031a">
+  <link rel="stylesheet" href="/assets/boom-direction-residence.css?v=20261031a">
+  <link rel="stylesheet" href="/assets/boom-direction-club.css?v=20261031a">
+  <script src="/js/listing-facts.js" defer></script><script src="/js/dispo-engine.js" defer></script>
+  <script src="/js/stay-engine.js" defer></script><script src="/js/flight-engine.js" defer></script>
+  <script src="/assets/boom-flight-next-data.js?v=20261029a" defer></script>
+  <script src="/assets/boom-flight-next-map.js?v=20261029a" defer></script>
+  <script src="/assets/boom-flight-next-motion.js?v=20261029a" defer></script>
+  <script src="/assets/boom-flight-directions.js?v=20261031a" defer></script>
+  <script src="/assets/boom-flight-next.js?v=20261031a" defer></script>
+</head>
+<body>
+  <a class="skip" href="#nextMain">Skip to content</a>
+  <header class="next-nav">
+    <a class="next-brand" href="/flight-next" data-view="home" aria-label="BOOM home"><img src="/assets/boom-logo-mark.svg" width="40" height="40" alt=""><span>BOOM</span></a>
+    <nav aria-label="Main"><a href="/flight-next?view=apartments" data-view="apartments">Apartments</a><button type="button" data-guide>Skyline<span class="nav-signal" aria-hidden="true"></span></button><a href="/flight-next#services" data-services>Our services</a></nav>
+    <button class="next-saved" type="button" data-saved aria-label="Show saved homes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z"/></svg><span class="saved-label">Your shortlist</span><span id="nextSaveCount">0</span></button>
+  </header>
+  <main id="nextMain">
+    <div id="nextHome" data-page="home">
+      <section id="nextHero" class="next-hero" aria-labelledby="nextHeroTitle">
+        <canvas id="nextSolariField" aria-hidden="true"></canvas>
+        <div class="hero-orientation" aria-hidden="true"><span>ROM<br>41°54′ N · 12°29′ E</span><span>HOMES. PEOPLE.<br>POSSIBILITIES.</span></div>
+        <div class="hero-centre">
+          <p class="eyebrow"><span class="signal"></span> A NEW CITY. YOUR NEXT CHAPTER.</p>
+          <h1 id="nextHeroTitle"><span class="hero-pretitle">Make yourself at home in</span><span id="nextDestinationBoard" aria-label="Rome">ROME</span></h1>
+          <p class="hero-promise">Find your place. We'll help with everything around it.</p>
+        </div>
+        <div class="hero-bottom"><span>RENT A HOME · LIVE IN ROME</span><a href="#nextSearch">Your journey starts here <span aria-hidden="true">↓</span></a><button type="button" id="nextMotionToggle" aria-pressed="false">Pause motion <span aria-hidden="true">Ⅱ</span></button></div>
+      </section>
+      <section class="next-search-wrap" id="nextSearch" aria-label="Plan your stay">
+        <form id="nextSearchForm" class="next-search">
+          <label><span>01 / MOVE IN</span><input type="date" name="moveIn" id="nextMoveIn" aria-label="Move-in date"></label>
+          <label><span>02 / MOVE OUT</span><input type="date" name="moveOut" id="nextMoveOut" aria-label="Move-out date"></label>
+          <label><span>03 / MONTHLY RENT</span><select name="budget" id="nextBudget" aria-label="Monthly rent budget"><option value="">Your budget</option><option value="1000">Up to €1,000</option><option value="1500">Up to €1,500</option><option value="2000">Up to €2,000</option><option value="3000">Up to €3,000</option><option value="5000">Up to €5,000</option></select></label>
+          <label><span>04 / WHO'S MOVING?</span><select name="people" id="nextPeople" aria-label="Who is moving"><option value="">Your household</option><option value="solo">Just me</option><option value="couple">A couple</option><option value="family">A family</option><option value="flatmates">Flatmates</option></select></label>
+          <button class="button gold search-submit" type="submit">Find my home <span aria-hidden="true">↗</span></button>
+        </form>
+        <div class="search-caption"><span id="nextStayHint">Stays from 3 months. Exploring? You can choose dates later.</span><span>Real homes. A real agency on your side.</span></div><p id="nextSearchError" class="form-error" role="alert" hidden></p>
+      </section>
+      <section class="next-section skyline-chapter" aria-labelledby="nextSkyTitle">
+        <div class="chapter-heading"><div><p class="eyebrow">01 / YOUR CITY, CONNECTED</p><h2 id="nextSkyTitle">Less searching.<br><em>More belonging.</em></h2></div><div class="chapter-aside"><p>Your campus. Your favourite neighbourhood.<br>The right balance of space and rent.</p><button class="text-button" type="button" data-guide>Find my balance <span aria-hidden="true">↗</span></button></div></div>
+        <div class="next-city-scene"><div class="city-heading"><span class="skyline-word">SKYLINE</span><span>ROME / EXPLORE IN 3D</span></div><div id="nextHomeMap" class="next-map-slot"></div><div class="city-caption"><span>A different way to see your next home.</span><a href="/flight-next?view=apartments" data-view="apartments">Enter Skyline <span aria-hidden="true">↗</span></a></div></div>
+        <div class="campus-line"><span>BUILD YOUR ROME AROUND</span><button data-guide data-place="luiss" type="button">LUISS · Romania</button><button data-guide data-place="sapienza" type="button">Sapienza</button><button data-guide data-place="rufa-trieste" type="button">RUFA · Trieste</button><button data-guide data-place="naba-rome" type="button">NABA</button><button data-guide data-place="rome-business-school" type="button">Rome Business School</button><a href="/your-rome">All campuses ↗</a></div>
+      </section>
+      <section class="next-section homes-chapter" aria-labelledby="nextHomesTitle"><div class="chapter-heading"><div><p class="eyebrow">02 / A PLACE TO CALL YOURS</p><h2 id="nextHomesTitle">Come on in.</h2></div><a class="text-button" href="/flight-next?view=apartments" data-view="apartments">Explore the collection <span aria-hidden="true">↗</span></a></div><div class="next-home-rail" id="nextHomeRail" aria-label="Homes in the BOOM catalogue"><p class="load-message">Opening the collection…</p></div></section>
+      <section class="next-section services-chapter" id="services" aria-labelledby="nextServicesTitle"><div class="chapter-heading"><div><p class="eyebrow">03 / YOUR PEOPLE ON THE GROUND</p><h2 id="nextServicesTitle">A little less friction.<br><em>A lot more BOOM.</em></h2></div><p class="chapter-aside">Still searching, or already found the one?<br>Choose where you want us by your side.</p></div>
+        <div class="next-tickets">
+          <a class="next-ticket ticket-gold" href="/property-finding"><div class="ticket-top"><span>BOOM / PROPERTY FINDING</span><span>01 — SEARCH</span></div><div class="ticket-route"><span>YOU</span><div class="route-line" aria-hidden="true"><span>✈</span></div><span>ROM</span></div><h3>Your brief.<br>Our boots on the ground.</h3><p>A dedicated search across Rome. Viewings, local knowledge and help choosing your home.</p><div class="ticket-stub"><span>Start your search <b>↗</b><small>Credited to the agency fee on success.</small></span><strong>€350</strong></div><div class="ticket-terms">At least 3 matching options within 15 days, or €350 refunded. Terms §4.2.</div></a>
+          <a class="next-ticket ticket-dark" href="/deal-assistance"><div class="ticket-top"><span>BOOM / DEAL ASSISTANCE</span><span>02 — SUPPORT</span></div><div class="ticket-route"><span>FOUND</span><div class="route-line" aria-hidden="true"><span>✈</span></div><span>HOME</span></div><h3>You found it.<br>Let's look closer.</h3><p>Landlord and document checks, negotiation and support through to signature.</p><div class="ticket-stub"><span>Protect your next move <b>↗</b><small>Fixed fee. Scope explained before checkout.</small></span><strong>€249</strong></div><div class="ticket-terms">Already renting a BOOM home? Apply directly from its page.</div></a>
+        </div><div class="service-foot"><a href="/virtual-viewing">Virtual viewing <span>↗</span></a><a href="/contract-check-express">Contract check <span>↗</span></a><a href="/concierge">Life in Rome, handled <span>↗</span></a></div>
+      </section>
+      <section class="next-section next-journey" aria-labelledby="nextJourneyTitle"><div><p class="eyebrow">FROM FIRST LOOK TO FIRST MORNING</p><h2 id="nextJourneyTitle">A clear path.<br>All the way home.</h2><a class="text-button" href="/how-it-works">Meet the whole process <span>↗</span></a></div><ol><li><span>01</span><div><h3>Find your place.</h3><p>See the home. Explore the neighbourhood.</p></div></li><li><span>02</span><div><h3>Make your move.</h3><p>Apply, share your plans, get a human response.</p></div></li><li><span>03</span><div><h3>Make it official.</h3><p>Review your costs and contract before you sign.</p></div></li><li><span>04</span><div><h3>You're home.</h3><p>Your keys, documents and support, connected.</p></div></li></ol></section>
+      <section class="next-signoff"><img src="/assets/boom-logo-mark.svg" alt="" width="64" height="64"><h2>Built in Rome.<br><em>On your side.</em></h2><a class="button gold" href="https://wa.me/393313251961">Talk to a real person <span>↗</span></a><p>Egidi Immobiliare S.r.l. · Via dei Coronari 181, Roma</p></section>
+    </div>
+    <section id="nextApartments" data-page="apartments" hidden aria-labelledby="nextAptsTitle">
+      <div class="next-discovery-heading"><div><p class="eyebrow">ROME / YOUR POSSIBILITIES</p><h1 id="nextAptsTitle" tabindex="-1">Find your place.</h1></div><div class="next-view-switch" role="group" aria-label="Explore view"><button type="button" data-layout="skyline" aria-pressed="true">Skyline</button><button type="button" data-layout="gallery" aria-pressed="false">Gallery</button></div></div>
+      <div class="next-filter-bar"><button type="button" id="nextEditStay">Dates & household <span>＋</span></button><label class="filter-budget"><span>Rent up to</span><select id="nextFilterBudget" aria-label="Filter by monthly rent"><option value="">Any budget</option><option value="1000">€1,000</option><option value="1500">€1,500</option><option value="2000">€2,000</option><option value="3000">€3,000</option><option value="5000">€5,000</option></select></label><label><select id="nextFilterType" aria-label="Home type"><option value="">All home types</option></select></label><button type="button" class="balance-button" data-guide><span class="signal"></span> Find my balance <span>↗</span></button></div>
+      <div class="next-discovery" id="nextDiscovery" data-layout="skyline"><div class="next-results-panel"><div class="results-caption"><span id="nextResultCount" role="status">Opening the collection…</span><button type="button" id="nextClearFilters" hidden>Clear filters</button></div><div id="nextResults" class="next-results"></div><p class="results-note">Dates describe your requested stay. Availability and lease conditions are confirmed for each home.</p></div><div id="nextApartmentsMap" class="next-map-slot"></div></div>
+    </section>
+    <section id="nextDetail" data-page="detail" hidden aria-labelledby="nextDetailTitle"><div id="nextDetailContent"></div></section>
+  </main>
+  <footer class="next-footer"><a class="next-brand" href="/flight-next" data-view="home"><img src="/assets/boom-logo-mark.svg" width="32" height="32" alt=""><span>BOOM</span></a><span>Rome, on your terms.</span><div><a href="/about">The agency</a><a href="/your-money">Your money</a><a href="/terms">Terms</a><a href="/privacy">Privacy</a></div><small>Design preview · Live catalogue · BOOM® / Egidi Immobiliare S.r.l.</small></footer>
+  <dialog id="nextGuideDialog" class="next-guide-dialog" aria-label="Find my balance"><div class="next-dialog-top"><span>YOUR ROME / BY SKYLINE</span><button type="button" data-close-dialog aria-label="Close Find my balance">✕</button></div><div id="nextGuideMount"></div></dialog>
+  <dialog id="nextStayDialog" class="next-stay-dialog" aria-labelledby="nextStayTitle"><div class="next-dialog-top"><span>YOUR MOVE</span><button type="button" data-close-dialog aria-label="Close dates">✕</button></div><h2 id="nextStayTitle">Make room<br>for your plans.</h2><form id="nextStayForm"><label>Move-in<input type="date" id="nextDialogIn" aria-label="Requested move-in date"></label><label>Move-out<input type="date" id="nextDialogOut" aria-label="Requested move-out date"></label><label>Who's moving?<select id="nextDialogPeople"><option value="">Choose later</option><option value="solo">Just me</option><option value="couple">A couple</option><option value="family">A family</option><option value="flatmates">Flatmates</option></select></label><p>Stays from 3 months. These are your preferences, not a confirmation of availability.</p><p id="nextDialogError" class="form-error" role="alert" hidden></p><button class="button gold" type="submit">Keep these dates <span>↗</span></button><button type="button" id="nextClearDates" class="text-button">I'm still exploring</button></form></dialog>
+  <dialog id="nextPhotoDialog" class="next-photo-dialog" aria-label="Home photos"><button type="button" data-close-dialog aria-label="Close photo gallery">✕</button><div id="nextFullPhotos"></div></dialog>
+  <p id="nextAnnouncement" class="next-toast" role="status" hidden></p>
+  <noscript><div class="next-noscript">This interactive design preview uses JavaScript. <a href="/apartments">Browse all homes</a> or <a href="/skyline">open Skyline</a>.</div></noscript>
+</body></html>

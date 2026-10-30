@@ -9,12 +9,13 @@
 - A fully digital rental pipeline: online pre-agreement with typed e-signature → Stripe-secured payment → registered contract signed online (Magic Sign) → tenant portal for payments and documents.
 
 ## How renting with BOOM works
-1. Browse verified homes at https://www.boomrome.com/apartments — filter by zone (tap-to-select), budget and move-in date; every price is computed to the euro (rent, deposit, and the agency fee: 10% of one year's rent + 22% VAT).
+1. Browse verified homes at https://www.boomrome.com/apartments — filter by zone (tap-to-select) and budget, with exact requested move-in and move-out dates; every price is computed to the euro (rent, deposit, and the agency fee: 10% of one year's rent + 22% VAT).
 2. Explore each home on the Skyline map: satellite imagery, 3D buildings, Google Street View where the pin is the exact entrance or the right street, and lines to the nearest landmarks and campuses (Termini, Colosseo, the Vatican, Trastevere, Sapienza, LUISS, Roma Tre, John Cabot, LUMSA) — walking minutes for the closest, public-transport minutes where BOOM's transit grid covers the home, otherwise a labelled distance.
 3. Pass the 2-minute eligibility check (income or guarantor); serious applicants receive a pre-agreement they can read, sign and pay online via Stripe — a €300 refundable hold locks a home.
 4. Occupied homes can be reserved ahead: when the release date is known, the listing shows it ("Free from" that date).
 
 ## Before you rent
+- [Your Rome — Find my balance](https://www.boomrome.com/your-rome): A free apartment planner around a selected public campus, rent ceiling and priority. Official addresses distinguish LUISS and Sapienza sites, RUFA, Rome Business School, Tor Vergata and NABA. Skyline shows up to three current options with reasons and trade-offs; travel estimates appear only where supported, with Google Maps links for route checks. Shareable preferences can optionally include public homes and requested dates; availability and contract terms still require confirmation.
 - [FAQ](https://www.boomrome.com/faq): renting in Rome with BOOM, answered in one place — Property Finding, contracts, payments, move-in, deposits and the codice fiscale.
 - [Your money](https://www.boomrome.com/your-money): every euro of a BOOM rental, what is paid at signing and what comes back.
 - [Book a viewing](https://www.boomrome.com/book): in-person or live-video viewing of a BOOM home; free, no commitment.

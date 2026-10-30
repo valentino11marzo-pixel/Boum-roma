@@ -529,11 +529,13 @@ console.log('\n6 · le altre superfici: concierge, Commerciale, Segretaria, Segu
   const save = (await import('../../api/search/save.js')).default;
   const sr = mkRes();
   await save({ method: 'POST', headers: { 'x-forwarded-for': '10.6.6.6' },
-    body: { email: 'studio@test.boom', criteria: { beds: 0, zones: [] } } }, sr);
+    body: { email: 'studio@test.boom', criteria: { beds: 0, zones: [], durationMonths: 6 } } }, sr);
   const salvata = COLLS.savedSearches && COLLS.savedSearches.get(sr.data && sr.data.id);
   check('Segugio: la ricerca «Studio» salvata da api/search/save.js porta beds 0 (non null: non diventa «qualsiasi»)',
     sr.statusCode === 200 && !!salvata && !!salvata.criteria && salvata.criteria.beds === 0,
     sr.statusCode + ' ' + JSON.stringify(salvata && salvata.criteria));
+  check('La durata richiesta attraversa il vero save handler e resta nei criteri Firestore',
+    salvata?.criteria?.durationMonths === 6);
   const crS = (salvata && salvata.criteria) || { beds: 0 };
   check('Segugio: con quella ricerca il monolocale passa, Capri e il bilocale di Cappellari no',
     matches(crS, withId(MONO)) === true && matches(crS, withId(CAPRI)) === false && matches(crS, withId(CAPPELLARI)) === false);
@@ -542,6 +544,36 @@ console.log('\n6 · le altre superfici: concierge, Commerciale, Segretaria, Segu
     && matches({ beds: 1 }, withId(MONO)) === false
     && matches({}, withId(CAPRI)) === true && matches({ beds: null }, withId(MONO)) === true);
   const dig = digestHtml({ id: 's', email: 'a@b.c' }, [withId(CAPRI), withId(CAPPELLARI)]);
+  const stayDigest = digestHtml({ id: 's', email: 'a@b.c', criteria: salvata.criteria }, [withId(MONO)]);
+  check('La durata è una preferenza: nessuna casa esclusa con termini ignoti, nessuna falsa compatibilità negli alert',
+    matches({ durationMonths: 1 }, withId(CAPRI)) && matches({ durationMonths: 24 }, withId(CAPRI))
+    && /You requested 6 months/.test(stayDigest) && /Lease length is still to be confirmed/.test(stayDigest)
+    && /these alerts match your other search criteria/.test(stayDigest)
+    && /\/listing\/[^"<>]+\?stay=6/.test(stayDigest) && /\/apartments\?stay=6/.test(stayDigest));
+  const invalidStay = mkRes();
+  await save({ method: 'POST', headers: { 'x-forwarded-for': '10.6.6.7' },
+    body: { email: 'stay@test.boom', criteria: { durationMonths: '6-12', beds: 0 } } }, invalidStay);
+  const rejectedStay = COLLS.savedSearches.get(invalidStay.data?.id);
+  check('Un range ambiguo non diventa una durata esatta sul server',
+    invalidStay.statusCode === 200 && rejectedStay?.criteria?.durationMonths === null && rejectedStay.criteria.beds === 0);
+  const datedSearch = mkRes();
+  await save({ method:'POST', headers:{'x-forwarded-for':'10.6.6.8'}, body:{email:'dated@test.boom',
+    criteria:{moveIn:'2027-01-31',moveOut:'2027-05-01',durationMonths:12,beds:0}} },datedSearch);
+  const dated = COLLS.savedSearches.get(datedSearch.data?.id);
+  check('Date esatte salvate: l’uscita resta e i giorni extra non diventano 12 mesi',
+    datedSearch.statusCode===200 && dated.criteria.moveIn==='2027-01-31' && dated.criteria.moveOut==='2027-05-01' && dated.criteria.durationMonths===null);
+  const datedDigest=digestHtml({id:'dated',email:'dated@test.boom',criteria:dated.criteria},[withId(MONO)]);
+  check('Digest porta entrambe le date fino alla scheda senza promettere copertura della data di uscita',
+    /3 months \+ 1 day/.test(datedDigest) && /moveIn=2027-01-31&moveOut=2027-05-01/.test(datedDigest)
+    && /Departure does not filter/.test(datedDigest)
+    && matches({moveOut:'2035-01-01'},withId(MONO)) === matches({},withId(MONO)));
+  for(const moveOut of ['2027-01-01','2027-04-29','2027-02-30','2038-01-31']) {
+    const badDates=mkRes();
+    await save({method:'POST',headers:{'x-forwarded-for':'10.6.6.9'},body:{email:'invalid@test.boom',
+      criteria:{moveIn:'2027-01-31',moveOut}}},badDates);
+    check('La ricerca rifiuta la coppia di date invalida prima di salvarla: '+moveOut,
+      badDates.statusCode===400 && badDates.data?.error==='invalid_stay');
+  }
   check('digest: «2 bed» per Capri, «1 bed» per Cappellari, mai il testo libero né «3 bed»',
     /· 2 bed · /.test(dig) && /· 1 bed · /.test(dig) && !/Living|3 bed/.test(dig), (dig.match(/· [^<]*bed · /g) || []).join(' | '));
   const dz = digestHtml({ id: 's', email: 'a@b.c' }, [{ id: 'z', name: 'Zero', price: 900, bedrooms: 0 }, { id: 'u', name: 'Ignota', price: 900 }]);

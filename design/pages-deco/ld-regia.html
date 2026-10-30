@@ -12,7 +12,8 @@
 <script src="/js/listing-facts.js"></script>
 <script>
 /* LA REGIA DELLA CASA — una casa alla volta, dal catalogo vero.
-   Parte al load: il motore Solari è concatenato DOPO questo script. */
+   Parte al DOM pronto: i motori concatenati dopo sono già definiti;
+   le foto iniziano subito, la mappa resta attivata dalla sua interazione. */
 (function () {
   'use strict';
   function via() {
@@ -138,27 +139,32 @@
     var v = c.varianti && c.varianti[i];
     return (v && v.src === immagini[i]) ? v : null;
   }
+  var photoRequest = 0, photoSwipeUntil = 0;
   function mostra(i) {
-    img.classList.remove('qui');
-    var v = variante(i);
-    if (v && (v.w480 || v.w960)) {
-      img.onload = function () { img.classList.add('qui'); img.onload = null; };
-      img.sizes = '100vw';
-      img.srcset = [v.w480 ? v.w480 + ' 480w' : '',
-        v.w960 ? v.w960 + ' 960w' : '', immagini[i] + ' 1920w']
-        .filter(Boolean).join(', ');
-      img.src = immagini[i];
-      if (img.complete && img.naturalWidth) {
-        img.classList.add('qui'); img.onload = null;
-      }
-    } else {
-      var pre = new Image();
-      pre.onload = function () { img.removeAttribute('srcset');
-        img.src = pre.src; img.classList.add('qui'); };
-      pre.src = immagini[i];
-    }
+    var request = ++photoRequest;
+    var v = variante(i), pre = new Image();
+    var sizes = '(min-width: 761px) 74vw, 100vw';
+    var sources = v && (v.w480 || v.w960) ? [v.w480 ? v.w480 + ' 480w' : '',
+      v.w960 ? v.w960 + ' 960w' : '', immagini[i] + ' 1920w'].filter(Boolean).join(', ') : '';
+    /* Keep the decoded photograph in place while the next one loads.
+       Clearing its opacity before preload made every gesture a black frame. */
+    pre.onload = function () {
+      if (request !== photoRequest) return;
+      img.sizes = sizes;
+      if (sources) img.srcset = sources; else img.removeAttribute('srcset');
+      img.src = immagini[i]; img.classList.add('qui');
+      telaio.removeAttribute('data-photo-error');
+      if (!matchMedia('(prefers-reduced-motion: reduce)').matches && img.animate)
+        img.animate([{opacity:.88},{opacity:1}], {duration:160,easing:'ease-out'});
+    };
+    pre.onerror = function () {
+      if (request === photoRequest) telaio.setAttribute('data-photo-error', 'Photo unavailable. Choose another photograph.');
+    };
+    if (sources) { pre.sizes = sizes; pre.srcset = sources; }
+    pre.src = immagini[i];
     [].slice.call(rullino.children).forEach(function (b, k) {
-      b.classList.toggle('qui', k === i); });
+      b.classList.toggle('qui', k === i);
+      b.setAttribute('aria-pressed', String(k === i)); });
   }
   immagini.forEach(function (u, i) {
     var b = document.createElement('button');
@@ -194,22 +200,27 @@
         new Image().src = immagini[(qui - 1 + immagini.length) % immagini.length];
       } catch (e) {}
       if (conta) conta.textContent = (qui + 1) + ' / ' + immagini.length;
-      var b = rullino.children[qui]; if (b && b.scrollIntoView)
-        b.scrollIntoView({ block:'nearest', inline:'center', behavior:'smooth' });
+      var b = rullino.children[qui]; if (b && rullino.scrollTo)
+        rullino.scrollTo({ left:b.offsetLeft - rullino.offsetLeft - (rullino.clientWidth - b.offsetWidth) / 2,
+          behavior:ridotto ? 'auto' : 'smooth' });
     }
     prec.addEventListener('click', function () { vai(-1); });
     succ.addEventListener('click', function () { vai(1); });
     /* il gesto piu' ripetuto: lo swipe sul telaio (il pattern della
        lente, riusato) — e la prossima foto si precarica da sola */
     (function () {
-      var x0 = null;
+      var touch = null;
       telaio.addEventListener('touchstart', function (e) {
-        x0 = e.touches[0].clientX; }, { passive: true });
+        touch = e.touches.length === 1 ? { x:e.touches[0].clientX, y:e.touches[0].clientY } : null;
+      }, { passive:true });
+      telaio.addEventListener('touchcancel', function () { touch = null; }, { passive:true });
       telaio.addEventListener('touchend', function (e) {
-        if (x0 === null) return;
-        var dx = e.changedTouches[0].clientX - x0; x0 = null;
-        if (Math.abs(dx) > 40) vai(dx < 0 ? 1 : -1);
-      }, { passive: true });
+        if (!touch || !e.changedTouches.length) return;
+        var dx=e.changedTouches[0].clientX-touch.x, dy=e.changedTouches[0].clientY-touch.y; touch=null;
+        if (Math.abs(dx)>48 && Math.abs(dx)>Math.abs(dy)*1.35) {
+          photoSwipeUntil=Date.now()+450; vai(dx<0?1:-1);
+        }
+      }, { passive:true });
     })();
     [].slice.call(rullino.children).forEach(function (b, k) {
       b.addEventListener('click', function () {
@@ -218,6 +229,8 @@
     });
     addEventListener('keydown', function (e) {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (!telaio.contains(e.target) && !rullino.contains(e.target)) return;
+      if (e.target === telaio && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); telaio.click(); return; }
       var t = e.target.tagName;
       if (t === 'INPUT' || t === 'TEXTAREA' || t === 'SELECT') return;
       var l = document.getElementById('lente');
@@ -484,6 +497,7 @@
     tasti.forEach(function (t) {
       t.addEventListener('click', function () { conta(Number(t.dataset.m)); });
     });
+    window.BoomStayQuote = { setMonths:conta };
     conta(12);
     rifaiDurata = function () { conta(mScelto); };
   })();
@@ -606,6 +620,7 @@
         return;
       }
       var d = new FormData(f);
+      var requestedStay = window.BOOM_STAY && BOOM_STAY.normalize ? BOOM_STAY.normalize({moveIn:d.get('quando'),moveOut:d.get('uscita'),durationMonths:d.get('mesi')}) : null;
       /* il corpo di /api/apply-lead, campo per campo */
       var corpo = {
         name: d.get('nome'), email: d.get('email'), phone: d.get('telefono'),
@@ -614,7 +629,9 @@
         waitlist: !c.libera,
         income: d.get('reddito'), guarantor: d.get('garante'),
         household: d.get('chi'), occupation: d.get('occupazione'),
-        moveIn: d.get('quando'), durationMonths: Number(d.get('mesi')) || null,
+        moveIn: requestedStay ? requestedStay.moveIn : d.get('quando'),
+        moveOut: requestedStay ? requestedStay.moveOut : d.get('uscita'),
+        durationMonths: requestedStay ? requestedStay.durationMonths : Number(d.get('mesi')) || null,
         /* in piu, per il pre-accordo: quante firme ci saranno */
         signers: Number(d.get('firmatari')) || 1,
         company: d.get('company')          /* esca per i robot */
@@ -633,7 +650,7 @@
       var fatto = document.getElementById('applicaFatto');
       if (fatto) {
         fatto.classList.add('si');
-        fatto.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        fatto.scrollIntoView({ block: 'center', behavior: ridotto ? 'auto' : 'smooth' });
       }
     });
   })();
@@ -658,7 +675,7 @@
       document.documentElement.style.overflow = '';
     }
     telaio.addEventListener('click', function (e) {
-      if (e.target.closest('button')) return;  /* frecce e cuore sono loro */
+      if (e.target.closest('button') || Date.now() < photoSwipeUntil) return;  /* buttons and swipes have their own action */
       var k = 0;
       [].slice.call(rullino.children).forEach(function (b, i) {
         if (b.classList.contains('qui')) k = i; });
@@ -677,14 +694,16 @@
       if (e.key === 'ArrowLeft') apri(qui - 1);
       if (e.key === 'ArrowRight') apri(qui + 1);
     });
-    var x0 = null;
+    var lensTouch = null;
     lente.addEventListener('touchstart', function (e) {
-      x0 = e.touches[0].clientX; }, { passive: true });
+      lensTouch=e.touches.length===1?{x:e.touches[0].clientX,y:e.touches[0].clientY}:null;
+    }, { passive:true });
+    lente.addEventListener('touchcancel', function () { lensTouch=null; }, { passive:true });
     lente.addEventListener('touchend', function (e) {
-      if (x0 === null) return;
-      var dx = e.changedTouches[0].clientX - x0; x0 = null;
-      if (Math.abs(dx) > 40) apri(qui + (dx < 0 ? 1 : -1));
-    }, { passive: true });
+      if (!lensTouch || !e.changedTouches.length) return;
+      var dx=e.changedTouches[0].clientX-lensTouch.x, dy=e.changedTouches[0].clientY-lensTouch.y; lensTouch=null;
+      if (Math.abs(dx)>48 && Math.abs(dx)>Math.abs(dy)*1.35) apri(qui+(dx<0?1:-1));
+    }, { passive:true });
     if (immagini.length < 2) {
       document.getElementById('lentePrec').style.display = 'none';
       document.getElementById('lenteSucc').style.display = 'none';
@@ -1371,7 +1390,8 @@
     if (/id=/.test(location.hash)) location.reload();
   });
   }
-  if (document.readyState === 'complete') via();
-  else addEventListener('load', via);
+  if (document.readyState === 'loading')
+    document.addEventListener('DOMContentLoaded', via, { once: true });
+  else via();
 })();
 </script>

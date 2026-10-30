@@ -224,6 +224,12 @@ cielo_js = '''<script>
     fr.setAttribute('allow', 'fullscreen');
     fr.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border:0;';
     var velo = document.getElementById('cieloVelo');
+    window.addEventListener('message', function (event) {
+      if (event.origin !== location.origin || event.source !== fr.contentWindow || !event.data || event.data.t !== 'boomSkylineReady') return;
+      pronta = true;
+      if (velo) velo.classList.add('via');
+      manda();
+    });
     fr.addEventListener('load', function () {
       pronta = true;
       if (velo) velo.classList.add('via');
@@ -336,6 +342,11 @@ if MODO == 'sito':
          + '\n<script src="/js/dispo-engine.js"></script>'
          + '\n' + leggi('vetrina-idrante.html')
          + '\n' + TESTA.CONSENSO + '\n</body>\n</html>')
+# Flight is a presentation layer over the original catalogue, never a new snapshot.
+if MODO == 'sito':
+    from importlib.machinery import SourceFileLoader
+    flight = SourceFileLoader('flight_shell', os.path.join(os.path.dirname(__file__), 'flight-shell.py')).load_module()
+    h = flight.enhance(h, 'apartments')
 uscita = 'boom-discovery.html' if MODO == 'artefatto' else 'boom-discovery-sito.html'
 open(uscita, 'w', encoding='utf-8').write(h)
 print(f'{uscita} · {len(h)//1024} KB · {len(mostrate)} case · '

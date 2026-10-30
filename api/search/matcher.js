@@ -19,6 +19,7 @@ import { fsList, fsPatch } from '../homie/_lib.js';
 import { sendEmail } from '../agent/_lib.js';
 import DISPO from '../../js/dispo-engine.js';
 import FACTS from '../../js/listing-facts.js';
+import STAY from '../../js/stay-engine.js';
 
 const SITE = 'https://www.boomrome.com';
 
@@ -35,6 +36,8 @@ function isRentable(l) {
 // Mirrors the discovery page's pass() closely enough to keep promises honest.
 export function matches(criteria, l) {
   const c = criteria || {};
+  // durationMonths is the visitor's requested stay, not a catalogue filter:
+  // listings currently declare no lease-length limits. The digest says so.
   if (c.budgetMax && Number(l.price) > Number(c.budgetMax)) return false;
   // le camere della casa con la regola unica (js/listing-facts.js). Prima
   // `Number(l.beds || 0)`: sul testo libero del bot dava NaN, e NaN < 2 è
@@ -86,9 +89,12 @@ const bedLine = (l) => { const n = FACTS.bedroomsOf(l); return n === 0 ? 'Studio
 
 // (esportata per tests/catalogo/letture.mjs)
 export function digestHtml(search, hits) {
+  const criteria = typeof search.criteria === 'string' ? safeJson(search.criteria) : search.criteria;
+  const stay = STAY.normalize(criteria);
+  const staySummary = STAY.summary(stay);
   const rows = hits.map(l => `
     <tr><td style="padding:12px 0;border-bottom:1px solid #eee">
-      <a href="${SITE}/listing/${encodeURIComponent(l.id)}" style="color:#111;text-decoration:none">
+      <a href="${SITE}${STAY.withIntent('/listing/' + encodeURIComponent(l.id), stay)}" style="color:#111;text-decoration:none">
         <strong style="font-size:15px">${(l.name || 'Apartment').replace(/</g, '&lt;')}</strong><br>
         <span style="color:#666;font-size:13px">${(l.zone || 'Rome').replace(/</g, '&lt;')}
         · ${bedLine(l)}${l.sqm ? l.sqm + ' m² · ' : ''}<strong style="color:#111">${eur(l.price)}/mo</strong>
@@ -106,8 +112,9 @@ export function digestHtml(search, hits) {
       <div style="letter-spacing:4px;font-size:12px;color:#B8960C">B O O M &nbsp;R O M E</div>
       <h2 style="font-weight:400;margin:14px 0 4px">New home${hits.length > 1 ? 's' : ''} matching your search</h2>
       <p style="color:#666;font-size:13.5px;margin:0 0 6px">${search.label ? 'Your search “' + String(search.label).replace(/</g, '&lt;') + '”' : 'Your saved search'} just matched ${hits.length} new listing${hits.length > 1 ? 's' : ''} — photos, price and availability on each home's page.</p>
+      ${staySummary ? `<p style="color:#666;font-size:13px">You requested ${staySummary}. Lease length is still to be confirmed for each home; these alerts match your other search criteria. Departure does not filter these results.</p>` : ''}
       <table style="width:100%;border-collapse:collapse">${rows}</table>
-      <p style="margin:18px 0 0"><a href="${SITE}/apartments" style="display:inline-block;background:#D4AF37;color:#1a1407;text-decoration:none;font-weight:600;border-radius:100px;padding:11px 22px;font-size:14px">See everything →</a></p>
+      <p style="margin:18px 0 0"><a href="${SITE}${STAY.withIntent('/apartments', stay)}" style="display:inline-block;background:#D4AF37;color:#1a1407;text-decoration:none;font-weight:600;border-radius:100px;padding:11px 22px;font-size:14px">See everything →</a></p>
       <p style="color:#999;font-size:11.5px;margin:18px 0 0">Rome moves fast — the good ones go in days. Questions? Just reply — a person replies during office hours (Rome time); messages sent out of hours are answered the next working morning.</p>
     </div>
     <p style="color:#aaa;font-size:11px;text-align:center;margin:14px 0 0">

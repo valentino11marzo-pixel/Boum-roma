@@ -3034,13 +3034,73 @@ WhatsApp-only. All four pages (`virtual-viewing`, `deal-assistance`,
 (MATERIA ambient, pay-plate + checkout sheet, sticky mobile pay bar,
 JSON-LD Service+Offer+FAQ).
 
+### Flight pubblico · 27/10/2026
+Home, Apartments, scheda e Skyline condividono `assets/boom-flight.*`: Your move legge
+`boomSalvate`/`boom:pois`, senza un secondo catalogo; il link condiviso porta solo ID.
+Skyline è nell’hero, lista+mappa convivono su desktop; su telefono si sceglie la vista.
+La scheda ricompone gli slot SSR e i conti veri nel Landing Plan; `<body>` resta letterale.
+`js/flight-map.js` veste entrambe le mappe; camera interrompibile, orbita volontaria,
+precisione dei pin e tempi reali restano ai motori Geo/Mappa. Generatori conservano i layer.
+Test: `flight`, `mappaflight`, `listingssr`, `vetrina`, `hometruth`, `cielo`, `seo`.
+
+Flight 28/10: il pulso resta quello del canvas Solari originale, prima attenuato
+dal layer Flight; niente anello o secondo clock. Compare deriva fino a 3 salvati da Facts/Dispo/Geo;
+selettore solo in memoria, niente nuovo archivio, Fly to rispetta i filtri attivi.
+Apartments riserva la vista prima del paint e non scrive `view` al boot/resize;
+scheda e ricerca partono a DOM-ready. Transizioni native fra pagine, locali sulle
+tab WebGL; `/flight-preview` mostra il percorso reale in desktop/mobile (noindex).
+Verifica: `vetrina`, `scroll`, `listingssr`, `mappaflight` e percorso browser completo.
+
+Skyline 28/10: catalogo/CDN/stile partono in parallelo; i pin non aspettano tutte le tile.
+Palette a `style.load`, camera già sul centro; DEM solo nel dettaglio ravvicinato,
+canvas mobile limitato e movimento fermo fuori vista. Errori/timeout hanno Retry e lista.
+`BoomSkyline.state()`/evento `state` distinguono catalogo, stile e rendering; `journeyFor`
+riusa Mappa/Tempi e coordinate vere, `setBudget` conserva i filtri; `homes=` resta vuoto.
+Test `mappaflight`: readiness, errori, scope vuoto, viaggio pubblico e mutazione dei pin.
+
+
+Flight 28/10, iterazione Your Rome: Home/Apartments chiedono ingresso e uscita esatti;
+`stay-engine` propaga `moveIn`/`moveOut` fino a saved search e Apply, con scorciatoie mesi e validazione calendario.
+La durata non filtra l’eligibilità delle case; frazioni di mese non producono totali soggiorno inventati.
+`/your-rome` espone directory campus e FAQ indicizzabili; `DESTINATIONS` mantiene indirizzi/fonti separati dai nove punti GTFS.
+Find my balance spiega ordine/compromessi e condivide solo preferenze pubbliche, case/date opzionali; niente punteggi sintetici.
+Home conserva Solari e foil, dà priorità a PFS/DAS e raccoglie gli approfondimenti; Apply ha quattro step e riepilogo senza cambiare submit/idempotenza.
+Foto: swipe solo orizzontale, frecce nel focus gallery. Generator parity, calendario, salvataggi, UI guida e listingssr verificano il percorso.
+
+Flight 28/10, composizione fluida: Home porta date/budget/persone prima della mappa nel DOM;
+Skyline embedded usa preview minima e avvio differito, primo render separato da tile complete e retry parziale.
+Le case precedono il racconto; rail mobile nativa e quattro passi con Play esplicito, pausa fuori vista/riduzione movimento.
+Find my balance apre risultati subito, modifica un campo alla volta, conserva card/focus/brief pubblico tra mappa e ritorno;
+confronti solo fra tipi equivalenti e fonti espandibili. Your Rome mantiene tracker dietro consenso e directory indicizzabile.
+Detail: foto decodificata prima del cambio, ticket compatto, stesso Apply in dialog contestuale con dati/focus preservati;
+no-JS inline, costi e idempotenza originali. Test flighthomeui, flightguideui, mappapreview, flightstayui e listingssr.
+
+Flight Lab 31/10: `/flight-lab` confronta Atlas, Residence e Club sulle stesse viste reali di `/flight-next?direction=…`, senza cambiare il sito pubblico.
+Le composizioni riusano catalogo, Solari, iframe Skyline, salvataggi e Apply; nessun secondo catalogo o nuovo handler di invio.
+Residence usa una foto realmente restituita dal catalogo pubblico (fallback a una casa pubblica non chiusa); Atlas sposta la stessa mappa nel primo schermo.
+Il laboratorio mantiene una sola preview, conserva in memoria le preferenze durante il confronto e accetta messaggi solo dall'iframe/origine previsti.
+Le direzioni sono conservate durante il percorso e il layout Skyline esplicito sopravvive a reload/Back; il laboratorio resta noindex.
+
+Flight Next 29/10: `/flight-next` è una proposta interattiva isolata e noindex: Home, ricerca e dettaglio
+ricompongono Solari originale, catalogo pubblico e un solo iframe Skyline conservato tra le viste.
+`boom-flight-next-data` usa Facts/Dispo; prezzi ignoti, guasti e disponibilità rimangono espliciti, nessun secondo archivio.
+Date, filtri e history restano nella URL, cuori in `boomSalvate`; foto scorrono in rail nativa e in fullscreen.
+La CTA apre l’Apply originale con date e `people`: prefill allowlist una sola volta, solo se #apChi vuoto;
+le scelte successive del candidato prevalgono su history, refresh e BFCache. Nessun nuovo submit o calcolo costi.
+`flightnextdata`, `flightnextmap`, `flightnextui`, `flightstayui` verificano il percorso; `telefono` copre anche il select durata a16px.
+
 ### POST `/api/search/save`
 Public save-search endpoint for the apartments discovery page. Body
-`{ email, label?, criteria{q,budgetMax,moveIn,beds,baths,furnished,video,
+`{ email, label?, criteria{q,budgetMax,moveIn,moveOut,durationMonths,beds,baths,furnished,video,
 zones[],feats[]}, resultCount?, company(honeypot) }`. Validates email,
 honeypot + per-IP rate limit (same hardening as `/api/canone-lead`), writes
 to the `savedSearches` collection under admin creds (`status:'active'`,
 `lastNotified:null`). Returns `{ ok, id }`.
+
+Flight collega il form pubblico all’endpoint già esistente, al posto del messaggio
+“Saved — PREVIEW”: attesa senza doppi invii, conferma solo con `ok:true` e ID,
+errori/retry senza cancellare i campi. Nessuna sottoscrizione viene creata dai test;
+`tests/flight/run.mjs` esercita il vero trasporto client con risposte di rete simulate.
 
 ### GET `/api/search/matcher` (cron 3×/day)
 The saved-search alert engine. Matches every active `savedSearches` doc

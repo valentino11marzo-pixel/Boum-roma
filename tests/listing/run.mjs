@@ -734,6 +734,10 @@ if (!chromium) {
   const applyBodies = [];
   const server = createServer(async (req, res) => {
     const p = decodeURIComponent(req.url.split('?')[0]);
+    if (p === '/skyline') {
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      return res.end(src('tests/flight/stay-skyline-fixture.html'));
+    }
     if (p.startsWith('/listing/')) {
       const lid = decodeURIComponent(p.slice('/listing/'.length));
       // il ripiego del server su un guasto (503, template nudo) per una casa
@@ -768,8 +772,25 @@ if (!chromium) {
   try {
     const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
     const errors = [];
+    let releasePhoto;
+    const nextPhoto = new Promise(resolve => { releasePhoto = resolve; });
+    const testImage = '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300"><rect width="400" height="300" fill="#52677a"/></svg>';
     page.on('pageerror', (e) => errors.push(String(e)));
-    await page.route('**/*', (r) => (r.request().url().startsWith(BASE) ? r.continue() : r.abort()));
+    await page.route('**/*', async (r) => {
+      if (r.request().url().endsWith('/foto-catalogo/coronari.jpg'))
+        return r.fulfill({status:200,contentType:'image/svg+xml',body:testImage});
+      if (r.request().url() === 'https://example.org/b.jpg') {
+        await nextPhoto;
+        return r.fulfill({status:200,contentType:'image/svg+xml',body:testImage});
+      }
+      if (!r.request().url().startsWith(BASE)) return r.abort();
+      // A later defer must still be pending when stay.js executes. Without
+      // this, fast local assets hid the interactive-before-DOMContentLoaded
+      // race that replaced the requested 6 months with the initial 12.
+      if (r.request().url().includes('/assets/boom-flight-detail.js'))
+        await new Promise(resolve => setTimeout(resolve, 900));
+      return r.continue();
+    });
     await page.addInitScript(() => {
       window.__conv = [];
       window.addEventListener('boom-conversion', (e) => window.__conv.push(e.detail));
@@ -795,8 +816,49 @@ if (!chromium) {
         },
       });
     });
-    await page.goto(BASE + '/listing/A', { waitUntil: 'load' });
+    await page.goto(BASE + '/index.html', { waitUntil: 'load' });
+    await page.locator('.flight-stay-options>summary').click();
+    await page.selectOption('#durataSoggiorno', '6');
+    await page.fill('#stayMoveIn', FUT('01', '31'));
+    await page.fill('#stayMoveOut', FUT('07', '31'));
+    await page.selectOption('#quantoBudget', '2000');
+    await page.selectOption('#chiAtterra', 'couple');
+    await Promise.all([
+      page.waitForURL(url => url.pathname === '/apartments'),
+      page.click('#quandoVai'),
+    ]);
+    const intent = new URL(page.url());
+    check('Home → Apartments: date, durata, budget e persone viaggiano nel vero submit',
+      intent.searchParams.get('stay') === '6' && /budget=2000/.test(intent.hash)
+      && /chi=couple/.test(intent.hash)
+      && intent.searchParams.get('moveIn') === FUT('01', '31')
+      && intent.searchParams.get('moveOut') === FUT('07', '31'));
+    check('Apartments rilegge la durata, con data rimasta tra i filtri avanzati',
+      await page.inputValue('#durataSoggiorno') === '6'
+      && await page.locator('#foglioVelo #quandoData').count() === 1);
+    await page.goto(BASE + '/index.html' + intent.search, { waitUntil: 'load' });
+    await Promise.all([
+      page.waitForURL(url => url.pathname === '/skyline'),
+      page.locator('.flight-home-expand').click(),
+    ]);
+    await page.locator('#skyGuideOpen').click();
+    await page.locator('[data-guide-priority="space"]').click();
+    await page.locator('[data-guide-home="A"]').click();
+    check('Home → Skyline → See on map conserva la durata prima della scheda',
+      new URL(page.url()).searchParams.get('stay') === '6'
+      && new URL(page.url()).searchParams.get('moveIn') === FUT('01', '31')
+      && new URL(page.url()).searchParams.get('moveOut') === FUT('07', '31')
+      && !(await page.locator('#skyHome').isHidden()));
+    await Promise.all([
+      page.waitForURL(url => url.pathname === '/listing/A'),
+      page.locator('#skyHomeLink').click(),
+    ]);
     await page.waitForTimeout(1200);
+    check('Explore home + defer lento: la durata richiesta non diventa il default iniziale 12',
+      new URL(page.url()).searchParams.get('stay') === '6'
+      && await page.inputValue('#apMesi') === '6'
+      && await page.inputValue('#apQuando') === FUT('01', '31')
+      && await page.inputValue('#apUscita') === FUT('07', '31'));
     const prezzo = await page.evaluate(() => {
       const h = document.getElementById('canoneCasa');
       const testi = [...h.childNodes].filter((n) => n.nodeType === 3 && n.textContent.trim()).length;
@@ -813,6 +875,72 @@ if (!chromium) {
     check('bollette: il paragrafo dice «bills included» per la casa etichettata',
       /bills included/.test(await page.textContent('#chiaviFuori')));
     check('onorario IVA compresa in pagina (€2,635)', (await page.textContent('#voceOnorario')).trim() === '€2,635');
+    // Gallery gestures are local: scrolling the page cannot change its photo.
+    const photoBefore = await page.textContent('#contaFoto');
+    await page.locator('#cuoreCasa').focus();
+    await page.keyboard.press('ArrowRight');
+    check('foto: frecce fuori dalla galleria non cambiano fotografia',
+      await page.textContent('#contaFoto') === photoBefore);
+    async function swipePhoto(dx, dy) {
+      await page.evaluate(({dx,dy}) => {
+        const el = document.getElementById('telaio');
+        const touch = (x,y) => new Touch({identifier:1,target:el,clientX:x,clientY:y});
+        el.dispatchEvent(new TouchEvent('touchstart',{touches:[touch(180,200)],bubbles:true}));
+        el.dispatchEvent(new TouchEvent('touchend',{changedTouches:[touch(180+dx,200+dy)],bubbles:true}));
+      }, {dx,dy});
+    }
+    await swipePhoto(-75, 190);
+    check('foto: scroll diagonale prevalentemente verticale non sfoglia',
+      await page.textContent('#contaFoto') === photoBefore);
+    await swipePhoto(-90, 8);
+    check('foto: swipe orizzontale sfoglia e non apre la lente',
+      await page.textContent('#contaFoto') !== photoBefore && await page.isHidden('#lente'));
+    check('foto: il preload lento mantiene la fotografia precedente, senza fotogramma nero',
+      await page.locator('#telaio>img').evaluate(img => img.naturalWidth > 0 && img.classList.contains('qui')
+        && getComputedStyle(img).opacity === '1' && img.src.endsWith('/foto-catalogo/coronari.jpg')));
+    releasePhoto();
+    await page.waitForFunction(() => document.querySelector('#telaio>img').src === 'https://example.org/b.jpg');
+    await page.locator('#telaio').focus();
+    await page.keyboard.press('ArrowLeft');
+    check('foto: tastiera locale torna alla foto precedente',
+      await page.textContent('#contaFoto') === photoBefore);
+    await page.waitForTimeout(460);
+    await page.keyboard.press('Enter');
+    check('foto: Enter apre la lente e porta il focus sulla chiusura',
+      !await page.isHidden('#lente') && await page.evaluate(() => document.activeElement.id) === 'lenteX');
+    await page.keyboard.press('Escape');
+    check('foto: Escape richiude e restituisce il focus alla galleria',
+      await page.isHidden('#lente') && await page.evaluate(() => document.activeElement.id) === 'telaio');
+
+    await page.locator('[data-bfd-apply]').click();
+    check('Apply: il ticket apre il modulo accanto alla casa senza scroll della pagina', await page.locator('#bfdApplicationSheet').isVisible());
+    const nextStep = () => page.locator('.bfd-apply-controls [data-bfd-next]').click();
+    check('Apply: review non raggiungibile saltando i primi passaggi',
+      await page.locator('.bfd-apply-steps button').nth(3).isDisabled()
+      && await page.locator('#modApplica button[type="submit"]').isHidden());
+    await page.fill('#apNome', 'Ada Lovelace');
+    await page.keyboard.press('Escape');
+    check('Apply: Escape chiude e restituisce il focus al ticket',
+      await page.locator('#bfdApplicationSheet').isHidden()
+      && await page.evaluate(() => document.activeElement.hasAttribute('data-bfd-apply')));
+    await page.locator('[data-bfd-apply]').click();
+    check('Apply: riaprire conserva i dati e il passo',
+      await page.inputValue('#apNome') === 'Ada Lovelace' && await page.locator('#apNome').isVisible());
+    await page.locator('#apNome').press('Enter');
+    check('Apply: Enter al primo passo avanza senza inviare',
+      applyHits === 0 && await page.locator('#apMesi').isVisible()
+      && await page.locator('#modApplica button[type="submit"]').isHidden());
+    check('durata: ?stay=6 prefilla apply e calcolo esistente, con termini da confermare',
+      await page.inputValue('#apMesi') === '6'
+      && await page.getAttribute('.durata-tasti .on', 'data-m') === '6'
+      && /10,800/.test(await page.textContent('#durCanoni'))
+      && /6 months requested.*confirmed/.test(await page.textContent('.bfd-pass [data-stay-note]')));
+    await page.selectOption('#apMesi', '18');
+    check('durata: modificare apply aggiorna lo stesso conto e l’URL, senza una seconda aritmetica',
+      await page.getAttribute('.durata-tasti .on', 'data-m') === '18'
+      && /32,400/.test(await page.textContent('#durCanoni'))
+      && new URL(page.url()).searchParams.get('stay') === '18');
+    await page.selectOption('#apMesi', '6');
 
     const leadsGA = () => page.evaluate(() => (window.dataLayer || [])
       .map((a) => Array.prototype.slice.call(a))
@@ -820,17 +948,24 @@ if (!chromium) {
         && a[2].form_id === 'modApplica').length);
 
     // 1) validazione: email sbagliata e nessun telefono → niente richiesta
-    await page.fill('#apNome', 'Ada Lovelace');
+    await page.locator('.bfd-apply-steps button').nth(0).click();
     await page.fill('#apMail', 'ada-at-example');
+    await nextStep(); await nextStep(); await nextStep();
+    check('Apply: review legge importi originali e dichiara nessun pagamento oggi',
+      /€2,635/.test(await page.locator('.bfd-review-costs').textContent())
+      && /does not reserve the home or take a payment/.test(await page.locator('.bfd-apply-review').textContent())
+      && applyHits === 0);
     await page.click('#modApplica button[type="submit"]');
     await page.waitForTimeout(200);
     check('validazione: messaggio, focus sull\'email, nessuna richiesta',
       applyHits === 0 && !(await page.isHidden('#apErrore'))
       && /Check your email address/.test(await page.textContent('#apErrore'))
-      && (await page.evaluate(() => document.activeElement && document.activeElement.id)) === 'apMail');
+      && (await page.evaluate(() => document.activeElement && document.activeElement.id)) === 'apMail'
+      && await page.locator('#apMail').isVisible());
 
     // 2) il server risponde 400 → niente «Sent»
     await page.fill('#apMail', 'ada@example.org');
+    await nextStep(); await nextStep(); await nextStep();
     applyMode = 400;
     await page.click('#modApplica button[type="submit"]');
     await page.waitForTimeout(400);
@@ -844,6 +979,9 @@ if (!chromium) {
     check('APPLY 400: niente «Sent», form visibile, bottone riattivato, errore col WhatsApp',
       applyHits === 1 && !st400.fatto && st400.form && !st400.btn && /\+39 331 325 1961/.test(st400.err) && st400.conv === 0, JSON.stringify(st400));
     check('APPLY 400: nessun generate_lead (la validazione o il server dicono no)', (await leadsGA()) === 0);
+    check('APPLY: la durata richiesta arriva nel payload reale durationMonths', applyBodies[0]?.durationMonths === 6);
+    check('APPLY: le date esatte viaggiano nel payload originale',
+      applyBodies[0]?.moveIn === FUT('01', '31') && applyBodies[0]?.moveOut === FUT('07', '31'));
 
     // 3) rete caduta → stesso trattamento
     applyMode = 'down';
@@ -881,6 +1019,28 @@ if (!chromium) {
       rids.length >= 3 && rids.every((r) => typeof r === 'string' && /^[\w-]{8,64}$/.test(r))
       && new Set(rids).size === 1 && applyBodies.every((b) => b.listingId === 'A'), JSON.stringify(rids));
     check('nessun errore JS nella pagina', errors.length === 0, errors.join(' | '));
+    // The wizard must not accidentally replace the server's email OR phone
+    // rule with native validation of the historically required email field.
+    {
+      applyMode = 400;
+      const phone = await browser.newPage({viewport:{width:390,height:844},reducedMotion:'reduce'});
+      await phone.route('**/*', r => r.request().url().startsWith(BASE) ? r.continue() : r.abort());
+      await phone.goto(BASE + '/listing/A?stay=6', {waitUntil:'load'});
+      await phone.locator('[data-bfd-apply]').click();
+      await phone.locator('.bfd-apply-steps').waitFor();
+      await phone.fill('#apNome', 'Ada Phone');
+      await phone.fill('#apTel', '+39 333 123 4567');
+      for (let i=0;i<3;i++) await phone.locator('.bfd-apply-controls [data-bfd-next]').click();
+      const hitsBefore = applyHits;
+      await Promise.all([
+        phone.waitForResponse(r => r.url().endsWith('/api/apply-lead')),
+        phone.locator('#modApplica button[type="submit"]').click(),
+      ]);
+      check('Apply: contatto solo telefono conserva la regola originale email OR phone',
+        applyHits === hitsBefore + 1 && applyBodies.at(-1)?.phone === '+39 333 123 4567'
+        && applyBodies.at(-1)?.email === '');
+      await phone.close();
+    }
 
     // ── «quando entro?»: la FAQ visibile e il FAQPage (#faqLd) seguono la
     // corsia. Prima un'affittata senza data diceva «This one is available

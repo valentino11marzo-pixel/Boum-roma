@@ -235,6 +235,18 @@ if MODO == 'sito':
     h = ('<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
          + h.replace('</style>', '</style>\n</head>\n<body>', 1)
          + '\n' + TESTA.CONSENSO + '\n</body>\n</html>')
+# Flight rearranges existing slots; no inventory snapshot is rewritten here.
+if MODO == 'sito':
+    import importlib.util
+    _flight_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'flight-detail.py')
+    _flight_spec = importlib.util.spec_from_file_location('boom_flight_detail', _flight_path)
+    _flight = importlib.util.module_from_spec(_flight_spec)
+    _flight_spec.loader.exec_module(_flight)
+    h = _flight.enhance(h)
+if MODO == 'sito':
+    from importlib.machinery import SourceFileLoader
+    flight_shell = SourceFileLoader('flight_shell', os.path.join(os.path.dirname(__file__), 'flight-shell.py')).load_module()
+    h = flight_shell.enhance(h, 'detail')
 uscita = 'boom-casa-p.html' if MODO == 'artefatto' else 'boom-casa-p-sito.html'
 open(uscita, 'w', encoding='utf-8').write(h)
 print(f'{uscita} · {len(h)//1024} KB · {len(CASE)} case · '

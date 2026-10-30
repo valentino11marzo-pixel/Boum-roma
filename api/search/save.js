@@ -17,7 +17,7 @@
 //   email:        string            // required — the alert channel
 //   label?:       string            // user's name for this search
 //   criteria: {                     // the discovery page's S state
-//     q?, budgetMax?, moveIn?, beds?, baths?, furnished?, video?,
+//     q?, budgetMax?, moveIn?, moveOut?, durationMonths?, beds?, baths?, furnished?, video?,
 //     zones?: string[], feats?: string[]
 //   },
 //   resultCount?: number            // matches at save time (context for ops)
@@ -26,6 +26,7 @@
 // Response 200: { ok: true, id }  |  4xx/5xx: { ok: false, error }
 
 import { fsCreate, logActivity } from '../homie/_lib.js';
+import STAY from '../../js/stay-engine.js';
 
 // ── Best-effort in-memory rate limit (per warm instance) ──
 const HITS = new Map(); // ip -> [timestamps]
@@ -65,10 +66,18 @@ export default async function handler(req, res) {
   if (rateLimited(ip)) return res.status(429).json({ ok: false, error: 'rate_limited' });
 
   const c = (body.criteria && typeof body.criteria === 'object') ? body.criteria : {};
+  // A legacy arrival-only alert remains usable. An explicit departure must
+  // form a valid requested stay; it is never an availability/lease promise.
+  const stayError = c.moveOut ? STAY.validate(c) : null;
+  if (stayError) return res.status(400).json({ ok: false, error: 'invalid_stay', field: stayError.field });
+  const stay = STAY.normalize(c);
   const criteria = {
     q:         clip(c.q, 120),
     budgetMax: num(c.budgetMax),
-    moveIn:    clip(c.moveIn, 10),
+    moveIn:    stay.moveIn,
+    moveOut:   stay.moveOut,
+    // Requested length, not an assertion about the listings' lease terms.
+    durationMonths: stay.durationMonths,
     beds:      num(c.beds),
     baths:     num(c.baths),
     furnished: !!c.furnished,
