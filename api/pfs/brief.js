@@ -18,14 +18,20 @@ import { requireCronOrAdmin } from './_guard.js';
 import { listActiveClients } from './_ingest.js';
 import { tgNotify } from './_health.js';
 import { ai } from '../_ai.js';
+import RM from '../../js/radar-markets.js';
 
 // Il modello (opus, una chiamata al giorno) sta nel registro: js/ai-registry.js, scopo 'pfs.brief'.
 const MAX_TOKENS = 1200;
 
 function hoursAgo(h) { return new Date(Date.now() - h * 3600 * 1000); }
 
+// La città di un annuncio: quella scritta dall'ingestione; i doc di prima
+// dei mercati sono di Roma; senza città certa, «da verificare».
+const propCity = (p) => p.market || (p.marketUnknown ? 'da_verificare' : 'roma');
+
 function compactProperty(p) {
   return {
+    citta: propCity(p),
     titolo: (p.title || p.address || p.sourceUrl || '').slice(0, 80),
     prezzo: p.price,
     cam: p.bedrooms,
@@ -43,6 +49,7 @@ function compactClient(c) {
   const deck = Array.isArray(c.portalProperties) ? c.portalProperties : [];
   return {
     nome: c.name,
+    citta: RM.clientMarket(c) || 'mercato_sconosciuto',
     stage: c.stage || c.portalStage,
     budget: c.budget,
     zona: c.preferred_areas || c.zone || null,
@@ -78,7 +85,8 @@ export default async function handler(req, res) {
     });
   } catch (e) { console.warn('[pfs/brief] properties read failed:', e.message); }
   try { clients = await listActiveClients(); } catch (e) { console.warn('[pfs/brief] clients read failed:', e.message); }
-  for (const s of ['inbox', 'market', 'sync']) {
+  const cityStreams = RM.enabledIds().filter(m => m !== 'roma').map(m => 'inbox-' + m);
+  for (const s of ['inbox', 'market', 'sync', ...cityStreams]) {
     try {
       const h = await fsGet('pfsRadarHealth/' + s);
       if (h) health[s] = { ok: h.ok, ultimoRun: h.lastRunAt, erroriConsecutivi: h.consecutiveErrors || 0, daVerificare: (h.needsAttention || []).length };
@@ -88,7 +96,12 @@ export default async function handler(req, res) {
   const stats = {
     annunci48h: properties.length,
     privati: properties.filter(p => p.advertiser === 'private').length,
-    agenzieScartate: properties.filter(p => p.advertiser === 'agency').length,
+    // Le agenzie si SCARTANO solo dove la regola è 'drop' (Roma). A Madrid e
+    // Barcellona la pagina promette anche le agenzie: arrivano ai clienti,
+    // segnate — contarle fra le «scartate» direbbe il falso.
+    agenzieScartate: properties.filter(p => p.advertiser === 'agency' && RM.agencyPolicy(propCity(p)) === 'drop').length,
+    agenzieSegnalateCitta: properties.filter(p => p.advertiser === 'agency' && propCity(p) !== 'roma' && RM.agencyPolicy(propCity(p)) !== 'drop').length,
+    perCitta: properties.reduce((o, p) => { const k = propCity(p); o[k] = (o[k] || 0) + 1; return o; }, {}),
     conMatch: properties.filter(p => (p.matchSummary?.pushedTo || []).length > 0).length,
     clientiAttivi: clients.length,
   };
@@ -103,7 +116,10 @@ export default async function handler(req, res) {
 
   // ── Ask Claude for the brief ──────────────────────────────
   const system =
-    'Sei l\'analista operativo del servizio Property Finding di BOOM Roma (ricerca casa per clienti paganti, Roma). ' +
+    'Sei l\'analista operativo del servizio Property Finding di BOOM (ricerca casa per clienti paganti: Roma, e i desk di Madrid e Barcellona). ' +
+    'Ogni annuncio e ogni cliente porta "citta": un annuncio si propone SOLO a clienti della sua città, mai di un\'altra. ' +
+    'A Roma le agenzie si scartano; a Madrid e Barcellona le agenzie arrivano ai clienti, segnate (agenzieSegnalateCitta), e non sono scarti. ' +
+    'L\'outreach ai proprietari (il Contatto) esiste SOLO per Roma: fuori Roma non suggerirlo. ' +
     'Ricevi un JSON con lo stato delle ultime 48 ore: annunci entrati dal radar, match pushati ai clienti, stato outreach ' +
     '(contatto dei proprietari privati), feedback dei clienti (like/scartate) e salute delle fonti. ' +
     'Scrivi il briefing operativo del giorno in italiano, per Valentino che lo legge dal telefono. ' +

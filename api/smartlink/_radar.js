@@ -6,9 +6,12 @@ import RULES from '../../js/smartlink-engine.js';
 export const validRadarId=id=>typeof id==='string' && /^h_[0-9a-f]{16}$/.test(id);
 const text=(value,max)=>typeof value==='string'?RULES.cleanText(value,max):'';
 const number=(value,max)=>['string','number'].includes(typeof value)?RULES.positiveNumber(value,max):null;
+// Il Radar tiene anche Madrid e Barcellona; SmartLink è romano (zone, mappa e
+// POI di Roma): una casa di un'altra città, o di città incerta, non si recupera.
+const romeRecord=record=>(record.market||'roma')==='roma' && record.marketUnknown!==true;
 
 function radarListing(record,id,source) {
-  if(!record || !RULES.sameListingUrl(record.sourceUrl,source.url)) return null;
+  if(!record || !romeRecord(record) || !RULES.sameListingUrl(record.sourceUrl,source.url)) return null;
   const date=typeof record.scrapedAt==='string'?Date.parse(record.scrapedAt):NaN;
   return {
     radar:{id,archivedAt:Number.isFinite(date)&&date<=Date.now()?new Date(date).toISOString():null},

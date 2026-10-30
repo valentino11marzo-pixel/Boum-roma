@@ -889,6 +889,10 @@
       "schedule": "*/10 * * * *"
     },
     {
+      "path": "/api/leads/scan-inbox?mode=bounces",
+      "schedule": "7-59/10 * * * *"
+    },
+    {
       "path": "/api/leads/brain",
       "schedule": "3-59/10 * * * *"
     },

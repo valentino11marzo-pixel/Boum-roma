@@ -322,6 +322,17 @@ try {
   setRadar(cacheId,{...radarSample,sourceUrl:canonical.url.replace('123','999')});
   r=response();await extract(request('POST',{url:canonical.url}),r);
   assert.equal(r.body.status,'unavailable');assert.equal(r.body.radar,undefined);assert.equal(r.body.images?.length || 0,0);
+  // Una casa di Madrid/Barcellona o di città incerta non porta zona, foto o dati in SmartLink (romano): la
+  // zona «Madrid · Centro» farebbe proporre il cerchio «Centro, Roma». Roma dichiarata resta valida.
+  for(const other of [{market:'madrid',zone:'Madrid · Centro'},{market:'barcelona'},{market:null,marketUnknown:true}]) {
+    setRadar(cacheId,{...radarSample,...other});
+    r=response();await extract(request('POST',{url:canonical.url}),r);
+    assert.equal(r.body.status,'unavailable');assert.equal(r.body.radar,undefined);assert.equal(r.body.images?.length || 0,0);
+    assert.equal(r.body.data?.zone,undefined,'A city-desk zone never reaches the Rome area picker');
+  }
+  setRadar(cacheId,{...radarSample,market:'roma',marketUnknown:false});
+  r=response();await extract(request('POST',{url:canonical.url}),r);
+  assert.equal(r.body.radar.id,cacheId);assert.equal(r.body.data.zone,'Cipro');
   setRadar(cacheId,{...radarSample,rooms:null,bedrooms:4,sqm:null,size:68,scrapedAt:'2099-01-01T00:00:00Z'});
   r=response();await extract(request('POST',{url:canonical.url}),r);
   assert.equal(r.body.data.rooms,undefined,'Bedrooms are not evidence of total rooms');
@@ -411,7 +422,11 @@ try {
   r=response();await create(request('POST',radarBody,'tenant'),r);assert.equal(r.code,403);
   radarUnavailable=true;
   r=response();await create(request('POST',radarBody),r);assert.equal(r.code,503);assert.equal(r.body.error,'radar_unavailable');
-  radarUnavailable=false;assert.equal(writes,radarWrites,'Failed reference checks never publish');
+  radarUnavailable=false;
+  setRadar(cacheId,{...radarSample,market:'madrid'});
+  r=response();await create(request('POST',radarBody),r);assert.equal(r.code,400);assert.equal(r.body.error,'invalid_radar');
+  setRadar(cacheId,radarSample);
+  assert.equal(writes,radarWrites,'Failed reference checks never publish');
   r=response();await create(request('POST',{...radarBody,images:[]}),r);
   assert.equal(r.code,400);assert.equal(r.body.error,'photos_required');
   r=response();await create(request('POST',{...radarBody,images:[sourcePhoto]}),r);

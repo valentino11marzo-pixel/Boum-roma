@@ -44,9 +44,19 @@ export const SUGGESTED_INTERVAL_MINUTES = 10;
  * ha cura di non sovrascriverla mai.
  * Esportata pura per i test.
  */
-export function activeSearches(rows, clientsById = new Map()) {
+// I portali delle città fuori Roma, che lo Scatto sul Mac NON sa leggere
+// (bot/boom_scout.py conosce solo i pattern di immobiliare.it e idealista.it).
+// Le ricerche idealista.com di Madrid e Barcellona restano fuori dalla lista
+// di lavoro finché lo Scatto non le conosce: aprirle ogni 10' senza saperle
+// leggere è tempo perso e rumore davanti all'antibot. Lista NERA, non bianca:
+// ogni ricerca romana di prima (anche quelle create a mano dal portal con un
+// altro portale) resta esattamente dov'era. `?portals=all` le mostra (diagnosi).
+export const CITY_ONLY_PORTALS = new Set(['idealista_es']);
+
+export function activeSearches(rows, clientsById = new Map(), { portals = null } = {}) {
   return (rows || [])
     .filter(s => s && s.enabled !== false)
+    .filter(s => portals === 'all' || !CITY_ONLY_PORTALS.has(s.portal))
     .map(s => ({
       id: s.id,
       portal: s.portal || null,
@@ -55,6 +65,7 @@ export function activeSearches(rows, clientsById = new Map()) {
       // La zona PULITA della ricerca (scritta da sync-searches): lo Scatto
       // la passa all'ingestione quando l'annuncio non dichiara la sua.
       zone: s.zoneName || null,
+      market: s.market || 'roma',
       clientId: s.clientId || null,
       clientName: (clientsById.get(s.clientId) || {}).name || null,
     }))
@@ -119,7 +130,8 @@ export default async function handler(req, res) {
     for (const c of await fsList('pfsClients', { limit: 100 })) clientsById.set(c.id, c);
   } catch { /* best effort */ }
 
-  const searches = activeSearches(rows, clientsById);
+  const all = String((req.query && req.query.portals) || '') === 'all';
+  const searches = activeSearches(rows, clientsById, all ? { portals: 'all' } : undefined);
   return res.status(200).json({
     ok: true,
     count: searches.length,
