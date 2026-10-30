@@ -28528,7 +28528,8 @@ IBAN: ${l.iban || '-'}`;
         </div>`;
         smartLinkArea = window.BOOM_SMARTLINK_MAP.mount(document.getElementById('sl_area_picker'), ZONE_COORDINATES);
         document.getElementById('sl_zone').addEventListener('change', () => { smartLinkArea.reset(); smartLinkArea.suggest(document.getElementById('sl_zone').value); });
-        document.getElementById('sl_source')?.focus();
+        const fromSafari=new URLSearchParams(location.search).get('smartlink-share')==='1';
+        document.getElementById(fromSafari?'sl_share_import':'sl_source')?.focus();
         smartLinkRecent();
     }
 
