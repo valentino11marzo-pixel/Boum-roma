@@ -84,6 +84,8 @@ const IMAP_STUB = `export class ImapFlow {
   async getMailboxLock(){ return { release(){} }; }
   async search(q){ if(globalThis.__imap.onSearch) globalThis.__imap.onSearch(q); const f=String(q.from||'').toLowerCase(); return globalThis.__imap.box.filter(m=>m.from.toLowerCase().includes(f)).map(m=>m.uid); }
   async fetchOne(uid){ const m=globalThis.__imap.box.find(x=>String(x.uid)===String(uid)); return m?{source:Buffer.from(m.raw)}:false; }
+  async fetchAll(range){ const want=String(range).split(',').map(Number); const h=(m,k)=>((m.raw.match(new RegExp('^'+k+':(.*)$','mi'))||[])[1]||'').trim();
+    return globalThis.__imap.box.filter(m=>want.includes(m.uid)).map(m=>({uid:m.uid,envelope:{subject:h(m,'Subject'),messageId:h(m,'Message-ID'),date:h(m,'Date')||null}})); }
   async logout(){}
 }`;
 const esmChanges = MUT ? (MUTATIONS[MUT] || []).filter((c) => c[3] !== 'cjs') : [];

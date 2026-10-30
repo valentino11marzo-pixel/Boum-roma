@@ -14,7 +14,21 @@
 //
 // Request emails only: saved-search alerts belong to pfs/scan-inbox and are
 // filtered out by subject. Processed messages are remembered in
-// `leadImports` so re-runs and the 2-day lookback never re-pay the AI call.
+// `heartbeat/leads-inbox-memory` so re-runs and the 2-day lookback never
+// re-pay the AI call.
+//
+// LA LEZIONE DEL 30 OTTOBRE 2026, letta nei log: «soft deadline: restano
+// 40–80 email» a OGNI giro, per settimane, senza mai scendere. Il controllo
+// del tempo addebitava 45s (download + modello) a OGNI email prima di
+// aprirla — anche agli alert, alle newsletter e a quelle già lette, che poi
+// si scartavano DOPO il download. Con 53s utili un giro poteva cominciare
+// email solo nei primi ~8s: rileggeva ogni volta le stesse email più vecchie
+// (immobiliare per primo, idealista dopo, in ordine di dominio) e le
+// richieste nuove di idealista — la maggioranza — arrivavano al server con
+// uno o due giorni di ritardo, quando la finestra le portava in testa. Ora:
+// UN fetch delle intestazioni per tutta la finestra, il filtro (oggetto,
+// memoria) sulle intestazioni, le più RECENTI per prime, e il tempo si
+// chiede a pezzi — il download e il modello ciascuno col suo costo vero.
 //
 // Auth: cron secret / X-Homie-Secret / admin ID token. `?dry=1` read-only.
 
@@ -37,10 +51,41 @@ const AI_BUDGET_PER_RUN = 8;
 // Il modello sta nel registro: js/ai-registry.js, scopo 'leads.inbox'.
 
 const PORTAL_DOMAINS = ['immobiliare.it', 'idealista.it', 'idealista.com', 'casa.it', 'subito.it', 'bakeca.it'];
-const REQUEST_RE = /richiest|contatt|messagg|interessat|ti ha scritto|nuovo lead|vuole informazioni|ha risposto|request|enquiry|contacted/i;
+// «Nuova offerta di <nome> sul tuo immobile» (idealista): chi offre un
+// canone è il lead più caldo che arrivi, e l'oggetto non diceva «messaggio».
+const REQUEST_RE = /richiest|contatt|messagg|interessat|ti ha scritto|nuovo lead|vuole informazioni|ha risposto|nuova offerta di |request|enquiry|contacted/i;
 const ALERT_RE = /nuovi annunci|ricerca salvata|annunci per te|price drop|ribasso|della tua ricerca|saved search/i;
 
 function sha1(s) { return crypto.createHash('sha1').update(String(s)).digest('hex'); }
+
+// La memoria è indicizzata sul Message-ID come lo scrive mailparser (fra < >):
+// l'intestazione dell'envelope IMAP va resa nella STESSA forma, o ogni email
+// già letta sembrerebbe nuova e ripagherebbe il modello.
+export function memIdFor(rawMessageId, uid, user) {
+  let v = String(rawMessageId || '').trim();
+  if (v) { if (v[0] !== '<') v = '<' + v; if (v[v.length - 1] !== '>') v += '>'; }
+  const msgId = v || `${uid}@${user}`;
+  return { msgId, memId: sha1(msgId) };
+}
+
+// Cosa leggere davvero, dalle sole intestazioni: niente alert né newsletter,
+// niente email già in memoria, le più recenti per prime (l'UID IMAP cresce
+// con l'arrivo). Pura: si testa senza casella.
+export function triage(envelopes, seen, user) {
+  const out = { todo: [], skipped: 0, requests: 0, duplicates: 0 };
+  const rows = [...(envelopes || [])].filter((m) => m && m.uid).sort((a, b) => (b.uid || 0) - (a.uid || 0));
+  for (const m of rows) {
+    const env = m.envelope || {};
+    const subject = String(env.subject || '');
+    if (ALERT_RE.test(subject) || !REQUEST_RE.test(subject)) { out.skipped++; continue; }
+    out.requests++;
+    const { msgId, memId } = memIdFor(env.messageId, m.uid, user);
+    if (seen && seen[memId]) { out.duplicates++; continue; }
+    const at = env.date ? new Date(env.date) : null;
+    out.todo.push({ uid: m.uid, subject, msgId, memId, receivedAt: at && !isNaN(at) ? at.toISOString() : null });
+  }
+  return out;
+}
 
 async function extractLead(subject, text) {
   const SYSTEM = `Estrai il potenziale inquilino (lead) da un'email di notifica di un portale immobiliare italiano. Rispondi SOLO JSON:
@@ -95,8 +140,10 @@ export default async function handler(req, res) {
   // parte solo se il residuo copre il COSTO MASSIMO del passo.
   const B = runBudget(60_000, 7_000);
   const COST_SEARCH = 25_000;   // = socketTimeout imapflow
-  const COST_ITER = 45_000;     // fetchOne (25s) + una chiamata al modello (20s)
-  const stats = { scanned: 0, requests: 0, ingested: 0, duplicates: 0, aiCalls: 0, unmatched: 0, timeBoxed: 0 };
+  const COST_FETCH = 25_000;    // un fetch (intestazioni o sorgente): al massimo un socketTimeout
+  const COST_AI = 20_000;       // = timeoutMs di extractLead
+  const COST_WRITE = 6_000;     // dedupe per persona (due letture) + la scrittura del lead
+  const stats = { envelopes: 0, skipped: 0, scanned: 0, requests: 0, ingested: 0, duplicates: 0, aiCalls: 0, unmatched: 0, timeBoxed: 0 };
   // Timeout ESPLICITI: i default di imapflow (connect 90s, socket idle 5min)
   // superano il limite piattaforma (60s) — una Gmail lenta uccideva la
   // funzione SENZA battito: errs=0 e run morti, il silenzio ambiguo. Con i
@@ -129,13 +176,33 @@ export default async function handler(req, res) {
         catch (e) { console.warn('[leads/scan-inbox] search', dom, e.message); }
       }
 
-      for (const uid of uids) {
-        if (stats.aiCalls >= AI_BUDGET_PER_RUN) break;
-        if (!B.afford(COST_ITER)) {
-          stats.timeBoxed = uids.size - stats.scanned;
-          console.warn('[leads/scan-inbox] soft deadline: restano', stats.timeBoxed, 'email al prossimo giro');
+      // UN giro di intestazioni per tutta la finestra: decidere cosa scaricare
+      // costa un fetch, non un download per email.
+      let envelopes = [];
+      if (uids.size && B.afford(COST_FETCH)) {
+        envelopes = await client.fetchAll([...uids].join(','), { envelope: true }, { uid: true }) || [];
+      } else if (uids.size) {
+        // le ricerche hanno mangiato il tempo (socket malato): niente download
+        // a metà, il giro dopo riparte dall'inizio — e il battito lo dice
+        stats.timeBoxed = uids.size;
+        console.warn('[leads/scan-inbox] tempo finito prima delle intestazioni:', uids.size, 'email al prossimo giro');
+      }
+      const plan = triage(envelopes, seen, user);
+      stats.envelopes = envelopes.length;
+      stats.skipped = plan.skipped;
+      stats.requests = plan.requests;
+      stats.duplicates = plan.duplicates;
+
+      for (let i = 0; i < plan.todo.length; i++) {
+        const t = plan.todo[i];
+        const left = plan.todo.length - i;
+        if (stats.aiCalls >= AI_BUDGET_PER_RUN) { stats.timeBoxed = left; break; }
+        if (!B.afford(COST_FETCH)) {
+          stats.timeBoxed = left;
+          console.warn('[leads/scan-inbox] tempo finito: restano', left, 'richieste al prossimo giro');
           break;
         }
+        const { uid, subject, msgId, memId } = t;
         stats.scanned++;
         let parsed;
         try {
@@ -143,14 +210,13 @@ export default async function handler(req, res) {
           if (!msg || !msg.source) continue;
           parsed = await simpleParser(msg.source);
         } catch (e) { console.warn('[leads/scan-inbox] fetch/parse', uid, e.message); continue; }
-
-        const subject = parsed.subject || '';
-        if (ALERT_RE.test(subject) || !REQUEST_RE.test(subject)) continue;
-        stats.requests++;
-
-        const msgId = parsed.messageId || `${uid}@${user}`;
-        const memId = sha1(msgId);
-        if (seen[memId]) { stats.duplicates++; continue; }
+        // il modello solo se il tempo copre anche lui e la scrittura: altrimenti
+        // l'email resta NON letta in memoria e la prende il giro dopo
+        if (!B.afford(COST_AI + COST_WRITE)) {
+          stats.timeBoxed = left;
+          console.warn('[leads/scan-inbox] tempo finito: restano', left, 'richieste al prossimo giro');
+          break;
+        }
 
         let lead;
         try {
@@ -200,6 +266,8 @@ export default async function handler(req, res) {
             propertyPrice: prop ? (prop.price || null) : null,
             status: 'new',
             sourceRef: msgId.slice(0, 200),
+            // quando la persona ha scritto, distinto da quando il server l'ha letta
+            receivedAt: t.receivedAt,
             raw: { subject: subject.slice(0, 200), from: fromAddr, via: 'leads/scan-inbox' },
             createdAt: new Date(),
           });
