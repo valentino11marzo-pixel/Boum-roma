@@ -121,6 +121,21 @@ body::before{content:'';position:fixed;inset:0;opacity:.012;pointer-events:none;
 .scroll-progress{position:fixed;top:0;left:0;width:0%;height:2px;background:linear-gradient(90deg,var(--gold),var(--gold-light));z-index:10001}
 @media(max-width:768px){.tech-orb-1{width:300px;height:300px}.tech-orb-2{width:250px;height:250px}.mouse-glow{display:none}}
 
+/* ── what this page adds to the system (page-scoped) ──
+   --meta: small print that still clears 4.5:1 on void, card and input. The
+   system's --t4 step measures 2.2:1 and carried half the first screen (family
+   strip, file header, machine line, consent, the names under the proof).
+   --label for field labels, --ph for placeholders (the browser default sat at
+   3.9:1). --page: ONE width shared by nav, hero and footer. */
+:root{--meta:rgba(255,255,255,.56);--label:rgba(255,255,255,.62);--ph:rgba(255,255,255,.5);
+  --line-hover:rgba(255,255,255,.18);--gold-deep:#d9b400;--page:1120px;
+  --mono:'SF Mono',ui-monospace,Menlo,Consolas,monospace}
+.container{max-width:calc(var(--page) + 40px);padding:0 20px}
+main{max-width:calc(var(--page) + 40px);padding-left:20px;padding-right:20px}
+
+/* drawn icons, one stroke family — no ★ ✓ ✈ → glyphs standing in for an icon system */
+.ic{width:1em;height:1em;flex:none;display:inline-block;vertical-align:middle;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+
 /* ── the lockup: BOOM │ EXECUTIVE ROMA ── */
 .logo-mark{width:44px;height:44px}
 .logo-text{font-size:22px}
@@ -128,12 +143,23 @@ body::before{content:'';position:fixed;inset:0;opacity:.012;pointer-events:none;
 .bl-desk{font-size:9px;letter-spacing:3px;color:var(--gold);text-transform:uppercase;line-height:1.6;font-weight:500}
 .footer-brand-logo .bl-desk{font-size:11px;letter-spacing:3.6px;line-height:1.7;font-family:var(--sans)}
 .lang{display:inline-flex;border:1px solid var(--line);border-radius:100px;overflow:hidden}
-.lang button{font-size:10px;letter-spacing:1.4px;padding:7px 12px;color:var(--t4);transition:.25s}
+.lang button{font-size:10px;letter-spacing:1.4px;padding:7px 12px;color:var(--meta);transition:color .25s,background .25s}
 .lang button.on{color:var(--gold);background:var(--gold-faint)}
-.lang button:hover{color:var(--t2)}
+.lang button:hover{color:var(--t1)}
+/* a finger-sized burger without changing the bar's height */
+.nav-toggle{justify-content:center;min-height:44px;margin-right:-10px}
 
-/* family strip docks under the pinned nav */
+/* family strip docks under the pinned nav; its labels read at ≥4.5:1 */
 .fam{top:76px}
+.fam a{color:var(--meta)}
+.fam a:hover{color:var(--t1)}
+.fam a.on{color:var(--gold)}
+/* on a phone the strip scrolls: its cut edge fades so it reads as "more",
+   and a spacer keeps the last label clear of the fade at scroll end */
+@media(max-width:600px){
+  .fam{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 36px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 36px),transparent)}
+  .fam::after{content:'';flex:none;width:28px}
+}
 main{padding-top:172px}
 @media(max-width:640px){main{padding-top:162px}}
 
@@ -142,64 +168,127 @@ section{margin-top:96px}
 /* anchor jumps land BELOW the fixed nav + family strip, never underneath */
 section[id],#contact{scroll-margin-top:150px}
 
-/* ── HERO: the corridor and the door ── */
-.hero{align-items:start}
-.hero h1{font-size:clamp(36px,5.8vw,60px)}
+/* ── HERO: the headline, the door, then what proves it ──
+   Phone: intro → door → the tail under the door → proof → the names. The door
+   follows the subhead so the submit is reached ~300px sooner (1211 → ~900px
+   at 390). Desktop (≥920, the system's break): headline column | door, the
+   proof and the names under the headline, the tail hanging under the door. */
+.hero{display:grid;gap:0;grid-template-columns:minmax(0,1fr);grid-template-areas:"intro" "door" "tail" "trust" "serving";align-items:start}
+.intro{grid-area:intro}
+.door{grid-area:door;margin-top:32px}
+.tail{grid-area:tail}
+.trust{grid-area:trust;margin-top:40px}
+.serving{grid-area:serving;margin-top:32px}
+@media(min-width:920px){
+  .hero{grid-template-columns:minmax(0,1fr) clamp(430px,34vw,452px);column-gap:clamp(56px,6.5vw,96px);grid-template-areas:"intro door" "trust door" "serving door" ". tail";grid-template-rows:auto auto 1fr auto}
+  .door{margin-top:0}
+  .serving{align-self:end;margin-top:40px}
+}
+/* a balanced headline: the question on its lines, the gold answer on its own */
+.hero h1{font-size:clamp(36px,3.4vw + 17px,66px);line-height:1.04;letter-spacing:-.022em;text-wrap:balance;margin-top:14px}
+.hero h1 .l-en,.hero h1 .l-it{display:block}
+.hero h1 em{display:block;letter-spacing:-.026em;margin-top:.04em}
+.hero .sub{font-size:clamp(15.5px,1.3vw,17px);line-height:1.62;max-width:31em;margin-top:24px;text-wrap:pretty}
 .live{display:inline-flex;align-items:center;gap:8px}
 .live i{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 10px rgba(61,220,151,.8);animation:livep 2s ease-in-out infinite}
 @keyframes livep{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.55;transform:scale(.85)}}
-@keyframes fade-up{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
-.h-1{animation:fade-up .8s var(--ease) .1s both}
-.h-2{animation:fade-up .8s var(--ease) .22s both}
-.h-3{animation:fade-up .8s var(--ease) .38s both}
-.h-4{animation:fade-up .8s var(--ease) .52s both}
-.h-5{animation:fade-up .9s var(--ease) .45s both}
-/* trust, then the names that prove it */
-.trust{display:flex;flex-wrap:wrap;gap:8px 22px;margin-top:26px;font-size:12px;color:var(--t3)}
-.trust b{color:var(--t1);font-weight:400}
-.trust .c{color:var(--green)}
-.serving{margin-top:22px;padding-top:18px;border-top:1px solid var(--line-soft);font-family:'SF Mono',ui-monospace,Menlo,Consolas,monospace;font-size:10px;letter-spacing:1.8px;color:var(--t4);text-transform:uppercase;line-height:2}
-.serving b{color:var(--t2);font-weight:400}
+/* one authored entrance: the headline settles, the door and what's around it follow one beat later */
+@keyframes fade-up{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+.h-1{animation:fade-up .9s var(--ease) .05s both}
+.h-2{animation:fade-up .9s var(--ease) .18s both}
 
-/* the door: the file card */
-.filecard{border:1px solid var(--line-gold);border-radius:20px;background:var(--card);box-shadow:0 30px 80px rgba(0,0,0,.5),0 0 60px rgba(255,215,0,.04);padding:24px 24px 20px}
-@media(max-width:640px){.filecard{padding:20px 18px 16px}}
-.refline{display:flex;justify-content:space-between;gap:12px;font-family:'SF Mono',ui-monospace,Menlo,Consolas,monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--t4);margin-bottom:16px}
-.refline b{color:var(--gold);font-weight:400}
+/* proof: one aligned list with drawn icons, not a wrapping row of glyphs */
+.trust{list-style:none;display:grid;gap:11px;font-size:13.5px;color:var(--t2);line-height:1.45}
+.trust li{display:flex;align-items:center;gap:11px}
+.trust .ic{font-size:14px}
+.trust .star{fill:var(--gold);stroke:none;opacity:.9}
+.trust .chk{color:var(--green);stroke-width:2.1}
+.trust b{color:var(--t1);font-weight:400}
+.trust a{transition:color .3s}
+.trust a:hover{color:var(--t1)}
+.trust a:hover > span > span{text-decoration:underline;text-underline-offset:3px;text-decoration-color:var(--line-gold)}
+/* The review link keeps its ★ glyph in the markup (tests/executive pins that
+   link verbatim); the drawn star beside it carries the visual, so the glyph's
+   box is collapsed and only the words keep their size. */
+.trust a > span{font-size:0}
+.trust a > span > *{font-size:13.5px}
+.trust a > span > b{margin-right:.28em}
+/* the names, in the page's voice — readable, not a mono costume at 2:1 */
+.serving{padding-top:20px;border-top:1px solid var(--line-soft);font-size:12.5px;line-height:1.75;color:var(--meta);max-width:44em}
+.serving b{color:var(--t1);font-weight:400;letter-spacing:.04em}
+
+/* ── THE DOOR: the file card ── */
+.filecard{position:relative;border:1px solid var(--line-gold);border-radius:20px;
+  background:linear-gradient(180deg,rgba(255,215,0,.025),transparent 120px),var(--card);
+  box-shadow:0 1px 0 rgba(255,255,255,.04) inset,0 30px 70px -20px rgba(0,0,0,.75);padding:22px 28px}
+@media(max-width:640px){.filecard{padding:18px;border-radius:18px}}
+.refline{display:flex;justify-content:space-between;align-items:baseline;gap:12px;font-family:var(--mono);font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--meta);padding-bottom:15px;margin-bottom:4px;border-bottom:1px solid var(--line-soft)}
+.refline b{color:var(--gold);font-weight:400;white-space:nowrap}
+@media(max-width:640px){.refline{font-size:9px;letter-spacing:1.25px;gap:10px}}
 .frow{display:grid;gap:12px;grid-template-columns:minmax(0,1fr)}
 @media(min-width:480px){.frow.two{grid-template-columns:repeat(2,minmax(0,1fr))}}
-.filecard .fld{margin-top:12px}
-.filecard .frow .fld{margin-top:12px}
-.fld select{width:100%;background:var(--input);border:1px solid var(--line);border-radius:12px;padding:13px 14px;font-size:15px;color:var(--t1);outline:none;transition:border-color .3s;-webkit-appearance:none;appearance:none;
-  background-image:linear-gradient(45deg,transparent 50%,var(--t3) 50%),linear-gradient(135deg,var(--t3) 50%,transparent 50%);
-  background-position:calc(100% - 19px) 21px,calc(100% - 14px) 21px;background-size:5px 5px,5px 5px;background-repeat:no-repeat}
-.fld select:focus{border-color:var(--line-gold)}
-/* optional details fold away: 5 fields visible, the rest on request */
-.more{margin-top:14px;border:1px solid var(--line-soft);border-radius:12px;background:rgba(255,255,255,.015)}
-.more summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:8px;padding:11px 14px;font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:var(--t3)}
+/* arrival + length are short answers: side by side even on a phone */
+@media(min-width:340px){.frow.pair{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.filecard .fld,.filecard .frow .fld{margin-top:16px}
+.fld label{font-size:10.5px;letter-spacing:1.7px;color:var(--label);margin-bottom:7px;font-weight:400}
+.fld input,.fld textarea,.fld select{width:100%;height:48px;background:var(--input);border:1px solid var(--line);border-radius:12px;padding:0 14px;font-size:15px;color:var(--t1);outline:none;caret-color:var(--gold);transition:border-color .25s,box-shadow .25s}
+.fld textarea{height:auto;min-height:64px;padding:12px 14px;resize:vertical}
+.fld input::placeholder,.fld textarea::placeholder{color:var(--ph);opacity:1}
+.fld input:hover,.fld textarea:hover,.fld select:hover{border-color:var(--line-hover)}
+.fld input:focus,.fld textarea:focus,.fld select:focus{border-color:rgba(255,215,0,.7);box-shadow:0 0 0 3px rgba(255,215,0,.12)}
+.fld [aria-invalid="true"]{border-color:rgba(255,122,110,.7)}
+.fld input:-webkit-autofill{-webkit-text-fill-color:#fff;box-shadow:0 0 0 40px var(--input) inset;caret-color:var(--gold)}
+.fld select{-webkit-appearance:none;appearance:none;padding-right:38px;cursor:pointer;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='rgba(255,255,255,0.6)' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 15px center;background-size:12px 8px}
+/* an unanswered select looks unanswered, like the placeholders beside it */
+.fld select:has(option[value=""]:checked){color:var(--ph)}
+.fld select option{color:#fff;background:var(--input)}
+/* optional details fold away: a plain disclosure, not a fake input box */
+.more{margin-top:18px;border-top:1px solid var(--line-soft)}
+.more summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:9px;padding:14px 0 2px;font-size:10.5px;letter-spacing:1.7px;text-transform:uppercase;color:var(--label);transition:color .25s;border-radius:6px}
 .more summary::-webkit-details-marker{display:none}
-.more summary::before{content:'+';color:var(--gold);font-size:15px;font-weight:300;transition:transform .3s var(--ease)}
-.more[open] summary::before{transform:rotate(45deg)}
-.more .morein{padding:2px 14px 14px}
-.consent{font-size:10.5px;color:var(--t4);margin-top:11px;text-align:center;line-height:1.6}
-.consent a{color:var(--t3);text-decoration:underline}
+.more summary:hover{color:var(--t1)}
+.more summary .ic{color:var(--gold);font-size:13px;stroke-width:2;transition:transform .35s var(--ease)}
+.more[open] summary .ic{transform:rotate(45deg)}
+.more .morein{padding:2px 0 4px}
+/* the signature pay-plate: drawn plane and arrow, a shadow with an offset */
+.paybtn{margin-top:18px;gap:14px;padding:15px 18px 15px 15px;background:linear-gradient(135deg,var(--gold),var(--gold-deep));box-shadow:0 10px 30px -12px rgba(255,215,0,.45);transition:transform .3s var(--ease),box-shadow .3s var(--ease)}
+.paybtn:hover{box-shadow:0 18px 44px -10px rgba(255,215,0,.42)}
+.paybtn:active{transform:translateY(0);box-shadow:0 6px 18px -8px rgba(255,215,0,.4)}
+.paybtn[aria-busy="true"]{opacity:.6;pointer-events:none}
+.paybtn .lk{width:38px;height:38px}
+.paybtn .lk .ic{font-size:17px;stroke-width:1.6}
+.paybtn .tx{min-width:0}
+.paybtn b{font-size:15.5px;letter-spacing:-.005em}
+.paybtn small{font-size:11.5px;opacity:.78}
+.paybtn .amt{display:grid;place-items:center}
+.paybtn .amt .ic{font-size:21px;stroke-width:1.6;transition:transform .3s var(--ease)}
+.paybtn:hover .amt .ic{transform:translateX(3px)}
+@media(max-width:360px){.paybtn{gap:10px;padding:13px 14px 13px 12px}.paybtn .lk{width:34px;height:34px}.paybtn .amt .ic{font-size:18px}}
+.consent{font-size:11.5px;color:var(--meta);margin-top:13px;text-align:center;line-height:1.6}
+.consent a{color:var(--t2);text-decoration:underline;text-decoration-color:rgba(255,255,255,.3);text-underline-offset:2px;transition:color .25s,text-decoration-color .25s}
+.consent a:hover{color:var(--t1);text-decoration-color:var(--gold)}
 /* NB: never ".done" — the sent state keeps its own name */
 .sent{display:none;text-align:center;padding:14px 0 6px}
 .sent.on{display:block}
-.sent .tick{width:54px;height:54px;margin:0 auto;border-radius:50%;display:grid;place-items:center;font-size:24px;color:var(--green);border:1px solid rgba(61,220,151,.45);background:var(--green-muted)}
+.sent .tick{width:54px;height:54px;margin:0 auto;border-radius:50%;display:grid;place-items:center;color:var(--green);border:1px solid rgba(61,220,151,.45);background:var(--green-muted)}
+.sent .tick .ic{font-size:22px;stroke-width:2}
 .sent h3{font-weight:200;font-size:22px;margin-top:14px}
 .sent h3 em{font-style:normal;color:var(--gold)}
 .sent p{font-size:13px;color:var(--t2);margin-top:8px}
 .hidden{display:none!important}
-/* the machine, whispered — the only device on this screen */
-.machine{margin-top:12px;display:flex;align-items:center;gap:9px;justify-content:center;font-family:'SF Mono',ui-monospace,Menlo,Consolas,monospace;font-size:9.5px;letter-spacing:1.4px;color:var(--t4);text-transform:uppercase;flex-wrap:wrap}
-.machine i{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 8px rgba(61,220,151,.7);flex:none}
+/* under the card: the machine, whispered, then the paid fast lane — one left
+   edge with the card's content, not centred under it */
+.tail{padding:0 28px}
+@media(max-width:640px){.tail{padding:0 18px}}
+.machine{margin-top:18px;display:flex;align-items:flex-start;gap:10px;font-family:var(--mono);font-size:9.5px;letter-spacing:1.4px;line-height:1.85;color:var(--meta);text-transform:uppercase}
+.machine i{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 8px rgba(61,220,151,.7);flex:none;margin-top:6px}
 .machine b{color:var(--gold);font-weight:400}
-/* the paid fast lane: one quiet line — the door stays one */
-.fastlane{margin-top:10px;text-align:center;font-size:11.5px;color:var(--t4);line-height:1.6}
-.fastlane a{color:var(--t3);transition:color .3s}
+.fastlane{margin-top:8px;font-size:12px;color:var(--meta);line-height:1.65}
+.fastlane a{transition:color .3s}
 .fastlane a:hover{color:var(--gold)}
-.fastlane b{color:var(--t2);font-weight:400}
+.fastlane b{color:var(--t1);font-weight:400}
 .fastlane a:hover b{color:var(--gold)}
 
 /* ── who we serve: six short entries, not six essays ── */
@@ -210,49 +299,61 @@ section[id],#contact{scroll-margin-top:150px}
 @media(max-width:759px){.flow:last-child{border-bottom:none}}
 .flow .n{flex:none;font-size:12px;color:var(--gold);opacity:.7;padding-top:2px;width:20px;font-weight:200}
 .flow b{display:block;font-weight:400;font-size:14.5px}
-.flow b .at{font-family:'SF Mono',ui-monospace,Menlo,Consolas,monospace;font-size:9px;letter-spacing:1.2px;color:var(--t4);text-transform:uppercase;margin-left:8px;font-weight:400}
+.flow b .at{font-family:var(--mono);font-size:9px;letter-spacing:1.2px;color:var(--meta);text-transform:uppercase;margin-left:8px;font-weight:400}
 .flow p{font-size:12px;color:var(--t3);margin-top:4px;line-height:1.6}
 
 /* ── the contract, compact: 4 checks + the digital object, slim ── */
 .contract{border:1px solid var(--line-gold);border-radius:16px;overflow:hidden;background:var(--surface)}
-.chead{padding:12px 16px;border-bottom:1px solid var(--line-gold);font-family:'SF Mono',ui-monospace,Menlo,Consolas,monospace;font-size:9.5px;letter-spacing:1.8px;color:var(--gold);text-transform:uppercase;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
-.chead span:last-child{color:var(--t4)}
+.chead{padding:12px 16px;border-bottom:1px solid var(--line-gold);font-family:var(--mono);font-size:9.5px;letter-spacing:1.8px;color:var(--gold);text-transform:uppercase;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.chead span:last-child{color:var(--meta)}
 .crw{display:flex;justify-content:space-between;align-items:baseline;gap:14px;padding:10px 16px;border-bottom:1px solid var(--line-soft);font-size:12px}
-.crw .k{color:var(--t4);font-size:9.5px;letter-spacing:1.4px;text-transform:uppercase;flex:none}
+.crw .k{color:var(--meta);font-size:9.5px;letter-spacing:1.4px;text-transform:uppercase;flex:none}
 .crw .v{color:var(--t2);text-align:right}
 .crw .v i{font-style:normal;color:var(--green)}
-.esign{display:flex;align-items:center;gap:9px;padding:11px 16px;background:var(--gold-faint);font-family:'SF Mono',ui-monospace,Menlo,Consolas,monospace;font-size:9.5px;letter-spacing:1px;color:var(--t3);flex-wrap:wrap}
+.esign{display:flex;align-items:center;gap:9px;padding:11px 16px;background:var(--gold-faint);font-family:var(--mono);font-size:9.5px;letter-spacing:1px;color:var(--t3);flex-wrap:wrap}
 .esign .led{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 8px rgba(61,220,151,.7);flex:none}
 .esign b{color:var(--green);font-weight:400;letter-spacing:1.4px}
 .esign .sealchip{margin-left:auto;border:1px solid var(--line-gold);border-radius:100px;padding:3px 9px;color:var(--gold);letter-spacing:1.4px;white-space:nowrap}
 /* timeline, one quiet line */
-.tline{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:16px;padding:13px 16px;border:1px solid var(--line-soft);border-radius:12px;background:var(--gold-faint);font-family:'SF Mono',ui-monospace,Menlo,Consolas,monospace;font-size:10px;letter-spacing:1px;color:var(--t3)}
+.tline{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:16px;padding:13px 16px;border:1px solid var(--line-soft);border-radius:12px;background:var(--gold-faint);font-family:var(--mono);font-size:10px;letter-spacing:1px;color:var(--t3)}
 .tline b{color:var(--gold);font-weight:400}
-.tline .sep{color:var(--t4)}
+.tline .sep{color:var(--meta)}
 .tline .land{color:var(--green)}
 
 /* ── in brief — the quotable ledger (GEO: class names load-bearing) ── */
 .enbref{border:1px solid var(--line);border-left:2px solid var(--gold);border-radius:0 16px 16px 0;background:linear-gradient(90deg,var(--gold-faint),transparent 55%),var(--card);padding:24px 26px}
 .enbref h2{display:flex;align-items:baseline;gap:14px;font-size:11px;letter-spacing:2.8px;text-transform:uppercase;color:var(--gold);font-weight:400}
-.enbref h2 .ref{margin-left:auto;font-family:'SF Mono',ui-monospace,Menlo,Consolas,monospace;font-size:8.5px;letter-spacing:1.6px;color:var(--t4)}
+.enbref h2 .ref{margin-left:auto;font-family:var(--mono);font-size:8.5px;letter-spacing:1.6px;color:var(--meta)}
 .enbref dl{display:grid;grid-template-columns:minmax(0,1fr);margin-top:12px}
 @media(min-width:660px){.enbref dl{grid-template-columns:172px minmax(0,1fr);column-gap:22px}}
-.enbref dt{font-size:10px;letter-spacing:1.8px;text-transform:uppercase;color:var(--t4);padding-top:12px}
+.enbref dt{font-size:10px;letter-spacing:1.8px;text-transform:uppercase;color:var(--meta);padding-top:12px}
 .enbref dd{font-size:13.5px;line-height:1.65;color:var(--t2);padding:3px 0 12px;border-bottom:1px solid var(--line-soft)}
 @media(min-width:660px){.enbref dt{border-bottom:1px solid var(--line-soft);padding-bottom:12px}}
 .enbref dt:last-of-type,.enbref dd:last-of-type{border-bottom:none}
 .enbref b{color:var(--t1);font-weight:400}
 .enbref a{color:var(--gold)}
 
+/* below the first screen the same floor holds: the system's section number
+   (--t4, 2.2:1) reads at --meta like every other small label on this page */
+.sec-h .num{color:var(--meta)}
+.why .ic{font-size:15px;stroke-width:2.1;margin-top:.2em;align-self:flex-start}
+.crw .v i .ic{font-size:12px;stroke-width:2.2}
+.tline .land .ic{font-size:12px;vertical-align:-2px}
+.flag .ic{font-size:11px;vertical-align:-1px}
+
 /* ── polish ── */
 .skip{position:absolute;left:-9999px;top:0;z-index:10002;background:var(--gold);color:#1a1407;padding:12px 18px;border-radius:0 0 12px 0;font-size:13px;font-weight:600}
 .skip:focus{left:0}
-a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible{outline:2px solid var(--gold);outline-offset:3px;border-radius:6px}
+a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var(--gold);outline-offset:3px;border-radius:6px}
+.fld input:focus-visible,.fld select:focus-visible,.fld textarea:focus-visible{outline:none}
+.paybtn:focus-visible{border-radius:14px}
 @media(prefers-reduced-motion:reduce){
   .tech-orb,.live i,.machine i{animation:none}
-  .h-1,.h-2,.h-3,.h-4,.h-5{animation:none}
+  .h-1,.h-2{animation:none}
+  .more summary .ic,.paybtn .amt .ic,.lang button{transition:none}
   html{scroll-behavior:auto}
 }
+@media(forced-colors:active){.paybtn{border:2px solid ButtonText}.filecard{border:1px solid CanvasText}}
 
 /* IL TOCCO. Su iPhone un campo con carattere sotto i 16px fa ZOOMARE la
    pagina al primo tap, e non torna indietro da sola: il modulo che deve
@@ -393,6 +494,12 @@ body::before, body::after { z-index: 1 !important; }
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
   <linearGradient id="goldGrad" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#FFE55C"/><stop offset="100%" stop-color="#E5C200"/></linearGradient>
   <symbol id="boomMark" viewBox="0 0 1024 1024"><g transform="translate(0,1024) scale(0.1,-0.1)" fill="url(#goldGrad)"><path d="M4860 8749 c-509 -29 -976 -161 -1413 -401 -580 -317 -1057 -806 -1350 -1383 -148 -292 -229 -532 -291 -859 -89 -465 -69 -1005 54 -1461 184 -688 616 -1308 1232 -1769 492 -368 1172 -609 1794 -635 546 -22 987 57 1489 267 503 211 979 589 1327 1053 340 453 557 994 630 1569 17 135 17 630 0 760 -93 716 -396 1341 -900 1861 -280 289 -569 498 -922 667 -416 200 -813 303 -1285 332 -165 10 -170 10 -365 -1z m610 -144 c743 -103 1436 -459 1919 -985 338 -367 562 -751 704 -1205 276 -879 132 -1858 -388 -2640 -242 -364 -493 -615 -900 -900 l-70 -49 109 104 c413 396 679 919 767 1505 33 217 33 558 0 765 -75 476 -257 896 -549 1265 -127 161 -363 380 -549 511 -300 211 -689 363 -1079 420 -172 26 -604 26 -764 0 -296 -47 -545 -128 -808 -262 -236 -122 -440 -271 -632 -464 -486 -485 -749 -1121 -751 -1815 -1 -611 170 -1148 515 -1608 100 -134 286 -335 382 -413 33 -27 -8 -2 -91 55 -513 351 -904 805 -1143 1331 -71 156 -136 336 -168 465 -9 33 -19 76 -24 95 -5 19 -20 100 -34 180 -59 343 -60 740 0 1070 81 456 229 826 479 1200 246 368 558 669 949 917 386 245 881 418 1321 462 61 6 124 13 140 15 73 10 556 -4 665 -19z m-60 -1329 c105 -16 258 -49 335 -72 82 -26 197 -66 240 -84 149 -65 190 -84 266 -126 677 -379 1129 -1049 1246 -1849 27 -182 24 -517 -5 -695 -75 -458 -225 -813 -500 -1179 -116 -154 -340 -369 -527 -506 -44 -32 -87 -63 -95 -69 -8 -6 35 39 96 99 178 177 283 321 397 550 161 322 231 676 205 1045 -32 467 -223 902 -542 1237 -239 251 -521 426 -873 542 -79 26 -273 67 -383 81 -108 13 -349 13 -465 0 -276 -32 -597 -145 -834 -293 -224 -140 -466 -378 -613 -602 -307 -470 -407 -1055 -273 -1599 80 -327 217 -589 454 -871 71 -84 73 -88 31 -56 -293 225 -547 535 -718 877 -34 68 -65 143 -122 294 -42 112 -101 383 -120 555 -14 127 -14 401 0 534 51 482 223 912 516 1288 269 344 654 620 1085 778 160 59 400 115 574 134 121 13 508 5 625 -13z m-30 -1165 c401 -81 721 -242 992 -499 643 -612 769 -1607 300 -2367 -118 -190 -291 -386 -463 -524 -137 -111 -148 -113 -49 -12 110 112 206 248 275 386 67 137 98 222 132 367 24 103 26 132 27 323 0 182 -3 224 -22 310 -47 211 -126 394 -245 569 -126 186 -358 387 -564 490 -384 191 -823 225 -1218 95 -482 -160 -854 -541 -1004 -1029 -117 -379 -81 -810 96 -1165 37 -72 130 -215 166 -252 17 -18 26 -33 20 -33 -6 0 -61 52 -121 116 -259 272 -424 575 -511 934 -111 459 -18 1006 245 1430 298 483 791 797 1379 880 110 16 448 4 565 -19z m-239 -911 c360 -28 680 -171 925 -415 194 -193 317 -415 382 -688 24 -102 26 -130 26 -312 0 -191 -1 -205 -30 -320 -53 -205 -132 -372 -251 -535 -58 -79 -263 -288 -323 -330 -31 -22 -29 -18 18 35 195 220 312 519 312 795 0 325 -121 614 -350 841 -369 364 -926 453 -1385 222 -336 -170 -578 -499 -636 -865 -19 -126 -7 -371 25 -490 44 -162 97 -284 173 -398 9 -14 -4 -5 -30 20 -26 24 -45 51 -42 58 2 7 1 11 -4 7 -11 -6 -58 51 -118 140 -109 163 -183 347 -219 545 -23 127 -23 351 -1 489 55 335 248 677 492 871 261 208 530 311 881 338 11 1 81 -3 155 -8z m29 -714 c459 -74 823 -428 895 -869 58 -358 -60 -696 -345 -987 l-34 -35 22 35 c115 182 179 403 168 575 -14 235 -104 433 -268 591 -137 134 -287 209 -472 239 -115 19 -187 19 -303 0 -337 -55 -612 -302 -704 -635 -32 -113 -34 -325 -5 -440 23 -92 70 -213 98 -254 l21 -31 -31 29 c-39 36 -120 152 -155 221 -35 71 -81 215 -102 319 -25 130 -17 357 17 476 102 354 357 618 706 730 152 49 331 62 492 36z m-73 -567 c178 -24 327 -101 454 -236 137 -143 199 -303 201 -513 1 -162 -42 -309 -135 -453 -52 -82 -73 -97 -38 -28 51 99 67 290 36 412 -57 219 -251 413 -466 464 -75 17 -236 20 -311 4 -213 -44 -422 -247 -473 -460 -31 -133 -13 -325 41 -431 35 -70 8 -47 -52 43 -58 88 -90 167 -114 286 -25 121 -25 220 -1 331 33 146 84 243 186 351 171 183 413 266 672 230z m15 -470 c80 -17 186 -76 248 -139 106 -107 158 -248 147 -398 -6 -92 -25 -152 -79 -250 -45 -82 -60 -91 -27 -17 18 41 21 62 17 149 -4 89 -8 108 -35 162 -43 82 -126 165 -209 205 -58 29 -80 34 -158 37 -112 5 -184 -12 -259 -62 -182 -121 -251 -323 -171 -506 l24 -55 -25 30 c-36 44 -92 162 -104 223 -39 189 14 369 146 492 105 99 204 139 345 139 48 1 111 -4 140 -10z"/></g></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 2.6l2.85 5.95 6.5.86-4.76 4.53 1.2 6.46L12 17.25l-5.8 3.15 1.2-6.46-4.75-4.53 6.5-.86z"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6.5 9.5 17 4 11.5"/></symbol>
+  <symbol id="i-plane" viewBox="0 0 24 24"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M4.5 12h15M13.5 6l6 6-6 6"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-flag" viewBox="0 0 24 24"><path d="M5 21V4h13l-3 4.5 3 4.5H5"/></symbol>
 </defs></svg>
 
 <a class="skip" href="#main"><span class="l-en">Skip to content</span><span class="l-it">Vai al contenuto</span></a>
@@ -424,7 +531,7 @@ body::before, body::after { z-index: 1 !important; }
       </span>
       <a href="#contact" class="nav-cta"><span class="l-en">Get options today</span><span class="l-it">Opzioni oggi stesso</span></a>
     </div>
-    <button class="nav-toggle" id="navToggle" aria-label="Menu"><span></span><span></span><span></span></button>
+    <button class="nav-toggle" id="navToggle" aria-label="Menu" aria-expanded="false" aria-controls="mobileMenu"><span></span><span></span><span></span></button>
   </div>
 </nav>
 
@@ -453,43 +560,39 @@ body::before, body::after { z-index: 1 !important; }
 
 <main id="main">
 
-  <!-- ═══ HERO — ~60 words, one door ═══ -->
+  <!-- ═══ HERO — ~60 words, one door. Five children of one grid: the
+       headline, the door, the tail under it, the proof, the names — ordered
+       by CSS areas (phone: door right after the subhead). ═══ -->
   <header class="hero">
-    <div>
-      <p class="eyebrow live h-1"><i aria-hidden="true"></i><span class="l-en">BOOM Executive · Roma</span><span class="l-it">BOOM Executive · Roma</span></p>
-      <h1 class="h-2">
-        <span class="l-en">Moving to Rome for work? <em>Home's handled.</em></span>
+    <div class="intro h-1">
+      <p class="eyebrow live"><i aria-hidden="true"></i><span class="l-en">BOOM Executive · Roma</span><span class="l-it">BOOM Executive · Roma</span></p>
+      <h1>
+        <span class="l-en">Moving to&nbsp;Rome for work? <em>Home's handled.</em></span>
         <span class="l-it">A Roma per lavoro? <em>Alla casa pensiamo noi.</em></span>
       </h1>
-      <p class="sub h-3">
+      <p class="sub">
         <span class="l-en">A registered lease timed to your assignment — viewed live on video, e-signed online, receipts your employer accepts. Keys on landing day.</span>
         <span class="l-it">Un contratto registrato tarato sul tuo incarico — visto in video in diretta, firmato online, ricevute che il datore accetta. Chiavi il giorno dell'atterraggio.</span>
       </p>
-      <div class="trust h-4">
-        <a href="https://share.google/xikmVxQCRuKOdWcND" target="_blank" rel="noopener" style="color:inherit;text-decoration:none" title="Google" onclick="boomTrack('reviews_view',{source_page:'executive'})"><span>★ <b>4.9</b> <span class="l-en">on Google · 47 reviews</span><span class="l-it">su Google · 47 recensioni</span></span></a>
-        <span><span class="c">✓</span> <span class="l-en"><b>Registered</b> contracts — Agenzia delle Entrate</span><span class="l-it">Contratti <b>registrati</b> — Agenzia delle Entrate</span></span>
-        <span><span class="c">✓</span> <span class="l-en">English &amp; Italian</span><span class="l-it">Inglese e italiano</span></span>
-      </div>
-      <p class="serving h-4"><span class="l-en">Built for people at</span><span class="l-it">Progettato per chi lavora per</span> — <b>FAO · WFP · IFAD</b> · <span class="l-en">embassies</span><span class="l-it">ambasciate</span> · Sapienza · LUISS · Gemelli · Cinecittà</p>
     </div>
 
     <!-- THE DOOR: five fields, everything else folds away -->
-    <div class="h-5" id="contact">
+    <div class="door h-2" id="contact">
       <div class="filecard">
-        <div class="refline"><span><span class="l-en">New file — executive · Roma</span><span class="l-it">Nuovo fascicolo — executive · Roma</span></span><b><span class="l-en">same-day reply</span><span class="l-it">risposta in giornata</span></b></div>
+        <div class="refline"><span><span class="l-en">New file — <span class="nw">executive · Roma</span></span><span class="l-it">Nuovo fascicolo — <span class="nw">executive · Roma</span></span></span><b><span class="l-en">same-day reply</span><span class="l-it">risposta in giornata</span></b></div>
         <form id="exForm" novalidate>
           <div class="frow two">
             <div class="fld"><label for="fName"><span class="l-en">Your name</span><span class="l-it">Il tuo nome</span></label><input id="fName" autocomplete="name" placeholder="Anna Keller"></div>
             <div class="fld"><label for="fEmail">Email</label><input id="fEmail" type="email" autocomplete="email" inputmode="email" placeholder="anna@company.com"></div>
           </div>
-          <div class="frow two">
+          <div class="frow two pair">
             <div class="fld"><label for="fMoveIn"><span class="l-en">Arrival</span><span class="l-it">Arrivo</span></label><input id="fMoveIn" placeholder="October 2026"></div>
             <div class="fld"><label for="fDuration"><span class="l-en">How long?</span><span class="l-it">Per quanto?</span></label><select id="fDuration"></select></div>
           </div>
           <div class="fld"><label for="fBudget"><span class="l-en">Monthly budget (€)</span><span class="l-it">Budget mensile (€)</span></label><input id="fBudget" inputmode="numeric" placeholder="2500"></div>
 
           <details class="more">
-            <summary><span class="l-en">More details (optional)</span><span class="l-it">Altri dettagli (facoltativi)</span></summary>
+            <summary><svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg><span class="l-en">More details (optional)</span><span class="l-it">Altri dettagli (facoltativi)</span></summary>
             <div class="morein">
               <div class="frow two">
                 <div class="fld"><label for="fPhone"><span class="l-en">Phone / WhatsApp</span><span class="l-it">Telefono / WhatsApp</span></label><input id="fPhone" type="tel" autocomplete="tel" placeholder="+49 …"></div>
@@ -508,25 +611,37 @@ body::before, body::after { z-index: 1 !important; }
           <input id="fCompany" type="text" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true">
           <div class="ferr" id="fErr" role="alert" aria-live="polite"></div>
 
-          <button type="submit" class="paybtn" id="fGo" style="margin-top:16px">
-            <span class="lk">✈</span>
+          <button type="submit" class="paybtn" id="fGo">
+            <span class="lk" aria-hidden="true"><svg class="ic"><use href="#i-plane"/></svg></span>
             <span class="tx"><b><span class="l-en">Get options today</span><span class="l-it">Opzioni oggi stesso</span></b><small><span class="l-en">same-day reply · no commitment</span><span class="l-it">risposta in giornata · senza impegno</span></small></span>
-            <span class="amt">→</span>
+            <span class="amt" aria-hidden="true"><svg class="ic"><use href="#i-arrow"/></svg></span>
           </button>
-          <p class="consent"><span class="l-en">Used only to reply to you — <a href="/privacy">privacy</a>. Prefer <a href="https://wa.me/393313251961" target="_blank" rel="noopener">WhatsApp</a> or email? <a href="mailto:hello@boom-rome.com?subject=BOOM%20Executive">hello@boom-rome.com</a></span><span class="l-it">Usati solo per risponderti — <a href="/privacy">privacy</a>. Preferisci <a href="https://wa.me/393313251961" target="_blank" rel="noopener">WhatsApp</a> o email? <a href="mailto:hello@boom-rome.com?subject=BOOM%20Executive">hello@boom-rome.com</a></span></p>
+          <p class="consent"><span class="l-en">Used only to reply to you — <a href="/privacy">privacy</a>. Prefer <a href="https://wa.me/393313251961" target="_blank" rel="noopener">WhatsApp</a> or email? <a class="nw" href="mailto:hello@boom-rome.com?subject=BOOM%20Executive">hello@boom-rome.com</a></span><span class="l-it">Usati solo per risponderti — <a href="/privacy">privacy</a>. Preferisci <a href="https://wa.me/393313251961" target="_blank" rel="noopener">WhatsApp</a> o email? <a class="nw" href="mailto:hello@boom-rome.com?subject=BOOM%20Executive">hello@boom-rome.com</a></span></p>
         </form>
 
         <div class="sent" id="fDone">
-          <div class="tick">✓</div>
+          <div class="tick"><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg></div>
           <h3><span class="l-en">Your file is <em>open.</em></span><span class="l-it">Il tuo fascicolo è <em>aperto.</em></span></h3>
           <p><span class="l-en">Valentino or the team replies <b>the same working day</b> — by email, or WhatsApp if you left a number. Nothing by tomorrow? Write to <a href="mailto:hello@boom-rome.com" style="color:var(--gold)">hello@boom-rome.com</a>.</span><span class="l-it">Valentino o il team ti risponde <b>in giornata lavorativa</b> — per email, o WhatsApp se hai lasciato un numero. Niente entro domani? Scrivi a <a href="mailto:hello@boom-rome.com" style="color:var(--gold)">hello@boom-rome.com</a>.</span></p>
         </div>
       </div>
-      <p class="machine" aria-hidden="true"><i></i><span>e-sign</span>·<b>registered · RLI</b>·<span class="l-en">receipts</span><span class="l-it">ricevute</span>·<span class="l-en">the machine behind every file</span><span class="l-it">la macchina dietro ogni fascicolo</span></p>
-      <!-- The paid fast lane: the PAGE stays free-inbox (one door), the
-           product that already exists does the selling — no new promises. -->
+    </div>
+
+    <!-- under the door: the machine, whispered, then the paid fast lane. The
+         PAGE stays free-inbox (one door); the product that already exists
+         does the selling — no new promises. -->
+    <div class="tail h-2">
+      <p class="machine" aria-hidden="true"><i></i><span><span>e-sign</span> · <b>registered · RLI</b> · <span class="l-en">receipts</span><span class="l-it">ricevute</span> · <span class="l-en nw">the machine behind every file</span><span class="l-it nw">la macchina dietro ogni fascicolo</span></span></p>
       <p class="fastlane"><span class="l-en">In a hurry? <a href="/property-finding"><b>Property Finding</b> — we search the whole market for you. €350, credited on closing →</a></span><span class="l-it">Hai fretta? <a href="/property-finding"><b>Property Finding</b> — cerchiamo noi su tutto il mercato. €350, scalati alla chiusura →</a></span></p>
     </div>
+
+    <!-- the proof: beside the door on desktop, right under it on a phone -->
+    <ul class="trust h-2">
+      <li><svg class="ic star" aria-hidden="true"><use href="#i-star"/></svg><a href="https://share.google/xikmVxQCRuKOdWcND" target="_blank" rel="noopener" title="Google" onclick="boomTrack('reviews_view',{source_page:'executive'})"><span>★ <b>4.9</b> <span class="l-en">on Google · 47 reviews</span><span class="l-it">su Google · 47 recensioni</span></span></a></li>
+      <li><svg class="ic chk" aria-hidden="true"><use href="#i-check"/></svg><span><span class="l-en"><b>Registered</b> contracts — Agenzia delle Entrate</span><span class="l-it">Contratti <b>registrati</b> — Agenzia delle Entrate</span></span></li>
+      <li><svg class="ic chk" aria-hidden="true"><use href="#i-check"/></svg><span><span class="l-en">English &amp; Italian</span><span class="l-it">Inglese e italiano</span></span></li>
+    </ul>
+    <p class="serving h-2"><span class="l-en">Built for people at</span><span class="l-it">Progettato per chi lavora per</span> — <b>FAO · WFP · IFAD</b> · <span class="l-en">embassies</span><span class="l-it">ambasciate</span> · Sapienza · LUISS · Gemelli · Cinecittà</p>
   </header>
 
   <!-- ═══ 01 · HOW IT WORKS ═══ -->
@@ -552,7 +667,7 @@ body::before, body::after { z-index: 1 !important; }
         <div class="s"><span class="l-en">Pre-agreement and lease e-signed, contract registered. Keys on landing day.</span><span class="l-it">Proposta e contratto firmati online, registrazione fatta. Chiavi all'atterraggio.</span></div>
       </div>
     </div>
-    <div class="tline" aria-hidden="true"><b>D1</b> BRIEF <span class="sep">→</span> <b>D2</b> <span class="l-en">VIDEO VIEWINGS</span><span class="l-it">VISITE VIDEO</span> <span class="sep">→</span> <b>D4</b> PRE-AGREEMENT <span class="sep">→</span> <b>D7</b> <span class="l-en">LEASE REGISTERED</span><span class="l-it">CONTRATTO REGISTRATO</span> <span class="sep">→</span> <span class="land">✈ LANDING — <span class="l-en">KEYS</span><span class="l-it">CHIAVI</span></span></div>
+    <div class="tline" aria-hidden="true"><b>D1</b> BRIEF <span class="sep">→</span> <b>D2</b> <span class="l-en">VIDEO VIEWINGS</span><span class="l-it">VISITE VIDEO</span> <span class="sep">→</span> <b>D4</b> PRE-AGREEMENT <span class="sep">→</span> <b>D7</b> <span class="l-en">LEASE REGISTERED</span><span class="l-it">CONTRATTO REGISTRATO</span> <span class="sep">→</span> <span class="land"><svg class="ic" aria-hidden="true"><use href="#i-plane"/></svg> LANDING — <span class="l-en">KEYS</span><span class="l-it">CHIAVI</span></span></div>
   </section>
 
   <!-- ═══ 02 · WHO WE SERVE — six flows, one line each ═══ -->
@@ -600,15 +715,15 @@ body::before, body::after { z-index: 1 !important; }
     <div class="paywrap" style="margin-top:26px">
       <div class="pay">
         <div class="why">
-          <div><span class="c">✓</span><span><span class="l-en"><b style="font-weight:400;color:var(--t1)">Ends with the assignment</b> — 3–18 months with BOOM (art. 5, law 431/98), your assignment letter is the documented reason.</span><span class="l-it"><b style="font-weight:400;color:var(--t1)">Finisce con l'incarico</b> — 3–18 mesi con BOOM (art. 5, L. 431/98), la tua lettera d'incarico è l'esigenza documentata.</span></span></div>
-          <div><span class="c">✓</span><span><span class="l-en"><b style="font-weight:400;color:var(--t1)">Registered &amp; attested</b> — filed with the Agenzia delle Entrate, rent within Rome's official brackets.</span><span class="l-it"><b style="font-weight:400;color:var(--t1)">Registrato e attestato</b> — depositato all'Agenzia delle Entrate, canone nelle fasce ufficiali di Roma.</span></span></div>
-          <div><span class="c">✓</span><span><span class="l-en"><b style="font-weight:400;color:var(--t1)">Runs your paperwork</b> — residency, permesso renewals, subsidies and expense claims all want this document.</span><span class="l-it"><b style="font-weight:400;color:var(--t1)">Regge le tue pratiche</b> — residenza, rinnovi del permesso, sussidi e note spese vogliono questo documento.</span></span></div>
-          <div><span class="c">✓</span><span><span class="l-en"><b style="font-weight:400;color:var(--t1)">Company name? Fine</b> — company let, or you sign with a corporate guarantee. Exit terms written before signature.</span><span class="l-it"><b style="font-weight:400;color:var(--t1)">Intestato all'azienda? Si fa</b> — locazione all'azienda, o firmi tu con garanzia aziendale. Uscita scritta prima della firma.</span></span></div>
+          <div><svg class="ic c" aria-hidden="true"><use href="#i-check"/></svg><span><span class="l-en"><b style="font-weight:400;color:var(--t1)">Ends with the assignment</b> — 3–18 months with BOOM (art. 5, law 431/98), your assignment letter is the documented reason.</span><span class="l-it"><b style="font-weight:400;color:var(--t1)">Finisce con l'incarico</b> — 3–18 mesi con BOOM (art. 5, L. 431/98), la tua lettera d'incarico è l'esigenza documentata.</span></span></div>
+          <div><svg class="ic c" aria-hidden="true"><use href="#i-check"/></svg><span><span class="l-en"><b style="font-weight:400;color:var(--t1)">Registered &amp; attested</b> — filed with the Agenzia delle Entrate, rent within Rome's official brackets.</span><span class="l-it"><b style="font-weight:400;color:var(--t1)">Registrato e attestato</b> — depositato all'Agenzia delle Entrate, canone nelle fasce ufficiali di Roma.</span></span></div>
+          <div><svg class="ic c" aria-hidden="true"><use href="#i-check"/></svg><span><span class="l-en"><b style="font-weight:400;color:var(--t1)">Runs your paperwork</b> — residency, permesso renewals, subsidies and expense claims all want this document.</span><span class="l-it"><b style="font-weight:400;color:var(--t1)">Regge le tue pratiche</b> — residenza, rinnovi del permesso, sussidi e note spese vogliono questo documento.</span></span></div>
+          <div><svg class="ic c" aria-hidden="true"><use href="#i-check"/></svg><span><span class="l-en"><b style="font-weight:400;color:var(--t1)">Company name? Fine</b> — company let, or you sign with a corporate guarantee. Exit terms written before signature.</span><span class="l-it"><b style="font-weight:400;color:var(--t1)">Intestato all'azienda? Si fa</b> — locazione all'azienda, o firmi tu con garanzia aziendale. Uscita scritta prima della firma.</span></span></div>
         </div>
         <div class="contract" aria-hidden="true">
           <div class="chead"><span>CONTRATTO · USO TRANSITORIO</span><span>ART. 5 — L. 431/98</span></div>
-          <div class="crw"><span class="k">Term</span><span class="v" style="font-family:'SF Mono',ui-monospace,Menlo,monospace">3–18 <span style="color:var(--t4)">MONTHS</span></span></div>
-          <div class="crw"><span class="k">Rent</span><span class="v">within bracket · <span style="color:var(--gold)">attested</span> <i>✓</i></span></div>
+          <div class="crw"><span class="k">Term</span><span class="v" style="font-family:'SF Mono',ui-monospace,Menlo,monospace">3–18 <span style="color:var(--meta)">MONTHS</span></span></div>
+          <div class="crw"><span class="k">Rent</span><span class="v">within bracket · <span style="color:var(--gold)">attested</span> <i><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg></i></span></div>
           <div class="crw"><span class="k">Registration</span><span class="v" style="font-family:'SF Mono',ui-monospace,Menlo,monospace;color:var(--gold)">RLI — AGENZIA DELLE ENTRATE</span></div>
           <div class="esign"><span class="led"></span><b>E-SIGNED</b><span>MAGIC SIGN</span><span class="sealchip">REGISTERED · ATTESTATO</span></div>
         </div>
@@ -622,9 +737,9 @@ body::before, body::after { z-index: 1 !important; }
       <h3><span class="l-en">We'll also tell you <em>what's wrong with it.</em></span><span class="l-it">Ti diremo anche <em>cosa non va.</em></span></h3>
       <p><span class="l-en">A tenancy that goes wrong costs us more than a lost signature — so we write down what we saw.</span><span class="l-it">Un affitto che va storto ci costa più di una firma persa — quindi scriviamo quello che abbiamo visto.</span></p>
       <div class="flags">
-        <span class="flag"><b>⚑</b><span class="l-en">rent above the zone's bracket</span><span class="l-it">canone sopra la fascia di zona</span></span>
-        <span class="flag"><b>⚑</b><span class="l-en">"10 minutes to the office" that's 40 at 8am</span><span class="l-it">«10 minuti dall'ufficio» che alle 8 sono 40</span></span>
-        <span class="flag"><b>⚑</b><span class="l-en">an exit clause that costs three months</span><span class="l-it">una clausola d'uscita da tre mesi</span></span>
+        <span class="flag"><b><svg class="ic" aria-hidden="true"><use href="#i-flag"/></svg></b><span class="l-en">rent above the zone's bracket</span><span class="l-it">canone sopra la fascia di zona</span></span>
+        <span class="flag"><b><svg class="ic" aria-hidden="true"><use href="#i-flag"/></svg></b><span class="l-en">"10 minutes to the office" that's 40 at 8am</span><span class="l-it">«10 minuti dall'ufficio» che alle 8 sono 40</span></span>
+        <span class="flag"><b><svg class="ic" aria-hidden="true"><use href="#i-flag"/></svg></b><span class="l-en">an exit clause that costs three months</span><span class="l-it">una clausola d'uscita da tre mesi</span></span>
       </div>
     </div>
   </section>
@@ -709,9 +824,9 @@ body::before, body::after { z-index: 1 !important; }
     <h2><span class="l-en">Your assignment starts <em>before the plane lands.</em></span><span class="l-it">Il tuo incarico comincia <em>prima che l'aereo atterri.</em></span></h2>
     <p><span class="l-en">One minute now — real options today. <a href="/corporate" style="color:var(--t2);text-decoration:underline">Moving a team? The corporate desk →</a></span><span class="l-it">Un minuto adesso — opzioni reali oggi. <a href="/corporate" style="color:var(--t2);text-decoration:underline">Trasferisci un team? Sportello aziende →</a></span></p>
     <a class="paybtn" href="#contact">
-      <span class="lk">✈</span>
+      <span class="lk" aria-hidden="true"><svg class="ic"><use href="#i-plane"/></svg></span>
       <span class="tx"><b><span class="l-en">Get options today</span><span class="l-it">Opzioni oggi stesso</span></b><small><span class="l-en">same-day reply · no commitment</span><span class="l-it">risposta in giornata · senza impegno</span></small></span>
-      <span class="amt">→</span>
+      <span class="amt" aria-hidden="true"><svg class="ic"><use href="#i-arrow"/></svg></span>
     </a>
   </div>
 </main>
@@ -817,8 +932,8 @@ function setLang(l,silent){
   document.documentElement.lang=l;
   try{localStorage.setItem('boom_ex_lang',l)}catch(e){}
   var en=document.getElementById('langEn'),it=document.getElementById('langIt');
-  if(en)en.classList.toggle('on',l==='en');
-  if(it)it.classList.toggle('on',l==='it');
+  if(en){en.classList.toggle('on',l==='en');en.setAttribute('aria-pressed',l==='en')}
+  if(it){it.classList.toggle('on',l==='it');it.setAttribute('aria-pressed',l==='it')}
   var p=PH[l];
   ['fName','fEmail','fPhone','fEmployer','fBudget','fMoveIn','fZone','fMsg'].forEach(function(id){
     var el=document.getElementById(id);if(el&&p[id])el.placeholder=p[id];
@@ -846,23 +961,26 @@ var ERR={
       email:'Questa email sembra incompleta — puoi controllarla?',
       net:'L\'invio è fallito da parte nostra. Riprova, o scrivici direttamente a hello@boom-rome.com.'}
 };
-function fail(key){
+/* the error names the problem; the field that has it is marked and focused */
+function fail(key,fieldId){
   var l=document.documentElement.lang==='it'?'it':'en';
   var e=document.getElementById('fErr');e.textContent=ERR[l][key];e.classList.add('on');
+  if(fieldId){var f=document.getElementById(fieldId);if(f){f.setAttribute('aria-invalid','true');f.focus();}}
 }
 document.getElementById('exForm').addEventListener('submit',function(ev){
   ev.preventDefault();
   var v=function(id){return (document.getElementById(id).value||'').trim()};
   var name=v('fName'),email=v('fEmail'),phone=v('fPhone');
   document.getElementById('fErr').classList.remove('on');
-  if(name.length<2)return fail('name');
+  ['fName','fEmail'].forEach(function(id){document.getElementById(id).removeAttribute('aria-invalid')});
+  if(name.length<2)return fail('name','fName');
   var hasEmail=/^\S+@\S+\.\S+$/.test(email), hasPhone=phone.replace(/\D/g,'').length>=6;
-  if(!email&&!phone)return fail('contact');
-  if(email&&!hasEmail)return fail('email');
-  if(!hasEmail&&!hasPhone)return fail('contact');
+  if(!email&&!phone)return fail('contact','fEmail');
+  if(email&&!hasEmail)return fail('email','fEmail');
+  if(!hasEmail&&!hasPhone)return fail('contact','fEmail');
 
   var go=document.getElementById('fGo');
-  go.style.opacity=.6;go.style.pointerEvents='none';
+  go.setAttribute('aria-busy','true');
   boomTrack('generate_lead',{channel:'form',source_page:'executive'});
 
   fetch('/api/executive-lead',{method:'POST',headers:{'Content-Type':'application/json'},
@@ -889,7 +1007,7 @@ document.getElementById('exForm').addEventListener('submit',function(ev){
     try{window.dispatchEvent(new CustomEvent('boom-conversion',{detail:{label:'Executive lead sent',section:'form'}}));}catch(x){}
   })
   .catch(function(){
-    go.style.opacity=1;go.style.pointerEvents='';
+    go.removeAttribute('aria-busy');
     fail('net');
   });
 });
@@ -902,10 +1020,10 @@ document.getElementById('exForm').addEventListener('submit',function(ev){
     if(bar){var h=document.documentElement.scrollHeight-innerHeight;bar.style.width=(h>0?(scrollY/h)*100:0)+'%';}
   },{passive:true});
   var t=document.getElementById('navToggle'),m=document.getElementById('mobileMenu');
-  t.addEventListener('click',function(){t.classList.toggle('active');m.classList.toggle('active');
-    document.body.style.overflow=m.classList.contains('active')?'hidden':'';});
-  m.querySelectorAll('a').forEach(function(a){a.addEventListener('click',function(){
-    t.classList.remove('active');m.classList.remove('active');document.body.style.overflow='';});});
+  function setMenu(open){t.classList.toggle('active',open);m.classList.toggle('active',open);t.setAttribute('aria-expanded',open);document.body.style.overflow=open?'hidden':'';}
+  t.addEventListener('click',function(){setMenu(!m.classList.contains('active'))});
+  m.querySelectorAll('a').forEach(function(a){a.addEventListener('click',function(){setMenu(false)})});
+  addEventListener('keydown',function(e){if(e.key==='Escape'&&m.classList.contains('active')){setMenu(false);t.focus();}});
   var glow=document.getElementById('mouseGlow');
   if(glow&&matchMedia('(pointer:fine)').matches&&!matchMedia('(prefers-reduced-motion: reduce)').matches){
     addEventListener('mousemove',function(e){
