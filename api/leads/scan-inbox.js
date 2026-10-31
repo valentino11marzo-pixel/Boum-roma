@@ -36,7 +36,7 @@ import { ImapFlow } from 'imapflow';
 import { simpleParser } from 'mailparser';
 import crypto from 'node:crypto';
 import { fsGet, fsPatch, fsCreate, fsList } from '../homie/_lib.js';
-import { normalizePhone } from '../homie/_lead.js';
+import { normalizePhone, recentLeadByPhone } from '../homie/_lead.js';
 import { requireCronOrAdmin } from '../pfs/_guard.js';
 import { reportHealth } from '../pfs/_health.js';
 import { parseModelJson } from '../_modeljson.js';
@@ -68,11 +68,25 @@ export function memIdFor(rawMessageId, uid, user) {
   return { msgId, memId: sha1(msgId) };
 }
 
+// Un'estrazione che fallisce si riprova, ma DOPO le richieste mai provate: un
+// errore che si ripete (il JSON del modello sempre tagliato) non può occupare
+// tutti i posti del giro e affamare le altre. Dopo MAX_EXTRACT_TRIES fallimenti
+// DETERMINISTICI si smette di pagarla e la si conta (`gaveUp`); un guasto
+// momentaneo (timeout, 5xx) si riprova finché l'email è nella finestra.
+export const MAX_EXTRACT_TRIES = 3;
+export function deterministicFailure(e) {
+  if (!e) return false;
+  if (/^ai_json_/.test(String(e.message || ''))) return true;
+  const st = Number(e.status || 0);
+  return e.code === 'cloud_http' && st >= 400 && st < 500 && st !== 408 && st !== 429;
+}
+
 // Cosa leggere davvero, dalle sole intestazioni: niente alert né newsletter,
 // niente email già in memoria, le più recenti per prime (l'UID IMAP cresce
-// con l'arrivo). Pura: si testa senza casella.
+// con l'arrivo), e i tentativi falliti in coda. Pura: si testa senza casella.
 export function triage(envelopes, seen, user) {
-  const out = { todo: [], skipped: 0, requests: 0, duplicates: 0 };
+  const out = { todo: [], skipped: 0, requests: 0, duplicates: 0, retries: 0, gaveUp: 0 };
+  const fresh = [], retry = [];
   const rows = [...(envelopes || [])].filter((m) => m && m.uid).sort((a, b) => (b.uid || 0) - (a.uid || 0));
   for (const m of rows) {
     const env = m.envelope || {};
@@ -80,19 +94,40 @@ export function triage(envelopes, seen, user) {
     if (ALERT_RE.test(subject) || !REQUEST_RE.test(subject)) { out.skipped++; continue; }
     out.requests++;
     const { msgId, memId } = memIdFor(env.messageId, m.uid, user);
-    if (seen && seen[memId]) { out.duplicates++; continue; }
+    const mem = seen && seen[memId];
     const at = env.date ? new Date(env.date) : null;
-    out.todo.push({ uid: m.uid, subject, msgId, memId, receivedAt: at && !isNaN(at) ? at.toISOString() : null });
+    const item = { uid: m.uid, subject, msgId, memId, receivedAt: at && !isNaN(at) ? at.toISOString() : null, attempts: 0 };
+    if (mem && mem.outcome === 'extract_failed') {
+      item.attempts = Number(mem.attempts) || 0;
+      if (mem.final && item.attempts >= MAX_EXTRACT_TRIES) { out.gaveUp++; continue; }
+      retry.push(item);
+      continue;
+    }
+    if (mem) { out.duplicates++; continue; }
+    fresh.push(item);
   }
+  out.retries = retry.length;
+  out.todo = fresh.concat(retry);
   return out;
 }
 
-async function extractLead(subject, text) {
+// Il modello si può pagare DUE volte per un'email: in modalità locale
+// (settings/ai) ai() prova il Mac e poi ricade sul cloud, CIASCUNO col suo
+// tetto, più la telemetria. Il tetto si sceglie dal tempo che resta, perché la
+// somma ci stia; sotto il minimo utile non si comincia (0 = non c'è tempo).
+const AI_TELEMETRY_MS = 4_000;
+const AI_MIN_MS = 8_000;
+export function aiCapFor(leftMs, writeMs, maxMs = 20_000) {
+  const cap = Math.min(maxMs, Math.floor((leftMs - writeMs - AI_TELEMETRY_MS) / 2));
+  return cap >= AI_MIN_MS ? cap : 0;
+}
+
+async function extractLead(subject, text, timeoutMs) {
   const SYSTEM = `Estrai il potenziale inquilino (lead) da un'email di notifica di un portale immobiliare italiano. Rispondi SOLO JSON:
 {"name":"...","email":"...o null","phone":"...o null","message":"il testo scritto dal cliente, o null","listingTitle":"titolo/indirizzo dell'annuncio a cui si riferisce, o null","language":"it|en"}
 Regole: SOLO dati presenti nel testo, mai inventare. Il mittente del portale non è il lead. Se l'email non contiene una richiesta di una persona reale, rispondi {"name":null}.`;
   const { text: out } = await ai({
-    purpose: 'leads.inbox', system: SYSTEM, maxTokens: 400, timeoutMs: 20000, json: true,
+    purpose: 'leads.inbox', system: SYSTEM, maxTokens: 900, timeoutMs, json: true,
     messages: [{ role: 'user', content: `OGGETTO: ${subject}\n\nEMAIL:\n${String(text).slice(0, 6000)}` }],
   });
   const read = parseModelJson(out);
@@ -152,16 +187,29 @@ export default async function handler(req, res) {
     host: 'imap.gmail.com', port: 993, secure: true, auth: { user, pass }, logger: false,
     connectionTimeout: 15000, greetingTimeout: 10000, socketTimeout: 25000,
   });
+  // Senza ascoltatore, il timeout di un socket DOPO il connect arriva come
+  // evento 'error' non gestito e uccide il processo (nessun battito, nessuna
+  // memoria salvata). Con l'ascoltatore il comando in volo fallisce e il giro
+  // finisce nel catch: l'errore si conta. Stessa riga di _rimbalzi.js.
+  client.on('error', (e) => console.warn('[leads/scan-inbox] imap', (e && (e.code || e.message)) || 'error'));
 
   // processed-message memory: ONE doc under heartbeat/ (a collection the
   // security rules already allow to admin) — no new rules deploy needed,
   // and one patch per run instead of one per message
   const MEM_DOC = 'heartbeat/leads-inbox-memory';
   let seen = {};
-  try { seen = ((await fsGet(MEM_DOC)) || {}).seen || {}; } catch { /* first run */ }
+  try { seen = ((await fsGet(MEM_DOC)) || {}).seen || {}; }
+  catch (e) {
+    // Una memoria ILLEGGIBILE non è una memoria vuota: ripartire da zero
+    // ripagherebbe il modello su tutta la finestra, e il salvataggio finale
+    // cancellerebbe la memoria vera (fsPatch riscrive la mappa intera).
+    try { await reportHealth('leads-inbox', { ok: false, error: 'memory_read_failed' }); } catch { /* Firestore giù */ }
+    return res.status(503).json({ ok: false, error: 'memory_read_failed' });
+  }
   let memDirty = false;
-  const remember = (id, outcome) => { seen[id] = { at: new Date().toISOString(), outcome }; memDirty = true; };
+  const remember = (id, outcome, extra) => { seen[id] = { at: new Date().toISOString(), outcome, ...(extra || {}) }; memDirty = true; };
 
+  let failure = null;
   try {
     await client.connect();
     const lock = await client.getMailboxLock('INBOX');
@@ -180,7 +228,7 @@ export default async function handler(req, res) {
       // costa un fetch, non un download per email.
       let envelopes = [];
       if (uids.size && B.afford(COST_FETCH)) {
-        envelopes = await client.fetchAll([...uids].join(','), { envelope: true }, { uid: true }) || [];
+        envelopes = await envelopesOf(client, [...uids], B, COST_FETCH, stats);
       } else if (uids.size) {
         // le ricerche hanno mangiato il tempo (socket malato): niente download
         // a metà, il giro dopo riparte dall'inizio — e il battito lo dice
@@ -192,6 +240,8 @@ export default async function handler(req, res) {
       stats.skipped = plan.skipped;
       stats.requests = plan.requests;
       stats.duplicates = plan.duplicates;
+      stats.retries = plan.retries;
+      stats.gaveUp = plan.gaveUp;
 
       for (let i = 0; i < plan.todo.length; i++) {
         const t = plan.todo[i];
@@ -210,9 +260,11 @@ export default async function handler(req, res) {
           if (!msg || !msg.source) continue;
           parsed = await simpleParser(msg.source);
         } catch (e) { console.warn('[leads/scan-inbox] fetch/parse', uid, e.message); continue; }
-        // il modello solo se il tempo copre anche lui e la scrittura: altrimenti
-        // l'email resta NON letta in memoria e la prende il giro dopo
-        if (!B.afford(COST_AI + COST_WRITE)) {
+        // il modello solo se il tempo copre lui (anche due volte, locale poi
+        // cloud) e la scrittura: altrimenti l'email resta NON letta in memoria
+        // e la prende il giro dopo
+        const aiCap = aiCapFor(B.left(), COST_WRITE, COST_AI);
+        if (!aiCap) {
           stats.timeBoxed = left;
           console.warn('[leads/scan-inbox] tempo finito: restano', left, 'richieste al prossimo giro');
           break;
@@ -221,21 +273,37 @@ export default async function handler(req, res) {
         let lead;
         try {
           stats.aiCalls++;
-          lead = await extractLead(subject, parsed.text || parsed.html || '');
-        } catch (e) { console.warn('[leads/scan-inbox] extract', e.message); continue; }
+          lead = await extractLead(subject, parsed.text || parsed.html || '', aiCap);
+        } catch (e) {
+          const final = deterministicFailure(e);
+          const attempts = (t.attempts || 0) + 1;
+          remember(memId, 'extract_failed', { attempts, final, code: String(e.code || e.message || '').slice(0, 40) });
+          stats.extractErrors = (stats.extractErrors || 0) + 1;
+          console.warn('[leads/scan-inbox] extract', e.code || e.message, final ? `(tentativo ${attempts}/${MAX_EXTRACT_TRIES})` : '(si riprova)');
+          continue;
+        }
         if (!lead || !lead.name) {
           remember(memId, 'not_a_lead');
           continue;
         }
 
-        // person-level dedupe: same email or phone already a lead in the last 7 days
+        // person-level dedupe: same email or phone already a lead in the last
+        // 7 days. Il telefono si cerca in TUTTE le forme (il lead si archivia
+        // normalizzato, il modello lo copia come lo scrive il portale); l'email
+        // anche in minuscolo.
         let dupe = false;
-        for (const [field, value] of [['email', lead.email], ['phone', lead.phone]]) {
-          if (!value || dupe) continue;
-          try {
-            const prior = await fsList('leads', { filter: { field, op: 'EQUAL', value: String(value).trim() }, limit: 5 });
-            dupe = prior.some(p => Date.now() - new Date(p.createdAt || 0).getTime() < 7 * 86400000);
-          } catch { /* best-effort */ }
+        if (lead.email) {
+          const raw = String(lead.email).trim();
+          for (const value of [...new Set([raw, raw.toLowerCase()])]) {
+            if (dupe) break;
+            try {
+              const prior = await fsList('leads', { filter: { field: 'email', op: 'EQUAL', value }, limit: 5 });
+              dupe = prior.some(p => Date.now() - new Date(p.createdAt || 0).getTime() < 7 * 86400000);
+            } catch { /* best-effort */ }
+          }
+        }
+        if (!dupe && lead.phone) {
+          try { dupe = !!(await recentLeadByPhone(lead.phone)); } catch { /* best-effort */ }
         }
         if (dupe) {
           stats.duplicates++;
@@ -249,28 +317,39 @@ export default async function handler(req, res) {
         if (!prop && lead.listingTitle) stats.unmatched++;
 
         if (!dry) {
-          await fsCreate('leads', {
-            source: portal.replace(/\..*$/, ''),
-            name: String(lead.name).slice(0, 120),
-            email: lead.email ? String(lead.email).trim().slice(0, 160) : null,
-            // normalizzato alla porta: WhatsApp consegna sempre +39…, i portali
-            // scrivono di tutto. Archiviare una forma sola rende la stessa
-            // persona due lead quando riscrive da un altro canale.
-            phone: lead.phone ? (normalizePhone(lead.phone) || String(lead.phone).trim()).slice(0, 40) : null,
-            message: lead.message ? String(lead.message).slice(0, 1500) : null,
-            // never default to Italian: an unknown language is unknown, and
-            // every downstream template treats unknown as English (replyLang)
-            language: ['it', 'en'].includes(String(lead.language || '').toLowerCase()) ? String(lead.language).toLowerCase() : null,
-            propertyId: prop ? prop.id : null,
-            propertyTitle: prop ? (prop.name || null) : (lead.listingTitle ? String(lead.listingTitle).slice(0, 160) : null),
-            propertyPrice: prop ? (prop.price || null) : null,
-            status: 'new',
-            sourceRef: msgId.slice(0, 200),
-            // quando la persona ha scritto, distinto da quando il server l'ha letta
-            receivedAt: t.receivedAt,
-            raw: { subject: subject.slice(0, 200), from: fromAddr, via: 'leads/scan-inbox' },
-            createdAt: new Date(),
-          });
+          try {
+            // id dal Message-ID: se la memoria si perde, rileggere la stessa
+            // email risponde 409 invece di creare un secondo lead
+            await fsCreate('leads', {
+              source: portal.replace(/\..*$/, ''),
+              name: String(lead.name).slice(0, 120),
+              email: lead.email ? String(lead.email).trim().slice(0, 160) : null,
+              // normalizzato alla porta: WhatsApp consegna sempre +39…, i portali
+              // scrivono di tutto. Archiviare una forma sola rende la stessa
+              // persona due lead quando riscrive da un altro canale.
+              phone: lead.phone ? (normalizePhone(lead.phone) || String(lead.phone).trim()).slice(0, 40) : null,
+              message: lead.message ? String(lead.message).slice(0, 1500) : null,
+              // never default to Italian: an unknown language is unknown, and
+              // every downstream template treats unknown as English (replyLang)
+              language: ['it', 'en'].includes(String(lead.language || '').toLowerCase()) ? String(lead.language).toLowerCase() : null,
+              propertyId: prop ? prop.id : null,
+              propertyTitle: prop ? (prop.name || null) : (lead.listingTitle ? String(lead.listingTitle).slice(0, 160) : null),
+              propertyPrice: prop ? (prop.price || null) : null,
+              status: 'new',
+              sourceRef: msgId.slice(0, 200),
+              // quando la persona ha scritto, distinto da quando il server l'ha letta
+              receivedAt: t.receivedAt,
+              raw: { subject: subject.slice(0, 200), from: fromAddr, via: 'leads/scan-inbox' },
+              createdAt: new Date(),
+            }, leadIdFor(memId));
+          } catch (e) {
+            if (e && e.exists) { stats.duplicates++; remember(memId, 'ingested'); continue; }
+            // una scrittura fallita non ferma il giro: l'email resta non letta
+            // e la riprende il giro dopo
+            stats.writeErrors = (stats.writeErrors || 0) + 1;
+            console.warn('[leads/scan-inbox] lead write', (e && e.message || '').slice(0, 80));
+            continue;
+          }
           remember(memId, 'ingested');
         }
         stats.ingested++;
@@ -278,19 +357,49 @@ export default async function handler(req, res) {
     } finally {
       lock.release();
     }
-    if (memDirty && !dry) {
-      // prune to the newest 400 entries so the doc never grows unbounded
-      const entries = Object.entries(seen).sort((a, b) => String(b[1].at).localeCompare(String(a[1].at))).slice(0, 400);
-      try { await fsPatch(MEM_DOC, { seen: Object.fromEntries(entries), updatedAt: new Date() }); }
-      catch (e) { console.warn('[leads/scan-inbox] memory save failed:', e.message); }
-    }
-    await client.logout();
   } catch (e) {
-    try { await client.logout(); } catch { /* already closed */ }
-    await reportHealth('leads-inbox', { ok: false, error: e.message });
-    return res.status(500).json({ ok: false, error: e.message });
+    failure = e;
+  }
+  // La memoria si salva SEMPRE, anche se il giro è caduto a metà: ciò che è
+  // stato letto resta letto, e il giro dopo non ripaga né ricrea niente.
+  if (memDirty && !dry) {
+    // prune to the newest 400 entries so the doc never grows unbounded
+    const entries = Object.entries(seen).sort((a, b) => String(b[1].at).localeCompare(String(a[1].at))).slice(0, 400);
+    try { await fsPatch(MEM_DOC, { seen: Object.fromEntries(entries), updatedAt: new Date() }); }
+    catch (e) { console.warn('[leads/scan-inbox] memory save failed:', e.message); }
+  }
+  try { await client.logout(); } catch { /* already closed */ }
+  if (failure) {
+    await reportHealth('leads-inbox', { ok: false, error: failure.message });
+    return res.status(500).json({ ok: false, error: failure.message });
   }
 
   await reportHealth('leads-inbox', { ok: true, stats });
   return res.status(200).json({ ok: true, dry, ...stats });
+}
+
+export const leadIdFor = (memId) => 'inbox_' + String(memId).slice(0, 24);
+
+// Le intestazioni di tutta la finestra in UN fetch. Se Gmail rifiuta il fetch
+// (un messaggio che non si legge fa fallire il comando intero) si ricade su
+// una alla volta: si salta solo l'email che non si legge, come faceva il
+// vecchio giro, e non tutta la finestra.
+async function envelopesOf(client, uids, B, costFetch, stats) {
+  try { return await client.fetchAll(uids.join(','), { envelope: true }, { uid: true }) || []; }
+  catch (first) {
+    console.warn('[leads/scan-inbox] intestazioni in blocco', (first && (first.code || first.message)) || 'error', '→ una alla volta');
+    stats.envelopeFallback = true;
+    const out = [];
+    let errors = 0;
+    for (const u of uids) {
+      if (!B.afford(costFetch)) { stats.timeBoxed = uids.length - out.length - errors; break; }
+      try { const m = await client.fetchOne(String(u), { envelope: true }, { uid: true }); if (m) out.push(m); }
+      catch { errors++; }
+    }
+    stats.envelopeErrors = errors;
+    // nessuna intestazione letta (solo errori, o niente tempo dopo lo
+    // stallo): è la connessione, non un'email — l'errore si conta
+    if (!out.length) throw first;
+    return out;
+  }
 }

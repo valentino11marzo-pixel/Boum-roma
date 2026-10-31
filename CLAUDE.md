@@ -676,7 +676,25 @@ non letta e la prende il giro dopo. Il lead porta `receivedAt` (quando la
 persona ha scritto). Anche «Nuova offerta di <nome> sul tuo immobile»
 (idealista) è una richiesta. Al primo giro dopo il rilascio arriva
 l'arretrato degli ultimi tre giorni: richieste vere, alcune già gestite a mano
-dal portale. Test: `node tests/leadsinbox/run.mjs` (orologio finto, 6 mutazioni).
+dal portale.
+La revisione avversaria (31/10) ha chiuso sullo stesso giro anche i difetti
+che c'erano già e che l'arretrato avrebbe moltiplicato:
+- `client.on('error')`: uno stallo del socket dopo il connect uccideva il
+  processo senza battito; ora è un errore contato.
+- Il fetch in blocco che cade (un NO di Gmail) ricade su una email alla volta;
+  se non legge niente, l'errore risale.
+- Il tetto del modello (`aiCapFor`) copre i due tentativi della modalità
+  locale (Mac, poi cloud) più la telemetria.
+- Un'estrazione fallita si ricorda (`extract_failed`, tentativi) e si riprova
+  DOPO le mai provate. Dopo 3 fallimenti certi (JSON tagliato, 4xx) smette di
+  costare (`gaveUp`); `maxTokens` sale a 900.
+- Una memoria illeggibile ferma il giro (503), invece di valere vuota e poi
+  cancellare quella vera.
+- La memoria si salva anche quando il giro cade a metà.
+- Una scrittura fallita non ferma il giro.
+- Il lead ha id `inbox_<memId>`: una memoria persa dà 409, non un doppione.
+- Il telefono si confronta in tutte le forme (`recentLeadByPhone`).
+Test: `node tests/leadsinbox/run.mjs` (orologio finto, 17 mutazioni).
 
 ### I rimbalzi (`/api/leads/scan-inbox?mode=bounces`, cron 7-59/10) — 25/10/2026
 Nato dal primo ordine pagato di Madrid: il cliente aveva sbagliato l'email alla cassa, EmailJS ha risposto «inviata», Gmail ha rimbalzato tre secondi dopo e nessuno lo ha saputo. La conferma è il supporto durevole del recesso: un rimbalzo è un'informazione da dare all'operatore subito.

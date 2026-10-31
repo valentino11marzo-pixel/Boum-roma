@@ -80,12 +80,13 @@ const EXPECT_GREEN = new Set(['only_filter', 'only_score']);
 // ── IMAP finto + mutazioni ESM (thread dei loader) ──────────────────────────
 const IMAP_STUB = `export class ImapFlow {
   constructor(o){ this.o=o; (globalThis.__imap.clients||(globalThis.__imap.clients=[])).push(o); }
+  on(){ return this; }
   async connect(){ if(globalThis.__imap.down) throw new Error('imap down'); }
   async getMailboxLock(){ return { release(){} }; }
   async search(q){ if(globalThis.__imap.onSearch) globalThis.__imap.onSearch(q); const f=String(q.from||'').toLowerCase(); return globalThis.__imap.box.filter(m=>m.from.toLowerCase().includes(f)).map(m=>m.uid); }
   async fetchOne(uid){ const m=globalThis.__imap.box.find(x=>String(x.uid)===String(uid)); return m?{source:Buffer.from(m.raw)}:false; }
   async fetchAll(range){ const want=String(range).split(',').map(Number); const h=(m,k)=>((m.raw.match(new RegExp('^'+k+':(.*)$','mi'))||[])[1]||'').trim();
-    return globalThis.__imap.box.filter(m=>want.includes(m.uid)).map(m=>({uid:m.uid,envelope:{subject:h(m,'Subject'),messageId:h(m,'Message-ID'),date:h(m,'Date')||null}})); }
+    return globalThis.__imap.box.filter(m=>want.includes(m.uid)).map(m=>({uid:m.uid,envelope:{subject:globalThis.__imap.decode(h(m,'Subject')),messageId:h(m,'Message-ID'),date:h(m,'Date')?new Date(h(m,'Date')):null}})); }
   async logout(){}
 }`;
 const esmChanges = MUT ? (MUTATIONS[MUT] || []).filter((c) => c[3] !== 'cjs') : [];
@@ -196,6 +197,9 @@ Object.assign(process.env, {
 });
 delete process.env.PFS_IMAP_USER; delete process.env.PFS_IMAP_PASS; delete process.env.CRON_SECRET;
 globalThis.__imap = { box: [] };
+// come imapflow (parseEnvelope → libmime.decodeWords): l'oggetto dell'envelope
+// arriva DECODIFICATO, o il controllo sugli alert spagnoli non proverebbe niente
+{ const { default: libmime } = await import('libmime'); globalThis.__imap.decode = (v) => libmime.decodeWords(v); }
 
 const FX = await import('./fixtures/idealista-es.mjs');
 const P2 = await import('../../api/pfs/_alertparse.js');
