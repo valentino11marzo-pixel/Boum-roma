@@ -666,6 +666,42 @@ brand-new leads instantly — context card + one-tap "Apri WhatsApp" (wa.me)
 when there's a phone — while the Commerciale's AI reply draft follows via
 the usual approval card.
 
+**L'arretrato che non scendeva (30/10/2026, letto nei log).** Ogni giro
+diceva «soft deadline: restano 40–80 email», per settimane. Il budget
+addebitava 45s (download + modello) a OGNI email prima di aprirla, anche ad
+alert, newsletter e già lette, scartate solo dopo il download: con 53s utili
+si cominciavano email solo nei primi ~8s, sempre le stesse più vecchie, in
+ordine di dominio (immobiliare prima, idealista dopo). In tre giorni la casella
+aveva ~77 email dai portali, ~38 richieste idealista: arrivavano al server con
+uno o due giorni di ritardo. Ora UN `fetchAll` delle intestazioni per la
+finestra; `triage()` (esportata, pura) scarta alert e già lette sull'oggetto e
+sul Message-ID (`memIdFor` lo rende fra `< >` come mailparser: la memoria
+vecchia vale ancora) e mette le più RECENTI per prime; il tempo si chiede a
+pezzi: download 25s, poi modello + scrittura 26s. Se non basta, l'email resta
+non letta e la prende il giro dopo. Il lead porta `receivedAt` (quando la
+persona ha scritto). Anche «Nuova offerta di <nome> sul tuo immobile»
+(idealista) è una richiesta. Al primo giro dopo il rilascio arriva
+l'arretrato degli ultimi tre giorni: richieste vere, alcune già gestite a mano
+dal portale.
+La revisione avversaria (31/10) ha chiuso sullo stesso giro anche i difetti
+che c'erano già e che l'arretrato avrebbe moltiplicato:
+- `client.on('error')`: uno stallo del socket dopo il connect uccideva il
+  processo senza battito; ora è un errore contato.
+- Il fetch in blocco che cade (un NO di Gmail) ricade su una email alla volta;
+  se non legge niente, l'errore risale.
+- Il tetto del modello (`aiCapFor`) copre i due tentativi della modalità
+  locale (Mac, poi cloud) più la telemetria.
+- Un'estrazione fallita si ricorda (`extract_failed`, tentativi) e si riprova
+  DOPO le mai provate. Dopo 3 fallimenti certi (JSON tagliato, 4xx) smette di
+  costare (`gaveUp`); `maxTokens` sale a 900.
+- Una memoria illeggibile ferma il giro (503), invece di valere vuota e poi
+  cancellare quella vera.
+- La memoria si salva anche quando il giro cade a metà.
+- Una scrittura fallita non ferma il giro.
+- Il lead ha id `inbox_<memId>`: una memoria persa dà 409, non un doppione.
+- Il telefono si confronta in tutte le forme (`recentLeadByPhone`).
+Test: `node tests/leadsinbox/run.mjs` (orologio finto, 17 mutazioni).
+
 ### I rimbalzi (`/api/leads/scan-inbox?mode=bounces`, cron 7-59/10) — 25/10/2026
 Nato dal primo ordine pagato di Madrid: il cliente aveva sbagliato l'email alla cassa, EmailJS ha risposto «inviata», Gmail ha rimbalzato tre secondi dopo e nessuno lo ha saputo. La conferma è il supporto durevole del recesso: un rimbalzo è un'informazione da dare all'operatore subito.
 Ogni 10 minuti (7-59/10) il server legge i rimbalzi dalla casella che SPEDISCE (`GMAIL_USER`, cartella Tutti i messaggi in sola lettura, ultimi 3 giorni), non dalla casella degli alert PFS. La parte macchina del DSN (RFC 3464) fa fede; `X-Failed-Recipients` e il testo umano solo se manca (e del testo umano contano solo gli indirizzi scritti come destinatari, mai quelli citati nell'originale). Action failed = definitivo, delayed = ritardo: il ritardo segna `emailDelayedAt` e non avvisa nessuno.
