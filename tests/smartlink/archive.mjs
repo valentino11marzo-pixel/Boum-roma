@@ -121,6 +121,10 @@ try {
     assert.equal(validations,1,'Repeated records are deduplicated by ID before validation');
   } finally {RULES.reusableImages=originalReusable;}
 
+  const sixtyPhotos=Array.from({length:60},(_,i)=>photo.replace('22222222-2222-4222-8222-222222222222',String(i).padStart(8,'0')+'-2222-4222-8222-222222222222'));
+  reset([{...base,images:sixtyPhotos}]);
+  assert.deepEqual((await findArchivedListing(source)).images,sixtyPhotos,'A shared 60-photo gallery survives archive reopening in its original order');
+
   reset([base]);failUrl=variants[1];
   await assert.rejects(()=>findArchivedListing(source),/Firestore list failed \(503\)/);
   assert.equal(queries.length,4,'All variant reads settle even when one fails');
