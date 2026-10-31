@@ -157,7 +157,11 @@ function difettiSez43(html, vv) {
   const t = testoVisibile(sez);
   const via = [];
   /to view a home in our catalogue, in person or on a live video call/.test(t) || via.push('non dice che la visita delle case del catalogo è gratis');
-  /to apply for a home in our catalogue/.test(t) || via.push('non dice che candidarsi a una casa del catalogo è gratis');
+  /an application fee, for any home: one in our catalogue or one you found yourself/.test(t) || via.push('non dice che non c\'è una tassa di candidatura, per nessuna casa (deal-assistance e property-finding la citano)');
+  /Seeing a listing you found elsewhere by yourself costs nothing from us/.test(t) || via.push('non dice che vedere da sé un annuncio trovato altrove non costa nulla (deal-assistance lo cita)');
+  // §4.2: le visite delle case PRESENTATE dal Property Finding sono dentro i €350 (property-finding.html lo cita)
+  const sez42 = testoVisibile((html.match(/4\.2 Property Finding Service([\s\S]*?)4\.3 What we do not charge/) || [])[1] || '');
+  /Viewings of the properties we present to you, in person or on a live video call, are included in the €350/.test(sez42) || via.push('§4.2 non dice che le visite delle case presentate sono comprese nei €350');
   t.includes(`Virtual Viewing (€${vv.eur})`) || via.push(`non dice il Virtual Viewing al prezzo del catalogo (€${vv.eur})`);
   (/listing you found elsewhere/.test(t)) || via.push('non dice che il Virtual Viewing è per un annuncio trovato altrove');
   (/credited to the commission in §4\.1/.test(t) && /\bcredited\b/i.test(vv.desc)) || via.push('non dice che il Virtual Viewing si scala dalla commissione (§4.1), come dice il catalogo');
@@ -480,6 +484,10 @@ const VV = CATALOG['virtual-viewing'];
     || prese.push('il vecchio §4.3 («We do not charge: Viewing fees») non preso');
   difettiSez43(terms.replace(`Virtual Viewing</a> (€${VV.eur})`, 'Virtual Viewing</a> (€99)'), VV).some((x) => /prezzo del catalogo/.test(x))
     || prese.push('un prezzo del Virtual Viewing diverso dal catalogo non preso');
+  difettiSez43(terms.replace(/<p>Viewings of the properties we present to you[^<]*<\/p>/, ''), VV).some((x) => /§4\.2/.test(x))
+    || prese.push('§4.2 senza le visite comprese nei €350 non preso');
+  difettiSez43(terms.replace('an application fee, for any home: one in our catalogue or one you found yourself', 'an application fee for a home in our catalogue'), VV).some((x) => /candidatura/.test(x))
+    || prese.push('la tassa di candidatura ristretta al solo catalogo non presa');
   calcoliSenzaIva('var fee = Math.round(p * 12 * .10);').length === 1 || prese.push('calcolo senza IVA non preso');
   calcoliSenzaIva('var fee = Math.round(p * 12 * 0.1);').length === 1 || prese.push('calcolo «0.1» senza IVA non preso');
   calcoliSenzaIva('var fee = Math.round(p * 12 * .10); var t = fee * 1.22;').length === 1 || prese.push('IVA in un\'altra istruzione accettata');
