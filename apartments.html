@@ -187,20 +187,23 @@ h1, h2, h3 { font-family:var(--display); }
   box-shadow:0 1px 0 var(--line-0); padding:10px 0; }
 .nav-inner { display:flex; align-items:center; justify-content:space-between;
   gap:16px; }
-/* IL MARCHIO — taglia «Insegna»: il segno ha il diametro perche gli anelli
-   si leggano davvero, la parola la mole di un titolo. Il tracking scende da
-   .36 a .26: e la differenza fra quattro lettere e una parola. */
-.marchio { display:inline-flex; align-items:center; gap:13px; }
-.marchio .logo-mark { width:66px; height:66px; flex:none; }
-.marchio span { font-family:var(--display); font-size:30px; font-weight:300;
+/* IL MARCHIO — taglia «Portale» (30/10/2026, la rifinitura Impeccable):
+   sul catalogo la testata misurava 98px e, con l'hero sotto, su un laptop
+   da 900px la prima fila di case finiva TAGLIATA prima del prezzo. Il segno
+   scende a 52px (gli anelli si leggono ancora), la parola a 24px, la barra
+   a 76px: lo stesso tracking .26, la stessa gerarchia, 22px restituiti alla
+   pagina. Lo scrolled stringe di altri 2px. */
+.marchio { display:inline-flex; align-items:center; gap:10px; }
+.marchio .logo-mark { width:52px; height:52px; flex:none; }
+.marchio span { font-family:var(--display); font-size:24px; font-weight:300;
   letter-spacing:.26em; text-indent:.26em; text-transform:uppercase; }
 @media (max-width:640px){
-  .marchio { gap:10px; }
-  .marchio .logo-mark { width:58px; height:58px; }
-  .marchio span { font-size:25px; letter-spacing:.22em; text-indent:.22em; } }
+  .marchio { gap:8px; }
+  .marchio .logo-mark { width:46px; height:46px; }
+  .marchio span { font-size:21px; letter-spacing:.22em; text-indent:.22em; } }
 /* la barra cresce con lui */
-.nav { padding:16px 0; }
-.nav.scrolled, html.aperto .nav { padding:11px 0; }
+.nav { padding:12px 0; }
+.nav.scrolled, html.aperto .nav { padding:10px 0; }
 .menu { display:none; align-items:center; gap:26px; }
 @media (min-width:1080px){ .menu { display:flex; } }
 /* area di tocco 41px senza spostare un pixel: padding pareggiato dal
@@ -703,6 +706,7 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
 @media (min-width:680px){ .settimana { grid-template-columns:repeat(3,1fr); } }
 .casa-p { position:relative; display:block; background:var(--card);
   border-radius:14px; overflow:hidden; box-shadow:inset 0 0 0 1px var(--line-0);
+  container-type:inline-size;
   transition:transform .4s var(--ease), box-shadow .4s ease; }
 .casa-p:hover { transform:translateY(-4px);
   box-shadow:inset 0 0 0 1px var(--line-gold),
@@ -739,19 +743,32 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
   transition:color .25s ease, transform .25s var(--ease); }
 .home-cuore:hover { transform:scale(1.12); }
 .home-cuore.si { color:var(--gold); }
-.casa-p .corpo { padding:13px 15px 14px; }
-.casa-p .riga1 { display:flex; align-items:baseline;
-  justify-content:space-between; gap:6px 12px; flex-wrap:wrap; }
+/* IL CORPO DELLA CARTA — nome e canone su DUE righe, sempre (30/10/2026).
+   Prima stavano in una riga con flex-wrap: a 240px di carta (cinque
+   colonne a 1440) «Prenestino Two-Bath» + «€1,600 /mo» andavano a capo
+   comunque, e a capo in modo diverso da carta a carta — una fila di prezzi
+   mai allineata. Impilati, ogni carta ha la stessa geometria: nome, canone,
+   fatti. Dove la carta e' larga (≥300px: due colonne su tablet, una su
+   telefono) i due tornano sulla stessa riga come su un tabellone delle
+   partenze; lo decide la carta stessa (container query), non la finestra. */
+.casa-p .corpo { padding:12px 14px 14px; }
+.casa-p .riga1 { display:flex; flex-direction:column; align-items:flex-start;
+  gap:6px; }
 .casa-p .nome { font-family:var(--display); font-size:15.5px; font-weight:400;
-  min-width:0; }
-.casa-p .canone { display:flex; align-items:baseline; gap:3px;
+  min-width:0; max-width:100%; line-height:1.3; }
+.casa-p .canone { display:inline-flex; align-items:baseline; gap:4px;
   white-space:nowrap; }
 .casa-p .canone .flap-scale { font-family:var(--display); font-size:14px;
   font-weight:500; }
-.casa-p .canone small { font-size:10.5px; color:var(--text-3); }
-.casa-p .riga2 { margin-top:7px; display:flex; align-items:center;
-  gap:7px; flex-wrap:wrap; font-size:11.5px; color:var(--text-3); }
+.casa-p .canone small { font-size:11px; color:var(--text-3); }
+.casa-p .riga2 { margin-top:8px; display:flex; align-items:center;
+  gap:2px 7px; flex-wrap:wrap; font-size:12px; line-height:1.4;
+  color:var(--text-3); }
 .casa-p .riga2 i { font-style:normal; color:var(--text-4); }
+@container (min-width:300px) {
+  .casa-p .riga1 { flex-direction:row; align-items:center;
+    justify-content:space-between; gap:12px; }
+  .casa-p .corpo { padding:14px 16px 16px; } }
 .home-zona { color:var(--text-3); cursor:pointer; transition:color .25s;
   font-weight:500; }
 .home-zona:hover { color:var(--gold); }
@@ -1928,7 +1945,11 @@ setTimeout(function () {
 
 <style>
 /* ══ LA DISCOVERY — il tabellone È il filtro ═══════════════════════════ */
-.disco { position:relative; padding:clamp(96px,11svh,132px) 0 clamp(20px,2.4vw,30px); }
+/* L'ALTEZZA DEL PRIMO SCHERMO (30/10/2026): barra 76px + 99px d'aria + il
+   tabellone + la stecca → su 1440×900 la prima fila di case sta INTERA
+   sopra la piega, prezzo compreso. Prima (132px di padding e la barra a
+   98px) le carte finivano tagliate al nome. */
+.disco { position:relative; padding:clamp(92px,11svh,100px) 0 clamp(18px,2.2vw,24px); }
 .disco-velo { position:absolute; inset:0; overflow:hidden; pointer-events:none; }
 .disco-velo::after { content:''; position:absolute; inset:0;
   background:linear-gradient(100deg, rgba(3,3,3,.9) 0%, rgba(3,3,3,.58) 32%,
@@ -1943,14 +1964,15 @@ setTimeout(function () {
 @media (min-width:1080px){ .disco-testa {
   grid-template-columns:minmax(0,1fr) minmax(0,.92fr); } }
 .disco h1 { margin-top:18px; font-weight:200;
-  font-size:clamp(34px,4.2vw,54px); line-height:1.07; letter-spacing:-.02em;
-  text-wrap:balance; }
+  font-size:clamp(34px,3.7vw,52px); line-height:1.08; letter-spacing:-.02em;
+  text-wrap:balance; max-width:13em; }
 .disco h1 .hl { color:var(--gold); }
 .disco-sotto { margin-top:14px; font-size:clamp(14px,1.4vw,16px);
-  color:var(--text-2); max-width:46ch; }
+  line-height:1.62; color:var(--text-2); max-width:38em; text-wrap:pretty; }
 @media (max-width:640px){
-  .disco h1 { font-size:clamp(32px,9vw,40px); font-weight:250; }
-  .disco-sotto { font-size:15px; } }
+  .disco h1 { font-size:clamp(31px,8.6vw,38px); font-weight:250;
+    line-height:1.1; letter-spacing:-.015em; }
+  .disco-sotto { margin-top:12px; font-size:15px; line-height:1.6; } }
 
 /* il quadro del catalogo: le zone come destinazioni, e sono i filtri */
 /* LO SPAZIO SI RISERVA PRIMA. Il tabellone nasce alto 130px e si riempie di
@@ -1958,21 +1980,31 @@ setTimeout(function () {
    la pagina — 119px di salto sotto gli occhi di chi aveva appena iniziato a
    leggere (CLS 0,05 misurato in Chromium, tutto a y=0). Con un'altezza
    minima il posto c'e' gia' al primo paint e il contenuto ci si siede
-   dentro. I numeri sono MISURATI a 390px e a >=768px, non scelti; sono un
-   minimo, quindi se un giorno le zone aumentano il riquadro cresce e
-   nessuno resta fuori. */
+   dentro. I numeri sono MISURATI a 320, 390 e >=768px (rimisurati il
+   30/10/2026 dopo la rifinitura delle righe: 378 / 381 / 404), non
+   scelti; sono un minimo, quindi se un giorno le zone aumentano il
+   riquadro cresce e nessuno resta fuori. */
 .zone-quadro { position:relative; background:var(--void);
-  min-height:431px;
+  min-height:381px;
   box-shadow:inset 0 0 0 1px var(--line-gold), 0 40px 90px -40px rgba(0,0,0,.9); }
-@media (min-width:640px){ .zone-quadro { min-height:454px; } }
+@media (max-width:360px){ .zone-quadro { min-height:378px; } }
+@media (min-width:640px){ .zone-quadro { min-height:404px; } }
 .zone-testa { display:flex; align-items:center; justify-content:space-between;
-  gap:12px; padding:13px 18px; border-bottom:1px solid var(--line-0); }
+  gap:12px; padding:12px 18px; border-bottom:1px solid var(--line-0); }
 .zone-testa b { font-size:10.5px; font-weight:600; letter-spacing:.24em;
   text-transform:uppercase; color:var(--text-2); }
-.zone-righe { padding:2px 0; }
-.zona-riga { width:100%; display:grid;
-  grid-template-columns:minmax(0,1fr) auto auto; gap:6px 12px;
-  align-items:center; padding:9px 18px; text-align:left;
+/* LE COLONNE (30/10/2026): testata e righe condividono UNA griglia, cosi'
+   le cifre stanno allineate a destra SOTTO la propria etichetta — prima
+   le colonne erano `auto` e «Homes»/«From» non cadevano sopra i numeri.
+   E i prezzi erano a 9px (7,5px su telefono, dove la colonna Homes
+   spariva): ora 12,5 / 11px, e il telefono tiene tutte e tre le colonne. */
+.tab-colonne, .zona-riga { display:grid;
+  grid-template-columns:minmax(0,1fr) 56px 84px; column-gap:16px;
+  align-items:center; padding-inline:18px; }
+.tab-colonne { padding-block:10px 4px; }
+.tab-colonne span + span { justify-self:end; }
+.zone-righe { padding:2px 0 4px; }
+.zona-riga { width:100%; padding-block:7px; text-align:left;
   border-bottom:1px solid var(--line-0); background:none; border-left:0;
   border-right:0; border-top:0; color:inherit; font:inherit; cursor:pointer;
   transition:background .25s ease, box-shadow .25s ease; }
@@ -1980,45 +2012,103 @@ setTimeout(function () {
 .zona-riga:hover { background:rgba(255,215,0,.045); }
 .zona-riga.on { background:rgba(255,215,0,.09);
   box-shadow:inset 2px 0 0 var(--gold); }
-.zona-nome { font-size:13.5px; overflow:hidden; }
-.zona-quante { font-size:12.5px; }
-.zona-da { font-size:9px; }
-.zona-da.si { --oro-flap:#5CFFAE; }
-.zona-da.no { --oro-flap:rgba(250,250,250,.42); }
-@media (max-width:640px){
-  .zona-riga { grid-template-columns:minmax(0,1fr) auto; padding:9px 12px; }
-  .zona-quante { display:none; }
-  .zona-nome { font-size:10.5px; }
-  .zona-da { font-size:7.5px; } }
-.zone-piede { display:flex; align-items:center; justify-content:space-between;
-  gap:12px; padding:11px 18px; font-size:11px; color:var(--text-4);
-  border-top:1px solid var(--line-0); }
-.zone-piede b { color:var(--text-3); font-weight:500;
+.zona-riga:focus-visible { outline-offset:-2px; }
+.zona-nome { font-size:13.5px; line-height:1.26; overflow:hidden;
+  white-space:nowrap; }
+.zona-quante, .zona-da { justify-self:end; line-height:1.26;
   font-variant-numeric:tabular-nums; }
-.zone-piede button { font-size:10px; font-weight:600; letter-spacing:.1em;
-  text-transform:uppercase; color:var(--text-3); padding:6px 10px;
-  background:none; border:0; box-shadow:inset 0 0 0 1px var(--line);
-  cursor:pointer; transition:.2s; }
+.zona-quante { font-size:13px; }
+.zona-da { font-size:12.5px; }
+.zona-da.si { --oro-flap:#5CFFAE; }
+.zona-da.no { --oro-flap:rgba(250,250,250,.5); }
+@media (max-width:640px){
+  .zone-testa { padding:11px 14px; }
+  .tab-colonne, .zona-riga { grid-template-columns:minmax(0,1fr) 50px 64px;
+    column-gap:12px; padding-inline:14px; }
+  .tab-colonne .tc-p { display:block; }
+  .tab-colonne span { font-size:9.5px; letter-spacing:.18em; }
+  .zona-nome { font-size:12px; }
+  .zona-quante { font-size:12px; }
+  .zona-da { font-size:11px; } }
+@media (max-width:360px){
+  .tab-colonne, .zona-riga { grid-template-columns:minmax(0,1fr) 40px 60px;
+    column-gap:10px; }
+  .zona-nome { font-size:10.5px; }
+  .zona-quante { font-size:11px; }
+  .zona-da { font-size:10.5px; } }
+.zone-piede { display:flex; align-items:center; justify-content:space-between;
+  gap:12px; padding:10px 12px 10px 18px; font-size:11.5px; line-height:1.45;
+  color:var(--text-4); border-top:1px solid var(--line-0); }
+.zone-piede b { color:var(--text-2); font-weight:500;
+  font-variant-numeric:tabular-nums; }
+.zone-piede button { flex:none; display:inline-flex; align-items:center;
+  min-height:32px; padding:0 12px; font-size:10px; font-weight:600;
+  letter-spacing:.12em; text-transform:uppercase; color:var(--text-2);
+  white-space:nowrap; background:none; border:0;
+  box-shadow:inset 0 0 0 1px var(--line); cursor:pointer;
+  transition:color .2s, box-shadow .2s; }
 .zone-piede button:hover { color:var(--gold);
   box-shadow:inset 0 0 0 1px var(--line-gold-2); }
+@media (max-width:640px){
+  .zone-piede { padding:10px 10px 10px 14px; font-size:11px; } }
 
-/* il check-in, sgonfiato: tre pill sottili in una riga — niente
-   scatola, niente bottone. I filtri sono vivi, questo e un ritocco. */
-.cerca { margin-top:clamp(16px,2vw,24px); }
-.disco .atterro { background:none; box-shadow:none; padding:0;
-  gap:10px 18px; flex-wrap:wrap; border-radius:0; }
-.disco .atterro:focus-within { box-shadow:none; }
-.disco .atterro .atterro-divisa { display:none; }
+/* il check-in: UNA barra a filo sottile, tre campi divisi da un filetto —
+   niente bottone. Prima erano tre pill scompagnate (larghezze diverse,
+   anelli propri); ora un solo oggetto, e il fuoco accende il campo che lo
+   ha. I filtri sono vivi, questo e un ritocco. */
+.cerca { margin-top:clamp(20px,2.4vw,28px); }
+.disco .atterro { display:inline-flex; align-items:stretch; flex-wrap:nowrap;
+  gap:0; padding:0; background:rgba(6,6,7,.72);
+  box-shadow:inset 0 0 0 1px var(--line); border-radius:100px;
+  max-width:100%; }
+.disco .atterro:focus-within { box-shadow:inset 0 0 0 1px var(--line); }
+.disco .atterro .atterro-divisa { display:block; width:1px; height:auto;
+  align-self:stretch; margin:14px 0; background:var(--line); flex:none;
+  transition:opacity .2s ease; }
 .disco .atterro .atterro-campo,
-.disco .atterro .ac-data { padding:8px 13px;
-  box-shadow:inset 0 0 0 1px var(--line); border-radius:100px; }
+.disco .atterro .ac-data { display:flex; flex-direction:column;
+  justify-content:center; gap:3px; min-height:58px; min-width:150px;
+  margin:0; padding:9px 22px; border-radius:100px; box-shadow:none;
+  transition:box-shadow .2s ease, background .2s ease; }
+.disco .atterro .ac-data { min-width:178px; padding-left:26px; }
+.disco .atterro .atterro-campo:hover,
+.disco .atterro .ac-data:hover { background:rgba(255,255,255,.025); }
 .disco .atterro .atterro-campo:focus-within,
 .disco .atterro .ac-data:focus-within {
   box-shadow:inset 0 0 0 1px var(--line-gold-2); }
+.disco .atterro .atterro-campo:focus-within + .atterro-divisa,
+.disco .atterro .ac-data:focus-within + .atterro-divisa,
+.disco .atterro .atterro-divisa:has(+ :focus-within) { opacity:0; }
+.disco .atterro .atterro-data { font-size:14px; line-height:1.5;
+  padding:0; min-width:0; }
+.disco .atterro .atterro-campo select { max-width:none; width:100%;
+  font-size:14px; line-height:1.5; padding:0 20px 0 0; }
 @media (max-width:640px){
-  .disco .atterro { gap:8px; }
+  .disco .atterro { display:grid; grid-template-columns:1fr 1fr; gap:0;
+    width:100%; padding:0; border-radius:20px; }
+  .disco .atterro .atterro-divisa { display:none; }
   .disco .atterro .atterro-campo,
-  .disco .atterro .ac-data { padding:7px 11px; } }
+  .disco .atterro .ac-data { min-width:0; min-height:60px;
+    padding:10px 16px; border-radius:20px; }
+  .disco .atterro .ac-data { position:relative; grid-column:1/-1; }
+  .disco .atterro .ac-data::after { content:''; position:absolute;
+    left:16px; right:16px; bottom:0; height:1px; background:var(--line); }
+  .disco .atterro .atterro-campo:last-child { position:relative; }
+  .disco .atterro .atterro-campo:last-child::before { content:'';
+    position:absolute; left:0; top:12px; bottom:12px; width:1px;
+    background:var(--line); }
+  .disco .atterro .atterro-data { width:100%; padding:0; box-shadow:none;
+    font-size:15px; }
+  .disco .atterro .atterro-campo select { font-size:15px;
+    padding:0 20px 0 0; } }
+@media (max-width:360px){
+  /* a 320px la meta' di una barra e' 126px: «WHO'S LANDING?» ci sta su una
+     riga solo con l'etichetta un filo piu' stretta */
+  .disco .atterro .atterro-campo,
+  .disco .atterro .ac-data { padding:10px 12px; }
+  .disco .atterro .ac-data::after { left:12px; right:12px; }
+  .disco .atterro .atterro-campo > span,
+  .disco .atterro .ac-data > span { font-size:9px; letter-spacing:.1em; } }
 
 /* ══ LA STECCA + IL FOGLIO — i comandi in una riga, la coda in un foglio ═ */
 .gruppo { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
@@ -2073,14 +2163,8 @@ setTimeout(function () {
 .muro-conto { font-size:12.5px; color:var(--text-3); }
 .muro-conto b { color:var(--text); font-weight:500;
   font-variant-numeric:tabular-nums; }
-.muro-ordine { display:flex; gap:6px; }
-.muro-ordine button { font-size:10px; font-weight:600; letter-spacing:.1em;
-  text-transform:uppercase; color:var(--text-3); padding:8px 12px;
-  background:none; border:0; box-shadow:inset 0 0 0 1px var(--line);
-  border-radius:100px; cursor:pointer; transition:.25s; }
-.muro-ordine button:hover { color:var(--text); }
-.muro-ordine button.on { color:var(--gold);
-  box-shadow:inset 0 0 0 1px var(--line-gold-2); }
+/* l'ordine vive nella stecca: il suo vestito (controllo segmentato) sta
+   con quello delle camere, piu' sotto — una copia sola */
 .muro { display:grid; gap:clamp(14px,1.6vw,20px);
   grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); }
 .muro .casa-p.via { display:none; }
@@ -2135,37 +2219,72 @@ setTimeout(function () {
 /* ══ LA STECCA — appesa sotto la barra, mai un centimetro di troppo ════ */
 .stecca { position:sticky; top:var(--stecca-top, 76px); z-index:80;
   background:rgba(3,3,3,.94); backdrop-filter:blur(14px);
-  border-bottom:1px solid var(--line-0); }
-.stecca-int { display:flex; align-items:center; gap:8px; padding:9px 0;
+  -webkit-backdrop-filter:blur(14px);
+  border-top:1px solid var(--line-0); border-bottom:1px solid var(--line-0); }
+/* SULLA GRIGLIA (30/10/2026): `padding:9px 0` cancellava il padding laterale
+   del container — i comandi partivano a x=40 mentre la pagina parte a 80, e
+   su telefono toccavano il bordo dello schermo. Solo il blocco si dichiara
+   qui; i lati restano quelli della griglia. */
+.stecca-int { display:flex; align-items:center; gap:8px; padding-block:8px;
   overflow-x:auto; scrollbar-width:none; }
 @media (max-width:760px){
   /* il taglio netto sembrava un difetto: il bordo sfuma e l'ultimo chip
      ha aria per uscirne — si capisce che la fila continua a destra */
-  .stecca-int { padding-right:34px;
-    mask-image:linear-gradient(90deg, #000 calc(100% - 30px), transparent);
-    -webkit-mask-image:linear-gradient(90deg, #000 calc(100% - 30px),
+  .stecca-int {
+    mask-image:linear-gradient(90deg, #000 calc(100% - 28px), transparent);
+    -webkit-mask-image:linear-gradient(90deg, #000 calc(100% - 28px),
       transparent); } }
 .stecca-int::-webkit-scrollbar { display:none; }
 .stecca-int > * { flex:none; }
+/* trova a sinistra, ordina e guarda a destra */
+.stecca-dx { display:flex; align-items:center; gap:8px; margin-left:auto;
+  padding-left:16px; }
 .stecca .gruppo { flex-wrap:nowrap; }
 .stecca button, #foglioVelo .gruppo button, #foglioVelo .pulisci {
   min-height:36px; }
-.stecca-cerca { display:flex; align-items:center; gap:8px; flex:0 1 240px;
-  min-width:150px; padding:8px 12px; background:var(--input);
-  box-shadow:inset 0 0 0 1px var(--line); border-radius:100px; }
+/* UN VOCABOLARIO per le scelte singole: camere e ordine sono controlli
+   segmentati — un anello solo, il segmento scelto in oro su velo d'oro.
+   Prima ogni voce era un chip col proprio anello e «Newest» attivo si
+   vestiva come il bottone «Save this search». */
+.stecca .gruppo, .stecca .muro-ordine { display:inline-flex;
+  align-items:center; gap:2px; height:36px; padding:3px; border-radius:100px;
+  box-shadow:inset 0 0 0 1px var(--line); }
+.stecca .gruppo button, .stecca .muro-ordine button { min-height:0;
+  height:100%; padding:0 12px; font:inherit; font-size:12.5px;
+  font-weight:400; letter-spacing:0; text-transform:none; line-height:1;
+  color:var(--text-3); background:none; border:0; box-shadow:none;
+  border-radius:100px; white-space:nowrap; cursor:pointer;
+  transition:color .2s ease, background .2s ease; }
+.stecca .gruppo button:hover, .stecca .muro-ordine button:hover {
+  color:var(--text); }
+.stecca .gruppo button.on, .stecca .muro-ordine button.on,
+/* «Any» e' lo stato quando nessuna scelta e' accesa: lo si vede */
+.stecca .gruppo:not(:has(button.on)) button[data-v=""] {
+  color:var(--gold); background:rgba(255,215,0,.1); box-shadow:none; }
+.stecca .gruppo button:focus-visible,
+.stecca .muro-ordine button:focus-visible { outline-offset:0; }
+.stecca .serba { display:inline-flex; align-items:center; gap:7px;
+  height:36px; padding:0 16px; white-space:nowrap; }
+.stecca-cerca { display:flex; align-items:center; gap:9px; width:240px;
+  height:36px; padding:0 14px; background:var(--input);
+  box-shadow:inset 0 0 0 1px var(--line); border-radius:100px;
+  transition:box-shadow .2s ease; }
+/* il segnaposto «Name, zone or street» si legge intero anche a 390px */
+@media (max-width:760px){ .stecca-cerca { width:208px; } }
 .stecca-cerca svg { width:15px; height:15px; flex:none; fill:none;
   stroke:var(--text-4); stroke-width:1.6; stroke-linecap:round; }
 .stecca-cerca input { flex:1; min-width:0; background:none; border:0;
   color:var(--text); font:inherit; font-size:13px; }
 .stecca-cerca input::placeholder { color:var(--text-4); }
 .stecca-cerca input:focus { outline:none; }
-.stecca-cerca:focus-within { box-shadow:inset 0 0 0 1px var(--line-gold); }
+.stecca-cerca:focus-within { box-shadow:inset 0 0 0 1px var(--line-gold-2); }
 .stecca-piu { display:inline-flex; align-items:center; gap:7px;
-  padding:8px 14px; font:inherit; font-size:11.5px; color:var(--text-2);
-  background:none; border:0; box-shadow:inset 0 0 0 1px var(--line);
-  border-radius:100px; cursor:pointer; transition:.22s; min-height:36px; }
-.stecca-piu:hover { color:var(--gold);
-  box-shadow:inset 0 0 0 1px var(--line-gold-2); }
+  height:36px; padding:0 15px; font:inherit; font-size:12.5px;
+  color:var(--text-2); background:none; border:0;
+  box-shadow:inset 0 0 0 1px var(--line); border-radius:100px; cursor:pointer;
+  transition:color .2s ease, box-shadow .2s ease; min-height:36px; }
+.stecca-piu:hover { color:var(--text);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.16); }
 .stecca-piu svg { width:14px; height:14px; fill:none; stroke:currentColor;
   stroke-width:1.7; stroke-linecap:round; }
 .stecca-piu i[hidden] { display:none; }
@@ -2391,15 +2510,18 @@ setTimeout(function () {
       aria-haspopup="dialog">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
       Filters<i id="filtriConta" hidden></i></button>
-    <div class="muro-ordine" role="group" aria-label="Sort homes">
-      <button type="button" class="on" data-o="nuove">Newest</button>
-      <button type="button" data-o="prezzo">Price</button>
-      <button type="button" data-o="grandi">Size</button>
-    </div>
     <button type="button" class="serba" id="serba">Save this search →</button>
-    <div class="vista-tog" role="group" aria-label="View">
-      <button type="button" class="on" id="vGriglia">Grid</button>
-      <button type="button" id="vCielo" class="pulsa">◆ Skyline</button>
+    <!-- a destra: come si ordina e come si guarda -->
+    <div class="stecca-dx">
+      <div class="muro-ordine" role="group" aria-label="Sort homes">
+        <button type="button" class="on" data-o="nuove">Newest</button>
+        <button type="button" data-o="prezzo">Price</button>
+        <button type="button" data-o="grandi">Size</button>
+      </div>
+      <div class="vista-tog" role="group" aria-label="View">
+        <button type="button" class="on" id="vGriglia">Grid</button>
+        <button type="button" id="vCielo" class="pulsa">◆ Skyline</button>
+      </div>
     </div>
   </div>
 </div>
@@ -3296,19 +3418,25 @@ setTimeout(function () {
       if (o && o.d.flutter) o.d.flutter();
       return true;
     }
+    /* il tabellone si compone in fretta (30/10/2026): prima partiva a
+       600ms con 150ms fra una riga e l'altra e 55-60ms fra le celle, e
+       l'ultima riga era ancora un rullo a 3,5s — chi arrivava leggeva
+       lettere a caso dove cercava un prezzo. Ora parte a 350ms, 60ms fra le
+       righe, ~30ms fra le celle: lo stesso gesto meccanico, finito in
+       circa due secondi. Le parole finali sono le stesse. */
     function accendi() {
       organi.forEach(function (o, i) {
         setTimeout(function () {
           var nome = o.dati.z.toUpperCase().slice(0, LZ);
           if (ridotto) { o.z.show(nome); o.q.show(String(o.dati.n));
             o.d.show(o.dati.da); return; }
-          o.z.show(nome, 55, true);
-          o.q.show(String(o.dati.n), 45, true);
-          o.d.show(o.dati.da, 60, true);
-        }, ridotto ? 0 : i * 150);
+          o.z.show(nome, 28, true);
+          o.q.show(String(o.dati.n), 30, true);
+          o.d.show(o.dati.da, 32, true);
+        }, ridotto ? 0 : i * 60);
       });
     }
-    setTimeout(accendi, 600);
+    setTimeout(accendi, 350);
     var tutte = document.getElementById('zoneTutte');
     if (tutte) tutte.addEventListener('click', function () {
       stato.zona = '';
