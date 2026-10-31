@@ -682,9 +682,23 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
   // come back today", never a response time in figures)
   // review 22/10, round 2: never "this week" — the desk is Mon–Fri, and the
   // reply also goes out on a Friday evening or a weekend
+  // the file number is random ("BM 3RD5H"): one ending in digit + H read as
+  // "5 h" and failed ~1 run in 100. The response-time rule reads the reply
+  // WITHOUT the file number; the number itself is checked on the line above.
+  const NO_PROMISE = /this week|budget|who's moving|when do you land|set up the search|come back today|Thanks for your message|\d+\s*(hours?|minutes?|h\b)/i;
+  const senzaFile = (txt, file) => txt.split(file).join(' ');
+  const replyNoFile = senzaFile(reply, l.city.file);
   check(reply.includes(`You asked for a free call about your move to Amsterdam (your file ${l.city.file}).`) && /By phone or WhatsApp — which day and time suit you\?/.test(reply)
-    && !/this week|budget|who's moving|when do you land|set up the search|come back today|Thanks for your message|\d+\s*(hours?|minutes?|h\b)/i.test(reply),
+    && !NO_PROMISE.test(replyNoFile),
     'a selling desk\'s ready reply offers the free call (phone or WhatsApp, the day and time theirs — never "this week"), names the file number, and carries no written questionnaire', reply);
+  {
+    // the flake, pinned: a file number ending in digit + H is not a response time,
+    // and a real response time in the same reply is still caught
+    const conCodice = reply.split(l.city.file).join('BM 3RD5H');
+    check(NO_PROMISE.test(conCodice) && !NO_PROMISE.test(senzaFile(conCodice, 'BM 3RD5H'))
+      && NO_PROMISE.test(senzaFile(conCodice + ' I reply within 5 hours.', 'BM 3RD5H')),
+      'a file number like "BM 3RD5H" is not read as "5 h"; "within 5 hours" in the reply still is');
+  }
   const waReply = cityReplyText({ market: 'madrid', name: 'Luis', phone: '+34612345678', message: 'Hi BOOM Madrid, I\'m moving to Madrid.' });
   check(waReply.startsWith('Hi Luis, Valentino here from BOOM 👋 Thanks for your message about your move to Madrid. The first step is a free call.') && /which day and time suit you\?/.test(waReply) && !/this week|your file|budget|come back today/.test(waReply),
     'a desk lead that came from WhatsApp (no door, no file) is thanked for its message and offered the same free call', waReply);
