@@ -1669,7 +1669,6 @@ html.vivo .sale.dentro { opacity:1; transform:none;
   transition:border-color .25s; }
 .sotto-vai:hover { border-color:var(--gold); }
 
-
 /* IL TOCCO. Su iPhone un campo con carattere sotto i 16px fa ZOOMARE la
    pagina al primo tap, e non torna indietro da sola: il modulo che deve
    convertire si apre storto. Misurato a 390px con puntatore grossolano su
@@ -1852,7 +1851,6 @@ setTimeout(function () {
   <a class="btn btn-primary" href="https://wa.me/393313251961" target="_blank" rel="noopener">WhatsApp</a>
 </div>
 
-
 <style>
 /* ══ LA CASA — la scena, il denaro in chiaro, la strada ════════════════ */
 .casa { position:relative; padding:clamp(88px,10svh,116px) 0 0; }
@@ -1863,59 +1861,151 @@ setTimeout(function () {
 .casa-briciole a:hover { color:var(--gold); }
 .casa-briciole i { font-style:normal; color:var(--text-4); }
 
-/* la scena: la foto grande e il rullino */
-.scena-casa { position:relative; margin-top:16px; display:grid;
-  gap:clamp(12px,1.4vw,16px); grid-template-columns:1fr; }
-@media (min-width:900px){ .scena-casa {
-  grid-template-columns:minmax(0,1fr) 112px; } }
+/* LA SCENA: foto · rullino · banco (Impeccable, 30/10/2026). Sul telefono
+   una colonna; dal desktop le tre colonne dividono UN'altezza, così gli
+   otto provini finiscono dove finisce la foto (prima si fermavano a metà) e
+   il banco della decisione sta accanto alla foto, non sotto la piega. La
+   riga è ALMENO alta --alta e cresce col banco: un pannello che taglia i
+   fatti su uno schermo basso sarebbe peggio di una foto più alta. */
+.scena-casa { position:relative; margin-top:16px; display:grid; gap:12px;
+  grid-template-columns:minmax(0,1fr);
+  grid-template-areas:"foto" "rullino" "banco"; }
+.telaio { grid-area:foto; }
+.rullino { grid-area:rullino; }
+.banco { grid-area:banco; margin-top:4px; }
+@media (min-width:960px){
+  .scena-casa { --alta:clamp(440px, calc(100vh - 250px), 650px);
+    --alta:clamp(440px, calc(100svh - 250px), 650px);
+    grid-template-columns:minmax(0,1fr) 88px clamp(340px,28vw,400px);
+    grid-template-areas:"foto rullino banco";
+    grid-template-rows:minmax(var(--alta), auto); column-gap:12px; }
+  /* una casa con UNA foto non ha rullino: la colonna sparisce con lui */
+  .scena-casa.una-foto { grid-template-columns:minmax(0,1fr) clamp(340px,28vw,400px);
+    grid-template-areas:"foto banco"; }
+  .banco { margin-top:0; margin-left:8px; } }
+/* la classe la scrive il server (api/listing.js) quando le foto sono meno di
+   due, e il JS sulla pagina statica: il rullino non nasce per sparire */
+.scena-casa.una-foto .rullino { display:none; }
+
+/* la foto: le immagini della casa sono spesso verticali (3:4). Il telaio
+   16:10 di prima le tagliava a metà e le ingrandiva oltre il file; 5:4 ne
+   tiene in vista più della metà. La velatura scura in basso non serve più:
+   non c'è testo da leggere sopra la foto. */
 .telaio { position:relative; overflow:hidden; background:var(--void);
-  aspect-ratio:16/10; box-shadow:inset 0 0 0 1px var(--line-gold-2); }
-.telaio img { width:100%; height:100%; object-fit:cover; display:block;
+  aspect-ratio:5/4; box-shadow:inset 0 0 0 1px var(--line-gold); }
+@media (min-width:600px) and (max-width:959px){ .telaio { aspect-ratio:16/11; } }
+@media (min-width:960px){ .telaio { aspect-ratio:auto; height:100%; } }
+.telaio img { position:absolute; inset:0; width:100%; height:100%;
+  object-fit:cover; object-position:50% 55%; display:block;
   opacity:0; transition:opacity .5s ease; }
 .telaio img.qui { opacity:1; }
 .telaio::after { content:''; position:absolute; inset:0; pointer-events:none;
-  background:linear-gradient(180deg, rgba(3,3,3,.5), transparent 30%,
-    transparent 58%, rgba(3,3,3,.82)); }
-.telaio-alto { position:absolute; z-index:2; top:14px; left:14px; right:14px;
-  display:flex; align-items:flex-start; justify-content:space-between;
-  gap:12px; }
-.telaio-basso { position:absolute; z-index:2; left:16px; right:16px;
-  bottom:14px; display:flex; align-items:flex-end;
-  justify-content:space-between; gap:14px; flex-wrap:wrap; }
-.telaio-basso h1 { font-weight:250; font-size:clamp(24px,3vw,40px);
-  line-height:1.1; letter-spacing:-.015em; }
-.telaio-basso .dove { margin-top:5px; font-size:12.5px; color:var(--text-2); }
-.canone-grande { text-align:right; }
-.canone-grande .flap-prezzo { font-size:clamp(17px,2vw,24px); }
-.canone-grande small { display:block; margin-top:3px; font-size:10px;
-  letter-spacing:.14em; text-transform:uppercase; color:var(--text-3); }
-.rullino { display:flex; gap:10px; overflow-x:auto; scrollbar-width:none;
-  padding-bottom:2px; }
-.rullino::-webkit-scrollbar { display:none; }
-@media (min-width:900px){ .rullino { flex-direction:column; overflow-y:auto;
-  max-height:100%; } }
-.rullino button { flex:none; width:96px; aspect-ratio:4/3; padding:0;
-  border:0; background:none; cursor:pointer; overflow:hidden;
-  box-shadow:inset 0 0 0 1px var(--line-0); opacity:.5;
-  transition:opacity .3s ease, box-shadow .3s ease; }
-.rullino button img { width:100%; height:100%; object-fit:cover; }
-.rullino button:hover { opacity:.85; }
-.rullino button.qui { opacity:1; box-shadow:inset 0 0 0 1px var(--gold); }
-.stato-grande { padding:6px 11px; background:rgba(3,3,3,.7);
-  backdrop-filter:blur(8px); font-size:9px; font-weight:700;
-  letter-spacing:.16em; text-transform:uppercase; color:var(--text-2); }
-.stato-grande.si { color:var(--green); }
+  background:linear-gradient(180deg, rgba(3,3,3,.42), transparent 24%,
+    transparent 82%, rgba(3,3,3,.28));
+  box-shadow:inset 0 0 0 1px var(--line-gold); }
+.telaio-alto { position:absolute; z-index:3; top:12px; right:12px;
+  display:flex; align-items:center; gap:8px; }
 
-/* i fatti: la riga Solari della casa */
-.fatti { margin-top:clamp(18px,2.2vw,26px); display:grid; gap:1px;
-  grid-template-columns:repeat(2,1fr); background:var(--line-0);
-  box-shadow:inset 0 0 0 1px var(--line-0); }
-@media (min-width:760px){ .fatti { grid-template-columns:repeat(5,1fr); } }
-.fatto { background:var(--card); padding:15px 16px; }
-.fatto b { display:block; font-family:var(--display); font-size:19px;
-  font-weight:300; color:var(--gold); }
-.fatto span { display:block; margin-top:3px; font-size:9.5px;
-  letter-spacing:.14em; text-transform:uppercase; color:var(--text-3); }
+/* il rullino: orizzontale sul telefono, colonna piena sul desktop */
+/* min-height = un provino (68px × 4/5) + il padding: la striscia si riempie
+   dal JS dopo il primo paint, e senza riserva spostava il banco di 54px
+   (la metà del CLS misurato a 390px) */
+.rullino { display:flex; gap:8px; overflow-x:auto; scrollbar-width:none;
+  scroll-snap-type:x proximity; padding-bottom:2px; min-height:56px; }
+.rullino::-webkit-scrollbar { display:none; }
+.rullino button { flex:none; width:68px; aspect-ratio:5/4; padding:0;
+  border:0; background:none; cursor:pointer; overflow:hidden;
+  scroll-snap-align:start; box-shadow:inset 0 0 0 1px var(--line);
+  opacity:.48; transition:opacity .3s ease, box-shadow .3s ease; }
+.rullino button img { width:100%; height:100%; object-fit:cover; }
+.rullino button:hover { opacity:.86; }
+.rullino button.qui { opacity:1; box-shadow:inset 0 0 0 1.5px var(--gold); }
+@media (min-width:960px){
+  /* contain:size — i provini non dettano l'altezza della riga (otto
+     immagini verticali la porterebbero a mille pixel): la riga la fanno
+     --alta e il banco, e il rullino si distende a riempirla */
+  .rullino { display:grid; grid-template-columns:1fr; overflow:hidden;
+    grid-auto-rows:minmax(0,1fr); gap:8px; padding-bottom:0; min-height:0;
+    contain:size; }
+  .rullino button { width:100%; height:100%; aspect-ratio:auto; min-height:0; } }
+
+/* IL BANCO: la decisione in un apparecchio solo — stato, nome, dove, il
+   canone sui Solari, il gesto, i fatti. L'oro resta al canone e all'azione;
+   i fatti sono bianchi: una scheda tecnica, non cinque insegne. */
+.banco { display:flex; flex-direction:column; padding:24px 20px 20px;
+  background:linear-gradient(165deg, rgba(255,215,0,.055),
+    rgba(255,215,0,.008) 46%), var(--card);
+  box-shadow:inset 0 0 0 1px var(--line-gold); }
+@media (min-width:960px){ .banco { padding:28px 28px 22px; min-height:0; } }
+.banco > .tacca { position:absolute; inset:0; pointer-events:none; }
+.banco::before, .banco::after,
+.banco > .tacca::before, .banco > .tacca::after { border-color:rgba(255,215,0,.6); }
+.banco > .stato-grande { align-self:flex-start; justify-self:start; }
+.banco h1 { margin-top:16px; font-family:var(--display); font-weight:250;
+  font-size:clamp(28px,2.35vw,36px); line-height:1.08; letter-spacing:-.018em;
+  text-wrap:balance; }
+.dove { margin-top:8px; display:flex; flex-wrap:wrap; align-items:center;
+  gap:7px; font-size:13.5px; line-height:1.5; color:var(--text-2); }
+/* il segnaposto è disegnato, non un glifo: oro, in maschera */
+.dove::before { content:''; width:14px; height:14px; flex:none;
+  background:var(--gold);
+  -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0C18.5 15.4 12 21 12 21z'/%3E%3Ccircle cx='12' cy='10' r='2.3'/%3E%3C/svg%3E") center/contain no-repeat;
+  mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0C18.5 15.4 12 21 12 21z'/%3E%3Ccircle cx='12' cy='10' r='2.3'/%3E%3C/svg%3E") center/contain no-repeat; }
+/* senza la casa la riga porta «Retry · WhatsApp BOOM»: niente segnaposto */
+.dove:has(a)::before { display:none; }
+.dove a { color:var(--gold); text-decoration:underline;
+  text-underline-offset:3px; text-decoration-color:var(--line-gold-2); }
+
+.canone-grande { margin-top:20px; padding-top:20px;
+  border-top:1px solid var(--line-gold); display:flex; align-items:flex-end;
+  gap:12px; flex-wrap:wrap; }
+/* lo spazio del tabellone si riserva PRIMA che il Solari si monti (la
+   lezione DAYS di index): altezza della cella (1.26em) qui, larghezza dal
+   numero di cifre nella regia */
+.canone-grande .flap-prezzo { display:inline-flex; align-items:center;
+  min-height:1.26em; font-size:clamp(30px,2.5vw,38px); font-weight:300;
+  line-height:1.26; color:var(--oro-flap); }
+.canone-grande small { display:block; padding-bottom:.55em; font-size:10.5px;
+  font-weight:500; letter-spacing:.16em; text-transform:uppercase;
+  color:var(--text-3); }
+
+.gesti { margin-top:20px; display:grid; gap:8px; }
+.gesti .btn-primary { width:100%; padding:16px 26px; font-size:12.5px;
+  letter-spacing:.14em; }
+.dal-vivo { display:inline-flex; align-items:center; justify-content:center;
+  gap:8px; min-height:44px; padding:6px 10px; font-size:13px;
+  font-weight:400; text-align:center; color:var(--text-2); border-radius:100px;
+  transition:color .25s ease; }
+.dal-vivo svg { width:18px; height:18px; flex:none; fill:none;
+  stroke:var(--gold); stroke-width:1.5; stroke-linecap:round;
+  stroke-linejoin:round; }
+.dal-vivo span { text-decoration:underline; text-decoration-color:var(--line-gold-2);
+  text-underline-offset:4px; text-decoration-thickness:1px;
+  transition:text-decoration-color .25s ease; }
+.dal-vivo:hover { color:var(--text); }
+.dal-vivo:hover span { text-decoration-color:var(--gold); }
+
+/* i fatti: una scheda tecnica, etichetta a sinistra e valore a destra. Il
+   DOM resta valore (<b>) poi etichetta (<span>) — è ciò che leggono la
+   regia, l'idrante e tests/catalogo/vetrina — e la riga si gira in CSS. */
+.fatti { margin-top:20px; }
+.fatti:empty { display:none; }
+@media (min-width:960px){ .fatti { margin-top:auto; padding-top:20px; } }
+.fatti .fatto { display:flex; flex-direction:row-reverse; align-items:baseline;
+  justify-content:space-between; gap:16px; padding:9px 0;
+  border-top:1px solid var(--line-0); }
+.fatti .fatto:first-child { border-top-color:var(--line); }
+.fatti .fatto b { font-family:var(--display); font-size:16px; font-weight:300;
+  color:var(--text); font-variant-numeric:tabular-nums; text-align:right; }
+.fatti .fatto span { font-size:10.5px; font-weight:500; letter-spacing:.16em;
+  text-transform:uppercase; color:var(--text-3); }
+
+/* il tablet: il banco a due colonne, i fatti a destra del gesto */
+@media (min-width:600px) and (max-width:959px){
+  .banco { display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);
+    column-gap:32px; align-items:start; }
+  .banco > :not(.fatti):not(.tacca) { grid-column:1; }
+  .banco > .fatti { grid-column:2; grid-row:1 / span 5; margin-top:0; } }
 
 /* ══ IL DENARO IN CHIARO ═══════════════════════════════════════════════ */
 .soldi { display:grid; gap:clamp(20px,2.6vw,34px); grid-template-columns:1fr;
@@ -2093,7 +2183,6 @@ html.vivo .coro.dentro .tempo::after {
   stroke-linejoin:round; }
 .chiedi-wa svg .acc { opacity:.7; }
 
-
 /* ── PER LE CHIAVI: un blocco solo. Il numero non arriva da solo, arriva
    con quello che compra — un onorario senza elenco e un pedaggio. ────── */
 .chiavi { margin-top:clamp(22px,2.6vw,32px); padding:clamp(22px,2.6vw,30px);
@@ -2175,7 +2264,7 @@ html.vivo .coro.dentro .tempo::after {
   stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
 .sfoglia.prec { left:14px; } .sfoglia.succ { right:14px; }
 .sfoglia[disabled] { opacity:0!important; pointer-events:none; }
-.conta-foto { position:absolute; right:64px; top:21px; z-index:4;
+.conta-foto { position:static; line-height:1;
   font-size:11px; letter-spacing:.08em; color:var(--text-2);
   background:rgba(6,6,7,.7); backdrop-filter:blur(8px);
   -webkit-backdrop-filter:blur(8px);
@@ -2183,22 +2272,33 @@ html.vivo .coro.dentro .tempo::after {
   font-variant-numeric:tabular-nums; }
 
 /* ── LO STATO, VIVO ──────────────────────────────────────────────────── */
-.stato-grande { display:inline-flex; align-items:center; gap:8px; }
+/* una pillola nel banco (era un'etichetta da 9px sopra la foto): il punto
+   respira solo quando la casa è libera, l'anello prende il colore dello stato */
+.stato-grande { display:inline-flex; align-items:center; gap:8px;
+  padding:6px 12px 6px 10px; border-radius:100px; font-size:10.5px;
+  font-weight:600; letter-spacing:.16em; line-height:1.2;
+  text-transform:uppercase; color:var(--text-2);
+  box-shadow:inset 0 0 0 1px var(--line); }
 .stato-grande::before { content:''; width:7px; height:7px; border-radius:50%;
   background:currentColor; flex:none; }
-.stato-grande.libera { color:var(--green); }
+.stato-grande.libera { color:var(--green); background:rgba(0,255,136,.06);
+  box-shadow:inset 0 0 0 1px rgba(0,255,136,.3); }
 .stato-grande.libera::before { animation:stato-respira 2.8s ease-out infinite; }
 @keyframes stato-respira {
   0%   { box-shadow:0 0 0 0 rgba(0,255,136,.5); }
   70%  { box-shadow:0 0 0 9px rgba(0,255,136,0); }
   100% { box-shadow:0 0 0 0 rgba(0,255,136,0); } }
-.stato-grande.attesa { color:var(--gold); }
+.stato-grande.attesa { color:var(--gold); background:rgba(255,215,0,.06);
+  box-shadow:inset 0 0 0 1px var(--line-gold-2); }
 .stato-grande.attesa::before { animation:stato-attesa 1.6s ease-in-out infinite; }
 @keyframes stato-attesa { 0%,100% { opacity:1; } 50% { opacity:.25; } }
-.stato-grande.presa { color:var(--text-3); }
+/* `.presa` è anche la classe del blocco dell'hold (display:grid, padding
+   largo): sulla pillola vince la pillola — prima «Rented» usciva come un
+   ovale su due righe */
+.stato-grande.presa { color:var(--text-3); display:inline-flex;
+  padding:6px 12px 6px 10px; gap:8px; margin-top:0; }
 @media (prefers-reduced-motion:reduce){
   .stato-grande::before { animation:none!important; } }
-
 
 /* ── LA PELLICOLA: il video dove c'e, la verita dove non c'e ─────────── */
 .pellicola { margin-top:clamp(14px,1.8vw,20px); }
@@ -2226,6 +2326,13 @@ html.vivo .coro.dentro .tempo::after {
    camminata di persona — battuto come sigillo di gomma. Visibile SEMPRE
    (senza JS, senza IO); l'animazione è solo il colpo, una volta. */
 .pel-fila.uno .pel-v { flex-wrap:wrap; }
+/* sul desktop la striscia sta su UNA riga sotto la scena: timbro, titolo
+   e dettaglio in fila, come un timbro su un cartellino */
+@media (min-width:960px){
+  .pel-fila.uno .pel-v { flex-wrap:nowrap; align-items:center; padding:12px 24px; }
+  .pel-fila.uno .pel-v > span:not(.timbro-walk) { display:flex;
+    align-items:baseline; gap:4px 12px; flex-wrap:wrap; margin-top:0; }
+  .pel-fila.uno .pel-v > span:not(.timbro-walk) > span { margin-top:0; } }
 .timbro-walk { align-self:center; flex:none; padding:7px 12px;
   border:2.5px solid var(--gold); border-radius:8px;
   transform:rotate(-4deg);
@@ -2295,7 +2402,6 @@ html.vivo .coro.dentro .tempo::after {
   color:var(--text); }
 .ap-dopo span { display:block; margin-top:3px; font-size:11.5px;
   line-height:1.55; color:var(--text-4); }
-
 
 /* ══ LA LENTE ══════════════════════════════════════════════════════════ */
 #telaio > img { cursor:zoom-in; }
@@ -2470,8 +2576,8 @@ a.blkchip:hover { border-color:var(--line-gold); color:var(--gold); }
 
 /* una casa libera da una data e' PRENOTABILE oggi: il rosso leggeva
    «persa», la semantica giusta e' il verde dell'imbarco */
-.stato-grande.dopo { color:#7FDFA4;
-  box-shadow:inset 0 0 0 1px rgba(255,107,87,.38); }
+.stato-grande.dopo { color:#7FDFA4; background:rgba(127,223,164,.06);
+  box-shadow:inset 0 0 0 1px rgba(127,223,164,.34); }
 
 /* la barra di decisione: solo dove serve (pollice), mai sopra il form */
 .decisione { position:fixed; left:0; right:0; bottom:0; z-index:60;
@@ -2523,7 +2629,15 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
       <a href="/apartments" id="briZona">Rome</a>
     </nav>
 
-    <div class="scena-casa">
+    <!-- LA SCENA (Impeccable, 30/10/2026): la foto resta la protagonista e
+         accanto — sotto, sul telefono — c'è UN banco della decisione: stato,
+         nome, dove, il canone sui Solari, il gesto, i fatti. Prima il primo
+         schermo del desktop non aveva un'azione oltre al WhatsApp della
+         testata, i fatti stavano sotto la piega e lo stato era un'etichetta
+         da 9px sopra la foto. Gli slot che il server riempie (api/listing.js)
+         restano identici: #nomeCasa, .dove#doveCasa, .stato-grande#statoCasa,
+         .flap-prezzo.flap-scale#canoneCasa. -->
+    <div class="scena-casa" id="scena">
       <div class="telaio" id="telaio">
         <button type="button" class="sfoglia prec" id="foPrec"
           aria-label="Previous photo"><svg viewBox="0 0 24 24"
@@ -2531,29 +2645,35 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
         <button type="button" class="sfoglia succ" id="foSucc"
           aria-label="Next photo"><svg viewBox="0 0 24 24"
           aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
-        <span class="conta-foto" id="contaFoto" aria-hidden="true"></span>
         <div class="telaio-alto">
-          <span class="stato-grande" id="statoCasa">—</span>
+          <span class="conta-foto" id="contaFoto" aria-hidden="true"></span>
           <button type="button" class="home-cuore" id="cuoreCasa"
             data-u="" aria-label="Save this home" style="position:static">♥</button>
         </div>
-        <div class="telaio-basso">
-          <div>
-            <h1 id="nomeCasa">Piscinula One-Bed</h1>
-            <p class="dove" id="doveCasa">Trastevere · Rome</p>
-          </div>
-          <div class="canone-grande">
-            <span class="flap-prezzo flap-scale" id="canoneCasa" data-p=""></span>
-            <small>per month</small>
-          </div>
-        </div>
       </div>
       <div class="rullino" id="rullino"></div>
+      <div class="banco quadro" id="banco"><span class="tacca"></span>
+        <span class="stato-grande" id="statoCasa">—</span>
+        <h1 id="nomeCasa">Piscinula One-Bed</h1>
+        <p class="dove" id="doveCasa">Trastevere · Rome</p>
+        <div class="canone-grande">
+          <span class="flap-prezzo flap-scale" id="canoneCasa" data-p=""></span>
+          <small>per month</small>
+        </div>
+        <!-- i due gesti che stavano in fondo alla pagina, portati dove si
+             decide: APPLY scorre al modulo (#applica), la visita dal vivo è
+             lo stesso link della porticina (#portaVideo), con le sue parole -->
+        <div class="gesti" id="gesti">
+          <a class="btn btn-primary" id="vaiApplica" href="#applica">Apply</a>
+          <a class="dal-vivo" id="bancoVideo" href="https://wa.me/393313251961"
+            target="_blank" rel="noopener"><svg viewBox="0 0 24 24"
+            aria-hidden="true"><rect x="2.8" y="6.2" width="13" height="11.6" rx="2.2"/><path d="M15.8 10.4l5.4-3.1v9.4l-5.4-3.1"/></svg><span>See this flat live, from anywhere</span></a>
+        </div>
+        <div class="fatti" id="fatti"></div>
+      </div>
     </div>
 
     <div class="pellicola coro" id="pellicola"></div>
-
-    <div class="fatti coro" id="fatti"></div>
   </div>
 </section>
 
@@ -3053,9 +3173,196 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
 <script src="/js/tempi-engine.js"></script>
 <script src="/js/mappa-engine.js"></script>
 <script src="/js/listing-facts.js"></script>
+<style>
+/* ══ SOLARI 4.0 — la cella a palette, precisione tipografica ══════════
+   · metà esattamente al 50%: nessun pixel del glifo sottratto
+   · cerniera DIPINTA sopra (overlay) con perni laterali
+   · glifo centrato otticamente sul cap-height (runtime, --gs)
+   · larghezza cella calibrata sul glifo più largo del rullo (--cw) */
+.fc2 {
+  --ch: 1.26em; --cw: 0.84em; --gs: 0px;
+  position:relative; display:inline-block;
+  width:var(--cw); height:var(--ch);
+  margin-right:0.07em; vertical-align:-0.20em;
+  border-radius:0.085em; background:#040404;
+  box-shadow:inset 0 0 0 1px rgba(239,235,223,0.05), 0 0.08em 0.3em rgba(0,0,0,0.6);
+  perspective:3em; color:var(--oro-flap);
+}
+.fc2 i { position:absolute; left:0; width:100%; height:50%; overflow:hidden; font-style:normal; }
+.fc2 i b { position:absolute; left:0; width:100%; height:var(--ch); line-height:var(--ch);
+  text-align:center; font-weight:inherit; transform:translateY(var(--gs)); }
+.fc2 .st { top:0; border-radius:0.085em 0.085em 0 0; background:linear-gradient(180deg,#17171A,#0E0E10); z-index:1; }
+.fc2 .sb { bottom:0; border-radius:0 0 0.085em 0.085em; background:linear-gradient(180deg,#09090B,#111114); z-index:1; }
+.fc2 .st b { top:0; }
+.fc2 .sb b { top:-100%; }
+.fc2 .lt { top:0; border-radius:0.085em 0.085em 0 0; background:linear-gradient(180deg,#17171A,#0E0E10);
+  transform-origin:center bottom; z-index:4; display:none; }
+.fc2 .lt b { top:0; }
+.fc2 .lb { bottom:0; border-radius:0 0 0.085em 0.085em; background:linear-gradient(180deg,#09090B,#111114);
+  transform-origin:center top; transform:rotateX(88deg); z-index:3; display:none; }
+.fc2 .lb b { top:-100%; }
+.fc2 s { position:absolute; left:0; right:0; top:50%; height:0.035em; min-height:1px;
+  margin-top:calc(0.035em / -2);
+  background:linear-gradient(180deg, rgba(0,0,0,0.92), rgba(0,0,0,0.5));
+  z-index:6; text-decoration:none; }
+.fc2 s::before, .fc2 s::after { content:''; position:absolute; top:50%; width:0.055em; height:0.16em;
+  transform:translateY(-50%); background:linear-gradient(180deg,#000,#1A1A1A); border-radius:0.02em; }
+.fc2 s::before { left:0; border-radius:0 0.02em 0.02em 0; }
+.fc2 s::after { right:0; border-radius:0.02em 0 0 0.02em; }
+@keyframes flTop { 0% { transform:rotateX(0); filter:brightness(1); }
+  100% { transform:rotateX(-88deg); filter:brightness(0.45); } }
+@keyframes flBot { 0% { transform:rotateX(88deg); filter:brightness(0.5); }
+  55% { filter:brightness(1.15); } 100% { transform:rotateX(0); filter:brightness(1); } }
+.flap-scale { letter-spacing:0; white-space:nowrap; }
+</style>
+<script>
+/* ══════════════════════════════════════════════════════════════════════════
+   BOOM SOLARI — il motore a palette (Gino Valle, 1962), meccanica v3:
+   due mezze celle statiche + due ante 3D guidate da animationend, rulli
+   corti (mai teletrasporti), retargeting a metà giro, failsafe per la
+   scheda nascosta. Qui esporta soltanto: la regia è del Terminale.
+   ══════════════════════════════════════════════════════════════════════════ */
+(function () {
+  'use strict';
+  function Cell(host) {
+    var el = document.createElement('span');
+    el.className = 'fc2';
+    el.innerHTML = '<i class="st"><b></b></i><i class="sb"><b></b></i><i class="lt"><b></b></i><i class="lb"><b></b></i><s></s>';
+    host.appendChild(el);
+    this.st = el.children[0].firstChild;
+    this.sb = el.children[1].firstChild;
+    this.ltEl = el.children[2]; this.lt = this.ltEl.firstChild;
+    this.lbEl = el.children[3]; this.lb = this.lbEl.firstChild;
+    this.cur = ' '; this.busy = false; this.pending = ' '; this.turns = 0;
+    this.set(' ');
+  }
+  Cell.prototype.set = function (c) {
+    this.cur = c; this.pending = c;
+    this.st.textContent = c; this.sb.textContent = c;
+  };
+  Cell.prototype.next = function (drum) {
+    var i = drum.indexOf(this.cur); if (i < 0) i = 0;
+    var j = drum.indexOf(this.pending); if (j < 0) j = 0;
+    var d = (j - i + drum.length) % drum.length;
+    if (d === 0) return null;
+    if (d > 2) return drum[(j - 1 + drum.length) % drum.length];
+    return drum[(i + 1) % drum.length];
+  };
+  Cell.prototype.step = function (nc, done) {
+    var self = this, fired = false;
+    function finishTop() {
+      if (fired) return; fired = true;
+      self.ltEl.onanimationend = null;
+      self.ltEl.style.display = 'none'; self.ltEl.style.animation = '';
+      var fired2 = false;
+      function finishBot() {
+        if (fired2) return; fired2 = true;
+        self.lbEl.onanimationend = null;
+        self.sb.textContent = nc;
+        self.lbEl.style.display = 'none'; self.lbEl.style.animation = '';
+        self.cur = nc; done();
+      }
+      self.lbEl.style.display = 'block';
+      /* Safari spesso NON spara animationend quando l'animazione nasce
+         nello stesso frame del display:block: reflow forzato, e il timer
+         di riserva va al passo VERO dell'animazione (prima 400ms: ogni
+         flip su Safari durava il triplo, e il tabellone «caricava due
+         volte») */
+      void self.lbEl.offsetWidth;
+      self.lbEl.style.animation = 'flBot 150ms cubic-bezier(.3,1.35,.6,1) forwards';
+      self.lbEl.onanimationend = finishBot;
+      setTimeout(finishBot, 210);
+    }
+    this.st.textContent = nc;
+    this.lt.textContent = this.cur;
+    this.lb.textContent = nc;
+    this.ltEl.style.display = 'block';
+    void this.ltEl.offsetWidth;
+    this.ltEl.style.animation = 'flTop 90ms cubic-bezier(.55,0,.85,.36) forwards';
+    this.ltEl.onanimationend = finishTop;
+    setTimeout(finishTop, 140);
+  };
+  Cell.prototype.go = function (target, drum, fullTurn) {
+    this.pending = target;
+    if (fullTurn && !this.busy) this.turns = 1;
+    if (this.busy) return;
+    var self = this;
+    this.busy = true;
+    (function run() {
+      var nc = self.next(drum);
+      if (nc === null && self.turns > 0) {
+        self.turns = 0;
+        var i = drum.indexOf(self.cur);
+        nc = drum[(i + 1) % drum.length];
+        self.pending = drum[i];
+        self.step(nc, run);
+        return;
+      }
+      if (nc === null) { self.busy = false; return; }
+      self.step(nc, run);
+    })();
+  };
+
+  var measurer = document.createElement('canvas').getContext('2d');
+  function calibrate(host, drum) {
+    var cs = getComputedStyle(host);
+    var fs = parseFloat(cs.fontSize);
+    measurer.font = cs.fontWeight + ' ' + cs.fontSize + ' ' + cs.fontFamily;
+    var chPx = 1.26 * fs;
+    var m = measurer.measureText('H');
+    var fa = m.fontBoundingBoxAscent !== undefined ? m.fontBoundingBoxAscent : m.actualBoundingBoxAscent * 1.25;
+    var fd = m.fontBoundingBoxDescent !== undefined ? m.fontBoundingBoxDescent : m.actualBoundingBoxAscent * 0.25;
+    var baseline = (chPx + fa - fd) / 2;
+    var shift = chPx / 2 - (baseline - m.actualBoundingBoxAscent / 2);
+    var maxW = 0;
+    for (var i = 0; i < drum.length; i++) {
+      var w = measurer.measureText(drum[i]).width;
+      if (w > maxW) maxW = w;
+    }
+    host.style.setProperty('--gs', shift.toFixed(2) + 'px');
+    host.style.setProperty('--cw', ((maxW + fs * 0.24) / fs).toFixed(4) + 'em');
+  }
+
+  function Board(host, len, drum) {
+    host.textContent = '';
+    host.classList.add('flap-scale');
+    calibrate(host, drum);
+    this.cells = [];
+    this.drum = drum;
+    for (var i = 0; i < len; i++) this.cells.push(new Cell(host));
+  }
+  Board.prototype.show = function (word, stagger, spin) {
+    var self = this;
+    this.cells.forEach(function (c, i) {
+      var ch = word[i] || ' ';
+      if (!spin) { c.set(ch); return; }
+      setTimeout(function () { c.go(ch, self.drum); },
+        i * (stagger || 90) + Math.random() * 26);
+    });
+  };
+  Board.prototype.update = function (word) {   /* flippa solo le celle cambiate */
+    var self = this;
+    this.cells.forEach(function (c, i) {
+      var ch = word[i] || ' ';
+      if (c.cur !== ch || c.pending !== ch) c.go(ch, self.drum);
+    });
+  };
+  Board.prototype.flutter = function () {
+    var c = this.cells[Math.floor(Math.random() * this.cells.length)];
+    if (c && !c.busy && c.cur !== ' ') c.go(c.cur, this.drum, true);
+  };
+
+  window.BoomSolari = { Cell: Cell, Board: Board, calibrate: calibrate };
+})();
+</script>
+
 <script>
 /* LA REGIA DELLA CASA — una casa alla volta, dal catalogo vero.
-   Parte al load: il motore Solari è concatenato DOPO questo script. */
+   Parte appena il DOM c'è (30/10/2026): il motore Solari è concatenato
+   PRIMA di questo script, quindi non deve più aspettare `load` — che su una
+   scheda arriva dopo la foto grande, e lasciava banco, rullino e fatti
+   vuoti fino ad allora: su un telefono, uno scatto di mezza pagina a vista
+   (CLS 0,54 misurato a 390px). */
 (function () {
   'use strict';
   function via() {
@@ -3242,12 +3549,19 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
     var stI = per('#statoCasa');
     if (stI) { stI.textContent = 'Unavailable'; stI.className = 'stato-grande presa'; }
     var cn = per('#canoneCasa');
-    if (cn) { cn.textContent = ''; cn.dataset.p = ''; }
+    if (cn) {
+      cn.textContent = ''; cn.dataset.p = '';
+      /* senza un canone «per month» resterebbe da solo: via tutta la riga */
+      var cg = cn.closest ? cn.closest('.canone-grande') : null;
+      if (cg) cg.style.display = 'none';
+    }
     var bz = per('#briZona');
     if (bz) { bz.textContent = 'Rome'; bz.setAttribute('href', '/apartments'); }
     /* niente modulo che possa partire: APPLY e hold spariscono, e un
        submit nativo (senza i listener della regia) non va da nessuna parte */
-    ['applica', 'presaCasa', 'portaVideo'].forEach(function (id) {
+    /* anche i due gesti del banco: un APPLY che scorre a un modulo nascosto
+       e una visita di una casa che non si conosce non si offrono */
+    ['applica', 'presaCasa', 'portaVideo', 'vaiApplica', 'bancoVideo'].forEach(function (id) {
       var el = document.getElementById(id);
       if (el) el.style.display = 'none';
     });
@@ -3322,7 +3636,12 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
     b.addEventListener('click', function () { mostra(i); });
     rullino.appendChild(b);
   });
-  if (immagini.length < 2) rullino.style.display = 'none';
+  if (immagini.length < 2) {
+    rullino.style.display = 'none';
+    /* senza rullino la scena perde la sua colonna (desktop) */
+    var scena = document.getElementById('scena');
+    if (scena) scena.classList.add('una-foto');
+  }
 
   /* ── sfogliare: frecce, tastiera, contatore ──────────────────────────
      Mancavano: su una pagina casa la foto successiva e il gesto piu
@@ -3485,6 +3804,15 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
       var dV = document.getElementById('decVai');
       if (dS) dS.textContent = c.stato;
       if (dV) dV.textContent = c.libera ? 'Apply' : (c.fuori ? 'Ask' : 'Waitlist');
+      /* il gesto del banco porta al modulo e ne dice la stessa cosa: su una
+         casa libera «Apply» (con la data d'ingresso quando il modulo la
+         dice), altrimenti le parole della corsia («Reserve ahead», «Ask
+         about this home») — mai una candidatura su una casa occupata */
+      var vA = document.getElementById('vaiApplica');
+      if (vA && bAp) {
+        var tAp = bAp.textContent;
+        vA.textContent = (c.libera && !/^Apply/.test(tAp)) ? 'Apply' : tAp;
+      }
     };
     rifaiCta();
   })();
@@ -3497,6 +3825,10 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
       var t = euro(c.prezzo);
       canone.dataset.p = t;
       canone.setAttribute('aria-label', t + ' per month');
+      /* lo spazio del tabellone si riserva prima del montaggio: una cella
+         del Solari è larga --cw (~.8em) + .07em di margine, e il banco non
+         deve spostare «per month» quando le celle arrivano */
+      canone.style.minWidth = (t.length * 0.9).toFixed(2) + 'em';
       if (!BS) { canone.textContent = t; return; }
       if (!bo || t.length !== largo) {
         canone.innerHTML = ''; largo = t.length;
@@ -4413,12 +4745,17 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
   (function () {
     var pv = document.getElementById('portaVideo');
     if (!pv) return;
+    /* la stessa porta vive anche nel banco accanto alla foto (#bancoVideo):
+       stesso link, stesse parole, stessa regola di visibilità */
+    var pb = document.getElementById('bancoVideo');
     rifaiPorte = function () {
       var vivo = c.libera || /wait/i.test(c.stato);
-      pv.style.display = vivo ? '' : 'none';
-      pv.href = 'https://wa.me/393313251961?text=' + encodeURIComponent(
+      var href = 'https://wa.me/393313251961?text=' + encodeURIComponent(
         'Hi! I\'d like a live video viewing of "' + c.nome
         + '" — when is the next slot?');
+      pv.style.display = vivo ? '' : 'none';
+      pv.href = href;
+      if (pb) { pb.style.display = vivo ? '' : 'none'; pb.href = href; }
     };
     rifaiPorte();
   })();
@@ -4724,6 +5061,8 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
       if (!c.libera && vaiB) vaiB.textContent = c.fuori ? 'Ask' : 'Waitlist';
       bar.hidden = false;
       var applica = document.getElementById('applica');
+      /* il gesto del banco: finché si vede, la barra non raddoppia l'APPLY */
+      var vaiA = document.getElementById('vaiApplica');
       var soglia = 520;
       var giu = false;
       function stagione() {
@@ -4731,6 +5070,10 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
         if (applica) {
           var r2 = applica.getBoundingClientRect();
           vicino = r2.top < innerHeight && r2.bottom > 0;
+        }
+        if (!vicino && vaiA && vaiA.getClientRects().length) {
+          var r3 = vaiA.getBoundingClientRect();
+          vicino = r3.top < innerHeight && r3.bottom > 0;
         }
         var ora = scrollY > soglia && !vicino;
         if (ora !== giu) { giu = ora; bar.classList.toggle('viva', ora); }
@@ -4764,191 +5107,11 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
     if (/id=/.test(location.hash)) location.reload();
   });
   }
-  if (document.readyState === 'complete') via();
-  else addEventListener('load', via);
-})();
-</script>
-
-<style>
-/* ══ SOLARI 4.0 — la cella a palette, precisione tipografica ══════════
-   · metà esattamente al 50%: nessun pixel del glifo sottratto
-   · cerniera DIPINTA sopra (overlay) con perni laterali
-   · glifo centrato otticamente sul cap-height (runtime, --gs)
-   · larghezza cella calibrata sul glifo più largo del rullo (--cw) */
-.fc2 {
-  --ch: 1.26em; --cw: 0.84em; --gs: 0px;
-  position:relative; display:inline-block;
-  width:var(--cw); height:var(--ch);
-  margin-right:0.07em; vertical-align:-0.20em;
-  border-radius:0.085em; background:#040404;
-  box-shadow:inset 0 0 0 1px rgba(239,235,223,0.05), 0 0.08em 0.3em rgba(0,0,0,0.6);
-  perspective:3em; color:var(--oro-flap);
-}
-.fc2 i { position:absolute; left:0; width:100%; height:50%; overflow:hidden; font-style:normal; }
-.fc2 i b { position:absolute; left:0; width:100%; height:var(--ch); line-height:var(--ch);
-  text-align:center; font-weight:inherit; transform:translateY(var(--gs)); }
-.fc2 .st { top:0; border-radius:0.085em 0.085em 0 0; background:linear-gradient(180deg,#17171A,#0E0E10); z-index:1; }
-.fc2 .sb { bottom:0; border-radius:0 0 0.085em 0.085em; background:linear-gradient(180deg,#09090B,#111114); z-index:1; }
-.fc2 .st b { top:0; }
-.fc2 .sb b { top:-100%; }
-.fc2 .lt { top:0; border-radius:0.085em 0.085em 0 0; background:linear-gradient(180deg,#17171A,#0E0E10);
-  transform-origin:center bottom; z-index:4; display:none; }
-.fc2 .lt b { top:0; }
-.fc2 .lb { bottom:0; border-radius:0 0 0.085em 0.085em; background:linear-gradient(180deg,#09090B,#111114);
-  transform-origin:center top; transform:rotateX(88deg); z-index:3; display:none; }
-.fc2 .lb b { top:-100%; }
-.fc2 s { position:absolute; left:0; right:0; top:50%; height:0.035em; min-height:1px;
-  margin-top:calc(0.035em / -2);
-  background:linear-gradient(180deg, rgba(0,0,0,0.92), rgba(0,0,0,0.5));
-  z-index:6; text-decoration:none; }
-.fc2 s::before, .fc2 s::after { content:''; position:absolute; top:50%; width:0.055em; height:0.16em;
-  transform:translateY(-50%); background:linear-gradient(180deg,#000,#1A1A1A); border-radius:0.02em; }
-.fc2 s::before { left:0; border-radius:0 0.02em 0.02em 0; }
-.fc2 s::after { right:0; border-radius:0.02em 0 0 0.02em; }
-@keyframes flTop { 0% { transform:rotateX(0); filter:brightness(1); }
-  100% { transform:rotateX(-88deg); filter:brightness(0.45); } }
-@keyframes flBot { 0% { transform:rotateX(88deg); filter:brightness(0.5); }
-  55% { filter:brightness(1.15); } 100% { transform:rotateX(0); filter:brightness(1); } }
-.flap-scale { letter-spacing:0; white-space:nowrap; }
-</style>
-<script>
-/* ══════════════════════════════════════════════════════════════════════════
-   BOOM SOLARI — il motore a palette (Gino Valle, 1962), meccanica v3:
-   due mezze celle statiche + due ante 3D guidate da animationend, rulli
-   corti (mai teletrasporti), retargeting a metà giro, failsafe per la
-   scheda nascosta. Qui esporta soltanto: la regia è del Terminale.
-   ══════════════════════════════════════════════════════════════════════════ */
-(function () {
-  'use strict';
-  function Cell(host) {
-    var el = document.createElement('span');
-    el.className = 'fc2';
-    el.innerHTML = '<i class="st"><b></b></i><i class="sb"><b></b></i><i class="lt"><b></b></i><i class="lb"><b></b></i><s></s>';
-    host.appendChild(el);
-    this.st = el.children[0].firstChild;
-    this.sb = el.children[1].firstChild;
-    this.ltEl = el.children[2]; this.lt = this.ltEl.firstChild;
-    this.lbEl = el.children[3]; this.lb = this.lbEl.firstChild;
-    this.cur = ' '; this.busy = false; this.pending = ' '; this.turns = 0;
-    this.set(' ');
-  }
-  Cell.prototype.set = function (c) {
-    this.cur = c; this.pending = c;
-    this.st.textContent = c; this.sb.textContent = c;
-  };
-  Cell.prototype.next = function (drum) {
-    var i = drum.indexOf(this.cur); if (i < 0) i = 0;
-    var j = drum.indexOf(this.pending); if (j < 0) j = 0;
-    var d = (j - i + drum.length) % drum.length;
-    if (d === 0) return null;
-    if (d > 2) return drum[(j - 1 + drum.length) % drum.length];
-    return drum[(i + 1) % drum.length];
-  };
-  Cell.prototype.step = function (nc, done) {
-    var self = this, fired = false;
-    function finishTop() {
-      if (fired) return; fired = true;
-      self.ltEl.onanimationend = null;
-      self.ltEl.style.display = 'none'; self.ltEl.style.animation = '';
-      var fired2 = false;
-      function finishBot() {
-        if (fired2) return; fired2 = true;
-        self.lbEl.onanimationend = null;
-        self.sb.textContent = nc;
-        self.lbEl.style.display = 'none'; self.lbEl.style.animation = '';
-        self.cur = nc; done();
-      }
-      self.lbEl.style.display = 'block';
-      /* Safari spesso NON spara animationend quando l'animazione nasce
-         nello stesso frame del display:block: reflow forzato, e il timer
-         di riserva va al passo VERO dell'animazione (prima 400ms: ogni
-         flip su Safari durava il triplo, e il tabellone «caricava due
-         volte») */
-      void self.lbEl.offsetWidth;
-      self.lbEl.style.animation = 'flBot 150ms cubic-bezier(.3,1.35,.6,1) forwards';
-      self.lbEl.onanimationend = finishBot;
-      setTimeout(finishBot, 210);
-    }
-    this.st.textContent = nc;
-    this.lt.textContent = this.cur;
-    this.lb.textContent = nc;
-    this.ltEl.style.display = 'block';
-    void this.ltEl.offsetWidth;
-    this.ltEl.style.animation = 'flTop 90ms cubic-bezier(.55,0,.85,.36) forwards';
-    this.ltEl.onanimationend = finishTop;
-    setTimeout(finishTop, 140);
-  };
-  Cell.prototype.go = function (target, drum, fullTurn) {
-    this.pending = target;
-    if (fullTurn && !this.busy) this.turns = 1;
-    if (this.busy) return;
-    var self = this;
-    this.busy = true;
-    (function run() {
-      var nc = self.next(drum);
-      if (nc === null && self.turns > 0) {
-        self.turns = 0;
-        var i = drum.indexOf(self.cur);
-        nc = drum[(i + 1) % drum.length];
-        self.pending = drum[i];
-        self.step(nc, run);
-        return;
-      }
-      if (nc === null) { self.busy = false; return; }
-      self.step(nc, run);
-    })();
-  };
-
-  var measurer = document.createElement('canvas').getContext('2d');
-  function calibrate(host, drum) {
-    var cs = getComputedStyle(host);
-    var fs = parseFloat(cs.fontSize);
-    measurer.font = cs.fontWeight + ' ' + cs.fontSize + ' ' + cs.fontFamily;
-    var chPx = 1.26 * fs;
-    var m = measurer.measureText('H');
-    var fa = m.fontBoundingBoxAscent !== undefined ? m.fontBoundingBoxAscent : m.actualBoundingBoxAscent * 1.25;
-    var fd = m.fontBoundingBoxDescent !== undefined ? m.fontBoundingBoxDescent : m.actualBoundingBoxAscent * 0.25;
-    var baseline = (chPx + fa - fd) / 2;
-    var shift = chPx / 2 - (baseline - m.actualBoundingBoxAscent / 2);
-    var maxW = 0;
-    for (var i = 0; i < drum.length; i++) {
-      var w = measurer.measureText(drum[i]).width;
-      if (w > maxW) maxW = w;
-    }
-    host.style.setProperty('--gs', shift.toFixed(2) + 'px');
-    host.style.setProperty('--cw', ((maxW + fs * 0.24) / fs).toFixed(4) + 'em');
-  }
-
-  function Board(host, len, drum) {
-    host.textContent = '';
-    host.classList.add('flap-scale');
-    calibrate(host, drum);
-    this.cells = [];
-    this.drum = drum;
-    for (var i = 0; i < len; i++) this.cells.push(new Cell(host));
-  }
-  Board.prototype.show = function (word, stagger, spin) {
-    var self = this;
-    this.cells.forEach(function (c, i) {
-      var ch = word[i] || ' ';
-      if (!spin) { c.set(ch); return; }
-      setTimeout(function () { c.go(ch, self.drum); },
-        i * (stagger || 90) + Math.random() * 26);
-    });
-  };
-  Board.prototype.update = function (word) {   /* flippa solo le celle cambiate */
-    var self = this;
-    this.cells.forEach(function (c, i) {
-      var ch = word[i] || ' ';
-      if (c.cur !== ch || c.pending !== ch) c.go(ch, self.drum);
-    });
-  };
-  Board.prototype.flutter = function () {
-    var c = this.cells[Math.floor(Math.random() * this.cells.length)];
-    if (c && !c.busy && c.cur !== ' ') c.go(c.cur, this.drum, true);
-  };
-
-  window.BoomSolari = { Cell: Cell, Board: Board, calibrate: calibrate };
+  /* lo script sta in coda al corpo della pagina: tutto ciò che legge è già
+     nel DOM, e window.BoomSolari è definito qui sopra. Nessuna attesa.
+     (Mai un tag fra parentesi angolari in questi commenti: api/listing.js
+     cerca il body vero e tests/listing lo pretende unico.) */
+  via();
 })();
 </script>
 

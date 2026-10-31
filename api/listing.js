@@ -347,6 +347,13 @@ function injectSeo(html, d, id) {
   if (racconto) html = html.replace(/<p id="raccontoCasa">[^<]*<\/p>/, () => '<p id="raccontoCasa">' + esc(racconto) + '</p>');
   html = html.replace(/<a href="[^"]*" id="briZona">[^<]*<\/a>/,
     () => '<a href="/apartments#zona=' + esc(encodeURIComponent(zona)) + '" id="briZona">' + esc(zona) + '</a>');
+  // Una casa con UNA foto non ha il rullino. La pagina ne riserva lo spazio
+  // nel CSS (così la striscia che il JS riempie dopo il primo paint non
+  // sposta il banco), e qui il server dice PRIMA che non serve: senza, la
+  // riserva compariva e poi spariva — uno scatto di 68px sul telefono.
+  // Il client (la pagina statica senza SSR) mette la stessa classe dal JS.
+  if (images.length < 2)
+    html = html.replace('<div class="scena-casa" id="scena">', '<div class="scena-casa una-foto" id="scena">');
 
   return html;
 }
