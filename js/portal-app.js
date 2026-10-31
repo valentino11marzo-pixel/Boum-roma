@@ -2334,6 +2334,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function portalSessionReset() {
         portalSessionGeneration++; portalLoadGeneration++;
         window.BOOM_MAILBOX?.reset();
+        if (typeof smartLinkResetSession === 'function') smartLinkResetSession();
         authProcessed = false; authRetryCount = 0;
         stopSessionCheck();
         for (const stop of [stopNotificationListener, stopContractsListener, stopActionQueueListener,
@@ -28464,6 +28465,7 @@ IBAN: ${l.iban || '-'}`;
 
         return `<section class="portal-catalog">
             <header class="page-header"><div><h1 class="page-title">Strumenti</h1><p class="page-subtitle">Gli stessi strumenti della Home, con la loro funzione.</p></div><button type="button" class="btn btn-secondary" onclick="goTo('oggi')">← Home</button></header>
+            ${new URLSearchParams(location.search).get('smartlink-share')==='1' && smartLinkTool ? '<div class="sl-share-entry"><div><strong>Importa la casa condivisa da Safari</strong><p>Apri lo Studio e tocca «Importa da Safari». Il Portal leggerà gli appunti solo al tuo tocco.</p></div><button type="button" class="btn" onclick="openExternalSmartLink()">Apri SmartLink Studio ↗</button></div>' : ''}
             ${smartLinkTool ? `<button type="button" class="portal-catalog-tool sl-catalog-feature" onclick="${esc('window[' + JSON.stringify(smartLinkTool.fn) + ']()')}"><span class="portal-catalog-icon" aria-hidden="true">↗</span><span><strong>SmartLink Studio</strong><small>Incolla un annuncio. Importa le foto, scegli la copertina e crea una scheda BOOM da condividere.</small></span><span aria-hidden="true">→</span></button>` : ''}
             <div class="portal-catalog-context"><span>${selected ? 'Contesto: <strong>' + esc(selected.label) + '</strong>' : 'Nessuna casa o persona selezionata'}</span><button type="button" class="btn btn-secondary btn-sm" onclick="goTo('oggi')">${selected ? 'Cambia contesto' : 'Scegli casa o persona'}</button></div>
             <div class="portal-catalog-grid">${tools.map(tool => `<button type="button" class="portal-catalog-tool" data-catalog-tool="${esc(tool.id)}" onclick="oggiQuickTool(this.dataset.catalogTool)" ${tool.disabled ? 'disabled' : ''}><span class="portal-catalog-icon" aria-hidden="true">${oggiToolIcon(tool.id.replace('home:', ''))}</span><span><strong>${esc(tool.label)}</strong><small>${esc(tool.disabled ? tool.reason : tool.description)}</small></span><span aria-hidden="true">→</span></button>`).join('')}</div>
@@ -28502,6 +28504,13 @@ IBAN: ${l.iban || '-'}`;
             <div class="modal-header sl-studio-header"><div><div class="sl-kicker">BOOM TOOLS / NUOVA CASA</div><h2 id="sl_studio_title">SmartLink Studio<span>.</span></h2><p>Prepara una scheda BOOM da condividere con il cliente.</p></div><button class="modal-close" type="button" aria-label="Chiudi SmartLink Studio" onclick="smartLinkClose()">×</button></div>
             <div class="modal-body sl-studio-body">
               <section class="sl-section"><div class="sl-step">01 <span>Annuncio</span></div><label class="form-label" for="sl_source">Incolla il link dell’annuncio</label><div class="sl-inline"><input id="sl_source" type="url" class="form-input" placeholder="https://www.immobiliare.it/annunci/…" oninput="smartLinkSourceChanged()" onkeydown="if(event.key==='Enter'){event.preventDefault();smartLinkExtract()}"><button type="button" class="btn btn-secondary" id="sl_import" onclick="smartLinkExtract()">Importa annuncio e foto</button></div><p id="sl_status" role="status" class="sl-hint">Incolla il link per recuperare dati e foto disponibili. Controllali prima di creare la scheda. Il cliente non vedrà la fonte.</p></section>
+              <section class="sl-share" aria-labelledby="sl_share_title">
+                <div class="sl-share-heading"><div><span class="sl-kicker">DA IPHONE · ANTEPRIMA</span><h3 id="sl_share_title">Porta qui la casa da Safari.</h3><p>Apri l’annuncio, scegli Condividi → Crea SmartLink BOOM. Poi importa qui dati e foto.</p></div><button type="button" class="btn btn-secondary" id="sl_share_import" onclick="smartLinkPasteShare()">Importa da Safari ↗</button></div>
+                <p id="sl_share_status" class="sl-hint" role="status">Per annunci Immobiliare.it e Idealista già aperti in Safari. Nessuna estensione.</p>
+                <details id="sl_share_manual" class="sl-share-help"><summary>Gli appunti non si aprono?</summary><label class="form-label" for="sl_share_payload">Incolla il contenuto preparato dal comando</label><textarea id="sl_share_payload" class="form-textarea" rows="3" maxlength="131072" autocapitalize="off" autocomplete="off" spellcheck="false" placeholder="Tieni premuto qui e scegli Incolla"></textarea><button type="button" class="btn btn-secondary btn-sm" onclick="smartLinkPasteShare(document.getElementById('sl_share_payload').value)">Importa contenuto</button></details>
+                <details class="sl-share-help"><summary>Prima volta? Configura il comando</summary><ol><li>Apri questa pagina sul tuo iPhone e aggiungi <a href="/assets/tools/boom-smartlink-safari.shortcut">Crea SmartLink BOOM</a> all’app Comandi Rapidi.</li><li>In Impostazioni → App → Comandi Rapidi → Avanzate, abilita l’esecuzione di script. I nomi possono variare con iOS.</li><li>In Safari apri un annuncio e la sua galleria, poi Condividi → Crea SmartLink BOOM. Accetta i permessi richiesti da Apple.</li><li>Al ritorno qui, tocca «Importa da Safari», controlla foto e dati e crea la scheda.</li></ol><p class="sl-hint">Il comando legge i contenuti già caricati della pagina. Il collaudo su iPhone è in corso: alcune gallerie possono risultare incomplete o impedire il download delle foto.</p></details>
+                <label id="sl_share_review" class="sl-share-review" hidden><input id="sl_share_checked" type="checkbox" onchange="smartLinkShareReview(this.checked)"><span>Ho confrontato la galleria con l’annuncio e controllato i dati.</span></label>
+              </section>
               <details class="sl-connection" id="sl_connection" hidden>
                 <summary>Importazione alternativa <span class="sl-connection-caption">Da un browser già collegato</span></summary>
                 <div class="sl-connection-guide"><p>Se questa casa non è nell’archivio BOOM, puoi usare il collegamento già presente su questo computer. L’importazione principale non richiede installazioni.</p><button type="button" class="btn btn-secondary btn-sm" onclick="smartLinkExtract(true)">Usa il browser già collegato</button></div>
@@ -28509,7 +28518,7 @@ IBAN: ${l.iban || '-'}`;
               <details class="sl-connection"><summary>Le tue importazioni recenti <span class="sl-connection-caption">Riprendi anche da un altro dispositivo</span></summary><div id="sl_recent" class="sl-connection-guide" aria-live="polite">Carico le richieste…</div></details>
               <div class="sl-studio-grid">
                 <section class="sl-section"><div class="sl-step">02 <span>Dettagli</span></div><div class="form-group"><label class="form-label" for="sl_title">Titolo della casa</label><input id="sl_title" class="form-input" maxlength="130" placeholder="Es. Bilocale luminoso a Cipro"></div><div class="form-row"><div class="form-group"><label class="form-label" for="sl_price">Canone €/mese</label><input id="sl_price" class="form-input" type="number" min="1" placeholder="Se indicato"></div><div class="form-group"><label class="form-label" for="sl_zone">Zona</label><input id="sl_zone" class="form-input" maxlength="90" placeholder="Es. Roma · Cipro"></div></div><div class="form-row"><div class="form-group"><label class="form-label" for="sl_sqm">m²</label><input id="sl_sqm" class="form-input" type="number" min="1" placeholder="Se indicati"></div><div class="form-group"><label class="form-label" for="sl_rooms">Locali</label><input id="sl_rooms" class="form-input" type="number" min="1" placeholder="Se indicati"></div></div><div class="form-group"><label class="form-label" for="sl_note">Nota BOOM</label><textarea id="sl_note" class="form-textarea" rows="3" maxlength="400" placeholder="Una nota utile scritta da te"></textarea></div></section>
-                <section class="sl-section sl-photo-section"><div class="sl-step">03 <span>Fotografie</span></div><p class="sl-hint">Le foto dell’annuncio arrivano qui automaticamente. Trascinale per cambiare ordine; la prima diventa copertina. BOOM le ottimizza e le ospita nella scheda.</p><p id="sl_photo_status" role="status" class="sl-hint">Incolla il link per importare le foto.</p><div id="sl_photo_preview" class="sl-photo-grid" aria-label="Foto importate, trascina per riordinare"></div><div class="sl-drop" role="button" tabindex="0" aria-label="Aggiungi altre fotografie" onclick="document.getElementById('sl_photos').click()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" ondragover="event.preventDefault();this.classList.add('dragging')" ondragleave="this.classList.remove('dragging')" ondrop="smartLinkPhotoDrop(event)"><span class="sl-drop-icon">＋</span><strong>Aggiungi altre foto</strong><small>Solo se vuoi integrare quelle importate · fino a 12</small></div><input id="sl_photos" class="sl-file-input" type="file" multiple accept="image/*" aria-label="Aggiungi altre fotografie" onchange="smartLinkPhotosChanged()"></section>
+                <section class="sl-section sl-photo-section"><div class="sl-step">03 <span>Fotografie</span></div><p class="sl-hint">Le foto dell’annuncio arrivano qui automaticamente. Trascinale per cambiare ordine; la prima diventa copertina. BOOM le ottimizza e le ospita nella scheda.</p><p id="sl_photo_status" role="status" class="sl-hint">Incolla il link per importare le foto.</p><div id="sl_photo_preview" class="sl-photo-grid" aria-label="Foto importate, trascina per riordinare"></div><div class="sl-drop" role="button" tabindex="0" aria-label="Aggiungi altre fotografie" onclick="document.getElementById('sl_photos').click()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" ondragover="event.preventDefault();this.classList.add('dragging')" ondragleave="this.classList.remove('dragging')" ondrop="smartLinkPhotoDrop(event)"><span class="sl-drop-icon">＋</span><strong>Aggiungi altre foto</strong><small>Solo se vuoi integrare quelle importate · fino a ${window.BOOM_SMARTLINK.MAX_PHOTOS}</small></div><input id="sl_photos" class="sl-file-input" type="file" multiple accept="image/*" aria-label="Aggiungi altre fotografie" onchange="smartLinkPhotosChanged()"></section>
               </div>
               <section class="sl-section"><div class="sl-step">04 <span>Quartiere</span></div><div id="sl_area_picker"></div></section>
               <div class="sl-publish-note">Controlla i dati prima di creare. Prezzo e disponibilità sono indicativi; il cliente contatta direttamente BOOM.</div><div id="sl_result" class="sl-result" role="status"></div><input id="sl_key" type="hidden" value="${draftKey}"><input id="sl_draft_key" type="hidden" value="${draftKey}">
@@ -28519,11 +28528,13 @@ IBAN: ${l.iban || '-'}`;
         </div>`;
         smartLinkArea = window.BOOM_SMARTLINK_MAP.mount(document.getElementById('sl_area_picker'), ZONE_COORDINATES);
         document.getElementById('sl_zone').addEventListener('change', () => { smartLinkArea.reset(); smartLinkArea.suggest(document.getElementById('sl_zone').value); });
-        document.getElementById('sl_source')?.focus();
+        const fromSafari=new URLSearchParams(location.search).get('smartlink-share')==='1';
+        document.getElementById(fromSafari?'sl_share_import':'sl_source')?.focus();
         smartLinkRecent();
     }
 
     let smartLinkArea, smartLinkJob=null, smartLinkArchive=null, smartLinkRadar=null, smartLinkPollTimer, smartLinkPollVersion=0;
+    let smartLinkShare=null, smartLinkShareRead=0;
     const smartLinkFields=['title','price','zone','sqm','rooms'];
     let smartLinkFieldSnapshots={};
     function smartLinkResetFieldState() { smartLinkFieldSnapshots={}; }
@@ -28561,12 +28572,92 @@ IBAN: ${l.iban || '-'}`;
     let smartLinkPhotoItems = [], smartLinkPhotoGeneration = 0, smartLinkPhotoPending = Promise.resolve(), smartLinkPhotoPreparing = false, smartLinkBusy = false;
     function smartLinkClearPhotos() {
         smartLinkPhotoGeneration++; smartLinkArchive=null; smartLinkRadar=null;
+        smartLinkShare=null; smartLinkShareRead++;
+        const review=document.getElementById('sl_share_review'); if(review) review.hidden=true;
+        const checked=document.getElementById('sl_share_checked'); if(checked) checked.checked=false;
         smartLinkPhotoItems.forEach(item => URL.revokeObjectURL(item.url));
         smartLinkPhotoItems = [];
         smartLinkPhotoPending = Promise.resolve();
         smartLinkPhotoPreparing = false;
     }
     function smartLinkClose() { if (smartLinkBusy) { toast('info','Attendi il caricamento delle foto'); return; } smartLinkStopPolling(); smartLinkJob=null; document.getElementById('sl_lightbox')?.remove(); smartLinkClearPhotos(); smartLinkResetFieldState(); smartLinkArea?.destroy(); smartLinkArea=null; closeModal(); }
+    function smartLinkResetSession() {
+        smartLinkStopPolling(); smartLinkJob=null; smartLinkBusy=false;
+        smartLinkClearPhotos(); smartLinkResetFieldState(); smartLinkArea?.destroy(); smartLinkArea=null;
+    }
+    function smartLinkShareReview(checked) { if(smartLinkShare) smartLinkShare.checked=checked===true; }
+    async function smartLinkPasteShare(raw) {
+        if(!isAdmin() || !auth.currentUser || smartLinkBusy || smartLinkPhotoPreparing) return;
+        const status=document.getElementById('sl_share_status'), sourceInput=document.getElementById('sl_source');
+        if(!status || !sourceInput) return;
+        const proof=portalSessionProof(), read=++smartLinkShareRead, version=smartLinkPollVersion;
+        const current=()=>read===smartLinkShareRead && version===smartLinkPollVersion && portalSessionCurrent(proof) && sourceInput===document.getElementById('sl_source') && sourceInput.isConnected;
+        try {
+            // Must run in the tap's user gesture, before token or network awaits.
+            const pending=typeof raw==='string'?Promise.resolve(raw):navigator.clipboard.readText();
+            status.textContent='Leggo la casa condivisa da Safari…';
+            const text=await pending;
+            if(!current()) return;
+            const shared=window.BOOM_SMARTLINK_SHARE.validate(text);
+            if(!shared.ok) {
+                const reasons={photos_not_found:'Non sono state trovate foto. Apri la galleria completa in Safari e condividi di nuovo.',source_mismatch:'La pagina e i dati indicano annunci diversi. Riapri la casa corretta in Safari.',unsupported_listing_url:'Per ora il comando supporta le pagine annuncio di Immobiliare.it e Idealista.',too_many_photos:'Questa galleria supera il limite di 60 foto.',payload_too_large:'La pagina contiene troppi dati per questo comando.',invalid_photo_url:'La pagina contiene indirizzi foto non riconosciuti.',invalid_capture_date:'La data della condivisione non è valida. Esegui di nuovo il comando.'};
+                status.textContent=reasons[shared.error] || 'Contenuto non riconosciuto. Apri l’annuncio in Safari e avvia «Crea SmartLink BOOM» dal menu Condividi.';
+                return;
+            }
+            document.getElementById('sl_share_payload').value='';
+            await smartLinkImportShare(shared,proof);
+        } catch {
+            if(!current()) return;
+            document.getElementById('sl_share_manual').open=true;
+            status.textContent='Safari non ha consentito la lettura degli appunti. Usa il campo qui sotto: tieni premuto e scegli Incolla.';
+            document.getElementById('sl_share_payload').focus();
+        }
+    }
+    async function smartLinkImportShare(shared,proof) {
+        smartLinkStopPolling(); smartLinkJob=null; smartLinkClearPhotos(); smartLinkResetFieldState(); smartLinkArea?.reset();
+        const sourceInput=document.getElementById('sl_source');
+        sourceInput.value=shared.source.url; sourceInput.dataset.draftSource=shared.source.url;
+        ['title','price','zone','sqm','rooms','note'].forEach(key=>{document.getElementById('sl_'+key).value='';});
+        smartLinkApplyFields(shared.data,true); smartLinkArea?.suggest(shared.data.zone || shared.data.title || '');
+        const key=window.crypto.randomUUID(); document.getElementById('sl_key').value=key; document.getElementById('sl_draft_key').value=key;
+        const create=document.getElementById('sl_create'); create.disabled=false; delete create.dataset.created; create.textContent='Crea SmartLink BOOM ↗';
+        document.getElementById('sl_result').replaceChildren();
+        const state=smartLinkShare={...shared.gallery,failed:0,checked:false,capturedAt:shared.capturedAt};
+        const version=smartLinkPollVersion;
+        const current=()=>version===smartLinkPollVersion && smartLinkShare===state && portalSessionCurrent(proof) && sourceInput===document.getElementById('sl_source') && sourceInput.isConnected;
+        const status=document.getElementById('sl_share_status');
+        smartLinkPhotoPreparing=true; document.getElementById('sl_import').disabled=true;
+        document.getElementById('sl_status').textContent='Dati ricevuti dalla pagina Safari. Prezzo e disponibilità vanno riconfermati; non sono verificati automaticamente.';
+        try {
+            const token=await auth.currentUser.getIdToken();
+            if(!current()) return;
+            for(let i=0;i<shared.images.length;i++) {
+                if(!current()) return;
+                status.textContent=`Preparo foto ${i+1} di ${shared.images.length}… Tieni aperto il Portal.`;
+                smartLinkRenderPhotos(`Importo foto ${i+1} di ${shared.images.length}…`);
+                try {
+                    const response=await fetch('/api/smartlink/import-photo',{method:'POST',signal:AbortSignal.timeout(35000),headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({sourceUrl:shared.source.url,imageUrl:shared.images[i]})});
+                    if(!current()) return;
+                    if(!response.ok) throw new Error('photo_unavailable');
+                    const bytes=await response.blob(); if(!current()) return;
+                    const blob=await window.BOOM_SMARTLINK_PHOTO.prepare(bytes); if(!current()) return;
+                    smartLinkPhotoItems.push({blob,url:URL.createObjectURL(blob),name:'Foto Safari '+(i+1)});
+                } catch { if(!current()) return; state.failed++; }
+            }
+            if(!current()) return;
+            const incomplete=state.expected!==null && state.found<state.expected;
+            const missing=state.failed || incomplete;
+            status.textContent=missing
+                ? `${smartLinkPhotoItems.length} foto pronte su ${state.expected || state.found}. Importazione incompleta: la pubblicazione è ferma. Apri tutta la galleria in Safari e condividi di nuovo; se il download resta negato, questa fonte non è importabile con il comando.`
+                : `${smartLinkPhotoItems.length} foto pronte.${state.expected===null?' Safari non indica il totale: confronta la galleria con l’annuncio.':' Totale della galleria corrispondente.'} Controlla i dati e conferma qui sotto.`;
+            document.getElementById('sl_share_review').hidden=!!missing;
+            smartLinkRenderPhotos(`${smartLinkPhotoItems.length} foto importate da Safari.${missing?' Importazione incompleta.':' Scegli ordine e copertina.'}`);
+        } catch {
+            if(current()) {state.failed=shared.images.length;status.textContent='Importazione interrotta. Nessuna scheda creata. Riprova con «Importa da Safari».';}
+        } finally {
+            if(current()) {smartLinkPhotoPreparing=false;document.getElementById('sl_import').disabled=false;}
+        }
+    }
 
     function smartLinkSourceChanged() {
         const source = document.getElementById('sl_source');
@@ -28760,7 +28851,7 @@ IBAN: ${l.iban || '-'}`;
             smartLinkApplyFields(data.data,!!smartLinkRadar || data.photoOrigin==='boom_archive');
             smartLinkArea?.suggest(data.data?.zone || data.data?.title || '');
             if(data.photoOrigin==='boom_archive' && /^[A-Za-z0-9_-]{20}$/.test(data.archive?.id || '')) {
-                const images=(Array.isArray(data.images)?data.images:[]).filter(window.BOOM_SMARTLINK.validPublicImageUrl).slice(0,12);
+                const images=(Array.isArray(data.images)?data.images:[]).filter(window.BOOM_SMARTLINK.validPublicImageUrl).slice(0,window.BOOM_SMARTLINK.MAX_PHOTOS);
                 if(images.length) {
                     smartLinkArchive={id:data.archive.id,images};
                     smartLinkPhotoItems=images.map((url,i)=>({url,remoteUrl:url,name:'Foto archivio '+(i+1)}));
@@ -28852,7 +28943,7 @@ IBAN: ${l.iban || '-'}`;
         const picker=document.getElementById('sl_photos'); if (picker) picker.value='';
         if (!files.length) return;
         if (smartLinkPhotoPreparing) { smartLinkRenderPhotos('Attendi che le foto selezionate siano pronte.'); return; }
-        if (smartLinkPhotoItems.length+files.length>12) { smartLinkRenderPhotos('Puoi inserire al massimo 12 foto.'); return; }
+        if (smartLinkPhotoItems.length+files.length>window.BOOM_SMARTLINK.MAX_PHOTOS) { smartLinkRenderPhotos('Puoi inserire al massimo '+window.BOOM_SMARTLINK.MAX_PHOTOS+' foto.'); return; }
         const generation=smartLinkPhotoGeneration;
         const priorCount=smartLinkPhotoItems.length;
         smartLinkPhotoPreparing=true;
@@ -28871,9 +28962,14 @@ IBAN: ${l.iban || '-'}`;
     }
 
     async function smartLinkCreate() {
+        const proof=portalSessionProof(), version=smartLinkPollVersion, draft=document.getElementById('sl_key');
+        const current=()=>portalSessionCurrent(proof) && version===smartLinkPollVersion && draft===document.getElementById('sl_key') && draft?.isConnected;
+        if(!current()) return;
         const value = k => document.getElementById('sl_' + k)?.value.trim() || '';
         const source = window.BOOM_SMARTLINK.normalizeUrl(value('source'));
         if (smartLinkPhotoPreparing) { toast('info','Attendi che l’importazione delle foto sia completata.'); return; }
+        if (smartLinkShare && (smartLinkShare.failed || smartLinkShare.expected!==null && smartLinkShare.found<smartLinkShare.expected)) { toast('error','Galleria incompleta','Condividi di nuovo la galleria da Safari: mancano delle foto.'); return; }
+        if (smartLinkShare && !smartLinkShare.checked) { toast('info','Controlla la galleria e i dati, poi conferma nella sezione Safari.'); return; }
         if (!source) { toast('error', 'Link non valido', 'Usa un annuncio di Immobiliare.it, Idealista, Subito, Casafari o Casa.it.'); return; }
         if (!smartLinkArea?.ready()) { toast('info','Conferma la zona sulla mappa oppure scegli Continua senza mappa.'); smartLinkArea?.focus(); return; }
         const btn = document.getElementById('sl_create');
@@ -28884,6 +28980,7 @@ IBAN: ${l.iban || '-'}`;
         let created = false, publicationConflict = false;
         try {
             await smartLinkPhotoPending;
+            if(!current()) return;
             const files=[...smartLinkPhotoItems];
             if (!files.length) throw new Error('Nessuna foto pronta. Importa l’annuncio prima di creare lo SmartLink.');
             const key=value('key'), draftKey=value('draft_key') || key, images=[];
@@ -28898,19 +28995,23 @@ IBAN: ${l.iban || '-'}`;
                 files[i].uploadRef=ref;
                 if(!files[i].uploaded) {
                     await ref.put(files[i].blob, {contentType:files[i].blob.type,cacheControl:'public,max-age=31536000,immutable'});
+                    if(!current()) return;
                     files[i].uploaded=true;
                 }
                 const url=await ref.getDownloadURL();
+                if(!current()) return;
                 if (!window.BOOM_SMARTLINK.validImageUrl(url,draftKey)) throw new Error('La foto caricata non ha un indirizzo valido. Riprova.');
                 files[i].remoteUrl=url;
                 images.push(url);
             }
             const map=smartLinkArea.value();
-            const historicalData=smartLinkHasHistoricalData();
-            if(historicalData) document.getElementById('sl_status').textContent=smartLinkHistoryNotice().trim();
+            const historicalData=!!smartLinkShare || smartLinkHasHistoricalData();
+            if(historicalData && !smartLinkShare) document.getElementById('sl_status').textContent=smartLinkHistoryNotice().trim();
             const token = await auth.currentUser.getIdToken();
+            if(!current()) return;
             const r = await fetch('/api/smartlink/create', { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + token }, body:JSON.stringify({ idempotencyKey:key, draftKey, ...(smartLinkArchive?{archiveId:smartLinkArchive.id}:{}), ...(smartLinkRadar?{radarId:smartLinkRadar.id}:{}), ...(historicalData?{historicalData:true}:{}), sourceUrl:source.url, title:value('title'), price:value('price'), zone:value('zone'), sqm:value('sqm'), rooms:value('rooms'), note:value('note'), images, map }) });
             const d = await r.json();
+            if(!current()) return;
             if(r.status===409 && d.error==='publication_conflict') {
                 publicationConflict=true;
                 document.getElementById('sl_key').value=window.crypto.randomUUID();
@@ -28922,8 +29023,8 @@ IBAN: ${l.iban || '-'}`;
             document.getElementById('sl_result').classList.remove('is-error');
             document.getElementById('sl_result').innerHTML = `<div style="padding:18px;border:1px solid var(--gold);border-radius:12px;background:var(--bg-elevated)"><strong>SmartLink creato</strong><div style="font-size:12px;word-break:break-all;margin:10px 0;color:var(--gold)">${esc(d.url)}</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-sm" onclick="copyToClipboard(document.getElementById('sl_link').value,'Link copiato')">📋 Copia link</button><a class="btn btn-sm btn-secondary" href="https://wa.me/?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener" style="text-decoration:none">💬 WhatsApp</a><button class="btn btn-sm btn-secondary" onclick="copyToClipboard(document.getElementById('sl_message').value,'Messaggio copiato')">✍️ Copia messaggio</button><a class="btn btn-sm btn-secondary" href="${esc(d.url)}" target="_blank" rel="noopener" style="text-decoration:none">👁 Apri scheda</a></div><input id="sl_link" type="hidden" value="${esc(d.url)}"><input id="sl_message" type="hidden" value="${esc(msg)}"></div>`;
             toast('success', 'SmartLink BOOM creato');
-        } catch (e) { const box=document.getElementById('sl_result'); if (box) { box.textContent=e.message; box.classList.add('is-error'); } toast('error', 'SmartLink non creato', e.message); }
-        finally { smartLinkBusy=false; document.querySelector('.sl-studio-body')?.removeAttribute('inert'); btn.disabled = created; btn.dataset.created = created ? '1' : '0'; btn.textContent = created ? 'SmartLink creato' : publicationConflict ? 'Crea nuova versione ↗' : 'Crea SmartLink BOOM ↗'; }
+        } catch (e) { if(current()) {const box=document.getElementById('sl_result'); if (box) { box.textContent=e.message; box.classList.add('is-error'); } toast('error', 'SmartLink non creato', e.message);} }
+        finally { if(current()) {smartLinkBusy=false; document.querySelector('.sl-studio-body')?.removeAttribute('inert'); btn.disabled = created; btn.dataset.created = created ? '1' : '0'; btn.textContent = created ? 'SmartLink creato' : publicationConflict ? 'Crea nuova versione ↗' : 'Crea SmartLink BOOM ↗';} }
     }
     // ═══════════════════════════════════════════════════════════════════════════
     // LISTING URL PARSERS — preserved for the upcoming Property Finder / Comparator.

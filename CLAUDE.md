@@ -140,6 +140,12 @@ firebase.json             Firebase deploy config (firestore + storage rules)
 | `sw.js` | Service worker (network-first HTML, cache-first static). |
 
 ### SmartLink annunci esterni (BOOM Tools)
+Dal 31/10 è disponibile un percorso Safari in anteprima: il comando «Crea SmartLink BOOM» legge soltanto la pagina già aperta e copia un payload minimo negli appunti locali; il Portal lo importa dopo un tocco esplicito e con la sessione admin esistente.
+`smartlink-share-engine.js` è il motore comune incorporato nel comando: identità Immobiliare/Idealista, galleria circoscritta, 128 KiB e 60 foto. Nessun fetch della pagina, cookie, storage, API nascosta o codice remoto; il download delle foto usa l'ordinario `import-photo`, che può essere negato dalla fonte.
+Galleria dichiarata incompleta o download falliti fermano la pubblicazione; il totale ignoto richiede confronto dell'operatore. I dati ricevuti da Safari conservano `historicalData:true`, senza attribuire loro una verifica automatica odierna.
+Appunti/risposte tardivi vengono scartati su cambio fonte, chiusura o cambio sessione; anche la pubblicazione controlla la sessione dopo upload e token. Il cliente continua a vedere solo immagini BOOM, senza fonte privata.
+Il limite 60 è condiviso da scheda pubblica, pubblicazione e riuso archivio; il lettore legacy conserva il suo limite 12. Motori e Portal vengono aggiornati insieme tramite la strategia network-first del service worker.
+Prove nei controller e handler reali in `tests/smartlink/{share,studio,archive,run}.mjs`; generazione riproducibile e mutazioni del comando in `tools/smartlink-shortcut`. Firma Apple, installazione iPhone, galleria reale e prova autenticata restano verifiche distinte: la sola CI non certifica l'importazione di un nuovo annuncio bloccato.
 Dal 28/10 il lettore HTTP verifica l'identità dell'annuncio prima di seguire un redirect: un altro ID, portale o sottodominio non riceve una seconda richiesta e non può prestare dati/foto al link iniziale.
 Restano ammessi il percorso invariato e gli alias bare/www della stessa fonte; lo slash finale è equivalente soltanto sulle route con ID numerico riconosciute. Il controllo vale sui redirect ricevuti, senza tentare URL alternativi dopo un blocco.
 Il parser JSON-LD condiviso con PFS legge il vero attributo `type` anche con altri attributi o virgolette singole. I prezzi decimali standard, per esempio `1500.00`, conservano il valore: prima la rimozione della punteggiatura produceva `150000`.

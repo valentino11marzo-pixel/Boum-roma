@@ -1,0 +1,455 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>WFWorkflowName</key>
+  <string>Crea SmartLink BOOM</string>
+  <key>WFWorkflowClientVersion</key>
+  <string>3612.0.2.1</string>
+  <key>WFWorkflowMinimumClientVersion</key>
+  <integer>900</integer>
+  <key>WFWorkflowMinimumClientVersionString</key>
+  <string>900</string>
+  <key>WFWorkflowIcon</key>
+  <dict>
+    <key>WFWorkflowIconStartColor</key>
+    <integer>4260881663</integer>
+    <key>WFWorkflowIconGlyphNumber</key>
+    <integer>59511</integer>
+  </dict>
+  <key>WFWorkflowTypes</key>
+  <array>
+    <string>ActionExtension</string>
+  </array>
+  <key>WFWorkflowInputContentItemClasses</key>
+  <array>
+    <string>WFSafariWebPageContentItem</string>
+  </array>
+  <key>WFWorkflowImportQuestions</key>
+  <array/>
+  <key>WFWorkflowActions</key>
+  <array>
+    <dict>
+      <key>WFWorkflowActionIdentifier</key>
+      <string>is.workflow.actions.runjavascriptonwebpage</string>
+      <key>WFWorkflowActionParameters</key>
+      <dict>
+        <key>WFJavaScript</key>
+        <string>(function () {
+  &apos;use strict&apos;;
+  let output = &quot;{\&quot;kind\&quot;:\&quot;boom.smartlink.share\&quot;,\&quot;version\&quot;:1,\&quot;error\&quot;:\&quot;capture_unavailable\&quot;}&quot;;
+  try {
+    const window = Object.create(null);
+    const module = undefined;
+// js/smartlink-engine.js sha256:5facfaa3d6e1c09cd32526b314c9100d3325e5857fe7468294f0c2cce8fc7d11
+/* SmartLink esterni: regole pure condivise da portale e API. */
+(function (root) {
+  &apos;use strict&apos;;
+  const MAX_PHOTOS = 60;
+  const SOURCES = [
+    { host: &apos;immobiliare.it&apos;, name: &apos;Immobiliare.it&apos; },
+    { host: &apos;idealista.it&apos;, name: &apos;Idealista&apos; },
+    { host: &apos;subito.it&apos;, name: &apos;Subito&apos; },
+    { host: &apos;casafari.com&apos;, name: &apos;Casafari&apos; },
+    { host: &apos;casa.it&apos;, name: &apos;Casa.it&apos; },
+  ];
+  function sourceFor(host) {
+    return SOURCES.find(s =&gt; host === s.host || host.endsWith(&apos;.&apos; + s.host)) || null;
+  }
+  function normalizeUrl(raw) {
+    try {
+      const u = new URL(String(raw || &apos;&apos;).trim());
+      if (![&apos;http:&apos;, &apos;https:&apos;].includes(u.protocol) || u.username || u.password || u.port) return null;
+      const source = sourceFor(u.hostname.toLowerCase());
+      if (!source || u.pathname === &apos;/&apos; || u.pathname.length &lt; 5) return null;
+      u.protocol = &apos;https:&apos;;
+      u.hash = &apos;&apos;;
+      // Gli URL condivisi non conservano parametri di sessione o tracking.
+      u.search = &apos;&apos;;
+      return { url: u.toString(), source: source.name };
+    } catch { return null; }
+  }
+  // Identità dell&apos;archivio: non cambia gli URL usati per leggere la fonte.
+  function storedListing(raw) {
+    const source = normalizeUrl(raw);
+    if (!source) return null;
+    const value = String(raw || &apos;&apos;).trim();
+    // URL() elimina le porte predefinite e le credenziali vuote: non sono alias archivio.
+    const authority = value.replace(/[\t\r\n]/g, &apos;&apos;).match(/^https?:\/\/([^/?#\\]+)/i)?.[1];
+    if (!authority || /[:@]/.test(authority)) return null;
+    const u = new URL(source.url);
+    const match = /^(?:www\.)?immobiliare\.it$/.test(u.hostname) &amp;&amp; u.pathname.match(/^\/annunci\/([0-9]+)\/?$/);
+    return { url: source.url, id: match ? match[1] : null };
+  }
+  function sameListingUrl(a, b) {
+    const left = storedListing(a), right = storedListing(b);
+    return !!left &amp;&amp; !!right &amp;&amp; (left.url === right.url || !!left.id &amp;&amp; left.id === right.id);
+  }
+  function storedListingUrls(raw) {
+    const listing = storedListing(raw);
+    if (!listing) return [];
+    if (!listing.id) return [listing.url];
+    const path = &apos;/annunci/&apos; + listing.id;
+    return [...new Set([listing.url, ...[&apos;www.immobiliare.it&apos;, &apos;immobiliare.it&apos;].flatMap(host =&gt;
+      [&apos;/&apos;, &apos;&apos;].map(slash =&gt; &apos;https://&apos; + host + path + slash))])];
+  }
+  function cleanText(v, max) { return String(v == null ? &apos;&apos; : v).replace(/\s+/g, &apos; &apos;).trim().slice(0, max); }
+  function publicText(v, max) {
+    return cleanText(v, max).replace(/(?:https?:\/\/)?(?:[a-z0-9-]+\.)*(?:immobiliare\.it|idealista\.it|subito\.it|casafari\.com|casa\.it)(?:\/[^\s]*)?/gi, &apos;&apos;).replace(/\s+/g, &apos; &apos;).trim();
+  }
+  function positiveNumber(v, max) {
+    if (v === &apos;&apos; || v == null) return null;
+    const n = Number(v);
+    return Number.isFinite(n) &amp;&amp; n &gt; 0 &amp;&amp; n &lt;= max ? Math.round(n) : null;
+  }
+  const PHOTO_HOSTS = {
+    &apos;Immobiliare.it&apos;: /^(?:[a-z0-9-]+\.)?im-cdn\.it$/,
+    &apos;Idealista&apos;: /^(?:[a-z0-9-]+\.)?idealista\.(?:it|com)$/,
+    &apos;Subito&apos;: /^(?:[a-z0-9-]+\.)?subito\.it$/,
+    // La galleria SmartLink CasaFari conserva anche il CDN originale Immobiliare.
+    &apos;Casafari&apos;: /^(?:[a-z0-9-]+\.)?(?:casafari\.com|im-cdn\.it)$/,
+    &apos;Casa.it&apos;: /^(?:[a-z0-9-]+\.)?casa\.it$/,
+  };
+  function photoUrl(raw, sourceName) {
+    try {
+      const value = String(raw || &apos;&apos;).replace(/\\u002f/gi, &apos;/&apos;).replace(/\\\//g, &apos;/&apos;).replace(/&amp;amp;/gi, &apos;&amp;&apos;);
+      const u = new URL(value);
+      if (u.protocol !== &apos;https:&apos; || u.port || u.username || u.password || u.hash) return null;
+      // CDN delle fotografie Subito osservato nella galleria pubblica: URL senza estensione.
+      if(sourceName===&apos;Subito&apos; &amp;&amp; u.hostname===&apos;images.sbito.it&apos;) {
+        if(!/^\/api\/v1\/sbt-ads-images-pro\/images\/[0-9a-f]{2}\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(u.pathname)) return null;
+        u.search=&apos;?rule=fullscreen-1x-auto&apos;;
+        return u.toString();
+      }
+      if(!PHOTO_HOSTS[sourceName]?.test(u.hostname.toLowerCase())) return null;
+      if (!/\.(?:jpe?g|png|webp)(?:$|\?)/i.test(u.pathname + u.search)) return null;
+      if (/logo|avatar|icon|sprite|favicon|pixel|badge/i.test(u.pathname)) return null;
+      return u.toString();
+    } catch { return null; }
+  }
+  function photoCandidates(html, sourceName, initial = []) {
+    const photos = [], seen = new Set();
+    const add = raw =&gt; {
+      const url = photoUrl(raw, sourceName);
+      if (!url || seen.has(url) || photos.length &gt;= 12) return;
+      seen.add(url); photos.push(url);
+    };
+    (Array.isArray(initial) ? initial : [initial]).forEach(add);
+    const h = String(html || &apos;&apos;).slice(0, 2_000_000);
+    const meta = /&lt;meta\b[^&gt;]*(?:property|name)=[&quot;&apos;](?:og:image|twitter:image)[&quot;&apos;][^&gt;]*&gt;/gi;
+    for (const tag of h.match(meta) || []) {
+      const m = tag.match(/content=[&quot;&apos;]([^&quot;&apos;]+)[&quot;&apos;]/i);
+      if (m) add(m[1]);
+    }
+    const re = /https:\\?\/\\?\/[a-z0-9.-]+(?:\\?\/[^\s&quot;&apos;&lt;&gt;`]+)?/gi;
+    let m;
+    while ((m = re.exec(h)) &amp;&amp; photos.length &lt; 12) add(m[0].replace(/[),;]+$/, &apos;&apos;));
+    return photos;
+  }
+  function validImageUrl(raw, key) {
+    try {
+      if (!/^[0-9a-f-]{36}$/i.test(String(key || &apos;&apos;))) return false;
+      const u = new URL(String(raw || &apos;&apos;));
+      if (u.origin !== &apos;https://firebasestorage.googleapis.com&apos; || u.hash || u.username || u.password) return false;
+      const prefix = &apos;/v0/b/boom-property-dashboards.firebasestorage.app/o/&apos;;
+      if (!u.pathname.startsWith(prefix) || u.searchParams.get(&apos;alt&apos;) !== &apos;media&apos;) return false;
+      const path = decodeURIComponent(u.pathname.slice(prefix.length));
+      return new RegExp(&apos;^smartlinks/&apos; + key + &apos;/[0-9a-f-]{36}\\.(?:jpg|jpeg|png|webp)$&apos;, &apos;i&apos;).test(path);
+    } catch { return false; }
+  }
+  function validPublicImageUrl(raw) {
+    try {
+      const path = decodeURIComponent(new URL(String(raw)).pathname);
+      const m = path.match(/\/o\/smartlinks\/([0-9a-f-]{36})\/[0-9a-f-]{36}\.(?:jpg|jpeg|png|webp)$/i);
+      return !!m &amp;&amp; validImageUrl(raw, m[1]);
+    } catch { return false; }
+  }
+  function cleanImages(images, key) {
+    if (images == null) return [];
+    if (!Array.isArray(images) || images.length &gt; MAX_PHOTOS) return null;
+    const unique = [...new Set(images.map(String))];
+    if (unique.length !== images.length || unique.some(url =&gt; !validImageUrl(url, key))) return null;
+    return unique;
+  }
+  // Foto già appartenenti allo stesso annuncio BOOM, anche da un&apos;altra bozza.
+  // La verifica si ripete sul server: il browser non può autorizzare un riuso.
+  function reusableImages(record, sourceUrl, images, draftKey) {
+    if (record?.active !== true || !sameListingUrl(record.sourceUrl, sourceUrl)) return null;
+    if (!Array.isArray(images) || !images.length || images.length &gt; MAX_PHOTOS || new Set(images).size !== images.length) return null;
+    const archived = new Set((Array.isArray(record.images) ? record.images : []).filter(validPublicImageUrl));
+    if (!archived.size || images.some(url =&gt; !archived.has(url) &amp;&amp; !validImageUrl(url, draftKey))) return null;
+    return images.slice();
+  }
+  function cleanMap(input) {
+    if (!input || typeof input !== &apos;object&apos;) return null;
+    if (input.lat == null || input.lng == null || input.lat === &apos;&apos; || input.lng === &apos;&apos;) return null;
+    const lat = Number(input.lat), lng = Number(input.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat &lt; 41.70 || lat &gt; 42.05 || lng &lt; 12.25 || lng &gt; 12.75) return null;
+    return { lat: Math.round(lat * 10000) / 10000, lng: Math.round(lng * 10000) / 10000, label: cleanText(input.label, 70) || &apos;Roma&apos;, precision: &apos;area&apos; };
+  }
+  function areaCandidates(query, zones) {
+    const normalize = v =&gt; cleanText(v, 180).toLowerCase().normalize(&apos;NFD&apos;).replace(/[\u0300-\u036f]/g, &apos;&apos;).replace(/[^a-z0-9]+/g, &apos; &apos;).trim();
+    const q = normalize(query);
+    if (q.length &lt; 3) return [];
+    return Object.entries(zones || {}).filter(([name]) =&gt; {
+      const n = normalize(name);
+      return (&apos; &apos; + q + &apos; &apos;).includes(&apos; &apos; + n + &apos; &apos;) || n.startsWith(q);
+    }).sort(([a], [b]) =&gt; b.length - a.length).slice(0, 6).map(([name, coords]) =&gt; cleanMap({
+      ...coords, label: name.split(&apos;-&apos;).map(w =&gt; w[0].toUpperCase() + w.slice(1)).join(&apos; &apos;) + &apos;, Roma&apos;
+    })).filter(Boolean);
+  }
+  function areaCircle(area, meters = 650) {
+    const coords = [];
+    for (let i = 0; i &lt;= 64; i++) {
+      const t = i / 64 * Math.PI * 2;
+      coords.push([area.lng + meters * Math.cos(t) / (111320 * Math.cos(area.lat * Math.PI / 180)), area.lat + meters * Math.sin(t) / 111320]);
+    }
+    return { type:&apos;Feature&apos;, geometry:{ type:&apos;Polygon&apos;, coordinates:[coords] }, properties:{} };
+  }
+  function distanceKm(a, b) {
+    if (!a || !b) return null;
+    const lat1 = Number(a.lat), lng1 = Number(a.lng), lat2 = Number(b.lat), lng2 = Number(b.lng);
+    if (![lat1, lng1, lat2, lng2].every(Number.isFinite)) return null;
+    const rad = Math.PI / 180, dy = (lat2 - lat1) * rad, dx = (lng2 - lng1) * rad;
+    const h = Math.sin(dy / 2) ** 2 + Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin(dx / 2) ** 2;
+    return 12742 * Math.asin(Math.min(1, Math.sqrt(h)));
+  }
+  function makeRecord(input, now) {
+    const source = normalizeUrl(input.sourceUrl);
+    if (!source) return null;
+    const images = cleanImages(input.images, input.draftKey ?? input.idempotencyKey);
+    if (!images) return null;
+    const map = cleanMap(input.map);
+    if (input.map != null &amp;&amp; !map) return null;
+    return {
+      sourceUrl: source.url,
+      source: source.source,
+      title: cleanText(input.title, 130) || &apos;Una casa a Roma&apos;,
+      price: positiveNumber(input.price, 1000000),
+      zone: cleanText(input.zone, 90),
+      sqm: positiveNumber(input.sqm, 100000),
+      rooms: positiveNumber(input.rooms, 100),
+      note: cleanText(input.note, 400),
+      images,
+      map,
+      observedAt: now,
+      availability: &apos;Da verificare&apos;,
+      active: true,
+    };
+  }
+  function publicRecord(d) {
+    const { title, price, zone, sqm, rooms, note, images, map, observedAt, availability } = d;
+    return { title: publicText(title,130) || &apos;Una casa a Roma&apos;, price, zone:publicText(zone,90), sqm, rooms, note:publicText(note,400), images: Array.isArray(images) ? images.filter(validPublicImageUrl).slice(0,MAX_PHOTOS) : [], map: map ? { ...map, label:publicText(map.label,70) || &apos;Roma&apos; } : null, observedAt, availability };
+  }
+  // Un retry conferma la stessa pubblicazione, mai dati diversi sotto lo stesso link.
+  // Le date server cambiano a ogni tentativo e non fanno parte della proposta.
+  function samePublication(a, b) {
+    const content = d =&gt; ({
+      title:cleanText(d?.title,130) || &apos;Una casa a Roma&apos;,price:positiveNumber(d?.price,1000000),
+      zone:cleanText(d?.zone,90),sqm:positiveNumber(d?.sqm,100000),rooms:positiveNumber(d?.rooms,100),
+      note:cleanText(d?.note,400),images:Array.isArray(d?.images)?d.images:[],map:cleanMap(d?.map),
+      reusedFrom:d?.reusedFrom || null,observedAt:d?.reusedFrom ? d.observedAt || null : null,
+      historicalData:d?.historicalData===true,
+      availability:cleanText(d?.availability,60) || &apos;Da verificare&apos;,active:d?.active===true});
+    return sameListingUrl(a?.sourceUrl,b?.sourceUrl) &amp;&amp; JSON.stringify(content(a))===JSON.stringify(content(b));
+  }
+  const API = { MAX_PHOTOS, SOURCES, sourceFor, normalizeUrl, sameListingUrl, storedListingUrls, cleanText, publicText, positiveNumber, photoUrl, photoCandidates, validImageUrl, validPublicImageUrl, cleanImages, reusableImages, cleanMap, areaCandidates, areaCircle, distanceKm, makeRecord, publicRecord, samePublication };
+  if (typeof module !== &apos;undefined&apos; &amp;&amp; module.exports) module.exports = API;
+  if (root) root.BOOM_SMARTLINK = API;
+})(typeof window !== &apos;undefined&apos; ? window : this);
+
+// js/smartlink-share-engine.js sha256:8607f32fd8487b879b36f984e99e1ad6c634579fd99f4f027fd69723cf70fd12
+/* Safari Share: legge solo il documento che l&apos;operatore ha già aperto. */
+(function (root) {
+  &apos;use strict&apos;;
+  const RULES = typeof module !== &apos;undefined&apos; &amp;&amp; module.exports ? require(&apos;./smartlink-engine.js&apos;) : root.BOOM_SMARTLINK;
+  const KIND = &apos;boom.smartlink.share&apos;, VERSION = 1, MAX_BYTES = 131072, MAX_URL = 2048;
+  const ERRORS=[&apos;invalid_payload&apos;,&apos;payload_too_large&apos;,&apos;unsupported_listing_url&apos;,&apos;source_mismatch&apos;,&apos;invalid_capture_date&apos;,&apos;invalid_data&apos;,&apos;invalid_photo_url&apos;,&apos;too_many_photos&apos;,&apos;invalid_gallery&apos;,&apos;photos_not_found&apos;,&apos;capture_unavailable&apos;];
+  const fail = error =&gt; ({ok:false,error});
+  const object = value =&gt; !!value &amp;&amp; typeof value === &apos;object&apos; &amp;&amp; !Array.isArray(value);
+  const keys = (value, allowed) =&gt; object(value) &amp;&amp; Object.keys(value).every(key =&gt; allowed.includes(key));
+  const byteLength = value =&gt; new TextEncoder().encode(value).length;
+  function listing(raw) {
+    if(typeof raw !== &apos;string&apos; || raw.length &gt; MAX_URL || /[\s\\]/.test(raw)) return null;
+    const authority=raw.match(/^https:\/\/([^/?#]+)/)?.[1];
+    if(!authority || /[:@]/.test(authority)) return null;
+    try {
+      const u=new URL(raw), host=u.hostname.replace(/^www\./,&apos;&apos;);
+      const route={&apos;immobiliare.it&apos;:/^\/annunci\/(\d+)\/?$/,&apos;idealista.it&apos;:/^\/immobile\/(\d+)\/?$/}[host];
+      const id=route &amp;&amp; u.pathname.match(route)?.[1];
+      if(!id || ![host,&apos;www.&apos;+host].includes(u.hostname)) return null;
+      return {...RULES.normalizeUrl(raw),host,id};
+    } catch {return null;}
+  }
+  const same = (a,b) =&gt; !!a &amp;&amp; !!b &amp;&amp; a.host===b.host &amp;&amp; a.id===b.id;
+  function number(value, max) {
+    if(value==null || value===&apos;&apos;) return null;
+    const parsed=typeof value===&apos;number&apos; ? value : typeof value===&apos;string&apos; &amp;&amp; /^\d+(?:\.\d+)?$/.test(value.trim()) ? Number(value) : NaN;
+    return Number.isFinite(parsed) &amp;&amp; parsed&gt;0 &amp;&amp; parsed&lt;=max ? parsed : null;
+  }
+  function text(value, max) {
+    return typeof value===&apos;string&apos; ? RULES.cleanText(value,max) : &apos;&apos;;
+  }
+  function validate(raw, now=Date.now()) {
+    try {
+      const serialized=typeof raw===&apos;string&apos; ? raw : JSON.stringify(raw);
+      if(typeof serialized!==&apos;string&apos;) return fail(&apos;invalid_payload&apos;);
+      if(byteLength(serialized)&gt;MAX_BYTES) return fail(&apos;payload_too_large&apos;);
+      const payload=JSON.parse(serialized);
+      if(keys(payload,[&apos;kind&apos;,&apos;version&apos;,&apos;error&apos;]) &amp;&amp; Object.keys(payload).length===3 &amp;&amp; payload.kind===KIND &amp;&amp; payload.version===VERSION &amp;&amp; ERRORS.includes(payload.error)) return fail(payload.error);
+      if(!keys(payload,[&apos;kind&apos;,&apos;version&apos;,&apos;sourceUrl&apos;,&apos;pageUrl&apos;,&apos;canonicalUrl&apos;,&apos;capturedAt&apos;,&apos;data&apos;,&apos;images&apos;,&apos;gallery&apos;]) || payload.kind!==KIND || payload.version!==VERSION) return fail(&apos;invalid_payload&apos;);
+      const source=listing(payload.sourceUrl), page=listing(payload.pageUrl);
+      if(!source || !page) return fail(&apos;unsupported_listing_url&apos;);
+      if(!same(source,page) || (payload.canonicalUrl!==undefined &amp;&amp; !same(source,listing(payload.canonicalUrl)))) return fail(&apos;source_mismatch&apos;);
+      const at=payload.capturedAt;
+      if(typeof at!==&apos;string&apos; || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/.test(at) || !Number.isFinite(Date.parse(at)) || new Date(at).toISOString()!==(at.length===20?at.slice(0,-1)+&apos;.000Z&apos;:at) || Date.parse(at)&gt;now+300000) return fail(&apos;invalid_capture_date&apos;);
+      if(!keys(payload.data,[&apos;title&apos;,&apos;price&apos;,&apos;zone&apos;,&apos;sqm&apos;,&apos;rooms&apos;])) return fail(&apos;invalid_data&apos;);
+      const input=payload.data;
+      if([&apos;title&apos;,&apos;zone&apos;].some(key=&gt;input[key]!=null &amp;&amp; typeof input[key]!==&apos;string&apos;) || [&apos;price&apos;,&apos;sqm&apos;,&apos;rooms&apos;].some(key=&gt;input[key]!=null &amp;&amp; input[key]!==&apos;&apos; &amp;&amp; number(input[key],key===&apos;price&apos;?1000000:key===&apos;sqm&apos;?100000:100)===null)) return fail(&apos;invalid_data&apos;);
+      const data={title:text(input.title,130),price:number(input.price,1000000),zone:text(input.zone,90),sqm:number(input.sqm,100000),rooms:number(input.rooms,100)};
+      if(!Array.isArray(payload.images)) return fail(&apos;invalid_photo_url&apos;);
+      if(payload.images.length&gt;RULES.MAX_PHOTOS) return fail(&apos;too_many_photos&apos;);
+      if(!payload.images.length) return fail(&apos;photos_not_found&apos;);
+      const images=payload.images.map(url=&gt;typeof url===&apos;string&apos; &amp;&amp; url.length&lt;=MAX_URL ? RULES.photoUrl(url,source.source) : null);
+      if(images.some(url=&gt;!url) || new Set(images).size!==images.length) return fail(&apos;invalid_photo_url&apos;);
+      const gallery=payload.gallery;
+      if(!keys(gallery,[&apos;expected&apos;,&apos;found&apos;]) || gallery.found!==images.length || (gallery.expected!==null &amp;&amp; (!Number.isSafeInteger(gallery.expected) || gallery.expected&lt;images.length))) return fail(&apos;invalid_gallery&apos;);
+      return {ok:true,source:{url:source.url,source:source.source},data,images,gallery:{expected:gallery.expected,found:images.length},capturedAt:at};
+    } catch {return fail(&apos;invalid_payload&apos;);}
+  }
+  // Nessuna lettura globale delle immagini: i suggerimenti di altre case restano fuori.
+  const GALLERIES={
+    &apos;immobiliare.it&apos;:[&apos;.in-gallery&apos;,&apos;[data-testid=&quot;listing-gallery&quot;]&apos;,&apos;[data-testid=&quot;gallery&quot;]&apos;],
+    &apos;idealista.it&apos;:[&apos;#main-multimedia&apos;,&apos;.detail-multimedia&apos;,&apos;.multimedia-container&apos;,&apos;[data-testid=&quot;listing-gallery&quot;]&apos;],
+  };
+  const COUNTERS={
+    &apos;immobiliare.it&apos;:[&apos;.in-gallery__counter&apos;,&apos;.in-carousel__counter&apos;,&apos;[data-testid=&quot;gallery-counter&quot;]&apos;],
+    &apos;idealista.it&apos;:[&apos;.multimedia-shortcuts&apos;,&apos;[data-testid=&quot;gallery-counter&quot;]&apos;],
+  };
+  function capture(document, pageUrl) {
+    try {
+      const source=listing(pageUrl);
+      if(!source) return fail(&apos;unsupported_listing_url&apos;);
+      const canonicalNodes=Array.from(document.querySelectorAll(&apos;link[rel=&quot;canonical&quot;]&apos;));
+      if(canonicalNodes.length&gt;1) return fail(&apos;source_mismatch&apos;);
+      const canonicalUrl=canonicalNodes[0]?.getAttribute(&apos;href&apos;);
+      if(canonicalUrl &amp;&amp; !same(source,listing(canonicalUrl))) return fail(&apos;source_mismatch&apos;);
+      const schemas=[], scriptNodes=Array.from(document.querySelectorAll(&apos;script[type=&quot;application/ld+json&quot;]&apos;));
+      let size=0, foreign=false;
+      const collect=(value, inherited=null, depth=0)=&gt;{
+        if(depth&gt;8 || !value || typeof value!==&apos;object&apos;) return;
+        if(Array.isArray(value)) {value.slice(0,100).forEach(item=&gt;collect(item,inherited,depth+1));return;}
+        const type=Array.isArray(value[&apos;@type&apos;]) ? value[&apos;@type&apos;] : [value[&apos;@type&apos;]];
+        const property=type.some(t=&gt;[&apos;Apartment&apos;,&apos;House&apos;,&apos;Residence&apos;,&apos;SingleFamilyResidence&apos;,&apos;RealEstateListing&apos;].includes(t));
+        const identities=[value.url,value.mainEntityOfPage?.[&apos;@id&apos;],typeof value.mainEntityOfPage===&apos;string&apos;?value.mainEntityOfPage:null,value[&apos;@id&apos;]].filter(v=&gt;v!=null);
+        const resolved=identities.map(identity=&gt;{
+          try {return typeof identity===&apos;string&apos;?listing(new URL(identity,source.url).toString()):null;} catch {return null;}
+        });
+        const own=resolved[0] || null;
+        // Un&apos;identità esplicita diversa non eredita mai quella della pagina padre.
+        const inconsistent=resolved.some(identity=&gt;!same(source,identity));
+        const linked=identities.length ? (inconsistent?null:own) : inherited;
+        if(property &amp;&amp; linked) {
+          if(same(source,linked)) schemas.push(value);
+          else foreign=true;
+        }
+        if(property &amp;&amp; inconsistent) foreign=true;
+        if(value[&apos;@graph&apos;]) collect(value[&apos;@graph&apos;],null,depth+1);
+        // Solo l&apos;entità principale, mai ItemList/recommendation/offers.itemListElement.
+        if(value.mainEntity) collect(value.mainEntity,inconsistent?null:own,depth+1);
+        if(property &amp;&amp; value.itemOffered) collect(value.itemOffered,linked,depth+1);
+      };
+      for(const node of scriptNodes) {
+        const json=node.textContent || &apos;&apos;;size+=byteLength(json);
+        if(size&gt;MAX_BYTES) return fail(&apos;payload_too_large&apos;);
+        try {collect(JSON.parse(json));} catch { /* Il DOM visibile può essere sufficiente. */ }
+      }
+      if(!schemas.length &amp;&amp; foreign) return fail(&apos;source_mismatch&apos;);
+      const images=[], seen=new Set();
+      const add=raw=&gt;{
+        const url=typeof raw===&apos;string&apos; &amp;&amp; raw.length&lt;=MAX_URL ? RULES.photoUrl(raw,source.source) : null;
+        if(!url) return false;
+        const parsed=new URL(url), identity=source.host===&apos;immobiliare.it&apos; ? parsed.pathname.match(/\/image\/(\d+)\//)?.[1] || parsed.origin+parsed.pathname : parsed.origin+parsed.pathname;
+        if(!seen.has(identity)) {seen.add(identity);images.push(url);}
+        return true;
+      };
+      for(const item of schemas) for(const photo of Array.isArray(item.image)?item.image:item.image?[item.image]:[]) add(typeof photo===&apos;string&apos;?photo:photo?.contentUrl || photo?.url);
+      const galleries=[...new Set(GALLERIES[source.host].flatMap(selector=&gt;Array.from(document.querySelectorAll(selector))))];
+      let expected=null;
+      const count=raw=&gt;{
+        const value=String(raw || &apos;&apos;).trim();
+        const match=value.match(/^\d+\s*\/\s*(\d+)$/) || value.match(/^(\d+)\s*(?:foto|fotos|photos|immagini)$/i) || value.match(/^(\d+)$/);
+        const n=match &amp;&amp; Number(match[1]);
+        if(Number.isSafeInteger(n) &amp;&amp; n&gt;0) expected=Math.max(expected || 0,n);
+      };
+      for(const gallery of galleries) {
+        count(gallery.getAttribute(&apos;data-total&apos;));count(gallery.getAttribute(&apos;data-count&apos;));
+        for(const img of gallery.querySelectorAll(&apos;img&apos;)) {
+          // La prima variante valida per la foto prevale; nessuna URL viene inventata.
+          for(const raw of [img.getAttribute(&apos;data-original&apos;),img.getAttribute(&apos;data-src&apos;),img.currentSrc,img.getAttribute(&apos;src&apos;)]) if(add(raw)) break;
+        }
+      }
+      for(const selector of COUNTERS[source.host]) for(const node of document.querySelectorAll(selector)) count(node.textContent?.trim());
+      if(images.length&gt;RULES.MAX_PHOTOS) return fail(&apos;too_many_photos&apos;);
+      const item=schemas[0] || {};
+      const getText=selectors=&gt;selectors.map(selector=&gt;document.querySelector(selector)?.textContent || &apos;&apos;).find(Boolean) || &apos;&apos;;
+      const visiblePrice=getText(source.host===&apos;immobiliare.it&apos;?[&apos;.in-detail__price&apos;,&apos;[data-testid=&quot;price&quot;]&apos;]:[&apos;.info-data-price&apos;,&apos;[data-testid=&quot;price&quot;]&apos;]);
+      const priceMatch=visiblePrice.trim().match(/^(?:€\s*)?((?:\d{1,3}(?:\.\d{3})+|\d+)(?:,\d{1,2})?)\s*€?(?:\s*\/\s*(?:mese|mes))?$/i);
+      const payload={kind:KIND,version:VERSION,sourceUrl:source.url,pageUrl:source.url,...(canonicalUrl?{canonicalUrl:listing(canonicalUrl).url}:{}),capturedAt:new Date().toISOString(),
+        data:{title:text(item.name || getText([&apos;h1&apos;]),130),price:number(item.offers?.price,1000000) || (priceMatch?number(priceMatch[1].replace(/\./g,&apos;&apos;).replace(&apos;,&apos;,&apos;.&apos;),1000000):null),zone:text(item.address?.addressLocality,90),sqm:number(item.floorSize?.value,100000),rooms:number(item.numberOfRooms,100)},
+        images,gallery:{expected,found:images.length}};
+      const result=validate(payload);
+      return result.ok ? {ok:true,payload} : result;
+    } catch {return fail(&apos;capture_unavailable&apos;);}
+  }
+  const API={KIND,VERSION,MAX_BYTES,MAX_URL,validate,capture};
+  if(typeof module!==&apos;undefined&apos; &amp;&amp; module.exports) module.exports=API;
+  if(root) root.BOOM_SMARTLINK_SHARE=API;
+})(typeof window!==&apos;undefined&apos;?window:this);
+
+    const api = window.BOOM_SMARTLINK_SHARE;
+    const result = api.capture(document, location.href);
+    if (result &amp;&amp; result.ok === true) {
+      const serialized = JSON.stringify(result.payload);
+      if (typeof serialized === &apos;string&apos;) {
+        output = new TextEncoder().encode(serialized).length &lt;= api.MAX_BYTES
+          ? serialized : &quot;{\&quot;kind\&quot;:\&quot;boom.smartlink.share\&quot;,\&quot;version\&quot;:1,\&quot;error\&quot;:\&quot;payload_too_large\&quot;}&quot;;
+      }
+    } else if (result &amp;&amp; [&quot;invalid_payload&quot;,&quot;payload_too_large&quot;,&quot;unsupported_listing_url&quot;,&quot;source_mismatch&quot;,&quot;invalid_capture_date&quot;,&quot;invalid_data&quot;,&quot;invalid_photo_url&quot;,&quot;too_many_photos&quot;,&quot;invalid_gallery&quot;,&quot;photos_not_found&quot;,&quot;capture_unavailable&quot;].includes(result.error)) {
+      output = JSON.stringify({kind:&apos;boom.smartlink.share&apos;,version:1,error:result.error});
+    }
+  } catch (_) {
+    // La diagnostica non include eccezioni, HTML o altri dati della pagina.
+  }
+  completion(output);
+})();
+</string>
+      </dict>
+    </dict>
+    <dict>
+      <key>WFWorkflowActionIdentifier</key>
+      <string>is.workflow.actions.setclipboard</string>
+      <key>WFWorkflowActionParameters</key>
+      <dict>
+        <key>WFLocalOnly</key>
+        <true/>
+      </dict>
+    </dict>
+    <dict>
+      <key>WFWorkflowActionIdentifier</key>
+      <string>is.workflow.actions.url</string>
+      <key>WFWorkflowActionParameters</key>
+      <dict>
+        <key>WFURLActionURL</key>
+        <string>https://www.boomrome.com/portal?smartlink-share=1#boom-tools</string>
+      </dict>
+    </dict>
+    <dict>
+      <key>WFWorkflowActionIdentifier</key>
+      <string>is.workflow.actions.openurl</string>
+      <key>WFWorkflowActionParameters</key>
+      <dict/>
+    </dict>
+  </array>
+</dict>
+</plist>
