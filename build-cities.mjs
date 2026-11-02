@@ -451,7 +451,7 @@ function jsonLd(c, shared, pageUrl, ogImage, cities = [c]) {
         areaServed: { '@type': 'City', name: c.city },
         audience: { '@type': 'Audience', audienceType: c.service.audience },
         hoursAvailable: { '@type': 'OpeningHoursSpecification', dayOfWeek: c.desk.days.map((d) => DAY_NAMES[d]), opens: c.desk.hours.from, closes: c.desk.hours.to },
-        availableChannel: { '@type': 'ServiceChannel', serviceUrl: pageUrl, availableLanguage: 'en' }, url: pageUrl,
+        availableChannel: { '@type': 'ServiceChannel', serviceUrl: pageUrl, availableLanguage: String(c.country).toUpperCase() === 'IT' ? ['en', 'it'] : 'en' }, url: pageUrl,
         // InStock where the desk takes searches, PreOrder where it opens
         // later — a list price whose Offer says in words when it is charged.
         // VAT is included on the page: the price specification states it.

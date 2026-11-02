@@ -385,7 +385,9 @@ function nationalOf(d, country) {
   // (7 + nine digits): an Italian '333 1234567' is not +44 333… (a wrong
   // wa.me, and the reply a new lead) — null, and the Rome rule reads it.
   if (country === 'gb') {
-    if (/^0(?:[18]\d{8,9}|[23579]\d{9})$/.test(d)) return d.slice(1);
+    // 10 digits only for 01 + a second digit 2–9 and for 0800: an Italian
+    // 010/011/080/081 landline or an Irish 08x mobile is not British
+    if (/^0(?:1[2-9]\d{7}|800\d{6}|[1235789]\d{9})$/.test(d)) return d.slice(1);
     return /^7\d{9}$/.test(d) ? d : null;
   }
   // IT: the trunk 0 STAYS — an Italian landline is +39 02 …, +39 06 … in
@@ -395,7 +397,10 @@ function nationalOf(d, country) {
   return NSN[country] && NSN[country].test(n) ? n : null;
 }
 export function cityPhone(raw, cityKey) {
-  let s = String(raw || '').trim().replace(/\(\s*0\s*\)/g, '').replace(/[\s().\-\/]/g, '');
+  // '(0)' after +39 is part of an Italian number ('+39 (0)2 …' = +39 02 …);
+  // after any other country code it is the trunk 0 dialled at home
+  const r0 = String(raw || '').trim();
+  let s = (/^(\+|00)\s*39/.test(r0) ? r0.replace(/\(\s*0\s*\)/g, '0') : r0.replace(/\(\s*0\s*\)/g, '')).replace(/[\s().\-\/]/g, '');
   if (!s) return null;
   if (s.startsWith('00')) s = '+' + s.slice(2);
   if (s.startsWith('+')) {

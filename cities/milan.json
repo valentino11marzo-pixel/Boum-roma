@@ -138,7 +138,7 @@
         "id": "registration",
         "title": "Registration",
         "at": "Agenzia delle Entrate",
-        "text": "The lease must be registered within 30 days of signing. Unregistered, it is void and no title for your residence. We ask for the receipt."
+        "text": "The lease must be registered within 30 days of signing, or of the start if earlier. Unregistered, it is void, and a void lease is a weak title for your residence. We ask for the receipt."
       },
       {
         "id": "residence",

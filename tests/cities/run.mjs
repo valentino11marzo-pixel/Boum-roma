@@ -882,9 +882,10 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
   check(tryL(() => {}) === '' && /more: £149 each/.test(tryL((c) => { c.pricing.plans[0].includes[2] = 'One attended viewing (more: €149 each)'; })), 'London renders as committed, and its Full Search line must say "(more: £149 each)"');
   const { cityPhone, cityFromText } = await import('../../api/_market.js');
   check(cityPhone('07700 900123', 'london') === '+447700900123' && cityPhone('020 7946 0018', 'london') === '+442079460018' && cityPhone('+44 (0)20 7946 0018', 'london') === '+442079460018'
-    && cityPhone('+44 07700 900123', 'london') === '+447700900123' && cityPhone('333 1234567', 'london') === null,
+    && cityPhone('+44 07700 900123', 'london') === '+447700900123' && cityPhone('333 1234567', 'london') === null
+    && ['010 1234567', '011 1234567', '080 1234567', '081 1234567', '087 1234567'].every((x) => cityPhone(x, 'london') === null) && cityPhone('01632 960123', 'london') === '+441632960123',
     'London phones: UK national shapes become +44 (trunk 0 dropped); an Italian mobile typed without +39 is not a UK number');
-  check(cityPhone('333 1234567', 'milan') === '+393331234567' && cityPhone('02 1234 5678', 'milan') === '+390212345678' && cityPhone('+39 02 1234 5678', 'milan') === '+390212345678',
+  check(cityPhone('333 1234567', 'milan') === '+393331234567' && cityPhone('02 1234 5678', 'milan') === '+390212345678' && cityPhone('+39 02 1234 5678', 'milan') === '+390212345678' && cityPhone('+39 (0)2 1234 5678', 'milan') === '+390212345678' && cityPhone('+44 (0)20 7946 0018', 'milan') === '+442079460018',
     'Milan phones: Italian mobiles and landlines, the trunk 0 KEPT on landlines (+39 02 …)');
   check(cityFromText("Hi BOOM London, I'm moving to London.") === 'london' && cityFromText('Hi BOOM Milan') === 'milan' && cityFromText('Ciao BOOM Milano, mi trasferisco') === 'milan'
     && cityFromText('BOOM Londra') === 'london' && cityFromText('BOOM Milanese') === null,
