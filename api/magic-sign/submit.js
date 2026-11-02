@@ -24,6 +24,8 @@
 import { fsGet, fsPatch, fsList, readJson, logActivity } from '../homie/_lib.js';
 import { findContractByToken, commitWrites, fsGetWithTime, tenantSideComplete, tenantSideWaiting, termsFingerprint, mandateCheck, landlordMandateCheck, setCors, rateOk } from './_shared.js';
 import { ensureContractPdf, hasAnySignature } from '../sign/_contractpdf.js';
+import { applyOccupancy } from '../contracts/_occupancy.js';
+import { ensureRentSchedule } from '../payments/_schedule.js';
 
 // ── TERMS FREEZE ──────────────────────────────────────────────────────────
 // L'impronta dei termini ECONOMICI del contratto. La prima firma la congela
@@ -672,135 +674,16 @@ export default async function handler(req, res) {
       }
     } catch (e) { console.warn('[magic-sign/submit] RLI deadline:', e.message); }
 
-    // (b) Lead closure
-    if (fullContract.linkedLeadId) {
-      const leadCol = fullContract.linkedLeadSource === 'pfs' ? 'pfsClients' : 'leads';
-      try {
-        await commitWrites([{
-          docPath: `${leadCol}/${fullContract.linkedLeadId}`,
-          fields: { stage: 'closed', linkedContractId: contractId },
-          serverTimestampFields: ['closedAt'],
-        }]);
-      } catch (e) { console.warn('[magic-sign/submit] lead close:', e.message); }
-    }
+    // (b)(c)(d) Lead chiuso, immobile affittato, annuncio con la data in cui
+    // la casa torna libera (availableFrom = endDate + 1): api/contracts/
+    // _occupancy.js, la stessa copia del contratto firmato fuori da Magic Sign.
+    await applyOccupancy(contractId, fullContract);
 
-    // (c) Property status
-    if (fullContract.propertyId) {
-      try {
-        await fsPatch('properties/' + fullContract.propertyId, {
-          status: 'rented',
-          currentContractId: contractId,
-        });
-      } catch (e) { console.warn('[magic-sign/submit] property status:', e.message); }
-    }
-
-    // (d) Listing sync
-    if (fullContract.propertyId) {
-      try {
-        const listings = await fsList('listings', {
-          filter: { field: 'propertyId', op: 'EQUAL', value: fullContract.propertyId },
-          limit: 1,
-        });
-        // LA DATA PIÙ AFFIDABILE DEL SISTEMA, che finora si buttava via.
-        // Qui si scriveva solo `status:'rented'`: il contratto sapeva
-        // ESATTAMENTE quando quella casa torna libera (endDate) e nessuno lo
-        // registrava. Ora la casa affittata porta con sé il giorno in cui si
-        // rilibera, così la vetrina può prenotarla in anticipo (la corsia
-        // waitlist esisteva già e restava vuota) e i portali la ricevono.
-        if (listings[0]) {
-          const patch = { status: 'rented' };
-          const end = String(fullContract.endDate || '');
-          if (/^\d{4}-\d{2}-\d{2}/.test(end)) {
-            const free = new Date(end.slice(0, 10) + 'T00:00:00Z');
-            free.setUTCDate(free.getUTCDate() + 1);      // libera il giorno DOPO la scadenza
-            const iso = free.toISOString().slice(0, 10);
-            patch.availableFrom = iso;
-            patch.availableDate = iso;
-            patch.availableKind = 'date';
-            patch.availableRaw = 'fine contratto ' + end.slice(0, 10);
-            patch.availabilityUpdatedAt = new Date().toISOString();
-            patch.availabilityUpdatedBy = 'contract:' + contractId;
-          }
-          await fsPatch('listings/' + listings[0].id, patch);
-        }
-      } catch (e) { console.warn('[magic-sign/submit] listing sync:', e.message); }
-    }
-
-    // (e) Payment schedule — only if the MONTHLY schedule doesn't exist yet.
-    // Deposit docs (dep_/depbal_, type 'deposit'/'deposit-balance') don't
-    // count: the PA convert step writes depbal_<contractId> BEFORE signing,
-    // and it must never suppress the rent installments.
-    if (fullContract.startDate && fullContract.endDate && fullContract.rent) {
-      try {
-        const existing = (await fsList('payments', {
-          filter: { field: 'contractId', op: 'EQUAL', value: contractId },
-          limit: 10,
-        })).filter(p => !String(p.type || '').startsWith('deposit'));
-        let scheduled = existing.length;
-        if (!existing.length) {
-          const writes = [];
-          const pStart = new Date(fullContract.startDate);
-          const pEnd = new Date(fullContract.endDate);
-          const payDay = parseInt(fullContract.paymentDay, 10) || 5;
-          // Cadence: 1 = monthly (default), 2/3/6/12 = bimonthly…annual.
-          // The unit is a LEASE month (start day → day before the next
-          // anniversary), not a calendar month, so a lease that begins on the
-          // 10th is billed in full from day one and never loses its first
-          // period. Each instalment is paid in advance and covers `step`
-          // lease months — the last one is clamped and prorated to whatever
-          // the lease actually has left.
-          const step = [1, 2, 3, 6, 12].includes(Number(fullContract.installmentMonths))
-            ? Number(fullContract.installmentMonths) : 1;
-          const addMonths = (d, n) => {
-            const x = new Date(d.getFullYear(), d.getMonth() + n, d.getDate());
-            // month-end clamp: 31 Jan + 1 month = 28/29 Feb, never 3 March
-            if (x.getDate() !== d.getDate()) x.setDate(0);
-            return x;
-          };
-          // how many whole lease months the contract really spans
-          let monthsTotal = 0;
-          while (monthsTotal < 600 && addMonths(pStart, monthsTotal) <= pEnd) monthsTotal++;
-          const perMonth = Math.round(
-            ((Number(fullContract.installmentAmount) || fullContract.rent * step) / step) * 100
-          ) / 100;
-
-          for (let i = 0; i < monthsTotal; i += step) {
-            const periodStart = addMonths(pStart, i);
-            const covered = Math.min(step, monthsTotal - i);
-            // due on the pay day of the period's month, never before the
-            // period itself begins
-            let due = new Date(periodStart.getFullYear(), periodStart.getMonth(), payDay);
-            if (due < periodStart) due = periodStart;
-            const month = `${periodStart.getFullYear()}-${String(periodStart.getMonth() + 1).padStart(2, '0')}`;
-            const lastCovered = addMonths(pStart, i + covered - 1);
-            const coversTo = `${lastCovered.getFullYear()}-${String(lastCovered.getMonth() + 1).padStart(2, '0')}`;
-            const dueDate = `${due.getFullYear()}-${String(due.getMonth() + 1).padStart(2, '0')}-${String(due.getDate()).padStart(2, '0')}`;
-            writes.push({
-              docPath: 'payments/pay_' + contractId + '_' + month,
-              fields: {
-                contractId,
-                tenantId: fullContract.tenantId || '',
-                propertyId: fullContract.propertyId || '',
-                amount: Math.round(perMonth * covered * 100) / 100,
-                month,
-                dueDate,
-                status: 'pending',
-                installmentMonths: covered,
-                coversTo,
-              },
-              serverTimestampFields: ['createdAt'],
-            });
-          }
-          if (writes.length) await commitWrites(writes);
-          scheduled = writes.length;
-        }
-        // Il calendario c'è (appena scritto o già presente): lo si DICE sul
-        // contratto. Senza questo timbro il portal vedeva `paymentsGenerated:
-        // false` (scritto dalla conversione) e offriva «🚀 Ri-attiva
-        // onboarding», che rimandava il benvenuto.
-        if (scheduled) await fsPatch(`contracts/${contractId}`, { paymentsGenerated: true, ...(existing.length ? {} : { paymentsCount: scheduled }) });
-      } catch (e) { console.warn('[magic-sign/submit] payment schedule:', e.message); }
-    }
+    // (e) Payment schedule — only if the MONTHLY schedule doesn't exist yet
+    // (api/payments/_schedule.js; deposit docs never suppress the rent
+    // installments) — and the paymentsGenerated stamp on the contract.
+    try { await ensureRentSchedule(contractId, fullContract); }
+    catch (e) { console.warn('[magic-sign/submit] payment schedule:', e.message); }
 
     // (f) Post-signature: fiscal+procedural obligations, FES signing certificate,
     // server-issued tenant magic link, welcome emails. Idempotent (contract.finalizedAt).

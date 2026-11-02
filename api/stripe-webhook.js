@@ -1,6 +1,6 @@
 import Stripe from 'stripe';
 import crypto from 'node:crypto';
-import { fsList, fsPatch, fsGet, getAdminToken, toFsValue } from './homie/_lib.js';
+import { fsList, fsPatch, fsGet, fsCommit, getAdminToken, toFsValue } from './homie/_lib.js';
 import { sendPaEmails, shell, para, fine, btn, btn2 } from './preagreement/_notify.js';
 import { sendEmail } from './agent/_lib.js';
 import { maybeAutoConvert } from './preagreement/_auto.js';
@@ -1002,6 +1002,16 @@ async function handleInvoice(res, session, m) {
   } catch (err) {
     console.error('[invoice] patch:', err.message);
     return res.status(500).json({ received: false, error: 'patch_failed' });
+  }
+
+  // La provvigione della console pre-agreement (fattura prov_<proposta>): la
+  // riga della proposta si aggiorna da sola. Solo su una proposta che esiste
+  // (precondizione): mai una proposta fantasma. Best-effort, dopo la fattura.
+  if (inv.preAgreementId) {
+    try {
+      await fsCommit([{ docPath: 'preAgreements/' + String(inv.preAgreementId), precondition: { exists: true },
+        fields: { feeInvoiceId: invoiceId, feeInvoiceStatus: 'paid', feePaidAt: now, feePaidVia: 'stripe', feeLinkUrl: null } }]);
+    } catch (err) { console.warn('[invoice] pa stamp:', err.message); }
   }
 
   try {
