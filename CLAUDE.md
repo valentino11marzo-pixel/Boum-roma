@@ -140,6 +140,10 @@ firebase.json             Firebase deploy config (firestore + storage rules)
 | `sw.js` | Service worker (network-first HTML, cache-first static). |
 
 ### SmartLink annunci esterni (BOOM Tools)
+Dal 2/11 il percorso Safari riconosce anche la galleria Idealista osservata `/immobile/{id}/foto/{numero}/`: conserva la pagina visitata, ma pubblica l'URL base; canonical e dati strutturati devono appartenere allo stesso ID.
+Il pacchetto Comandi Rapidi collega esplicitamente risultato JavaScript → appunti e URL costante → apertura tramite UUID/`WFInput`; i campi impliciti lasciavano il trasporto non verificato nel comando nativo.
+Le regressioni in `tests/smartlink/share.mjs` e `tools/smartlink-shortcut/test.mjs` ripristinano per mutazione route, identità e collegamenti mancanti/scambiati. I due motori restano incorporati e il comando va rifirmato a ogni build.
+Permessi Safari, installazione del file firmato e importazione effettiva delle fotografie sono prove distinte: un comando installato e test automatici verdi non certificano il collaudo completo sul dispositivo.
 Dal 31/10 è disponibile un percorso Safari in anteprima: il comando «Crea SmartLink BOOM» legge soltanto la pagina già aperta e copia un payload minimo negli appunti locali; il Portal lo importa dopo un tocco esplicito e con la sessione admin esistente.
 `smartlink-share-engine.js` è il motore comune incorporato nel comando: identità Immobiliare/Idealista, galleria circoscritta, 128 KiB e 60 foto. Nessun fetch della pagina, cookie, storage, API nascosta o codice remoto; il download delle foto usa l'ordinario `import-photo`, che può essere negato dalla fonte.
 Galleria dichiarata incompleta o download falliti fermano la pubblicazione; il totale ignoto richiede confronto dell'operatore. I dati ricevuti da Safari conservano `historicalData:true`, senza attribuire loro una verifica automatica odierna.

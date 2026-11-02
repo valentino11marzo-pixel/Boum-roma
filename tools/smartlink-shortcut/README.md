@@ -21,12 +21,18 @@ identificano le copie incorporate. Non scarica codice e non aggiunge dipendenze.
 Il controllo `--check` fallisce se uno dei due motori è cambiato dopo la build.
 Rigenerare il file e ricreare la copia firmata dopo ogni aggiornamento dei motori.
 
-Quattro azioni native, con passaggio dell'output all'azione successiva:
+Quattro azioni native, con collegamenti espliciti tra gli output:
 
-1. `is.workflow.actions.runjavascriptonwebpage` con parametro `WFJavaScript`.
-2. `is.workflow.actions.setclipboard` con `WFLocalOnly: true` (niente Handoff).
-3. `is.workflow.actions.url` con parametro `WFURLActionURL` costante, senza dati dell'annuncio.
-4. `is.workflow.actions.openurl`, che riceve soltanto la URL del punto precedente.
+1. `is.workflow.actions.runjavascriptonwebpage` con parametro `WFJavaScript` e UUID stabile.
+2. `is.workflow.actions.setclipboard` con `WFLocalOnly: true` (niente Handoff) e
+   `WFInput` che punta all'UUID del risultato JavaScript.
+3. `is.workflow.actions.url` con UUID stabile e parametro `WFURLActionURL` costante,
+   senza dati dell'annuncio.
+4. `is.workflow.actions.openurl` con `WFInput` che punta soltanto all'UUID dell'azione URL.
+
+I collegamenti usano `WFTextTokenAttachment` / `ActionOutput` / `OutputUUID`.
+L'ordine da solo non è usato come collegamento implicito. I test verificano la
+risoluzione dei riferimenti e rilevano la loro rimozione o lo scambio con il payload.
 
 Il JS legge la pagina ricevuta, senza richieste, cookie, storage o credenziali.
 I due UMD usano un oggetto locale, senza affidarsi a globals della pagina.
@@ -84,12 +90,37 @@ Una pagina di verifica, una galleria caricata solo in parte o una struttura non
 riconosciuta può impedire l'importazione o lasciarla incompleta. Il comando non apre
 immagini nascoste né altre pagine; il conteggio disponibile va controllato nel Portal.
 
+## Collaudo su Mac
+
+Su Mac l'azione nativa è presentata come **Esegui JavaScript sul pannello di Safari
+attivo**. Non è stata aggiunta un'azione che legge un altro browser: si mantiene
+la risoluzione della pagina prevista dall'azione Apple. Il primo `WFInput` non è
+forzato a `ExtensionInput`, per conservare questo comportamento; su iPhone il
+comando riceve la pagina dal menu Condividi.
+
+Il percorso documentato da Apple sul Mac è Safari → Servizi. Se il comando non
+compare, nei dettagli del comando abilitare Menu Servizi e limitare l'input a
+Pagine web di Safari. Verificare Consenti esecuzione script in Comandi Rapidi e
+Consenti JavaScript da Apple Events nelle impostazioni sviluppatore di Safari;
+accettare i permessi richiesti per quel comando e quella pagina. L'eventuale
+autorizzazione macOS Automazione a controllare Safari è un consenso separato.
+Non modificare altre autorizzazioni per tentativi.
+
+Per distinguere i passaggi, controllare prima che il risultato JavaScript arrivi
+agli appunti, poi che il Portal importi tutte le foto attese. Il payload contiene
+indirizzi delle foto, non i file: il successivo download può ancora fallire.
+Gli appunti locali richiedono che condivisione e importazione avvengano sullo stesso
+dispositivo. Una prova sul Mac non sostituisce il collaudo della condivisione iPhone.
+
 ## Fonti del contratto
 
 - Apple, azione JS e completamento: https://support.apple.com/en-ie/guide/shortcuts/apd218e2187d/ios
 - Apple, creazione ed esecuzione dalla condivisione: https://support.apple.com/guide/shortcuts/use-the-run-javascript-on-webpage-action-apdb71a01d93/ios
 - Apple, consensi per pagina e comando: https://support.apple.com/en-au/guide/shortcuts/apdfeb05586f/ios
 - Apple, condivisione e convalida dei file: https://support.apple.com/guide/shortcuts/share-shortcuts-apdf01f8c054/ios
+- Apple, azione JavaScript e menu Servizi su Mac: https://support.apple.com/en-hk/guide/shortcuts-mac/apdb71a01d93/mac
+- Apple, controllo di altre app su Mac: https://support.apple.com/en-ie/guide/mac-help/mchl07817563/27/mac/27
+- Formato dei riferimenti nel compilatore shortcutpy: https://github.com/AnswerDotAI/shortcutpy/blob/main/shortcutpy/compiler.py
 - Schema pubblico delle azioni nel progetto ScPL: https://docs.scpl.dev/actions/runjavascriptonwebpage,
   https://docs.scpl.dev/actions/copytoclipboard, https://docs.scpl.dev/actions/url,
   https://docs.scpl.dev/actions/openurls.

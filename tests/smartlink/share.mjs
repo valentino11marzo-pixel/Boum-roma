@@ -62,6 +62,37 @@ function checkIdentity(api) {
   assert.equal(api.validate(p,now).error,'source_mismatch');
   assert.equal(api.capture(dom(script({'@type':'WebPage',url:source,mainEntity:apartment({url:'/annunci/999999999/'})})),source).error,'source_mismatch');
 }
+function checkGalleryRoute(api) {
+  const base='https://www.idealista.it/immobile/37221750/';
+  const gallery=base+'foto/1/';
+  const image='https://img.idealista.it/WEB_DETAIL/fixture-37221750.jpg';
+  const schema=apartment({url:base,image:[image]});
+  const document=dom('<link rel="canonical" href="'+base+'">'+script(schema));
+  for(const page of [gallery,base+'foto/15',gallery+'?utm_source=fixture#image']) {
+    const result=api.capture(document,page);
+    assert.equal(result.ok,true,'The observed Idealista gallery route is the same listing');
+    assert.equal(result.payload.sourceUrl,base,'Publication uses the base listing, never /foto/');
+    assert.equal(result.payload.pageUrl,page.split(/[?#]/)[0],'Keep the actual gallery route, without tracking');
+    assert.equal(result.payload.canonicalUrl,base);
+    assert.equal(api.validate(result.payload).source.url,base);
+  }
+  const result=api.capture(document,gallery);
+  const ownGallery=api.validate({...result.payload,sourceUrl:gallery});
+  assert.equal(ownGallery.ok,true);assert.equal(ownGallery.source.url,base,'Normalize a supplied gallery source as well');
+  const alias=api.validate({...result.payload,pageUrl:'https://idealista.it/immobile/37221750/foto/2/'});
+  assert.equal(alias.ok,true,'Same-ID bare/www alias remains allowed');
+  for(const patch of [
+    {pageUrl:'https://www.idealista.it/immobile/37221751/foto/1/'},
+    {canonicalUrl:'https://www.idealista.it/immobile/37221751/'},
+    {sourceUrl:'https://www.idealista.it/immobile/37221751/'},
+  ]) assert.equal(api.validate({...result.payload,...patch}).error,'source_mismatch','Gallery route never authorizes another listing ID');
+  assert.equal(api.capture(dom('<link rel="canonical" href="'+base.replace('37221750','37221751')+'">'+script(schema)),gallery).error,'source_mismatch');
+  assert.equal(api.capture(dom(script(apartment({url:base.replace('37221750','37221751'),image:[image]}))),gallery).error,'source_mismatch','The main JSON-LD identity must also match on gallery pages');
+  for(const invalid of ['foto/0/','foto/-1/','foto/01/','foto/one/','foto/1/extra/','video/1/','foto/1.5/']) {
+    assert.equal(api.capture(document,base+invalid).error,'unsupported_listing_url',invalid);
+  }
+  assert.equal(api.capture(dom(html()),source+'foto/1/').error,'unsupported_listing_url','Do not extend another portal without an observed route');
+}
 function checkNoSecrets(api) {
   const captured=api.capture(dom(html('<input name="password" value="fixture-secret"><script>throw new Error("Never execute me")</script>')),source);
   assert.equal(captured.ok,true);
@@ -101,7 +132,7 @@ for(const invalid of ['http://www.immobiliare.it/annunci/123456789/','https://ww
   'https://www.idealista.com/inmueble/123456789/','https://www.immobiliare.it/annunci/123456789/?x='+('x'.repeat(2048))]) {
   const p=input();p.pageUrl=invalid;assert.equal(SHARE.validate(p,now).ok,false,invalid);
 }
-checkIdentity(SHARE);checkNoSecrets(SHARE);checkIncomplete(SHARE);checkSixty(RULES);
+checkIdentity(SHARE);checkGalleryRoute(SHARE);checkNoSecrets(SHARE);checkIncomplete(SHARE);checkSixty(RULES);
 for(const at of ['not-a-date','2026-02-30T11:00:00.000Z','2026-10-31T12:05:00.001Z','2099-01-01T00:00:00.000Z']) {
   const p=input();p.capturedAt=at;assert.equal(SHARE.validate(p,now).error,'invalid_capture_date');
 }
@@ -155,11 +186,13 @@ function load(code, rules=RULES) {
   return {api:context.window.BOOM_SMARTLINK_SHARE,network:()=>network};
 }
 const browser=load(implementation);
-checkNoSecrets(browser.api);checkIdentity(browser.api);checkIncomplete(browser.api);
+checkNoSecrets(browser.api);checkIdentity(browser.api);checkGalleryRoute(browser.api);checkIncomplete(browser.api);
 assert.equal(browser.network(),0);
 assert.deepEqual(normalize(browser.api.validate(input(),now)),validated,'Browser and CommonJS share the same rules');
 const mutations=[
   ['identity','a.id===b.id','true',checkIdentity],
+  ['gallery route','(?:\\/foto\\/([1-9]\\d*))?','',checkGalleryRoute],
+  ['gallery identity','a.id===b.id','true',checkGalleryRoute],
   ['secret access','const source=listing(pageUrl);','const source=listing(pageUrl); document.cookie;',checkNoSecrets],
   ['network access','const source=listing(pageUrl);','const source=listing(pageUrl); fetch(pageUrl);',checkNoSecrets],
   ['incomplete count','gallery:{expected:gallery.expected,found:images.length}','gallery:{expected:images.length,found:images.length}',checkIncomplete],
@@ -173,4 +206,4 @@ const rulesImplementation=await readFile(new URL('../../js/smartlink-engine.js',
 const context={window:{},URL,Math,Number,Set};
 vm.runInNewContext(rulesImplementation.replace('const MAX_PHOTOS = 60;','const MAX_PHOTOS = 12;'),context);
 assert.throws(()=>checkSixty(context.window.BOOM_SMARTLINK),{code:'ERR_ASSERTION'},'Restoring 12 loses real shared images');
-console.log('SmartLink Safari share: real HTML fixtures, identity, private-data/network guards, source photos, incomplete totals, 60-photo roundtrip and 5 mutations ✓');
+console.log('SmartLink Safari share: real HTML fixtures, listing/gallery identity, private-data/network guards, source photos, incomplete totals, 60-photo roundtrip and 7 mutations ✓');

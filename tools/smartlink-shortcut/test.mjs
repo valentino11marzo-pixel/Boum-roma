@@ -42,7 +42,7 @@ function stub(body) {
   return `window.BOOM_SMARTLINK_SHARE = {MAX_BYTES:131072,capture:function(document,url){${body}}};`;
 }
 
-// Action order is also the data flow: URL replaces the clipboard payload before Open URL.
+// The generated plist must bind each input explicitly to the intended action output.
 assert.equal(workflow.WFWorkflowName,'Crea SmartLink BOOM');
 assert.deepEqual(workflow.WFWorkflowInputContentItemClasses,['WFSafariWebPageContentItem']);
 assert.deepEqual(workflow.WFWorkflowTypes,['ActionExtension']);
@@ -50,21 +50,16 @@ assert.deepEqual(workflow.WFWorkflowActions.map(action=>action.WFWorkflowActionI
   'is.workflow.actions.runjavascriptonwebpage','is.workflow.actions.setclipboard',
   'is.workflow.actions.url','is.workflow.actions.openurl',
 ]);
-assert.deepEqual(workflow.WFWorkflowActions[1].WFWorkflowActionParameters,{WFLocalOnly:true});
-assert.deepEqual(workflow.WFWorkflowActions[2].WFWorkflowActionParameters,{WFURLActionURL:PORTAL_URL});
+const [javascriptAction,clipboardAction,urlAction,openAction]=workflow.WFWorkflowActions.map(action=>action.WFWorkflowActionParameters);
+const uuidPattern=/^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/;
+assert.match(javascriptAction.UUID,uuidPattern);assert.match(urlAction.UUID,uuidPattern);
+assert.notEqual(javascriptAction.UUID,urlAction.UUID);
+assert.equal('WFInput' in javascriptAction,false,'Mac active-tab resolution stays unchanged');
+assert.deepEqual(clipboardAction,{WFLocalOnly:true,WFInput:{Value:{Type:'ActionOutput',OutputUUID:javascriptAction.UUID,OutputName:'JavaScript Result'},WFSerializationType:'WFTextTokenAttachment'}});
+assert.equal(urlAction.WFURLActionURL,PORTAL_URL);
 assert.equal(PORTAL_URL,'https://www.boomrome.com/portal?smartlink-share=1#boom-tools');
-assert.deepEqual(workflow.WFWorkflowActions[3].WFWorkflowActionParameters,{});
+assert.deepEqual(openAction,{WFInput:{Value:{Type:'ActionOutput',OutputUUID:urlAction.UUID,OutputName:'URL'},WFSerializationType:'WFTextTokenAttachment'}});
 assert.equal(artifact,buildArtifact(),'artifact is deterministic');
-assert.equal(artifact,readFileSync(resolve(REPO_ROOT,OUTPUT_RELATIVE),'utf8'),'committed artifact must include current engines');
-const manifestPath=resolve(REPO_ROOT,MANIFEST_RELATIVE), signedPath=resolve(REPO_ROOT,SIGNED_RELATIVE);
-if(existsSync(signedPath)) {
-  assert.ok(existsSync(manifestPath),'a signed release needs its manifest');
-  assert.deepEqual(JSON.parse(readFileSync(manifestPath,'utf8')),buildReleaseManifest(),'release hashes must match unsigned artifact, signed file and both embedded engines');
-} else if(existsSync(manifestPath)) {
-  const manifest=JSON.parse(readFileSync(manifestPath,'utf8'));
-  assert.equal(manifest.unsigned.sha256,createHash('sha256').update(artifact).digest('hex'),'unsigned release must match manifest even without signed binary');
-  for(const source of manifest.sources) assert.equal(source.sha256,createHash('sha256').update(readFileSync(resolve(REPO_ROOT,source.path))).digest('hex'),'source release must match manifest');
-}
 
 const script=workflow.WFWorkflowActions[0].WFWorkflowActionParameters.WFJavaScript;
 assert.ok(script.includes(rulesSource) && script.includes(shareSource),'both engines are embedded verbatim');
@@ -76,6 +71,42 @@ assert.equal(captured.data.title,'Casa & luce <Roma>');
 assert.equal(captured.data.price,1500);
 assert.deepEqual(captured.images,photos,'gallery beyond 12 photos reaches the clipboard');
 assert.equal('ok' in captured,false,'only the payload is copied, not the capture result envelope');
+function resolveNativeInputs(actions, javascriptResult) {
+  const outputs=new Map();
+  let clipboard, opened;
+  const input=parameters=>{
+    const token=parameters.WFInput;
+    assert.equal(token?.WFSerializationType,'WFTextTokenAttachment','consumer input must have a native variable attachment');
+    assert.equal(token.Value?.Type,'ActionOutput');
+    assert.ok(outputs.has(token.Value.OutputUUID),'input must reference an existing earlier output UUID');
+    return outputs.get(token.Value.OutputUUID);
+  };
+  for(const action of actions) {
+    const parameters=action.WFWorkflowActionParameters;
+    switch(action.WFWorkflowActionIdentifier) {
+      case 'is.workflow.actions.runjavascriptonwebpage': outputs.set(parameters.UUID,javascriptResult);break;
+      case 'is.workflow.actions.setclipboard': clipboard=input(parameters);break;
+      case 'is.workflow.actions.url': outputs.set(parameters.UUID,parameters.WFURLActionURL);break;
+      case 'is.workflow.actions.openurl': opened=input(parameters);break;
+      default: assert.fail('Unexpected native action');
+    }
+  }
+  return {clipboard,opened};
+}
+const payloadText=JSON.stringify(captured);
+const expectLinked=actions=>assert.deepEqual(resolveNativeInputs(actions,payloadText),{clipboard:payloadText,opened:PORTAL_URL});
+expectLinked(workflow.WFWorkflowActions);
+// Removing a link must not silently fall back to the previous action, and the payload
+// must never be passed to Open URL. These checks model references, not native execution.
+const missingClipboardLink=structuredClone(workflow.WFWorkflowActions);
+delete missingClipboardLink[1].WFWorkflowActionParameters.WFInput;
+assert.throws(()=>expectLinked(missingClipboardLink),assert.AssertionError,'mutation: missing clipboard link must fail');
+const payloadAsUrl=structuredClone(workflow.WFWorkflowActions);
+payloadAsUrl[3].WFWorkflowActionParameters.WFInput.Value.OutputUUID=javascriptAction.UUID;
+assert.throws(()=>expectLinked(payloadAsUrl),assert.AssertionError,'mutation: payload sent to Open URL must fail');
+const missingUrlLink=structuredClone(workflow.WFWorkflowActions);
+delete missingUrlLink[3].WFWorkflowActionParameters.WFInput;
+assert.throws(()=>expectLinked(missingUrlLink),assert.AssertionError,'mutation: missing URL link must fail');
 assert.deepEqual(run(script,{url:'https://untrusted.example/annunci/123456789/'}),diagnostic('unsupported_listing_url'));
 assert.deepEqual(run(script,{document:{querySelectorAll(){throw new Error('Sensitive page detail');}}}),diagnostic('capture_unavailable'));
 assert.deepEqual(run(buildCaptureScript('',stub("throw new Error('Private exception');"))),diagnostic('capture_unavailable'));
@@ -95,4 +126,15 @@ if(process.platform==='darwin') {
   const parsed=JSON.parse(execFileSync('/usr/bin/plutil',['-convert','json','-o','-','-'],{input:artifact,encoding:'utf8',maxBuffer:1024*1024}));
   assert.deepEqual(parsed,workflow,'native plist roundtrip preserves exact JS and action inputs');
 }
-console.log('SmartLink Shortcut: PASS (4 actions, local clipboard, embedded capture, 20 photos, bounded diagnostics, 2 mutations; native installation not tested)');
+console.log('SmartLink Shortcut source: PASS (explicit inputs, 20 photos, bounded diagnostics, 5 mutations; native execution not tested)');
+assert.ok(artifact===readFileSync(resolve(REPO_ROOT,OUTPUT_RELATIVE),'utf8'),'committed artifact must include current engines and native input references');
+const manifestPath=resolve(REPO_ROOT,MANIFEST_RELATIVE), signedPath=resolve(REPO_ROOT,SIGNED_RELATIVE);
+if(existsSync(signedPath)) {
+  assert.ok(existsSync(manifestPath),'a signed release needs its manifest');
+  assert.deepEqual(JSON.parse(readFileSync(manifestPath,'utf8')),buildReleaseManifest(),'release hashes must match unsigned artifact, signed file and both embedded engines');
+} else if(existsSync(manifestPath)) {
+  const manifest=JSON.parse(readFileSync(manifestPath,'utf8'));
+  assert.equal(manifest.unsigned.sha256,createHash('sha256').update(artifact).digest('hex'),'unsigned release must match manifest even without signed binary');
+  for(const source of manifest.sources) assert.equal(source.sha256,createHash('sha256').update(readFileSync(resolve(REPO_ROOT,source.path))).digest('hex'),'source release must match manifest');
+}
+console.log('SmartLink Shortcut: PASS (4 actions, explicit output references, local clipboard, embedded capture, 20 photos, bounded diagnostics, 5 mutations; native execution not tested)');

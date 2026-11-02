@@ -50,9 +50,15 @@ ${shareSource}
 }
 
 export function buildWorkflow(rulesSource, shareSource) {
+  const javascriptId='2C72F043-4E2D-4635-851B-12AB70D6E6D1';
+  const portalUrlId='8C2B0387-07FC-4E49-B37E-92AD916D792E';
   const action = (name, parameters = {}) => ({
     WFWorkflowActionIdentifier:'is.workflow.actions.' + name,
     WFWorkflowActionParameters:parameters,
+  });
+  const output = (uuid, name) => ({
+    Value:{Type:'ActionOutput',OutputUUID:uuid,OutputName:name},
+    WFSerializationType:'WFTextTokenAttachment',
   });
   return {
     WFWorkflowName:'Crea SmartLink BOOM',
@@ -65,12 +71,12 @@ export function buildWorkflow(rulesSource, shareSource) {
     WFWorkflowInputContentItemClasses:['WFSafariWebPageContentItem'],
     WFWorkflowImportQuestions:[],
     WFWorkflowActions:[
-      // Il primo input è la pagina Safari condivisa; i successivi sono l'output precedente.
-      action('runjavascriptonwebpage',{WFJavaScript:buildCaptureScript(rulesSource,shareSource)}),
-      action('setclipboard',{WFLocalOnly:true}),
-      // La URL costante interrompe il flusso dati verso Apri URL: niente payload nella URL.
-      action('url',{WFURLActionURL:PORTAL_URL}),
-      action('openurl'),
+      // Mantiene la pagina condivisa su iOS / il pannello Safari attivo su Mac.
+      action('runjavascriptonwebpage',{UUID:javascriptId,WFJavaScript:buildCaptureScript(rulesSource,shareSource)}),
+      action('setclipboard',{WFInput:output(javascriptId,'JavaScript Result'),WFLocalOnly:true}),
+      // Ogni consumer ha un collegamento esplicito: mai affidarsi all'azione precedente.
+      action('url',{UUID:portalUrlId,WFURLActionURL:PORTAL_URL}),
+      action('openurl',{WFInput:output(portalUrlId,'URL')}),
     ],
   };
 }

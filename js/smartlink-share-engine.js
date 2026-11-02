@@ -14,10 +14,12 @@
     if(!authority || /[:@]/.test(authority)) return null;
     try {
       const u=new URL(raw), host=u.hostname.replace(/^www\./,'');
-      const route={'immobiliare.it':/^\/annunci\/(\d+)\/?$/,'idealista.it':/^\/immobile\/(\d+)\/?$/}[host];
-      const id=route && u.pathname.match(route)?.[1];
+      const route={'immobiliare.it':/^\/annunci\/(\d+)\/?$/,'idealista.it':/^\/immobile\/(\d+)(?:\/foto\/([1-9]\d*))?\/?$/}[host];
+      const match=route && u.pathname.match(route), id=match?.[1];
       if(!id || ![host,'www.'+host].includes(u.hostname)) return null;
-      return {...RULES.normalizeUrl(raw),host,id};
+      const page=RULES.normalizeUrl(raw);
+      // La galleria navigata resta la pagina osservata; la scheda usa l'annuncio base.
+      return {...page,url:match[2]?u.origin+'/immobile/'+id+'/':page.url,pageUrl:page.url,host,id};
     } catch {return null;}
   }
   const same = (a,b) => !!a && !!b && a.host===b.host && a.id===b.id;
@@ -134,7 +136,7 @@
       const getText=selectors=>selectors.map(selector=>document.querySelector(selector)?.textContent || '').find(Boolean) || '';
       const visiblePrice=getText(source.host==='immobiliare.it'?['.in-detail__price','[data-testid="price"]']:['.info-data-price','[data-testid="price"]']);
       const priceMatch=visiblePrice.trim().match(/^(?:€\s*)?((?:\d{1,3}(?:\.\d{3})+|\d+)(?:,\d{1,2})?)\s*€?(?:\s*\/\s*(?:mese|mes))?$/i);
-      const payload={kind:KIND,version:VERSION,sourceUrl:source.url,pageUrl:source.url,...(canonicalUrl?{canonicalUrl:listing(canonicalUrl).url}:{}),capturedAt:new Date().toISOString(),
+      const payload={kind:KIND,version:VERSION,sourceUrl:source.url,pageUrl:source.pageUrl,...(canonicalUrl?{canonicalUrl:listing(canonicalUrl).pageUrl}:{}),capturedAt:new Date().toISOString(),
         data:{title:text(item.name || getText(['h1']),130),price:number(item.offers?.price,1000000) || (priceMatch?number(priceMatch[1].replace(/\./g,'').replace(',','.'),1000000):null),zone:text(item.address?.addressLocality,90),sqm:number(item.floorSize?.value,100000),rooms:number(item.numberOfRooms,100)},
         images,gallery:{expected,found:images.length}};
       const result=validate(payload);

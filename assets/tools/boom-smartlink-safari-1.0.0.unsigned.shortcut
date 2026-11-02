@@ -34,6 +34,8 @@
       <string>is.workflow.actions.runjavascriptonwebpage</string>
       <key>WFWorkflowActionParameters</key>
       <dict>
+        <key>UUID</key>
+        <string>2C72F043-4E2D-4635-851B-12AB70D6E6D1</string>
         <key>WFJavaScript</key>
         <string>(function () {
   &apos;use strict&apos;;
@@ -258,7 +260,7 @@
   if (root) root.BOOM_SMARTLINK = API;
 })(typeof window !== &apos;undefined&apos; ? window : this);
 
-// js/smartlink-share-engine.js sha256:8607f32fd8487b879b36f984e99e1ad6c634579fd99f4f027fd69723cf70fd12
+// js/smartlink-share-engine.js sha256:3d42d6da8b8eadc92c8ca6729698991d920f9b4c3239d7fe2cb752d4627930cc
 /* Safari Share: legge solo il documento che l&apos;operatore ha già aperto. */
 (function (root) {
   &apos;use strict&apos;;
@@ -275,10 +277,12 @@
     if(!authority || /[:@]/.test(authority)) return null;
     try {
       const u=new URL(raw), host=u.hostname.replace(/^www\./,&apos;&apos;);
-      const route={&apos;immobiliare.it&apos;:/^\/annunci\/(\d+)\/?$/,&apos;idealista.it&apos;:/^\/immobile\/(\d+)\/?$/}[host];
-      const id=route &amp;&amp; u.pathname.match(route)?.[1];
+      const route={&apos;immobiliare.it&apos;:/^\/annunci\/(\d+)\/?$/,&apos;idealista.it&apos;:/^\/immobile\/(\d+)(?:\/foto\/([1-9]\d*))?\/?$/}[host];
+      const match=route &amp;&amp; u.pathname.match(route), id=match?.[1];
       if(!id || ![host,&apos;www.&apos;+host].includes(u.hostname)) return null;
-      return {...RULES.normalizeUrl(raw),host,id};
+      const page=RULES.normalizeUrl(raw);
+      // La galleria navigata resta la pagina osservata; la scheda usa l&apos;annuncio base.
+      return {...page,url:match[2]?u.origin+&apos;/immobile/&apos;+id+&apos;/&apos;:page.url,pageUrl:page.url,host,id};
     } catch {return null;}
   }
   const same = (a,b) =&gt; !!a &amp;&amp; !!b &amp;&amp; a.host===b.host &amp;&amp; a.id===b.id;
@@ -395,7 +399,7 @@
       const getText=selectors=&gt;selectors.map(selector=&gt;document.querySelector(selector)?.textContent || &apos;&apos;).find(Boolean) || &apos;&apos;;
       const visiblePrice=getText(source.host===&apos;immobiliare.it&apos;?[&apos;.in-detail__price&apos;,&apos;[data-testid=&quot;price&quot;]&apos;]:[&apos;.info-data-price&apos;,&apos;[data-testid=&quot;price&quot;]&apos;]);
       const priceMatch=visiblePrice.trim().match(/^(?:€\s*)?((?:\d{1,3}(?:\.\d{3})+|\d+)(?:,\d{1,2})?)\s*€?(?:\s*\/\s*(?:mese|mes))?$/i);
-      const payload={kind:KIND,version:VERSION,sourceUrl:source.url,pageUrl:source.url,...(canonicalUrl?{canonicalUrl:listing(canonicalUrl).url}:{}),capturedAt:new Date().toISOString(),
+      const payload={kind:KIND,version:VERSION,sourceUrl:source.url,pageUrl:source.pageUrl,...(canonicalUrl?{canonicalUrl:listing(canonicalUrl).pageUrl}:{}),capturedAt:new Date().toISOString(),
         data:{title:text(item.name || getText([&apos;h1&apos;]),130),price:number(item.offers?.price,1000000) || (priceMatch?number(priceMatch[1].replace(/\./g,&apos;&apos;).replace(&apos;,&apos;,&apos;.&apos;),1000000):null),zone:text(item.address?.addressLocality,90),sqm:number(item.floorSize?.value,100000),rooms:number(item.numberOfRooms,100)},
         images,gallery:{expected,found:images.length}};
       const result=validate(payload);
@@ -431,6 +435,20 @@
       <string>is.workflow.actions.setclipboard</string>
       <key>WFWorkflowActionParameters</key>
       <dict>
+        <key>WFInput</key>
+        <dict>
+          <key>Value</key>
+          <dict>
+            <key>Type</key>
+            <string>ActionOutput</string>
+            <key>OutputUUID</key>
+            <string>2C72F043-4E2D-4635-851B-12AB70D6E6D1</string>
+            <key>OutputName</key>
+            <string>JavaScript Result</string>
+          </dict>
+          <key>WFSerializationType</key>
+          <string>WFTextTokenAttachment</string>
+        </dict>
         <key>WFLocalOnly</key>
         <true/>
       </dict>
@@ -440,6 +458,8 @@
       <string>is.workflow.actions.url</string>
       <key>WFWorkflowActionParameters</key>
       <dict>
+        <key>UUID</key>
+        <string>8C2B0387-07FC-4E49-B37E-92AD916D792E</string>
         <key>WFURLActionURL</key>
         <string>https://www.boomrome.com/portal?smartlink-share=1#boom-tools</string>
       </dict>
@@ -448,7 +468,22 @@
       <key>WFWorkflowActionIdentifier</key>
       <string>is.workflow.actions.openurl</string>
       <key>WFWorkflowActionParameters</key>
-      <dict/>
+      <dict>
+        <key>WFInput</key>
+        <dict>
+          <key>Value</key>
+          <dict>
+            <key>Type</key>
+            <string>ActionOutput</string>
+            <key>OutputUUID</key>
+            <string>8C2B0387-07FC-4E49-B37E-92AD916D792E</string>
+            <key>OutputName</key>
+            <string>URL</string>
+          </dict>
+          <key>WFSerializationType</key>
+          <string>WFTextTokenAttachment</string>
+        </dict>
+      </dict>
     </dict>
   </array>
 </dict>
