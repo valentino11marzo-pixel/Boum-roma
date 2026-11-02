@@ -1,0 +1,347 @@
+{
+  "slug": "milan",
+  "city": "Milan",
+  "country": "IT",
+  "iata": "MIL",
+  "live": true,
+  "mode": "search",
+  "config": {},
+  "updated": "2026-11-02",
+  "meta": {
+    "title": "Tenant-side rental agent for expats in Milan — BOOM",
+    "description": "Apartment search for expats in Milan, tenant side only: viewings attended, the agency fee asked in writing, the Italian lease checked and explained in English.",
+    "ogTitle": "BOOM Milan — on your side before any money moves",
+    "ogDescription": "Tenant-side rental search for expats, professionals and students moving to Milan: applications as listings appear, attended viewings, the agency fee asked in writing, the Italian lease explained in English. Flat fees, paid by you — never by landlords."
+  },
+  "service": {
+    "name": "BOOM Milan — tenant-side rental search",
+    "serviceType": "Tenant-side rental search agent",
+    "audience": "Expats, professionals and international students relocating to Milan",
+    "description": "Rental search in Milan on the tenant's side only: rental file within one working day of the tenant's papers, applications sent as listings appear on Immobiliare.it, Idealista, Casa.it and agencies, attended viewings with live video and written report, the landlord's agency fee asked in writing before the viewing, negotiation, lease checked against Italian law and explained in English, registration checked. Flat fees paid by the tenant, nothing from landlords or platforms."
+  },
+  "hero": {
+    "h1Before": "Your home in",
+    "lead": "We search, attend the viewings, check the Italian lease and explain it in English.",
+    "leadStrong": "We work only for you; never paid by landlords.",
+    "faresHead": {
+      "b": "Flat fees",
+      "span": "No percentage of your rent"
+    }
+  },
+  "pricing": {
+    "plans": [
+      {
+        "id": "full-search",
+        "label": "Full Search",
+        "name": "We search. You choose.",
+        "price": 500,
+        "condition": "flat · incl. VAT",
+        "conditionLong": "VAT included. Invoice from Egidi Immobiliare S.r.l.",
+        "includes": [
+          "Every working day: Immobiliare.it, Idealista, Casa.it, agencies",
+          "Presentation letter in Italian and English; applications as listings appear",
+          "One attended viewing (more: €149 each)",
+          "Rent negotiated, lease checked and explained in English",
+          "Until you sign, or you say stop"
+        ],
+        "offerDescription": "Search on Immobiliare.it, Idealista, Casa.it and agencies, rental file and presentation letter in Italian and English, applications as listings appear, one attended viewing, negotiation, lease checked and explained in English, until the tenant signs or stops the search.",
+        "when": "Haven't started yet"
+      },
+      {
+        "id": "application-pack",
+        "label": "Application Pack",
+        "name": "You search. We make you ready.",
+        "price": 199,
+        "condition": "flat · incl. VAT",
+        "conditionLong": "VAT included. Invoice from Egidi Immobiliare S.r.l.",
+        "includes": [
+          "Your rental file, one working day from your papers",
+          "Presentation letter, Italian and English",
+          "Income and guarantor (garante) strategy",
+          "Lease, deposit and registration checked before you sign"
+        ],
+        "offerDescription": "Rental file within one working day of your papers, presentation letter in Italian and English, income and guarantor strategy, lease, deposit and registration checked and explained in English before signing.",
+        "when": "Found one, or shortlisted and already in Milan"
+      },
+      {
+        "id": "attended-viewing",
+        "label": "Attended Viewing",
+        "unit": "per viewing",
+        "name": "Seen before you pay.",
+        "price": 149,
+        "condition": "per viewing · incl. VAT",
+        "conditionLong": "VAT included. Invoice from Egidi Immobiliare S.r.l.",
+        "includes": [
+          "A BOOM person attends in your place",
+          "Live video walkthrough",
+          "Written report: light, noise, damp, heating, commute",
+          "A straight recommendation, before any deposit"
+        ],
+        "offerDescription": "A BOOM person attends the viewing in your place, with live video and a written report.",
+        "when": "Shortlisted, still abroad"
+      }
+    ]
+  },
+  "stub": {
+    "notSure": "Not sure which fare? On a free call we say which fits, or that none does."
+  },
+  "how": {
+    "h2": "From the first call",
+    "h2g": "to the keys.",
+    "steps": [
+      {
+        "k": "1 · Brief",
+        "h": "A free call",
+        "p": "Dates, budget, who's moving. We tell you what your budget buys, and what to walk away from."
+      },
+      {
+        "k": "2 · Your file",
+        "h": "One working day",
+        "p": "Codice fiscale first, then your file and a letter in Italian. Applications as listings appear."
+      },
+      {
+        "k": "3 · Viewing & lease",
+        "h": "A BOOM person in the room",
+        "p": "Live video and a written report. The lease checked and explained in English before you sign."
+      }
+    ]
+  },
+  "checks": {
+    "h2": "What we check",
+    "h2g": "before you sign.",
+    "items": [
+      {
+        "id": "fees",
+        "title": "Who pays the agency",
+        "at": "provvigione",
+        "text": "The landlord's agency often charges you too: commonly a month's rent, or a share of the yearly rent, plus VAT. We ask for the figure in writing before the viewing."
+      },
+      {
+        "id": "contract",
+        "title": "Which contract",
+        "at": "4+4 · 3+2 · transitorio",
+        "text": "A 4+4 at a rent set freely. A 3+2 within the bands of Milan's local agreement. A transitorio, up to 18 months, only with a documented reason. We check which one you are handed."
+      },
+      {
+        "id": "deposit",
+        "title": "The deposit",
+        "at": "art. 11 L. 392/1978",
+        "text": "At most three months' rent, by law, and the landlord owes you legal interest on it every year. We check the clause before you sign."
+      },
+      {
+        "id": "charges",
+        "title": "What the rent covers",
+        "at": "spese condominiali",
+        "text": "Condominium charges, heating, utilities: what is in the rent, and what is not. We ask for the answer in writing before you sign."
+      },
+      {
+        "id": "registration",
+        "title": "Registration",
+        "at": "Agenzia delle Entrate",
+        "text": "The lease must be registered within 30 days of signing. Unregistered, it is void and no title for your residence. We ask for the receipt."
+      },
+      {
+        "id": "residence",
+        "title": "Residence",
+        "at": "Anagrafe · codice fiscale",
+        "text": "Codice fiscale first. Then report your Milan address to the Anagrafe within 20 days of moving in, with the lease in hand. We check the lease is in your name, at that address."
+      }
+    ]
+  },
+  "papers": {
+    "summary": "The papers a Milan landlord asks for",
+    "at": "8 papers",
+    "items": [
+      "Passport or EU ID",
+      "Codice fiscale",
+      "Permesso di soggiorno, if non-EU",
+      "Employment contract",
+      "Last two payslips (buste paga)",
+      "Tax return, if self-employed",
+      "A guarantor (garante), if asked",
+      "University enrolment, for students"
+    ],
+    "tail": "The rest we go through on the free call."
+  },
+  "faq": {
+    "h2": "Questions.",
+    "items": [
+      {
+        "q": "Doesn't the landlord's agency charge me too in Italy?",
+        "a": "Often, yes: commonly a month's rent or a share of the yearly rent, plus VAT. Italian law sets no tariff, so get the figure in writing before the viewing; on our searches, we ask for it. BOOM Milan is a separate agent you hire: a flat fee, paid by you only, never by landlords."
+      },
+      {
+        "q": "What happens on the free call?",
+        "a": "A call with Valentino, by phone or WhatsApp, in English or Italian, at a time that suits you both. We hear your dates, budget and who is moving, say which service fits, or that none does, and which papers you are missing. Nothing is charged for the call. Full Search is refunded in full if we decline the search in the first call."
+      },
+      {
+        "q": "Which contract will a student get in Milan?",
+        "a": "There is a lease made for it: the student lease, 6 to 36 months, for students enrolled at a university away from home, rent within the bands of Milan's local agreement. You may be handed a transitorio or a 4+4 instead. We check which one it is, and that it gets registered."
+      },
+      {
+        "q": "How do I avoid a rental scam in Milan from abroad?",
+        "a": "The usual pattern: stolen photos, a price below the market, an owner 'abroad' who cannot show the flat, a deposit to 'block' the room, then silence. Never pay before someone on your side has seen the flat. With Attended Viewing (€149) a BOOM person visits it in your place, with live video and a written report; with Full Search or Application Pack we also check the lease before you sign."
+      },
+      {
+        "q": "What if you don't find anything?",
+        "a": "We tell you in the first call if your budget and timeline don't fit the market; if BOOM declines the search then, the €500 Full Search fee is refunded in full. Once we take it on, the search runs until you sign or stop it, and the fee pays for the work, not for a result."
+      }
+    ]
+  },
+  "bref": {
+    "h2": "BOOM Milan — fact sheet",
+    "rows": [
+      {
+        "dt": "Who",
+        "ddHtml": "BOOM Milan, the tenant-side rental desk of BOOM — operated by <b>Egidi Immobiliare S.r.l.</b>, a registered Italian agency based in Rome. Hired by the tenant, paid by the tenant only."
+      },
+      {
+        "dt": "For whom",
+        "ddHtml": "Professionals and expats relocating to Milan — finance, fashion, design, consulting — international students and their parents, couples; from abroad or already in the city."
+      },
+      {
+        "dt": "Language",
+        "ddHtml": "English or Italian. The landlord's Italian and the contract, explained in English."
+      },
+      {
+        "dt": "Fees",
+        "fees": true,
+        "ddHtml": "No percentage of the rent, nothing from landlords or platforms."
+      },
+      {
+        "dt": "What we do",
+        "ddHtml": "A rental file within <b>one working day</b> of your papers, applications <b>as listings appear</b>, attended viewings with live video and written report, the agency fee asked in writing, negotiation, the lease checked against Italian law and explained in English, registration checked."
+      },
+      {
+        "dt": "What we don't do",
+        "ddHtml": "We don't list homes, we don't represent landlords, we don't promise a date."
+      },
+      {
+        "dt": "Reply time",
+        "ddHtml": "The same working day."
+      },
+      {
+        "dt": "Contact",
+        "contact": true,
+        "ddHtml": ""
+      }
+    ]
+  },
+  "footer": {
+    "statement": "BOOM Milan acts solely as a tenant-side search agent, hired and paid by the tenant. We do not list properties, represent landlords, or receive remuneration from landlords or their agents."
+  },
+  "desk": {
+    "person": "Valentino Egidi",
+    "role": "tenant-side agent",
+    "timeZone": "Europe/Rome",
+    "zoneName": "Italian time",
+    "tzLabel": "CET/CEST",
+    "hours": {
+      "from": "09:00",
+      "to": "19:00"
+    },
+    "days": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ]
+  },
+  "door": {
+    "label": "Start with a free call"
+  },
+  "form": {
+    "name": {
+      "label": "Your name",
+      "placeholder": "Anna Keller"
+    },
+    "contact": {
+      "label": "Email or WhatsApp number",
+      "placeholder": "anna@company.com or +39 …"
+    },
+    "consentLead": "Used only to reply to you —",
+    "consentAlt": "Prefer WhatsApp or email?",
+    "errors": {
+      "name": "Your name, so we know who we're writing to.",
+      "contact": "An email or a number — otherwise we can't reply.",
+      "email": "That email looks incomplete — could you check it?",
+      "net": "The send failed on our side. Try again, or email us directly at hello@boom-rome.com."
+    },
+    "sending": "Opening your file…",
+    "sentNext": [
+      [
+        "{when}",
+        "Valentino writes to set your free call."
+      ],
+      [
+        "Nothing to prepare",
+        "On the call we say which papers matter."
+      ],
+      [
+        "Nothing by then?",
+        "Write to {email}."
+      ]
+    ],
+    "sentWhenDefault": "Same working day"
+  },
+  "checkout": true,
+  "checkoutCopy": {
+    "noteLabel": "A listing you already found, or anything we should know",
+    "notePlaceholder": "https://www.immobiliare.it/… · move-in 1 February",
+    "btnSubNow": "Starts in the desk’s first open hour · Stripe",
+    "btnSubWait": "Starts when your 14 days end · Stripe",
+    "altLead": "Prefer to talk first?",
+    "altLink": "Start with a free call, no card",
+    "startNow": "Start now: I ask BOOM to begin before my 14-day withdrawal period ends, and I understand that once the service is fully performed I can no longer withdraw.",
+    "withdrawal": "Withdrawal: 14 days from payment, by email to {email} or with the {form}. If you asked us to start and then withdraw, we refund the price minus the work already done. Without the tick, we start when the 14 days end.",
+    "fine": "Secure card payment by Stripe. Invoice from Egidi Immobiliare S.r.l., VAT included. Full Search is refunded in full if we decline the search in the first call.",
+    "errors": {
+      "name": "Your name, so we know who we're working for.",
+      "email": "A valid email — the invoice and your file go there.",
+      "net": "Checkout hiccuped on our side — try again, or start with a free call instead."
+    },
+    "paid": {
+      "before": "Paid — your file",
+      "em": "is open.",
+      "text": "The Milan desk writes by email, or on WhatsApp if you left a number. Questions? Write to",
+      "next": [
+        [
+          "First desk hour",
+          "an email from the desk with what we need"
+        ],
+        [
+          "Same working day",
+          "your brief: dates, budget, who's moving"
+        ],
+        [
+          "Then",
+          "the work as written on this page"
+        ]
+      ],
+      "nextWait": [
+        [
+          "First desk hour",
+          "an email with your order and start date"
+        ],
+        [
+          "When the 14 days end",
+          "your brief: dates, budget, who’s moving"
+        ],
+        [
+          "Then",
+          "the work as written on this page"
+        ]
+      ],
+      "wait": "You did not tick “Start now”: we start when your 14 days end. Sooner? Write to {email}.",
+      "pending": "Payment being confirmed. Your confirmation comes by email.",
+      "unconfirmed": "Not confirmed yet. If no email reaches you, write to the desk.",
+      "startsNow": "The desk’s first open hour",
+      "startsWait": "From {date}, after your 14-day withdrawal period"
+    }
+  },
+  "till": {
+    "label": "Pay and start",
+    "labelWait": "Pay and book"
+  }
+}

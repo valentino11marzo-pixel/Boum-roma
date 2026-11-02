@@ -18,7 +18,7 @@
   var sell = C.CHECKOUT === true;
   function track(name, params) { try { if (typeof gtag === 'function') gtag('event', name, params || {}); } catch (e) {} }
   function convert(label) { try { window.dispatchEvent(new CustomEvent('boom-conversion', { detail: { label: label, section: 'pass' } })); } catch (e) {} }
-  var eur = function (n) { return '€' + String(Math.round(Number(n))).replace(/\B(?=(\d{3})+(?!\d))/g, ','); };
+  var CUR = C.CURRENCY || 'EUR', eur = function (n) { return (C.SYMBOL || '€') + String(Math.round(Number(n))).replace(/\B(?=(\d{3})+(?!\d))/g, ','); };
   var txt = function (id, v) { var n = $(id); if (n) { var s = v == null ? '' : String(v); if (n.textContent !== s) n.textContent = s; } };
   /* PLANS is plain data: an inherited key (?paid=constructor) is not a plan */
   var planOf = function (id) { return id && Object.prototype.hasOwnProperty.call(PLANS, id) ? PLANS[id] : null; };
@@ -331,7 +331,7 @@
     if (typeof till.showModal === 'function') { try { till.showModal(); } catch (e) { till.setAttribute('open', ''); } } else till.setAttribute('open', '');
     document.documentElement.style.overflow = 'hidden';
     stripSync();
-    track('begin_checkout', { currency: 'EUR', value: p.eur, items: [{ item_id: 'city_' + C.SLUG + '_' + id, item_name: p.label }], market: C.SLUG });
+    track('begin_checkout', { currency: CUR, value: p.eur, items: [{ item_id: 'city_' + C.SLUG + '_' + id, item_name: p.label }], market: C.SLUG });
     try { $('tTitle').focus({ preventScroll: true }); } catch (e) {}
   }
   var payTok = 0;
@@ -376,7 +376,7 @@
       if (!p) return;
       paying = true; $('tGo').setAttribute('aria-disabled', 'true'); txt('tErr', '');
       var tok = payTok;
-      track('add_payment_info', { currency: 'EUR', value: p.eur, market: C.SLUG });
+      track('add_payment_info', { currency: CUR, value: p.eur, market: C.SLUG });
       postJson(C.CHECKOUT_ENDPOINT || '/api/service-checkout', {
         city: C.SLUG, kind: id, name: n.value.trim(), email: m.value.trim(),
         notes: ($('tNote').value || '').trim(),
@@ -444,7 +444,7 @@
                 /* the Stripe session id names a payer: GA gets an opaque hash (FNV-1a), never the id */
                 var h = 0x811c9dc5;
                 for (var i = 0; i < sid.length; i++) { h ^= sid.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
-                track('purchase', { transaction_id: 'city_' + C.SLUG + '_' + ('0000000' + h.toString(16)).slice(-8), currency: 'EUR', value: p.eur, items: [{ item_id: 'city_' + C.SLUG + '_' + vp, item_name: p.label, price: p.eur, quantity: 1 }], market: C.SLUG });
+                track('purchase', { transaction_id: 'city_' + C.SLUG + '_' + ('0000000' + h.toString(16)).slice(-8), currency: CUR, value: p.eur, items: [{ item_id: 'city_' + C.SLUG + '_' + vp, item_name: p.label, price: p.eur, quantity: 1 }], market: C.SLUG });
                 convert('City payment confirmed');
               }
               clean();
