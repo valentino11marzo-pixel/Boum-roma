@@ -54,6 +54,13 @@
     }
     return (Array.isArray(records) ? records : []).filter(function (card) {
       if (!card || !ID.test(String(card.id || ''))) return false;
+      // The public feed can contain other cities. Legacy Rome records omit city.
+      var city = text(card.raw && card.raw.city).toLowerCase();
+      if (criteria.city === 'Rome' && city && city !== 'roma' && city !== 'rome') return false;
+      if (criteria.moveIn && Dispo && Dispo.resolve) {
+        var availability = Dispo.resolve(card.raw || {});
+        if (availability.kind === 'date' && availability.iso > criteria.moveIn) return false;
+      }
       if (budget && (card.price == null || card.price > budget)) return false;
       if (type && text(card.type).toLowerCase() !== type) return false;
       if (wanted !== null && (card.bedrooms == null || (wanted === 0 ? card.bedrooms !== 0 : card.bedrooms < wanted))) return false;

@@ -14,7 +14,7 @@ const homes=[
 const original=JSON.stringify(homes);
 assert.equal(G.rank(homes,{budget:1600,priority:'rent'}).candidates[0].id,'affordable');
 assert.equal(G.rank(homes,{budget:1600,priority:'space'}).candidates[0].id,'spacious');
-assert.equal(G.rank(homes,{budget:2000,priority:'commute'}).candidates[0].id,'close');
+assert.equal(G.rank(homes,{budget:2000,priority:'commute'}).candidates[0].id,'spacious','a geometric walking estimate cannot outrank the timetable model as less travel');
 const result=G.rank(homes,{budget:1600,priority:'commute'});
 assert.equal(result.matches,3);assert.equal(result.unknownPrice,1);
 assert.equal(result.candidates.at(-1).id,'unknown');
@@ -58,13 +58,13 @@ assert.equal(new URL(G.share({includeHomes:true,homes:['unknown']},M.DESTINATION
 assert.equal(G.addressDirections({lat:41.9,lng:12.5},'Via Giuseppe Libetta 7, Rome'),'https://www.google.com/maps/dir/?api=1&origin=41.9,12.5&destination=Via%20Giuseppe%20Libetta%207%2C%20Rome&travelmode=transit');
 assert.equal(G.addressDirections({lat:null,lng:null},'Campus'),null);
 console.log('  ✓ Your Rome: verified campus addresses, unknown coordinates, no borrowed GTFS, explainable ranking and public opt-in shares');
-const flatA={id:'a',name:'A',type:'Apartment',rent:1200,area:50,journey:{...trip,min:20,precision:'zone'}};
-const flatB={id:'b',name:'B',type:'Apartment',rent:1450,area:70,journey:{...trip,min:15,precision:'zone'}};
+const flatA={id:'a',name:'A',type:'Apartment',rent:1200,area:50,journey:{...trip,min:20,fonte:'rete',precision:'zone'}};
+const flatB={id:'b',name:'B',type:'Apartment',rent:1450,area:70,journey:{...trip,min:15,fonte:'rete',precision:'zone'}};
 assert.deepEqual(G.tradeoff(flatB,[flatA,flatB]),{comparable:true,referenceId:'a',referenceName:'A',kind:'apartment',rentDelta:250,areaDelta:20,minutesDelta:-5});
 assert.equal(G.tradeoff({...flatB,type:'Room'},[flatA,flatB]).comparable,false,'rooms and apartments never claim equivalent space gains');
 assert.equal(G.tradeoff({...flatB,type:''},[flatA]).comparable,false,'unknown type is not guessed');
 assert.equal(G.tradeoff({...flatB,area:null},[flatA]).areaDelta,null);
-assert.equal(G.tradeoff({...flatB,journey:{...flatB.journey,fonte:'rete'}},[flatA]).minutesDelta,null,'different trip models are not comparable');
+assert.equal(G.tradeoff({...flatB,journey:{...flatB.journey,fonte:'piedi'}},[flatA]).minutesDelta,null,'different trip models are not comparable');
 assert.equal(G.tradeoff({...flatB,journey:{...flatB.journey,destination:{lat:42,lng:12}}},[flatA]).minutesDelta,null,'different destinations are not comparable');
 console.log('  ✓ Immediate trade-offs compare equivalent listed home types and matching travel models only');
 

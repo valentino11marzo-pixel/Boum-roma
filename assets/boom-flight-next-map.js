@@ -6,7 +6,7 @@
 (function (window, document) {
   'use strict';
   var frame = null, shell = null, fallback = null, owner = null, boundDocument = null;
-  var pendingScope = null, pendingBudget = null, pendingHome = '';
+  var pendingScope = null, pendingBudget = null, pendingHome = '', pendingDestination = null;
   var api = null, visible = false, hidden = false, timer = 0, resizeFrame = 0;
   var snapshot = { status: 'idle' }, observer = null, sizeObserver = null;
   var origin = window.location.origin;
@@ -47,6 +47,7 @@
     if (pendingBudget !== null) api.setBudget(pendingBudget);
     if (pendingScope !== null) send({ t: 'boomTieni', ids: pendingScope.slice() });
     if (pendingHome) send({ t: 'boomSelect', id: pendingHome });
+    if (pendingDestination !== null && api.selectPublicPlace) api.selectPublicPlace(pendingDestination);
   }
   function resize() {
     if (resizeFrame) return;
@@ -86,11 +87,15 @@
       child.addEventListener('boom:skyline-state', function (event) {
         if (boundDocument === childDocument) acceptState(event.detail);
       });
+      child.addEventListener('boom:skyline-journeys', function () {
+        if (boundDocument === childDocument) emit('journeys', {});
+      });
     }
     if (child.BoomSkyline && api !== child.BoomSkyline) {
       api = child.BoomSkyline;
       acceptState(api.state ? api.state() : child.BoomSkylineState);
       replay(); resize();
+      emit('journeys', {});
     }
   }
   function create() {
@@ -175,6 +180,15 @@
     if (api) api.setBudget(amount);
     return true;
   }
+  function refreshPlaces(){if(api&&api.refreshPlaces)api.refreshPlaces();}
+  function destination(slug) {
+    pendingDestination = typeof slug === 'string' && /^[a-z0-9-]{1,80}$/.test(slug) ? slug : '';
+    if (api && api.selectPublicPlace) api.selectPublicPlace(pendingDestination);
+  }
+  // Read the already loaded Skyline model. No extra catalogue, map or GTFS request.
+  function journeyFor(home, slug) {
+    try { return api && api.journeyFor ? api.journeyFor(id(home), slug) : null; } catch (_) { return null; }
+  }
   window.addEventListener('message', function (event) {
     if (!frame || event.origin !== origin || event.source !== frame.contentWindow || !event.data) return;
     if (event.data.t === 'boomSkylineReady') { attach(); if (api && api.state) acceptState(api.state()); }
@@ -188,5 +202,5 @@
     else resize(); watchWait();
   });
   window.addEventListener('resize', resize, { passive: true });
-  window.BoomNextMap = Object.freeze({ mount: mount, hide: hide, select: select, scope: scope, setBudget: setBudget, state: state });
+  window.BoomNextMap = Object.freeze({ mount: mount, hide: hide, select: select, scope: scope, setBudget: setBudget, state: state, destination: destination, journeyFor: journeyFor, refreshPlaces: refreshPlaces });
 })(window, document);

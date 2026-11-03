@@ -656,6 +656,11 @@ body::before, body::after { z-index: 1 !important; }
 })();
 </script>
 <!-- BOOM_SCROLL:END -->
+
+<script defer src="/js/stay-engine.js?v=20261103a"></script>
+<script defer src="/js/mappa-engine.js?v=20261103a"></script>
+<script defer src="/js/journey-engine.js?v=20261103a"></script>
+<script defer src="/assets/boom-journey-handoff.js?v=20261103a"></script>
 </head>
 <body>
 <nav class="nav" id="nav">
@@ -1171,6 +1176,7 @@ body::before, body::after { z-index: 1 !important; }
     <div class="fld"><label for="sEmail">Email</label><input id="sEmail" type="email" autocomplete="email" placeholder="anna@email.com"></div>
     <div class="fld"><label for="sPhone">Phone / WhatsApp</label><input id="sPhone" type="tel" autocomplete="tel" placeholder="+49 …"></div>
     <div class="fld"><label for="sListing">Listing link or address <span style="color:var(--t4);text-transform:none;letter-spacing:0">(optional — the apartment you found)</span></label><input id="sListing" placeholder="https://www.immobiliare.it/…"></div>
+    <div class="fld" id="sJourneyNotesField" hidden><label for="sJourneyNotes">Your journey details <span style="text-transform:none">(optional — review before checkout)</span></label><textarea id="sJourneyNotes" maxlength="400" rows="5" style="display:block;width:100%;padding:12px;border:1px solid #ffffff30;border-radius:6px;background:#151517;color:inherit;font:inherit;font-size:16px;line-height:1.5"></textarea></div>
     <input id="sCompany" type="text" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true">
     <div class="ferr" id="sErr"></div>
     <button class="paybtn" id="sGo" onclick="paySheet()" data-analytics-kind="checkout" data-analytics-label="Deal Assistance checkout"><span class="lk">🔒</span><span class="tx"><b>Pay €249 &amp; start</b><small>Stripe checkout · takes one minute</small></span><span class="amt">€249</span></button>
@@ -1283,7 +1289,7 @@ function paySheet(){
   go.querySelector('b').textContent='Opening secure checkout…';
   boomTrack('add_payment_info',{currency:'EUR',value:SVC.eur});
   fetch('/api/service-checkout',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({kind:SVC.kind,name:n,email:em,phone:ph,listing:li,company:document.getElementById('sCompany').value})})
+    body:JSON.stringify({kind:SVC.kind,name:n,email:em,phone:ph,listing:li,notes:document.getElementById('sJourneyNotes').value,company:document.getElementById('sCompany').value})})
   .then(function(r){return r.json()})
   .then(function(j){
     if(j&&j.ok&&j.url){location.href=j.url;return;}

@@ -70,6 +70,33 @@ await check('Only a structured inclusion label can imply included bills; furnish
   assert.equal(Data.normalize(home({furnished:'partial'})).furnished,'partial');
   assert.equal(Data.normalize(home({furnished:'maybe'})).furnished,null);
 });
+await check('An explicit Rome catalogue scope excludes other cities while retaining legacy records without a city',()=>{
+  const records=[
+    Data.normalize(home({id:'rome',city:'Rome',zone:'Prati',price:1400})),
+    Data.normalize(home({id:'roma',city:' ROMA ',zone:'Ostiense',price:1300})),
+    Data.normalize(home({id:'legacy',zone:'San Lorenzo',price:1200})),
+    Data.normalize(home({id:'blank',city:'',zone:'Centro',price:1100})),
+    Data.normalize(home({id:'firenze',city:'Firenze',zone:'Firenze',price:650})),
+    Data.normalize(home({id:'madrid',city:'Madrid',zone:'Centro',price:700}))
+  ];
+  const before=JSON.stringify(records);
+  assert.deepEqual(Data.cards(records,{city:'Rome'}).map(c=>c.id),['rome','roma','legacy','blank'],'a cheaper home in Firenze cannot become a Rome recommendation');
+  assert.deepEqual(Data.cards(records,{city:'Rome',budgetMax:1250}).map(c=>c.id),['legacy','blank'],'budget and market scope apply together');
+  assert.equal(Data.cards(records,{}).length,6,'the shared data adapter does not silently restrict other city callers');
+  assert.equal(JSON.stringify(records),before,'market scoping never rewrites original listing facts');
+});
+await check('A requested arrival excludes only a known later availability date, preserving unknown dates honestly',()=>{
+  const records=[
+    Data.normalize(home({id:'earlier',availableFrom:'2030-01-01'})),
+    Data.normalize(home({id:'same-day',availableFrom:'2030-02-01'})),
+    Data.normalize(home({id:'later',availableFrom:'2030-02-02'})),
+    Data.normalize(home({id:'unknown',availableFrom:'',availableDate:'Ask the landlord'})),
+    Data.normalize(home({id:'now',availableDate:'Immediate'}))
+  ];
+  assert.deepEqual(Data.cards(records,{moveIn:'2030-02-01'}).map(c=>c.id),['earlier','same-day','unknown','now'],'a known later date cannot be presented as a match for the requested arrival');
+  assert.equal(Data.cards(records,{}).length,5,'no requested date means no inferred availability filter');
+  assert.equal(Data.cards(records,{moveIn:'2030-02-01'}).find(c=>c.id==='unknown').status,'Ask us for the date','unknown remains an explicit confirmation, not an availability promise');
+});
 await check('Concurrent load calls share one request, later loads reread live data, and duplicates stay unique',async()=>{
   let reads=0,release;
   const A=adapter(async(url,options)=>{reads++;assert.equal(url,'/api/listings');assert.equal(options.cache,'no-store');
@@ -98,15 +125,19 @@ await check('A stalled catalogue read aborts at the real timeout boundary and ex
   const pending=A.load();await Promise.resolve();timeout();
   await assert.rejects(pending,error=>error.code==='catalogue-timeout');assert.equal(cleared,true);
 });
-await check('Mutations that publish reference-only records or replace structured bedrooms are detected',()=>{
+await check('Mutations that publish hidden records, corrupt bedrooms or drop market/arrival guards are detected',()=>{
   function contract(A){
     assert.equal(A.normalize(home({status:'reference_only'})),null);
     assert.equal(A.normalize(home({bedrooms:0,beds:'3 bedrooms'})).bedrooms,0);
+    assert.equal(A.cards([A.normalize(home({city:'Firenze'}))],{city:'Rome'}).length,0);
+    assert.equal(A.cards([A.normalize(home({availableFrom:'2030-03-01'}))],{moveIn:'2030-02-01'}).length,0);
   }
   contract(Data);
   for(const [before,after] of [
     ["'rented', 'reserved'","'rented', 'reserved', 'reference_only'"],
-    ['facts.bedroomsOf(raw)','Number(raw.beds) || 3']
+    ['facts.bedroomsOf(raw)','Number(raw.beds) || 3'],
+    ["criteria.city === 'Rome' && city","false && city"],
+    ["availability.kind === 'date' && availability.iso > criteria.moveIn","false"]
   ]){
     assert.ok(source.includes(before));const mutated=adapter(()=>{}, {}, source.replace(before,after));
     assert.throws(()=>contract(mutated));

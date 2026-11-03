@@ -85,7 +85,7 @@ try{
       await page.locator('#nextApartments').waitFor({state:'visible'});
       assert.equal(await page.locator('#nextResults .next-card').count(),2);
       await geometry(page,width<500?'button[data-layout="skyline"]':undefined);
-      assert.equal(await page.locator('#nextDiscovery').getAttribute('data-layout'),direction==='atlas'?'skyline':'gallery');
+      assert.equal(await page.locator('#nextDiscovery').getAttribute('data-layout'),direction==='residence'?'gallery':'skyline');
       await page.locator('#nextResults .next-card[data-home-id="fixture-courtyard"] h3 [data-home]').click();
       await page.locator('#nextDetailTitle').waitFor();
       await geometry(page,'[data-next-apply]');
@@ -101,7 +101,7 @@ try{
   for(const direction of ['residence','club']){
     const {page,errors}=await openPage(390);
     await check(direction+': an explicit Skyline choice survives reload, detail and browser Back',async()=>{
-      await page.goto(origin+'/flight-next?direction='+direction+'&view=apartments',{waitUntil:'domcontentloaded'});
+      await page.goto(origin+'/flight-next?direction='+direction+'&view=apartments&layout=gallery',{waitUntil:'domcontentloaded'});
       await page.locator('#nextResults .next-card').first().waitFor();
       assert.equal(await page.locator('#nextDiscovery').getAttribute('data-layout'),'gallery');
       await page.locator('button[data-layout="skyline"]').click();await expectLayout(page,'skyline');

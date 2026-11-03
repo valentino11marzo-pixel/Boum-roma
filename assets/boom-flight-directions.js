@@ -74,5 +74,5 @@
     // Only public identifiers leave the frame. Dates and household stay inside it.
     if (parent !== window) parent.postMessage({type:'boom-design-state', direction:direction, view:context.state.view, home:context.state.home || (chosen && chosen.id) || ''}, location.origin);
   }
-  window.BoomFlightDirections = {name:direction, defaultLayout:direction === 'atlas' ? 'skyline' : 'gallery', render:render};
+  window.BoomFlightDirections = {name:direction, defaultLayout:direction === 'residence' ? 'gallery' : 'skyline', render:render};
 })();

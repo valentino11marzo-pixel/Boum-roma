@@ -342,7 +342,7 @@ body::before, body::after { z-index: 1 !important; }
 <link rel="stylesheet" href="/assets/boom-skyline-guide.css?v=20261028h">
 <script defer src="/js/stay-engine.js?v=20261028h"></script>
 <script defer src="/assets/boom-flight-stay.js?v=20261029a"></script>
-<script defer src="/js/skyline-guide-engine.js?v=20261028h"></script>
+<script defer src="/js/skyline-guide-engine.js?v=20261103a"></script>
 <script defer src="/assets/boom-skyline-guide.js?v=20261028h"></script>
 </head>
 <body>
@@ -856,12 +856,12 @@ async function boot(){
     makePin(l,co,base);placed++;
   });
   window.BoomSkyline={map:map,markers:MARKERS,catalogue:function(){return listings.slice();},
-    state:function(){return Object.assign({},SKY_STATE);},journeyFor:journeyFor,setBudget:setBudget,
+    state:function(){return Object.assign({},SKY_STATE);},journeyFor:journeyFor,setBudget:setBudget,refreshPlaces:buildMyPlaces,
     select:function(id,opts){var m=MARKERS.find(function(m){return m.getElement().__id===String(id);});return m?selectHome(m.getElement(),opts):false;},
     clear:clearSelection,reset:fitHomes,
     selected:function(){return SELECTED;},
     filter:function(){return {budget:MAXFILTER,homesActive:TIENI!==null,homes:TIENI?Array.from(TIENI):[]};},
-    selectPublicPlace:function(slug){var m=document.getElementById('qfMeta');if(!m)return false;var found=[].some.call(m.options,function(o){return o.value===slug;});if(found){m.value=slug;m.dispatchEvent(new Event('change'));}return found;}
+    selectPublicPlace:function(slug){var m=document.getElementById('qfMeta');if(!m)return false;var found=[].some.call(m.options,function(o){return o.value===slug;});if(found){m.value=slug;m.dispatchEvent(new Event('change'));}else if(window.__quadrante&&window.__quadrante.resetDestination){window.__quadrante.resetDestination();}return found;}
   };
   if(SKY_QUERY.has('budget'))setBudget(SKY_QUERY.get('budget'));
   applyFilter();
@@ -1110,7 +1110,7 @@ async function boot(){
   });
   selMeta.addEventListener('change', applica);
 
-  window.__quadrante = { perCasa: perCasa, riposo: riposo, applica: applica };
+  window.__quadrante = { perCasa: perCasa, riposo: riposo, applica: applica, resetDestination: function(){minAttivo=0;selMeta.selectedIndex=-1;[].forEach.call(minRow.children,function(x){x.classList.remove('on');});applica();} };
   riposo();
 })();
 /* ══ /QUADRANTE:JS ══ */

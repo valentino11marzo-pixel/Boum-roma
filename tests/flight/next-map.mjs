@@ -10,7 +10,7 @@ let source = original, generation = 0;
 const parentHTML = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <style>body{margin:0;background:#080a0e}[hidden]{display:none!important}.slot{height:300px;width:100%}</style></head><body>
 <main><section id="home"><div id="a" class="slot"></div></section><section id="apartments" hidden><div id="b" class="slot"></div></section></main>
-<script src="/adapter.js"></script><script>window.selected=[];window.states=[];addEventListener('boom-next:map-select',e=>selected.push(e.detail.id));addEventListener('boom-next:map-state',e=>states.push(e.detail));</script></body></html>`;
+<script src="/adapter.js"></script><script>window.selected=[];window.states=[];window.journeyEvents=0;addEventListener('boom-next:map-select',e=>selected.push(e.detail.id));addEventListener('boom-next:map-state',e=>states.push(e.detail));addEventListener('boom-next:map-journeys',()=>journeyEvents++);</script></body></html>`;
 function skylineHTML(number) {
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><style>#skyHome{position:absolute;bottom:23px;right:12px;min-height:139px;padding:10px;width:350px;display:flex;background:#222;color:#fff}#skyHome[hidden]{display:none}.maplibregl-ctrl-attrib{position:absolute;bottom:5px;right:6px;color:#ddd}</style></head><body style="margin:0;height:100vh;background:#080a0e"><div id="map" style="height:100%"><button class="sky-pin" aria-label="Test home, approximate area">≈ €1,200</button></div><aside id="skyHome" hidden><button class="sky-home-close">Close home</button><div class="sky-home-media"><img src="/photo.svg" alt="Test home"></div><div class="sky-home-copy"><h2>Test home</h2><p id="skyHomePrecision">Approximate area · exact address to confirm</p><div class="sky-home-bottom"><span>€1,200</span><a href="/listing/home-1">Explore home</a></div></div></aside><div class="maplibregl-ctrl-attrib">© OpenStreetMap contributors</div><script>
   window.generation=${number};window.trace=[];window.intersections=[];window.actual={catalogueStatus:'loading',mapStatus:'loading',usable:false};window.scope=null;
@@ -23,7 +23,7 @@ function skylineHTML(number) {
   });
   window.release=()=>{
     actual={catalogueStatus:'ready',mapStatus:'style',usable:false};
-    window.BoomSkyline={state:()=>({...actual}),setBudget:n=>trace.push({budget:n}),map:{resize:()=>trace.push({resize:true}),stop:()=>trace.push({stop:true})}};
+    window.BoomSkyline={state:()=>({...actual}),setBudget:n=>trace.push({budget:n}),selectPublicPlace:slug=>trace.push({destination:slug}),refreshPlaces:()=>trace.push({places:true}),journeyFor:(id,slug)=>{if(id==='throws')throw Error('unavailable');return id==='home-1'&&slug==='luiss'?{min:27,fonte:'rete',precision:'zone'}:null;},map:{resize:()=>trace.push({resize:true}),stop:()=>trace.push({stop:true})}};
     dispatchEvent(new CustomEvent('boom:skyline-ready',{detail:{api:BoomSkyline}}));
     dispatchEvent(new CustomEvent('boom:skyline-state',{detail:actual}));
   };
@@ -112,6 +112,24 @@ try {
     await page.evaluate(() => { BoomNextMap.scope(['home-1']); BoomNextMap.select('home-1'); });
     await page.waitForFunction(() => selected.includes('home-1'));
   });
+  await check('Club reads the existing journey model, queues public destinations and receives model refresh without another fetch', async () => {
+    assert.equal(await page.evaluate(() => BoomNextMap.journeyFor('home-1','luiss')),null,'no fabricated estimate before the frame API exists');
+    await page.evaluate(() => BoomNextMap.destination('luiss'));
+    await mount();await ready();
+    assert.deepEqual(await page.evaluate(() => originalFrame.contentWindow.trace.filter(t=>t.destination)),[{destination:'luiss'}]);
+    assert.deepEqual(await page.evaluate(() => BoomNextMap.journeyFor('home-1','luiss')),{min:27,fonte:'rete',precision:'zone'});
+    assert.equal(await page.evaluate(() => BoomNextMap.journeyFor('../unsafe','luiss')),null);
+    assert.equal(await page.evaluate(() => BoomNextMap.journeyFor('throws','luiss')),null,'a secondary route failure cannot break the catalogue');
+    const before=await page.evaluate(() => journeyEvents);
+    await page.evaluate(() => originalFrame.contentWindow.dispatchEvent(new CustomEvent('boom:skyline-journeys')));
+    assert.equal(await page.evaluate(() => journeyEvents),before+1);
+    await page.evaluate(() => BoomNextMap.destination(''));
+    assert.deepEqual(await page.evaluate(() => originalFrame.contentWindow.trace.filter(t=>'destination' in t)),[{destination:'luiss'},{destination:''}],'clearing the public destination reaches the actual map API');
+    await page.evaluate(() => {BoomNextMap.destination('private?address=x');BoomNextMap.refreshPlaces();});
+    assert.deepEqual(await page.evaluate(() => originalFrame.contentWindow.trace.filter(t=>t.destination)),[{destination:'luiss'}]);
+    assert.equal(await page.evaluate(() => originalFrame.contentWindow.trace.filter(t=>t.places).length),1);
+    assert.equal(requests.filter(url=>new URL(url).pathname==='/api/listings').length,0);
+  });
   await check('only the owned iframe loses the duplicate home card; original precision, pins and attribution remain', async () => {
     await mount(); await ready();
     await page.evaluate(() => BoomNextMap.select('home-1'));
@@ -190,7 +208,7 @@ try {
     await page.evaluate(() => { BoomNextMap.scope(['home-2']); BoomNextMap.setBudget(1700); BoomNextMap.select('home-2'); });
     await page.waitForFunction(() => selected.includes('home-2'));
     await page.evaluate(() => {
-      BoomNextMap.scope([]); document.getElementById('apartments').hidden = false;
+      BoomNextMap.scope([]);BoomNextMap.destination(''); document.getElementById('apartments').hidden = false;
       document.getElementById('b').moveBefore = undefined; BoomNextMap.mount(document.getElementById('b'));
     });
     await page.waitForFunction(() => originalFrame.contentWindow.release && !originalFrame.contentWindow.BoomSkyline);
@@ -200,6 +218,7 @@ try {
     const trace = await page.evaluate(() => originalFrame.contentWindow.trace);
     assert.deepEqual(trace.filter(item => item.t).slice(0, 2), [{ t: 'boomTieni', ids: [] }, { t: 'boomSelect', id: 'home-2' }]);
     assert.deepEqual(trace.filter(item => 'budget' in item), [{ budget: 1700 }]);
+    assert.deepEqual(trace.filter(item => 'destination' in item),[{destination:''}],'a cleared destination is replayed after a legacy frame reload');
     assert.equal(await page.locator('iframe').count(), 1);
   });
   await check('tile failure has usable navigation and recovery clears the fallback without a second frame', async () => {

@@ -41,7 +41,7 @@
       var current = new URL(frame.contentWindow.location.href);
       if(current.origin === location.origin && current.pathname === '/flight-next') {
         intent = new URLSearchParams();
-        ['budget','people','type','saved','moveIn','moveOut','stay'].forEach(function(key){var value=current.searchParams.get(key);if(value)intent.set(key,value.slice(0,100));});
+        ['budget','people','type','saved','moveIn','moveOut','stay','place','homes'].forEach(function(key){var value=current.searchParams.get(key);if(value)intent.set(key,value.slice(0,100));});
       }
     } catch (_) { /* An external service keeps its own navigation. */ }
   }

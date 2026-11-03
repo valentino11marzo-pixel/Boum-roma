@@ -25,3 +25,6 @@ dialog{border:1px solid #ffffff30;background:#111114;color:#f0f0ea;padding:0;box
 #nextDetail{min-height:calc(100svh - 80px)}
 
 @media(max-width:760px){.next-discovery-heading{padding-block:18px 14px}.next-discovery>.next-map-slot{height:225px;min-height:225px}.next-discovery[data-layout=skyline] .next-results .next-card-image{aspect-ratio:2.05}}
+
+/* Club-only additions leave the other design studies intact. */
+body:not([data-direction="club"]) .club-only{display:none!important}

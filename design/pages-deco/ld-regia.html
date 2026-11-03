@@ -9,6 +9,8 @@
 <script src="/js/dispo-engine.js"></script>
 <script src="/js/tempi-engine.js"></script>
 <script src="/js/mappa-engine.js"></script>
+<script defer src="/js/journey-engine.js?v=20261103a"></script>
+<script defer src="/assets/boom-journey-handoff.js?v=20261103a"></script>
 <script src="/js/listing-facts.js"></script>
 <script>
 /* LA REGIA DELLA CASA — una casa alla volta, dal catalogo vero.
@@ -629,6 +631,7 @@
         waitlist: !c.libera,
         income: d.get('reddito'), guarantor: d.get('garante'),
         household: d.get('chi'), occupation: d.get('occupazione'),
+        commute: window.BoomJourneyHandoff ? BoomJourneyHandoff.commute() : null,
         moveIn: requestedStay ? requestedStay.moveIn : d.get('quando'),
         moveOut: requestedStay ? requestedStay.moveOut : d.get('uscita'),
         durationMonths: requestedStay ? requestedStay.durationMonths : Number(d.get('mesi')) || null,

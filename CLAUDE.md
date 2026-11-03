@@ -3318,6 +3318,14 @@ confronti solo fra tipi equivalenti e fonti espandibili. Your Rome mantiene trac
 Detail: foto decodificata prima del cambio, ticket compatto, stesso Apply in dialog contestuale con dati/focus preservati;
 no-JS inline, costi e idempotenza originali. Test flighthomeui, flightguideui, mappapreview, flightstayui e listingssr.
 
+Flight Club 03/11: la destinazione quotidiana apre il pass Solari/foil e segue Home→Apartments→Detail; Skyline è il layout iniziale, con foto/ticket prima del tragitto su mobile.
+Il catalogo di Roma esclude città estere esplicite; le date scartano disponibilità note successive all’arrivo e lasciano esplicite le ignote. Un solo iframe/modello Skyline, nessuna seconda richiesta GTFS.
+`skyline-guide-engine.balance` offre fino a tre case distinte per canone/spazio/viaggio: confronto fra tipi equivalenti, tempi solo con modello rete e stessa precisione/meta; niente punteggi o triple forzate.
+`journey-engine` porta campus pubblico, date precise, budget, persone e tipo canonico; la condivisione mantiene shortlist pubblica e non contiene luoghi privati. Back privato usa solo riferimenti opachi in history e oggetti in memoria.
+`boom-journey-handoff` precompila i campi vuoti dei moduli PFS/DAS originali, preserva bozze finché l’utente sceglie Use these details; Apply usa commute già supportato, destinazione modificabile/escludibile, senza distanze inventate.
+Nessun invio automatico, nuovo handler, archivio clienti o pagamento; collegamenti Desks alle città già attive. Il laboratorio resta noindex e conserva anche la meta pubblica.
+`flightclubui`, `flightjourney`, `flightnextdata/map/ui`, `flightdirectionsui` coprono percorso, privacy, errori/risposte tardive, bozza e history, filtri e telefoni 320/390; unità e mutazioni guida in `flight`.
+
 Flight Lab 31/10: `/flight-lab` confronta Atlas, Residence e Club sulle stesse viste reali di `/flight-next?direction=…`, senza cambiare il sito pubblico.
 Le composizioni riusano catalogo, Solari, iframe Skyline, salvataggi e Apply; nessun secondo catalogo o nuovo handler di invio.
 Residence usa una foto realmente restituita dal catalogo pubblico (fallback a una casa pubblica non chiusa); Atlas sposta la stessa mappa nel primo schermo.
