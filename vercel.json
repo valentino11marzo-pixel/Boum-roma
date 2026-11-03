@@ -110,6 +110,11 @@
       "permanent": true
     },
     {
+      "source": "/(cities|boom-desks)",
+      "destination": "/desks",
+      "permanent": true
+    },
+    {
       "source": "/(owner|owner.html)",
       "destination": "/owner-dashboard",
       "permanent": false
@@ -629,7 +634,7 @@
       ]
     },
     {
-      "source": "/assets/boom-(city\\.css|city\\.js|onda\\.js)",
+      "source": "/assets/boom-(city\\.css|city\\.js|onda\\.js|desks\\.css|desks\\.js)",
       "headers": [
         {
           "key": "Cache-Control",

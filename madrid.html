@@ -41,7 +41,7 @@
     <link rel="icon" href="/favicon.ico" sizes="any">
     <link rel="icon" href="/favicon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-    <link rel="stylesheet" href="/assets/boom-city.css?v=90d32665d4">
+    <link rel="stylesheet" href="/assets/boom-city.css?v=e9284ba389">
     <!-- §C the curtain (v1.6): html.vivo lets the walk's sections enter as they come into view.
          boom-city.js sets html[data-armed]; without it in 3 s, without IntersectionObserver,
          or when printing, vivo comes off and nothing waits hidden. -->
@@ -61,6 +61,12 @@
     {
       "@type": "ListItem",
       "position": 2,
+      "name": "BOOM Desks",
+      "item": "https://www.boomrome.com/desks"
+    },
+    {
+      "@type": "ListItem",
+      "position": 3,
       "name": "Madrid",
       "item": "https://www.boomrome.com/madrid"
     }
@@ -1036,13 +1042,17 @@ body::before, body::after { z-index: 1 !important; }
       <h2 id="netH">Other desks, <span class="g">one company.</span></h2>
       <p class="net-c">Every desk answers from Rome.</p>
       <div class="net-g">
-        <svg class="map" viewBox="0 0 600 420" aria-hidden="true" focusable="false"><defs><pattern id="netDots" width="12" height="12" patternUnits="userSpaceOnUse"><circle cx="6" cy="6" r=".5" fill="#fff" fill-opacity=".08"/></pattern></defs><rect class="m-bg" width="600" height="420" fill="url(#netDots)"/><path class="arc" style="--i:1" pathLength="1" fill="none" d="M432.9 336Q300.3 232.3 298.3 63.9"/><path class="arc" style="--i:2" pathLength="1" fill="none" d="M432.9 336Q338.9 309.8 249.8 349.4"/><path class="arc" style="--i:3" pathLength="1" fill="none" d="M432.9 336Q246.1 278.3 209.1 86.3"/><path class="arc" style="--i:4" pathLength="1" fill="none" d="M432.9 336Q420.3 279.2 374.3 243.4"/><path class="arc me" style="--i:0" pathLength="1" fill="none" d="M432.9 336Q296.3 407 145.7 374.7"/><circle class="d" cx="298.3" cy="63.9" r="3"/><circle class="d" cx="249.8" cy="349.4" r="3"/><circle class="d" cx="209.1" cy="86.3" r="3"/><circle class="d" cx="374.3" cy="243.4" r="3"/><circle class="d-ring" cx="145.7" cy="374.7" r="10" fill="none"/><circle class="d me" cx="145.7" cy="374.7" r="4"/><circle class="hub" cx="432.9" cy="336" r="5" fill="none"/><text class="m-l l" x="289.3" y="67.9" text-anchor="end">AMS</text><text class="m-l l" x="240.8" y="353.4" text-anchor="end">BCN</text><text class="m-l l" x="200.1" y="90.3" text-anchor="end">LON</text><text class="m-l" x="383.3" y="247.4">MIL</text><text class="m-l me l" x="136.7" y="378.7" text-anchor="end">MAD</text><text class="m-l hub" x="441.9" y="340">ROM</text></svg>
+        <svg class="map" viewBox="0 0 600 420" aria-hidden="true" focusable="false"><defs><pattern id="netDots" width="12" height="12" patternUnits="userSpaceOnUse"><circle cx="6" cy="6" r=".5" fill="#fff" fill-opacity=".08"/></pattern></defs><rect class="m-bg" width="600" height="420" fill="url(#netDots)"/><path class="arc" style="--i:1" pathLength="1" fill="none" d="M432.9 336Q300.3 232.3 298.3 63.9"/><path class="arc" style="--i:2" pathLength="1" fill="none" d="M432.9 336Q338.9 309.8 249.8 349.4"/><path class="arc" style="--i:3" pathLength="1" fill="none" d="M432.9 336Q246.1 278.3 209.1 86.3"/><path class="arc" style="--i:4" pathLength="1" fill="none" d="M432.9 336Q420.3 279.2 374.3 243.4"/><path class="arc me" style="--i:0" pathLength="1" fill="none" d="M432.9 336Q296.3 407 145.7 374.7"/><circle class="d" cx="298.3" cy="63.9" r="3"/><circle class="d" cx="249.8" cy="349.4" r="3"/><circle class="d" cx="209.1" cy="86.3" r="3"/><circle class="d" cx="374.3" cy="243.4" r="3"/><circle class="d off" cx="449" cy="60" r="3" fill="none"/><circle class="d off" cx="253.1" cy="155.2" r="3" fill="none"/><circle class="d-ring" cx="145.7" cy="374.7" r="10" fill="none"/><circle class="d me" cx="145.7" cy="374.7" r="4"/><circle class="hub" cx="432.9" cy="336" r="5" fill="none"/><circle class="hub-r" cx="432.9" cy="336" r="10" fill="none"/><text class="m-l l" x="289.3" y="67.9" text-anchor="end">AMS</text><text class="m-l l" x="240.8" y="353.4" text-anchor="end">BCN</text><text class="m-l l" x="200.1" y="90.3" text-anchor="end">LON</text><text class="m-l" x="383.3" y="247.4">MIL</text><text class="m-l off" x="458" y="64">BER</text><text class="m-l off" x="262.1" y="159.2">PAR</text><text class="m-l me l" x="136.7" y="378.7" text-anchor="end">MAD</text><text class="m-l hub" x="446.9" y="340">ROM</text></svg>
+        <p class="net-k" aria-hidden="true"><i class="k-l"></i>live desk <i class="k-o"></i>not open <i class="k-h"></i>Rome, the hub</p>
         <ul class="net">
           <li><a href="/amsterdam"><b data-instr>AMS</b> Amsterdam desk</a></li>
           <li><a href="/barcelona"><b data-instr>BCN</b> Barcelona desk</a></li>
           <li><a href="/london"><b data-instr>LON</b> London desk</a></li>
           <li><a href="/milan"><b data-instr>MIL</b> Milan desk</a></li>
+          <li class="off"><b data-instr>BER</b> Berlin · not open</li>
+          <li class="off"><b data-instr>PAR</b> Paris · not open</li>
           <li><a href="/"><b data-instr>ROM</b> BOOM Rome</a></li>
+          <li class="all"><a href="/desks"><b data-instr>ALL</b> Every BOOM desk</a></li>
         </ul>
       </div>
     </section>

@@ -146,6 +146,7 @@ const noHScroll = (page) => page.evaluate(() => document.documentElement.scrollW
 const RULE = JSON.parse(fs.readFileSync(path.join(R, 'cities/_shared.json'), 'utf8')).refund.rule;
 // the v1.6 review's guards alone (§12), e.g. to watch one bite under a mutation
 if (process.env.CITIES_UI_ONLY === 'review') { await reviewFixes(); await finish(); }
+if (process.env.CITIES_UI_ONLY === 'hub') { await hubUI(); await finish(); }
 
 // ── 1 · the first phone screen is one pass ───────────────────────────────
 {
@@ -655,6 +656,41 @@ for (const slug of ['paris', 'berlin']) {
   await ctx.close();
 }
 
+// ── 8b · BOOM Desks (03/11/2026): the Network shows EVERY desk ───────────
+// the desks not open as hollow dots with no arc and no link, the legend from
+// 640px, Rome with its ring; "Every BOOM desk" → /desks, last
+{
+  const { ctx, page, st } = await open({ slug: 'london', width: 1440 });
+  await center(page, '#network');
+  await page.waitForTimeout(500);
+  const offs = await page.$$eval('svg.map circle.d.off', (cs) => cs.map((c) => ({ fill: getComputedStyle(c).fill, stroke: getComputedStyle(c).stroke })));
+  check(offs.length === 2 && offs.every((o) => o.fill === 'none' && o.stroke !== 'none'), 'london 1440: two hollow dots on the map (computed fill: none) — Berlin and Paris, not open', JSON.stringify(offs));
+  check(await page.$eval('svg.map circle.hub-r', (c) => getComputedStyle(c).fill === 'none' && getComputedStyle(c).stroke !== 'none'), 'london 1440: Rome wears its ring');
+  check(await shown(page, '.net-k') && await page.$eval('.net-k', (e) => getComputedStyle(e).display) === 'flex' && /live desk.*not open.*Rome, the hub/.test(await text(page, '.net-k')), 'london 1440: the legend is shown — live desk · not open · Rome, the hub');
+  const mapR = await rect(page, 'svg.map'), keyR = await rect(page, '.net-k'), ulR = await rect(page, 'ul.net');
+  check(keyR.top >= mapR.bottom - 1 && keyR.left < mapR.left + 2 && ulR.left >= mapR.right - 1 && ulR.top < keyR.top, 'london 1440: the legend sits under the map, the list beside them (one grid)', JSON.stringify({ mapR, keyR, ulR }));
+  check(await page.$$eval('ul.net li.off', (ls) => ls.map((l) => l.textContent.trim()).join('|')) === 'BER Berlin · not open|PAR Paris · not open' && await page.$$eval('ul.net li.off a, a[href="/paris"], a[href="/berlin"]', (a) => a.length) === 0,
+    'london 1440: Berlin and Paris are named "not open" in the list, never linked');
+  check(st.errors.length === 0, 'london 1440: no JS error', st.errors.join(' | '));
+  await ctx.close();
+}
+{
+  const { ctx, page } = await open({ slug: 'london', width: 390 });
+  await page.waitForTimeout(300);
+  check(!(await shown(page, '.net-k')) && !(await shown(page, 'svg.map')), 'london 390: no map and no legend on a phone (the list navigates)');
+  await ctx.close();
+}
+{
+  const { ctx, page } = await open({ slug: 'milan', width: 320, height: 568 });
+  await center(page, 'ul.net li.all a');
+  await page.waitForTimeout(300);
+  const all = await rect(page, 'ul.net li.all a');
+  check(all.h >= 44 && await page.getAttribute('ul.net li.all a', 'href') === '/desks' && await text(page, 'ul.net li.all a') === 'ALL Every BOOM desk', `milan 320: "ALL · Every BOOM desk" is a ${Math.round(all.h)} px target linking /desks`);
+  check(await page.$$eval('ul.net li', (ls) => ls[ls.length - 1].classList.contains('all')) && (await rect(page, 'ul.net li.off')).h >= 44 && await noHScroll(page), 'milan 320: the "all" line is last; a "not open" line keeps the 48 px rhythm; no horizontal scroll');
+  check(/^Operated by Egidi Immobiliare S\.r\.l\., an Italian real estate agency, under the same Italian law as in Rome · /.test(await text(page, '.proof')), 'milan: the proof line says the home-country desk');
+  await ctx.close();
+}
+
 // ── 9 · v1.6 «the complete aviation desk» ────────────────────────────────
 const SLUGS7 = ['amsterdam', 'madrid', 'barcelona', 'london', 'milan', 'paris', 'berlin'];
 const OPEN_T = '2026-11-03T10:00:00Z';    // a Tuesday: London 10:00 GMT, Amsterdam 11:00 CET — every desk open
@@ -942,6 +978,7 @@ for (const slug of ['paris', 'berlin']) {
   await ctx.close();
 }
 
+await hubUI();
 await reviewFixes();
 await finish();
 
@@ -1180,6 +1217,139 @@ async function reviewFixes() {
     const { ctx, page } = await open({ slug: 'london', width: 1440, clock: R_OPEN });
     await page.waitForTimeout(400);
     check(await text(page, '#depPillT') === 'DESK OPEN' && DESK_OPEN.test(await page.evaluate(() => document.body.innerText)), 'london (a desk that sells): the pill still reads DESK OPEN');
+    await ctx.close();
+  }
+}
+
+// ── 13 · THE HUB (/desks, BOOM Desks, 03/11/2026): every desk on one page ──
+// the first phone screen, the desk clocks from the calendar (holidays
+// included), no JS, 320 px, the map's pins and arcs, the rules as a table and
+// as cards, reduced motion. `CITIES_UI_ONLY=hub node tests/cities/ui.mjs`
+// runs this section alone.
+async function hubUI() {
+  const words = (page) => page.evaluate(() => {
+    const W = innerWidth, H = innerHeight;
+    let n = 0;
+    const tw = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    while (tw.nextNode()) {
+      const t = tw.currentNode, el = t.parentElement;
+      if (!el || !t.textContent.trim() || el.closest('[aria-hidden="true"],script,style,noscript,.sr,[hidden],template,details:not([open]) > :not(summary)')) continue;
+      if (el.checkVisibility && !el.checkVisibility({ visibilityProperty: true })) continue;
+      const r = document.createRange(); r.selectNodeContents(t);
+      if (![...r.getClientRects()].some((q) => q.width > 0 && q.bottom > 0 && q.top < H && q.right > 0 && q.left < W)) continue;
+      n += t.textContent.split(/\s+/).filter((w) => /[A-Za-z0-9€£]/.test(w)).length;
+    }
+    return n;
+  });
+  const LIVE = ['ams', 'bcn', 'lon', 'mad', 'mil'];
+  const nowOf = (page) => page.$$eval('.db-r.live', (rs) => Object.fromEntries(rs.map((r) => [r.id.slice(3), r.querySelector('.db-nb').textContent.trim()])));
+  const subOf = (page) => page.$$eval('.db-r.live', (rs) => Object.fromEntries(rs.map((r) => [r.id.slice(3), r.querySelector('.db-sub').textContent.trim()])));
+
+  // 390×844: the first screen
+  {
+    const { ctx, page, st } = await open({ slug: 'desks', clock: '2027-03-01T09:00:00Z' });
+    await page.waitForTimeout(1800);
+    const n = await words(page);
+    check(n <= 120 && n >= 40, `desks 390×844: ${n} words on the first screen (≤ 120)`);
+    const fold = 844;
+    const on = await page.evaluate((ids) => ids.every((s) => { const e = document.querySelector(s); const r = e && e.getBoundingClientRect(); return r && r.bottom <= innerHeight && r.top >= 0; }), ['#h1', '.hub-lead', '.db-h', '#db-ams', '#db-bcn', '#db-lon']);
+    check(on, `desks 390: the H1, the lead, the board head and the AMS, BCN and LON rows are on the first screen (${fold}px)`);
+    check(await page.$eval('#hubBoard', (b) => b.classList.contains('live') && [...b.querySelectorAll(':scope > .fc2 > .st > b')].map((x) => x.textContent).join('') === 'EUROPE') && await text(page, '#h1') === 'A rental agent on your side, in Europe',
+      'desks 390: EUROPE settles on its board and the H1 still reads "A rental agent on your side, in Europe"');
+    check(await noHScroll(page) && st.errors.length === 0, 'desks 390: no horizontal scroll, no JS error', st.errors.join(' | '));
+    await ctx.close();
+  }
+
+  // the desk clocks, from the calendar the webhook reads (holidays included)
+  for (const [t, want, label, extra] of [
+    ['2027-03-01T09:00:00Z', { ams: 'OPEN', bcn: 'OPEN', lon: 'OPEN', mad: 'OPEN', mil: 'OPEN' }, 'Monday 1 March 2027, 10:00 Rome: every live desk OPEN, the pill shown', 'pill'],
+    ['2027-03-06T09:00:00Z', { ams: 'CLOSED', bcn: 'CLOSED', lon: 'CLOSED', mad: 'CLOSED', mil: 'CLOSED' }, 'Saturday: every desk CLOSED, "Monday from 09:00 CET" (London 08:00 GMT), the pill hidden', 'sat'],
+    ['2027-04-27T08:00:00Z', { ams: 'CLOSED', bcn: 'OPEN', lon: 'OPEN', mad: 'OPEN', mil: 'OPEN' }, 'Koningsdag (Tuesday 27 April 2027, 10:00 Rome): Amsterdam CLOSED, the others OPEN', ''],
+    ['2027-08-30T08:00:00Z', { ams: 'OPEN', bcn: 'OPEN', lon: 'CLOSED', mad: 'OPEN', mil: 'OPEN' }, 'the English summer bank holiday (Monday 30 August 2027, 10:00 Rome): London CLOSED', '']
+  ]) {
+    const { ctx, page, st } = await open({ slug: 'desks', width: 1440, pwClock: t });
+    await page.clock.runFor(1500);
+    const now = await nowOf(page), sub = await subOf(page), pill = await shown(page, '#hubPill');
+    const clk = await page.$$eval('[data-clk]', (cs) => cs.map((c) => c.textContent.trim()));
+    let ok2 = JSON.stringify(now) === JSON.stringify(want) && clk.length === 5 && clk.every((c) => /^\d{2}:\d{2} (CET|CEST|GMT|BST)$/.test(c));
+    if (extra === 'pill') ok2 = ok2 && pill && sub.ams === 'Desk open until 19:00 CET' && sub.lon === 'Desk open until 18:00 GMT';
+    if (extra === 'sat') ok2 = ok2 && !pill && sub.ams === 'Monday from 09:00 CET' && sub.mil === 'Monday from 09:00 CET' && sub.lon === 'Monday from 08:00 GMT';
+    check(ok2 && st.errors.length === 0, `desks: ${label}`, JSON.stringify({ now, sub, pill, clk, e: st.errors }));
+    await ctx.close();
+  }
+
+  // without JS: the board reads whole, the static hours, "—" where the clock would be
+  {
+    const { ctx, page } = await open({ slug: 'desks', width: 1440, js: false });
+    const g = await page.evaluate(() => ({
+      rows: [...document.querySelectorAll('.db-r')].map((r) => r.id),
+      sub: document.querySelector('#db-lon .db-sub').textContent.trim(),
+      dash: getComputedStyle(document.querySelector('#db-lon .db-tv'), '::before').content,
+      now: getComputedStyle(document.querySelector('#db-lon .db-nb'), '::before').content,
+      over: [...document.querySelectorAll('.db-r')].some((r) => r.scrollWidth > r.clientWidth + 1),
+      board: document.getElementById('hubBoard').textContent, word: getComputedStyle(document.getElementById('hubBoard'), '::before').content
+    }));
+    check(g.rows.length === 8 && g.sub === 'Mon–Fri 08:00–18:00, London time' && g.dash === '"—"' && g.now === '"—"' && !g.over && g.board === '' && g.word === '"EUROPE"' && await noHScroll(page),
+      'desks without JS: eight rows, the static hours, "—" for the clock and the status, EUROPE drawn by CSS, nothing overflows', JSON.stringify(g));
+    await ctx.close();
+  }
+
+  // 320 px: no horizontal scroll; the row links, the pins, the gates and the questions are ≥ 44 px
+  {
+    const { ctx, page } = await open({ slug: 'desks', width: 320, height: 568 });
+    await page.waitForTimeout(600);
+    const sz = await page.evaluate(() => {
+      const h = (s) => [...document.querySelectorAll(s)].map((e) => Math.min(e.getBoundingClientRect().height, e.getBoundingClientRect().width));
+      return { rows: h('.db-r.live, .db-r.hub'), pins: h('.pin'), gates: [...document.querySelectorAll('.hgates a')].map((e) => e.getBoundingClientRect().height), faq: [...document.querySelectorAll('#faq summary')].map((e) => e.getBoundingClientRect().height) };
+    });
+    const all = [...sz.rows, ...sz.pins, ...sz.gates, ...sz.faq];
+    check(await noHScroll(page) && sz.rows.length === 6 && sz.pins.length === 5 && sz.gates.length === 5 && sz.faq.length === 6 && all.every((x) => x >= 44),
+      `desks 320: no horizontal scroll; rows, pins, gates and questions ≥ 44 px (smallest ${Math.round(Math.min(...all))})`, JSON.stringify(sz));
+    await ctx.close();
+  }
+
+  // 1440: a pin lights its arc and shows its card; pins sit on their dots; the rules are a table
+  {
+    const { ctx, page, st } = await open({ slug: 'desks', width: 1440, pwClock: '2027-03-01T09:00:00Z' });
+    await page.clock.runFor(800);
+    await center(page, '#hmap');
+    await page.clock.runFor(2500);
+    const before = await page.$eval('#arc-lon', (a) => getComputedStyle(a).stroke);
+    await page.hover('#pin-lon');
+    await page.clock.runFor(500);
+    const after = await page.$eval('#arc-lon', (a) => ({ stroke: getComputedStyle(a).stroke, w: getComputedStyle(a).strokeWidth }));
+    const other = await page.$eval('#arc-ams', (a) => getComputedStyle(a).stroke);
+    check(after.stroke === 'rgb(255, 215, 0)' && before !== after.stroke && other !== after.stroke && await shown(page, '#pin-lon .pc') && /London · Live/.test(await text(page, '#pin-lon .pc')),
+      'desks 1440: hovering the London pin strokes ITS arc gold (computed) and shows its card', JSON.stringify({ before, after, other }));
+    const gap = await page.evaluate(() => {
+      const svg = document.querySelector('.hmap-svg');
+      const m = svg.getScreenCTM();
+      return [...document.querySelectorAll('.pin')].map((p) => {
+        const r = p.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+        const ds = [...svg.querySelectorAll('circle.d:not(.off)')].map((c) => { const pt = new DOMPoint(+c.getAttribute('cx'), +c.getAttribute('cy')).matrixTransform(m); return Math.hypot(pt.x - cx, pt.y - cy); });
+        return Math.min(...ds);
+      });
+    });
+    check(gap.length === 5 && gap.every((x) => x <= 2), `desks 1440: every pin sits on its dot (≤ 2 px: ${gap.map((x) => x.toFixed(1)).join(', ')})`);
+    check(await page.$eval('.rtab', (t) => getComputedStyle(t).display === 'table' && t.getBoundingClientRect().height > 100) && await page.$$eval('.rtab thead th', (t) => t.length) === 5,
+      'desks 1440: the rules are a visible table, one column per live desk');
+    check(await page.$$eval('[data-pay], dialog', (x) => x.length) === 0 && st.errors.length === 0, 'desks 1440: no pay control, no dialog, no JS error', st.errors.join(' | '));
+    await ctx.close();
+  }
+  {
+    const { ctx, page } = await open({ slug: 'desks', width: 390 });
+    await center(page, '.rtab');
+    await page.waitForTimeout(300);
+    const g = await page.evaluate(() => ({ table: getComputedStyle(document.querySelector('.rtab')).display, head: getComputedStyle(document.querySelector('.rtab thead')).display, k: getComputedStyle(document.querySelector('.rtab td'), '::before').content }));
+    check(g.table === 'block' && g.head === 'none' && g.k === '"AMS"', 'desks 390: the rules render as cards, each cell prefixed by its desk\'s code', JSON.stringify(g));
+    await ctx.close();
+  }
+  // reduced motion: nothing loops after load
+  {
+    const { ctx, page } = await open({ slug: 'desks', width: 1440, reducedMotion: 'reduce', clock: '2027-03-01T09:00:00Z' });
+    await page.waitForTimeout(800);
+    const inf = await page.evaluate(() => document.getAnimations().filter((x) => x.playState === 'running' && x.effect && x.effect.getTiming().iterations === Infinity).map((x) => `${(x.effect.target && (x.effect.target.id || x.effect.target.className)) || '?'}:${x.animationName || ''}`));
+    check(inf.length === 0 && await page.$eval('#hubBoard', (b) => b.classList.contains('live')), 'desks, reduced motion: EUROPE is shown at once and no infinite animation runs', inf.join(' | '));
     await ctx.close();
   }
 }

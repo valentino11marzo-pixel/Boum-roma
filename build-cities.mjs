@@ -135,6 +135,12 @@ export const PAPERS_RE = /^The papers an? .+ asks for$/;
 export const AVIATION_BAN_RE = /\bSEAT\b|\bADMIT ONE\b|\bBOARDING\b|\bLAST CALL\b|\bFINAL CALL\b|\bON TIME\b|\bDELAYED\b|\bWallet\b|\bclosing in\b|\d+\s*(?:min|minutes|hours|days) left/i;
 // Rome is the hub of the network map: every desk answers from Rome
 export const ROME_IATA = 'ROM';
+// BOOM Desks (03/11/2026): every desk on one page. Every desk page's Network
+// links it last ("Every BOOM desk") and its breadcrumb runs Home → BOOM Desks
+// → the city. The hub's ring on the map (r 10 around the hub's dot).
+export const HUB_PATH = '/desks';
+export const HUB_NAME = 'BOOM Desks';
+export const HUB_RING_R = 10;
 // The network map's projection (viewBox 0 0 600 420): a plain equirectangular
 // crop of western Europe, so the dots sit at their real coordinates.
 export const mapXY = (g) => [300 + (Number(g.lon) - 5) * 17.73, 210 + (46.75 - Number(g.lat)) * 26];
@@ -227,6 +233,23 @@ export function bowArcs(hub, dests) {
   }
   return bows;
 }
+// A MAP LABEL (≈24×10 on the dot's line, 9px off its dot, 7 more past this
+// desk's ring) takes the first side no drawn arc crosses: first the side its
+// own arc does not come from. `a` is {key, to, c, me?}: for a dot with no arc
+// (a desk not open), `c` is the control point its arc WOULD have (arcCtrl).
+// `drawnPts` are the drawn arcs' points (arcPts). Shared by the desk pages
+// and the hub, so a label sits on the same side wherever the map is drawn.
+export function labelFor(a, drawnPts, cls = '') {
+  const off = 9 + (a.me ? 7 : 0), away = a.c[0] > a.to[0];
+  const clear = (left) => { const x0 = left ? a.to[0] - off - 25 : a.to[0] + off - 1, y0 = a.to[1] - 5; return drawnPts.every((pts) => pts.every(([x, y]) => x < x0 || x > x0 + 26 || y < y0 || y > y0 + 10)); };
+  const left = clear(away) || !clear(!away) ? away : !away;
+  return `<text class="m-l${cls}${left ? ' l' : ''}" x="${r1n(a.to[0] + (left ? -9 : 9))}" y="${r1n(a.to[1] + 4)}"${left ? ' text-anchor="end"' : ''}>${esc(a.key)}</text>`;
+}
+
+// THE ARC'S PATH as drawn, ONE function: a desk page's arc and the hub's arc
+// to the same desk carry the same `d` (tests/cities: parity)
+export const arcD = (hub, a) => `M${r1(hub[0])} ${r1(hub[1])}Q${r1(a.c[0])} ${r1(a.c[1])} ${r1(a.to[0])} ${r1(a.to[1])}`;
+
 // what is drawn, checked: every arc ≥ ARC_CLEAR from the edge of every dot it
 // does not serve (the hub is every arc's start). Returns the violations.
 export function arcViolations(hub, arcs, dots) {
@@ -328,6 +351,32 @@ export function holidayKeyOf(slug) {
   const m = CITY_MARKETS[slug];
   return m ? (m.holidays || m.country || null) : null;
 }
+
+// ── the words the hub and the desks derive (BOOM Desks, 03/11/2026) ───────
+// a count in words, one…twelve ("five desks"): a number the page states is
+// derived, never typed
+const NUMBER_WORDS = ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
+export function numberWord(n) {
+  need(Number.isInteger(n) && n >= 1 && n <= 12, 'numberWord', `${n} is not a whole number from one to twelve`);
+  return NUMBER_WORDS[n - 1];
+}
+// "A, B and C" (no serial comma, the house style); "A and B"; "A"
+export function listJoin(arr) {
+  const a = [...arr];
+  return a.length <= 1 ? a.join('') : `${a.slice(0, -1).join(', ')} and ${a[a.length - 1]}`;
+}
+// '2026-11-03' → "3 November 2026": a fixed month table, never Intl (the
+// small-ICU lesson paid on /executive)
+const MONTHS_LONG = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+export function dateLong(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso));
+  need(m && +m[2] >= 1 && +m[2] <= 12 && +m[3] >= 1 && +m[3] <= 31, 'dateLong', `"${iso}" is not a YYYY-MM-DD date`);
+  return `${+m[3]} ${MONTHS_LONG[+m[2] - 1]} ${m[1]}`;
+}
+// the company's home country (the organization's postal address): a desk in
+// it is the HOME-COUNTRY desk (Milan: an Italian agency under Italian law)
+export const homeCountryOf = (shared) => String((shared && shared.organization && shared.organization.address && shared.organization.address.addressCountry) || '').toUpperCase();
+export const isHomeDesk = (c, shared) => !!homeCountryOf(shared) && String(c.country || '').toUpperCase() === homeCountryOf(shared);
 
 // ── v1.6 derivations ──────────────────────────────────────────────────────
 const pad2 = (n) => String(n).padStart(2, '0');
@@ -582,49 +631,63 @@ const R = {
   faq: (c) => list(c, 'faq.items').map((f, i) =>
     `        <details><summary><span class="qn" aria-hidden="true">${pad2(i + 1)}</span> <span class="t">${esc(f.q)}</span></summary><p>${esc(f.a)}</p></details>`).join('\n'),
 
-  // C.6 NETWORK: the sister desks (familyFor: live sisters on a live page,
-  // all on a draft) and BOOM Rome. The map (decorative, ≥640px) puts every
-  // dot at its real coordinates and draws an arc from Rome — the desks are
-  // operated from Rome — this desk's in gold. The list is the navigation.
+  // C.6 NETWORK: EVERY desk (BOOM Desks, 03/11/2026). The map (decorative,
+  // ≥640px) puts every dot at its real coordinates: the live desks with an
+  // arc from Rome (an arc means "operated from Rome"), this desk's in gold
+  // (on a draft too), the desks not open as a hollow dot with NO arc and no
+  // link; Rome the hub, with its ring. The list is the navigation: the
+  // family (familyFor: live sisters on a live page, all on a draft), the
+  // desks not open as plain text on a live page, BOOM Rome, then every desk
+  // on one page (/desks).
   net: (c, fam, shared, cities = [c]) => {
     const hub = mapXY(shared.rome.geo);
     // the bows are chosen over every desk with coordinates, so an arc is the same on every page
     const bows = bowArcs(hub, cities.filter((x) => x.iata && x.geo).map((x) => [x.iata, mapXY(x.geo)]).concat(cities.some((x) => x.iata === c.iata) ? [] : [[c.iata, mapXY(c.geo)]]));
-    const sisters = fam.filter((f) => f.iata && f.iata !== ROME_IATA && f.geo);
+    const others = cities.filter((x) => x.slug !== c.slug && x.iata && x.geo).sort((a, b) => a.slug.localeCompare(b.slug));
+    const liveSis = others.filter((x) => x.live === true), offSis = others.filter((x) => x.live !== true);
     const me = mapXY(c.geo);
-    const arcs = [...sisters.map((f) => ({ key: f.iata, to: mapXY(f.geo) })), { key: c.iata, to: me, me: true }]
+    const arcs = [...liveSis.map((x) => ({ key: x.iata, to: mapXY(x.geo) })), { key: c.iata, to: me, me: true }]
       .map((a) => ({ ...a, c: arcCtrl(hub, a.to, bows.get(a.key) ?? 0.18) }));
-    const bad = arcViolations(hub, arcs, [...sisters.map((f) => ({ key: f.iata, xy: mapXY(f.geo), r: ARC_DOT_R })), { key: c.iata, xy: me, r: ARC_ME_R }]);
+    // a desk not open: a dot, no arc; its label sides by the arc it WOULD have
+    const offs = offSis.map((x) => { const to = mapXY(x.geo); return { key: x.iata, to, c: arcCtrl(hub, to, bows.get(x.iata) ?? 0.18) }; });
+    const bad = arcViolations(hub, arcs, [...liveSis.map((x) => ({ key: x.iata, xy: mapXY(x.geo), r: ARC_DOT_R })), ...offs.map((o) => ({ key: o.key, xy: o.to, r: ARC_DOT_R })), { key: c.iata, xy: me, r: ARC_ME_R }]);
     need(!bad.length, `cities/${c.slug}.json`, `the network map draws an arc over a desk: ${bad.join('; ')}`);
     // the sisters' arcs first, this desk's (gold) over them; a label sits on the side its arc does not come from
-    const path = (a, i) => `<path class="arc${a.me ? ' me' : ''}" style="--i:${a.me ? 0 : i + 1}" pathLength="1" fill="none" d="M${r1(hub[0])} ${r1(hub[1])}Q${r1(a.c[0])} ${r1(a.c[1])} ${r1(a.to[0])} ${r1(a.to[1])}"/>`;
-    // a label (≈24×10 on the dot's line, 9px off its dot, 7 more past this desk's ring) takes the first side no arc crosses:
-    // first the side its own arc does not come from
+    const path = (a, i) => `<path class="arc${a.me ? ' me' : ''}" style="--i:${a.me ? 0 : i + 1}" pathLength="1" fill="none" d="${arcD(hub, a)}"/>`;
+    // each label takes the first side no drawn arc crosses (labelFor)
     const drawn = arcs.map((a) => arcPts(hub, a.c, a.to, 240));
-    const lab = (a, cls = '') => {
-      const off = 9 + (a.me ? 7 : 0), away = a.c[0] > a.to[0];
-      const clear = (left) => { const x0 = left ? a.to[0] - off - 25 : a.to[0] + off - 1, y0 = a.to[1] - 5; return drawn.every((pts) => pts.every(([x, y]) => x < x0 || x > x0 + 26 || y < y0 || y > y0 + 10)); };
-      const left = clear(away) || !clear(!away) ? away : !away;
-      return `<text class="m-l${cls}${left ? ' l' : ''}" x="${r1(a.to[0] + (left ? -9 : 9))}" y="${r1(a.to[1] + 4)}"${left ? ' text-anchor="end"' : ''}>${esc(a.key)}</text>`;
-    };
+    const lab = (a, cls = '') => labelFor(a, drawn, cls);
     const mine = arcs[arcs.length - 1];
     const svg = [
       '<svg class="map" viewBox="0 0 600 420" aria-hidden="true" focusable="false">',
       '<defs><pattern id="netDots" width="12" height="12" patternUnits="userSpaceOnUse"><circle cx="6" cy="6" r=".5" fill="#fff" fill-opacity=".08"/></pattern></defs>',
       '<rect class="m-bg" width="600" height="420" fill="url(#netDots)"/>',
       ...arcs.map(path),
-      ...sisters.map((f) => { const [x, y] = mapXY(f.geo); return `<circle class="d" cx="${r1(x)}" cy="${r1(y)}" r="${ARC_DOT_R}"/>`; }),
+      ...liveSis.map((x) => { const [px, py] = mapXY(x.geo); return `<circle class="d" cx="${r1(px)}" cy="${r1(py)}" r="${ARC_DOT_R}"/>`; }),
+      ...offs.map((o) => `<circle class="d off" cx="${r1(o.to[0])}" cy="${r1(o.to[1])}" r="${ARC_DOT_R}" fill="none"/>`),
       `<circle class="d-ring" cx="${r1(me[0])}" cy="${r1(me[1])}" r="${ARC_ME_R}" fill="none"/><circle class="d me" cx="${r1(me[0])}" cy="${r1(me[1])}" r="4"/>`,
-      `<circle class="hub" cx="${r1(hub[0])}" cy="${r1(hub[1])}" r="5" fill="none"/>`,
+      `<circle class="hub" cx="${r1(hub[0])}" cy="${r1(hub[1])}" r="5" fill="none"/><circle class="hub-r" cx="${r1(hub[0])}" cy="${r1(hub[1])}" r="${HUB_RING_R}" fill="none"/>`,
       ...arcs.slice(0, -1).map((a) => lab(a)),
+      ...offs.map((o) => lab(o, ' off')),
       lab(mine, ' me'),
-      `<text class="m-l hub" x="${r1(hub[0] + 9)}" y="${r1(hub[1] + 4)}">${ROME_IATA}</text>`,
+      // the hub's label clears its ring
+      `<text class="m-l hub" x="${r1(hub[0] + HUB_RING_R + 4)}" y="${r1(hub[1] + 4)}">${ROME_IATA}</text>`,
       '</svg>'
     ].join('');
-    const items = fam.map((f) => `          <li><a href="${esc(f.href)}"><b data-instr>${esc(f.iata)}</b> ${esc(f.label)}</a></li>`);
+    // the family's sisters, then (a live page) the desks not open — plain
+    // text, never a link — then BOOM Rome, then every desk on one page
+    const sisterHref = new Set(cities.map((x) => `/${x.slug}`));
+    const li = (f) => `          <li><a href="${esc(f.href)}"><b data-instr>${esc(f.iata)}</b> ${esc(f.label)}</a></li>`;
+    const items = [
+      ...fam.filter((f) => sisterHref.has(f.href)).map(li),
+      ...(c.live === true ? offSis.map((x) => `          <li class="off"><b data-instr>${esc(x.iata)}</b> ${esc(x.city)} · not open</li>`) : []),
+      ...fam.filter((f) => !sisterHref.has(f.href)).map(li),
+      `          <li class="all"><a href="${HUB_PATH}"><b data-instr>ALL</b> Every BOOM desk</a></li>`
+    ];
     return [
       '      <div class="net-g">',
       `        ${svg}`,
+      '        <p class="net-k" aria-hidden="true"><i class="k-l"></i>live desk <i class="k-o"></i>not open <i class="k-h"></i>Rome, the hub</p>',
       '        <ul class="net">',
       ...items,
       '        </ul>',
@@ -716,31 +779,67 @@ function jsonLdBreadcrumb(c, shared, pageUrl) {
     '@context': 'https://schema.org', '@type': 'BreadcrumbList', '@id': pageUrl + '#breadcrumb',
     itemListElement: [
       { '@type': 'ListItem', position: 1, name: 'Home', item: shared.siteUrl + '/' },
-      { '@type': 'ListItem', position: 2, name: c.city, item: pageUrl }
+      { '@type': 'ListItem', position: 2, name: HUB_NAME, item: shared.siteUrl + HUB_PATH },
+      { '@type': 'ListItem', position: 3, name: c.city, item: pageUrl }
     ]
   };
 }
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-function jsonLd(c, shared, pageUrl, ogImage, cities = [c]) {
+// THE ORGANIZATION node (RealEstateAgent "BOOM Rome"), ONE function: every
+// desk page and the hub declare the same node (the hub's test deep-equals it).
+// Where BOOM serves, as a fact: Rome and the desks that are LIVE. A draft
+// never puts its city in the Organization's areaServed.
+export function orgNode(shared, cities) {
   const site = shared.siteUrl;
   const o = shared.organization;
-  const orgId = site + '/#organization';
-  const waitlist = c.mode === 'waitlist';
-  // Where BOOM serves, as a fact: Rome and the desks that are LIVE. A draft
-  // never puts its city in the Organization's areaServed.
   const served = ['Rome', ...cities.filter((x) => x.live === true).map((x) => x.city)];
+  return {
+    '@type': 'RealEstateAgent', '@id': site + '/#organization', name: o.name, alternateName: 'BOOM', legalName: o.legalName, url: site, logo: o.logo,
+    founder: o.founder, address: o.address, vatID: o.vatID, contactPoint: o.contactPoint,
+    description: o.description, areaServed: served,
+    ...(shared.rome && /^https:\/\//.test(shared.rome.profileUrl || '') ? { sameAs: [shared.rome.profileUrl] } : {})
+  };
+}
+// THE SERVICE node of a desk, with its Offers, ONE function: the desk page
+// declares it and the hub repeats it byte for byte (deep-equal, tested).
+export function serviceNode(c, shared, pageUrl, orgId) {
+  const waitlist = c.mode === 'waitlist';
   // "What we don't do" from the fact sheet rides on the Service: a source
   // that says its limits is a source an answer engine quotes
   const dont = (c.bref.rows.find((r) => r.dt === "What we don't do") || {}).ddHtml || '';
   return {
+    '@type': 'Service', '@id': pageUrl + '#service', name: c.service.name, serviceType: c.service.serviceType,
+    description: c.service.description + (dont ? " What we don't do: " + dont.replace(/<[^>]+>/g, '') : ''), provider: { '@id': orgId },
+    areaServed: { '@type': 'City', name: c.city },
+    audience: { '@type': 'Audience', audienceType: c.service.audience },
+    hoursAvailable: { '@type': 'OpeningHoursSpecification', dayOfWeek: c.desk.days.map((d) => DAY_NAMES[d]), opens: c.desk.hours.from, closes: c.desk.hours.to },
+    availableChannel: { '@type': 'ServiceChannel', serviceUrl: pageUrl, availableLanguage: String(c.country).toUpperCase() === 'IT' ? ['en', 'it'] : 'en' }, url: pageUrl,
+    // InStock where the desk takes searches, PreOrder where it opens
+    // later — a list price whose Offer says in words when it is charged.
+    // VAT is included on the page: the price specification states it.
+    offers: c.pricing.plans.map((p) => {
+      const unitWord = p.unit ? p.unit.replace(/^per\s+/i, '').trim() : '';
+      return {
+        '@type': 'Offer', name: p.label, price: String(p.price), priceCurrency: currencyOf(c.slug),
+        availability: waitlist ? 'https://schema.org/PreOrder' : 'https://schema.org/InStock',
+        description: p.offerDescription + (p.unit ? ' Priced ' + p.unit + '.' : '') + ' ' + p.conditionLong
+          + (c.checkout === true && p.id === 'full-search' ? ' ' + shared.refund.rule : ''),
+        priceSpecification: { '@type': 'UnitPriceSpecification', price: String(p.price), priceCurrency: currencyOf(c.slug), valueAddedTaxIncluded: true,
+          ...(unitWord ? { unitText: unitWord, referenceQuantity: { '@type': 'QuantitativeValue', value: 1, unitText: unitWord } } : {}) },
+        url: pageUrl + '#fare-' + p.id,
+        seller: { '@id': orgId },
+        itemOffered: { '@type': 'Service', name: p.label, description: `For: ${p.when}.` }
+      };
+    })
+  };
+}
+function jsonLd(c, shared, pageUrl, ogImage, cities = [c]) {
+  const site = shared.siteUrl;
+  const orgId = site + '/#organization';
+  return {
     '@context': 'https://schema.org',
     '@graph': [
-      {
-        '@type': 'RealEstateAgent', '@id': orgId, name: o.name, alternateName: 'BOOM', legalName: o.legalName, url: site, logo: o.logo,
-        founder: o.founder, address: o.address, vatID: o.vatID, contactPoint: o.contactPoint,
-        description: o.description, areaServed: served,
-        ...(shared.rome && /^https:\/\//.test(shared.rome.profileUrl || '') ? { sameAs: [shared.rome.profileUrl] } : {})
-      },
+      orgNode(shared, cities),
       {
         '@type': 'WebPage', '@id': pageUrl + '#page', url: pageUrl, name: c.meta.ogTitle, description: c.meta.description, inLanguage: 'en',
         isPartOf: { '@id': site + '/#website' }, about: { '@id': orgId }, mainEntity: { '@id': pageUrl + '#service' }, breadcrumb: { '@id': pageUrl + '#breadcrumb' },
@@ -751,31 +850,7 @@ function jsonLd(c, shared, pageUrl, ogImage, cities = [c]) {
         } : {}),
         speakable: { '@type': 'SpeakableSpecification', cssSelector: ['.pass .lead', '.foot .stmt', '.enbref'] }
       },
-      {
-        '@type': 'Service', '@id': pageUrl + '#service', name: c.service.name, serviceType: c.service.serviceType,
-        description: c.service.description + (dont ? " What we don't do: " + dont.replace(/<[^>]+>/g, '') : ''), provider: { '@id': orgId },
-        areaServed: { '@type': 'City', name: c.city },
-        audience: { '@type': 'Audience', audienceType: c.service.audience },
-        hoursAvailable: { '@type': 'OpeningHoursSpecification', dayOfWeek: c.desk.days.map((d) => DAY_NAMES[d]), opens: c.desk.hours.from, closes: c.desk.hours.to },
-        availableChannel: { '@type': 'ServiceChannel', serviceUrl: pageUrl, availableLanguage: String(c.country).toUpperCase() === 'IT' ? ['en', 'it'] : 'en' }, url: pageUrl,
-        // InStock where the desk takes searches, PreOrder where it opens
-        // later — a list price whose Offer says in words when it is charged.
-        // VAT is included on the page: the price specification states it.
-        offers: c.pricing.plans.map((p) => {
-          const unitWord = p.unit ? p.unit.replace(/^per\s+/i, '').trim() : '';
-          return {
-            '@type': 'Offer', name: p.label, price: String(p.price), priceCurrency: currencyOf(c.slug),
-            availability: waitlist ? 'https://schema.org/PreOrder' : 'https://schema.org/InStock',
-            description: p.offerDescription + (p.unit ? ' Priced ' + p.unit + '.' : '') + ' ' + p.conditionLong
-              + (c.checkout === true && p.id === 'full-search' ? ' ' + shared.refund.rule : ''),
-            priceSpecification: { '@type': 'UnitPriceSpecification', price: String(p.price), priceCurrency: currencyOf(c.slug), valueAddedTaxIncluded: true,
-              ...(unitWord ? { unitText: unitWord, referenceQuantity: { '@type': 'QuantitativeValue', value: 1, unitText: unitWord } } : {}) },
-            url: pageUrl + '#fare-' + p.id,
-            seller: { '@id': orgId },
-            itemOffered: { '@type': 'Service', name: p.label, description: `For: ${p.when}.` }
-          };
-        })
-      },
+      serviceNode(c, shared, pageUrl, orgId),
       {
         '@type': 'FAQPage', '@id': pageUrl + '#faq', isPartOf: { '@id': pageUrl + '#page' }, inLanguage: 'en',
         mainEntity: list(c, 'faq.items').map((f) => ({
@@ -921,14 +996,16 @@ export function visibleAtLoad(html) {
 // THE NODE RULE (Ticket Wallet's anti-paragraph rule): every element's OWN
 // direct text, at load, is at most BUDGET.node words — except the footer
 // statement (.stmt, the legal sentence). Returns the offenders.
-export function longNodes(atHtml, max = BUDGET.node) {
+// `exempt(node)` (optional) lets a page exempt more nodes; node is
+// { name, cls, parentCls } (the hub: each .enbref dd, capped on its own).
+export function longNodes(atHtml, max = BUDGET.node, exempt = null) {
   const re = /<(\/?)([a-zA-Z][a-zA-Z0-9]*)\b([^>]*)>/g;
-  const stack = [{ name: '#root', cls: '', text: [] }];
+  const stack = [{ name: '#root', cls: '', parentCls: '', text: [] }];
   const long = [];
   const done = (n) => {
     const t = visibleText(n.text.join(' ')).trim();
     const w = words(t);
-    if (w > max && !/(?:^|\s)stmt(?:\s|$)/.test(n.cls)) long.push({ tag: n.name, cls: n.cls, words: w, text: t.slice(0, 90) });
+    if (w > max && !/(?:^|\s)stmt(?:\s|$)/.test(n.cls) && !(exempt && exempt(n))) long.push({ tag: n.name, cls: n.cls, words: w, text: t.slice(0, 90) });
   };
   let i = 0, m;
   while ((m = re.exec(atHtml))) {
@@ -942,7 +1019,7 @@ export function longNodes(atHtml, max = BUDGET.node) {
       }
       continue;
     }
-    stack.push({ name, cls: (/\sclass="([^"]*)"/.exec(' ' + attrs) || [])[1] || '', text: [] });
+    stack.push({ name, cls: (/\sclass="([^"]*)"/.exec(' ' + attrs) || [])[1] || '', parentCls: stack[stack.length - 1].cls, text: [] });
   }
   stack[stack.length - 1].text.push(atHtml.slice(i));
   while (stack.length) done(stack.pop());
@@ -1001,6 +1078,14 @@ function allowOnly(obj, path, where) {
 // the per-item allow-lists and the array each walks
 const ITEM_LISTS = { 'how.step': 'how.steps', 'checks.item': 'checks.items', 'faq.item': 'faq.items', 'bref.row': 'bref.rows' };
 
+// the company's identity strings: any "REA XX-…" is entity.rea, any "VAT /
+// P.IVA <11 digits>" is entity.vat. Shared by the desks and the hub.
+export function identityGuard(text, shared, where) {
+  const e = shared.entity || {};
+  for (const m of String(text).matchAll(/REA\s+([A-Z]{2}-\d+)/g)) need(m[1] === e.rea, where, `"REA ${m[1]}" is not the company's REA (${e.rea}, cities/_shared.json): the identity is said once, never typed`);
+  for (const m of String(text).matchAll(/(?:VAT|P\.?\s?IVA)\s+(?:IT)?(\d{11})/g)) need(m[1] === e.vat, where, `"VAT ${m[1]}" is not the company's VAT number (${e.vat}, cities/_shared.json): the identity is said once, never typed`);
+}
+
 export function renderCity({ template, shared, city, assetVersion, frags, root = ROOT, cities = [city], weigh = true }) {
   const where = `cities/${city.slug}.json`;
   need(/^[a-z0-9-]+$/.test(city.slug || ''), where, 'slug must be lowercase letters, digits and dashes');
@@ -1038,6 +1123,9 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
   // v1.6: Rome is the hub of the network map (public coordinates of the city)
   need(validGeo(shared.rome.geo), 'cities/_shared.json', 'rome.geo {lat, lon} is required: the hub of the Network map (lat 35–60, lon −11–30, inside the map)');
   need(shared.entity && ['legalName', 'address', 'registeredOffice', 'vat', 'rea', 'trademark'].every((f) => str(shared.entity[f])), 'cities/_shared.json', 'entity needs legalName, address, registeredOffice, vat, rea, trademark');
+  // THE COMPANY'S IDENTITY, said once: a REA or VAT number in a desk's copy
+  // is the entity's own (cities/_shared.json), never a typed variant
+  identityGuard(JSON.stringify(city), shared, where);
 
   // ── leftovers ──
   for (const k of LEFTOVERS.top) need(city[k] === undefined, where, `"${k}" is a leftover of the quiz pages (v1.2–v1.4): the ticket page does not read it`);
@@ -1252,6 +1340,12 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
     solariEngine: frags.solariEngine,
     deskCalendar: frags.deskCalendar,
     ratingHtml: rome.profileUrl ? `<a class="lnk" href="${esc(rome.profileUrl)}" target="_blank" rel="noopener">${rating}</a>` : rating,
+    // who operates the desk, under the pass: on the HOME-COUNTRY desk (Milan)
+    // what it is — an Italian real estate agency, under the same Italian law
+    // as in Rome; elsewhere the registered Italian agency, as before
+    proofLead: isHomeDesk(city, shared)
+      ? `Operated by ${shared.entity.legalName}, an Italian real estate agency, under the same Italian law as in Rome`
+      : `Operated by ${shared.entity.legalName}, a registered Italian agency`,
     faresHtml: R.fares(city, shared),
     actHtml: R.act(city, contact),
     faqHtml: R.faq(city),
@@ -1281,6 +1375,15 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
     try { JSON.parse(m[1]); } catch (e) { throw new BuildError(`${where}: JSON-LD does not parse: ${e.message}`); }
   }
   need(!/#D4AF37/i.test(html), where, 'the public pages use #FFD700; #D4AF37 is the portal gold');
+  identityGuard(html, shared, where);
+  // BOOM Desks: a LIVE page never links a desk that is not open — not in
+  // the Network, not anywhere (a client never lands on a draft nobody approved)
+  if (city.live === true) {
+    const off = cities.filter((x) => x.slug !== city.slug && x.live !== true).map((x) => x.slug);
+    const reOff = off.length ? new RegExp(`href="(?:${site.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})?/(?:${off.join('|')})(?=[#"?/])`) : null;
+    const hit = reOff && html.match(reOff);
+    need(!hit, where, `a live page links a desk that is not open (${hit ? hit[0] : ''}): the Network names it, never links it`);
+  }
   const vis = visibleText(html);
   need(!/(?<![\d,.])500\+|off-market|whichever is lower/i.test(vis) && !CLOCK_RE.test(vis), where, 'no "500+", clock promise ("24h", "within an hour", "24/7"…), "off-market" or "whichever is lower" on the page');
   // EVERY price the page states — visible, in a meta attribute, in the
@@ -1494,6 +1597,792 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
   return { slug: city.slug, file: `${city.slug}.html`, live: city.live, mode: city.mode, html, placeholders, warnings, weight, words: bodyWords, prose: proseWords, instr: instrWords };
 }
 
+// ══ BOOM DESKS — the hub (/desks), 03/11/2026 ══════════════════════════════
+// Every desk on one page, GENERATED from the same JSONs as the desks (plus
+// cities/_hub.json for the hub's own copy): a departures board (the live
+// desks with the desk clock and window from the desk calendar, the desks not
+// open as NOT OPEN with no link, ROM the hub), the map lit from Rome (the
+// same arcs as every desk page), the three fares (the refund rule under every
+// €500/£500), the renting rules city by city (each cell the desk's own `at`
+// label, or a title alone where the hold list says a lawyer confirms first),
+// the questions and the fact sheet, open. No till, no WhatsApp, the rating
+// once. Everything that can be derived is derived; the build refuses instead
+// of printing (§1.7 of the spec).
+export const HUB_FILE = 'desks.html';
+export const HUB_VIEWBOX = '0 -40 640 520';
+// the hub's caps, set once with the hub; never raised to fit
+export const HUB_WEIGHT_KB = { total: 78, page: 28, css: 6, js: 6 };
+export const HUB_BUDGET = { body: 980, prose: 740, instr: 280, first: 120, lead: 30, node: 24, dd: 45, faqA: 42,
+  board: 120, map: 90, fares: 230, rules: 160, faq: 70, brief: 240 };
+export const COUNTRY_NAME = { NL: 'Netherlands', ES: 'Spain', GB: 'United Kingdom', IT: 'Italy', FR: 'France', DE: 'Germany' };
+
+// what the hub READS; anything else is refused (the ALLOWED discipline)
+const HUB_ALLOWED = {
+  '': ['updated', 'meta', 'hero', 'map', 'fares', 'rules', 'faq', 'brief', 'footer'],
+  meta: ['title', 'description', 'descriptionShort', 'ogTitle', 'ogDescription'],
+  hero: ['kicker', 'h1', 'word', 'lead'],
+  map: ['eb', 'h2g', 'caption', 'rome', 'home'],
+  'map.rome': ['h', 'p', 'link'],
+  'map.home': ['h', 'p1', 'p2', 'link'],
+  fares: ['eb', 'h2', 'h2g', 'spain', 'plans', 'strip', 'gates'],
+  'fares.plan': ['who', 'lines'],
+  'fares.strip.item': ['k', 'v', 'href'],
+  rules: ['eb', 'h2', 'h2g', 'note', 'caption', 'heldNote', 'rows', 'hold', 'cut'],
+  'rules.row': ['head', 'ids', 'country'],
+  faq: ['eb', 'h2', 'items'],
+  'faq.item': ['q', 'a', 'home'],
+  brief: ['eb', 'h2', 'h2g', 'rows'],
+  'brief.row': ['dt', 'dd', 'derive', 'home'],
+  footer: ['statement']
+};
+const HUB_DERIVE = ['open', 'fees', 'withdrawal', 'rome', 'contact', 'updated'];
+// the optional tokens: an item that uses one with no value is DROPPED (a warning)
+const HUB_OPTIONAL = new Set(['homeCity', 'esDesks', 'gbpDesks']);
+// the literals hub copy may type with a digit in them; every other number is a token
+const HUB_DIGIT_OK = ['LAU art. 20', '14 days', '14-day', '3+2'];
+const STATUTE_RE = /\bart\.\s?\d+|§\s?\d+|\bLAU\b|\bLlei\b|\bL\.\s?\d+\/\d{4}|\bAct \d{4}\b/g;
+const HUB_BANNED = [
+  [/\bworldwide\b|\bglobal(?:ly)?\b|pan-European|all of Europe|\bEU desks?\b/i, 'a scope word ("worldwide", "global", "pan-European", "all of Europe", "EU desk"): the desks are in European cities'],
+  [/\b(?:office|branch|team|based)\s+in\s+(?!Rome)\w+/i, 'a presence claim outside Rome (office, branch, team or based in …): every desk answers from Rome'],
+  [/\b(?:licensed|registered)\s+in\s+(?!Rome)\w+/i, 'a licence or registration outside Rome: the company is registered in Rome'],
+  [/(?<!Rome )Chamber of Commerce/, 'a Chamber of Commerce other than Rome\'s'],
+  [/AICAT|carte professionnelle|§34c|licensed agent/i, 'a licence the desks do not hold'],
+  [/\b10\s*%|one year's rent/, 'Rome\'s 10% commission: the desks charge flat fees'],
+  [/\bguarantee|legal advice\b/i, 'a guarantee or legal advice'],
+  [/law firm/i, 'a law firm (only "not a law firm" is said)'],
+  [/founding|spots? left|places? left|\blimited\b|closing in|\d+\s*min(?:utes)? left/i, 'scarcity'],
+  [/\d+\s*(?:km|miles)\b/, 'a distance']
+];
+
+const DAY_NAMES_LONG = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+function daysLong(days) {
+  const d = [...days].sort((a, b) => a - b);
+  const contiguous = d.every((x, i) => i === 0 || x === d[i - 1] + 1);
+  return d.length > 1 && contiguous ? `${DAY_NAMES_LONG[d[0]]} to ${DAY_NAMES_LONG[d[d.length - 1]]}` : listJoin(d.map((x) => DAY_NAMES_LONG[x]));
+}
+// "Rome time" whenever the desk answers on Rome's clock (Milan's "Italian
+// time" does not split the group): every desk answers from Rome
+const hubZone = (d) => (d.timeZone === 'Europe/Rome' ? 'Rome time' : zoneWords({ ...d, zoneName: undefined }));
+// "Monday to Friday, 09:00–19:00 Rome time; the London desk 08:00–18:00 London time":
+// the largest group of equal hours first, every other group named by its desks
+export function hoursSentence(live) {
+  const groups = new Map();
+  for (const c of live) {
+    const d = c.desk, key = `${[...d.days].sort().join(',')}|${d.hours.from}|${d.hours.to}|${d.timeZone}`;
+    if (!groups.has(key)) groups.set(key, { desk: d, cities: [] });
+    groups.get(key).cities.push(c.city);
+  }
+  const all = [...groups.values()];
+  need(all.length, 'hoursSentence', 'no live desk to say the hours of');
+  const main = all.reduce((a, b) => (b.cities.length > a.cities.length ? b : a));
+  const sameDays = (d) => [...d.days].sort().join() === [...main.desk.days].sort().join();
+  return [`${daysLong(main.desk.days)}, ${main.desk.hours.from}–${main.desk.hours.to} ${hubZone(main.desk)}`,
+    ...all.filter((g) => g !== main).map((g) => `the ${listJoin(g.cities)} desk${g.cities.length > 1 ? 's' : ''} ${sameDays(g.desk) ? '' : daysLong(g.desk.days) + ' '}${g.desk.hours.from}–${g.desk.hours.to} ${hubZone(g.desk)}`)
+  ].join('; ');
+}
+
+// The hub's own tokens, single braces: {cities} {n} {N} {drafts} {legalName}
+// {rea} {vatID} {address} {person} {hours} {refund} {price:<plan>} and the
+// optional {homeCity} {esDesks} {gbpDesks}. Returns null when the string uses
+// an optional token with no value (the caller drops the item, with a warning);
+// any other unknown or empty token is refused.
+export function hubText(s, tok, where) {
+  let drop = false;
+  const out = String(s).replace(/\{([A-Za-z]+)(?::([a-z-]+))?\}/g, (m, k, arg) => {
+    if (k === 'price') {
+      need(arg && tok.prices && Object.prototype.hasOwnProperty.call(tok.prices, arg), where, `${m} names no plan`);
+      return tok.prices[arg];
+    }
+    need(!arg, where, `unknown token ${m}`);
+    if (HUB_OPTIONAL.has(k)) { if (!str(tok[k])) { drop = true; return m; } return tok[k]; }
+    need(Object.prototype.hasOwnProperty.call(tok, k) && str(tok[k]), where, `unknown or empty token ${m}`);
+    return tok[k];
+  });
+  if (drop) return null;
+  need(!/[{}]/.test(out), where, `a malformed token is left: "${out.slice(0, 80)}"`);
+  return out;
+}
+
+// the visible text of the innermost element (one of `tags`) that holds the
+// character at `idx` — nesting-aware (an <li> inside an <li> closes first)
+function enclosingText(flat, idx, tags) {
+  let best = null;
+  for (const t of tags) {
+    const re = new RegExp(`<(/?)${t}(?=[\\s>])[^>]*>`, 'gi');
+    const st = [];
+    let target = null, m;
+    while ((m = re.exec(flat))) {
+      if (target === null && m.index > idx) { if (!st.length) break; target = st[st.length - 1]; }
+      if (m[1]) { const o = st.pop(); if (target !== null && o === target) { if (!best || o > best[0]) best = [o, m.index]; break; } }
+      else st.push(m.index);
+    }
+  }
+  return best ? visibleText(flat.slice(best[0], best[1])) : '';
+}
+const SITE_RE = (site) => site.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const ldStrings = (html, keep = () => true) => {
+  const strs = (v) => (typeof v === 'string' ? [v] : v && typeof v === 'object' ? Object.values(v).flatMap(strs) : []);
+  return [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)]
+    .flatMap((m) => { const d = JSON.parse(m[1]); return (d['@graph'] || [d]).filter(keep).flatMap(strs); });
+};
+// the page's text cut at block boundaries, then into sentences
+const blockSentences = (html) => html.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>|<!--[\s\S]*?-->/gi, ' ')
+  .replace(/<\/?(?:p|li|tr|td|th|dd|dt|h[1-6]|summary|div|section|figcaption|caption|article|header|footer|nav|ul|ol|dl|table|thead|tbody|details|main|figure|svg|text)\b[^>]*>/gi, '\n')
+  .replace(/<[^>]+>/g, ' ').replace(/&[a-z#0-9]+;/g, ' ')
+  .split('\n').flatMap((l) => l.split(/(?<=[.?!])\s+/)).map((x) => x.replace(/\s+/g, ' ').trim()).filter(Boolean);
+
+export function renderHub({ template, shared, hub, cities, assetVersion, frags, root = ROOT, weigh = true, europe = null }) {
+  const where = 'cities/_hub.json';
+  const warnings = [];
+  const site = shared.siteUrl;
+  // ── the keys ──
+  const allow = (obj, pth) => {
+    need(obj && typeof obj === 'object' && !Array.isArray(obj), where, `${pth || 'the hub'} must be an object`);
+    for (const k of Object.keys(obj)) need(HUB_ALLOWED[pth].includes(k), where, `${pth ? pth + '.' : ''}${k} is a key the hub does not read: remove it`);
+  };
+  allow(hub, '');
+  for (const k of ['meta', 'hero', 'map', 'fares', 'rules', 'faq', 'brief', 'footer']) allow(hub[k], k);
+  allow(hub.map.rome, 'map.rome');
+  if (hub.map.home !== undefined) allow(hub.map.home, 'map.home');
+  need(hub.fares.plans && typeof hub.fares.plans === 'object', where, 'fares.plans is required');
+  for (const p of Object.values(hub.fares.plans)) allow(p, 'fares.plan');
+  need(Array.isArray(hub.fares.strip) && hub.fares.strip.length, where, 'fares.strip is a non-empty list');
+  hub.fares.strip.forEach((x) => allow(x, 'fares.strip.item'));
+  need(Array.isArray(hub.rules.rows) && hub.rules.rows.length, where, 'rules.rows is a non-empty list');
+  hub.rules.rows.forEach((x) => allow(x, 'rules.row'));
+  need(Array.isArray(hub.faq.items) && hub.faq.items.length, where, 'faq.items is a non-empty list');
+  hub.faq.items.forEach((x) => allow(x, 'faq.item'));
+  need(Array.isArray(hub.brief.rows) && hub.brief.rows.length, where, 'brief.rows is a non-empty list');
+  hub.brief.rows.forEach((x) => allow(x, 'brief.row'));
+  need(/^\d{4}-\d{2}-\d{2}$/.test(hub.updated || ''), where, '"updated" is YYYY-MM-DD');
+  need(hub.hero.word && /^[A-Z]{2,12}$/.test(hub.hero.word), where, 'hero.word is the board word: 2–12 capital letters (the drum has no accents)');
+
+  // ── the desks ──
+  const bySlug = (a, b) => a.slug.localeCompare(b.slug);
+  const live = cities.filter((c) => c.live === true).sort(bySlug);
+  const drafts = cities.filter((c) => c.live !== true).sort(bySlug);
+  need(live.length >= 1 && live.length <= 12, where, `the hub needs one to twelve live desks (${live.length})`);
+  const home = live.find((c) => isHomeDesk(c, shared)) || null;
+  const curOf = (c) => currencyOf(c.slug);
+  const es = live.filter((c) => String(c.country || '').toUpperCase() === 'ES');
+  const gbp = live.filter((c) => curOf(c) === 'GBP');
+  // 3 · one set of fares: label, price, condition and unit equal at every live desk
+  const plans = live[0].pricing.plans;
+  for (const c of live) {
+    need(c.pricing.plans.length === plans.length && c.pricing.plans.every((p, i) => p.id === plans[i].id && p.label === plans[i].label && Number(p.price) === Number(plans[i].price) && p.condition === plans[i].condition && (p.unit || '') === (plans[i].unit || '')),
+      where, `the fares differ at the ${c.city} desk (label, price, condition or unit): the hub says "same at every desk"`);
+    need(c.checkout === true, where, `${c.city} is live without the till: the hub sends every reader to a desk that takes its fares`);
+  }
+  // 4 · one person answers
+  const persons = [...new Set(live.map((c) => c.desk.person))];
+  need(persons.length === 1, where, `{person} needs one desk.person across the live desks (${persons.join(', ')})`);
+  const roles = [...new Set(live.map((c) => c.desk.role))];
+  need(roles.length === 1, where, `the live desks name one role (${roles.join(', ')})`);
+  const plansById = Object.fromEntries(plans.map((p) => [p.id, p]));
+  const cityPlans = (CITY_MARKETS[live[0].slug] && CITY_MARKETS[live[0].slug].plans) || {};
+  // 2 · each ticket line is a line the server sells (CITY_PLANS.desc)
+  const ucf = (s) => String(s).charAt(0).toLowerCase() + String(s).slice(1);
+  need(Object.keys(hub.fares.plans).join() === plans.map((p) => p.id).join(), where, `fares.plans are ${plans.map((p) => p.id).join(', ')}, in that order`);
+  for (const [id, p] of Object.entries(hub.fares.plans)) {
+    need(str(p.who) && words(p.who) <= 9, where, `fares.plans.${id}.who is 1–9 words`);
+    need(Array.isArray(p.lines) && p.lines.length >= 2 && p.lines.length <= 4 && p.lines.every(str), where, `fares.plans.${id}.lines: 2–4 lines`);
+    const desc = String((cityPlans[id] || {}).desc || '');
+    for (const l of p.lines) need(desc.includes(ucf(l)) || desc.includes(l), where, `fares.plans.${id}: "${l}" is not a line the server sells (api/_market.js CITY_PLANS["${id}"].desc)`);
+  }
+  // 5–7 · the rules table: every live check in exactly one row; holds and cuts name real checks
+  const rows = hub.rules.rows;
+  const rowIds = rows.flatMap((r) => r.ids || []);
+  need(rows.filter((r) => r.country === true).length <= 1 && rows.every((r) => str(r.head) && (r.country === true ? r.ids === undefined : Array.isArray(r.ids) && r.ids.length)), where, 'a rules row is {head, ids[]} or the one {head, country: true}');
+  need(new Set(rowIds).size === rowIds.length, where, 'a check id sits in one comparison row only');
+  const liveCheck = new Map();
+  for (const c of live) for (const k of c.checks.items) {
+    need(rowIds.includes(k.id), where, `check ${c.slug}:${k.id} is in no comparison row`);
+    liveCheck.set(`${c.slug}:${k.id}`, k);
+  }
+  const hold = hub.rules.hold || {}, cut = hub.rules.cut || {};
+  for (const [k, why] of Object.entries(hold)) {
+    need(liveCheck.has(k), where, `rules.hold["${k}"] is not a check of a live desk`);
+    need(typeof why === 'string' && why.trim().length >= 10, where, `rules.hold["${k}"] needs its reason (10 characters at least): a hold never exists without one`);
+  }
+  for (const [k, list2] of Object.entries(cut)) {
+    need(liveCheck.has(k), where, `rules.cut["${k}"] is not a check of a live desk`);
+    need(Array.isArray(list2) && list2.length && list2.every((x) => str(x) && liveCheck.get(k).text.includes(x)), where, `rules.cut["${k}"]: every sentence cut must occur verbatim in that check's text`);
+  }
+  // 8 · "what we don't do" holds at EVERY live desk
+  for (const c of live) {
+    const d = (c.bref.rows.find((r) => r.dt === "What we don't do") || {}).ddHtml || '';
+    need(/list homes/.test(d) && /represent landlords|act for landlords/.test(d) && /promise a date/.test(d), where, `the ${c.city} desk's "What we don't do" must say it does not list homes, represent or act for landlords, or promise a date (the hub says it of every desk)`);
+  }
+  // 18 · the company's identity strings are the entity's own (the same guard as the desks)
+  identityGuard(JSON.stringify({ ...hub, rules: { ...hub.rules, hold: undefined } }), shared, where);
+  // the hub's copy, every string (hold reasons and "updated" aside)
+  const hubStrs = (() => {
+    const strs = (v, pth) => (typeof v === 'string' ? [[pth, v]] : v && typeof v === 'object' ? Object.entries(v).flatMap(([k, x]) => strs(x, pth ? `${pth}.${k}` : k)) : []);
+    return strs({ ...hub, updated: undefined, rules: { ...hub.rules, hold: undefined } }, '');
+  })();
+  // 10 · a desk not open is never linked, not even from the copy; and the copy is plain text
+  {
+    const offs0 = drafts.map((c) => c.slug);
+    const reOff = offs0.length ? new RegExp(`(?:^|[\\s"'(=])(?:${SITE_RE(site)})?/(?:${offs0.join('|')})(?=[#"'?/\\s)]|$)`) : null;
+    for (const [pth, v] of hubStrs) {
+      need(!(reOff && reOff.test(v)), where, `${pth}: "${v.slice(0, 80)}" links a desk that is not open: it is named, never linked`);
+      need(!/<\/?[a-z][^>]*>/i.test(v), where, `${pth}: "${v.slice(0, 80)}" carries markup: hub copy is plain text (the links are derived)`);
+    }
+  }
+  // 17 · every statute the copy names is one a live desk's check names (before the digits: the precise reason first)
+  const knownLaw = live.flatMap((c) => c.checks.items.flatMap((k) => [k.at, k.text]));
+  for (const [pth, v] of hubStrs) for (const m of v.matchAll(STATUTE_RE)) {
+    need(knownLaw.some((t) => t.includes(m[0])), where, `"${m[0]}" (in ${pth}: "${v.slice(0, 60)}…") is a statute no live desk's check names: the hub cites only what a desk checks`);
+  }
+  // 9 · digits in hub copy: only inside the allowed literals
+  {
+    for (const [pth, v] of hubStrs) {
+      const rest = HUB_DIGIT_OK.reduce((s, lit) => s.split(lit).join(' '), v);
+      need(!/\d/.test(rest), where, `${pth}: "${v.slice(0, 80)}" types a number — numbers come from tokens ({price:…}, {n}, {hours}…), only ${HUB_DIGIT_OK.map((x) => `"${x}"`).join(', ')} are written`);
+    }
+  }
+
+  // ── the tokens ──
+  const e = shared.entity, org = shared.organization;
+  const cityList = listJoin(live.map((c) => c.city));
+  const tok = {
+    cities: cityList, n: numberWord(live.length), N: numberWord(live.length).replace(/^./, (x) => x.toUpperCase()),
+    drafts: listJoin(drafts.map((c) => c.city)), legalName: e.legalName, rea: e.rea, vatID: org.vatID, address: e.address,
+    person: persons[0], hours: hoursSentence(live), refund: shared.refund.rule,
+    prices: Object.fromEntries(plans.map((p) => [p.id, money(p.price, 'EUR')])),
+    homeCity: home ? home.city : '', esDesks: listJoin(es.map((c) => c.city)), gbpDesks: listJoin(gbp.map((c) => c.city))
+  };
+  const T = (s, w2 = where) => { const v = hubText(s, tok, w2); need(v !== null, w2, `"${String(s).slice(0, 60)}" uses an optional token with no value, where nothing can be dropped`); return v; };
+  // an item that can be dropped: null when it names the home desk (or Spain, or London) and there is none
+  const Topt = (s, label, isHome = false) => {
+    if (isHome && !home) { warnings.push(`${label} dropped: no home-country desk`); return null; }
+    const v = hubText(s, tok, where);
+    if (v === null) warnings.push(`${label} dropped: it uses an optional token with no value`);
+    return v;
+  };
+  const meta = {};
+  for (const k of ['title', 'description', 'descriptionShort', 'ogTitle', 'ogDescription']) meta[k] = T(hub.meta[k]);
+  if (meta.description.length > 165) meta.description = meta.descriptionShort;
+  need(meta.title.length <= 62, where, `meta.title is ${meta.title.length} characters, over 62`);
+  need(meta.description.length >= 110 && meta.description.length <= 165, where, `meta.description is ${meta.description.length} characters, outside 110–165`);
+  const lead = T(hub.hero.lead);
+  need(words(lead) <= HUB_BUDGET.lead, where, `hero.lead is ${words(lead)} words, over ${HUB_BUDGET.lead}`);
+  // 17 · every statute the hub's own copy names is one a live desk's check names
+  const authored = [];
+
+  // ── the map's geometry: the same bows and the same arcs as every desk page ──
+  const hubXY = mapXY(shared.rome.geo);
+  const withGeo = cities.filter((x) => x.iata && x.geo);
+  const bows = bowArcs(hubXY, withGeo.map((x) => [x.iata, mapXY(x.geo)]));
+  const arcs = live.map((c) => { const to = mapXY(c.geo); return { key: c.iata, slug: c.slug, to, c: arcCtrl(hubXY, to, bows.get(c.iata)) }; });
+  const offs = drafts.filter((c) => c.iata && c.geo).map((c) => { const to = mapXY(c.geo); return { key: c.iata, to, c: arcCtrl(hubXY, to, bows.get(c.iata)) }; });
+  {
+    const bad = arcViolations(hubXY, arcs, [...arcs.map((a) => ({ key: a.key, xy: a.to, r: ARC_DOT_R })), ...offs.map((o) => ({ key: o.key, xy: o.to, r: ARC_DOT_R }))]);
+    need(!bad.length, where, `the hub map draws an arc over a desk: ${bad.join('; ')}`);
+  }
+  const drawn = arcs.map((a) => arcPts(hubXY, a.c, a.to, 240));
+
+  // ── the board ──
+  const fromOf = (c) => money(Math.min(...c.pricing.plans.map((p) => Number(p.price))), curOf(c));
+  const idOf = (c) => `db-${c.iata.toLowerCase()}`;
+  const codeCell = (iata) => `<th scope="row" class="db-code" role="rowheader"><b class="db-b" data-word="${esc(iata)}" aria-hidden="true"></b><span class="db-iata" data-instr>${esc(iata)}</span></th>`;
+  const boardRows = [
+    ...live.map((c) => [
+      `        <tr class="db-r live" id="${idOf(c)}" data-desk="${esc(c.slug)}" role="row">`,
+      `          ${codeCell(c.iata)}`,
+      `          <td class="db-city" role="cell"><a class="db-go" href="/${esc(c.slug)}">${esc(c.city)}</a><span class="db-sub" data-nosnippet data-dw="${esc(c.slug)}">${esc(deskHoursText(c.desk))}</span>${c === home ? '<span class="db-tag" data-instr>ITALIAN LAW · AS ROME</span>' : ''}</td>`,
+      '          <td class="db-st c-w" role="cell" data-instr>LIVE</td>',
+      `          <td class="db-t c-w" role="cell"><span class="db-tv" data-nosnippet data-clk="${esc(c.slug)}"></span></td>`,
+      `          <td class="db-now c-w" role="cell"><b class="db-nb" aria-hidden="true"></b><span class="sr" data-nosnippet data-nsr="${esc(c.slug)}"></span></td>`,
+      `          <td class="db-fare c-w" role="cell">from <b>${fromOf(c)}</b></td>`,
+      '          <td class="db-gate" role="cell" aria-hidden="true"><span class="db-pill">Go to desk <i>→</i></span></td>',
+      '        </tr>'
+    ].join('\n')),
+    ...drafts.filter((c) => c.iata).map((c) => `        <tr class="db-r off" id="${idOf(c)}" role="row">${codeCell(c.iata)}<td class="db-city" role="cell"><span class="db-name">${esc(c.city)}</span><span class="db-sub">Not open</span></td><td class="db-st c-w" role="cell" data-instr>NOT OPEN</td><td class="db-t c-w" role="cell"></td><td class="db-now c-w" role="cell"></td><td class="db-fare c-w" role="cell"></td><td class="db-gate" role="cell"></td></tr>`),
+    [
+      `        <tr class="db-r hub" id="db-${ROME_IATA.toLowerCase()}" role="row">`,
+      `          ${codeCell(ROME_IATA)}`,
+      '          <td class="db-city" role="cell"><a class="db-go" href="/">Rome</a><span class="db-sub">The hub · homes to rent in Rome</span></td>',
+      '          <td class="db-st c-w" role="cell" data-instr>HUB</td><td class="db-t c-w" role="cell"></td><td class="db-now c-w" role="cell"></td><td class="db-fare c-w" role="cell"></td>',
+      '          <td class="db-gate" role="cell" aria-hidden="true"><span class="db-pill">Go to BOOM Rome <i>→</i></span></td>',
+      '        </tr>'
+    ].join('\n')
+  ];
+  const boardHtml = [
+    '      <div class="dboard-w quadro"><i class="tacca"></i>',
+    '        <p class="db-h" aria-hidden="true"><b>BOOM · DESKS</b><span class="pill-st js" id="hubPill" hidden><i class="dot"></i><span>Desks open</span></span></p>',
+    '        <table class="dboard" id="dboard" role="table" aria-label="BOOM desks" data-instr>',
+    '          <thead data-instr><tr role="row"><th scope="col" role="columnheader">Code</th><th scope="col" role="columnheader">Desk</th><th scope="col" class="c-w" role="columnheader">Status</th><th scope="col" class="c-w" role="columnheader">Desk time</th><th scope="col" class="c-w" role="columnheader">Now</th><th scope="col" class="c-w" role="columnheader">Fares from</th><th scope="col" role="columnheader"><span class="sr">Desk page</span></th></tr></thead>',
+    '          <tbody>',
+    ...boardRows,
+    '          </tbody>',
+    '        </table>',
+    '      </div>'
+  ].join('\n');
+
+  // ── the map ──
+  const N = (x) => r1(x);
+  const grat = [];
+  for (let lon = -10; lon <= 20; lon += 5) { const x = mapXY({ lon, lat: 46.75 })[0]; grat.push(`<line x1="${N(x)}" y1="-40" x2="${N(x)}" y2="480"/>`); }
+  for (const lat of [40, 45, 50, 55]) { const y = mapXY({ lon: 5, lat })[1]; grat.push(`<line x1="0" y1="${N(y)}" x2="640" y2="${N(y)}"/><text x="6" y="${N(y - 4)}">${lat}°N</text>`); }
+  const land = europe && europe.path ? europe.path : null;
+  const svg = [
+    `<svg class="hmap-svg" viewBox="${HUB_VIEWBOX}" aria-hidden="true" focusable="false">`,
+    '<defs><pattern id="seaDots" width="8" height="8" patternUnits="userSpaceOnUse"><circle cx="4" cy="4" r=".5" fill="#fff" fill-opacity=".06"/></pattern>'
+      + '<pattern id="landDots" width="5" height="5" patternUnits="userSpaceOnUse"><circle cx="2.5" cy="2.5" r=".9" fill="#fff" fill-opacity=".22"/></pattern>'
+      + (land ? `<clipPath id="land"><path d="${esc(land)}"/></clipPath>` : '') + '</defs>',
+    '<rect class="sea" x="0" y="-40" width="640" height="520" fill="url(#seaDots)"/>',
+    land ? '<rect class="land" x="0" y="-40" width="640" height="520" fill="url(#landDots)" clip-path="url(#land)"/>' : '',
+    `<g class="grat">${grat.join('')}</g>`,
+    ...arcs.map((a, i) => `<path class="arc" id="arc-${a.key.toLowerCase()}" style="--i:${i + 1}" pathLength="1" fill="none" d="${arcD(hubXY, a)}"/>`),
+    ...arcs.map((a) => `<circle class="d" cx="${N(a.to[0])}" cy="${N(a.to[1])}" r="${ARC_DOT_R}"/>`),
+    ...offs.map((o) => `<circle class="d off" cx="${N(o.to[0])}" cy="${N(o.to[1])}" r="${ARC_DOT_R}" fill="none"/>`),
+    `<circle class="hub" cx="${N(hubXY[0])}" cy="${N(hubXY[1])}" r="5" fill="none"/><circle class="hub-r" cx="${N(hubXY[0])}" cy="${N(hubXY[1])}" r="${HUB_RING_R}" fill="none"/><circle class="hub-r r2" cx="${N(hubXY[0])}" cy="${N(hubXY[1])}" r="16" fill="none"/>`,
+    ...arcs.map((a) => labelFor(a, drawn)),
+    ...offs.map((o) => labelFor(o, drawn, ' off')),
+    `<text class="m-l hub" x="${N(hubXY[0] + 20)}" y="${N(hubXY[1] + 4)}">${ROME_IATA} · HUB</text>`,
+    '</svg>'
+  ].filter(Boolean).join('');
+  const pins = live.map((c) => {
+    const [x, y] = mapXY(c.geo);
+    const px = Math.round(r1n(x) / 640 * 1000) / 10, py = Math.round((r1n(y) + 40) / 520 * 1000) / 10;
+    return `<a class="pin${px > 60 ? ' pc-l' : ''}" id="pin-${c.iata.toLowerCase()}" href="/${esc(c.slug)}" style="--x:${px.toFixed(1)}%;--y:${py.toFixed(1)}%" aria-label="Tenant-side rental agent in ${esc(c.city)}">`
+      + '<i class="pin-dot" aria-hidden="true"></i>'
+      + `<span class="pc" aria-hidden="true"><b>${esc(c.iata)}</b> ${esc(c.city)} · Live<span class="pc-w" data-nosnippet data-dw="${esc(c.slug)}">${esc(deskHoursText(c.desk))}</span><span class="pc-f">from ${fromOf(c)}</span><span class="pc-go">Go to the ${esc(c.city)} desk →</span></span></a>`;
+  });
+  const mapCss = '<style>' + arcs.map((a) => `.hmap:has(#pin-${a.key.toLowerCase()}:is(:hover,:focus-visible)) #arc-${a.key.toLowerCase()}{stroke:var(--gold);stroke-width:2;opacity:1}`).join('') + '</style>';
+  const mp = hub.map;
+  const romeCard = `          <article class="m-card"><h3><b data-instr>${ROME_IATA}</b> ${esc(T(mp.rome.h))}</h3><p>${esc(T(mp.rome.p))}</p><a class="lnk" href="/">${esc(T(mp.rome.link))} →</a></article>`;
+  let homeCard = '';
+  if (mp.home) {
+    const h = Topt(mp.home.h, 'map.home card', true), p1 = h === null ? null : Topt(mp.home.p1, 'map.home card'), p2 = h === null ? null : Topt(mp.home.p2, 'map.home card'), lk = h === null ? null : Topt(mp.home.link, 'map.home card');
+    if ([h, p1, p2, lk].every((x) => x !== null)) {
+      homeCard = `          <article class="m-card home"><h3><b data-instr>${esc(home.iata)}</b> ${esc(h)}</h3><p>${esc(p1)}</p><p>${esc(p2)}</p><a class="lnk" href="/${esc(home.slug)}">${esc(lk)} →</a></article>`;
+      authored.push(h, p1, p2, lk);
+    }
+  }
+  authored.push(T(mp.eb), T(mp.h2g), T(mp.caption), T(mp.rome.h), T(mp.rome.p), T(mp.rome.link));
+  const mapHtml = [
+    `      <p class="eb" data-instr>${esc(T(mp.eb))}</p>`,
+    `      <h2 id="mapH">${esc(tok.N)} desks, <span class="g">${esc(T(mp.h2g))}</span></h2>`,
+    `      <p class="net-c">${esc(T(mp.caption))}</p>`,
+    '      <div class="hmap-g">',
+    `        <figure class="hmap" id="hmap"><div class="hmap-box">${svg}${pins.join('')}</div>`,
+    '          <figcaption class="m-legend" aria-hidden="true"><i class="lg-l"></i>live desk <i class="lg-o"></i>not open <i class="lg-h"></i>Rome, the hub</figcaption></figure>',
+    '        <div class="m-rail">',
+    romeCard,
+    homeCard,
+    '        </div>',
+    '      </div>'
+  ].filter(Boolean).join('\n');
+
+  // ── the fares ──
+  const fr = hub.fares;
+  const spain = fr.spain ? Topt(fr.spain, 'fares.spain note') : null;
+  const gbpDesk = gbp.length ? `at the ${listJoin(gbp.map((c) => c.city))} desk${gbp.length > 1 ? 's' : ''}` : '';
+  const tickets = plans.map((p) => {
+    const hp = fr.plans[p.id];
+    authored.push(hp.who, ...hp.lines);
+    return [
+      `        <li class="hft" id="hf-${esc(p.id)}">`,
+      `          <p class="hft-band" data-instr>${esc(p.label)}</p>`,
+      `          <p class="hft-who">${esc(hp.who)}</p>`,
+      `          <p class="hft-price"><b>${money(p.price, 'EUR')}</b><span>${esc(p.condition)}</span></p>`,
+      gbpDesk ? `          <p class="hft-gbp">${money(p.price, 'GBP')} ${esc(gbpDesk)}</p>` : '',
+      `          <ul class="hft-inc">${hp.lines.map((l) => `<li>${esc(l)}</li>`).join('')}</ul>`,
+      p.id === 'full-search' ? `          <p class="refund">${esc(shared.refund.rule)}</p>` : '',
+      '        </li>'
+    ].filter(Boolean).join('\n');
+  });
+  const strip = fr.strip.map((x, i) => {
+    const k = Topt(x.k, `fares.strip[${i}]`), v = k === null ? null : Topt(x.v, `fares.strip[${i}]`);
+    if (k === null || v === null) return null;
+    need(x.href === undefined || /^\/[a-z0-9/#-]*$/.test(x.href), where, `fares.strip[${i}].href is a path on the site`);
+    authored.push(k, v);
+    return `          <li><b data-instr>${esc(k)}</b> ${x.href ? `<a class="lnk" href="${esc(x.href)}">${esc(v)}</a>` : esc(v)}</li>`;
+  }).filter(Boolean);
+  const gates = T(fr.gates);
+  authored.push(T(fr.eb), T(fr.h2), T(fr.h2g), gates);
+  if (spain) authored.push(spain);
+  const faresHtml = [
+    `      <p class="eb" data-instr>${esc(T(fr.eb))}</p>`,
+    `      <h2 id="faresH2">${esc(T(fr.h2))} <span class="g">${esc(T(fr.h2g))}</span></h2>`,
+    spain ? `      <p class="hnote es">${esc(spain)}</p>` : '',
+    '      <ol class="hfares">',
+    ...tickets,
+    '      </ol>',
+    '      <ul class="hrules">',
+    ...strip,
+    '      </ul>',
+    `      <nav class="hgates" aria-label="${esc(gates)}"><p data-instr>${esc(gates)}</p>`,
+    ...live.map((c) => `        <a href="/${esc(c.slug)}#fares"><b data-instr>${esc(c.iata)}</b> ${esc(c.city)}</a>`),
+    '      </nav>'
+  ].filter(Boolean).join('\n');
+
+  // ── the rules ──
+  const ru = hub.rules;
+  const updatedIso = [hub.updated, ...live.map((c) => c.updated)].filter(Boolean).sort().pop();
+  const updatedLong = dateLong(updatedIso);
+  const cellOf = (c, row) => {
+    if (row.country === true) {
+      const cc = String(c.country || '').toUpperCase();
+      // a country the hub cannot name is not invented: a dash, and a warning
+      if (!COUNTRY_NAME[cc]) { warnings.push(`the ${c.city} desk's country "${cc}" has no name in COUNTRY_NAME: its cell reads "—"`); return `<span class="rc none" aria-hidden="true">—</span><span class="sr">Country not stated</span>`; }
+      return `${esc(COUNTRY_NAME[cc])}${c === home ? ' <span class="rc-tag" data-instr>same law as BOOM Rome</span>' : ''}`;
+    }
+    const ks = c.checks.items.filter((k) => row.ids.includes(k.id));
+    if (!ks.length) return `<span class="rc none" aria-hidden="true">—</span><span class="sr">Not one of the ${esc(c.city)} checks</span>`;
+    return ks.map((k) => (hold[`${c.slug}:${k.id}`]
+      ? `<a class="rc held" href="/${esc(c.slug)}#check-${esc(k.id)}"><span class="rc-t">${esc(k.title)}</span></a>`
+      : `<a class="rc" href="/${esc(c.slug)}#check-${esc(k.id)}"><span class="rc-at" data-instr>${esc(k.at)}</span></a>`)).join('');
+  };
+  const anyHeld = live.some((c) => c.checks.items.some((k) => hold[`${c.slug}:${k.id}`]));
+  const cutText = (c, k) => (cut[`${c.slug}:${k.id}`] || []).reduce((t, s) => t.split(s).join(''), k.text).replace(/\s+/g, ' ').trim();
+  const full = live.map((c) => {
+    const shown = c.checks.items.filter((k) => !hold[`${c.slug}:${k.id}`]);
+    const held = c.checks.items.filter((k) => hold[`${c.slug}:${k.id}`]);
+    return [
+      `          <h3><a class="lnk" href="/${esc(c.slug)}#checks">${esc(c.city)}</a></h3>`,
+      shown.length ? `          <dl>${shown.map((k) => `<dt>${esc(k.title)} <cite>${esc(k.at)}</cite></dt><dd>${esc(cutText(c, k))}</dd>`).join('')}</dl>` : '',
+      held.length ? `          <p>Also on the ${esc(c.city)} page: ${esc(listJoin(held.map((k) => k.title)))}.</p>` : ''
+    ].filter(Boolean).join('\n');
+  });
+  authored.push(T(ru.eb), T(ru.h2), T(ru.h2g), T(ru.note), T(ru.caption), T(ru.heldNote), ...rows.map((r) => T(r.head)));
+  const rulesHtml = [
+    `      <p class="eb" data-instr>${esc(T(ru.eb))}</p>`,
+    `      <h2 id="rulesH">${esc(T(ru.h2))} <span class="g">${esc(T(ru.h2g))}</span></h2>`,
+    `      <p class="r-note">${esc(T(ru.note))}</p>`,
+    '      <table class="rtab" data-instr>',
+    `        <caption>${esc(T(ru.caption))} · updated ${esc(updatedLong)}</caption>`,
+    `        <thead><tr><td></td>${live.map((c) => `<th scope="col"><a href="/${esc(c.slug)}#checks"><b data-instr>${esc(c.iata)}</b> ${esc(c.city)}</a></th>`).join('')}</tr></thead>`,
+    '        <tbody>',
+    ...rows.map((r) => `          <tr><th scope="row">${esc(T(r.head))}</th>${live.map((c) => `<td data-k="${esc(c.iata)}">${cellOf(c, r)}</td>`).join('')}</tr>`),
+    '        </tbody>',
+    '      </table>',
+    anyHeld ? `      <p class="r-held">${esc(T(ru.heldNote))}</p>` : '',
+    '      <details class="sheet rfull"><summary>Every rule in full</summary>',
+    '        <div class="rfull-in">',
+    ...full,
+    '        </div>',
+    '      </details>'
+  ].filter(Boolean).join('\n');
+
+  // ── the questions ──
+  const faqs = hub.faq.items.map((f, i) => {
+    need(str(f.q) && str(f.a) && (f.home === undefined || typeof f.home === 'boolean'), where, `faq.items[${i}] needs q and a (home: true or nothing)`);
+    const q = Topt(f.q, `faq.items[${i}]`, f.home === true), a = q === null ? null : Topt(f.a, `faq.items[${i}]`);
+    if (q === null || a === null) return null;
+    need(words(a) <= HUB_BUDGET.faqA, where, `faq "${q}": the answer is ${words(a)} words, over ${HUB_BUDGET.faqA}`);
+    authored.push(q, a);
+    return { q, a };
+  }).filter(Boolean);
+  need(faqs.length >= 3 && faqs.length <= 8, where, `three to eight questions (${faqs.length})`);
+  const faqHtml = faqs.map((f, i) => `        <details><summary><span class="qn" aria-hidden="true">${pad2(i + 1)}</span> <span class="t">${esc(f.q)}</span></summary><p>${esc(f.a)}</p></details>`).join('\n');
+  authored.push(T(hub.faq.eb), T(hub.faq.h2));
+
+  // ── in brief ──
+  const ruleTxt = esc(shared.refund.rule);
+  const derived = {
+    open: () => `${listJoin(live.map((c) => `<a class="lnk" href="/${esc(c.slug)}">${esc(c.city)}</a>`))}.${drafts.length ? ` ${esc(listJoin(drafts.map((c) => c.city)))} desk${drafts.length > 1 ? 's are' : ' is'} not open.` : ''}`,
+    fees: () => `The same three flat fees at every desk, VAT included: ${plans.map((p) => `<b>${esc(p.label)} ${money(p.price, 'EUR')}</b>${p.unit ? ' ' + esc(p.unit) : ''}`).join(' · ')}${gbpDesk ? `; ${esc(gbpDesk)} ${listJoin(plans.map((p) => money(p.price, 'GBP')))}` : ''}. ${ruleTxt}`,
+    withdrawal: () => `14 days from payment. Work starts inside them only if you ask: the “Start now” tick at checkout, or later in writing. <a class="lnk" href="${WITHDRAWAL_PATH}">Model withdrawal form</a>.`,
+    rome: () => 'In Rome, BOOM is the agency itself, with <a class="lnk" href="/apartments">homes to rent</a>.',
+    contact: () => `<a class="lnk" href="mailto:${esc(shared.contact.email)}">${esc(shared.contact.email)}</a> · <a class="lnk" href="tel:+${esc(shared.contact.whatsapp)}">${esc(shared.contact.phoneDisplay)}</a>`,
+    updated: () => `<time datetime="${esc(updatedIso)}">${esc(updatedLong)}</time>`
+  };
+  const briefRows = hub.brief.rows.map((r, i) => {
+    need(str(r.dt) && (r.home === undefined || typeof r.home === 'boolean') && ((str(r.dd) && r.derive === undefined) || (r.dd === undefined && HUB_DERIVE.includes(r.derive))), where, `brief.rows[${i}] is {dt, dd} or {dt, derive: ${HUB_DERIVE.join('|')}}`);
+    const dt = Topt(r.dt, `brief.rows[${i}]`, r.home === true);
+    if (dt === null) return null;
+    let dd;
+    if (r.derive) dd = derived[r.derive]();
+    else { const v = Topt(r.dd, `brief.rows[${i}] (${dt})`); if (v === null) return null; dd = esc(v); authored.push(v); }
+    authored.push(dt);
+    return `        <dt>${esc(dt)}</dt><dd>${dd}</dd>`;
+  }).filter(Boolean);
+  authored.push(T(hub.brief.eb), T(hub.brief.h2), T(hub.brief.h2g));
+  const briefHtml = [
+    `      <p class="eb" data-instr>${esc(T(hub.brief.eb))}</p>`,
+    `      <h2 id="briefH">${esc(T(hub.brief.h2))} <span class="g">${esc(T(hub.brief.h2g))}</span></h2>`,
+    '      <dl class="enbref" id="enbref">',
+    ...briefRows,
+    '      </dl>'
+  ].join('\n');
+
+  // ── the footer ──
+  const operator = String(e.legalName).replace(/\s+S\.r\.l\.?$/i, '').toUpperCase();
+  const statement = T(hub.footer.statement);
+  authored.push(statement, T(hub.hero.kicker), T(hub.hero.h1), lead, meta.title, meta.description, meta.ogTitle, meta.ogDescription);
+  const footHtml = [
+    '    <footer class="foot">',
+    `      <div class="f-top"><svg aria-hidden="true"><use href="#boomMark"/></svg><b>${esc(HUB_NAME)}</b><p class="stmt">${esc(statement)}</p></div>`,
+    '      <div class="f-grid">',
+    `        <nav aria-label="Desks"><h3>Desks</h3> ${live.map((c) => `<a href="/${esc(c.slug)}">BOOM ${esc(c.city)}</a>`).join(' ')} <a href="/">BOOM Rome</a></nav>`,
+    `        <nav aria-label="Legal"><h3>Legal</h3> <a href="${TERMS_PATH}">Terms</a> <a href="/privacy">Privacy</a> <a href="${WITHDRAWAL_PATH}">Withdrawal form</a></nav>`,
+    `        <div class="f-co"><h3>Company</h3><p>${esc(e.legalName)}</p><p>${esc(e.address)}</p><p>Registered office: ${esc(e.registeredOffice)}</p><p>P.IVA ${esc(e.vat)} · REA ${esc(e.rea)}</p></div>`,
+    '      </div>',
+    `      <p class="tm">${esc(e.trademark)}</p>`,
+    `      <p class="cr">© ${esc(shared.copyrightYear)} BOOM <span class="mono" aria-hidden="true">· DESKS · TENANT SIDE · OPERATED BY ${esc(operator)}</span></p>`,
+    '    </footer>'
+  ].join('\n');
+
+  // 17 · statutes named by the hub's own copy, once its tokens are resolved
+  {
+    for (const s of authored) for (const m of String(s).matchAll(STATUTE_RE)) {
+      need(knownLaw.some((t) => t.includes(m[0])), where, `"${m[0]}" (in "${String(s).slice(0, 60)}…") is a statute no live desk's check names: the hub cites only what a desk checks`);
+    }
+  }
+
+  // ── JSON-LD ──
+  const pageUrl = site + HUB_PATH;
+  const orgId = site + '/#organization';
+  const ogFile = path.join(root, 'og-desks.png');
+  const ogImage = `${site}/og-desks.png${fs.existsSync(ogFile) ? '?v=' + hash(ogFile) : ''}`;
+  const breadcrumb = {
+    '@context': 'https://schema.org', '@type': 'BreadcrumbList', '@id': pageUrl + '#breadcrumb',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Home', item: site + '/' },
+      { '@type': 'ListItem', position: 2, name: HUB_NAME, item: pageUrl }
+    ]
+  };
+  const graph = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      orgNode(shared, cities),
+      {
+        '@type': 'CollectionPage', '@id': pageUrl + '#page', url: pageUrl, name: meta.ogTitle, description: meta.description, inLanguage: 'en',
+        isPartOf: { '@id': site + '/#website' }, about: { '@id': orgId }, mainEntity: { '@id': pageUrl + '#desks' }, breadcrumb: { '@id': pageUrl + '#breadcrumb' },
+        primaryImageOfPage: { '@type': 'ImageObject', url: ogImage, width: 1200, height: 630 },
+        dateModified: updatedIso, publisher: { '@id': orgId },
+        author: { '@type': 'Person', name: persons[0], jobTitle: roles[0], worksFor: { '@id': orgId } },
+        hasPart: live.map((c) => ({ '@id': `${site}/${c.slug}#page` })),
+        speakable: { '@type': 'SpeakableSpecification', cssSelector: ['.hub-lead', '.enbref'] }
+      },
+      {
+        '@type': 'ItemList', '@id': pageUrl + '#desks', name: HUB_NAME, numberOfItems: live.length, itemListOrder: 'https://schema.org/ItemListOrderAscending',
+        itemListElement: live.map((c, i) => ({ '@type': 'ListItem', position: i + 1, url: `${site}/${c.slug}`, item: { '@id': `${site}/${c.slug}#service` } }))
+      },
+      ...live.map((c) => serviceNode(c, shared, `${site}/${c.slug}`, orgId)),
+      {
+        '@type': 'FAQPage', '@id': pageUrl + '#faq', isPartOf: { '@id': pageUrl + '#page' }, inLanguage: 'en',
+        mainEntity: faqs.map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } }))
+      }
+    ]
+  };
+
+  const config = {
+    WORD: hub.hero.word,
+    CODES: [...live.map((c) => c.iata), ...drafts.filter((c) => c.iata).map((c) => c.iata), ROME_IATA],
+    DESKS: live.map((c) => ({ slug: c.slug, iata: c.iata, city: c.city, desk: { timeZone: c.desk.timeZone, hours: c.desk.hours, days: c.desk.days }, holidays: holidayKeyOf(c.slug) }))
+  };
+  const rome = shared.rome;
+  const rating = `${esc(rome.rating)} on Google in Rome, ${esc(rome.reviews)} reviews`;
+  // the H1 reads the board word once, in words ("Europe")
+  const wordTitle = hub.hero.word.charAt(0) + hub.hero.word.slice(1).toLowerCase();
+  const data = {
+    meta, pageUrl, ogImage, assetVersion,
+    robotsMeta: '<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">',
+    jsonLdBreadcrumb: scriptJson(breadcrumb, ''),
+    jsonLd: scriptJson(graph, ''),
+    configJson: scriptJson(config, '  '),
+    scrollBlock: frags.scrollBlock, solariEngine: frags.solariEngine, deskCalendar: frags.deskCalendar,
+    mapCss,
+    kicker: T(hub.hero.kicker), h1: T(hub.hero.h1), word: hub.hero.word, wordTitle, wordLen: String(hub.hero.word.length), lead,
+    boardHtml,
+    proofHtml: `Operated by ${esc(e.legalName)}, an Italian real estate agency registered in Rome · ${rome.profileUrl ? `<a class="lnk" href="${esc(rome.profileUrl)}" target="_blank" rel="noopener">${rating}</a>` : rating}`,
+    mapHtml, faresHtml, rulesHtml,
+    faqEb: T(hub.faq.eb), faqH2: T(hub.faq.h2), faqHtml,
+    briefHtml, footHtml
+  };
+  const html = fill(template, data, 'cities/_hub.html');
+
+  // ══ the output, read back ══
+  for (const m of html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)) {
+    try { JSON.parse(m[1]); } catch (err) { throw new BuildError(`${where}: JSON-LD does not parse: ${err.message}`); }
+  }
+  need(html.includes(GENERATED_MARK), 'cities/_hub.html', `the template must carry the mark "${GENERATED_MARK}"`);
+  need(!/#D4AF37/i.test(html), where, 'the public pages use #FFD700; #D4AF37 is the portal gold');
+  identityGuard(html, shared, where);
+  const vis = visibleText(html);
+  const bare = html.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>|<!--[\s\S]*?-->/gi, ' ');
+  const metaStr = [...html.matchAll(/<meta [^>]*content="([^"]*)"/g)].map((m) => m[1]);
+  const ldAll = ldStrings(html);
+  // the hub's own JSON-LD (the desk-derived Services and the shared organization are the desks' words, vetted by their own build)
+  const ldHub = ldStrings(html, (n) => n['@type'] !== 'Service' && n['@type'] !== 'RealEstateAgent');
+  // 10 · the desks not open: named, never linked, never in the structured data, never a price or a call
+  {
+    const offSlugs = drafts.map((c) => c.slug);
+    if (offSlugs.length) {
+      const reOff = new RegExp(`href="(?:${SITE_RE(site)})?/(?:${offSlugs.join('|')})(?=[#"?/])`);
+      const hit = html.match(reOff);
+      need(!hit, where, `the hub links a desk that is not open (${hit ? hit[0] : ''}): it names it, never links it`);
+      // the structured nodes (organization, page, list, services) never name a desk not open; the FAQPage
+      // is the visible questions word for word (a "not open" sentence there is the page's own)
+      const reName = new RegExp(`\\b(?:${drafts.flatMap((c) => [c.city, c.slug, c.iata].filter(Boolean)).join('|')})\\b`);
+      const ldNodes = ldStrings(html, (n) => n['@type'] !== 'FAQPage');
+      const hit2 = ldNodes.find((s) => reName.test(s));
+      need(!hit2, where, `a desk that is not open appears in the JSON-LD: "${(hit2 || '').slice(0, 80)}"`);
+      const reNameCity = new RegExp(`\\b(?:${drafts.map((c) => c.city).join('|')})\\b`);
+      for (const s of [...blockSentences(html), ...ldAll.flatMap((x) => x.split(/(?<=[.?!])\s+/))]) {
+        if (reNameCity.test(s)) need(!CALL_RE.test(s), where, `a sentence that names a desk not open promises a call: "${s.slice(0, 100)}"`);
+      }
+    }
+    for (const a of arcs) need(live.some((c) => c.iata === a.key), where, `an arc ends at ${a.key}, which is not a live desk`);
+    for (const row of html.matchAll(/<tr class="db-r off"[\s\S]*?<\/tr>/g)) {
+      const t = visibleText(row[0]);
+      need(!/[€£]|\d{2}:\d{2}|opening|partner/i.test(t) && !plans.some((p) => t.includes(p.label)) && !CALL_RE.test(t), where, `a "not open" row carries a price, an hour, a plan, "opening", "partner" or a call: "${t.trim()}"`);
+    }
+  }
+  // 11 · no till anywhere
+  need(!/id="till"|data-pay|"CHECKOUT"|cPaid|cConfirm/.test(html) && !/stripe/i.test(html), where, 'the hub carries no till: no pay control, no checkout config, no Stripe word (each desk takes its fares on its own page)');
+  need(!/wa\.me|whatsapp:\/\//i.test(html), where, 'the hub carries no WhatsApp link (an unknown city lands in the Rome machine): email and phone only');
+  // 12 · prices: the six figures, £ beside London, the refund rule beside every €500/£500
+  {
+    const known = new Set(plans.flatMap((p) => [money(p.price, 'EUR'), money(p.price, 'GBP')]));
+    const odd = [vis, ...ldAll, ...metaStr].join(' \n ').match(/[€£]\s?\d+(?:,\d{3})*/g) || [];
+    const stray = [...new Set(odd.map((x) => x.replace(/\s/g, '')))].filter((x) => !known.has(x));
+    need(!stray.length, where, `a price the plans do not charge is stated on the hub: ${stray.join(', ')}`);
+    const blank = (m) => ' '.repeat(m.length);
+    const flat = html.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>|<!--[\s\S]*?-->/gi, blank);
+    const bodyAt = flat.indexOf('<body');
+    const boxOf = (idx, tags) => enclosingText(flat, idx, tags);
+    const gbpNames = new RegExp(gbp.map((c) => c.city).join('|') || '(?!)');
+    for (const m of flat.matchAll(/£/g)) {
+      if (m.index < bodyAt) continue;
+      need(gbpNames.test(boxOf(m.index, ['tr', 'li', 'dd', 'details', 'p', 'a'])), where, `a £ stands in a block that does not name ${listJoin(gbp.map((c) => c.city)) || 'a pound desk'}: "…${visibleText(flat.slice(Math.max(bodyAt, m.index - 80), m.index + 30)).trim()}…"`);
+    }
+    for (const p500 of [money(plans[0].price, 'EUR'), money(plans[0].price, 'GBP')]) {
+      const re = new RegExp(p500.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?![\\d,])', 'g');
+      for (const m of flat.matchAll(re)) {
+        if (m.index < bodyAt) { const attr = flat.slice(flat.lastIndexOf('"', m.index - 1), flat.indexOf('"', m.index + 1) + 1); need(/refunded in full/.test(attr), where, `a ${p500} in the head stands without the refund rule`); continue; }
+        need(/refunded in full/.test(boxOf(m.index, ['li', 'dd', 'details'])), where, `a ${p500} stands without the refund rule in its own block: "…${visibleText(flat.slice(Math.max(bodyAt, m.index - 100), m.index + 40)).trim()}…"`);
+      }
+      for (const t of ldAll) if (t.includes(p500)) need(/refunded in full/.test(t), where, `a ${p500} in the JSON-LD stands without the refund rule: "${t.slice(0, 100)}…"`);
+    }
+    if (es.length) {
+      const fa = sliceOf(html, '<section class="sec" id="fares"', '</section>');
+      const note = fa.indexOf('class="hnote es"'), first = fa.search(/[€£]\d/);
+      need(note > -1 && note < first, where, `the Spain note ("optional, chosen in writing", LAU art. 20) comes before the first price in #fares`);
+      need(listJoin(es.map((c) => c.city)) === tok.esDesks && (spain || '').includes(tok.esDesks), where, 'the Spain note names exactly the Spanish live desks');
+    }
+  }
+  // 13 · the rating once, in Rome
+  {
+    const ratings = ([vis, ...ldAll].join(' \n ').match(RATING_RE) || []).length;
+    need(ratings === 1 && (html.match(/on Google in Rome/g) || []).length === 1 && (html.match(/on Google/g) || []).length === 1, where, `the Rome rating appears exactly once, labelled "in Rome" (${ratings} found)`);
+  }
+  // 14 · the static HTML is never live: the clock, the window and the status are the script's
+  {
+    const said = bare.replace(/<[^>]+>/g, ' ');
+    const hit = said.match(/(?<!not |NOT )\bOPEN\b|\bCLOSED\b/) || said.match(/desk open until/i);
+    need(!hit, where, `the static HTML says a desk is open or closed ("${hit ? hit[0] : ''}"): only the script, from the desk calendar, says it`);
+    for (const m of html.matchAll(/<[^>]*\sdata-(?:clk|dw|nsr)="[^"]*"[^>]*>/g)) need(/\sdata-nosnippet(?=[\s>])/.test(m[0]), where, `a live instrument without data-nosnippet: ${m[0]}`);
+    for (const m of html.matchAll(/<(\w+)[^>]*\sdata-(?:clk|nsr)="[^"]*"[^>]*>([^<]*)<\/\1>/g)) need(!m[2].trim(), where, `a clock or a status is served filled: ${m[0]}`);
+  }
+  // 15 · banned copy (the hub's own words and chrome; the desks' check text on the full sheet is vetted by their own build)
+  {
+    const own = [visibleText(html.replace(/<details class="sheet rfull">[\s\S]*?<\/details>/, ' ')), ...metaStr, ...ldHub].join(' \n ');
+    const said = own.replace(/not a law firm/gi, ' ');
+    for (const [re, why] of HUB_BANNED) { const m = said.match(re); need(!m, where, `${why}: "${m ? m[0] : ''}"`); }
+    for (const re of [AVIATION_BAN_RE, CLOCK_RE]) { const m = own.match(re); need(!m, where, `no seat, boarding, countdown or clock promise on the hub ("${m ? m[0] : ''}")`); }
+    need(!/✈/.test(html), where, 'no ✈ (U+2708) on the hub');
+    need(!/!(?=[\s<"]|$)/.test(bare.replace(/<!DOCTYPE[^>]*>/i, '').replace(/<[^>]+>/g, ' ')), where, 'no exclamation mark in the copy');
+    need(!/(?<![\d,.])500\+|off-market|whichever is lower/i.test(vis), where, 'no "500+", "off-market" or "whichever is lower"');
+  }
+  // 16 · counts: every "N desks" / "N European cities" is the live count; no head counts
+  {
+    const said = [vis, ...metaStr, ...ldHub].join(' \n ');
+    for (const m of said.matchAll(/\b(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|\d+)\s+(?:desks|European cities)\b/gi)) {
+      const n = /^\d+$/.test(m[1]) ? Number(m[1]) : NUMBER_WORDS.indexOf(m[1].toLowerCase()) + 1;
+      need(n === live.length, where, `"${m[0]}" is not the live count (${live.length})`);
+    }
+    const m2 = said.match(/\d+\s*(?:clients|tenants|moves|searches|leases|families)|(?<![\d,.])500\+|\bhundreds\b|\bthousands\b/i);
+    need(!m2, where, `a head count the hub cannot prove: "${m2 ? m2[0] : ''}"`);
+  }
+  // 19 · the structure
+  for (const m of html.matchAll(/<section class="sec[^"]*"[^>]*>([\s\S]*?)<\/section>/g)) {
+    const id = (m[0].match(/id="([^"]+)"/) || [])[1] || '?';
+    const h2 = (m[1].match(/<h2\b[^>]*>([\s\S]*?)<\/h2>/) || [])[1];
+    need(h2 !== undefined && (h2.match(/class="g"/g) || []).length === 1, where, `a section h2 needs exactly one gold phrase: #${id}`);
+    need(/<p class="eb" data-instr>[^<]+<\/p>/.test(m[1]), where, `a section opens with its eyebrow: #${id}`);
+  }
+  {
+    const wayf = sliceOf(html, '<nav class="wayf"', '</nav>');
+    const ids = [...wayf.matchAll(/href="#([\w-]+)"/g)].map((x) => x[1]);
+    need(ids.length >= 4 && ids.every((x) => html.includes(`id="${x}"`)), where, `the header's wayfinding links land on ids that exist (${ids.join(', ')})`);
+  }
+  need((html.match(/class="board"/g) || []).length === 1 && html.includes(`<span class="sr">${esc(wordTitle)}</span></h1>`), where, 'one board, served empty, outside the H1 (the H1 reads the word once, in its .sr span)');
+  need(/class="hub-lead"/.test(html) && /<dl class="enbref" id="enbref">/.test(html) && !/<details[^>]*>\s*<summary[^>]*>[^<]*<\/summary>\s*<dl class="enbref"/.test(html), where, 'the speakable nodes (.hub-lead, .enbref) exist, and the fact sheet is open');
+  // 20 · dates and placeholders (the hub is live)
+  {
+    const sm = path.join(root, 'sitemap.xml');
+    if (fs.existsSync(sm)) {
+      const m = fs.readFileSync(sm, 'utf8').match(new RegExp(`<loc>${SITE_RE(pageUrl)}</loc>\\s*<lastmod>([^<]+)</lastmod>`));
+      need(m && m[1] === updatedIso, where, `the hub's dateModified (${updatedIso}) and the sitemap <lastmod> of ${pageUrl} (${m ? m[1] : 'missing'}) must be the same date`);
+    }
+    const ph = (bare.replace(/<[^>]+>/g, ' ').match(/\[[^\[\]]{1,300}\]/g) || []);
+    need(!ph.length, where, `the hub is live and carries placeholders: ${ph.join(', ')}`);
+    need(fs.existsSync(ogFile), where, 'og-desks.png is missing (python3 design/pages-deco/genera-og-cities.py --hub)');
+  }
+
+  // ══ budgets ══
+  const parts = atLoadParts(html);
+  const proseWords = words(parts.prose), instrWords = words(parts.instr), bodyWords = proseWords + instrWords;
+  need(bodyWords <= HUB_BUDGET.body, where, `${bodyWords} visible words at load, over ${HUB_BUDGET.body}`);
+  need(proseWords <= HUB_BUDGET.prose, where, `${proseWords} words of prose at load, over ${HUB_BUDGET.prose}`);
+  need(instrWords <= HUB_BUDGET.instr, where, `${instrWords} words of instruments at load, over ${HUB_BUDGET.instr}`);
+  {
+    const ddEx = (n) => n.name === 'dd' && /(?:^|\s)enbref(?:\s|$)/.test(n.parentCls);
+    const long = longNodes(parts.html, HUB_BUDGET.node, ddEx);
+    need(!long.length, where, `a text node over ${HUB_BUDGET.node} words at load: ${long.map((x) => `<${x.tag}${x.cls ? ' class="' + x.cls + '"' : ''}> ${x.words} "${x.text}…"`).join(' · ')}`);
+    for (const m of sliceOf(parts.html, '<dl class="enbref"', '</dl>').matchAll(/<dd>([\s\S]*?)<\/dd>/g)) {
+      const n = words(visibleText(m[1]));
+      need(n <= HUB_BUDGET.dd, where, `a fact-sheet answer is ${n} words, over ${HUB_BUDGET.dd}: "${visibleText(m[1]).trim().slice(0, 80)}…"`);
+    }
+  }
+  const sections = {};
+  for (const [id, cap] of [['board', 'board'], ['map', 'map'], ['fares', 'fares'], ['rules', 'rules'], ['faq', 'faq'], ['brief', 'brief']]) {
+    const sec = sliceOf(parts.html, `id="${id}"`, '</section>');
+    need(sec, where, `the hub needs its #${id} section`);
+    const n = words(visibleText(sec.slice(sec.indexOf('>') + 1)));
+    sections[id] = n;
+    need(n <= HUB_BUDGET[cap], where, `the #${id} section is ${n} words at load, over its ${HUB_BUDGET[cap]}`);
+  }
+  let weight = null;
+  if (weigh) {
+    const gz = (buf) => zlib.gzipSync(buf, { level: 9 }).length;
+    const file = (f) => gz(fs.readFileSync(path.join(root, f)));
+    const page = gz(Buffer.from(html)), css = file('assets/boom-desks.css'), js = file('assets/boom-desks.js');
+    const total = page + css + js + file('assets/boom-city.css') + file('assets/boom-onda.js') + file('js/boom-consent.js') + file('js/boom-track.js');
+    weight = { totalKb: total / 1024, pageKb: page / 1024, cssKb: css / 1024, jsKb: js / 1024 };
+    need(weight.totalKb <= HUB_WEIGHT_KB.total, where, `first-party weight ${weight.totalKb.toFixed(1)} KB gzipped, over ${HUB_WEIGHT_KB.total}`);
+    need(weight.pageKb <= HUB_WEIGHT_KB.page, where, `desks.html is ${weight.pageKb.toFixed(1)} KB gzipped, over ${HUB_WEIGHT_KB.page}`);
+    need(weight.cssKb <= HUB_WEIGHT_KB.css, where, `assets/boom-desks.css is ${weight.cssKb.toFixed(1)} KB gzipped, over ${HUB_WEIGHT_KB.css}`);
+    need(weight.jsKb <= HUB_WEIGHT_KB.js, where, `assets/boom-desks.js is ${weight.jsKb.toFixed(1)} KB gzipped, over ${HUB_WEIGHT_KB.js}`);
+  }
+  return { slug: 'desks', file: HUB_FILE, live: true, mode: 'hub', html, placeholders: [], warnings, weight, words: bodyWords, prose: proseWords, instr: instrWords, sections, dateModified: updatedIso };
+}
+
+// Reads the hub's template and copy, the shared file, every city (each
+// validated through renderCity first: buildAll), the optional coast path.
+export function buildHub({ root = ROOT, pages = null } = {}) {
+  const dir = path.join(root, 'cities');
+  const desks = pages || buildAll({ root });
+  const template = fs.readFileSync(path.join(dir, '_hub.html'), 'utf8');
+  const hub = readJson(path.join(dir, '_hub.json'));
+  const shared = readJson(path.join(dir, '_shared.json'));
+  const cities = desks.map((p) => readJson(path.join(dir, `${p.slug}.json`)));
+  const ef = path.join(dir, '_europe.json');
+  const europe = fs.existsSync(ef) ? readJson(ef) : null;
+  for (const f of ['assets/boom-desks.css', 'assets/boom-desks.js']) need(fs.existsSync(path.join(root, f)), f, 'is missing: the hub links it');
+  const assetVersion = {
+    css: hash(path.join(root, 'assets/boom-city.css')),
+    desksCss: hash(path.join(root, 'assets/boom-desks.css')),
+    desksJs: hash(path.join(root, 'assets/boom-desks.js'))
+  };
+  return renderHub({ template, shared, hub, cities, assetVersion, frags: fragments(root), root, europe });
+}
+
 function readJson(file) {
   try { return JSON.parse(fs.readFileSync(file, 'utf8')); }
   catch (e) { throw new BuildError(`${path.relative(ROOT, file) || file}: ${e.message}`); }
@@ -1509,7 +2398,10 @@ export function buildAll({ root = ROOT } = {}) {
   const assetVersion = {
     css: hash(path.join(root, 'assets/boom-city.css')),
     js: hash(path.join(root, 'assets/boom-city.js')),
-    onda: hash(path.join(root, 'assets/boom-onda.js'))
+    onda: hash(path.join(root, 'assets/boom-onda.js')),
+    // the hub's own files (BOOM Desks): the desk pages do not read them
+    ...(fs.existsSync(path.join(root, 'assets/boom-desks.css')) ? { desksCss: hash(path.join(root, 'assets/boom-desks.css')) } : {}),
+    ...(fs.existsSync(path.join(root, 'assets/boom-desks.js')) ? { desksJs: hash(path.join(root, 'assets/boom-desks.js')) } : {})
   };
   const frags = fragments(root);
   // Every city is read before any is rendered: the family of one page is
@@ -1527,8 +2419,14 @@ export function buildAll({ root = ROOT } = {}) {
 
 // Writes (or, with check, compares) every page. Every page is validated
 // before the first byte is written: one bad city leaves the others untouched.
+// BOOM Desks: the hub (desks.html) is built with them when cities/_hub.json
+// exists; a committed desks.html whose copy is gone is an error, never a
+// page left behind unchecked.
 export function writeAll({ root = ROOT, check = false } = {}) {
-  const pages = buildAll({ root });
+  const desks = buildAll({ root });
+  const hasHub = fs.existsSync(path.join(root, 'cities', '_hub.json'));
+  need(hasHub || !fs.existsSync(path.join(root, HUB_FILE)), HUB_FILE, 'exists but cities/_hub.json is missing: restore the hub\'s copy or remove the page');
+  const pages = hasHub ? [...desks, buildHub({ root, pages: desks })] : desks;
   const results = pages.map((p) => {
     const out = path.join(root, p.file);
     const cur = fs.existsSync(out) ? fs.readFileSync(out, 'utf8') : null;
@@ -1548,7 +2446,8 @@ if (isMain) {
     let stale = 0;
     for (const p of writeAll({ check })) {
       if (check && p.stale) { stale++; console.error(`✗ ${p.file} is stale — run: npm run build:cities`); continue; }
-      console.log(`${check ? '✓ up to date' : '✓ built'}  ${p.file}  ·  ${p.live ? 'LIVE' : 'draft (noindex)'}  ·  mode ${p.mode}  ·  ${p.words} words at load (prose ${p.prose} · instr ${p.instr})  ·  ${p.weight ? p.weight.totalKb.toFixed(1) + ' KB gz (js ' + p.weight.jsKb.toFixed(1) + ' · css ' + p.weight.cssKb.toFixed(1) + ' · onda ' + p.weight.ondaKb.toFixed(1) + ')' : ''}`);
+      if (p.mode === 'hub') console.log(`${check ? '✓ up to date' : '✓ built'}  ${p.file}  ·  HUB  ·  ${p.words} words at load (prose ${p.prose} · instr ${p.instr}; ${Object.entries(p.sections).map(([k, v]) => `${k} ${v}`).join(' · ')})  ·  ${p.weight.totalKb.toFixed(1)} KB gz (page ${p.weight.pageKb.toFixed(1)} · css ${p.weight.cssKb.toFixed(1)} · js ${p.weight.jsKb.toFixed(1)})`);
+      else console.log(`${check ? '✓ up to date' : '✓ built'}  ${p.file}  ·  ${p.live ? 'LIVE' : 'draft (noindex)'}  ·  mode ${p.mode}  ·  ${p.words} words at load (prose ${p.prose} · instr ${p.instr})  ·  ${p.weight ? p.weight.totalKb.toFixed(1) + ' KB gz (js ' + p.weight.jsKb.toFixed(1) + ' · css ' + p.weight.cssKb.toFixed(1) + ' · onda ' + p.weight.ondaKb.toFixed(1) + ')' : ''}`);
       for (const w of p.warnings) console.log(`  ⚠ ${w}`);
       if (p.placeholders.length) {
         console.log(`  ${p.placeholders.length} placeholder(s) to replace before live:true:`);

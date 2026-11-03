@@ -56,7 +56,9 @@ import {
   buildAll, renderCity, writeAll, fill, findPlaceholders, fragments, familyFor, BuildError, esc, eur, money, currencyOf, GENERATED_MARK, WEIGHT_KB, BUDGET,
   daysLabel, deskHoursText, feesRowOf, holidayKeyOf, visibleAtLoad, visibleText, sliceOf, words, waHref, WITHDRAWAL_PATH, TERMS_PATH,
   atLoadParts, longNodes, weightOf, mapXY, validGeo, sealText, sealPhrase, STATUS_RE, STATUS_BANNED_RE, AVIATION_BAN_RE,
-  arcViolations, bowArcs, arcCtrl, ARC_CLEAR, ARC_DOT_R, ARC_ME_R
+  arcViolations, bowArcs, arcCtrl, ARC_CLEAR, ARC_DOT_R, ARC_ME_R,
+  orgNode, serviceNode, numberWord, listJoin, dateLong, homeCountryOf, isHomeDesk,
+  renderHub, buildHub, HUB_WEIGHT_KB, HUB_BUDGET, HUB_FILE, HUB_PATH, HUB_VIEWBOX, COUNTRY_NAME, hoursSentence, hubText, arcD, CALL_RE, RATING_RE
 } from '../../build-cities.mjs';
 import SCALO from '../../js/scalo-codes.js';
 import CAL from '../../js/desk-calendar.js';
@@ -398,21 +400,50 @@ check(!/id="contact"/.test(html) && /<article class="pass" id="pass"/.test(html)
   check(fam.map((f) => f.href).join() === '/a,/' && fam[0].label === 'A desk' && fam[0].iata === 'AAA' && fam[0].geo.lat === 48 && fam[1].iata === 'ROM' && fam[1].geo === shared.rome.geo,
     'familyFor: live sisters only, alphabetical, labelled "<City> desk" with their IATA and coordinates, then BOOM Rome (ROM, the hub)');
   check(sliceOf(html, '<section class="sec" id="network"', '</section>').includes('<p class="net-c">Every desk answers from Rome.</p>'), 'the caption: "Every desk answers from Rome."');
+  // BOOM Desks (03/11/2026): the map shows EVERY desk — the live sisters with an arc from Rome, this desk
+  // with its gold arc (on a draft too), the desks not open as a hollow dot with NO arc; Rome wears its ring
   for (const s of SLUGS) {
     const h = PAGE[s], map = sliceOf(h, '<svg class="map"', '</svg>');
-    const fam2 = familyFor(CITY[s], SLUGS.map((x) => CITY[x]), shared);
     const xy = (g) => mapXY(g).map((v) => Math.round(v * 10) / 10);
     const [mx, my] = xy(CITY[s].geo), [rx, ry] = xy(shared.rome.geo);
-    const dots = [...map.matchAll(/<circle class="(d(?: me)?|hub)" cx="([\d.]+)" cy="([\d.]+)"/g)].map((m) => [m[1], +m[2], +m[3]]);
+    const dots = [...map.matchAll(/<circle class="(d(?: me| off)?|hub|hub-r)" cx="([\d.]+)" cy="([\d.]+)" r="([\d.]+)"( fill="none")?/g)].map((m) => [m[1], +m[2], +m[3], +m[4], !!m[5]]);
     const arcs = [...map.matchAll(/<path class="arc( me)?"[^>]*d="M([\d.]+) ([\d.]+)Q[\d.]+ [\d.]+ ([\d.]+) ([\d.]+)"/g)];
     const inside = dots.every(([, x, y]) => x >= 20 && x <= 580 && y >= 20 && y <= 400);
-    const me = dots.find((d) => d[0] === 'd me'), hub = dots.find((d) => d[0] === 'hub');
-    const sisters = fam2.filter((f) => f.href !== '/');
+    const me = dots.find((d) => d[0] === 'd me'), hub = dots.find((d) => d[0] === 'hub'), ring = dots.find((d) => d[0] === 'hub-r');
+    const others = SLUGS.filter((x) => x !== s).map((x) => CITY[x]);
+    const liveSis = others.filter((x) => x.live === true), offSis = others.filter((x) => x.live !== true);
     check(/viewBox="0 0 600 420" aria-hidden="true" focusable="false"/.test(map) && inside && me && me[1] === mx && me[2] === my && hub && hub[1] === rx && hub[2] === ry
-      && sisters.every((f) => { const [x, y] = xy(f.geo); return dots.some((d) => d[0] === 'd' && d[1] === x && d[2] === y); })
-      && arcs.length === sisters.length + 1 && arcs.every((a) => +a[2] === rx && +a[3] === ry) && arcs.filter((a) => a[1]).length === 1 && +arcs.find((a) => a[1])[4] === mx
+      && liveSis.every((x) => { const [px, py] = xy(x.geo); return dots.some((d) => d[0] === 'd' && d[1] === px && d[2] === py && d[3] === ARC_DOT_R); })
+      && arcs.length === liveSis.length + 1 && arcs.every((a) => +a[2] === rx && +a[3] === ry) && arcs.filter((a) => a[1]).length === 1 && +arcs.find((a) => a[1])[4] === mx
       && SLUGS.every((x) => validGeo(CITY[x].geo)) && validGeo(shared.rome.geo),
-      `${s}: the map's dots are the projected real coordinates, inside the 600×420 viewBox margins (this desk ${mx},${my}; ROM ${rx},${ry}); one arc from Rome per desk, this desk's in gold`);
+      `${s}: the map's dots are the projected real coordinates, inside the 600×420 viewBox margins (this desk ${mx},${my}; ROM ${rx},${ry}); one arc from Rome per LIVE sister (${liveSis.length}) and this desk's in gold`);
+    check(offSis.length >= 1 && offSis.every((x) => { const [px, py] = xy(x.geo); return dots.some((d) => d[0] === 'd off' && d[1] === px && d[2] === py && d[3] === ARC_DOT_R && d[4]) && !arcs.some((a) => +a[4] === px && +a[5] === py); })
+      && dots.filter((d) => d[0] === 'd off').length === offSis.length,
+      `${s}: the desks not open (${offSis.map((x) => x.iata).join(', ')}) are hollow dots (fill="none") at their real coordinates, and NO arc ends at them (an arc means "operated from Rome")`);
+    check(ring && ring[1] === rx && ring[2] === ry && ring[3] === 10 && ring[4] && map.indexOf('class="hub-r"') > map.indexOf('class="hub"'), `${s}: Rome, the hub, wears its ring (r 10, hollow)`);
+    const offLab = [...map.matchAll(/<text class="m-l off(?: l)?"[^>]*>([A-Z]{3})<\/text>/g)].map((m) => m[1]);
+    check(offLab.join() === offSis.map((x) => x.iata).join(), `${s}: each desk not open carries its code, dimmed (m-l off): ${offLab.join(', ')}`);
+    const key = sliceOf(h, '<p class="net-k"', '</p>');
+    check(/^<p class="net-k" aria-hidden="true">/.test(key) && ['live desk', 'not open', 'Rome, the hub'].every((t) => key.includes(t)) && h.indexOf('<p class="net-k"') > h.indexOf('</svg>', h.indexOf('<svg class="map"')) && h.indexOf('<p class="net-k"') < h.indexOf('<ul class="net">'),
+      `${s}: the legend after the map — live desk · not open · Rome, the hub (decorative, like the map)`);
+    // the list: the family, then (live page) the desks not open as plain text, BOOM Rome, then every desk
+    const ul = sliceOf(h, '<ul class="net">', '</ul>');
+    const codes = [...ul.matchAll(/<li(?: class="(off|all)")?>(?:<a href="([^"]*)">)?<b data-instr>([A-Z]{3})<\/b> ([^<]+)/g)].map((m) => ({ cls: m[1] || '', href: m[2], code: m[3], label: m[4] }));
+    const live = CITY[s].live === true;
+    const famSis = live ? liveSis : others;
+    const want = [...famSis.map((x) => x.iata), ...(live ? offSis.map((x) => x.iata) : []), 'ROM', 'ALL'];
+    check(codes.map((c) => c.code).join() === want.join(), `${s}: the Network list reads ${want.join(' · ')}`, codes.map((c) => c.code).join());
+    check(codes.filter((c) => c.cls === 'off').every((c) => !c.href && c.label === `${others.find((x) => x.iata === c.code).city} · not open`) && (live ? codes.filter((c) => c.cls === 'off').length === offSis.length : codes.every((c) => c.cls !== 'off')),
+      live ? `${s}: the desks not open are named, never linked: ${codes.filter((c) => c.cls === 'off').map((c) => c.label).join(' · ')}` : `${s}: a draft lists every sister as a link (no "not open" line)`);
+    const all = codes[codes.length - 1];
+    check((ul.match(/<li class="all">/g) || []).length === 1 && all.cls === 'all' && all.href === '/desks' && all.label === 'Every BOOM desk', `${s}: "ALL · Every BOOM desk" once, last, linking /desks`);
+    if (live) check(!/href="(?:https:\/\/www\.boomrome\.com)?\/(?:berlin|paris)(?=[#"?/])/.test(h), `${s}: a live page links no desk that is not open (Berlin, Paris), anywhere`);
+    const netWords = words(visibleText(sliceOf(atLoadParts(h).html, '<section class="sec" id="network"', '</section>')));
+    check(netWords === (live ? 37 : 35) && netWords <= BUDGET.network, `${s}: the Network section is ${netWords} words at load (${live ? 'live 37' : 'draft 35'}, ≤ ${BUDGET.network})`);
+    const bc = [...h.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => JSON.parse(m[1])).find((b) => b['@type'] === 'BreadcrumbList') || {};
+    const items = bc.itemListElement || [];
+    check(items.length === 3 && items.map((i) => i.position).join() === '1,2,3' && items[0].item === `${shared.siteUrl}/` && items[1].name === 'BOOM Desks' && items[1].item === `${shared.siteUrl}/desks` && items[2].name === CITY[s].city && items[2].item === `${shared.siteUrl}/${s}`,
+      `${s}: the breadcrumb runs Home → BOOM Desks (/desks) → ${CITY[s].city}`, JSON.stringify(items.map((i) => i.item)));
   }
   // v1.6 review (visual F9): an arc never passes over a desk it does not serve. Read from
   // what is DRAWN (the path's control point, each dot with the mark it carries: 3px, this
@@ -422,12 +453,12 @@ check(!/id="contact"/.test(html) && /<article class="pass" id="pass"/.test(html)
     const map = sliceOf(PAGE[s], '<svg class="map"', '</svg>');
     const hub = (map.match(/<circle class="hub" cx="([\d.]+)" cy="([\d.]+)"/) || []).slice(1).map(Number);
     const at = (x, y) => `${x},${y}`;
-    const dots = [...map.matchAll(/<circle class="(d|d-ring)" cx="([\d.]+)" cy="([\d.]+)" r="([\d.]+)"/g)].map((m) => ({ key: at(m[2], m[3]), xy: [+m[2], +m[3]], r: +m[4] }));
+    const dots = [...map.matchAll(/<circle class="(d|d off|d-ring)" cx="([\d.]+)" cy="([\d.]+)" r="([\d.]+)"/g)].map((m) => ({ key: at(m[2], m[3]), xy: [+m[2], +m[3]], r: +m[4] }));
     const arcs = [...map.matchAll(/<path class="arc(?: me)?"[^>]*d="M[\d.]+ [\d.]+Q([\d.]+) ([\d.]+) ([\d.]+) ([\d.]+)"/g)].map((m) => ({ key: at(m[3], m[4]), c: [+m[1], +m[2]], to: [+m[3], +m[4]] }));
     for (const a of arcs) (drawnCtrl[a.key] = drawnCtrl[a.key] || new Set()).add(a.c.join());
     const bad = arcViolations(hub, arcs, dots);
-    check(hub.length === 2 && arcs.length >= 2 && dots.some((d) => d.r === ARC_ME_R) && bad.length === 0,
-      `${s}: every arc drawn from Rome clears every other desk's dot by ≥ ${ARC_CLEAR}px (this desk's ${ARC_ME_R}px ring counted)`, bad.join('; '));
+    check(hub.length === 2 && arcs.length >= 2 && dots.some((d) => d.r === ARC_ME_R) && dots.length === SLUGS.length && bad.length === 0,
+      `${s}: every arc drawn from Rome clears every other desk's dot by ≥ ${ARC_CLEAR}px — the hollow dots of the desks not open included (this desk's ${ARC_ME_R}px ring counted)`, bad.join('; '));
   }
   check(Object.values(drawnCtrl).every((set) => set.size === 1), 'the arc to a desk is the same on every page (one bow per desk, chosen over all of them)',
     JSON.stringify(Object.entries(drawnCtrl).filter(([, v]) => v.size > 1).map(([k, v]) => [k, [...v]])));
@@ -443,6 +474,77 @@ check(!/id="contact"/.test(html) && /<article class="pass" id="pass"/.test(html)
 // one set on the hub's doorstep sits under the start of every other arc
 refuses((c) => { c.geo = { lat: 42.15, lon: 12.62 }; check(validGeo(c.geo), '(the doorstep coordinates are a valid geo: only the arcs refuse them)'); },
   /network map: no bow takes the arc ROM → [A-Z]{3} clear of the other desks|draws an arc over a desk/, 'a desk placed where every arc from Rome would cross its dot is refused by the build (no arc through a sister)');
+
+// BOOM Desks (03/11/2026): a LIVE page never links a desk that is not open —
+// the build refuses it, from the template and from a city's own data
+tplRefuses('<p class="net-c">Every desk answers from Rome.</p>', '<p class="net-c">Every desk answers from Rome. <a href="/paris">Paris</a></p>', /a live page links a desk that is not open \(href="\/paris/,
+  'MUTATION: a live page linking a desk that is not open (href="/paris", from the template) is refused by the build');
+tplRefuses('<p class="net-c">Every desk answers from Rome.</p>', '<p class="net-c">Every desk answers from Rome. <a href="https://www.boomrome.com/berlin#fares">Berlin</a></p>', /a live page links a desk that is not open/,
+  'a live page linking a desk that is not open by its absolute URL is refused too');
+refuses((c) => { c.bref.rows[0].ddHtml += ' See <a class="lnk" href="/berlin">Berlin</a>.'; }, /a live page links a desk that is not open \(href="\/berlin/, 'a live desk\'s own data linking a desk that is not open is refused', 'london');
+check(throws(() => render(CITY.paris, shared, template.replace('<p class="net-c">Every desk answers from Rome.</p>', '<p class="net-c">Every desk answers from Rome. <a href="/berlin">Berlin</a></p>')), /not open/) === 'did not throw',
+  'a draft may link another draft (the review sees the suite)');
+
+// the company's identity, said once: a REA or a VAT number in a desk's copy
+// is the entity's own (cities/_shared.json) — the build refuses a typed variant
+refuses((c) => { c.bref.rows[0].ddHtml = c.bref.rows[0].ddHtml.replace('REA RM-1710623', 'REA RM-1234567'); check(/REA RM-1234567/.test(c.bref.rows[0].ddHtml), '(the mutation reaches Milan\'s "Who" row)'); },
+  /"REA RM-1234567" is not the company's REA \(RM-1710623/, 'MUTATION: milan\'s "Who" row with REA RM-1234567 is refused by renderCity (the identity is said once)', 'milan');
+refuses((c) => { c.footer.statement += ' P.IVA 12345678901.'; }, /"VAT 12345678901" is not the company's VAT number \(17322991005/, 'a VAT / P.IVA number other than the entity\'s is refused', 'milan');
+tplRefuses('<p class="proof">', '<p class="proof">REA RM-9999999 · ', /"REA RM-9999999" is not the company's REA/, 'a REA typed into the template is refused too (the output is read back)');
+
+// P0 (BOOM Desks): the Organization and each desk's Service are ONE function
+// each — every page carries exactly what they return (the hub repeats them)
+{
+  const strip = (o) => JSON.parse(JSON.stringify(o));
+  const all = SLUGS.map((x) => CITY[x]);
+  for (const s of SLUGS) {
+    const g = ([...PAGE[s].matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => JSON.parse(m[1])).find((b) => Array.isArray(b['@graph'])) || {})['@graph'] || [];
+    const o = g.find((n) => n['@type'] === 'RealEstateAgent'), sv = g.find((n) => n['@type'] === 'Service');
+    check(JSON.stringify(o) === JSON.stringify(strip(orgNode(shared, all))) && JSON.stringify(sv) === JSON.stringify(strip(serviceNode(CITY[s], shared, `${shared.siteUrl}/${s}`, `${shared.siteUrl}/#organization`))),
+      `${s}: the page's Organization is orgNode() and its Service (with the Offers) is serviceNode(), byte for byte`);
+  }
+  check(numberWord(1) === 'one' && numberWord(5) === 'five' && numberWord(12) === 'twelve' && throws(() => numberWord(13), /one to twelve/) === true && throws(() => numberWord(0), /one to twelve/) === true,
+    'numberWord: one…twelve, and nothing else (a count in words is derived, never typed)');
+  check(listJoin(['Amsterdam', 'Barcelona', 'London']) === 'Amsterdam, Barcelona and London' && listJoin(['Berlin', 'Paris']) === 'Berlin and Paris' && listJoin(['London']) === 'London' && listJoin([]) === '',
+    'listJoin: "A, B and C", "A and B", "A"');
+  check(dateLong('2026-11-03') === '3 November 2026' && dateLong('2027-01-09') === '9 January 2027' && throws(() => dateLong('03/11/2026'), /YYYY-MM-DD/) === true,
+    'dateLong: "3 November 2026" from a fixed month table (never Intl)');
+  check(homeCountryOf(shared) === 'IT' && isHomeDesk(CITY.milan, shared) && SLUGS.filter((x) => x !== 'milan').every((x) => !isHomeDesk(CITY[x], shared)),
+    'the home country is the organization\'s address (IT): Milan is the home-country desk, no other');
+}
+
+// ── Milan: what it is (BOOM Desks, 03/11/2026) — the founder: «in Milan we
+// are a pure real estate agency as an Italian SRL … but keep it always like
+// one of the desks». The home-country desk says so, and nothing more.
+{
+  const mil = PAGE.milan, M = CITY.milan;
+  const WHO = 'BOOM Milan, the tenant-side desk of <b>Egidi Immobiliare S.r.l.</b>, an Italian real estate agency registered with the Rome Chamber of Commerce (REA RM-1710623). In Milan it works under the same Italian law as our agency in Rome. Hired by the tenant, paid by the tenant only.';
+  const STMT = 'BOOM Milan is a desk of Egidi Immobiliare S.r.l., an Italian real estate agency registered in Rome (REA RM-1710623), under the same Italian law as in Rome. On this desk we act solely for the tenant: we do not list properties, represent landlords, or receive remuneration from landlords or their agents.';
+  const Q6 = 'Is BOOM Milan a real estate agency?';
+  const A6 = 'Yes. BOOM Milan is a desk of Egidi Immobiliare S.r.l., an Italian real estate agency registered with the Rome Chamber of Commerce (REA RM-1710623), under the same Italian law as our agency in Rome. On this desk we work for the tenant only: you hire us and pay us, never the landlord.';
+  const HOME = 'Operated by Egidi Immobiliare S.r.l., an Italian real estate agency, under the same Italian law as in Rome';
+  const DEF = 'Operated by Egidi Immobiliare S.r.l., a registered Italian agency';
+  check(M.bref.rows[0].dt === 'Who' && M.bref.rows[0].ddHtml === WHO && mil.includes(`<dt>Who</dt><dd>${WHO}</dd>`), 'milan: the "Who" row says what it is — an Italian real estate agency registered with the Rome Chamber of Commerce (REA RM-1710623), the same Italian law as in Rome');
+  check(M.footer.statement === STMT && mil.includes(`<p class="stmt">${esc(STMT)}</p>`), 'milan: the footer statement — a desk of the Italian agency, under the same Italian law as in Rome, acting solely for the tenant');
+  const mg = ([...mil.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => JSON.parse(m[1])).find((b) => Array.isArray(b['@graph'])) || {})['@graph'] || [];
+  const mf = (mg.find((n) => n['@type'] === 'FAQPage') || {}).mainEntity || [];
+  check(M.faq.items.length === 6 && M.faq.items[5].q === Q6 && M.faq.items[5].a === A6 && mil.includes(`<span class="t">${esc(Q6)}</span></summary><p>${esc(A6)}</p>`)
+    && mf.length === 6 && mf[5].name === Q6 && mf[5].acceptedAnswer.text === A6, 'milan: the sixth question "Is BOOM Milan a real estate agency?" — visible and in the FAQPage, word for word');
+  check(mil.includes(`<p class="proof">${esc(HOME)} · <a class="lnk" href="${shared.rome.profileUrl}"`), 'milan: the proof line under the pass says the home-country desk (an Italian real estate agency, the same Italian law as in Rome)');
+  check(SLUGS.filter((x) => x !== 'milan').every((x) => PAGE[x].includes(`<p class="proof">${esc(DEF)} · <a class="lnk" href="${shared.rome.profileUrl}"`) && !PAGE[x].includes(HOME)),
+    'the six other desks keep the default proof line, byte for byte ("a registered Italian agency")');
+  const flipped = clone(M); flipped.country = 'XX';
+  const fh = render(flipped).html;
+  check(fh.includes(`<p class="proof">${esc(DEF)} · `) && !fh.includes(HOME), 'MUTATION: Milan with another country reverts to the default proof line (the home-country desk is derived, never typed)');
+  // never printed: a Milan office, a licence or a registration in Milan, the Milan Chamber, Rome's fees
+  const BANNED = [/\b(?:office|branch|sede|team|based)\s+in\s+(?!Rome\b)[A-Z]\w*/, /\b(?:licensed|registered)\s+in\s+(?!Rome\b)\w+/i, /Milan Chamber of Commerce/i, /our Milan team/i, /licensed agent/i, /same fees as Rome/i, /Italian consumer law applies/i];
+  for (const x of SLUGS) {
+    const strs = (v) => (typeof v === 'string' ? [v] : v && typeof v === 'object' ? Object.values(v).flatMap(strs) : []);
+    const said = [visibleText(PAGE[x]), ...[...PAGE[x].matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].flatMap((m) => strs(JSON.parse(m[1])))].join(' \n ');
+    const hit = BANNED.map((re) => said.match(re)).find(Boolean);
+    check(!hit, `${x}: no office, branch, team or licence outside Rome, no "Milan Chamber of Commerce", no "same fees as Rome"`, hit && hit[0]);
+  }
+}
 
 check(/<details class="sheet">\s*<summary>BOOM Amsterdam — fact sheet<\/summary>\s*<dl class="enbref" id="enbref">/.test(html) && /<section class="sec brief" id="enbref-wrap"[^>]*>\s*<span class="corner" aria-hidden="true">Conditions<\/span>/.test(html),
   'the fact sheet is folded for people and whole in the DOM for machines (GEO), on the back of the ticket (CONDITIONS, decorative)');
@@ -1218,6 +1320,261 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
   check(!missing.length, `every live desk is linked in the Company & Markets footers and their builders (${missing.join(', ') || 'all'})`);
 }
 
+
+// ── THE HUB (BOOM Desks, /desks, 03/11/2026): every desk on one page,
+// built from the same JSONs, refusing instead of lying ─────────────────────
+{
+  console.log('\n  \x1b[1mTHE HUB\x1b[0m  /desks — the board, the map, the fares, the rules, the questions, the fact sheet');
+  const HUBT = read('cities/_hub.html');
+  const HUBJ = JSON.parse(read('cities/_hub.json'));
+  const LIVE = SLUGS.filter((s) => CITY[s].live === true);
+  const DRAFT = SLUGS.filter((s) => CITY[s].live !== true);
+  check(typeof renderHub === 'function' && typeof buildHub === 'function' && HUB_WEIGHT_KB && HUB_BUDGET && typeof orgNode === 'function' && typeof serviceNode === 'function' && HUB_FILE === 'desks.html' && HUB_PATH === '/desks',
+    'build-cities.mjs exports renderHub, buildHub, HUB_WEIGHT_KB, HUB_BUDGET, orgNode and serviceNode (HUB_FILE desks.html, HUB_PATH /desks)');
+  // the caps, set once with the hub, never raised to fit
+  check(HUB_WEIGHT_KB.total <= 78 && HUB_WEIGHT_KB.page <= 28 && HUB_WEIGHT_KB.css <= 6 && HUB_WEIGHT_KB.js <= 6
+    && HUB_BUDGET.body <= 980 && HUB_BUDGET.prose <= 740 && HUB_BUDGET.instr <= 280 && HUB_BUDGET.first <= 120 && HUB_BUDGET.lead <= 30 && HUB_BUDGET.node <= 24 && HUB_BUDGET.dd <= 45 && HUB_BUDGET.faqA <= 42
+    && HUB_BUDGET.board <= 120 && HUB_BUDGET.map <= 90 && HUB_BUDGET.fares <= 230 && HUB_BUDGET.rules <= 160 && HUB_BUDGET.faq <= 70 && HUB_BUDGET.brief <= 240,
+    'the hub\'s caps are where the spec set them (78 KB gz: page 28, CSS 6, JS 6; 980 words: prose 740, instruments 280; first screen 120; sections board 120 · map 90 · fares 230 · rules 160 · faq 70 · brief 240)');
+  const HB = buildHub({ root: R, pages });
+  const W = writeAll({ root: R, check: true });
+  const wHub = W.find((x) => x.file === 'desks.html');
+  check(wHub && !wHub.stale && fs.readFileSync(path.join(R, 'desks.html'), 'utf8') === HB.html && HB.html.includes(GENERATED_MARK) && W.filter((x) => x.file !== 'desks.html').length === 7,
+    'writeAll(--check) covers desks.html next to the seven desks; the committed page is what the data builds and carries the GENERATED mark');
+  check(buildAll({ root: R }).length === 7, 'buildAll() still returns the seven desk pages only');
+  check(HB.weight.totalKb <= HUB_WEIGHT_KB.total && HB.weight.pageKb <= HUB_WEIGHT_KB.page && HB.weight.cssKb <= HUB_WEIGHT_KB.css && HB.weight.jsKb <= HUB_WEIGHT_KB.js,
+    `desks.html: ${HB.weight.totalKb.toFixed(1)} KB gz first-party (≤ ${HUB_WEIGHT_KB.total}) · the page ${HB.weight.pageKb.toFixed(1)} (≤ ${HUB_WEIGHT_KB.page}) · boom-desks.css ${HB.weight.cssKb.toFixed(1)} · boom-desks.js ${HB.weight.jsKb.toFixed(1)} (≤ 6 each)`);
+  check(HB.words <= HUB_BUDGET.body && HB.prose <= HUB_BUDGET.prose && HB.instr <= HUB_BUDGET.instr && Object.entries(HB.sections).every(([k, v]) => v <= HUB_BUDGET[k]),
+    `desks.html: ${HB.words} words at load (prose ${HB.prose} · instruments ${HB.instr}); per section ${Object.entries(HB.sections).map(([k, v]) => `${k} ${v}/${HUB_BUDGET[k]}`).join(' · ')}`);
+  const H = HB.html, V = visibleText(H);
+  const sm = read('sitemap.xml');
+  const lastmod = (sm.match(/<loc>https:\/\/www\.boomrome\.com\/desks<\/loc>\s*<lastmod>([\d-]+)<\/lastmod>/) || [])[1];
+
+  // head
+  const title = (H.match(/<title>([^<]*)<\/title>/) || [])[1] || '';
+  const desc = (H.match(/<meta name="description" content="([^"]*)"/) || [])[1] || '';
+  check(title.length <= 62 && title === HUBJ.meta.title && desc.length >= 110 && desc.length <= 165 && desc.includes('Amsterdam, Barcelona, London, Madrid and Milan'),
+    `head: title ${title.length} ≤ 62 characters, description ${desc.length} in 110–165 naming the live desks ("${desc.slice(0, 60)}…")`);
+  check(H.includes('<link rel="canonical" href="https://www.boomrome.com/desks">') && H.includes('<link rel="alternate" hreflang="en" href="https://www.boomrome.com/desks">') && H.includes('<link rel="alternate" hreflang="x-default" href="https://www.boomrome.com/desks">')
+    && /<meta name="robots" content="index, follow/.test(H) && !/noindex/.test(H.slice(0, 4000)), 'head: canonical /desks, hreflang en and x-default to itself, robots index');
+  {
+    const og = (H.match(/<meta property="og:image" content="([^"]+)"/) || [])[1] || '';
+    const png = fs.readFileSync(path.join(R, 'og-desks.png'));
+    const isPng = png.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+    check(/^https:\/\/www\.boomrome\.com\/og-desks\.png\?v=[0-9a-f]{10}$/.test(og) && isPng && png.readUInt32BE(16) === 1200 && png.readUInt32BE(20) === 630 && png.length <= 120 * 1024,
+      `og-desks.png is a real 1200×630 PNG (${Math.round(png.length / 1024)} KB ≤ 120), its URL carries the content hash`);
+    const gen = read('design/pages-deco/genera-og-cities.py');
+    const keys = [...gen.matchAll(/hub\['(\w+)'\]\['(\w+)'\]/g)].map((m) => `${m[1]}.${m[2]}`);
+    check(/--hub/.test(gen) && keys.length && keys.every((k) => k.split('.').reduce((o, x) => (o == null ? undefined : o[x]), HUBJ) !== undefined) && /c\.get\('live'\) is True/.test(gen) && !/price/.test(gen.slice(gen.indexOf('def card_hub'), gen.indexOf('lavoro = []'))),
+      `the card generator (--hub) reads only _hub.json keys that exist (${keys.join(', ')}), the live codes, no price`);
+  }
+
+  // JSON-LD
+  const blocks = [...H.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => JSON.parse(m[1]));
+  const crumb = blocks.find((b) => b['@type'] === 'BreadcrumbList');
+  const g = (blocks.find((b) => b['@graph']) || {})['@graph'] || [];
+  const ldOf = (h) => [...h.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => JSON.parse(m[1])).flatMap((b) => b['@graph'] || [b]);
+  check(blocks.length === 2 && crumb && crumb.itemListElement.length === 2 && crumb.itemListElement[1].item === 'https://www.boomrome.com/desks' && crumb.itemListElement[0].item === 'https://www.boomrome.com/',
+    'JSON-LD: two blocks; the breadcrumb runs Home → BOOM Desks and ends on the canonical');
+  const org = g.find((n) => n['@type'] === 'RealEstateAgent');
+  const orgAms = ldOf(PAGE.amsterdam).find((n) => n['@type'] === 'RealEstateAgent');
+  check(org && JSON.stringify(org) === JSON.stringify(orgAms) && JSON.stringify(org) === JSON.stringify(orgNode(shared, SLUGS.map((s) => CITY[s]))),
+    'the organization node deep-equals the one amsterdam.html declares (orgNode, one function)');
+  const list = g.find((n) => n['@type'] === 'ItemList');
+  check(list && list.numberOfItems === LIVE.length && LIVE.length === 5 && list.itemListElement.map((x) => x.url.split('/').pop()).join() === LIVE.join() && list.itemListElement.every((x, i) => x.position === i + 1 && x.item['@id'] === `https://www.boomrome.com/${LIVE[i]}#service`),
+    `the ItemList lists the live desks in order (${LIVE.join(', ')}), numberOfItems 5, each pointing at its desk's #service`);
+  const svcs = g.filter((n) => n['@type'] === 'Service');
+  const svcDiff = LIVE.filter((s) => { const a = svcs.find((n) => n['@id'] === `https://www.boomrome.com/${s}#service`); const b = ldOf(PAGE[s]).find((n) => n['@type'] === 'Service'); return !a || !b || JSON.stringify(a) !== JSON.stringify(b); });
+  check(svcs.length === LIVE.length && !svcDiff.length, `each of the ${LIVE.length} Services deep-equals the Service of its own desk page, Offers and refund rule included`, svcDiff.join(', '));
+  const cp = g.find((n) => n['@type'] === 'CollectionPage');
+  check(cp && JSON.stringify(cp.speakable.cssSelector) === JSON.stringify(['.hub-lead', '.enbref']) && cp.dateModified === lastmod && cp.dateModified === HB.dateModified && cp.hasPart.map((x) => x['@id']).join() === LIVE.map((s) => `https://www.boomrome.com/${s}#page`).join(),
+    `the CollectionPage: speakable .hub-lead and .enbref, dateModified ${cp && cp.dateModified} = the sitemap <lastmod> (${lastmod}), hasPart the live desks' pages`);
+  const faqLd = g.find((n) => n['@type'] === 'FAQPage');
+  const unesc = (x) => x.replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+  const vq = [...H.matchAll(/<details><summary><span class="qn" aria-hidden="true">\d\d<\/span> <span class="t">([^<]*)<\/span><\/summary><p>([^<]*)<\/p><\/details>/g)].map((m) => [unesc(m[1]), unesc(m[2])]);
+  check(faqLd && vq.length === 6 && JSON.stringify(faqLd.mainEntity.map((q) => [q.name, q.acceptedAnswer.text])) === JSON.stringify(vq),
+    'the FAQPage is the six visible questions and answers, word for word');
+  {
+    const notFaq = g.filter((n) => n['@type'] !== 'FAQPage').concat([crumb]);
+    const strs = (v) => (typeof v === 'string' ? [v] : v && typeof v === 'object' ? Object.values(v).flatMap(strs) : []);
+    const hit = notFaq.flatMap(strs).filter((s) => /\b(?:Berlin|Paris|berlin|paris|BER|PAR)\b/.test(s));
+    check(!hit.length && !/"areaServed":[^\]]*(?:Berlin|Paris)/.test(H), 'no desk that is not open in the structured nodes (organization, page, list, Services, breadcrumb) nor in areaServed', hit.join(' | ').slice(0, 160));
+  }
+
+  // the board
+  const rows = [...H.matchAll(/<tr class="db-r (live|off|hub)" id="(db-[a-z]+)"[\s\S]*?<\/tr>/g)];
+  check(rows.map((m) => m[2]).join() === 'db-ams,db-bcn,db-lon,db-mad,db-mil,db-ber,db-par,db-rom', `the board: eight rows in order (${rows.map((m) => m[2]).join(', ')})`);
+  check(rows.filter((m) => m[1] === 'live').every((m) => { const s = m[0].match(/data-desk="([a-z]+)"/)[1]; return m[0].includes(`<a class="db-go" href="/${s}">${CITY[s].city}</a>`) && m[0].includes(`data-dw="${s}">${esc(deskHoursText(CITY[s].desk))}</span>`); })
+    && rows.filter((m) => m[1] === 'off').every((m) => !/<a\b|data-desk/.test(m[0])) && /<a class="db-go" href="\/">Rome<\/a>/.test(rows[7][0]) && !/data-desk/.test(rows[7][0]),
+    'live rows link /<slug> with the static hours (deskHoursText); the not-open rows have no link and no data-desk; ROM links / with no clock');
+  check(rows.filter((m) => m[1] === 'live').map((m) => (m[0].match(/from <b>([^<]+)<\/b>/) || [])[1]).join() === '€149,€149,£149,€149,€149' && /ITALIAN LAW · AS ROME/.test(rows[4][0]) && !/ITALIAN LAW/.test(rows.slice(0, 4).map((m) => m[0]).join('')),
+    'live "from" prices: €149, London £149; the Milan row carries ITALIAN LAW · AS ROME, no other row does');
+  check(rows.filter((m) => m[1] === 'off').every((m) => /<span class="db-sub">Not open<\/span>/.test(m[0]) && /data-instr>NOT OPEN</.test(m[0]) && !/[€£]|\d{2}:\d{2}|partner|opening/i.test(visibleText(m[0]))),
+    'Berlin and Paris read "Not open" / NOT OPEN: no price, no hour, no partner, no opening');
+  check(/<h1 id="h1"><span class="h1a">A rental agent on your side, in<\/span> <span class="sr">Europe<\/span><\/h1>\n\s*<p class="board-row" aria-hidden="true"><span class="board" id="hubBoard" data-word="EUROPE" style="--n:6"><\/span><\/p>/.test(H)
+    && visibleText(sliceOf(H, '<h1', '</h1>') + '</h1>').trim() === 'A rental agent on your side, in Europe', 'the H1 reads "A rental agent on your side, in Europe"; the EUROPE board sits outside it, served empty');
+  check([...H.matchAll(/<[^>]*\sdata-(?:clk|dw|nsr)="[^"]*"[^>]*>/g)].every((m) => /data-nosnippet/.test(m[0])) && [...H.matchAll(/data-(?:clk|nsr)="[a-z]+"><\/span>/g)].length === 10,
+    'every clock, window and status span carries data-nosnippet; the clocks and statuses are served empty (the script fills them)');
+
+  // the map
+  const svg = sliceOf(H, '<svg class="hmap-svg"', '</svg>');
+  const hubArcs = [...svg.matchAll(/<path class="arc" id="arc-([a-z]{3})"[^>]*d="([^"]+)"/g)].map((m) => [m[1], m[2]]);
+  const gold = (s) => (PAGE[s].match(/<path class="arc me"[^>]*d="([^"]+)"/) || [])[1];
+  check(hubArcs.length === LIVE.length && hubArcs.every(([k, d]) => { const s = LIVE.find((x) => CITY[x].iata.toLowerCase() === k); return s && d === gold(s); }),
+    `the map draws one arc per live desk, each with the SAME d as that desk's gold arc on its own page (${hubArcs.map(([k]) => k).join(', ')})`);
+  check(new RegExp(`viewBox="${HUB_VIEWBOX}"`).test(svg) && DRAFT.every((s) => { const [x, y] = mapXY(CITY[s].geo); return svg.includes(`<circle class="d off" cx="${Math.round(x * 10) / 10}" cy="${Math.round(y * 10) / 10}" r="3" fill="none"/>`); }) && !hubArcs.some(([k]) => ['ber', 'par'].includes(k)),
+    'Berlin and Paris are hollow dots at their real coordinates, with no arc');
+  check(/<circle class="hub" [^>]*r="5" fill="none"\/>/.test(svg) && /<circle class="hub-r" [^>]*r="10" fill="none"\/>/.test(svg) && /<circle class="hub-r r2" [^>]*r="16" fill="none"\/>/.test(svg) && /ROM · HUB<\/text>/.test(svg), 'Rome wears its two rings and the label ROM · HUB');
+  {
+    const pins = [...H.matchAll(/<a class="pin[^"]*" id="pin-([a-z]{3})" href="\/([a-z]+)" style="--x:([\d.]+)%;--y:([\d.]+)%"/g)];
+    const ok2 = pins.length === LIVE.length && pins.every((m) => { const [x, y] = mapXY(CITY[m[2]].geo); return CITY[m[2]].live && Math.abs(+m[3] - Math.round(x * 10) / 10 / 640 * 100) < 0.06 && Math.abs(+m[4] - (Math.round(y * 10) / 10 + 40) / 520 * 100) < 0.06; });
+    check(ok2, `pins for the live desks only, at the projected --x/--y (${pins.map((m) => `${m[1]} ${m[3]}/${m[4]}`).join(' · ')})`);
+    const hubXY = mapXY(shared.rome.geo);
+    const bows = bowArcs(hubXY, SLUGS.map((s) => [CITY[s].iata, mapXY(CITY[s].geo)]));
+    const arcs = LIVE.map((s) => { const to = mapXY(CITY[s].geo); return { key: CITY[s].iata, to, c: arcCtrl(hubXY, to, bows.get(CITY[s].iata)) }; });
+    check(arcViolations(hubXY, arcs, SLUGS.map((s) => ({ key: CITY[s].iata, xy: mapXY(CITY[s].geo), r: ARC_DOT_R }))).length === 0 && arcs.every((a) => svg.includes(arcD(hubXY, a))), 'no arc on the hub passes over a desk it does not serve (arcViolations = 0)');
+    check(LIVE.every((s) => H.includes(`.hmap:has(#pin-${CITY[s].iata.toLowerCase()}:is(:hover,:focus-visible)) #arc-${CITY[s].iata.toLowerCase()}{stroke:var(--gold)`)), 'a pin lights its own arc (one generated :has rule per live desk)');
+    check(!fs.existsSync(path.join(R, 'cities/_europe.json')) || (() => { const e = JSON.parse(read('cities/_europe.json')); return /^[MLZ0-9 .\-]+$/.test(e.path) && e.path.length <= 16000 && e.source && e.url && e.generated; })(), 'the optional coast path, when present, is plain M/L/Z numbers ≤ 16000 characters with its provenance');
+  }
+
+  // the fares
+  {
+    const { CITY_PLANS } = await import('../../api/_market.js');
+    const fa = sliceOf(H, '<section class="sec" id="fares"', '</section>');
+    const tk = [...fa.matchAll(/<li class="hft" id="hf-([a-z-]+)">[\s\S]*?<\/ul>[\s\S]*?<\/li>/g)];
+    check(tk.length === 3 && tk.every((m) => m[0].includes(`<b>€${CITY_PLANS[m[1]].eur}</b>`) && m[0].includes(`£${CITY_PLANS[m[1]].eur} at the London desk`)), 'three tickets, each with the price CITY_PLANS charges, in € and (the London desk) in £');
+    const ucf = (s) => s.charAt(0).toLowerCase() + s.slice(1);
+    check(Object.entries(HUBJ.fares.plans).every(([id, p]) => p.lines.every((l) => CITY_PLANS[id].desc.includes(ucf(l)) || CITY_PLANS[id].desc.includes(l))), 'every ticket line is a line the server sells (a substring of CITY_PLANS.desc)');
+    check(sliceOf(fa, 'id="hf-full-search"', '</li>\n').includes(`<p class="refund">${esc(shared.refund.rule)}</p>`) && !/data-pay|<button/.test(fa), 'the refund rule sits inside the Full Search ticket; no button, no data-pay');
+    check(fa.indexOf('class="hnote es"') > -1 && fa.indexOf('class="hnote es"') < fa.search(/[€£]\d/) && /In Barcelona and Madrid every fare is optional, chosen in writing \(LAU art\. 20\)\./.test(fa),
+      'the Spain note (LAU art. 20) names exactly the Spanish live desks and comes before the first price');
+    check(LIVE.every((s) => fa.includes(`<a href="/${s}#fares"><b data-instr>${CITY[s].iata}</b> ${CITY[s].city}</a>`)) && fa.includes('<a class="lnk" href="/withdrawal">'), 'the gates send each reader to /<slug>#fares; the 14-day strip item links the model form');
+  }
+
+  // the rules
+  {
+    const ru = sliceOf(H, '<section class="sec" id="rules"', '</section>');
+    check(LIVE.every((s) => ru.includes(`<th scope="col"><a href="/${s}#checks">`) && PAGE[s].includes('id="checks"')), 'one column per live desk, its header linking /<slug>#checks (an id that exists on that page)');
+    const held = Object.keys(HUBJ.rules.hold), cut = HUBJ.rules.cut;
+    check(held.every((k) => { const [s, id] = k.split(':'); const c = CITY[s].checks.items.find((x) => x.id === id); return ru.includes(`<a class="rc held" href="/${s}#check-${id}"><span class="rc-t">${esc(c.title)}</span></a>`) && !ru.includes(`href="/${s}#check-${id}"><span class="rc-at"`); }),
+      `the ${held.length} held checks show their title only (no label, no sentence)`);
+    const plain = LIVE.flatMap((s) => CITY[s].checks.items.filter((k) => !HUBJ.rules.hold[`${s}:${k.id}`]).map((k) => [s, k]));
+    check(plain.every(([s, k]) => ru.includes(`<a class="rc" href="/${s}#check-${k.id}"><span class="rc-at" data-instr>${esc(k.at)}</span></a>`)), 'every other cell is the desk\'s own `at` label, verbatim, linking its check');
+    check(/<td data-k="AMS"><span class="rc none" aria-hidden="true">—<\/span><span class="sr">Not one of the Amsterdam checks<\/span><\/td>/.test(sliceOf(ru, '<th scope="row">Who may charge you</th>', '</tr>')), 'Amsterdam has no fees check: its cell is "—" with a screen-reader sentence, never an invented rule');
+    check(plain.every(([s, k]) => { const t = (cut[`${s}:${k.id}`] || []).reduce((x, c) => x.split(c).join(''), k.text).replace(/\s+/g, ' ').trim(); return ru.includes(`<dd>${esc(t)}</dd>`); }) && !ru.includes('Agents still ask for three.'),
+      'the full sheet: each shown check\'s sentence, minus the cut sentences (Amsterdam\'s "Agents still ask for three. We don\'t let them." is gone)');
+    const country = sliceOf(ru, '<th scope="row">Country</th>', '</tr>');
+    check(LIVE.every((s) => country.includes(`<td data-k="${CITY[s].iata}">${COUNTRY_NAME[CITY[s].country]}`)) && /Italy <span class="rc-tag" data-instr>same law as BOOM Rome<\/span>/.test(country), 'the Country row is derived (COUNTRY_NAME); Italy carries "same law as BOOM Rome"');
+  }
+
+  // the questions, the fact sheet, the footer
+  check(vq.every(([, a]) => words(a) <= 42) && vq.some(([q]) => q === 'Is BOOM Milan a real estate agency?'), 'six questions, every answer ≤ 42 words; "Is BOOM Milan a real estate agency?" is one');
+  {
+    const br = sliceOf(H, '<dl class="enbref" id="enbref">', '</dl>');
+    const fees = sliceOf(br, '<dt>Fees</dt>', '</dd>');
+    check(br && !sliceOf(H, 'id="brief"', 'id="enbref"').includes('<details') && fees.includes(esc(shared.refund.rule)) && /at the London desk £500, £199 and £149/.test(fees)
+      && br.includes(`<time datetime="${HB.dateModified}">`) && !(visibleText(br).match(RATING_RE) || []).length,
+      'the fact sheet is open; its Fees row carries the refund rule and the London figures; Updated is <time datetime> = dateModified; no rating in it');
+    check(/Amsterdam<\/a>, <a class="lnk" href="\/barcelona">Barcelona<\/a>[\s\S]*and <a class="lnk" href="\/milan">Milan<\/a>\. Berlin and Paris desks are not open\./.test(br), 'Open in: the live desks linked, then "Berlin and Paris desks are not open." (no link)');
+  }
+  check(/<p class="stmt">Every BOOM desk acts solely for the tenant/.test(H) && LIVE.every((s) => sliceOf(H, '<nav aria-label="Desks">', '</nav>').includes(`<a href="/${s}">BOOM ${CITY[s].city}</a>`)) && /© 2026 BOOM <span class="mono" aria-hidden="true">· DESKS · TENANT SIDE · OPERATED BY EGIDI IMMOBILIARE<\/span>/.test(H),
+    'the footer: the statement, the live desks and BOOM Rome, legal, the company');
+  check(!/id="till"|data-pay|stripe|wa\.me|"CHECKOUT"/i.test(H) && (H.match(/on Google in Rome/g) || []).length === 1, 'no till, no Stripe word, no WhatsApp link on the hub; the Rome rating once');
+  check(HB.warnings.length === 0, 'the hub builds with no warning (every optional item has its value)', HB.warnings.join(' | '));
+
+  // ── the refusals (§1.7), each proven by mutating the real data or the template ──
+  const hubRender = (mutHub = () => {}, mutCity = null, tpl = HUBT, sh = shared) => {
+    const hub = clone(HUBJ); mutHub(hub);
+    const cities = SLUGS.map((s) => { const c = clone(CITY[s]); if (mutCity) mutCity(c); return c; });
+    return renderHub({ template: tpl, shared: sh, hub, cities, assetVersion: { css: 'testcss000', desksCss: 'testdcss00', desksJs: 'testdjs000' }, frags, root: R, weigh: false });
+  };
+  const hubRefuses = (mutHub, re, t, mutCity = null, tpl = HUBT) => { const r = throws(() => hubRender(mutHub, mutCity, tpl), re); check(r === true, t, r === true ? '' : r); };
+  check(throws(() => hubRender(), /^$/) === 'did not throw', '(the real data renders through renderHub with the test asset versions)');
+  hubRefuses((h) => { h.brief.rows[0].dd = 'See <a href="/paris">Paris</a>'; }, /links a desk that is not open/, 'a fact-sheet row linking /paris is refused (a desk not open is named, never linked)');
+  hubRefuses((h) => { h.brief.rows[0].dd = 'See <b>this</b>.'; }, /carries markup: hub copy is plain text/, 'markup in hub copy is refused (it would print as text; the links are derived)');
+  hubRefuses((h) => { h.rules.note += ' (art. 1590 c.c.)'; }, /"art\. 1590" .* is a statute no live desk's check names/, 'a statute no live desk checks (art. 1590 c.c.) is refused');
+  hubRefuses((h) => { h.faq.items[3].a += ' Desk OPEN now.'; }, /the static HTML says a desk is open or closed \("OPEN"\)/, 'a FAQ answer saying "Desk OPEN now." is refused (only the script, from the calendar, says it; FAQ 1 is at its 42 words, so FAQ 4 carries it)');
+  hubRefuses((h) => { h.faq.items[0].a = 'Full Search {price:full-search} at every desk.'; }, /€500 stands without the refund rule in its own block/, 'a FAQ answer with {price:full-search} and no {refund} is refused (€500 without the rule)');
+  hubRefuses(() => {}, /check amsterdam:noise is in no comparison row/, 'an Amsterdam check in no comparison row is refused', (c) => { if (c.slug === 'amsterdam') c.checks.items.push({ id: 'noise', title: 'Noise', at: 'quiet hours', text: 'Quiet hours apply.' }); });
+  hubRefuses((h) => { h.rules.hold['london:nope'] = 'a reason long enough'; }, /rules\.hold\["london:nope"\] is not a check of a live desk/, 'a hold on a check that does not exist is refused');
+  hubRefuses((h) => { h.rules.hold['london:fees'] = 'tbd'; }, /needs its reason/, 'a hold without its reason is refused');
+  hubRefuses((h) => { h.rules.cut['amsterdam:deposit'] = ['Agents ask for four.']; }, /every sentence cut must occur verbatim/, 'a cut sentence that is not in the check is refused');
+  hubRefuses((h) => { h.hero.lead = h.hero.lead.replace('One Italian agency', 'One worldwide agency'); }, /a scope word .*"worldwide"/, 'the lead saying "worldwide" is refused');
+  hubRefuses((h) => { h.fares.plans['full-search'].lines[0] = 'Guaranteed home in 30 days'; }, /types a number|not a line the server sells/, 'a ticket line "Guaranteed home in 30 days" is refused (not a substring of CITY_PLANS, and a typed number)');
+  hubRefuses((h) => { h.fares.plans['full-search'].lines[0] = 'Guaranteed home in thirty days'; }, /is not a line the server sells/, 'a ticket line the server does not sell is refused');
+  hubRefuses((h) => { h.map.caption = 'We have 40 clients a month.'; }, /types a number/, 'a number typed in hub copy is refused (numbers come from tokens)');
+  hubRefuses((h) => { h.faq.items[0].a = 'Ask {unknown}.'; }, /unknown or empty token \{unknown\}/, 'an unknown token is refused');
+  hubRefuses((h) => { h.meta.extra = 'x'; }, /meta\.extra is a key the hub does not read/, 'a key the hub does not read is refused');
+  hubRefuses((h) => { h.map.caption = 'Paris: book a call.'; }, /a sentence that names a desk not open promises a call/, 'a sentence naming Paris with a call is refused');
+  hubRefuses((h) => { h.map.caption = 'Every desk answers from Rome, our office in Madrid too.'; }, /a presence claim outside Rome/, 'a presence claim outside Rome is refused');
+  hubRefuses((h) => { h.map.caption = 'Six desks, one company.'; }, /"Six desks" is not the live count/, 'a desk count that is not the live count is refused');
+  hubRefuses((h) => { h.map.caption = 'Rated well: ★ by tenants.'; }, /the Rome rating appears exactly once/, 'a second rating is refused');
+  hubRefuses((h) => { h.footer.statement += ' Paid through Stripe.'; }, /no till/, 'a Stripe word on the hub is refused');
+  hubRefuses((h) => { h.brief.rows[0].dd += ' VAT IT12345678901.'; }, /"VAT 12345678901" is not the company's VAT number/, 'a VAT number other than the entity\'s is refused');
+  hubRefuses((h) => { h.updated = '2026-11-05'; }, /must be the same date/, 'a dateModified that is not the sitemap <lastmod> is refused');
+  hubRefuses(() => {}, /the fares differ at the London desk/, 'a live desk whose fares differ is refused ("same at every desk")', (c) => { if (c.slug === 'london') c.pricing.plans[1].price = 189; });
+  hubRefuses(() => {}, /needs one desk\.person/, 'two different people answering is refused', (c) => { if (c.slug === 'milan') c.desk.person = 'Anna Rossi'; });
+  hubRefuses(() => {}, /"What we don't do" must say/, 'a live desk whose "What we don\'t do" does not cover the hub\'s claim is refused', (c) => { if (c.slug === 'madrid') c.bref.rows.find((r) => r.dt === "What we don't do").ddHtml = 'We don\'t list homes.'; });
+  {
+    // the not-open row, forged with an hour and a price, through the template
+    const tpl = HUBT.replace('{{{boardHtml}}}', '{{{boardHtml}}}\n<table><tr class="db-r off" id="db-xxx"><td>Paris 09:00 from €149</td></tr></table>');
+    const r = throws(() => hubRender(() => {}, null, tpl), /a "not open" row carries/);
+    check(r === true, 'a "not open" row with an hour and a price is refused', r === true ? '' : r);
+  }
+  {
+    const tpl = HUBT.replace('<p class="hub-lead">{{lead}}</p>', '<p class="hub-lead">{{lead}}</p><p>Desk open until 19:00</p>');
+    const r = throws(() => hubRender(() => {}, null, tpl), /the static HTML says a desk is open or closed/);
+    check(r === true, 'a static "desk open until" in the template is refused', r === true ? '' : r);
+    const r2 = throws(() => hubRender(() => {}, null, HUBT.replace('<p class="hub-lead">{{lead}}</p>', '<p class="hub-lead">{{lead}}</p><span data-clk="london"></span>')), /a live instrument without data-nosnippet/);
+    check(r2 === true, 'a clock without data-nosnippet is refused', r2 === true ? '' : r2);
+  }
+  {
+    // with drafts gone the {drafts} token is empty: refused, never an empty sentence
+    const r = throws(() => renderHub({ template: HUBT, shared, hub: clone(HUBJ), cities: SLUGS.filter((s) => CITY[s].live).map((s) => clone(CITY[s])), assetVersion: {}, frags, root: R, weigh: false }), /unknown or empty token \{drafts\}/);
+    check(r === true, 'with no desk not open, a sentence that names {drafts} is refused (never an empty name)', r === true ? '' : r);
+  }
+  // a REA typed in a city JSON is refused by renderCity (the identity guard is shared)
+  refuses((c) => { c.bref.rows[0].ddHtml = c.bref.rows[0].ddHtml.replace('REA RM-1710623', 'REA RM-1234567'); }, /"REA RM-1234567" is not the company's REA/, 'milan: a "Who" row with REA RM-1234567 is refused by renderCity', 'milan');
+  // the mutation that must NOT be refused: no home-country desk drops the home items, with warnings
+  {
+    let out = null, err = '';
+    try { out = hubRender(() => {}, (c) => { if (c.slug === 'milan') c.country = 'XX'; }); } catch (e) { err = e.message; }
+    check(out && !/class="m-card home"/.test(out.html) && !/ITALIAN LAW · AS ROME/.test(out.html) && !/Is BOOM Milan a real estate agency/.test(out.html) && !/<dt>Milan<\/dt>/.test(out.html) && !/<b data-instr>Languages<\/b>/.test(out.html) && !/same law as BOOM Rome/.test(out.html)
+      && out.warnings.filter((w) => /dropped/.test(w)).length === 4 && out.warnings.every((w) => /dropped|no name in COUNTRY_NAME/.test(w)) && /<td data-k="MIL"><span class="rc none" aria-hidden="true">—<\/span><span class="sr">Country not stated<\/span>/.test(out.html),
+      `milan with country "XX": the Milan card, the tag, FAQ 5, the fact-sheet row and the Languages item are dropped, with warnings, its country cell reads "—", and the hub builds (${out ? out.warnings.length : 0} warnings)`, err);
+  }
+  // budgets bite
+  {
+    const save = HUB_BUDGET.brief; HUB_BUDGET.brief = 100;
+    const r = throws(() => hubRender(), /the #brief section is \d+ words at load, over its 100/);
+    HUB_BUDGET.brief = save;
+    check(r === true, 'a section over its cap is refused (the brief at 100)', r === true ? '' : r);
+    const save2 = HUB_BUDGET.dd; HUB_BUDGET.dd = 20;
+    const r2 = throws(() => hubRender(), /a fact-sheet answer is \d+ words, over 20/);
+    HUB_BUDGET.dd = save2;
+    check(r2 === true, 'a fact-sheet answer over its cap is refused', r2 === true ? '' : r2);
+    const r3 = throws(() => hubRender((h) => { h.map.rome.p = 'Where the company lives and works every single working day of the week, with homes to rent, owners, leases, papers and keys, in a city that every desk answers from.'; }), /a text node over 24 words/);
+    check(r3 === true, 'a paragraph over 24 words is refused (the node rule)', r3 === true ? '' : r3);
+  }
+  // hoursSentence and hubText
+  check(hoursSentence(LIVE.map((s) => CITY[s])) === 'Monday to Friday, 09:00–19:00 Rome time; the London desk 08:00–18:00 London time', `hoursSentence: "${hoursSentence(LIVE.map((s) => CITY[s]))}"`);
+  check(hubText('{homeCity} x', { homeCity: '' }, 't') === null && throws(() => hubText('{nope}', {}, 't'), /unknown or empty token/) === true, 'hubText: an optional token with no value drops the item; an unknown one is refused');
+
+  // the hub on the site: sitemap, redirects, cache, llms, footers
+  const vj = JSON.parse(read('vercel.json'));
+  const ccOf = (p) => (vj.headers || []).filter((h) => new RegExp(`^${h.source}$`).test(p)).reduce((v, h) => { const x = h.headers.find((k) => k.key.toLowerCase() === 'cache-control'); return x ? x.value : v; }, null);
+  const hashed = [...new Set([...H.matchAll(/(?:https:\/\/www\.boomrome\.com)?(\/[A-Za-z0-9_./-]+)\?v=[0-9a-f]{6,}/g)].map((m) => m[1]))];
+  check(['/assets/boom-desks.css', '/assets/boom-desks.js', '/assets/boom-city.css'].every((p) => hashed.includes(p)) && hashed.every((p) => /immutable/.test(ccOf(p) || '')), `every content-hashed asset the hub asks for is served immutable (${hashed.join(', ')})`);
+  check((vj.redirects || []).some((r) => r.source === '/(cities|boom-desks)' && r.destination === '/desks' && r.permanent === true), '/cities and /boom-desks redirect permanently to /desks');
+  check(lastmod === HB.dateModified, `the sitemap lists /desks with <lastmod> ${lastmod} = dateModified`);
+  const llms = read('llms.txt');
+  check(/^## BOOM Desks \(tenant-side rental desks in Europe: Amsterdam, Barcelona, London, Madrid and Milan\)$/m.test(llms) && llms.includes('- [BOOM Desks](https://www.boomrome.com/desks):') && !/BOOM Cities/.test(llms) && llms.includes('Paris and Berlin desks are not open.') && /BOOM Milan is the home-country desk/.test(llms),
+    'llms.txt: the section is "BOOM Desks", /desks first, Milan the home-country desk; "BOOM Cities" gone; the "not open" sentence kept');
+  const FOOT8 = ['index.html', 'apartments.html', 'try.html', 'your-money.html', 'how-it-works.html', 'apartment-detail.html', 'design/pages-deco/pt.html', 'design/pages-deco/patch-lotto2.py'];
+  const noHub = FOOT8.filter((f) => { const s = read(f); const i = s.search(/<a href="\/desks(?:\.html)?">BOOM Desks · Europe<\/a>/); return i < 0 || i > s.search(/<a href="\/amsterdam(?:\.html)?">/); });
+  check(!noHub.length, 'the eight "Company & Markets" footers link /desks ("BOOM Desks · Europe"), just above Amsterdam', noHub.join(', '));
+  check(read('.vercelignore').split('\n').map((l) => l.trim()).includes('cities/'), 'the hub\'s template and copy (cities/) stay off the site');
+}
 
 console.log(`\n  ${ok} passed, ${ko} failed`);
 process.exit(ko ? 1 : 0);

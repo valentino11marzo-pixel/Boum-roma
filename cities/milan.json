@@ -192,6 +192,10 @@
       {
         "q": "What if you don't find anything?",
         "a": "We tell you in the first call if your budget and timeline don't fit the market; if BOOM declines the search then, the €500 Full Search fee is refunded in full. Once we take it on, the search runs until you sign or stop it, and the fee pays for the work, not for a result."
+      },
+      {
+        "q": "Is BOOM Milan a real estate agency?",
+        "a": "Yes. BOOM Milan is a desk of Egidi Immobiliare S.r.l., an Italian real estate agency registered with the Rome Chamber of Commerce (REA RM-1710623), under the same Italian law as our agency in Rome. On this desk we work for the tenant only: you hire us and pay us, never the landlord."
       }
     ]
   },
@@ -200,7 +204,7 @@
     "rows": [
       {
         "dt": "Who",
-        "ddHtml": "BOOM Milan, the tenant-side rental desk of BOOM — operated by <b>Egidi Immobiliare S.r.l.</b>, a registered Italian agency based in Rome. Hired by the tenant, paid by the tenant only."
+        "ddHtml": "BOOM Milan, the tenant-side desk of <b>Egidi Immobiliare S.r.l.</b>, an Italian real estate agency registered with the Rome Chamber of Commerce (REA RM-1710623). In Milan it works under the same Italian law as our agency in Rome. Hired by the tenant, paid by the tenant only."
       },
       {
         "dt": "For whom",
@@ -235,7 +239,7 @@
     ]
   },
   "footer": {
-    "statement": "BOOM Milan acts solely as a tenant-side search agent, hired and paid by the tenant. We do not list properties, represent landlords, or receive remuneration from landlords or their agents."
+    "statement": "BOOM Milan is a desk of Egidi Immobiliare S.r.l., an Italian real estate agency registered in Rome (REA RM-1710623), under the same Italian law as in Rome. On this desk we act solely for the tenant: we do not list properties, represent landlords, or receive remuneration from landlords or their agents."
   },
   "desk": {
     "person": "Valentino Egidi",
