@@ -14,10 +14,12 @@
     if(!authority || /[:@]/.test(authority)) return null;
     try {
       const u=new URL(raw), host=u.hostname.replace(/^www\./,'');
-      const route={'immobiliare.it':/^\/annunci\/(\d+)\/?$/,'idealista.it':/^\/immobile\/(\d+)\/?$/}[host];
-      const id=route && u.pathname.match(route)?.[1];
+      const route={'immobiliare.it':/^\/annunci\/(\d+)\/?$/,'idealista.it':/^\/immobile\/(\d+)(?:\/foto\/([1-9]\d*))?\/?$/}[host];
+      const match=route && u.pathname.match(route), id=match?.[1];
       if(!id || ![host,'www.'+host].includes(u.hostname)) return null;
-      return {...RULES.normalizeUrl(raw),host,id};
+      const page=RULES.normalizeUrl(raw);
+      /* La galleria navigata resta la pagina osservata; la scheda usa l'annuncio base. */
+      return {...page,url:match[2]?u.origin+'/immobile/'+id+'/':page.url,pageUrl:page.url,host,id};
     } catch {return null;}
   }
   const same = (a,b) => !!a && !!b && a.host===b.host && a.id===b.id;
@@ -56,10 +58,10 @@
       return {ok:true,source:{url:source.url,source:source.source},data,images,gallery:{expected:gallery.expected,found:images.length},capturedAt:at};
     } catch {return fail('invalid_payload');}
   }
-  // Nessuna lettura globale delle immagini: i suggerimenti di altre case restano fuori.
+  /* Nessuna lettura globale delle immagini: i suggerimenti di altre case restano fuori. */
   const GALLERIES={
     'immobiliare.it':['.in-gallery','[data-testid="listing-gallery"]','[data-testid="gallery"]'],
-    'idealista.it':['#main-multimedia','.detail-multimedia','.multimedia-container','[data-testid="listing-gallery"]'],
+    'idealista.it':['#main-multimedia','.detail-multimedia','.multimedia-container','[data-testid="listing-gallery"]','.image-gallery-slide-wrapper'],
   };
   const COUNTERS={
     'immobiliare.it':['.in-gallery__counter','.in-carousel__counter','[data-testid="gallery-counter"]'],
@@ -85,7 +87,7 @@
           try {return typeof identity==='string'?listing(new URL(identity,source.url).toString()):null;} catch {return null;}
         });
         const own=resolved[0] || null;
-        // Un'identità esplicita diversa non eredita mai quella della pagina padre.
+        /* Un'identità esplicita diversa non eredita mai quella della pagina padre. */
         const inconsistent=resolved.some(identity=>!same(source,identity));
         const linked=identities.length ? (inconsistent?null:own) : inherited;
         if(property && linked) {
@@ -94,7 +96,7 @@
         }
         if(property && inconsistent) foreign=true;
         if(value['@graph']) collect(value['@graph'],null,depth+1);
-        // Solo l'entità principale, mai ItemList/recommendation/offers.itemListElement.
+        /* Solo l'entità principale, mai ItemList/recommendation/offers.itemListElement. */
         if(value.mainEntity) collect(value.mainEntity,inconsistent?null:own,depth+1);
         if(property && value.itemOffered) collect(value.itemOffered,linked,depth+1);
       };
@@ -124,7 +126,7 @@
       for(const gallery of galleries) {
         count(gallery.getAttribute('data-total'));count(gallery.getAttribute('data-count'));
         for(const img of gallery.querySelectorAll('img')) {
-          // La prima variante valida per la foto prevale; nessuna URL viene inventata.
+          /* La prima variante valida per la foto prevale; nessuna URL viene inventata. */
           for(const raw of [img.getAttribute('data-original'),img.getAttribute('data-src'),img.currentSrc,img.getAttribute('src')]) if(add(raw)) break;
         }
       }
@@ -134,7 +136,7 @@
       const getText=selectors=>selectors.map(selector=>document.querySelector(selector)?.textContent || '').find(Boolean) || '';
       const visiblePrice=getText(source.host==='immobiliare.it'?['.in-detail__price','[data-testid="price"]']:['.info-data-price','[data-testid="price"]']);
       const priceMatch=visiblePrice.trim().match(/^(?:€\s*)?((?:\d{1,3}(?:\.\d{3})+|\d+)(?:,\d{1,2})?)\s*€?(?:\s*\/\s*(?:mese|mes))?$/i);
-      const payload={kind:KIND,version:VERSION,sourceUrl:source.url,pageUrl:source.url,...(canonicalUrl?{canonicalUrl:listing(canonicalUrl).url}:{}),capturedAt:new Date().toISOString(),
+      const payload={kind:KIND,version:VERSION,sourceUrl:source.url,pageUrl:source.pageUrl,...(canonicalUrl?{canonicalUrl:listing(canonicalUrl).pageUrl}:{}),capturedAt:new Date().toISOString(),
         data:{title:text(item.name || getText(['h1']),130),price:number(item.offers?.price,1000000) || (priceMatch?number(priceMatch[1].replace(/\./g,'').replace(',','.'),1000000):null),zone:text(item.address?.addressLocality,90),sqm:number(item.floorSize?.value,100000),rooms:number(item.numberOfRooms,100)},
         images,gallery:{expected,found:images.length}};
       const result=validate(payload);

@@ -18,11 +18,11 @@ const normalize=value=>JSON.parse(JSON.stringify(value));
 
 // Small browser-DOM adapter over htmlparser2's actual tree. The selectors used
 // by capture are evaluated against the HTML fixture, not answered by fixtures.
-function dom(html) {
+function dom(html, currentSources={}) {
   const tree=parseDocument(html), wrappers=new WeakMap();
   const text=node=>node.type==='text'?node.data:(node.children || []).map(text).join('');
   const matches=(node,selector)=>{
-    if(!node.name) return false;
+    if(!node.name || !node.attribs) return false;
     if(selector[0]==='.') return (node.attribs.class || '').split(/\s+/).includes(selector.slice(1));
     if(selector[0]==='#') return node.attribs.id===selector.slice(1);
     const match=selector.match(/^([a-z0-9-]+)?(?:\[([a-z0-9-]+)="([^"]*)"\])?$/i);
@@ -40,7 +40,7 @@ function dom(html) {
   const wrap=node=>{
     if(wrappers.has(node)) return wrappers.get(node);
     const value={getAttribute:name=>node.attribs?.[name] ?? null,
-      get textContent(){return text(node);},get currentSrc(){return node.attribs?.src || '';},
+      get textContent(){return text(node);},get currentSrc(){return currentSources[node.attribs?.src] || node.attribs?.src || '';},
       querySelectorAll:selector=>find(node,selector),querySelector:selector=>find(node,selector)[0] || null};
     wrappers.set(node,value);return value;
   };
@@ -61,6 +61,68 @@ function checkIdentity(api) {
   p.pageUrl=source;p.canonicalUrl=idealista;
   assert.equal(api.validate(p,now).error,'source_mismatch');
   assert.equal(api.capture(dom(script({'@type':'WebPage',url:source,mainEntity:apartment({url:'/annunci/999999999/'})})),source).error,'source_mismatch');
+}
+function checkGalleryRoute(api) {
+  const base='https://www.idealista.it/immobile/37221750/';
+  const gallery=base+'foto/1/';
+  const image='https://img.idealista.it/WEB_DETAIL/fixture-37221750.jpg';
+  const schema=apartment({url:base,image:[image]});
+  const document=dom('<link rel="canonical" href="'+base+'">'+script(schema));
+  for(const page of [gallery,base+'foto/15',gallery+'?utm_source=fixture#image']) {
+    const result=api.capture(document,page);
+    assert.equal(result.ok,true,'The observed Idealista gallery route is the same listing');
+    assert.equal(result.payload.sourceUrl,base,'Publication uses the base listing, never /foto/');
+    assert.equal(result.payload.pageUrl,page.split(/[?#]/)[0],'Keep the actual gallery route, without tracking');
+    assert.equal(result.payload.canonicalUrl,base);
+    assert.equal(api.validate(result.payload).source.url,base);
+  }
+  const result=api.capture(document,gallery);
+  const ownGallery=api.validate({...result.payload,sourceUrl:gallery});
+  assert.equal(ownGallery.ok,true);assert.equal(ownGallery.source.url,base,'Normalize a supplied gallery source as well');
+  const alias=api.validate({...result.payload,pageUrl:'https://idealista.it/immobile/37221750/foto/2/'});
+  assert.equal(alias.ok,true,'Same-ID bare/www alias remains allowed');
+  for(const patch of [
+    {pageUrl:'https://www.idealista.it/immobile/37221751/foto/1/'},
+    {canonicalUrl:'https://www.idealista.it/immobile/37221751/'},
+    {sourceUrl:'https://www.idealista.it/immobile/37221751/'},
+  ]) assert.equal(api.validate({...result.payload,...patch}).error,'source_mismatch','Gallery route never authorizes another listing ID');
+  assert.equal(api.capture(dom('<link rel="canonical" href="'+base.replace('37221750','37221751')+'">'+script(schema)),gallery).error,'source_mismatch');
+  assert.equal(api.capture(dom(script(apartment({url:base.replace('37221750','37221751'),image:[image]}))),gallery).error,'source_mismatch','The main JSON-LD identity must also match on gallery pages');
+  for(const invalid of ['foto/0/','foto/-1/','foto/01/','foto/one/','foto/1/extra/','video/1/','foto/1.5/']) {
+    assert.equal(api.capture(document,base+invalid).error,'unsupported_listing_url',invalid);
+  }
+  assert.equal(api.capture(dom(html()),source+'foto/1/').error,'unsupported_listing_url','Do not extend another portal without an observed route');
+}
+function checkObservedIdealistaGallery(api) {
+  // Reconstructed from the 3/11 DOM probe, not a saved page or an invented full gallery:
+  // empty #main-multimedia, two slides, counter 1/15, no JSON-LD. Counter placement
+  // here is synthetic because the probe recorded its selector/value, not its parent.
+  const base='https://www.idealista.it/immobile/37221750/';
+  const first='https://img4.idealista.it/blur/WEB_DETAIL-XL-L/0/id.pro.it.image.master/18/17/e4/849829517.jpg';
+  const second='https://img4.idealista.it/blur/WEB_DETAIL-XL-L/0/id.pro.it.image.master/80/d8/b9/849829543.jpg';
+  const currentSources={[first]:first.replace('.jpg','.webp'),[second]:second.replace('.jpg','.webp')};
+  const prefix='<!doctype html><link rel="canonical" href="'+base+'"><main class="detail-container"><div id="main-multimedia" class="images-slider"></div></main>';
+  const slides='<div class="image-gallery-slide-wrapper"><div class="image-gallery-swipe false"><div class="image-gallery-slides">'+
+    '<div class="image-gallery-slide center"><figure class="item-gallery"><picture><img src="'+first+'"></picture></figure></div>'+
+    '<div class="image-gallery-slide right"><figure class="item-gallery"><picture><img src="'+second+'"></picture></figure></div></div></div></div>';
+  const counter='<span data-testid="gallery-counter">1/15</span>';
+  // Synthetic negative controls, outside the observed gallery scope.
+  const unrelated='<aside><img src="https://st3.idealista.it/profilephotos/fixture-avatar.jpg"></aside>'+
+    '<div class="recommendations"><img src="https://img4.idealista.it/fixture-other-listing.jpg"></div>';
+  const document=dom(prefix+slides+counter+unrelated,currentSources);
+  const captured=api.capture(document,base+'foto/1/');
+  assert.equal(captured.ok,true,'Recognize the gallery wrapper actually observed on Idealista');
+  assert.deepEqual(normalize(captured.payload.images),Object.values(currentSources),'Each img contributes one observed variant; avatars and recommendations remain outside');
+  const validated=api.validate(captured.payload);
+  assert.equal(validated.ok,true);
+  assert.equal(validated.gallery.expected,15,'Keep the advertised total, never replace it with the loaded count');
+  assert.equal(validated.gallery.found,2);
+  assert.ok(validated.gallery.found<validated.gallery.expected,'Two loaded photos cannot certify a complete 15-photo gallery');
+  for(const field of ['price','sqm','rooms']) assert.equal(captured.payload.data[field],null,'Do not invent unobserved listing data: '+field);
+  assert.equal(api.capture(document,base.replace('37221750','37221751')+'foto/1/').error,'source_mismatch');
+  assert.equal(api.capture(dom(prefix+counter+unrelated),base+'foto/1/').error,'photos_not_found','Unrelated page pictures cannot fill an empty gallery');
+  const unknown=api.capture(dom(prefix+slides,currentSources),base+'foto/1/');
+  assert.equal(unknown.ok,true);assert.equal(unknown.payload.gallery.expected,null,'No counter means unknown, not two of two');
 }
 function checkNoSecrets(api) {
   const captured=api.capture(dom(html('<input name="password" value="fixture-secret"><script>throw new Error("Never execute me")</script>')),source);
@@ -101,7 +163,7 @@ for(const invalid of ['http://www.immobiliare.it/annunci/123456789/','https://ww
   'https://www.idealista.com/inmueble/123456789/','https://www.immobiliare.it/annunci/123456789/?x='+('x'.repeat(2048))]) {
   const p=input();p.pageUrl=invalid;assert.equal(SHARE.validate(p,now).ok,false,invalid);
 }
-checkIdentity(SHARE);checkNoSecrets(SHARE);checkIncomplete(SHARE);checkSixty(RULES);
+checkIdentity(SHARE);checkGalleryRoute(SHARE);checkObservedIdealistaGallery(SHARE);checkNoSecrets(SHARE);checkIncomplete(SHARE);checkSixty(RULES);
 for(const at of ['not-a-date','2026-02-30T11:00:00.000Z','2026-10-31T12:05:00.001Z','2099-01-01T00:00:00.000Z']) {
   const p=input();p.capturedAt=at;assert.equal(SHARE.validate(p,now).error,'invalid_capture_date');
 }
@@ -155,11 +217,15 @@ function load(code, rules=RULES) {
   return {api:context.window.BOOM_SMARTLINK_SHARE,network:()=>network};
 }
 const browser=load(implementation);
-checkNoSecrets(browser.api);checkIdentity(browser.api);checkIncomplete(browser.api);
+checkNoSecrets(browser.api);checkIdentity(browser.api);checkGalleryRoute(browser.api);checkObservedIdealistaGallery(browser.api);checkIncomplete(browser.api);
 assert.equal(browser.network(),0);
 assert.deepEqual(normalize(browser.api.validate(input(),now)),validated,'Browser and CommonJS share the same rules');
 const mutations=[
   ['identity','a.id===b.id','true',checkIdentity],
+  ['gallery route','(?:\\/foto\\/([1-9]\\d*))?','',checkGalleryRoute],
+  ['gallery identity','a.id===b.id','true',checkGalleryRoute],
+  ['observed gallery selector',",'.image-gallery-slide-wrapper'",'',checkObservedIdealistaGallery],
+  ['gallery scope',"gallery.querySelectorAll('img')","document.querySelectorAll('img')",checkObservedIdealistaGallery],
   ['secret access','const source=listing(pageUrl);','const source=listing(pageUrl); document.cookie;',checkNoSecrets],
   ['network access','const source=listing(pageUrl);','const source=listing(pageUrl); fetch(pageUrl);',checkNoSecrets],
   ['incomplete count','gallery:{expected:gallery.expected,found:images.length}','gallery:{expected:images.length,found:images.length}',checkIncomplete],
@@ -173,4 +239,4 @@ const rulesImplementation=await readFile(new URL('../../js/smartlink-engine.js',
 const context={window:{},URL,Math,Number,Set};
 vm.runInNewContext(rulesImplementation.replace('const MAX_PHOTOS = 60;','const MAX_PHOTOS = 12;'),context);
 assert.throws(()=>checkSixty(context.window.BOOM_SMARTLINK),{code:'ERR_ASSERTION'},'Restoring 12 loses real shared images');
-console.log('SmartLink Safari share: real HTML fixtures, identity, private-data/network guards, source photos, incomplete totals, 60-photo roundtrip and 5 mutations ✓');
+console.log('SmartLink Safari share: real HTML fixtures, observed Idealista 2/15, listing/gallery identity, private-data/network guards, source photos, incomplete totals, 60-photo roundtrip and 9 mutations ✓');
