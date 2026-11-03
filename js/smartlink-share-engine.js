@@ -31,12 +31,17 @@
   function text(value, max) {
     return typeof value==='string' ? RULES.cleanText(value,max) : '';
   }
+  function displayedPrice(value) {
+    const match=String(value || '').trim().match(/^(?:€\s*)?((?:\d{1,3}(?:\.\d{3})+|\d+)(?:,\d{1,2})?)\s*€?(?:\s*\/\s*(?:mese|mes))?$/i);
+    return match?number(match[1].replace(/\./g,'').replace(',','.'),1000000):null;
+  }
   function validate(raw, now=Date.now()) {
     try {
       const serialized=typeof raw==='string' ? raw : JSON.stringify(raw);
       if(typeof serialized!=='string') return fail('invalid_payload');
       if(byteLength(serialized)>MAX_BYTES) return fail('payload_too_large');
       const payload=JSON.parse(serialized);
+      if(payload?.kind===FRAMES_KIND) {const combined=combineFrames(payload,now);return combined.ok?validate(combined.payload,now):combined;}
       if(keys(payload,['kind','version','error']) && Object.keys(payload).length===3 && payload.kind===KIND && payload.version===VERSION && ERRORS.includes(payload.error)) return fail(payload.error);
       if(!keys(payload,['kind','version','sourceUrl','pageUrl','canonicalUrl','capturedAt','data','images','gallery']) || payload.kind!==KIND || payload.version!==VERSION) return fail('invalid_payload');
       const source=listing(payload.sourceUrl), page=listing(payload.pageUrl);
@@ -125,7 +130,9 @@
       };
       for(const gallery of galleries) {
         count(gallery.getAttribute('data-total'));count(gallery.getAttribute('data-count'));
-        for(const img of gallery.querySelectorAll('img')) {
+        const isIdealistaSlides=source.host==='idealista.it' && String(gallery.getAttribute('class') || '').split(/\s+/).includes('image-gallery-slide-wrapper');
+        const photoNodes=isIdealistaSlides ? Array.from(gallery.querySelectorAll('.image-gallery-slide')).flatMap(slide=>Array.from(slide.querySelectorAll('figure.item-gallery')).flatMap(figure=>Array.from(figure.querySelectorAll('img')))) : gallery.querySelectorAll('img');
+        for(const img of photoNodes) {
           /* La prima variante valida per la foto prevale; nessuna URL viene inventata. */
           for(const raw of [img.getAttribute('data-original'),img.getAttribute('data-src'),img.currentSrc,img.getAttribute('src')]) if(add(raw)) break;
         }
@@ -135,15 +142,171 @@
       const item=schemas[0] || {};
       const getText=selectors=>selectors.map(selector=>document.querySelector(selector)?.textContent || '').find(Boolean) || '';
       const visiblePrice=getText(source.host==='immobiliare.it'?['.in-detail__price','[data-testid="price"]']:['.info-data-price','[data-testid="price"]']);
-      const priceMatch=visiblePrice.trim().match(/^(?:€\s*)?((?:\d{1,3}(?:\.\d{3})+|\d+)(?:,\d{1,2})?)\s*€?(?:\s*\/\s*(?:mese|mes))?$/i);
+      const visible={price:[],sqm:[],rooms:[],zone:[]};
+      if(source.host==='idealista.it') {
+        for(const detail of document.querySelectorAll('section.detail-content-wrapper')) for(const info of detail.querySelectorAll('p.info-data')) for(const container of info.querySelectorAll('.price-container')) for(const node of container.querySelectorAll('strong.price')) visible.price.push(displayedPrice(node.textContent));
+        for(const detail of document.querySelectorAll('section.detail-content-wrapper')) for(const features of detail.querySelectorAll('div.info-features')) for(const node of features.querySelectorAll('span')) {
+          const value=String(node.textContent || '').trim().replace(/\s+/g,' ');
+          const sqm=value.match(/^(\d+(?:[.,]\d+)?)\s*m²$/i), rooms=value.match(/^(\d+)\s+local[ei]$/i);
+          if(sqm) visible.sqm.push(number(sqm[1].replace(',','.'),100000));
+          if(rooms) visible.rooms.push(number(rooms[1],100));
+        }
+        for(const main of document.querySelectorAll('main.detail-container')) for(const block of main.querySelectorAll('span.main-info__title-block')) for(const node of block.querySelectorAll('span.main-info__title-minor')) visible.zone.push(text(node.textContent,90));
+      }
+      const consistent=(initial,candidates)=>{
+        const values=[...new Set([initial,...candidates].filter(value=>value!==null))];
+        return values.length===1?values[0]:null;
+      };
+      const zones=[...new Set(visible.zone.filter(Boolean))];
       const payload={kind:KIND,version:VERSION,sourceUrl:source.url,pageUrl:source.pageUrl,...(canonicalUrl?{canonicalUrl:listing(canonicalUrl).pageUrl}:{}),capturedAt:new Date().toISOString(),
-        data:{title:text(item.name || getText(['h1']),130),price:number(item.offers?.price,1000000) || (priceMatch?number(priceMatch[1].replace(/\./g,'').replace(',','.'),1000000):null),zone:text(item.address?.addressLocality,90),sqm:number(item.floorSize?.value,100000),rooms:number(item.numberOfRooms,100)},
+        data:{title:text(item.name || getText(['h1']),130),price:consistent(number(item.offers?.price,1000000) || displayedPrice(visiblePrice),visible.price),zone:text(item.address?.addressLocality,90) || (zones.length===1?zones[0]:''),sqm:consistent(number(item.floorSize?.value,100000),visible.sqm),rooms:consistent(number(item.numberOfRooms,100),visible.rooms)},
         images,gallery:{expected,found:images.length}};
       const result=validate(payload);
       return result.ok ? {ok:true,payload} : result;
     } catch {return fail('capture_unavailable');}
   }
-  const API={KIND,VERSION,MAX_BYTES,MAX_URL,validate,capture};
+  const PLAN_KIND='boom.smartlink.plan', FRAME_KIND='boom.smartlink.frame', FRAMES_KIND='boom.smartlink.share.frames';
+  const MAX_SEQUENCE_MS=180000;
+  const closed=(value,allowed)=>keys(value,allowed) && Object.keys(value).length===allowed.length;
+  const protocolError=(error,fallback='capture_unavailable')=>fail(ERRORS.includes(error?.message)?error.message:fallback);
+  const exactDate=(value,now)=>typeof value==='string' && value.length===24 && Number.isFinite(Date.parse(value)) && new Date(value).toISOString()===value && Date.parse(value)<=now+300000;
+  function positionsFor(total,start) {
+    const result=[start];let current=start,direction=start-1<=total-start?-1:1;
+    while(current+direction>=1 && current+direction<=total) {current+=direction;result.push(current);}
+    direction=-direction;
+    while(current+direction>=1 && current+direction<=total) {current+=direction;result.push(current);}
+    return result;
+  }
+  function checkedPlan(plan,now=Date.now()) {
+    if(!closed(plan,['kind','version','sourceUrl','canonicalUrl','total','start','positions','count','capturedAt']) || plan.kind!==PLAN_KIND || plan.version!==VERSION) throw new Error('invalid_payload');
+    const source=listing(plan.sourceUrl);
+    if(!source || source.host!=='idealista.it' || source.url!==plan.sourceUrl) throw new Error('unsupported_listing_url');
+    if(plan.canonicalUrl!==null) {
+      const canonical=listing(plan.canonicalUrl);
+      if(!same(source,canonical) || canonical.pageUrl!==plan.canonicalUrl) throw new Error('source_mismatch');
+    }
+    if(!Number.isSafeInteger(plan.total) || plan.total<1) throw new Error('invalid_gallery');
+    if(plan.total>RULES.MAX_PHOTOS) throw new Error('too_many_photos');
+    if(!Number.isSafeInteger(plan.start) || plan.start<1 || plan.start>plan.total) throw new Error('invalid_gallery');
+    const positions=positionsFor(plan.total,plan.start);
+    if(!Array.isArray(plan.positions) || plan.positions.length!==positions.length || plan.positions.some((index,i)=>index!==positions[i]) || plan.count!==positions.length) throw new Error('invalid_gallery');
+    if(!exactDate(plan.capturedAt,now)) throw new Error('invalid_capture_date');
+    return source;
+  }
+  function galleryPhotoKey(url) {
+    const parsed=new URL(url);
+    const id=parsed.pathname.match(/\/id\.pro\.it\.image\.master\/(?:[0-9a-f]{2}\/){3}([0-9]+)\.(?:jpe?g|webp)$/i)?.[1];
+    return id?'idealista:'+id:parsed.origin+parsed.pathname;
+  }
+  function galleryFrame(document,pageUrl,plan=null) {
+    const source=listing(pageUrl);
+    if(!source || source.host!=='idealista.it') throw new Error('unsupported_listing_url');
+    const canonicalNodes=Array.from(document.querySelectorAll('link[rel="canonical"]'));
+    if(canonicalNodes.length>1) throw new Error('source_mismatch');
+    const href=canonicalNodes[0]?.getAttribute('href'), canonical=href?listing(href):null;
+    if(href && !same(source,canonical)) throw new Error('source_mismatch');
+    const canonicalUrl=canonical?.pageUrl || null;
+    if(plan && (!same(source,listing(plan.sourceUrl)) || canonicalUrl!==plan.canonicalUrl)) throw new Error('source_mismatch');
+    const galleries=Array.from(document.querySelectorAll('#gallery'));
+    if(galleries.length!==1) throw new Error('invalid_gallery');
+    const gallery=galleries[0], counters=Array.from(gallery.querySelectorAll('[data-testid="gallery-counter"]'));
+    const match=counters.length===1 && counters[0].textContent.trim().match(/^([1-9]\d*)\s*\/\s*([1-9]\d*)$/);
+    if(!match) throw new Error('invalid_gallery');
+    const index=Number(match[1]),total=Number(match[2]);
+    if(!Number.isSafeInteger(total) || total<1 || index>total) throw new Error('invalid_gallery');
+    if(total>RULES.MAX_PHOTOS) throw new Error('too_many_photos');
+    if(plan && total!==plan.total) throw new Error('invalid_gallery');
+    const images=Array.from(gallery.querySelectorAll('.image-gallery-slide.center figure.item-gallery picture img'));
+    if(images.length!==1) throw new Error('photos_not_found');
+    const img=images[0], declared=img.getAttribute('src'), current=img.currentSrc;
+    const src=typeof declared==='string' && declared.length<=MAX_URL ? RULES.photoUrl(declared,source.source):null;
+    const loaded=typeof current==='string' && current.length<=MAX_URL ? RULES.photoUrl(current,source.source):null;
+    if((declared && !src) || (current && !loaded)) throw new Error('invalid_photo_url');
+    if(!src && !loaded) throw new Error('photos_not_found');
+    if(src && loaded && galleryPhotoKey(src)!==galleryPhotoKey(loaded)) throw new Error('invalid_gallery');
+    return {source,canonicalUrl,gallery,index,total,image:loaded || src};
+  }
+  function capturePlan(document,pageUrl) {
+    try {
+      const observed=galleryFrame(document,pageUrl), initial=capture(document,pageUrl);
+      if(!initial.ok) return initial;
+      if(initial.payload.gallery.expected!==null && initial.payload.gallery.expected!==observed.total) return fail('invalid_gallery');
+      const positions=positionsFor(observed.total,observed.index);
+      const plan={kind:PLAN_KIND,version:VERSION,sourceUrl:observed.source.url,canonicalUrl:observed.canonicalUrl,
+        total:observed.total,start:observed.index,positions,count:positions.length,capturedAt:initial.payload.capturedAt};
+      checkedPlan(plan);
+      return {ok:true,plan};
+    } catch(error) {return protocolError(error);}
+  }
+  function captureFrame(document,pageUrl,plan,repeatIndex) {
+    try {
+      checkedPlan(plan);
+      if(Date.now()-Date.parse(plan.capturedAt)>MAX_SEQUENCE_MS) return fail('capture_unavailable');
+      if(!Number.isSafeInteger(repeatIndex) || repeatIndex<1 || repeatIndex>plan.count) return fail('invalid_gallery');
+      const observed=galleryFrame(document,pageUrl,plan);
+      if(observed.index!==plan.positions[repeatIndex-1]) return fail('invalid_gallery');
+      const snapshot=capture(document,pageUrl);
+      if(!snapshot.ok) return snapshot;
+      if(snapshot.payload.gallery.expected!==null && snapshot.payload.gallery.expected!==plan.total) return fail('invalid_gallery');
+      const frame={kind:FRAME_KIND,version:VERSION,step:repeatIndex,index:observed.index,total:plan.total,
+        sourceUrl:plan.sourceUrl,pageUrl:observed.source.pageUrl,canonicalUrl:plan.canonicalUrl,
+        capturedAt:snapshot.payload.capturedAt,data:snapshot.payload.data,image:observed.image};
+      if(repeatIndex<plan.count) {
+        const next=plan.positions[repeatIndex],direction=next-observed.index;
+        if(Math.abs(direction)!==1 || next<1 || next>plan.total) return fail('invalid_gallery');
+        const label=direction<0?'Previous Slide':'Next Slide';
+        const buttons=Array.from(observed.gallery.querySelectorAll('button[aria-label="'+label+'"]'));
+        if(buttons.length!==1 || buttons[0].disabled || buttons[0].getAttribute('aria-disabled')==='true' || typeof buttons[0].click!=='function') return fail('capture_unavailable');
+        buttons[0].click();
+      }
+      return {ok:true,frame};
+    } catch(error) {return protocolError(error);}
+  }
+  function combineFrames(raw,now=Date.now()) {
+    try {
+      const serialized=typeof raw==='string'?raw:JSON.stringify(raw);
+      if(typeof serialized!=='string') return fail('invalid_payload');
+      if(byteLength(serialized)>MAX_BYTES) return fail('payload_too_large');
+      const envelope=JSON.parse(serialized);
+      if(!closed(envelope,['kind','version','plan','frames']) || envelope.kind!==FRAMES_KIND || envelope.version!==VERSION) return fail('invalid_payload');
+      const plan=envelope.plan;checkedPlan(plan,now);
+      if(!Array.isArray(envelope.frames) || !envelope.frames.length || envelope.frames.length>plan.count) return fail('invalid_gallery');
+      const photos=new Map(), owners=new Map(), data=[];
+      let previousAt=Date.parse(plan.capturedAt);
+      for(let step=0;step<envelope.frames.length;step++) {
+        const frame=envelope.frames[step];
+        if(closed(frame,['kind','version','error']) && frame.kind===KIND && frame.version===VERSION && ERRORS.includes(frame.error)) return fail(frame.error);
+        if(!closed(frame,['kind','version','step','index','total','sourceUrl','pageUrl','canonicalUrl','capturedAt','data','image']) || frame.kind!==FRAME_KIND || frame.version!==VERSION) return fail('invalid_payload');
+        if(frame.step!==step+1 || frame.index!==plan.positions[step] || frame.total!==plan.total) return fail('invalid_gallery');
+        if(frame.sourceUrl!==plan.sourceUrl || frame.canonicalUrl!==plan.canonicalUrl || !same(listing(plan.sourceUrl),listing(frame.pageUrl))) return fail('source_mismatch');
+        const at=Date.parse(frame.capturedAt);
+        if(!exactDate(frame.capturedAt,now) || at<previousAt || at-Date.parse(plan.capturedAt)>MAX_SEQUENCE_MS) return fail('invalid_capture_date');
+        previousAt=at;
+        const checked=validate({kind:KIND,version:VERSION,sourceUrl:frame.sourceUrl,pageUrl:frame.pageUrl,
+          ...(frame.canonicalUrl?{canonicalUrl:frame.canonicalUrl}:{}),capturedAt:frame.capturedAt,
+          data:frame.data,images:[frame.image],gallery:{expected:plan.total,found:1}},now);
+        if(!checked.ok) return checked;
+        const key=galleryPhotoKey(checked.images[0]),previous=photos.get(frame.index),owner=owners.get(key);
+        if((previous && previous.key!==key) || (owner!==undefined && owner!==frame.index)) return fail('invalid_gallery');
+        if(!previous) {photos.set(frame.index,{key,url:checked.images[0]});owners.set(key,frame.index);}
+        data.push(checked.data);
+      }
+      const coherent=(key,empty)=>{
+        /* Un null/vuoto può già rappresentare un conflitto dentro un frame. */
+        const values=[...new Set(data.map(item=>item[key]))];
+        return values.length===1?values[0]:empty;
+      };
+      const images=Array.from(photos).sort(([a],[b])=>a-b).map(([,photo])=>photo.url);
+      const payload={kind:KIND,version:VERSION,sourceUrl:plan.sourceUrl,pageUrl:envelope.frames[0].pageUrl,
+        ...(plan.canonicalUrl?{canonicalUrl:plan.canonicalUrl}:{}),capturedAt:plan.capturedAt,
+        data:{title:coherent('title',''),price:coherent('price',null),zone:coherent('zone',''),sqm:coherent('sqm',null),rooms:coherent('rooms',null)},
+        images,gallery:{expected:plan.total,found:images.length}};
+      const result=validate(payload,now);
+      return result.ok?{ok:true,payload}:result;
+    } catch(error) {return protocolError(error,'invalid_payload');}
+  }
+
+  const API={KIND,VERSION,MAX_BYTES,MAX_URL,PLAN_KIND,FRAME_KIND,FRAMES_KIND,validate,capture,capturePlan,captureFrame,combineFrames};
   if(typeof module!=='undefined' && module.exports) module.exports=API;
   if(root) root.BOOM_SMARTLINK_SHARE=API;
 })(typeof window!=='undefined'?window:this);

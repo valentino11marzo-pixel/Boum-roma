@@ -28507,7 +28507,7 @@ IBAN: ${l.iban || '-'}`;
               <section class="sl-share" aria-labelledby="sl_share_title">
                 <div class="sl-share-heading"><div><span class="sl-kicker">DA IPHONE · ANTEPRIMA</span><h3 id="sl_share_title">Porta qui la casa da Safari.</h3><p>Apri l’annuncio, scegli Condividi → Crea SmartLink BOOM. Poi importa qui dati e foto.</p></div><button type="button" class="btn btn-secondary" id="sl_share_import" onclick="smartLinkPasteShare()">Importa da Safari ↗</button></div>
                 <p id="sl_share_status" class="sl-hint" role="status">Per annunci Immobiliare.it e Idealista già aperti in Safari. Nessuna estensione.</p>
-                <details id="sl_share_manual" class="sl-share-help"><summary>Gli appunti non si aprono?</summary><label class="form-label" for="sl_share_payload">Incolla il contenuto preparato dal comando</label><textarea id="sl_share_payload" class="form-textarea" rows="3" maxlength="131072" autocapitalize="off" autocomplete="off" spellcheck="false" placeholder="Tieni premuto qui e scegli Incolla"></textarea><button type="button" class="btn btn-secondary btn-sm" onclick="smartLinkPasteShare(document.getElementById('sl_share_payload').value)">Importa contenuto</button></details>
+                <details id="sl_share_manual" class="sl-share-help"><summary>Gli appunti non si aprono?</summary><label class="form-label" for="sl_share_payload">Incolla il contenuto preparato dal comando</label><textarea id="sl_share_payload" class="form-textarea" rows="3" maxlength="${window.BOOM_SMARTLINK_MEDIA?.MAX_BYTES || 131072}" autocapitalize="off" autocomplete="off" spellcheck="false" placeholder="Tieni premuto qui e scegli Incolla"></textarea><button type="button" class="btn btn-secondary btn-sm" onclick="smartLinkPasteShare(document.getElementById('sl_share_payload').value)">Importa contenuto</button></details>
                 <details class="sl-share-help"><summary>Prima volta? Configura il comando</summary><ol><li>Apri questa pagina sul tuo iPhone e aggiungi <a href="/assets/tools/boom-smartlink-safari.shortcut">Crea SmartLink BOOM</a> all’app Comandi Rapidi.</li><li>In Impostazioni → App → Comandi Rapidi → Avanzate, abilita l’esecuzione di script. I nomi possono variare con iOS.</li><li>In Safari apri un annuncio e la sua galleria, poi Condividi → Crea SmartLink BOOM. Accetta i permessi richiesti da Apple.</li><li>Al ritorno qui, tocca «Importa da Safari», controlla foto e dati e crea la scheda.</li></ol><p class="sl-hint">Il comando legge i contenuti già caricati della pagina. Il collaudo su iPhone è in corso: alcune gallerie possono risultare incomplete o impedire il download delle foto.</p></details>
                 <label id="sl_share_review" class="sl-share-review" hidden><input id="sl_share_checked" type="checkbox" onchange="smartLinkShareReview(this.checked)"><span>Ho confrontato la galleria con l’annuncio e controllato i dati.</span></label>
               </section>
@@ -28598,9 +28598,11 @@ IBAN: ${l.iban || '-'}`;
             status.textContent='Leggo la casa condivisa da Safari…';
             const text=await pending;
             if(!current()) return;
-            const shared=window.BOOM_SMARTLINK_SHARE.validate(text);
+            const shared=window.BOOM_SMARTLINK_MEDIA?window.BOOM_SMARTLINK_MEDIA.validate(text):window.BOOM_SMARTLINK_SHARE.validate(text);
             if(!shared.ok) {
                 const reasons={photos_not_found:'Non sono state trovate foto. Apri la galleria completa in Safari e condividi di nuovo.',source_mismatch:'La pagina e i dati indicano annunci diversi. Riapri la casa corretta in Safari.',unsupported_listing_url:'Per ora il comando supporta le pagine annuncio di Immobiliare.it e Idealista.',too_many_photos:'Questa galleria supera il limite di 60 foto.',payload_too_large:'La pagina contiene troppi dati per questo comando.',invalid_photo_url:'La pagina contiene indirizzi foto non riconosciuti.',invalid_capture_date:'La data della condivisione non è valida. Esegui di nuovo il comando.'};
+                reasons.invalid_media='Le foto ricevute non corrispondono al pacchetto o non sono leggibili. Esegui di nuovo il comando.';
+                reasons.media_too_large='Una foto supera il limite di 4 MB del trasferimento. Riducila nel comando e riprova.';
                 status.textContent=reasons[shared.error] || 'Contenuto non riconosciuto. Apri l’annuncio in Safari e avvia «Crea SmartLink BOOM» dal menu Condividi.';
                 return;
             }
@@ -28629,17 +28631,23 @@ IBAN: ${l.iban || '-'}`;
         smartLinkPhotoPreparing=true; document.getElementById('sl_import').disabled=true;
         document.getElementById('sl_status').textContent='Dati ricevuti dalla pagina Safari. Prezzo e disponibilità vanno riconfermati; non sono verificati automaticamente.';
         try {
-            const token=await auth.currentUser.getIdToken();
+            const localMedia=Array.isArray(shared.media);
+            const token=localMedia?null:await auth.currentUser.getIdToken();
             if(!current()) return;
             for(let i=0;i<shared.images.length;i++) {
                 if(!current()) return;
                 status.textContent=`Preparo foto ${i+1} di ${shared.images.length}… Tieni aperto il Portal.`;
                 smartLinkRenderPhotos(`Importo foto ${i+1} di ${shared.images.length}…`);
                 try {
-                    const response=await fetch('/api/smartlink/import-photo',{method:'POST',signal:AbortSignal.timeout(35000),headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({sourceUrl:shared.source.url,imageUrl:shared.images[i]})});
+                    let bytes;
+                    if(localMedia) bytes=window.BOOM_SMARTLINK_MEDIA.toBlob(shared.media[i]);
+                    else {
+                        const response=await fetch('/api/smartlink/import-photo',{method:'POST',signal:AbortSignal.timeout(35000),headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({sourceUrl:shared.source.url,imageUrl:shared.images[i]})});
+                        if(!current()) return;
+                        if(!response.ok) throw new Error('photo_unavailable');
+                        bytes=await response.blob();
+                    }
                     if(!current()) return;
-                    if(!response.ok) throw new Error('photo_unavailable');
-                    const bytes=await response.blob(); if(!current()) return;
                     const blob=await window.BOOM_SMARTLINK_PHOTO.prepare(bytes); if(!current()) return;
                     smartLinkPhotoItems.push({blob,url:URL.createObjectURL(blob),name:'Foto Safari '+(i+1)});
                 } catch { if(!current()) return; state.failed++; }
@@ -28648,7 +28656,7 @@ IBAN: ${l.iban || '-'}`;
             const incomplete=state.expected!==null && state.found<state.expected;
             const missing=state.failed || incomplete;
             status.textContent=missing
-                ? `${smartLinkPhotoItems.length} foto pronte su ${state.expected || state.found}. Importazione incompleta: la pubblicazione è ferma. Apri tutta la galleria in Safari e condividi di nuovo; se il download resta negato, questa fonte non è importabile con il comando.`
+                ? `${smartLinkPhotoItems.length} foto pronte su ${state.expected || state.found}. Importazione incompleta: la pubblicazione è ferma. ${localMedia?'Non tutte le foto trasferite sono presenti o leggibili. Apri la galleria e condividi di nuovo.':'Apri tutta la galleria in Safari e condividi di nuovo; se il download resta negato, questa fonte non è importabile con il comando.'}`
                 : `${smartLinkPhotoItems.length} foto pronte.${state.expected===null?' Safari non indica il totale: confronta la galleria con l’annuncio.':' Totale della galleria corrispondente.'} Controlla i dati e conferma qui sotto.`;
             document.getElementById('sl_share_review').hidden=!!missing;
             smartLinkRenderPhotos(`${smartLinkPhotoItems.length} foto importate da Safari.${missing?' Importazione incompleta.':' Scegli ordine e copertina.'}`);

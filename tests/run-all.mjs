@@ -25,6 +25,8 @@ const SUITES = [
   { name: 'rentwritemutations', file: 'tests/rent-write/mutate.mjs', what: 'difetti ripristinati: stato protetto, versione obsoleta, centesimi, riferimenti e copertura' },
   { name: 'smartlink', file: 'tests/smartlink/run.mjs', what: 'annuncio esterno: fonte privata, auth admin, foto approvate, mappa indicativa e POI' },
   { name: 'smartlinkshare', file: 'tests/smartlink/share.mjs', what: 'condivisione Safari: identità annuncio, dati selezionati, galleria, limiti e nessun accesso a rete o sessioni' },
+  { name: 'smartlinkmedia', file: 'tests/smartlink/media.mjs', what: 'foto locali condivise: limiti16MB/4MB/60, fonte/indice esatti, raster/base64 verificati e Blob senza rete' },
+  { name: 'smartlinkgallery', file: 'tests/smartlink/gallery.mjs', what: 'protocollo galleria nativa: piano/frame/envelope, identità stabile, ordine 1..N, foto/contatto, prefissi e durata simulata' },
   { name: 'smartlinkstudiomutations', file: 'tests/smartlink/studio-mutations.mjs', what: 'difetti ripristinati solo in memoria: galleria incompleta, sessione durante condivisione e pubblicazione' },
   { name: 'smartlinkshortcut', file: 'tools/smartlink-shortcut/test.mjs', what: 'comando Safari riproducibile: quattro azioni, codice incorporato, payload locale e URL Portal senza dati' },
   { name: 'smartlinkidentity', file: 'tests/smartlink/identity.mjs', what: 'identità archivio per ID Immobiliare, varianti storiche limitate e nessuna modifica alle destinazioni di rete' },

@@ -25,7 +25,7 @@ function matrix(code,name) {
   assert.ok(proofStart>=0 && proofEnd>proofStart && start>=0 && end>start);
   const selected=code.slice(proofStart,proofEnd)+'    function portalSessionReset() {}\n'+code.slice(start,end)+'    // ═════════';
   let test=studio.replace(sourceRead,'const sourceCode='+JSON.stringify(selected)+';');
-  for(const file of ['smartlink-engine.js','smartlink-share-engine.js']) {
+  for(const file of ['smartlink-engine.js','smartlink-share-engine.js','smartlink-media-engine.js']) {
     const relative="'../../js/"+file+"'";
     test=replaceOnce(test,relative,JSON.stringify(new URL('../../js/'+file,import.meta.url).href));
   }
@@ -58,6 +58,9 @@ const cases=[
     assert.match(error.message,/An old create token result cannot publish after an account change/);
     assert.equal(error.actual?.images?.length,1);
   }},
+  {name:'media-no-network',code:replaceOnce(portal,'const localMedia=Array.isArray(shared.media);','const localMedia=false;'),check(error){
+    assert.match(error.message,/Local image transport makes zero source\/import-photo requests/);
+  }},
 ];
 for(const scenario of cases) {
   await assert.rejects(()=>import(matrix(scenario.code,scenario.name).url),error=>{
@@ -69,4 +72,4 @@ for(const scenario of cases) {
 
 assert.equal(readFileSync(portalURL,'utf8'),portal,'Mutation checks never write the product file');
 assert.equal(readFileSync(studioURL,'utf8'),studio,'Mutation checks never weaken the source matrix');
-console.log('SmartLink Studio mutations: PASS (baseline; incomplete gallery; share session; create session; memory only)');
+console.log('SmartLink Studio mutations: PASS (baseline; incomplete gallery; share session; create session; local media without network; memory only)');
