@@ -64,6 +64,7 @@ import { shell, btn, para, fine } from './_notify.js';
 import MANDATO from '../../js/mandato-engine.js';
 import { ensureSignTokens, signUrl } from '../sign/_tokens.js';
 import { externalStatus, applyProfiles, feeLink, adoptExternal, prepareExternal, onboardExternal } from './_external.js';
+import { checkUploadedPdf } from '../contracts/_pdfcheck.js';
 
 const BASE = 'https://www.boomrome.com';
 const SIG_MAX_LEN = 800_000;
@@ -322,11 +323,16 @@ export default async function handler(req, res) {
       out = await applyProfiles(contractId, pa, paId);
       out.state = await externalStatus({ pa, paId, contractId, contract });
     } else if (op === 'ext-adopt') {
-      out = await adoptExternal(contractId, b, { uid: auth.uid, email: auth.email || '' });
+      // Il PDF firmato si LEGGE contro i dati prima di diventare il
+      // definitivo (lo stesso lettore della «versione corretta»): rate,
+      // scadenze e registrazione seguono i dati, non il file.
+      out = await adoptExternal(contractId, b, { uid: auth.uid, email: auth.email || '' },
+        { checkPdf: (x) => checkUploadedPdf({ ...x, timeoutMs: 25000 }) });
     } else if (op === 'ext-prepare') {
       out = await prepareExternal(contractId);
     } else if (op === 'ext-onboard') {
-      out = await onboardExternal(contractId, { welcome: b.welcome === true, schedule: b.schedule === true }, { uid: auth.uid, email: auth.email || '' });
+      out = await onboardExternal(contractId, { welcome: b.welcome === true, schedule: b.schedule === true,
+        welcomeResolve: ['sent', 'resend'].includes(b.welcomeResolve) ? b.welcomeResolve : undefined }, { uid: auth.uid, email: auth.email || '' });
     } else return res.status(400).json({ ok: false, error: 'bad_op' });
     if (op !== 'ext-profiles' || out.ok) await logActivity('preagreement_' + op.replace('-', '_'), 'contract', { paId, contractId, ok: !!out.ok, error: out.error || null }, actor).catch(() => {});
     return res.status(out.ok || op === 'ext-profiles' ? 200 : (out.status || 422)).json(out);

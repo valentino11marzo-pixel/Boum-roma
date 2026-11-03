@@ -776,8 +776,11 @@ const MANDATO = (await import('../../js/mandato-engine.js')).default;
     !!purpose && purpose.localOk === false && purpose.modality === 'document' && purpose.file === 'api/contracts/_pdfcheck.js');
   const cons = src('pre-agreement-admin.html');
   check('D: la console mostra le differenze e chiede prima di caricare comunque (acceptMismatch solo dopo la conferma)',
-    cons.indexOf("'pdf_terms_mismatch'") > 0 && cons.indexOf('body.acceptMismatch=true') > cons.indexOf('checkMismatchText(ck)')
-    && /function checkLine\(/.test(cons));
+    cons.indexOf("'pdf_terms_mismatch'") > 0 && /function checkLine\(/.test(cons)
+    // OGNI «carica comunque» (📤 versione corretta, 📎 firmato esterno) arriva
+    // solo dopo la domanda con le differenze davanti.
+    && [...cons.matchAll(/body\.acceptMismatch=true/g)].length >= 2
+    && [...cons.matchAll(/body\.acceptMismatch=true/g)].every(m => cons.slice(Math.max(0, m.index - 400), m.index).includes('ask(checkMismatchText(')));
   const sf = src('api/preagreement/sign-for.js');
   check('D: ✍️ Firmo io dice il controllo del PDF caricato prima del tap (signPlan.pdfCheck)',
     /pdfCheck: c\.pdfSource === 'upload' && c\.pdfCheck/.test(sf) && /pdfCheck/.test(cons.slice(cons.indexOf('window.signFor'))));

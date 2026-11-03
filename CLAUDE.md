@@ -5858,9 +5858,31 @@ nessun documento pagabile.
   `ext-onboard`, `fee-link`.
 - **Da sapere**: la fattura `prov_` è il documento INTERNO che rende pagabile la provvigione, non la fattura
   elettronica SDI. Le carte extra-SEE costano ~3,25% a BOOM (nessun sovrapprezzo sulle fatture): il bonifico
-  resta gratuito. Il caricamento di un PDF non lo legge: la verifica dei termini è dell'operatore (due spunte).
-Test: `node tests/pa-external/run.mjs` (16 scenari, handler veri), `mutate.mjs` (10 mutazioni prese),
-`ui.mjs` (Chromium 390/1280, 38 controlli).
+  resta gratuito.
+- **Il PDF si legge contro i dati (3/11)**: `adoptExternal` accetta `opts.checkPdf`; `sign-for` gli passa
+  `checkUploadedPdf` (lo stesso lettore di 📤 Carica versione corretta, tetto 25 s). Canone, deposito, date o
+  parti diversi → 409 `pdf_terms_mismatch` con le voci, nulla scritto (né Storage né contratto); la console
+  mostra le differenze e solo con «Caricarlo comunque» rimanda con `acceptMismatch:true`
+  (`contract.pdfCheck.accepted`, `via:'external'`). Lettore giù o PDF illeggibile → `unchecked` col motivo e
+  il caricamento prosegue: le due spunte dell'operatore restano la verifica.
+- **Il benvenuto dall'esito incerto non riparte da solo (3/11)**: `sendWelcomeEmails` riporta per parte
+  `outcome` (`sent` | `failed` = SMTP che rifiuta, nulla partito | `uncertain` = timeout, socket caduta).
+  `externalWelcome.status` è `failed` solo se niente può essere partito (ripremere è sicuro); `uncertain`, o
+  un `sending` fermo da oltre 90 s, → `welcome_uncertain`: la console chiede «È arrivato: segnalo come
+  inviato» (`welcomeResolve:'sent'`, timbra `welcomeEmailSent` con `welcomeEmailBy:'external-confirmed'`, zero
+  email) o «Non è arrivato: rimandalo» (`'resend'`, con conferma). Mai un secondo benvenuto deciso dal codice.
+- **La provvigione si ricorda (3/11)**: le regole stanno in `api/preagreement/_fee.js` (`feeOf`,
+  `feeInvoiceId`, `feeBlock` — `_external.js` le riesporta; modulo puro, il Gestore non si trascina pdf-lib).
+  Il journey (`feeReminder`, una query sulle fatture `pending` `prov_`, ritrovate per contratto o per
+  proposta: la fattura può nascere prima del contratto) mette a T-7 importo, IVA inclusa e bottone col link
+  stabile, a T-1 SOLO il link (la mail delle chiavi non porta prezzi); pagata, in corso, annullata o
+  segnalata dal cliente = silenzio. Il Gestore: provvigione scaduta da ≥ `lateAfterDays` → sollecito in
+  inglese col link in `action_queue` (`gestore:feerem:<id>:<settimana>`, categoria che la scala della fiducia
+  non conosce: sempre il tuo ✅); ingresso entro 10 giorni con provvigione all'ingresso e nessuna fattura →
+  riga 💶 nel digest. Il Gestore non emette MAI la fattura: la emette il 💶 della console.
+Test: `node tests/pa-external/run.mjs` (24 scenari, handler veri, Gestore compreso), `mutate.mjs` (14
+mutazioni prese), `ui.mjs` (Chromium 390/1280, 44 controlli: differenze del PDF e benvenuto incerto nel
+browser), `tests/journey/steps.mjs` (provvigione a T-7/T-1, runner vero, mutazioni `fee-paid` e `fee-runner`).
 
 ### Le regole IN VIGORE ≠ le regole nel file (31/08/2026)
 Il difetto più caro trovato in questa tornata, e nessuna suite poteva

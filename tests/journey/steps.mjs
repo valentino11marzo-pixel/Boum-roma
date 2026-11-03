@@ -13,14 +13,14 @@ import { fileURLToPath } from 'node:url';
 register('../notify/loader.mjs', import.meta.url); // SMTP boundary only; never send a real email.
 if (process.env.BOOM_JOURNEY_MUTATION) register('./mutation-loader.mjs', import.meta.url, { data: process.env.BOOM_JOURNEY_MUTATION });
 Object.assign(process.env, { FIREBASE_API_KEY: 'synthetic', FIREBASE_ADMIN_EMAIL: 'journey@example.invalid', FIREBASE_ADMIN_PASS: 'synthetic' });
-const { steps, journeyEligible, runJourney } = await import('../../api/journey/_run.js');
+const { steps, journeyEligible, runJourney, feeReminder } = await import('../../api/journey/_run.js');
 
 // ── helper: costruisce lo stato a N giorni dall'inizio (o dalla fine) ──────
 const iso = (d) => d.toISOString().slice(0, 10);
 const shift = (days) => { const d = new Date(); d.setUTCDate(d.getUTCDate() + days); return iso(d); };
 
 const handover = days => ({ at: shift(days) + 'T00:00:00.000Z', url: 'https://storage.example.invalid/verbale.pdf' });
-function fire({ startIn, endIn, bought = [], missing = null, late = false, proof = null }) {
+function fire({ startIn, endIn, bought = [], missing = null, late = false, proof = null, fee = null }) {
   const c = {
     startDate: startIn != null ? shift(startIn) : null,
     endDate: endIn != null ? shift(endIn) : null,
@@ -33,7 +33,7 @@ function fire({ startIn, endIn, bought = [], missing = null, late = false, proof
     addr: 'Via Cavour 12, Roma',
     first: 'Anna',
     has: (kind) => bought.includes(kind),
-    missing, late,
+    missing, late, fee,
   });
   return all.filter((s) => s.due);
 }
@@ -182,15 +182,38 @@ for (const days of [0, 1]) {
 }
 check('T-30 usa la data prevista e non certifica preparazione o ingresso', /lease.*due to start/.test(t30plain.html) && /appointment still needs to be confirmed/.test(t30plain.html) && !/Everything on our side is on track/.test(t30plain.html));
 
+// ═══ 8 · La provvigione dovuta all'ingresso ════════════════════════════
+// Si ricorda finché è PAGABILE, col link stabile; la mail delle chiavi porta
+// il link ma mai un prezzo (le chiavi non si vendono, e non si «vende» niente).
+console.log('\n\x1b[1mProvvigione all\'ingresso\x1b[0m');
+const feeC = { startDate: shift(6) };
+const feeInv = { id: 'prov_pa1', status: 'pending', amount: 1464, dueDate: shift(6), preAgreementId: 'pa1' };
+const fee = feeReminder(feeInv, feeC);
+const feeHref = fee ? fee.url.replace(/&/g, '&amp;') : '\u0000';
+check('provvigione aperta: link stabile /api/payments/link sulla fattura prov_', fee && fee.url.startsWith('https://www.boomrome.com/api/payments/link?k=inv&id=prov_pa1&t=') && fee.amountEur === 1464 && fee.atMoveIn === true);
+check('provvigione pagata: nessun promemoria', feeReminder({ ...feeInv, status: 'paid' }, feeC) === null);
+check('provvigione in corso su Stripe: nessun promemoria', feeReminder({ ...feeInv, stripeStatus: 'processing' }, feeC) === null);
+check('provvigione segnalata dal cliente: nessun promemoria', feeReminder({ ...feeInv, tenantReported: true }, feeC) === null);
+check('una fattura che non è una provvigione non entra', feeReminder({ ...feeInv, id: 'inv_123' }, feeC) === null);
+check('scadenza diversa dall\'ingresso: «still open», non «at move-in»', feeReminder({ ...feeInv, dueDate: shift(-3) }, feeC)?.atMoveIn === false);
+const t7fee = one({ startIn: 6, endIn: 371, fee });
+check('T-7 con provvigione aperta: importo, IVA inclusa e bottone col link', t7fee && t7fee.html.includes(feeHref) && /agency fee/.test(t7fee.html) && t7fee.html.includes('€1,464') && /due at move-in/.test(t7fee.html));
+check('T-7 senza provvigione aperta: non la nomina', t7plain && !/agency fee/i.test(t7plain.html));
+const t1fee = one({ startIn: 1, endIn: 366, fee });
+check('T-1 con provvigione aperta: il link c\'è, il prezzo no (le chiavi non si vendono)', t1fee && t1fee.html.includes(feeHref) && !SELLS.test(t1fee.html) && /Key handover is on us/.test(t1fee.html));
+check('T-30 non sollecita la provvigione (è presto)', !/agency fee/i.test(one({ startIn: 28, endIn: 393, fee })?.html || ''));
+
 await (await import('./run-fixture.mjs')).verifyJourneyRun({ runJourney, shift, handover, check });
+await (await import('./run-fixture.mjs')).verifyFeeRun({ runJourney, shift, check });
 
 console.log('\n────────────────────────────────────────────────');
 console.log(`\x1b[1mResult: ${pass} passed, ${fail} failed\x1b[0m`);
 if (fail) process.exit(1);
-if (!process.env.BOOM_JOURNEY_MUTATION) for (const mutation of ['start-date', 'unverified-report']) {
+const MUTATIONS = { 'start-date': /✗.*nessun p3/, 'unverified-report': /✗.*nessun p3/, 'fee-paid': /✗.*provvigione pagata/, 'fee-runner': /✗.*runner reale: T-7 porta il link/ };
+if (!process.env.BOOM_JOURNEY_MUTATION) for (const [mutation, caught] of Object.entries(MUTATIONS)) {
   const child = spawnSync(process.execPath, [fileURLToPath(import.meta.url)], { env: { ...process.env, BOOM_JOURNEY_MUTATION: mutation }, encoding: 'utf8', timeout: 15000 });
   assert.equal(child.status, 1, 'Mutation must fail behavioral assertions: ' + mutation + '\n' + child.stderr);
-  assert.match(child.stdout, /✗.*nessun p3/);
+  assert.match(child.stdout, caught);
   console.log('PASS mutation caught: ' + mutation);
 }
 console.log('\x1b[32mLe email rispettano le regole commerciali decise.\x1b[0m');

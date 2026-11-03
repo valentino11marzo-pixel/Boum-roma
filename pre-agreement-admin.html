@@ -1044,11 +1044,34 @@ var EXT_ERR={party_profiles_required:'manca ancora un profilo nel portal per una
   archive_signatures_required:'qualcuno aveva già firmato una versione: spunta l’archiviazione di quelle firme.',not_pdf:'il file non è un PDF (massimo 15 MB).',pdf_unreadable:'il PDF non si apre (protetto o danneggiato): riesportalo senza password.',
   storage_failed:'il salvataggio del file non è riuscito: riprova.',fully_signed:'il contratto risulta già firmato da tutti nel sistema.',definitive_already_exists:'c’è già un altro PDF firmato caricato per questo contratto.',
   signed_terms_changed:'i dati del contratto non coincidono più con quelli del PDF caricato: rimettili com’erano o carica il nuovo firmato.',external_contract_required:'prima carica il PDF firmato.',
-  too_large:'il file è troppo grande (massimo 15 MB).',bad_file_url:'il file caricato non è nella cartella di questo contratto.',file_fetch_failed:'non riesco a rileggere il file caricato: riprova.',contract_required:'il contratto non esiste ancora.'};
+  too_large:'il file è troppo grande (massimo 15 MB).',pdf_terms_mismatch:'il PDF non coincide coi dati del contratto.',bad_file_url:'il file caricato non è nella cartella di questo contratto.',file_fetch_failed:'non riesco a rileggere il file caricato: riprova.',contract_required:'il contratto non esiste ancora.'};
 function extErr(e){var m=String(e&&e.message||'');return EXT_ERR[m]||partyErr(m);}
 var EXT_ACT={link:'collego il suo profilo che c’è già nel portal',create:'creo il suo profilo, con accesso al portale (entra con «Password dimenticata»)',create_nologin:'creo la sua scheda SENZA accesso (nessuna email in archivio — la aggiungi dopo dal portal)',conflict:'da risolvere a mano'};
 var EXT_WHO={landlord:'Proprietario',tenant:'Inquilino'};
 function extWho(x){return EXT_WHO[x.party]||('Co-conduttore '+(Number(String(x.party).slice(2))+1));}
+/* Benvenuto con esito incerto: un invio interrotto a metà può essere arrivato.
+   Non riparte da solo: l'operatore guarda (posta inviata, chiede alle parti)
+   e sceglie. «È arrivato» lo timbra senza mandare niente. */
+function welUncertain(w,sent){return !!(w&&!sent&&(w.status==='uncertain'||(w.status==='sending'&&!(Date.now()-Date.parse(w.at)<90000))));}
+function welResolveBlock(at){
+  return '<div class="welres" style="margin-top:8px"><div class="sub2" style="color:#ffb27a;margin:0 0 6px">⚠ Benvenuto: esito incerto'+(at?' (invio del '+esc(String(at).slice(0,16).replace('T',' '))+' interrotto a metà)':'')+' — può essere già arrivato. Guarda nella posta inviata o chiedi alle parti, poi scegli:</div>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="pbtn" data-wr="sent">È arrivato: segnalo come inviato</button><button class="pbtn" data-wr="resend">Non è arrivato: rimandalo</button></div></div>';
+}
+function bindWelResolve(root,d,say){
+  root.querySelectorAll('[data-wr]').forEach(function(b){b.onclick=async function(){
+    var how=b.getAttribute('data-wr');
+    if(how==='resend'&&!ask('Rimando il benvenuto a inquilino e proprietario. Se l’avevano già ricevuto, lo riceveranno due volte. Procedere?'))return;
+    root.querySelectorAll('[data-wr]').forEach(function(x){x.disabled=true;});
+    try{
+      var ob=await extCall({op:'ext-onboard',id:d.id,welcome:true,welcomeResolve:how});
+      var w=ob.welcome||{};
+      if(w.resolved==='sent'){say('✓ Benvenuto segnato come inviato (nessuna email rimandata).');root.remove();return;}
+      if(w.ok){say('✓ Benvenuto rimandato'+(w.tenant?' all’inquilino':'')+(w.landlord?(w.tenant?' e':'')+' al proprietario':'')+'.');root.remove();return;}
+      root.querySelectorAll('[data-wr]').forEach(function(x){x.disabled=false;});
+      say(w.error==='welcome_uncertain'?'⚠ Anche questo invio si è interrotto a metà: ricontrolla la posta prima di riprovare.':'⚠ Benvenuto non partito ('+(w.error==='no_recipients'?'nessuna email delle parti':'riprova')+').',true);
+    }catch(e){root.querySelectorAll('[data-wr]').forEach(function(x){x.disabled=false;});say('✗ '+extErr(e),true);}
+  };});
+}
 function extRender(d,st){
   var old=document.getElementById('extov');if(old)old.remove();
   var ov=document.createElement('div');ov.className='cvov';ov.id='extov';
@@ -1073,8 +1096,10 @@ function extRender(d,st){
       +'<label class="dele" style="margin-top:10px">Firmato il <input type="date" id="extDate" max="'+today+'" value="'+today+'" style="width:auto;height:auto;margin-left:6px;background:var(--bg);color:var(--t1);border:1px solid var(--line);border-radius:8px;padding:4px 8px"></label>'
       +'<label class="dele"><input type="checkbox" id="extOk1"> È il contratto completo, firmato da tutte le parti (inquilino'+((T.coTenants||[]).length?', co-conduttori':'')+' e proprietario).</label>'
       +'<label class="dele"><input type="checkbox" id="extOk2"> Parti, immobile, date, canone e deposito nel PDF coincidono con i dati qui sopra.</label>'
+      +'<div class="sub2" style="margin:6px 0 0">Al caricamento il PDF viene anche letto e confrontato con canone, date, deposito, parti, piano e interno: se qualcosa non coincide te lo mostro prima di scrivere niente.</div>'
       +((rv.signed||[]).length?'<label class="dele"><input type="checkbox" id="extOk3"> Avevano già firmato con Magic Sign ('+esc(rv.signed.map(function(x){return x.name||x.role;}).join(', '))+'): quelle firme vengono archiviate (restano nella storia), vale il PDF caricato.</label>':'');
-  var p4='<label class="dele"><input type="checkbox" id="extWel" '+(on.welcomeEmailSent?'disabled':'checked')+'> '+(on.welcomeEmailSent?'✓ Benvenuto già inviato'+(on.welcomeEmailSentAt?' il '+esc(String(on.welcomeEmailSentAt).slice(0,10)):''):'Manda il benvenuto a inquilino e proprietario: accesso al portale, copia firmata in allegato')+'</label>'
+  var wu=welUncertain(on.externalWelcome,on.welcomeEmailSent);
+  var p4=(wu?welResolveBlock(on.externalWelcome.at):'<label class="dele"><input type="checkbox" id="extWel" '+(on.welcomeEmailSent?'disabled':'checked')+'> '+(on.welcomeEmailSent?'✓ Benvenuto già inviato'+(on.welcomeEmailSentAt?' il '+esc(String(on.welcomeEmailSentAt).slice(0,10)):''):'Manda il benvenuto a inquilino e proprietario: accesso al portale, copia firmata in allegato')+'</label>')
     +'<label class="dele"><input type="checkbox" id="extSch" '+(on.paymentsGenerated?'disabled':'checked')+'> '+(on.paymentsGenerated?'✓ Calendario canoni già creato':'Crea il calendario dei canoni (come dopo Magic Sign). Toglila se il canone lo incassa il proprietario e non vuoi rate né solleciti nel sistema.')+'</label>'
     +'<div class="sub2" style="margin:6px 0 0">Il resto parte da solo: immobile affittato e annuncio aggiornato, scadenze (RLI, consegna chiavi + verbale, cedolare, APE/deposito…), pacchetto registrazione, journey (T-30 … uscita). Nessun certificato di firma elettronica viene inventato.</div>';
   ov.innerHTML='<div class="cvbox" style="width:min(620px,100%)"><h3>📎 Contratto firmato fuori da Magic Sign</h3>'
@@ -1091,6 +1116,7 @@ function extRender(d,st){
   document.body.appendChild(ov);
   var msg=ov.querySelector('#extMsg');var say=function(t,bad){msg.style.color=bad?'#ff8a70':'var(--gold-light)';msg.textContent=t;try{msg.scrollIntoView({block:'nearest'});}catch(_){}};
   ov.querySelector('#extClose').onclick=function(){ov.remove();};
+  var wr0=ov.querySelector('.welres');if(wr0)bindWelResolve(wr0,d,say);
   var bp=ov.querySelector('#extProf');
   if(bp)bp.onclick=async function(){
     var todo=profs.filter(function(x){return x.action!=='conflict';});if(!todo.length)return;
@@ -1123,8 +1149,20 @@ function extRender(d,st){
         say('Carico il PDF…');
         if(f.size<=3*1024*1024)body.pdfBase64=await fileToB64(f);
         else{await loadStorageSdk();var ref=firebase.storage().ref().child('contracts/'+st.contractId+'/external-incoming/'+Date.now()+'.pdf');await ref.put(f,{contentType:'application/pdf'});body.fileUrl=await ref.getDownloadURL();}
-        await extCall(body);
+        say('Leggo il PDF e lo confronto coi dati…');
+        var ad;
+        try{ad=await extCall(body);}
+        catch(e1){
+          /* il PDF letto NON coincide coi dati: nulla è stato scritto. Si
+             sceglie qui, con le differenze davanti (come la versione corretta). */
+          if(String(e1&&e1.message)!=='pdf_terms_mismatch')throw e1;
+          if(!ask(checkMismatchText((e1.body&&e1.body.check)||{})+'\n\nCaricarlo comunque come definitivo? (Annulla = correggi prima i dati con ✎ Correggi i dati, poi ricarica)')){go.disabled=false;return say('Non caricato: correggi i dati o il PDF, poi riprova.',true);}
+          body.acceptMismatch=true;
+          say('Carico il PDF…');
+          ad=await extCall(body);
+        }
         lines.push('✓ Contratto firmato acquisito: è il definitivo.');
+        if(ad&&ad.check)lines.push(checkLine(ad.check));
       }
       say(lines.concat('Preparo immobile, scadenze e pacchetto registrazione…').join('\n'));
       var pr=await extCall({op:'ext-prepare',id:d.id});
@@ -1136,7 +1174,8 @@ function extRender(d,st){
         say(lines.concat('Benvenuto e canoni…').join('\n'));
         var ob=await extCall({op:'ext-onboard',id:d.id,welcome:flags.welcome,schedule:flags.schedule});
         if(ob.schedule)lines.push(ob.schedule.ok?'✓ Calendario canoni: '+(ob.schedule.created?ob.schedule.created+' rate create':'già presente')+'.':'⚠ Calendario canoni non creato: riprova dalla riga.');
-        if(ob.welcome)lines.push(ob.welcome.ok?'✓ Benvenuto inviato'+(ob.welcome.tenant?' all’inquilino':'')+(ob.welcome.landlord?(ob.welcome.tenant?' e':'')+' al proprietario':'')+'.':ob.welcome.skipped?'✓ Benvenuto già inviato.':'⚠ Benvenuto non partito ('+(ob.welcome.error==='no_recipients'?'nessuna email delle parti':'riprova')+').');
+        if(ob.welcome)lines.push(ob.welcome.ok?'✓ Benvenuto inviato'+(ob.welcome.tenant?' all’inquilino':'')+(ob.welcome.landlord?(ob.welcome.tenant?' e':'')+' al proprietario':'')+'.':ob.welcome.skipped?'✓ Benvenuto già inviato.':ob.welcome.error==='welcome_uncertain'?'⚠ Benvenuto: invio interrotto a metà, può essere arrivato — scegli qui sotto, non lo rimando da solo.':'⚠ Benvenuto non partito ('+(ob.welcome.error==='no_recipients'?'nessuna email delle parti':'riprova')+').');
+        if(ob.welcome&&ob.welcome.error==='welcome_uncertain'&&!ov.querySelector('.welres')){var wb=document.createElement('div');wb.innerHTML=welResolveBlock(ob.welcome.at);var wr1=wb.firstChild;msg.parentNode.insertBefore(wr1,msg.nextSibling);bindWelResolve(wr1,d,say);}
       }
       lines.push('Il journey riparte da solo. Registrazione: 🏛 nel portal.');
       say(lines.join('\n'));

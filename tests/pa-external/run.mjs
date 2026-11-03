@@ -134,9 +134,26 @@ await test('firmato caricato: stessi byte, firma «esterna», niente certificato
   const st = (await call({ op: 'ext-status' })).body;
   let r = await call({ op: 'ext-adopt', version: st.review.version, termsHash: st.review.termsHash, pdfBase64: SIGNED_PDF.toString('base64'), signedDate: '2026-10-25', confirmComplete: false, confirmTerms: true });
   assert.equal(r.code, 422); assert.equal(r.body.error, 'review_required');
-  r = await call({ op: 'ext-adopt', version: st.review.version, termsHash: st.review.termsHash, pdfBase64: SIGNED_PDF.toString('base64'), signedDate: '2026-10-25', confirmComplete: true, confirmTerms: true, fileName: 'firmato.pdf' });
+  // Il PDF si LEGGE contro i dati (lo stesso lettore della versione
+  // corretta): il canone firmato è un altro → 409 con la voce, nulla scritto.
+  const base = { op: 'ext-adopt', version: st.review.version, termsHash: st.review.termsHash, pdfBase64: SIGNED_PDF.toString('base64'), signedDate: '2026-10-25', confirmComplete: true, confirmTerms: true, fileName: 'firmato.pdf' };
+  process.env.ANTHROPIC_API_KEY = 'synthetic';
+  const read = { rent: { amount: 1000, basis: 'mensile' }, deposit: 2000, startDate: '2026-12-01', endDate: '2027-11-30', tenantName: 'Anna Rossi', landlordName: 'Maria Verdi', floor: null, unit: null };
+  globalThis.__aiReply = { ...read, rent: { amount: 1250, basis: 'mensile' } };
+  r = await call(base);
+  assert.equal(r.code, 409, JSON.stringify(r.body)); assert.equal(r.body.error, 'pdf_terms_mismatch');
+  assert.deepEqual(r.body.check.diff.map(x => x.key), ['rent']); assert.equal(r.body.check.diff[0].contract, 1000);
+  assert.equal(globalThis.__aiCalls, 1, 'il PDF è andato al lettore');
+  assert.notEqual(contractOf(cid).signatureStatus, 'complete');
+  assert.equal([...storage.keys()].some(k => k.includes('external-signed')), false, 'una differenza non scrive niente, nemmeno su Storage');
+  // il PDF che coincide entra, e il controllo resta scritto sul contratto
+  globalThis.__aiReply = read;
+  r = await call(base);
   assert.equal(r.code, 200, JSON.stringify(r.body));
+  assert.equal(r.body.check.status, 'match');
+  delete process.env.ANTHROPIC_API_KEY;
   const c = contractOf(cid);
+  assert.equal(c.pdfCheck.status, 'match'); assert.equal(c.pdfCheck.accepted, false); assert.equal(c.pdfCheck.via, 'external');
   assert.equal(c.signatureStatus, 'complete'); assert.equal(c.signingCertificateUrl, null);
   assert.deepEqual(storage.get('contracts/' + cid + '/external-signed/' + c.externalSignedDocument.sha256 + '.pdf'), SIGNED_PDF);
   assert.equal(journeyEligible(c), true, 'il journey (T-30 … uscita) riparte da solo: contratto attivo e firmato');
@@ -237,6 +254,140 @@ await test('co-conduttore senza email né CF: si collega la scheda che la conver
   assert.equal(out.body.ok, true, JSON.stringify(out.body));
   assert.equal([...DB.keys()].filter(k => k.startsWith('users/') && DB.get(k).name === 'Luca Bianchi').length, 2, 'la sua scheda + l\'omonimo di un\'altra proposta: nessuna terza');
   assert.notEqual(contractOf('pa_pa1').coTenants[0].userId, 'omonimo');
+});
+
+await test('PDF diverso dai dati e «carica comunque»: entra, e la scelta resta scritta col suo autore', async () => {
+  seed();
+  await call({ op: 'ext-contract', createProperty: true });
+  await call({ op: 'ext-profiles', confirm: true });
+  const st = (await call({ op: 'ext-status' })).body;
+  process.env.ANTHROPIC_API_KEY = 'synthetic';
+  globalThis.__aiReply = { rent: { amount: 1000, basis: 'mensile' }, deposit: 3000, startDate: '2026-12-01', endDate: '2027-11-30', tenantName: 'Anna Rossi', landlordName: 'Maria Verdi' };
+  const base = { op: 'ext-adopt', version: st.review.version, termsHash: st.review.termsHash, pdfBase64: SIGNED_PDF.toString('base64'), signedDate: '2026-10-25', confirmComplete: true, confirmTerms: true, fileName: 'firmato.pdf' };
+  let r = await call(base);
+  assert.equal(r.code, 409); assert.deepEqual(r.body.check.diff.map(x => x.key), ['deposit']);
+  r = await call({ ...base, acceptMismatch: true });
+  assert.equal(r.code, 200, JSON.stringify(r.body));
+  const c = contractOf('pa_pa1');
+  assert.equal(c.signatureStatus, 'complete');
+  assert.equal(c.pdfCheck.status, 'mismatch'); assert.equal(c.pdfCheck.accepted, true); assert.equal(c.pdfCheck.by, 'admin');
+  assert.deepEqual(c.pdfCheck.diff.map(x => x.key), ['deposit']);
+  delete process.env.ANTHROPIC_API_KEY;
+});
+
+await test('lettore giù: il firmato entra lo stesso e il controllo si dichiara non eseguito', async () => {
+  seed();
+  await call({ op: 'ext-contract', createProperty: true });
+  await call({ op: 'ext-profiles', confirm: true });
+  const st = (await call({ op: 'ext-status' })).body;
+  const r = await call({ op: 'ext-adopt', version: st.review.version, termsHash: st.review.termsHash, pdfBase64: SIGNED_PDF.toString('base64'), signedDate: '2026-10-25', confirmComplete: true, confirmTerms: true, fileName: 'firmato.pdf' });
+  assert.equal(r.code, 200, JSON.stringify(r.body));
+  assert.equal(r.body.check.status, 'unchecked'); assert.equal(r.body.check.reason, 'cloud_unconfigured');
+  assert.equal(contractOf('pa_pa1').pdfCheck.status, 'unchecked');
+  assert.equal(globalThis.__aiCalls, 0);
+});
+
+// ═══ 3. IL BENVENUTO CON ESITO INCERTO — non riparte da solo ═══
+async function adoptedFresh() {
+  seed();
+  await call({ op: 'ext-contract', createProperty: true });
+  await call({ op: 'ext-profiles', confirm: true });
+  const st = (await call({ op: 'ext-status' })).body;
+  const r = await call({ op: 'ext-adopt', version: st.review.version, termsHash: st.review.termsHash, pdfBase64: SIGNED_PDF.toString('base64'), signedDate: '2026-10-25', confirmComplete: true, confirmTerms: true, fileName: 'firmato.pdf' });
+  assert.equal(r.code, 200, JSON.stringify(r.body));
+  await call({ op: 'ext-prepare' });
+}
+await test('benvenuto interrotto a metà (timeout): incerto, un secondo tap NON lo rimanda; «È arrivato» lo timbra senza email', async () => {
+  await adoptedFresh();
+  globalThis.deliverySmtp = async () => { const e = new Error('Timeout'); e.code = 'ETIMEDOUT'; throw e; };
+  let r = await call({ op: 'ext-onboard', welcome: true });
+  assert.equal(r.body.welcome.ok, false); assert.equal(r.body.welcome.error, 'welcome_uncertain');
+  let c = contractOf('pa_pa1');
+  assert.equal(c.externalWelcome.status, 'uncertain'); assert.ok(!c.welcomeEmailSent);
+  assert.equal(c.externalWelcome.outcome.tenant, 'uncertain');
+  globalThis.deliverySmtp = null;
+  const tries = globalThis.deliveryMailAttempts.length;
+  r = await call({ op: 'ext-onboard', welcome: true });
+  assert.equal(r.body.welcome.error, 'welcome_uncertain');
+  assert.equal(globalThis.deliveryMailAttempts.length, tries, 'nessun nuovo invio su un esito incerto');
+  r = await call({ op: 'ext-onboard', welcome: true, welcomeResolve: 'sent' });
+  assert.equal(r.body.welcome.ok, true); assert.equal(r.body.welcome.resolved, 'sent');
+  assert.equal(globalThis.deliveryMailAttempts.length, tries, '«È arrivato» non manda niente');
+  c = contractOf('pa_pa1');
+  assert.equal(c.welcomeEmailSent, true); assert.equal(c.welcomeEmailBy, 'external-confirmed'); assert.equal(c.externalWelcome.resolvedBy, 'admin');
+  r = await call({ op: 'ext-onboard', welcome: true, welcomeResolve: 'resend' });
+  assert.equal(r.body.welcome.skipped, 'already_sent'); assert.equal(globalThis.deliveryMailAttempts.length, tries);
+});
+
+await test('«sending» appeso da oltre 90 s: è incerto, e solo «rimandalo» lo rimanda', async () => {
+  await adoptedFresh();
+  DB.get('contracts/pa_pa1').externalWelcome = { status: 'sending', at: new Date(Date.now() - 120000).toISOString(), claim: 'old' };
+  let r = await call({ op: 'ext-onboard', welcome: true });
+  assert.equal(r.body.welcome.error, 'welcome_uncertain'); assert.equal(globalThis.deliveryMailAttempts.length, 0);
+  r = await call({ op: 'ext-onboard', welcome: true, welcomeResolve: 'resend' });
+  assert.equal(r.body.welcome.ok, true, JSON.stringify(r.body.welcome)); assert.equal(r.body.welcome.resent, true);
+  assert.ok(globalThis.deliveryMails.some(m => String(m.to).includes('anna@example.test')));
+  assert.equal(contractOf('pa_pa1').welcomeEmailSent, true);
+});
+
+await test('SMTP che rifiuta (550): non è partito niente, ripremere lo rimanda — sicuro', async () => {
+  await adoptedFresh();
+  globalThis.deliverySmtp = async () => { const e = new Error('Mailbox unavailable'); e.responseCode = 550; throw e; };
+  let r = await call({ op: 'ext-onboard', welcome: true });
+  assert.equal(r.body.welcome.error, 'welcome_failed'); assert.equal(contractOf('pa_pa1').externalWelcome.status, 'failed');
+  globalThis.deliverySmtp = null;
+  r = await call({ op: 'ext-onboard', welcome: true });
+  assert.equal(r.body.welcome.ok, true); assert.equal(contractOf('pa_pa1').welcomeEmailSent, true);
+});
+
+// ═══ 4. LA PROVVIGIONE SI RICORDA — il Gestore, col handler vero ═══
+// Dovuta all'ingresso e non pagata: un sollecito APPROVABILE (mai partito da
+// solo) col link stabile, una volta a settimana; pagata o segnalata: silenzio.
+// Ingresso vicino senza link preparato: una riga nel digest, mai una fattura
+// emessa dal Gestore.
+const { default: gestore } = await import('../../api/employees/gestore.js');
+const runGestore = async (dry) => { const r = res(); await gestore({ method: 'POST', query: dry ? { dry: '1' } : {}, headers: { authorization: 'Bearer synthetic' } }, r); return r; };
+const dayIso = (k) => { const d = new Date(); d.setUTCDate(d.getUTCDate() + k); return d.toISOString().slice(0, 10); };
+const queue = () => [...DB.entries()].filter(([k]) => k.startsWith('action_queue/')).map(([, v]) => v);
+
+await test('Gestore: provvigione scaduta → sollecito approvabile col link, una volta a settimana', async () => {
+  seed({ lease: { startDate: dayIso(-6), months: 12, endDate: dayIso(358), type: 'transitorio', reason: 'lavoro' } });
+  assert.equal((await call({ op: 'fee-link' })).code, 200);
+  let r = await runGestore(); assert.equal(r.code, 200, JSON.stringify(r.body));
+  const q = queue(); assert.equal(q.length, 1);
+  assert.match(q[0].contextHash, /^gestore:feerem:prov_pa1:\d{4}-W\d{2}$/);
+  assert.equal(q[0].status, 'pending'); assert.equal(q[0].autoApplied, false); assert.equal(q[0].proposedBy, 'gestore');
+  assert.equal(q[0].payload.to, 'anna@example.test'); assert.equal(q[0].payload.channel, 'email');
+  assert.ok(q[0].payload.draft.includes('/api/payments/link?k=inv&id=prov_pa1&t='), 'il link stabile, non una sessione');
+  assert.ok(q[0].payload.draft.includes('€1,464') && q[0].payload.draft.includes('BOOM-TEST1'));
+  r = await runGestore(); assert.equal(queue().length, 1, 'stessa settimana: nessun doppione');
+  assert.equal(globalThis.deliveryMails.length, 0, 'il Gestore non spedisce niente da solo');
+});
+
+await test('Gestore: provvigione pagata, segnalata o non ancora scaduta → silenzio', async () => {
+  for (const patch of [{ status: 'paid', paidAt: new Date().toISOString() }, { tenantReported: true }, { dueDate: dayIso(-1) }]) {
+    seed({ lease: { startDate: dayIso(-6), months: 12, endDate: dayIso(358), type: 'transitorio', reason: 'lavoro' } });
+    await call({ op: 'fee-link' });
+    Object.assign(DB.get('invoices/prov_pa1'), patch);
+    const r = await runGestore(); assert.equal(r.code, 200);
+    assert.equal(queue().length, 0, 'nessun sollecito con ' + JSON.stringify(patch));
+  }
+});
+
+await test('Gestore: ingresso tra pochi giorni e link mai preparato → riga nel digest, nessuna fattura emessa', async () => {
+  seed({ lease: { startDate: dayIso(5), months: 12, endDate: dayIso(369), type: 'transitorio', reason: 'lavoro' } });
+  DB.set('contracts/pa_pa1', { status: 'active', startDate: dayIso(5), endDate: dayIso(369), preAgreementId: 'pa1', propertyId: 'propX', tenantId: 'someTenant', signatureStatus: 'complete' });
+  let r = await runGestore(true); assert.equal(r.code, 200, JSON.stringify(r.body));
+  const line = (r.body.report.digest || []).find(l => l.startsWith('💶'));
+  assert.ok(line && /ingresso tra [45]gg/.test(line) && /€1\.?464/.test(line) && /Link provvigione/.test(line), JSON.stringify(r.body.report.digest));
+  assert.equal(DB.has('invoices/prov_pa1'), false, 'la fattura la emette l\'operatore, mai il Gestore');
+  await call({ op: 'fee-link' });
+  r = await runGestore(true);
+  assert.equal((r.body.report.digest || []).some(l => l.startsWith('💶')), false, 'col link preparato la riga sparisce');
+  DB.get('preAgreements/pa1').money.feeDue = 'signing';
+  DB.delete('invoices/prov_pa1');
+  r = await runGestore(true);
+  assert.equal((r.body.report.digest || []).some(l => l.startsWith('💶')), false, 'provvigione già nel dovuto alla firma: niente da segnalare');
 });
 
 assert.deepEqual(unexpected, [], 'IO inatteso: ' + unexpected.join(', '));

@@ -42,9 +42,9 @@ try {
   for (const width of [390, 1280]) {
     seed();
     const page = await browser.newPage({ viewport: { width, height: 900 } });
-    const errors = [], ops = [];
+    const errors = [], ops = [], dialogs = [];
     page.on('pageerror', (e) => errors.push(e.message));
-    page.on('dialog', (d) => d.accept());
+    page.on('dialog', (d) => { dialogs.push(d.message()); d.accept(); });
     await page.exposeFunction('__db', async (op, path, patch) => {
       if (op === 'list') return [...DB.keys()].filter(k => k.startsWith(path + '/') && k.split('/').length === 2).map(k => ({ id: k.split('/')[1], data: DB.get(k) }));
       if (op === 'get') return DB.get(path) || null;
@@ -106,12 +106,36 @@ try {
     await ov2.getByRole('button', { name: 'Carica e continua' }).click();
     ok(!ops.some(o => o.op === 'ext-adopt'), width + 'px: senza le due conferme nessuna chiamata');
     await ov2.locator('#extOk1').check(); await ov2.locator('#extOk2').check();
+    // 390: il PDF letto porta un altro canone → le differenze davanti, poi
+    // «carica comunque». 1280: l'SMTP va in timeout → benvenuto incerto, decide
+    // l'operatore (mai rimandato da solo).
+    if (width === 390) {
+      process.env.ANTHROPIC_API_KEY = 'synthetic';
+      globalThis.__aiReply = { rent: { amount: 1250, basis: 'mensile' }, deposit: 2000, startDate: '2026-12-01', endDate: '2027-11-30', tenantName: 'Anna Rossi', landlordName: 'Maria Verdi' };
+    } else {
+      globalThis.deliverySmtp = async () => { const e = new Error('Connection timeout'); e.code = 'ETIMEDOUT'; throw e; };
+    }
     await ov2.getByRole('button', { name: 'Carica e continua' }).click();
     await page.waitForFunction(() => /Il journey riparte da solo/.test((document.getElementById('extMsg') || {}).textContent || ''), null, { timeout: 30000 });
+    globalThis.deliverySmtp = null;
     const msg = await ov2.locator('#extMsg').innerText();
     if (process.env.PAEXT_SHOT) await page.screenshot({ path: process.env.PAEXT_SHOT + '/done-' + width + '.png' });
-    ok(/Contratto firmato acquisito/.test(msg) && /Benvenuto inviato/.test(msg) && /12 rate create/.test(msg), width + 'px: acquisito, recupero, benvenuto e 12 rate — detti uno per uno');
-    const adopt = ops.find(o => o.op === 'ext-adopt');
+    ok(/Contratto firmato acquisito/.test(msg) && /12 rate create/.test(msg), width + 'px: acquisito, recupero e 12 rate — detti uno per uno');
+    if (width === 390) {
+      const adopts = ops.filter(o => o.op === 'ext-adopt');
+      ok(adopts.length === 2 && adopts[0].acceptMismatch === undefined && adopts[1].acceptMismatch === true, width + 'px: «carica comunque» solo DOPO la prima risposta con le differenze');
+      ok(dialogs.some(m => /Canone/i.test(m) && /1[.,]?250/.test(m) && /Caricarlo comunque/.test(m)), width + 'px: la domanda mostra la voce diversa e le due cifre');
+      ok(/Caricato con differenze/.test(msg) && DB.get('contracts/pa_pa1').pdfCheck.accepted === true, width + 'px: la scelta resta scritta sul contratto e nel messaggio');
+      ok(/Benvenuto inviato/.test(msg), width + 'px: benvenuto partito');
+    } else {
+      ok(/invio interrotto a metà/.test(msg) && await ov2.locator('.welres').count() === 1, width + 'px: benvenuto incerto detto, con la scelta davanti');
+      const before = globalThis.deliveryMailAttempts.length;
+      await ov2.getByRole('button', { name: /È arrivato/ }).click();
+      await page.waitForFunction(() => /segnato come inviato/.test((document.getElementById('extMsg') || {}).textContent || ''), null, { timeout: 10000 });
+      const c = DB.get('contracts/pa_pa1');
+      ok(c.welcomeEmailSent === true && c.welcomeEmailBy === 'external-confirmed' && globalThis.deliveryMailAttempts.length === before, width + 'px: «È arrivato» lo segna senza rimandare nessuna email');
+    }
+    const adopt = ops.filter(o => o.op === 'ext-adopt').pop();
     ok(adopt.pdfBase64 && adopt.confirmComplete === true && adopt.confirmTerms === true && /^\d{4}-\d{2}-\d{2}$/.test(adopt.signedDate), width + 'px: la richiesta porta PDF, data e conferme');
     const onb = ops.find(o => o.op === 'ext-onboard');
     ok(onb.welcome === true && onb.schedule === true, width + 'px: benvenuto e canoni chiesti esplicitamente (spunte)');

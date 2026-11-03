@@ -31,6 +31,8 @@ import { schedaUrl } from '../profile/_scheda.js';
 // Wallet pass del contratto, sempre a portata dentro il journey (servito
 // live da /api/my-pass, link derivato — niente da generare).
 import { tenantWalletUrl } from '../sign/_notify.js';
+import RENT from '../../js/rent-engine.js';
+import { payLink } from '../payments/_token.js';
 
 const ADMIN_EMAIL = 'valentino@boom-rome.com';
 const WA = 'https://wa.me/393313251961';
@@ -43,6 +45,7 @@ const buyUrl = (kind, tenant) => 'https://www.boomrome.com/api/services/buy?kind
   + (tenant && tenant.name ? '&n=' + encodeURIComponent(tenant.name) : '');
 const esc = s => String(s == null ? '' : s).replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
 const eur = n => '€' + Number(n || 0).toLocaleString('en-US');
+const eurFee = n => { const v = Math.round(Number(n || 0) * 100) / 100; return '€' + v.toLocaleString('en-US', { minimumFractionDigits: Number.isInteger(v) ? 0 : 2, maximumFractionDigits: 2 }); };
 const fmtD = s => { try { return new Date(String(s).slice(0, 10) + 'T00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }); } catch { return s; } };
 
 // The review link: set REVIEW_URL in Vercel to the real Google review URL —
@@ -105,7 +108,20 @@ function confirmedHandoverDate(c) {
   return new Date(at).toISOString().slice(0, 10);
 }
 
-export function steps({ c, tenant, addrShort, addr, first, has = () => false, missing = null, late = false, walletUrl = '' }) {
+// LA PROVVIGIONE (fattura `prov_<paId>`, nata dal 💶 della console): si
+// ricorda SOLO finché è pagabile — pagata, in corso, annullata o segnalata
+// dal cliente («l'ho già fatto con bonifico») = silenzio. Il link è quello
+// stabile di /api/payments/link: non scade, riusa una sessione aperta.
+export function feeReminder(inv, c) {
+  if (!inv || !/^prov_/.test(String(inv.id || ''))) return null;
+  if (RENT.paymentBlockReason(inv, 'invoice') || inv.tenantReported === true) return null;
+  const amountEur = Math.round(Number(inv.amount) * 100) / 100;
+  if (!(amountEur > 0)) return null;
+  const due = String(inv.dueDate || '').slice(0, 10);
+  return { id: inv.id, url: payLink('inv', inv.id), amountEur, atMoveIn: !!due && due === String((c && c.startDate) || '').slice(0, 10) };
+}
+
+export function steps({ c, tenant, addrShort, addr, first, has = () => false, missing = null, late = false, walletUrl = '', fee = null }) {
   const start = c.startDate, end = c.endDate;
   const dStart = start ? dayDiff(start) : null;
   const dEnd = end ? dayDiff(end) : null;
@@ -163,7 +179,9 @@ export function steps({ c, tenant, addrShort, addr, first, has = () => false, mi
                           'Photo report before you arrive'])
               + btn(buyUrl('cleaning-premium', tenant), 'Book Cleaning Premium — €119')
               + fine(`Prefer to ask first? <a href="${waMsg(`Ciao BOOM! Vorrei il Cleaning Premium prima del mio arrivo a ${addr}.`)}" style="color:#141414">WhatsApp us</a>.`, 'text-align:center'))
-        + para(`<b>2 · The numbers, settled.</b> Any remaining balance (deposit or first payment) is one tap in your portal — card or transfer, receipt automatic.`, 'margin-top:22px')
+        + para(`<b>2 · The numbers, settled.</b> Any remaining balance (deposit or first payment) is one tap in your portal — card or transfer, receipt automatic.`
+            + (fee ? ` The <b>BOOM agency fee</b> agreed in your proposal — <b>${eurFee(fee.amountEur)}</b>, VAT included — ${fee.atMoveIn ? 'is due at move-in' : 'is still open'}: pay it by card from the button below, the receipt arrives by email.` : ''), 'margin-top:22px')
+        + (fee ? btn2(fee.url, `Pay the agency fee — ${eurFee(fee.amountEur)}`) : '')
         + casaBtns,
     },
     {
@@ -173,6 +191,8 @@ export function steps({ c, tenant, addrShort, addr, first, has = () => false, mi
       html: para(`Ciao ${esc(first)} — your contractual start date is ${dStart === 0 ? 'today' : 'tomorrow'} (${fmtD(start)}). <b>Key handover is on us</b> — included, as always. This date does not confirm a handover appointment: please agree the day and time with your advisor on WhatsApp before travelling. Bring your ID to the agreed appointment.`)
         + btn(waMsg(`Ciao! Confermiamo giorno e orario per la consegna chiavi a ${addr}?`), 'Conferma giorno e orario su WhatsApp')
         + (walletUrl ? btn2(walletUrl, ' Your home pass in Apple Wallet') : '')
+        // Le chiavi non si vendono: qui la provvigione ha il link, mai un prezzo.
+        + (fee ? fine(`One last thing: the agency fee agreed in your proposal ${fee.atMoveIn ? 'is due at move-in' : 'is still open'} — <a href="${esc(fee.url)}" style="color:#141414">pay it by card here</a>, receipt by email.`, 'text-align:center') : '')
         + fine(`Anything last-minute — we're one message away.`, 'text-align:center'),
     },
     {
@@ -239,6 +259,18 @@ export async function runJourney() {
     });
   } catch (e) { console.warn('[journey] overdue lookup:', e.message); }
 
+  // Provvigioni aperte: una query sola, per contratto e per proposta (la
+  // fattura può nascere PRIMA del contratto e non sapere ancora il suo id).
+  const feeByContract = new Map(), feeByPa = new Map();
+  try {
+    const inv = await fsList('invoices', { filter: { field: 'status', op: 'EQUAL', value: 'pending' }, limit: 300 });
+    (inv || []).forEach(x => {
+      if (!x || !/^prov_/.test(String(x.id || ''))) return;
+      if (x.contractId) feeByContract.set(x.contractId, x);
+      if (x.preAgreementId) feeByPa.set(x.preAgreementId, x);
+    });
+  } catch (e) { console.warn('[journey] fee lookup:', e.message); }
+
   for (const row of contracts || []) {
     const { id, ...c } = row;
     if (!c.startDate) continue;
@@ -272,7 +304,9 @@ export async function runJourney() {
     const missing = (!identityOk || !docsOk)
       ? { identityOk, docsOk, schedaUrl: schedaUrl(id, 'tenant') }
       : null;
-    for (const st of steps({ c, tenant, addr, addrShort, first, has, missing, late, walletUrl: tenantWalletUrl(id) })) {
+    const paId = c.preAgreementId || (String(id).startsWith('pa_') ? String(id).slice(3) : '');
+    const fee = feeReminder(feeByContract.get(id) || (paId && feeByPa.get(paId)) || null, c);
+    for (const st of steps({ c, tenant, addr, addrShort, first, has, missing, late, walletUrl: tenantWalletUrl(id), fee })) {
       if (!st.due || j[st.key]) continue;
       try {
         await sendEmail({ to: email, subject: st.subject, html: shell(st.html, st.subject) });

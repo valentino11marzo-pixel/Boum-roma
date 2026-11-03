@@ -351,6 +351,7 @@
       mandate: [
         'Prepara i solleciti per le rate in ritardo da 3+ giorni, riproposti una volta a settimana',
         'Prepara i solleciti firma col link Magic-Sign della parte giusta',
+        'Prepara il sollecito della provvigione scaduta col link di pagamento; segnala gli ingressi senza link',
         'Digest Telegram: rinnovi entro 90 giorni, scadenze di conformità, manutenzioni aperte da 48h'
       ],
       autonomy: {
