@@ -42,6 +42,10 @@
     <link rel="icon" href="/favicon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="/apple-touch-icon.png">
     <link rel="stylesheet" href="/assets/boom-city.css?v={{assetVersion.css}}">
+    <!-- §C the curtain (v1.6): html.vivo lets the walk's sections enter as they come into view.
+         boom-city.js sets html[data-armed]; without it in 3 s, without IntersectionObserver,
+         or when printing, vivo comes off and nothing waits hidden. -->
+    <script>(function(h){if(!('IntersectionObserver' in window))return;h.classList.add('vivo');setTimeout(function(){if(!h.hasAttribute('data-armed'))h.classList.remove('vivo')},3000);addEventListener('beforeprint',function(){h.classList.remove('vivo')})})(document.documentElement)</script>
   <script type="application/ld+json">
 {{{jsonLdBreadcrumb}}}
   </script>
@@ -59,20 +63,41 @@
 <!-- BOOM_CALENDAR:END -->
 </head>
 <body data-consent-late>
+<!-- §D the onda canvas (v1.6): the home's flap field, gold only, ≥940px. boom-city.js injects
+     assets/boom-onda.js after load; it loops only while the desk is open (one dim frame when closed). -->
+<canvas class="onda" id="onda" aria-hidden="true"></canvas>
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
   <linearGradient id="goldGrad" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#FFE55C"/><stop offset="100%" stop-color="#E5C200"/></linearGradient>
   <symbol id="boomMark" viewBox="0 0 1024 1024"><g transform="translate(0,1024) scale(0.1,-0.1)" fill="url(#goldGrad)"><path d="M4860 8749 c-509 -29 -976 -161 -1413 -401 -580 -317 -1057 -806 -1350 -1383 -148 -292 -229 -532 -291 -859 -89 -465 -69 -1005 54 -1461 184 -688 616 -1308 1232 -1769 492 -368 1172 -609 1794 -635 546 -22 987 57 1489 267 503 211 979 589 1327 1053 340 453 557 994 630 1569 17 135 17 630 0 760 -93 716 -396 1341 -900 1861 -280 289 -569 498 -922 667 -416 200 -813 303 -1285 332 -165 10 -170 10 -365 -1z m610 -144 c743 -103 1436 -459 1919 -985 338 -367 562 -751 704 -1205 276 -879 132 -1858 -388 -2640 -242 -364 -493 -615 -900 -900 l-70 -49 109 104 c413 396 679 919 767 1505 33 217 33 558 0 765 -75 476 -257 896 -549 1265 -127 161 -363 380 -549 511 -300 211 -689 363 -1079 420 -172 26 -604 26 -764 0 -296 -47 -545 -128 -808 -262 -236 -122 -440 -271 -632 -464 -486 -485 -749 -1121 -751 -1815 -1 -611 170 -1148 515 -1608 100 -134 286 -335 382 -413 33 -27 -8 -2 -91 55 -513 351 -904 805 -1143 1331 -71 156 -136 336 -168 465 -9 33 -19 76 -24 95 -5 19 -20 100 -34 180 -59 343 -60 740 0 1070 81 456 229 826 479 1200 246 368 558 669 949 917 386 245 881 418 1321 462 61 6 124 13 140 15 73 10 556 -4 665 -19z m-60 -1329 c105 -16 258 -49 335 -72 82 -26 197 -66 240 -84 149 -65 190 -84 266 -126 677 -379 1129 -1049 1246 -1849 27 -182 24 -517 -5 -695 -75 -458 -225 -813 -500 -1179 -116 -154 -340 -369 -527 -506 -44 -32 -87 -63 -95 -69 -8 -6 35 39 96 99 178 177 283 321 397 550 161 322 231 676 205 1045 -32 467 -223 902 -542 1237 -239 251 -521 426 -873 542 -79 26 -273 67 -383 81 -108 13 -349 13 -465 0 -276 -32 -597 -145 -834 -293 -224 -140 -466 -378 -613 -602 -307 -470 -407 -1055 -273 -1599 80 -327 217 -589 454 -871 71 -84 73 -88 31 -56 -293 225 -547 535 -718 877 -34 68 -65 143 -122 294 -42 112 -101 383 -120 555 -14 127 -14 401 0 534 51 482 223 912 516 1288 269 344 654 620 1085 778 160 59 400 115 574 134 121 13 508 5 625 -13z m-30 -1165 c401 -81 721 -242 992 -499 643 -612 769 -1607 300 -2367 -118 -190 -291 -386 -463 -524 -137 -111 -148 -113 -49 -12 110 112 206 248 275 386 67 137 98 222 132 367 24 103 26 132 27 323 0 182 -3 224 -22 310 -47 211 -126 394 -245 569 -126 186 -358 387 -564 490 -384 191 -823 225 -1218 95 -482 -160 -854 -541 -1004 -1029 -117 -379 -81 -810 96 -1165 37 -72 130 -215 166 -252 17 -18 26 -33 20 -33 -6 0 -61 52 -121 116 -259 272 -424 575 -511 934 -111 459 -18 1006 245 1430 298 483 791 797 1379 880 110 16 448 4 565 -19z m-239 -911 c360 -28 680 -171 925 -415 194 -193 317 -415 382 -688 24 -102 26 -130 26 -312 0 -191 -1 -205 -30 -320 -53 -205 -132 -372 -251 -535 -58 -79 -263 -288 -323 -330 -31 -22 -29 -18 18 35 195 220 312 519 312 795 0 325 -121 614 -350 841 -369 364 -926 453 -1385 222 -336 -170 -578 -499 -636 -865 -19 -126 -7 -371 25 -490 44 -162 97 -284 173 -398 9 -14 -4 -5 -30 20 -26 24 -45 51 -42 58 2 7 1 11 -4 7 -11 -6 -58 51 -118 140 -109 163 -183 347 -219 545 -23 127 -23 351 -1 489 55 335 248 677 492 871 261 208 530 311 881 338 11 1 81 -3 155 -8z m29 -714 c459 -74 823 -428 895 -869 58 -358 -60 -696 -345 -987 l-34 -35 22 35 c115 182 179 403 168 575 -14 235 -104 433 -268 591 -137 134 -287 209 -472 239 -115 19 -187 19 -303 0 -337 -55 -612 -302 -704 -635 -32 -113 -34 -325 -5 -440 23 -92 70 -213 98 -254 l21 -31 -31 29 c-39 36 -120 152 -155 221 -35 71 -81 215 -102 319 -25 130 -17 357 17 476 102 354 357 618 706 730 152 49 331 62 492 36z m-73 -567 c178 -24 327 -101 454 -236 137 -143 199 -303 201 -513 1 -162 -42 -309 -135 -453 -52 -82 -73 -97 -38 -28 51 99 67 290 36 412 -57 219 -251 413 -466 464 -75 17 -236 20 -311 4 -213 -44 -422 -247 -473 -460 -31 -133 -13 -325 41 -431 35 -70 8 -47 -52 43 -58 88 -90 167 -114 286 -25 121 -25 220 -1 331 33 146 84 243 186 351 171 183 413 266 672 230z m15 -470 c80 -17 186 -76 248 -139 106 -107 158 -248 147 -398 -6 -92 -25 -152 -79 -250 -45 -82 -60 -91 -27 -17 18 41 21 62 17 149 -4 89 -8 108 -35 162 -43 82 -126 165 -209 205 -58 29 -80 34 -158 37 -112 5 -184 -12 -259 -62 -182 -121 -251 -323 -171 -506 l24 -55 -25 30 c-36 44 -92 162 -104 223 -39 189 14 369 146 492 105 99 204 139 345 139 48 1 111 -4 140 -10z"/></g></symbol>
+  <!-- §B.1 #5 the plane of the route (v1.6, founder decision: back as ONE SVG symbol; the U+2708 glyph stays banned) -->
+  <symbol id="boomPlane" viewBox="0 0 24 24"><path d="M21.5 15.5v-2l-8-5V3c0-.83-.67-1.5-1.5-1.5S10.5 2.17 10.5 3v5.5l-8 5v2l8-2.5v5.5l-2 1.5V21l3.5-1 3.5 1v-1.5l-2-1.5v-5.5l8 2.5z"/></symbol>
+  <!-- §B.2 the seal's ring (r 50 around 60,60) and §B.1 #9 the stamp's ring (r 36 around 46,46) -->
+  <path id="sealArc" d="M10,60 a50,50 0 1,1 100,0 a50,50 0 1,1 -100,0"/>
+  <path id="stampArc" d="M10,46 a36,36 0 1,1 72,0 a36,36 0 1,1 -72,0"/>
   <symbol id="boomWa" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.625.846 5.059 2.284 7.034L.789 23.492a.5.5 0 00.611.611l4.458-1.495A11.952 11.952 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-2.388 0-4.59-.837-6.313-2.233l-.44-.361-2.633.882.882-2.633-.361-.44A9.965 9.965 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></symbol>
 </defs></svg>
 
+<!-- §B.1 #0b / §D the filament: where you are on the page, 2px, gold, no pointer events -->
+<div class="filo" id="filo" aria-hidden="true"></div>
+
 <a class="skip" href="#main">Skip to content</a>
 
-<header class="wrap top">
-  <a class="brand" href="/" aria-label="BOOM — home"><svg aria-hidden="true"><use href="#boomMark"/></svg><b>BOOM</b></a>
-  <nav class="navr" aria-label="Contact">
-    <a class="pill" id="topWa" href="{{contact.waHref}}" target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#boomWa"/></svg><span class="pl">WhatsApp</span><span class="sr"> the {{city}} desk</span></a>
-  </nav>
+<!-- §B.2 / §D THE HEADER (v1.6): below 760px unchanged and not sticky (the brand and WhatsApp);
+     from 760px sticky, 64px: the brand lockup, the wayfinding (≥1180px), the twin slot where the
+     desk chip and the door's twin (#topGo, served hidden) take turns, WhatsApp as an icon. -->
+<header class="top">
+  <div class="wrap top-in">
+    <a class="brand" href="/" aria-label="BOOM — home"><svg aria-hidden="true"><use href="#boomMark"/></svg><b>BOOM</b><i class="b-div" aria-hidden="true"></i><span class="b-city" aria-hidden="true">{{city}}</span></a>
+    <nav class="wayf" aria-label="On this page" data-instr><a href="#fares">Fares</a><a href="#how">How it works</a><a href="#checks">Checks</a><a href="#papers">Papers</a><a href="#desk">Desk</a><a href="#faq">Questions</a></nav>
+    <div class="navr">
+      <div class="twin">
+        <p class="chip js" id="topChip" data-instr><i class="dot" aria-hidden="true"></i><span data-gate="{w}">{{deskHoursText}}</span></p>
+        <button class="top-go js" id="topGo" type="button" hidden><b>{{door.label}}</b><small data-gate="{{doorLead}} · {w}">{{doorLead}} · {{deskHoursText}}</small></button>
+      </div>
+      <a class="pill" id="topWa" href="{{contact.waHref}}" target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#boomWa"/></svg><span class="pl">WhatsApp</span><span class="sr"> the {{city}} desk</span></a>
+    </div>
+  </div>
 </header>
 
 <main class="wrap" id="main">
@@ -82,23 +107,37 @@
        the €500 where the desk sells), one gold door, who answers and when.
        A fare row is a <details>: it opens ITS ticket in place. ═══ -->
   <article class="pass" id="pass" data-state="blank" aria-labelledby="h1">
+    <!-- §B.2 the foil band (≥940px): flashes once on OPEN and on PAID (.struck), never at load -->
+    <div class="lamina" aria-hidden="true"><em>BOOM · {{cityUpper}} · TENANT SIDE</em></div>
     <div class="p-main">
-      <div class="p-head">
+      <!-- §B.1 #1 the foil chip is .p-desk (CSS); the slot flips OPEN / PAID -->
+      <div class="p-head" data-instr>
         <p class="p-desk">BOOM {{city}}</p>
         <p class="slot"><span class="slot-t">Tenant side</span><span class="slot-b" aria-hidden="true"></span><span class="sr" id="slotSr" role="status"></span></p>
       </div>
       <h1 id="h1"><span class="h1a">{{hero.h1Before}}</span> <span class="sr">{{city}}</span></h1>
       <p class="board-row" aria-hidden="true"><span class="board" id="placeBoard" data-word="{{word}}" style="--n:{{wordLen}}"></span></p>
-      <p class="lead">{{hero.lead}} <b>{{hero.leadStrong}}</b></p>
+      <!-- §B.2 the lead, and beside it (≥940px) the issuer seal: the desk's must-state on a ring -->
+      <div class="lead-row">
+        <p class="lead">{{hero.lead}} <b>{{hero.leadStrong}}</b></p>
+        {{{sealHtml}}}
+      </div>
       <!-- FARES -->
 {{{faresHtml}}}
       <!-- /FARES -->
     </div>
 
-    <div class="perf" aria-hidden="true"><i class="notch a"></i><i class="notch b"></i></div>
+    <!-- §B.1 #5–6 the perforation is the route: YOU → {{iata}} on the punched track, three ticks
+         (one per Departures row), the plane parked where the server's state puts it (#pass[data-state]) -->
+    <div class="perf" aria-hidden="true"><i class="notch a"></i><i class="notch b"></i>{{{routePerfHtml}}}</div>
 
-    <div class="stub"><div class="stub-in">
-      <p class="code-big" aria-hidden="true"><span>To</span><b>{{iata}}</b></p>
+    <div class="stub">
+      <!-- §B.2 the stub's track (≥940px): the route, the door and the gate ride down beside an open
+           ticket (sticky under the header) and stop above the foot, never over it -->
+      <div class="stub-track"><div class="stub-st">
+      <div class="stub-in">
+      <!-- §B.2 the stub's route (≥940px): FROM YOU, TO {{iata}} — replaces v1.5's code-big -->
+      {{{routeStubHtml}}}
       <div id="stubSlot">
         <!-- THE DOOR — one node: the door, its two fields, the states. On a
              phone it moves into the open ticket; it is never two doors. -->
@@ -111,35 +150,70 @@
         <div><dt>Answers</dt><dd>{{desk.person}}</dd></div>
         <div><dt>Desk</dt><dd>{{{deskLineHtml}}}</dd></div>
       </dl>
-    </div></div>
+      </div>
+      <!-- §B.2 the gate in the stub (≥940px): the JS moves the one #clocks node here; it rides with the door -->
+      <div class="stub-gate" id="stubGate"></div>
+      </div></div>
+      <!-- §B.1 #7 / §B.2 the stub foot, pinned to the bottom (margin-top:auto): a barcode that encodes
+           nothing and the code line (the issuer as served; the server's file code after OPEN / PAID —
+           never computed by the page) -->
+      <div class="stub-foot" aria-hidden="true"><i class="bars"></i><p class="code" id="codeLine">{{codeLine}}</p></div>
+      <!-- §B.2 the side text along the stub's right edge -->
+      <p class="sside" aria-hidden="true">TENANT SIDE · {{cityUpper}}</p>
+    </div>
   </article>
 
-  <p class="proof">Operated by {{entity.legalName}}, a registered Italian agency · {{{ratingHtml}}}</p>
+  <p class="proof">{{proofLead}} · {{{ratingHtml}}}</p>
 
   <div class="below">
+    <!-- §C.1 DEPARTURES: the three steps as a board; statuses are validated facts, row 01 flips only on a server event -->
     <section class="sec" id="how" aria-labelledby="howH">
+      <p class="eb" data-instr>Departures</p>
       <h2 id="howH">{{how.h2}} <span class="g">{{how.h2g}}</span></h2>
-      <ol class="itin">
-{{{stepsHtml}}}
-      </ol>
+{{{depHtml}}}
     </section>
 
+    <!-- §C.2 PRE-FLIGHT: what we check before you sign, as lanes (no verdicts, no ticks) -->
     <section class="sec" id="checks" aria-labelledby="chkH">
+      <p class="eb" data-instr>Pre-flight</p>
       <h2 id="chkH">{{checks.h2}} <span class="g">{{checks.h2g}}</span></h2>
-      <div class="folds">
-{{{checksHtml}}}
-      </div>
+{{{lanesHtml}}}
     </section>
 
+    <!-- §C.3 BAGGAGE: the eight papers as static tags (no inputs, no count, no meter) -->
+    <section class="sec" id="papers" aria-labelledby="papersH">
+      <p class="eb" data-instr>Baggage</p>
+      <h2 id="papersH">The papers <span class="g">{{papersG}}</span></h2>
+{{{tagsHtml}}}
+    </section>
+
+    <!-- §C.4 GATE: who answers and when; the clocks, the week and the outlined door twin are served hidden -->
+    <section class="sec" id="desk" aria-labelledby="deskH">
+      <p class="eb" data-instr>Gate</p>
+      <h2 id="deskH">Who answers, <span class="g">and when.</span></h2>
+{{{gateHtml}}}
+    </section>
+
+    <!-- §C.5 QUESTIONS -->
     <section class="sec" id="faq" aria-labelledby="faqH">
-      <h2 id="faqH">{{faq.h2}}</h2>
+      <p class="eb" data-instr>Before you ask</p>
+      <h2 id="faqH"><span class="g">{{faq.h2}}</span></h2>
       <div class="folds">
 {{{faqHtml}}}
       </div>
     </section>
 
-    <!-- in brief — written to be quoted (GEO): folded for people, whole in the DOM for machines -->
+    <!-- §C.6 NETWORK: the sister desks and BOOM Rome; the map (≥640px) is decorative, the list is the navigation -->
+    <section class="sec" id="network" aria-labelledby="netH">
+      <p class="eb" data-instr>Network</p>
+      <h2 id="netH">Other desks, <span class="g">one company.</span></h2>
+      <p class="net-c">Every desk answers from Rome.</p>
+{{{netHtml}}}
+    </section>
+
+    <!-- §C.7 on the back: the fact sheet — written to be quoted (GEO): folded for people, whole in the DOM for machines -->
     <section class="sec brief" id="enbref-wrap" aria-label="{{bref.h2}}">
+      <span class="corner" aria-hidden="true">Conditions</span>
       <details class="sheet">
         <summary>{{bref.h2}}</summary>
         <dl class="enbref" id="enbref">
@@ -148,19 +222,8 @@
       </details>
     </section>
 
-    <footer class="foot">
-      <p class="stmt">{{footer.statement}}</p>
-      <p>{{entity.legalName}} · {{entity.address}} · Registered office: {{entity.registeredOffice}} · P.IVA {{entity.vat}} · REA {{entity.rea}}</p>
-      <p>{{entity.trademark}}</p>
-      <nav aria-label="Legal and contact">
-        <a href="mailto:{{contact.email}}">{{contact.email}}</a>
-        <a href="tel:+{{contact.whatsapp}}">{{contact.phoneDisplay}}</a>
-        <a href="/terms#city-desks">Terms</a>
-        <a href="/privacy">Privacy</a>
-{{{footLinksHtml}}}
-      </nav>
-      <p>© {{year}} BOOM</p>
-    </footer>
+    <!-- §D THE FOOTER -->
+{{{footHtml}}}
   </div>
 </main>
 

@@ -3,10 +3,14 @@
   "city": "Barcelona",
   "country": "ES",
   "iata": "BCN",
+  "geo": {
+    "lat": 41.3874,
+    "lon": 2.1686
+  },
   "live": true,
   "mode": "search",
   "config": {},
-  "updated": "2026-10-26",
+  "updated": "2026-11-03",
   "meta": {
     "title": "Tenant-side rental agent for expats in Barcelona — BOOM",
     "description": "Apartment search for expats in Barcelona, tenant side only: rent-cap check, Spanish-format file, applications as listings appear, viewings attended, contract read.",
@@ -93,17 +97,20 @@
       {
         "k": "1 · Brief",
         "h": "A free call",
-        "p": "Dates, budget, who's moving. We tell you what your budget buys today."
+        "p": "Dates, budget, who's moving. We tell you what your budget buys today.",
+        "status": "FREE"
       },
       {
         "k": "2 · Your file",
         "h": "Spanish-format, one working day",
-        "p": "Your file and a presentation letter in Spanish. Applications as listings appear."
+        "p": "Your file and a presentation letter in Spanish. Applications as listings appear.",
+        "status": "1 WORK DAY"
       },
       {
         "k": "3 · Viewing & lease",
         "h": "A BOOM person in the room",
-        "p": "Live video and a written report. Rent cap, deposit and lease type checked before you sign."
+        "p": "Live video and a written report. Rent cap, deposit and lease type checked before you sign.",
+        "status": "IN PERSON"
       }
     ]
   },
