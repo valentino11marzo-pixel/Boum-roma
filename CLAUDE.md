@@ -2803,6 +2803,61 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
   gettone di Stripe, ancoraggio, porta tenuta sopra, porta spenta, focus
   rubato, numero ripulito), tutti presi da `ui.mjs`.
 
+- **LONDRA E MILANO (02/11/2026 — «lancia subito London, e Milano»).** Due desk
+  LIVE con la cassa, decisione del fondatore: si valida la domanda e la legge si
+  adegua dopo (come Madrid). Stessa griglia 500 · 199 · 149: **Londra in
+  sterline** (£500 · £199 · £149, Stripe in GBP), Milano in euro.
+  1. **La valuta è del desk**: `CITY_MARKETS.<slug>.currency` (default eur) la
+     legge `cityOffer` → `service-checkout` (`price_data.currency`), il webhook
+     (`moneyOf`: riepilogo, email, notifiche, rimborsi e contestazioni con la
+     valuta dell'oggetto Stripe), recover-checkouts e la card dei rimbalzi. La
+     build la legge con `currencyOf(slug)`: `money(n, cur)`, JSON-LD
+     `priceCurrency`, config `CURRENCY`/`SYMBOL` (la pagina formatta e manda a
+     GA4 la valuta vera) e tutte le guardie dei prezzi ora vedono € e £ (un € sulla
+     pagina di Londra è un prezzo estraneo; un £500 senza la regola del rimborso
+     è rifiutato). Un desk non in euro dichiara `"currency"` anche nel JSON (lo
+     legge il generatore della card social). `CITY_PLANS` resta UN oggetto:
+     `eur` è l'importo nella valuta del desk.
+  2. **Calendari**: `gb-eng` (bank holiday di Inghilterra e Galles, con i giorni
+     sostitutivi: regole `mondays` e `weekdays`) e `it-mi` (Italia + 7 dicembre).
+     L'Italia resta sempre in unione (il desk risponde da Roma).
+     **Orari:** Londra lun–ven 08:00–18:00 London time (`Europe/London`, BST/GMT),
+     cioè le stesse ore del desk di Roma. Milano lun–ven 09:00–19:00 «Italian
+     time»: `desk.zoneName`, perché `Europe/Milan` non esiste. Le email al
+     cliente usano `hoursEn` del desk.
+  3. **Telefoni**: `DIAL` gb/it; nel Regno Unito lo 0 di prefisso cade, mentre
+     un cellulare italiano scritto su /london NON diventa +44. A Milano lo 0 dei
+     fissi resta (+39 02 …). `cityFromText` legge anche Milano e Londra; le
+     stringhe italiane per l'operatore usano `labelIt`.
+  4. **Testi**: tre bozze per città (rischio, conoscenza del posto, autorità
+     essenziale), tre giudici (conversione, verità, mestiere), un editor. Londra:
+     Tenant Fees Act, Renters' Rights Act 2025 (dal 1/5/2026: niente affitto prima
+     della firma e al massimo un mese fino all'ingresso, un solo affitto
+     pubblicato e niente aste, contratti periodici), deposito di cinque
+     settimane in uno schema governativo entro 30 giorni, Right to Rent. Milano:
+     chi paga l'agenzia, quale contratto (4+4, 3+2, transitorio, studenti),
+     deposito di tre mensilità, registrazione entro 30 giorni, Anagrafe e codice
+     fiscale. Le fonti sono in `r_london.json`/`r_milan.json` della sessione:
+     tutte «likely», nessuna letta su gov.uk (dominio bloccato al sandbox).
+  5. **Superfici**: sitemap, llms.txt, Termini §12 (le tariffe in £ per Londra;
+     recesso UK = Consumer Contracts Regulations 2013), privacy, `/withdrawal`,
+     piè di pagina «Company & Markets», rimandi `/londra` e `/milano`. La ricetta
+     per la prossima città è la skill `.claude/skills/city-desk/SKILL.md`.
+  **Aperte, del fondatore (non bloccano la validazione)**:
+  - Londra:
+    - iscrizione IVA UK (NETP, nessuna soglia) prima di incassare «VAT included»;
+    - un redress scheme per la letting agency work fatta per l'inquilino (multa
+      fino a £5.000), da nominare in pagina;
+    - Application Pack e Attended Viewing su una casa trovata dal cliente:
+      l'esclusione del Tenant Fees Act è da far leggere a un legale inglese;
+    - il modulo di recesso UK.
+  - Milano:
+    - la persona che va alle visite può richiedere un'unità locale con preposto
+      (DM 26/10/2011);
+    - il Full Search pagato in anticipo e l'art. 6 L. 39/89.
+  - Il radar PFS non copre Londra né Milano: si cerca a mano.
+  Test: `tests/cities/run.mjs` 415, `checkout.mjs` 113, `calendar.mjs` 80, `ui.mjs` 144.
+
 ### BOOM Proprietari (`/owners` + `api/owner-lead.js`) — 30/09/2026
 Rifatta da zero su richiesta del fondatore («non è attraente, non converte,
 non rispecchia il nostro modo di lavorare»). Stessa dottrina di /executive

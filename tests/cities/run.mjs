@@ -37,7 +37,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {
-  buildAll, renderCity, writeAll, fill, findPlaceholders, fragments, familyFor, BuildError, esc, eur, GENERATED_MARK, WEIGHT_KB, BUDGET,
+  buildAll, renderCity, writeAll, fill, findPlaceholders, fragments, familyFor, BuildError, esc, eur, money, currencyOf, GENERATED_MARK, WEIGHT_KB, BUDGET,
   daysLabel, deskHoursText, feesRowOf, holidayKeyOf, visibleAtLoad, visibleText, sliceOf, words, waHref, WITHDRAWAL_PATH, TERMS_PATH
 } from '../../build-cities.mjs';
 import SCALO from '../../js/scalo-codes.js';
@@ -68,7 +68,7 @@ console.log('\n\x1b[1m▸ cities\x1b[0m  the city desks (v1.5, il biglietto): on
 
 const template = read('cities/_template.html');
 const shared = JSON.parse(read('cities/_shared.json'));
-const SLUGS = ['amsterdam', 'barcelona', 'berlin', 'madrid', 'paris'];
+const SLUGS = ['amsterdam', 'barcelona', 'berlin', 'london', 'madrid', 'milan', 'paris'];
 const CITY = Object.fromEntries(SLUGS.map((s) => [s, JSON.parse(read(`cities/${s}.json`))]));
 const ams = CITY.amsterdam;
 const assetVersion = { css: 'testcss000', js: 'testjs0000' };
@@ -86,7 +86,7 @@ const tplRefuses = (from, to, re, t, base = 'amsterdam') => {
 
 // ── 1 · the committed pages are exactly what the data builds ─────────────
 const pages = buildAll({ root: R });
-check(pages.length === 5 && pages.map((p) => p.slug).join() === SLUGS.join(), `the five desks are built from cities/*.json (${pages.map((p) => p.slug).join(', ')})`);
+check(pages.length === 7 && pages.map((p) => p.slug).join() === SLUGS.join(), `the seven desks are built from cities/*.json (${pages.map((p) => p.slug).join(', ')})`);
 for (const p of pages) {
   const f = path.join(R, p.file);
   const cur = fs.existsSync(f) ? fs.readFileSync(f, 'utf8') : null;
@@ -110,9 +110,9 @@ for (const s of SLUGS) {
   check(live ? (!/noindex/.test(head) && /content="index, follow/.test(head)) : /<meta name="robots" content="noindex">/.test(head),
     `${s} is ${live ? 'LIVE: index, follow' : 'a draft: noindex'} in the first 4000 chars (tests/seo rule 8 reads exactly there)`);
 }
-check(['amsterdam', 'madrid', 'barcelona'].every((s) => CITY[s].live && CITY[s].checkout === true && CITY[s].mode === 'search')
+check(['amsterdam', 'madrid', 'barcelona', 'london', 'milan'].every((s) => CITY[s].live && CITY[s].checkout === true && CITY[s].mode === 'search')
   && ['paris', 'berlin'].every((s) => !CITY[s].live && CITY[s].checkout === undefined && CITY[s].mode === 'waitlist'),
-  'the live set is pinned: Amsterdam, Madrid, Barcelona sell; Paris and Berlin are noindex waitlists without a till');
+  'the live set is pinned: Amsterdam, Madrid, Barcelona, London, Milan sell; Paris and Berlin are noindex waitlists without a till');
 const canon = (html.match(/<link rel="canonical" href="([^"]+)"/) || [])[1];
 check(canon === `${shared.siteUrl}/amsterdam` && /^https:\/\/www\.boomrome\.com$/.test(shared.siteUrl), `canonical comes from siteUrl, on www: ${canon}`);
 
@@ -220,8 +220,8 @@ check(html.includes(`<p class="stmt">${esc(ams.footer.statement)}</p>`) && html.
 // the family: a live page links only live sisters, then Rome
 {
   const links = (h) => [...sliceOf(h, '<nav aria-label="Legal and contact">', '</nav>').matchAll(/<a href="\/([a-z]+)">([^<]+) desk<\/a>/g)].map((m) => m[1]);
-  check(links(PAGE.amsterdam).join() === 'barcelona,madrid', `a live desk links only the live sisters (${links(PAGE.amsterdam).join(', ')})`);
-  check(links(PAGE.paris).join() === 'amsterdam,barcelona,berlin,madrid', 'a draft links every sister (the review sees the suite)');
+  check(links(PAGE.amsterdam).join() === 'barcelona,london,madrid,milan', `a live desk links only the live sisters (${links(PAGE.amsterdam).join(', ')})`);
+  check(links(PAGE.paris).join() === 'amsterdam,barcelona,berlin,london,madrid,milan', 'a draft links every sister (the review sees the suite)');
   const fam = familyFor({ slug: 'x', live: true }, [{ slug: 'b', city: 'B', live: false }, { slug: 'a', city: 'A', live: true }], { family: [{ label: 'BOOM Rome', href: '/' }] });
   check(fam.map((f) => f.href).join() === '/a,/' && fam[0].label === 'A desk', 'familyFor: live sisters only, alphabetical, labelled "<City> desk", then BOOM Rome');
 }
@@ -477,7 +477,7 @@ tplRefuses('<p class="proof">', '<p class="proof">Pay by bank transfer · ', /no
     // yet) reads Italy's, where its desk sits — said, never guessed
     if (c.checkout === true) check(holidayKeyOf(s) === (m.holidays || m.country) && CAL.HOLIDAY_KEYS.includes(holidayKeyOf(s)), `${s}: the page's desk window reads the webhook's calendar (${holidayKeyOf(s)}), a calendar that exists`);
     else check(holidayKeyOf(s) === m.country && !CAL.HOLIDAY_KEYS.includes(m.country) && CAL.isHoliday(2026, 8, 15, m.country) && CAL.isHoliday(2026, 12, 25, m.country), `${s}: a desk still opening reads the Italian calendar of the desk (key ${m.country} has no calendar of its own yet)`);
-    check(c.pricing.plans.every((p) => h.includes(`data-plan-price="${p.id}">${eur(p.price)}</span>`)), `${s}: every desk shows its list prices`);
+    check(c.pricing.plans.every((p) => h.includes(`data-plan-price="${p.id}">${money(p.price, currencyOf(s))}</span>`)), `${s}: every desk shows its list prices, in its own currency`);
     check(!/two months at most|extra guarantees two months/i.test(JSON.stringify(c)), `${s}: no "extra guarantees two months at most" (it waits for counsel after the 12/11 vote on RDL 29/2026)`);
   }
   for (const s of ['paris', 'berlin']) {
@@ -570,7 +570,7 @@ tplRefuses('<p class="proof">', '<p class="proof">Pay by bank transfer · ', /no
     check(iso && lm === iso, `${u}: the sitemap <lastmod> is the page's own "Last Updated" date`, `${iso} vs ${lm}`);
   }
   const pv = read('privacy.html');
-  check(!/AWS|SendGrid/.test(pv) && /Firebase/.test(pv) && /Vercel/.test(pv) && /Telegram/.test(pv) && /Anthropic/.test(pv) && /EmailJS/.test(pv) && /City desks \(Amsterdam, Barcelona, Madrid\)/.test(pv),
+  check(!/AWS|SendGrid/.test(pv) && /Firebase/.test(pv) && /Vercel/.test(pv) && /Telegram/.test(pv) && /Anthropic/.test(pv) && /EmailJS/.test(pv) && /City desks \(Amsterdam, Barcelona, London, Madrid, Milan\)/.test(pv),
     'the privacy policy names the real processors and what a city request is used for');
   const cityLine = (pv.match(/<li><strong>City desks[\s\S]*?<\/li>/) || [''])[0];
   check(cityLine && !/Check-in|list of papers/i.test(cityLine) && /name/i.test(cityLine) && /service you were looking at/.test(cityLine),
@@ -853,6 +853,48 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
   const guard = (from) => { const body = core.slice(from, from + 900); return body.indexOf('outsideRome(lead)') > -1; };
   check(guard(handIdx) && guard(openIdx) && core.slice(turnIdx, turnIdx + 1200).indexOf('outsideRome(lead)') < core.slice(turnIdx, turnIdx + 1200).indexOf('captureFollowUp'),
     'the Segretaria refuses a city or Réunion lead at the hand-over, at the opening, and inside a turn before it does anything');
+}
+
+
+// ── London (GBP) and Milan (02/11/2026): the currency the page prints is
+// the one Stripe charges, the phones of the desk's country, the aliases ──
+{
+  const lon = PAGE.london, mil = PAGE.milan;
+  check(money(500, 'GBP') === '£500' && money(1500, 'GBP') === '£1,500' && eur(500) === '€500' && currencyOf('london') === 'GBP' && currencyOf('milan') === 'EUR' && currencyOf('amsterdam') === 'EUR',
+    'money(): £ for London, € everywhere else (currencyOf reads api/_market.js)');
+  const offers = [...lon.matchAll(/"priceCurrency":\s*"([A-Z]{3})"/g)].map((m) => m[1]);
+  const offersM = [...mil.matchAll(/"priceCurrency":\s*"([A-Z]{3})"/g)].map((m) => m[1]);
+  check(offers.length >= 6 && offers.every((c) => c === 'GBP') && offersM.length >= 6 && offersM.every((c) => c === 'EUR'),
+    `London's Offers and price specifications say GBP, Milan's EUR (${offers.join()} / ${offersM.join()})`);
+  check(['£500', '£199', '£149'].every((x) => visibleText(lon).includes(x)) && !/€\s?\d/.test(visibleText(lon)) && !/£\s?\d/.test(visibleText(mil)),
+    'London prints its three fares in £ and never a € price; Milan never a £ one');
+  check(feesRowOf(CITY.london, shared).startsWith('<b>Full Search £500</b> · <b>Application Pack £199</b> · <b>Attended Viewing £149</b> per viewing.'),
+    'the London fees row is derived in £');
+  check(/"CURRENCY":\s*"GBP"/.test(lon) && /"SYMBOL":\s*"£"/.test(lon) && /"CURRENCY":\s*"EUR"/.test(mil), 'the page config carries the currency the JS formats and reports to analytics');
+  check(/Mon–Fri 08:00–18:00, London time/.test(visibleText(lon)) && /Mon–Fri 09:00–19:00, Italian time/.test(visibleText(mil)),
+    'London shows its desk hours in London time; Milan says Italian time (desk.zoneName), never "Rome time"');
+  const L = JSON.parse(JSON.stringify(CITY.london));
+  const tryL = (mut) => { const c = JSON.parse(JSON.stringify(L)); mut(c); try { render(c); return ''; } catch (e) { return String(e.message || e); } };
+  check(/a price the plans do not charge/.test(tryL((c) => { c.faq.items[0].a += ' An agent may ask for €500.'; })), 'a € price on the London page is refused (stray currency)');
+  check(/a price the plans do not charge/.test(tryL((c) => { c.meta.description = c.meta.description.slice(0, 120) + ' From £129.'; })), 'a £ price no plan charges is refused on London');
+  check(/stands without the refund rule/.test(tryL((c) => { c.pricing.plans[1].includes[0] = 'Upgrade to Full Search (£500)'; })), 'a £500 without the refund rule in its block is refused');
+  check(/currency/.test(tryL((c) => { delete c.currency; })) && /currency/.test(tryL((c) => { c.currency = 'EUR'; })), 'London must declare GBP, the currency api/_market.js charges');
+  check(tryL(() => {}) === '' && /more: £149 each/.test(tryL((c) => { c.pricing.plans[0].includes[2] = 'One attended viewing (more: €149 each)'; })), 'London renders as committed, and its Full Search line must say "(more: £149 each)"');
+  const { cityPhone, cityFromText } = await import('../../api/_market.js');
+  check(cityPhone('07700 900123', 'london') === '+447700900123' && cityPhone('020 7946 0018', 'london') === '+442079460018' && cityPhone('+44 (0)20 7946 0018', 'london') === '+442079460018'
+    && cityPhone('+44 07700 900123', 'london') === '+447700900123' && cityPhone('333 1234567', 'london') === null
+    && ['010 1234567', '011 1234567', '080 1234567', '081 1234567', '087 1234567'].every((x) => cityPhone(x, 'london') === null) && cityPhone('01632 960123', 'london') === '+441632960123',
+    'London phones: UK national shapes become +44 (trunk 0 dropped); an Italian mobile typed without +39 is not a UK number');
+  check(cityPhone('333 1234567', 'milan') === '+393331234567' && cityPhone('02 1234 5678', 'milan') === '+390212345678' && cityPhone('+39 02 1234 5678', 'milan') === '+390212345678' && cityPhone('+39 (0)2 1234 5678', 'milan') === '+390212345678' && cityPhone('+44 (0)20 7946 0018', 'milan') === '+442079460018',
+    'Milan phones: Italian mobiles and landlines, the trunk 0 KEPT on landlines (+39 02 …)');
+  check(cityFromText("Hi BOOM London, I'm moving to London.") === 'london' && cityFromText('Hi BOOM Milan') === 'milan' && cityFromText('Ciao BOOM Milano, mi trasferisco') === 'milan'
+    && cityFromText('BOOM Londra') === 'london' && cityFromText('BOOM Milanese') === null,
+    'the desk markers read back London/Londra and Milan/Milano, whole words only');
+  // every live desk is linked from the six pages that carry the "Company & Markets" column and from the two builders
+  const FOOT = ['index.html', 'apartments.html', 'try.html', 'your-money.html', 'how-it-works.html', 'apartment-detail.html', 'design/pages-deco/pt.html', 'design/pages-deco/patch-lotto2.py'];
+  const liveSlugs = SLUGS.filter((sl) => CITY[sl].live);
+  const missing = FOOT.flatMap((f) => liveSlugs.filter((sl) => !read(f).includes(`href="/${sl}"`) && !read(f).includes(`href="/${sl}.html"`)).map((sl) => `${f}:/${sl}`));
+  check(!missing.length, `every live desk is linked in the Company & Markets footers and their builders (${missing.join(', ') || 'all'})`);
 }
 
 

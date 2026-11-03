@@ -70,7 +70,8 @@ def card(c):
     # the sentence the page carries ("charged only when the desk opens")
     da = min(p['price'] for p in c['pricing']['plans'])
     da_label = 'from' if c.get('mode') == 'search' else 'opening &middot; from'
-    prezzo = f'<div class="prezzo"><u>{da_label}</u><s>&euro;{da}</s></div>'
+    sym = {'GBP': '&pound;'}.get(str(c.get('currency', 'EUR')).upper(), '&euro;')
+    prezzo = f'<div class="prezzo"><u>{da_label}</u><s>{sym}{da}</s></div>'
     # the proof line says only what every desk page says too (the v1.2
     # `machine` strip it used to read is gone, and with it "dossier 24h ·
     # apply <1h" — speed promises the pages dropped on 21/10 and the card

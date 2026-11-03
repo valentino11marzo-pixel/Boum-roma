@@ -30,7 +30,7 @@ import { requireCronOrAdmin } from '../pfs/_guard.js';
 import { reportEmployeeHealth } from '../employees/_lib.js';
 import { tgNotify } from '../pfs/_health.js';
 import { replyLang } from '../_lang.js';
-import { CITY_MARKETS, CITY_PLANS, cityPhone } from '../_market.js';
+import { CITY_MARKETS, CITY_PLANS, cityPhone, moneyOf } from '../_market.js';
 
 const WINDOW_DAYS = 14;
 const LEAD_SERVICES = new Set(['PFS', 'SERVICE', 'RESERVE']);
@@ -100,7 +100,7 @@ export function leadFromSession(s, now = new Date()) {
 
   const label = service === 'SERVICE' && m.kind ? m.kind : (PRICE_LABEL[service] || service);
 
-  // Un checkout di un desk città (Amsterdam, Madrid): il lead deve portare il
+  // Un checkout di un desk città (Amsterdam, Madrid, Londra…): il lead deve portare il
   // SUO mercato, altrimenti la macchina romana lo lavora — il Commerciale
   // scrive in italiano proponendo case a Roma e la card Telegram linka
   // /apartments. Con market + sourceRef `city-<slug>` isCityMarket() è vero:
@@ -110,6 +110,9 @@ export function leadFromSession(s, now = new Date()) {
   if (desk) {
     const plan = (desk.plans || CITY_PLANS)[m.kind] || null;
     const planLabel = plan ? plan.label : (m.kind || 'service');
+    // the currency the session was opened in (a London checkout is in
+    // pounds): '£500', and for euros the same '€500' as before
+    const currency = String(s.currency || desk.currency || 'eur').toLowerCase();
     return {
       type: 'recovery',
       service,
@@ -127,10 +130,11 @@ export function leadFromSession(s, now = new Date()) {
       // E.164 with the desk's country, as /api/city-lead and the paid webhook
       phone: (m.phone && cityPhone(m.phone, cityKey)) || m.phone || (s.customer_details && s.customer_details.phone) || '',
       listingName: m.listing || '',
-      message: `${desk.label.toUpperCase()} — checkout NOT completed on ${dateIt(s.created)} · ${planLabel} · €${amountEur}. Reached the payment page and stopped.${m.listing ? ' Property: ' + m.listing + '.' : ''}${m.notes ? ' Notes: ' + m.notes + '.' : ''}`,
+      message: `${desk.label.toUpperCase()} — checkout NOT completed on ${dateIt(s.created)} · ${planLabel} · ${moneyOf(amountEur, currency)}. Reached the payment page and stopped.${m.listing ? ' Property: ' + m.listing + '.' : ''}${m.notes ? ' Notes: ' + m.notes + '.' : ''}`,
       city: { key: cityKey, label: desk.label, mode: desk.mode, service: m.kind || null, serviceLabel: plan ? plan.label : null, abandoned: true },
+      // the amount in `currency` (the field keeps its name: pounds on London)
       amount_eur: amountEur,
-      currency: s.currency || 'eur',
+      currency,
       stripe_session_id: s.id,
       checkoutCreatedAt: new Date((s.created || 0) * 1000).toISOString(),
       createdAt: now.toISOString(),
