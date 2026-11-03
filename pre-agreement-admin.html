@@ -103,6 +103,41 @@ h1{font-weight:200;font-size:24px;letter-spacing:-.3px;margin-bottom:3px}
 .alertline b{color:#ffd0ac;font-weight:400}
 .nextstep{font-size:11px;color:var(--t3);margin-top:9px;padding-top:9px;border-top:1px solid var(--line-soft);line-height:1.6}
 .nextstep b{color:var(--gold-light);font-weight:400}
+.nextstep a{color:var(--gold-light)}
+/* ⋯ Altre azioni: il resto delle mosse, raggruppato (3/11/2026) */
+.acts details.more{display:block}
+.acts details.more[open]{flex-basis:100%}
+.acts details.more>summary{list-style:none;cursor:pointer;color:var(--t3);width:max-content}
+.acts details.more>summary::-webkit-details-marker{display:none}
+.acts details.more>summary i{font-style:normal;font-family:ui-monospace,monospace;font-size:10px;opacity:.75}
+.acts details.more[open]>summary{border-color:var(--line-gold);color:var(--gold)}
+.acts .moregrid{display:grid;gap:8px;margin-top:8px;padding:10px 11px;border:1px solid var(--line-soft);border-radius:12px;background:var(--surface)}
+.acts .mg{display:grid;grid-template-columns:74px 1fr;gap:8px;align-items:start}
+.acts .mgl{font-size:9px;letter-spacing:1.4px;text-transform:uppercase;color:var(--t4);padding-top:9px}
+.acts .mgb{display:flex;gap:6px;flex-wrap:wrap}
+@media(max-width:520px){.acts .mg{grid-template-columns:1fr;gap:4px}.acts .mgl{padding-top:0}}
+/* il percorso del deal: sette tappe dai fatti (3/11/2026) */
+.journey{margin-top:11px}
+.jsteps{list-style:none;display:flex;align-items:flex-start;margin:0;padding:0}
+.js{flex:1 1 0;min-width:0;position:relative;display:flex;flex-direction:column;align-items:center;font-size:9px;letter-spacing:.8px;text-transform:uppercase;color:var(--t4)}
+.js::before{content:"";position:absolute;top:5px;left:-50%;right:50%;height:1px;background:var(--line)}
+.js:first-child::before{display:none}
+.js.done::before{background:var(--gold-deep)}
+.js i{width:11px;height:11px;border-radius:50%;border:1px solid var(--line);background:var(--card);position:relative;z-index:1}
+.js.done i{background:var(--gold);border-color:var(--gold)}
+.js.now i{border-color:var(--gold);box-shadow:0 0 0 3px var(--gold-muted)}
+.js.unk i{border-style:dashed;border-color:var(--t4)}
+.js.late i{border-color:#ff965a;box-shadow:0 0 0 3px rgba(255,150,90,.16)}
+.js span{margin-top:5px;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.js.done span{color:var(--t3)}
+.js.now span{color:var(--gold-light)}
+.js.late span{color:#ffb27a}
+.jnow{font-size:11.5px;color:var(--t3);margin-top:7px;line-height:1.6}
+.jnow b{color:var(--t1);font-weight:400}
+.jnow .jn{font-family:ui-monospace,monospace;font-size:10px;color:var(--t4)}
+.jnow a{color:var(--gold-light);text-decoration:none;white-space:nowrap}
+.jnow .jlate{display:block;color:#ffb27a}
+@media(max-width:560px){.js span{display:none}}
 
 /* ── form ── */
 .card{border:1px solid var(--line-soft);border-radius:16px;background:var(--card);padding:18px;margin-bottom:12px;position:relative;overflow:hidden}
@@ -205,6 +240,7 @@ h1{font-weight:200;font-size:24px;letter-spacing:-.3px;margin-bottom:3px}
           <button data-f="paid" onclick="setFilter('paid',this)">Pagati<i></i></button>
           <button data-f="signed" onclick="setFilter('signed',this)">Firmati<i></i></button>
           <button data-f="nocontract" onclick="setFilter('nocontract',this)">Da contratto<i></i></button>
+          <button data-f="stuck" onclick="setFilter('stuck',this)" title="Deal accettati con una tappa ferma oltre la sua soglia, o con la scadenza RLI vicina">Fermi<i></i></button>
           <button data-f="reserve" onclick="setFilter('reserve',this)">Riserve<i></i></button>
           <button data-f="revoked" onclick="setFilter('revoked',this)">Revocati<i></i></button>
         </div>
@@ -666,7 +702,14 @@ function sigState(d){
     external:(d&&d.contractSignatureSource==='external')?{signedDate:'',prep:'',welcome:false,payments:false,partial:true}:null};
 }
 /* il prossimo passo, dal punto in cui il deal è DAVVERO */
-function nextStepLine(d,sig,st,m){
+/* dopo la firma il prossimo passo lo dice il PERCORSO: prima la riga
+   ripeteva «registrazione» anche a contratto già registrato */
+function nextAfterSign(J,portal){
+  var reg=J&&J.steps.filter(function(s){return s.k==='reg';})[0];
+  if(!reg||reg.state!=='done')return ' Prossimo passo: <b>registrazione</b> ('+(portal?'🏛 nel portal':'🏛 ASPI dal portal')+')'+(portal?'.':' e 📦 Fascicolo ARPE.');
+  return ' Registrazione ✓'+(reg.at?' il '+fmtD(reg.at):'')+(J.cur?'. Prossimo passo: <b>'+esc(J.cur.label.toLowerCase())+'</b>.':' — percorso completo.');
+}
+function nextStepLine(d,sig,st,m,J){
   var day=function(v){return v?String(v).slice(0,10):'—'};
   var tail=(st==='accepted'&&(m.dueAtSigning||0)>0)?' <span style="color:var(--gold-light)">Pagamento ancora in sospeso.</span>':'';
   if(sig.status==='complete'&&sig.external){
@@ -674,12 +717,12 @@ function nextStepLine(d,sig,st,m){
     return '✓ <b>Firmato fuori da Magic Sign</b>'+(x.signedDate?' il '+esc(x.signedDate):'')+' — PDF caricato dalla console. '
       +(x.partial?'':'Recupero: <b>'+(x.prep==='ready'?'pronto':x.prep?esc(x.prep):'da fare')+'</b> · benvenuto: '+(x.welcome?'inviato':'<b>non inviato</b>')+' · canoni: '+(x.payments?'in calendario':'<b>non creati</b>')+'. ')
       +((x.partial||x.prep!=='ready'||!x.welcome||!x.payments)?'Completa da <b>📎 Firmato: riprendi</b>. ':'')
-      +'Prossimo passo: <b>registrazione</b> (🏛 nel portal).'+tail;
+      +nextAfterSign(J,true).replace(/^ /,'')+tail;
   }
   if(sig.status==='complete'){
     return '✓ <b>Contratto firmato da entrambi</b> il '+day(sig.fullyAt||sig.landlordAt||sig.tenantAt)
       +(sig.loaded?(sig.finalized?' — attivo: certificato FES, scadenze ed email di benvenuto partiti.':' — post-firma in corso (certificato, scadenze, email); se resta così, <b>Rigenera</b> sulla riga contratto del portal.'):'.')
-      +' Prossimo passo: <b>registrazione</b> (🏛 ASPI dal portal) e 📦 Fascicolo ARPE.'+tail;
+      +nextAfterSign(J,false)+tail;
   }
   if(sig.tenantSigned&&sig.coPending&&sig.coPending.length){
     return '✍ <b>L’inquilino ha firmato</b> il '+day(sig.tenantAt)+' — mancano i <b>co-conduttori</b> ('+esc(sig.coPending.join(', '))+'): '
@@ -1973,6 +2016,161 @@ function paidOf(d){
   d=d||{};
   return !!(d.paidAt||d.paidSessionId||d.status==='paid'||Number(d.paidEur)>0);
 }
+/* ── LA RIGA CHE NON URLA (3/11/2026) ───────────────────────────────────
+   Misurato a 390px: fino a 18 bottoni sulla stessa riga (780px di riga),
+   tutti dello stesso peso. Le azioni si costruiscono come prima (la stessa
+   espressione: i test la leggono), poi si SMISTANO: in vista la mossa
+   primaria, le vie d'uscita (stato, riserva, «ha pagato?») e al massimo due
+   mosse del punto in cui il deal È; il resto in «⋯ Altre azioni»,
+   raggruppato per Firma · Contratto · Soldi · Proposta. Nessuna azione
+   sparisce: cambia solo dove sta. Il menu aperto resta aperto fra un
+   aggiornamento e l'altro (MORE_OPEN): la riga si ridisegna a ogni firma. */
+var MORE_OPEN={};
+window.moreTog=function(id,open){if(open)MORE_OPEN[id]=1;else delete MORE_OPEN[id];};
+var ACT_GROUPS=[
+  ['Firma',/signFor\(|sendSign\(|coLinksFor\(|askMandateFor\(|askLandlordMandateFor\(|>[^<]*Firma (su WhatsApp|proprietario)|copyTxt\(|Controfirma|Certificato FES/],
+  ['Contratto',/convertPA\(|uploadSigned\(|uploadRevision\(|reviseTemplate\(|completaDati\(|draftPdf\(|>Apri bozza|📄 Contratto|fascicoloPA\(|#aspi=|sendLandlordScheda\(|Contratto firmato/],
+  ['Soldi',/feeLinkFor\(|resolvePA\(/],
+  ['Proposta',/[\s\S]/]
+];
+function actItems(html){return String(html||'').match(/<(button|a)\b[\s\S]*?<\/\1>/g)||[];}
+function actGroup(h){for(var i=0;i<ACT_GROUPS.length;i++)if(ACT_GROUPS[i][1].test(h))return ACT_GROUPS[i][0];return 'Proposta';}
+function actsBar(html,o){
+  o=o||{};
+  var items=actItems(html),vis=[],more=[];
+  items.forEach(function(h){(/class="pbtn prim/.test(h)||/resolvePA\(/.test(h)?vis:more).push(h);});
+  var room=o.max||0;
+  (o.ctx||[]).forEach(function(re){
+    if(room<=0)return;
+    for(var i=0;i<more.length;i++){if(re.test(more[i])){vis.push(more.splice(i,1)[0]);room--;return;}}
+  });
+  var body='';
+  if(more.length){
+    var by={};more.forEach(function(h){var g=actGroup(h);(by[g]=by[g]||[]).push(h);});
+    body='<details class="more"'+(MORE_OPEN[o.id]?' open':'')+' ontoggle="moreTog(\''+o.id+'\',this.open)">'
+      +'<summary class="pbtn">⋯ Altre azioni <i>'+more.length+'</i></summary><div class="moregrid">'
+      +ACT_GROUPS.map(function(g){var l=by[g[0]];return l?'<div class="mg"><span class="mgl">'+g[0]+'</span><div class="mgb">'+l.join('')+'</div></div>':'';}).join('')
+      +'</div></details>';
+  }
+  return '<div class="acts">'+vis.join('')+body+'</div>';
+}
+/* le mosse "di contesto": quelle che il punto del deal rende probabili */
+function actCtx(d,o){
+  if(!o.done)return {id:d.id,max:4,ctx:[/copyPaLink\(/,/wa\.me/,/editPA\(/,/revokePA\('[^']*',true\)/,/>Apri</]};
+  if(o.noContract)return {id:d.id,max:2,ctx:[/uploadSigned\(/,/sendLandlordScheda\(/]};
+  if(o.sig.status==='complete')return {id:d.id,max:2,ctx:[/#aspi=/,/feeLinkFor\(/,/uploadSigned\(/]};
+  if(o.sig.tenantSigned)return {id:d.id,max:2,ctx:[/askLandlordMandateFor\(/,/copyTxt\(/,/sendLandlordScheda\(/,/signFor\(/]};
+  return {id:d.id,max:2,ctx:[/>Firma su WhatsApp</,/sendSign\(/,/completaDati\('[^']*'\)/,/coLinksFor\(/,/askMandateFor\(/]};
+}
+
+/* ── IL PERCORSO DEL DEAL (3/11/2026) ──────────────────────────────────
+   La riga finiva alla firma: registrazione, chiavi e provvigione vivevano
+   in altre pagine, e un deal «firmato» poteva restare fermo un mese senza
+   che la console lo dicesse. Sette tappe, ognuna dal FATTO che la console
+   già ascolta (proposta + contratto): mai una tappa spuntata per stima. Il
+   contratto non ancora letto = «?» (non si sa), mai «da fare»; un fatto
+   assente si dice per quello che è («nessuna registrazione segnata»), mai
+   «non registrato». Ogni tappa ha la sua soglia di «fermo»; a contratto
+   concluso nessun allarme. */
+var DAYMS=86400000;
+function ymd(v){return String(isoOf(v)||'').slice(0,10);}
+function romeToday(){try{return new Date().toLocaleDateString('en-CA',{timeZone:'Europe/Rome'});}catch(e){return new Date().toISOString().slice(0,10);}}
+function dDiff(a,b){var x=Date.parse(a+'T00:00:00Z'),y=Date.parse(b+'T00:00:00Z');return (isNaN(x)||isNaN(y))?null:Math.round((y-x)/DAYMS);}
+function fmtD(v){var s=ymd(v);if(!s)return '';var p=s.split('-');return p[2]+'/'+p[1]+(p[0]!==romeToday().slice(0,4)?'/'+p[0].slice(2):'');}
+/* mirror di FIELDS.rliFacts().registrationDeadline (js/contract-fields.js):
+   30 giorni da min(stipula, decorrenza), giorno di calendario. Il test di
+   parità le confronta sugli stessi contratti: divergere vorrebbe dire una
+   scadenza sbagliata detta all'operatore. */
+function rliDeadlineUi(c){
+  c=c||{};
+  var stip=ymd(c.fullySignedAt||c.signatureDate),dec=ymd(c.startDate);
+  var from=[stip,dec].filter(Boolean).sort()[0]||'';
+  if(!from)return '';
+  var t=new Date(from+'T00:00:00Z');if(isNaN(t))return '';
+  t.setUTCDate(t.getUTCDate()+30);return t.toISOString().slice(0,10);
+}
+function dealJourney(d){
+  d=d||{};
+  var st=d.status||'sent',m=d.money||{},today=romeToday();
+  if(st!=='accepted'&&st!=='paid'&&!paidOf(d))return null;
+  var sig=sigState(d),cid=contractIdOf(d),c=cid?CONTRACTS[cid]:null,cl=!!(c&&!c.missing);
+  var steps=[],add=function(k,label,state,at,note,late){steps.push({k:k,label:label,state:state,at:at||'',note:note||'',late:late||''});};
+  var accAt=ymd(d.acceptedAt||(d.consent&&d.consent.at));
+  var since=function(v){var s=ymd(v);return s?dDiff(s,today):null;};
+  var start=ymd((cl&&c.startDate)||(d.lease||{}).startDate);
+  var end=ymd(cl&&c.endDate);
+  var over=!!(end&&today>end);            /* contratto concluso: si racconta, non si allarma */
+  var lateIf=function(cond,msg){return (!over&&cond)?msg:'';};
+  /* 1 · accettata */
+  add('acc','Accettata','done',accAt);
+  /* 2 · pagato (il dovuto alla firma, dalla proposta) */
+  var due=Math.round(Number(m.dueAtSigning)||0)+Math.round(Number(d.addonsEur)||0);
+  if(due<=0)add('pay','Pagato','done',accAt,'nulla alla firma');
+  else if(paidOf(d))add('pay','Pagato','done',ymd(d.paidAt));
+  else{var dp=since(accAt);add('pay','Pagato','todo','',eur(due)+' alla firma',lateIf(dp!=null&&dp>=2,'accettata '+dp+' gg fa, non pagata'));}
+  /* 3 · contratto nel sistema */
+  var payAt=ymd(d.paidAt)||accAt;
+  if(cid)add('ctr','Contratto','done',ymd(d.convertedAt||(cl&&c.createdAt)));
+  else{var dc=since(payAt);add('ctr','Contratto','todo','','',lateIf(paidOf(d)&&dc!=null&&dc>=3,'pagato '+dc+' gg fa, contratto non creato'));}
+  /* 4 · firme */
+  if(sig.status==='complete')add('sig','Firme','done',ymd(sig.fullyAt||sig.landlordAt||sig.tenantAt));
+  else{
+    var sFrom=ymd(d.signSentAt||d.convertedAt),ds=since(sFrom);
+    add('sig','Firme','todo','',sig.tenantSigned?'inquilino ✓':(d.signSentAt?'invito del '+fmtD(d.signSentAt):''),lateIf(cid&&cl&&ds!=null&&ds>=5,'firme ferme da '+ds+' gg'));
+  }
+  /* 5 · registrazione RLI (scadenza = rliFacts, solo a firme complete) */
+  if(!cid)add('reg','Registrazione','todo');
+  else if(!cl)add('reg','Registrazione','unk');
+  else if(c.registrationStatus==='registered'||c.rliRegisteredAt)add('reg','Registrazione','done',ymd(c.rliRegisteredAt||c.registeredAt),c.registrationCode?'cod. '+String(c.registrationCode).slice(0,24):'');
+  else{
+    var dl=sig.status==='complete'?rliDeadlineUi(c):'',left=dl?dDiff(today,dl):null;
+    var sent=c.registrationStatus==='sent';
+    var note=(sent?'inviata il '+fmtD(c.aspiRequestedAt):'nessuna registrazione segnata')+(dl?' · entro il '+fmtD(dl):'');
+    add('reg','Registrazione','todo','',note,
+      lateIf(left!=null&&left<0,'scadenza RLI passata il '+fmtD(dl)+' (nessuna registrazione segnata)')
+      ||lateIf(left!=null&&left<=7,'RLI entro il '+fmtD(dl)+' — '+left+' gg'));
+  }
+  /* 6 · chiavi (verbale di consegna) */
+  var vb=cl&&c.verbaleConsegna&&c.verbaleConsegna.at?c.verbaleConsegna:null;
+  if(vb)add('key','Chiavi','done',ymd(vb.at));
+  else if(cid&&!cl)add('key','Chiavi','unk');
+  else{var dk=start?dDiff(start,today):null;add('key','Chiavi','todo','',start?'ingresso '+fmtD(start):'',lateIf(cid&&dk!=null&&dk>=2,'ingresso del '+fmtD(start)+', nessun verbale di consegna'));}
+  /* 7 · provvigione (solo se si incassa a parte: alla firma è dentro «Pagato») */
+  var feeT=Math.round((Number(m.feeTotal)||Number(m.fee)||0)*100)/100;
+  if(feeT>0&&m.feeDue!=='signing'){
+    if(d.feePaidAt)add('fee','Provvigione','done',ymd(d.feePaidAt));
+    else{
+      var dueF=m.feeDue==='move-in'?start:'',df=dueF?dDiff(dueF,today):null;
+      add('fee','Provvigione','todo','',eur(feeT)+(dueF?' all’ingresso':'')+(d.feeInvoiceId?' · link pronto':' · link da preparare'),
+        lateIf(df!=null&&df>=3,'provvigione '+eur(feeT)+' aperta da '+df+' gg dall’ingresso'));
+    }
+  }
+  var cur=null;for(var i=0;i<steps.length;i++){if(steps[i].state!=='done'){cur=steps[i];break;}}
+  if(cur&&cur.state==='todo')cur.state='now';
+  var lates=steps.filter(function(s){return s.late;});
+  return {steps:steps,cur:cur,late:lates.length?lates:null,over:over,end:end,cid:cid,n:steps.length,
+    idx:cur?steps.indexOf(cur)+1:steps.length};
+}
+/* quiet: le tappe il cui ritardo lo dice già l'avviso della riga */
+function journeyHtml(d,j,quiet){
+  if(!j)return '';
+  quiet=quiet||[];
+  var dots=j.steps.map(function(s){
+    var t=s.label+': '+(s.state==='done'?('fatto'+(s.at?' il '+fmtD(s.at):'')+(s.note?' · '+s.note:'')):s.state==='unk'?'contratto non ancora letto':('da fare'+(s.note?' · '+s.note:'')))+(s.late?' — '+s.late:'');
+    return '<li class="js '+s.state+(s.late?' late':'')+'" title="'+escA(t)+'" aria-label="'+escA(t)+'"><i></i><span>'+esc(s.label)+'</span></li>';
+  }).join('');
+  var line='';
+  if(!j.cur)line='✓ <b>Percorso completo</b>'+(j.over?' · contratto concluso':'');
+  else if(j.over)line='<b>Contratto concluso</b> il '+fmtD(j.end)+' · '+esc(j.cur.label)+': '+(j.cur.note?esc(j.cur.note):'non segnata');
+  else{
+    line='<b>'+esc(j.cur.label)+'</b> <span class="jn">'+j.idx+'/'+j.n+'</span>'+(j.cur.note?' · '+esc(j.cur.note):'');
+    if(j.cid&&(j.cur.k==='reg'))line+=' · <a href="/portal#aspi='+encodeURIComponent(j.cid)+'" target="_blank" rel="noopener">🏛 Apri la registrazione</a>';
+    if(j.cid&&(j.cur.k==='key'))line+=' · <a href="/verbale?c='+encodeURIComponent(j.cid)+'" target="_blank" rel="noopener">🔑 Verbale di consegna</a>';
+  }
+  var shown=(j.late||[]).filter(function(s){return quiet.indexOf(s.k)<0;});
+  if(shown.length)line+='<span class="jlate">⚠ '+shown.map(function(s){return esc(s.late);}).join(' · ')+'</span>';
+  return '<div class="journey"><ol class="jsteps" aria-label="Percorso del deal">'+dots+'</ol><div class="jnow">'+line+'</div></div>';
+}
 function paRow(d){
   var st=(d.status||'sent'),m=d.money||{},t=d.tenant||{},ll=d.landlord||{},url=location.origin+'/pre-agreement?t='+d.token;
   var when=(d.createdAt||'').slice(0,10);
@@ -1987,15 +2185,15 @@ function paRow(d){
   /* il deal PAGATO senza contratto è un binario morto: niente Magic Sign,
      rate, journey, registrazione — e finora la riga non lo diceva */
   var noContract=gotMoney&&!cid&&st!=='reserve';
+  var J=dealJourney(d);   /* le sette tappe, dai fatti (proposta + contratto) */
   /* la riga che mancava: cosa c'è che non va, e la mossa per uscirne */
   var alertLine='';
   if(noContract&&!mismatch){
     var days=d.paidAt?Math.max(0,Math.round((Date.now()-new Date(d.paidAt).getTime())/86400000)):null;
     alertLine='<div class="alertline"><b>💶 Pagato'+(d.paidAt?' il '+String(d.paidAt).slice(0,10):'')+(days!=null?' ('+days+' giorni fa)':'')+' — contratto NON ancora creato nel sistema</b>: '
-      +'senza contratto non partono Magic Sign, rate, journey né registrazione, e non esistono la Scheda né i link di firma delle parti. '
-      +(d.propertyId?'Premi <b>🖊 Magic Sign</b>: crea il contratto e manda il link.':'Premi <b>→ Contratto</b> e scegli l’immobile'+(((d.property||{}).address)?' («'+esc(String((d.property||{}).address).slice(0,40))+'»)':'')+'; se non è nel portal, lo crei dalla proposta con un tap, lì dentro.')
-      +' Per il proprietario, <b>📋 Scheda proprietario</b> crea il contratto e ti dà subito il link dei suoi dati.'
-      +' Già firmato su carta? <b>📎 Carica firmato</b> crea il contratto e lo fa ripartire dal PDF.'
+      +'senza, niente Magic Sign, rate né registrazione, e non esistono la Scheda né i link di firma delle parti. '
+      +(d.propertyId?'<b>🖊 Magic Sign</b> lo crea e manda il link.':'<b>→ Contratto</b>: scegli l’immobile; se non è nel portal, lo crei dalla proposta con un tap.')
+      +' <b>📋 Scheda proprietario</b> crea il contratto e ti dà il link dei suoi dati; firmato su carta: <b>📎 Carica firmato</b>.'
       +'</div>';
   }
   if(mismatch){
@@ -2022,7 +2220,7 @@ function paRow(d){
   if(hasMandate){
     docsLine+='<div class="docs" style="color:var(--gold)">🖊 Mandato a firmare ricevuto il '+esc(String((d.mandate&&d.mandate.at)||(cdoc&&cdoc.tenantMandate&&cdoc.tenantMandate.at)||'').slice(0,10))+' — <b>✍️ Firmo io</b> firma per il conduttore dalla console, con la tua firma salvata</div>';
   }else if(done&&!sig.tenantSigned){
-    docsLine+='<div class="docs" style="color:var(--t3)">🖊 '+(d.askMandate===true?'Mandato offerto ma non dato':'Nessun mandato a firmare')+' — <b>🖊 Chiedi il mandato</b> glielo chiede con un tap (WhatsApp); senza, il conduttore firma col suo link</div>';
+    docsLine+='<div class="docs" style="color:var(--t3)" title="🖊 Chiedi il mandato (⋯ Altre azioni) glielo chiede con un tap; senza, il conduttore firma col suo link">🖊 '+(d.askMandate===true?'Mandato conduttore offerto, non ancora dato':'Nessun mandato del conduttore')+'</div>';
   }
   /* il mandato del PROPRIETARIO (dalla sua Scheda, sul contratto): con
      quello ✍️ Controfirmo io firma per lui dalla console, «per mandato» */
@@ -2031,7 +2229,7 @@ function paRow(d){
   if(lmand){
     docsLine+='<div class="docs" style="color:var(--gold)">🏠 Mandato del proprietario ricevuto il '+esc(String(lmand.at||'').slice(0,10))+(lmand.docUrl?' · <a href="'+lmand.docUrl+'" target="_blank" rel="noopener">PDF</a>':'')+' — <b>✍️ Controfirmo io</b> firma per il proprietario dalla console (dopo il conduttore)</div>';
   }else if(done&&!sig.landlordSigned&&sig.status!=='complete'){
-    docsLine+='<div class="docs" style="color:var(--t3)">🏠 '+(lask?'Mandato chiesto al proprietario, non ancora dato':(d.delegated?'Delega del proprietario a base dichiarata dall’operatore':'Nessun mandato del proprietario'))+' — <b>🏠 Chiedi il mandato al proprietario</b>: per lui è un tap sulla sua scheda; senza, firma col suo link</div>';
+    docsLine+='<div class="docs" style="color:var(--t3)" title="🏠 Chiedi il mandato al proprietario: per lui è un tap sulla sua scheda; senza, firma col suo link">🏠 '+(lask?'Mandato chiesto al proprietario, non ancora dato':(d.delegated?'Delega del proprietario a base dichiarata dall’operatore':'Nessun mandato del proprietario'))+'</div>';
   }
   /* 💶 la provvigione (fattura prov_<id> + link stabile): il suo stato, dalla
      proposta (il webhook la timbra quando arriva il pagamento) */
@@ -2039,7 +2237,7 @@ function paRow(d){
   var feeOn=done&&feeT>0&&m.feeDue!=='signing';
   if(feeOn){
     docsLine+='<div class="docs" style="color:'+(d.feePaidAt?'var(--green)':'var(--t3)')+'">💶 Provvigione <b style="font-weight:400;color:var(--t1)">'+eur(feeT)+'</b> IVA incl. — '+(m.feeDue==='move-in'?'all’ingresso':'da incassare')+' · '
-      +(d.feePaidAt?'✓ incassata il '+esc(String(d.feePaidAt).slice(0,10)):(d.feeInvoiceId?'link pronto (fattura '+esc(d.feeInvoiceId)+') — non ancora pagata':'link non ancora preparato — <b>💶 Link provvigione</b>'))+'</div>';
+      +(d.feePaidAt?'✓ incassata il '+esc(String(d.feePaidAt).slice(0,10)):(d.feeInvoiceId?'link pronto (fattura '+esc(d.feeInvoiceId)+') — non ancora pagata':'link non ancora preparato'))+'</div>';
   }
   if(cid&&sig.loaded&&sig.version>1){
     docsLine+='<div class="docs" style="color:var(--gold-light)">📄 Contratto <b>versione '+sig.version+'</b> — '+(sig.pdfSource==='upload'?'PDF caricato da te':'modello BOOM rigenerato')+(sig.revisedAt?' il '+esc(String(sig.revisedAt).slice(0,10)):'')+(sig.pdfNote?' · «'+esc(sig.pdfNote)+'»':'')+'. È questo che le parti firmano.</div>';
@@ -2067,7 +2265,8 @@ function paRow(d){
     +(d.validUntil&&!done&&st!=='revoked'?(paExpiredUi(d)?' · <span style="color:#ff8a70;font-weight:500">⌛ OFFERTA SCADUTA — ✎ Modifica per estenderla</span>':' · <span style="color:var(--gold-light)">valida fino al '+d.validUntil+'</span>'):'')+'</div>'
     +docsLine
     +alertLine
-    +'<div class="acts">'
+    +journeyHtml(d,J,(noContract&&!mismatch)?['ctr']:[])
+    +actsBar(''
     /* la via d'uscita, dove serve: stato da riparare · riserva da sbloccare ·
        "ha pagato?" quando il dovuto risulta ancora aperto (chiede a Stripe) */
     +(mismatch?'<button class="pbtn prim" onclick="resolvePA(\''+d.id+'\',this)">⚠ Sistema lo stato</button>':'')
@@ -2150,8 +2349,8 @@ function paRow(d){
        accettato non pagato (le proposte di prova restavano lì per sempre) */
     +(st==='revoked'?'<button class="pbtn" onclick="revokePA(\''+d.id+'\',true)">Riattiva</button>'
       :(!gotMoney&&!cid&&st!=='paid'?'<button class="pbtn warn" onclick="revokePA(\''+d.id+'\')">Revoca</button>':''))
-    +'</div>'
-    +(done?'<div class="nextstep">'+nextStepLine(d,sig,st,m)+'</div>':'')
+    ,actCtx(d,{done:done,noContract:noContract,sig:sig}))
+    +(done&&!(noContract&&!mismatch)?'<div class="nextstep">'+nextStepLine(d,sig,st,m,J)+'</div>':'')
     +'</div>';
 }
 
@@ -2168,6 +2367,7 @@ function matchFilter(d){
   if(FILTER==='paid')return paidOf(d);          /* l'incasso, non l'etichetta */
   if(FILTER==='signed')return sigState(d).status==='complete';   /* le firme, non l'etichetta */
   if(FILTER==='nocontract')return paidOf(d)&&!contractIdOf(d)&&st!=='reserve';   /* pagati fermi: il binario morto */
+  if(FILTER==='stuck'){var jj=dealJourney(d);return !!(jj&&jj.late);}   /* una tappa ferma, dai fatti */
   if(FILTER==='reserve')return st==='reserve';
   if(FILTER==='revoked')return st==='revoked';
   return true;
@@ -2183,8 +2383,9 @@ window.renderList=function(){
   $('paRows').innerHTML=rows.map(paRow).join('');
   $('emptyRows').style.display=rows.length?'none':'';
   /* filter counts */
-  var cnt={all:PAS.length,open:0,close:0,paid:0,signed:0,nocontract:0,reserve:0,revoked:0};
+  var cnt={all:PAS.length,open:0,close:0,paid:0,signed:0,nocontract:0,stuck:0,reserve:0,revoked:0};
   PAS.forEach(function(d){var st=d.status||'sent';
+    var jj=dealJourney(d);if(jj&&jj.late)cnt.stuck++;
     if(sigState(d).status==='complete')cnt.signed++;
     if(paidOf(d)&&!contractIdOf(d)&&st!=='reserve')cnt.nocontract++;
     if(paidOf(d))cnt.paid++;

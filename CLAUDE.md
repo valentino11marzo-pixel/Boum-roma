@@ -5946,8 +5946,39 @@ nessun documento pagabile.
   non conosce: sempre il tuo ✅); ingresso entro 10 giorni con provvigione all'ingresso e nessuna fattura →
   riga 💶 nel digest. Il Gestore non emette MAI la fattura: la emette il 💶 della console.
 Test: `node tests/pa-external/run.mjs` (24 scenari, handler veri, Gestore compreso), `mutate.mjs` (14
-mutazioni prese), `ui.mjs` (Chromium 390/1280, 44 controlli: differenze del PDF e benvenuto incerto nel
+mutazioni prese), `ui.mjs` (Chromium 390/1280, 52 controlli: differenze del PDF e benvenuto incerto nel
 browser), `tests/journey/steps.mjs` (provvigione a T-7/T-1, runner vero, mutazioni `fee-paid` e `fee-runner`).
+
+### La riga della console che dice dov'è il deal (3/11/2026)
+Misurato a 390px: una riga portava fino a 18 bottoni dello stesso peso (~780px) e finiva alla firma;
+registrazione, chiavi e provvigione vivevano in altre pagine.
+- **Le azioni si smistano, non spariscono** (`actsBar`, `actCtx`). L'espressione che costruisce i bottoni
+  è quella di prima, così i test sulla sorgente restano validi. Poi si smista. In vista restano la
+  primaria, le vie d'uscita (`resolvePA`) e al massimo due mosse del punto in cui il deal è (quattro su una
+  proposta non accettata). Il resto va in «⋯ Altre azioni», raggruppato per Firma · Contratto · Soldi ·
+  Proposta. Il menu aperto resta aperto ai ridisegni (`MORE_OPEN`). Righe: 780 → ~430–490px a 390.
+- **Il percorso del deal** (`dealJourney`, `journeyHtml`): sette tappe lette dai fatti della proposta e
+  del contratto che la console già ascolta. Le tappe: accettata, pagato (nulla dovuto = fatto), contratto,
+  firme, registrazione, chiavi (`verbaleConsegna`), provvigione (solo se si incassa a parte).
+  - Il contratto non ancora letto è «?»: mai fatto, mai in ritardo.
+  - Un fatto assente si dice «nessuna registrazione segnata», mai «non registrato».
+  - A contratto concluso (`endDate` passata) nessun allarme.
+  - Ogni tappa ha la sua soglia di «fermo»: pagamento 2 giorni, contratto 3, firme 5, ingresso senza
+    verbale 2, provvigione 3 dall'ingresso. La registrazione è ferma a 7 giorni dalla scadenza, o a
+    scadenza passata.
+  - La scadenza è `rliDeadlineUi`, copia di `FIELDS.rliFacts().registrationDeadline` (30 giorni da
+    min(stipula, decorrenza)); vale solo a firme complete. `tests/consoleux` le confronta.
+  - Link alla tappa: 🏛 `/portal#aspi=<cid>` per la registrazione, 🔑 `/verbale?c=<cid>` per le chiavi.
+  - Il prossimo passo dopo la firma segue il percorso: a registrazione fatta non dice più
+    «registrazione».
+  - Sul pagato senza contratto il ritardo si dice una volta sola, nell'avviso della riga.
+- **Filtro «Fermi»**: i deal con almeno una tappa ferma.
+- Aperto: le soglie sono numeri nostri, non regole di legge (tranne i 30 giorni dell'RLI). Contratti
+  registrati prima che `rliRegisteredAt` esistesse compaiono «fermi» finché qualcuno non segna la
+  registrazione: è un invito a sistemare il dato, non un allarme falso.
+Test: `node tests/consoleux/run.mjs` (console montata con orologio fermo, 25 controlli + 10 mutazioni
+prese), `tests/pa-external/ui.mjs` (in vista ≤4 mosse e 7 tappe dentro la riga, menu che resta aperto),
+`tests/firma/console.mjs`.
 
 ### Le regole IN VIGORE ≠ le regole nel file (31/08/2026)
 Il difetto più caro trovato in questa tornata, e nessuna suite poteva

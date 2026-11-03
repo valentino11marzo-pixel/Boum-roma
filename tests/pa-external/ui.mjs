@@ -73,8 +73,28 @@ try {
     await row.waitFor({ timeout: 10000 });
     ok(await row.getByText('Provvigione').count() > 0 && /€1,464/.test(await row.innerText()), width + 'px: la riga dice la provvigione e la cifra firmata');
     ok(await row.getByRole('button', { name: '📎 Carica firmato' }).count() === 1, width + 'px: «📎 Carica firmato» anche senza contratto');
+    // la riga che non urla (3/11/2026): in vista poche mosse, il percorso del deal sopra
+    // misura nello STESSO task del DOM (la riga si ridisegna a ogni snapshot:
+    // un handle risolto prima può essere già staccato, con rettangoli a zero)
+    await page.waitForTimeout(300);
+    const geo = await page.evaluate(() => {
+      const r = document.querySelector('.parow'), acts = r.querySelector('.acts'), more = acts.querySelector('details.more');
+      const vis = [...acts.children].filter(e => e.matches('.pbtn'));
+      const steps = [...r.querySelectorAll('.jsteps .js')];
+      const rr = r.getBoundingClientRect();
+      return { vis: vis.length, more: !!more && !more.open, steps: steps.length, now: steps.filter(s => s.classList.contains('now')).length,
+        inside: rr.width > 0 && steps.every(s => { const b = s.getBoundingClientRect(); return b.width > 0 && b.left >= rr.left - 1 && b.right <= rr.right + 1; }), h: Math.round(rr.height) };
+    });
+    ok(geo.vis <= 4 && geo.more && geo.steps === 7 && geo.now === 1 && geo.inside,
+      width + 'px: in vista ' + geo.vis + ' mosse + «⋯ Altre azioni» chiuso; percorso in 7 tappe, una «adesso», dentro la riga (' + JSON.stringify(geo) + ')');
+    ok(geo.h > 100 && geo.h < (width < 500 ? 560 : 420), width + 'px: la riga resta corta (' + geo.h + 'px; erano ~780 a 390)');
 
-    // 💶 il link della provvigione, col messaggio pronto per WhatsApp
+    // 💶 il link della provvigione, col messaggio pronto per WhatsApp — sul
+    // pagato SENZA contratto non è la mossa del momento: sta in «⋯ Altre
+    // azioni» (3/11/2026), presente nel DOM ma non in vista
+    const feeBtn = row.getByRole('button', { name: '💶 Link provvigione', includeHidden: true });
+    ok(await feeBtn.count() === 1 && !(await feeBtn.isVisible()), width + 'px: in vista solo le mosse del momento, la provvigione in «⋯ Altre azioni»');
+    await row.locator('details.more > summary').click();
     await row.getByRole('button', { name: '💶 Link provvigione' }).click();
     const ps = page.locator('#psov');
     await ps.waitFor({ timeout: 10000 });
@@ -85,6 +105,7 @@ try {
     await ps.getByRole('button', { name: 'Chiudi' }).click();
     await page.waitForFunction(() => /link pronto/.test(document.querySelector('.parow').innerText), null, { timeout: 5000 });
     ok(true, width + 'px: la riga si aggiorna: link pronto');
+    ok(await page.locator('.parow').first().locator('details.more').evaluate(e => e.open), width + 'px: il menu aperto resta aperto quando la riga si ridisegna');
 
     // 📎 il firmato: contratto + profili + PDF + dopo
     await page.locator('.parow').first().getByRole('button', { name: '📎 Carica firmato' }).click();
