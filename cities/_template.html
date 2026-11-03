@@ -132,6 +132,9 @@
     <div class="perf" aria-hidden="true"><i class="notch a"></i><i class="notch b"></i>{{{routePerfHtml}}}</div>
 
     <div class="stub">
+      <!-- §B.2 the stub's track (≥940px): the route, the door and the gate ride down beside an open
+           ticket (sticky under the header) and stop above the foot, never over it -->
+      <div class="stub-track"><div class="stub-st">
       <div class="stub-in">
       <!-- §B.2 the stub's route (≥940px): FROM YOU, TO {{iata}} — replaces v1.5's code-big -->
       {{{routeStubHtml}}}
@@ -148,8 +151,9 @@
         <div><dt>Desk</dt><dd>{{{deskLineHtml}}}</dd></div>
       </dl>
       </div>
-      <!-- §B.2 the gate in the stub (≥940px): the JS moves the one #clocks node here; not sticky -->
+      <!-- §B.2 the gate in the stub (≥940px): the JS moves the one #clocks node here; it rides with the door -->
       <div class="stub-gate" id="stubGate"></div>
+      </div></div>
       <!-- §B.1 #7 / §B.2 the stub foot, pinned to the bottom (margin-top:auto): a barcode that encodes
            nothing and the code line (the issuer as served; the server's file code after OPEN / PAID —
            never computed by the page) -->

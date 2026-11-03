@@ -77,6 +77,9 @@ button.lnk{display:inline;font-size:inherit}
 .pill svg{width:16px;height:16px;fill:currentColor;flex:none}
 @media (max-width:359px){.pill .pl{display:none}.pill{padding:0}}
 @media (min-width:760px){
+  /* A1: the header is sticky and 64px from here; a fresh deep link (Stripe's cancel_url /<slug>#fares)
+     is resolved before the scroll contract can measure it, so the offset is stated (beats the inline html rule) */
+  html[lang]{scroll-padding-top:82px}
   .top{position:sticky;top:0;z-index:50;height:64px;background:rgba(6,6,7,.74);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);border-bottom:1px solid var(--line-soft)}
   .top-in{height:100%;min-height:0;gap:16px}
   main>.pass{margin-top:18px}
@@ -144,7 +147,8 @@ h1 .h1a{display:block;color:var(--t2);font-size:clamp(26px,7vw,50px);text-wrap:b
    ticket's own width (cqi): a 9-letter city never spills at 940–1100 */
 .board-row{margin:0;line-height:0}
 .board{display:inline-block;margin-top:6px;font-weight:300;color:var(--gold);white-space:nowrap;
-  font-size:clamp(25px,min(calc((100vw - 84px) / 8.6),calc(100cqi / (var(--n) * .95))),62px);height:1.26em;line-height:1.26em;min-width:calc(var(--n) * .91em);letter-spacing:.27em}
+  font-size:clamp(25px,calc((100vw - 84px) / 8.6),62px);height:1.26em;line-height:1.26em;min-width:calc(var(--n) * .91em);letter-spacing:.27em}
+@supports (width:1cqi){.board{font-size:clamp(25px,min(calc((100vw - 84px) / 8.6),calc(100cqi / (var(--n) * .95))),62px)}}
 .board:empty::before{content:attr(data-word)}
 .board.live{letter-spacing:0}
 .lead{margin-top:12px;max-width:46ch;color:var(--t2);font-size:clamp(15px,2.1vw,18px);line-height:1.48}
@@ -328,6 +332,7 @@ h1 .h1a{display:block;color:var(--t2);font-size:clamp(26px,7vw,50px);text-wrap:b
    perforation standing up, the stub full to the bottom ── */
 @media (min-width:940px){
   .pass{display:grid;grid-template-columns:28px minmax(0,1fr) 30px 380px}
+  .lamina,.p-main,.perf,.stub{grid-row:1}.lamina{grid-column:1}.p-main{grid-column:2}.perf{grid-column:3}.stub{grid-column:4}
   .pass::after{left:34px}
   /* the foil band: beaten and knurled gold leaf, flashed once on OPEN and on PAID */
   .lamina{position:relative;display:grid;place-items:center;overflow:hidden;border-radius:23px 0 0 23px;
@@ -365,6 +370,11 @@ h1 .h1a{display:block;color:var(--t2);font-size:clamp(26px,7vw,50px);text-wrap:b
   .route-s .r-plane{width:18px;height:18px;margin:-9px 0 0 -9px}
   .stub .fields.desk{margin-top:22px;padding-top:16px;border-top:1px solid var(--line-soft)}
   .stub-gate{margin-top:20px}
+  /* A5: the door block rides beside an open ticket, under the header; its track ends above the foot */
+  .stub-track{flex:1 0 auto}
+  .stub-st{position:sticky;top:78px}
+  /* a form or a card is taller: on a short window it stays put (its foot never hides under the fold) */
+  @media (max-height:859px){.stub-st:has(#fFields:not([hidden]),.card:not([hidden])){position:static}}
   .stub-foot{margin-top:auto;padding-top:22px}
   .sside{display:block;position:absolute;right:11px;top:50%;transform:translateY(-50%) rotate(180deg);writing-mode:vertical-rl;
     font:600 9px var(--mono);letter-spacing:.3em;text-transform:uppercase;color:var(--t3);opacity:.7;white-space:nowrap}
@@ -442,7 +452,7 @@ h1 .h1a{display:block;color:var(--t2);font-size:clamp(26px,7vw,50px);text-wrap:b
 .lanes{margin-top:28px;display:grid;grid-template-columns:minmax(0,1fr);gap:1px;background:var(--void);border:1px solid #151516}
 .lanes-h,.lane{background:var(--void);box-shadow:0 0 0 1px #151516}
 .lanes-h{grid-column:1/-1;padding:14px 18px}
-.lane[open]{grid-column:1/-1;background:#0B0B0D}
+.lane[open]{background:#0B0B0D}
 .lane>summary{display:grid;grid-template-columns:28px minmax(0,1fr) 18px;align-items:center;gap:4px 10px;min-height:72px;padding:16px 18px;list-style:none;cursor:pointer}
 .lane>summary::-webkit-details-marker{display:none}
 .lane>summary:focus-visible{outline-offset:-3px}
@@ -452,11 +462,12 @@ h1 .h1a{display:block;color:var(--t2);font-size:clamp(26px,7vw,50px);text-wrap:b
 .lane .t{grid-column:2;font-size:16px;font-weight:400;line-height:1.35;transition:color .2s}
 .lane>summary::after{grid-column:3;grid-row:1/3}
 .lane>summary:hover .t{color:var(--gold)}
-.lane>p{padding:0 46px 20px 56px;max-width:78ch;font-size:15px;color:var(--t2)}
-/* no empty cells in the hairline grid: an odd last lane fills its row; four lanes are a 2×2 */
-@media (min-width:640px){.lanes{grid-template-columns:repeat(2,minmax(0,1fr))}.lane:not([open]):nth-of-type(odd):last-of-type{grid-column:1/-1}}
-@media (min-width:940px){.lanes{grid-template-columns:repeat(3,minmax(0,1fr))}.lane:not([open]):nth-of-type(odd):last-of-type{grid-column:auto}
-  .lane:not([open]):nth-of-type(5):last-of-type{grid-column:span 2}.lanes:has(>.lane:nth-of-type(4):last-of-type){grid-template-columns:repeat(2,minmax(0,1fr))}}
+.lane>p{padding:0 22px 20px 56px;max-width:78ch;font-size:15px;color:var(--t2)}
+/* no empty cells in the hairline grid: an odd last lane fills its row; four lanes are a 2×2; an open
+   lane opens IN its cell (the row grows, its neighbours stretch with it), so opening one never moves the others */
+@media (min-width:640px){.lanes{grid-template-columns:repeat(2,minmax(0,1fr))}.lane:nth-of-type(odd):last-of-type{grid-column:1/-1}}
+@media (min-width:940px){.lanes{grid-template-columns:repeat(3,minmax(0,1fr))}.lane:nth-of-type(odd):last-of-type{grid-column:auto}
+  .lane:nth-of-type(5):last-of-type{grid-column:span 2}.lanes:has(>.lane:nth-of-type(4):last-of-type){grid-template-columns:repeat(2,minmax(0,1fr))}}
 
 /* §C.3 BAGGAGE — the papers as static tags: eyelet, string, a cut corner, a fixed tilt */
 .manifest{margin-top:22px}
@@ -487,6 +498,7 @@ h1 .h1a{display:block;color:var(--t2);font-size:clamp(26px,7vw,50px);text-wrap:b
 .ck-b{display:inline-block;font-size:24px;font-weight:300;min-width:calc(5 * .91em);height:1.26em;line-height:1.26em;color:var(--gold);white-space:nowrap}
 .ck-z{font:400 11px var(--mono);letter-spacing:.1em;color:var(--t3)}
 #ckYou{font-size:20px;font-weight:200;line-height:1.26;color:var(--ink);font-variant-numeric:tabular-nums}
+#ckYou.same{font-size:13px;font-weight:300;line-height:30px;white-space:nowrap;letter-spacing:.01em;color:var(--t2)}
 .gate{grid-column:1/-1;display:flex;align-items:center;gap:9px;padding-top:12px;border-top:1px solid var(--line-soft);font-size:12.5px;color:var(--t2)}
 .week{list-style:none;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
 .week li{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:0;padding:9px 0 8px;border:1px solid var(--line-soft);border-radius:10px;text-align:center}
@@ -504,11 +516,18 @@ h1 .h1a{display:block;color:var(--t2);font-size:clamp(26px,7vw,50px);text-wrap:b
 .door2:hover{background:var(--gold-faint);box-shadow:0 10px 30px -18px rgba(255,215,0,.5)}
 .write{font-size:14px;color:var(--t3)}
 .write a{display:inline-flex;align-items:center;min-height:44px}
+@media (max-width:939px){.gate-g.quadro{box-shadow:none}.gate-g::before,.gate-g::after,.gate-g>.tacca{display:none}}
+/* A13: on a desk the Gate is one instrument: the person and the hours | the week and the door,
+   a hairline between; the week's top meets the person's, the door spans the hours to the last line */
 @media (min-width:940px){
-  .gate-g{grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-auto-flow:row dense;column-gap:56px;row-gap:18px}
-  .who,.hrs,.write{grid-column:1}
-  #deskClocks,.week,.door2{grid-column:2}
+  .gate-g{grid-template-columns:minmax(0,1fr) minmax(0,1.45fr);grid-template-areas:"who week" "hrs door" "write door";column-gap:68px;row-gap:12px;align-items:center;
+    padding:30px 34px;border:1px solid var(--line-soft);
+    background:linear-gradient(var(--line-soft),var(--line-soft)) calc(68px + (100% - 136px) / 2.45) 50%/1px calc(100% - 60px) no-repeat,linear-gradient(180deg,#0B0B0D,var(--void))}
+  .who{grid-area:who}.hrs{grid-area:hrs;align-self:start}.write{grid-area:write;align-self:end;margin-bottom:-12px}.week{grid-area:week}.door2{grid-area:door;align-self:stretch}
+  #deskClocks{grid-column:1/-1}
   #deskClocks:not(:has(.clocks)){display:none}
+  /* no JS (no week, no door): the person and the hours alone, one column */
+  .gate-g:not(:has(>.week:not([hidden]))){grid-template-columns:minmax(0,1fr);grid-template-areas:"who" "hrs" "write";background-size:0 0,auto}
   .who .mono{width:60px;height:60px;font-size:17px}
 }
 @media (prefers-reduced-motion:no-preference){
@@ -541,7 +560,7 @@ h1 .h1a{display:block;color:var(--t2);font-size:clamp(26px,7vw,50px);text-wrap:b
 .d-ring{stroke:var(--gold);stroke-width:1;opacity:.55}
 circle.hub{stroke:#fff;stroke-width:1.6}
 .m-l{font:400 11px var(--mono);letter-spacing:.12em;fill:var(--t3)}
-.m-l.me{fill:var(--gold);transform:translateX(7px)}
+.m-l.me{fill:var(--gold);transform:translateX(7px)}.m-l.me.l{transform:translateX(-7px)}
 .m-l.hub{fill:#fff}
 .net{list-style:none;display:grid;gap:8px}
 .net a{display:flex;align-items:center;gap:14px;min-height:48px;padding:0 16px;border:1px solid var(--line-soft);border-left:1px dashed var(--gold-line);border-radius:8px;
@@ -554,7 +573,7 @@ circle.hub{stroke:#fff;stroke-width:1.6}
 
 /* §C.7 on the back of the ticket: the fact sheet, folded, whole in the DOM for the engines that quote it */
 .brief{position:relative}
-.corner{position:absolute;z-index:2;right:18px;top:calc(clamp(56px,7vw,96px) - 10px);padding:3px 9px;border-radius:6px;background:var(--leaf);color:#141005;
+.corner{position:absolute;z-index:2;right:18px;top:calc(clamp(40px,4.6vw,64px) - 10px);pointer-events:none;padding:3px 9px;border-radius:6px;background:var(--leaf);color:#141005;
   font-size:9.5px;font-weight:700;letter-spacing:.24em;text-transform:uppercase;box-shadow:inset 0 1px 0 rgba(255,250,214,.6),0 4px 14px -6px rgba(0,0,0,.8)}
 .sheet{padding:0 18px;border-radius:14px;background:#111114;box-shadow:inset 0 0 0 1px var(--line),0 30px 60px -36px rgba(0,0,0,.9)}
 .sheet>summary{font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:var(--t3);padding-right:0}
@@ -593,6 +612,9 @@ circle.hub{stroke:#fff;stroke-width:1.6}
   html.vivo .sec.in>h2{clip-path:inset(0 0 -12% 0)}
   html.vivo .eb::before{transform:scaleX(0);transition:transform .5s var(--ease) .1s}
   html.vivo .sec.in .eb::before{transform:none}
+  html.vivo .rv:focus-within,html.vivo .sec:focus-within .rv{opacity:1;transform:none;translate:none;transition:none}
+  html.vivo .sec:focus-within .tag.rv{rotate:var(--r,0deg)}
+  html.vivo .sec:focus-within>h2{clip-path:none;transition:none}
   html.vivo .arc{stroke-dasharray:1;stroke-dashoffset:1;transition:stroke-dashoffset .9s var(--ease) calc(var(--i,0) * 80ms)}
   html.vivo .sec.in .arc{stroke-dashoffset:0}
   /* the tags drop onto their tilt with a spring, once; a fine pointer swings one */
@@ -654,7 +676,8 @@ dialog.till::backdrop{background:rgba(0,0,0,.74);-webkit-backdrop-filter:blur(6p
 @media (forced-colors:active){
   .door,.pay,.st-go,.top-go,.door2{border:2px solid ButtonText}
   .p-desk,.corner{border:1px solid ButtonText}
-  .lamina{display:none!important}
+  .lamina,.onda{display:none!important}
+  .pass{background:Canvas}
   .refund{border-left-color:CanvasText}
   .f-tog::before,.f-tog::after,.r-trail,.r-tick,.r-hold{background:CanvasText}
   .r-plane{fill:CanvasText}
@@ -667,6 +690,12 @@ dialog.till::backdrop{background:rgba(0,0,0,.74);-webkit-backdrop-filter:blur(6p
   body::before,.onda,.filo,.top,.twin,.clocks,.week,.strip,.door,.door2,.pay2,.f-tog,dialog,.bars,.seal,.lamina{display:none!important}
   .pass{border-color:#000;box-shadow:none;background:#fff}.pass::before{display:none}
   .pass *,.below *{color:#000!important}
+  html,.below,.dep,.lanes,.lanes-h,.lane,.lane[open],.sheet,.week li,.fare[open],.tk,.gate-g{background:#fff!important}
+  .dep,.sheet,.fare[open],.gate-g{box-shadow:none!important}.dep,.lanes,.sheet,.gate-g{border:1px solid #000}.lanes-h,.lane{box-shadow:0 0 0 1px #000}
+  .gate-g{grid-template-columns:minmax(0,1fr)!important;grid-template-areas:"who" "hrs" "write"!important}
+  .arc,.d-ring,circle.hub{stroke:#000}.map .d,.m-l{fill:#000}
+  .tag::after{background:#fff;box-shadow:inset 0 0 0 1px #000}.eye{background:#fff;box-shadow:0 0 0 1px #000}
+  .fc2,.fc2 i{background:transparent!important;box-shadow:none!important}.fc2 s,.quadro::before,.quadro::after,.tacca{display:none}
 }
 /* 200% zoom on a phone (under 300 CSS px): nothing that carries a price or its condition is cut */
 @media (max-width:300px){.f-name{font-size:11px;letter-spacing:.04em;overflow-wrap:anywhere}.f-cond{white-space:normal}.t-head{flex-wrap:wrap;padding-right:0}.t-price{text-align:left}.board{font-size:calc((100vw - 84px) / (var(--n) * .95));min-width:0}

@@ -191,6 +191,57 @@ const list = (city, dotted) => {
 export const words = (s) => String(s || '').split(/\s+/).filter((w) => /[A-Za-z0-9€£]/.test(w)).length;
 const str = (v) => typeof v === 'string' && v.trim().length > 0;
 
+// THE NETWORK MAP'S ARCS (v1.6 review F9): every desk's arc leaves Rome and
+// bows perpendicular to its chord. The bow's side and size are chosen per
+// desk, over EVERY desk with coordinates (so an arc is the same on every
+// page), until it passes no other desk's dot closer than ARC_CLEAR plus the
+// biggest mark a dot can carry (this desk's 10px ring: any desk is "this
+// desk" on its own page) and does not run along an arc already drawn. A desk
+// no bow can serve is a build error, never an arc through a sister.
+export const ARC_CLEAR = 6;
+export const ARC_DOT_R = 3, ARC_ME_R = 10;
+const qAt = ([x1, y1], [cx, cy], [x2, y2], t) => [(1 - t) * (1 - t) * x1 + 2 * (1 - t) * t * cx + t * t * x2, (1 - t) * (1 - t) * y1 + 2 * (1 - t) * t * cy + t * t * y2];
+const r1n = (n) => Math.round(n * 10) / 10;
+// the control point, rounded as the path prints it (the check reads what is drawn)
+export function arcCtrl(hub, to, f) {
+  const [x1, y1] = hub, [x2, y2] = to, dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy) || 1;
+  return [r1n((x1 + x2) / 2 - (dy / L) * f * L), r1n((y1 + y2) / 2 + (dx / L) * f * L)];
+}
+const arcPts = (hub, c, to, n = 160) => Array.from({ length: n + 1 }, (_, i) => qAt(hub, c, to, i / n));
+const gap = (pts, [x, y]) => Math.min(...pts.map(([a, b]) => Math.hypot(a - x, b - y)));
+export function bowArcs(hub, dests) {
+  const len = ([x, y]) => Math.hypot(x - hub[0], y - hub[1]);
+  const drawn = [], bows = new Map();
+  for (const [key, to] of [...dests].sort((a, b) => len(a[1]) - len(b[1]) || a[0].localeCompare(b[0]))) {
+    // north first: a westward chord bows up with f > 0, an eastward one with f < 0
+    const north = to[0] < hub[0] ? 1 : -1;
+    const pick = [0.18, 0.24, 0.12, 0.3, 0.36].flatMap((f) => [north * f, -north * f]).find((f) => {
+      const pts = arcPts(hub, arcCtrl(hub, to, f), to);
+      if (dests.some(([k, xy]) => k !== key && gap(pts, xy) < ARC_ME_R + ARC_CLEAR)) return false;
+      const out = pts.filter((p) => len(p) > 36);
+      return drawn.every((o) => out.filter((p) => gap(o, p) < 8).length <= 0.12 * out.length);
+    });
+    if (pick === undefined) throw new BuildError(`network map: no bow takes the arc ROM → ${key} clear of the other desks`);
+    bows.set(key, pick);
+    drawn.push(arcPts(hub, arcCtrl(hub, to, pick), to).filter((p) => len(p) > 36));
+  }
+  return bows;
+}
+// what is drawn, checked: every arc ≥ ARC_CLEAR from the edge of every dot it
+// does not serve (the hub is every arc's start). Returns the violations.
+export function arcViolations(hub, arcs, dots) {
+  const bad = [];
+  for (const a of arcs) {
+    const pts = arcPts(hub, a.c, a.to, 240);
+    for (const d of dots) {
+      if (d.key === a.key) continue;
+      const g = gap(pts, d.xy) - d.r;
+      if (g < ARC_CLEAR) bad.push(`ROM → ${a.key} passes ${g.toFixed(1)}px from ${d.key}`);
+    }
+  }
+  return bad;
+}
+
 // THE FAMILY is derived from the built cities, never kept by hand: the
 // sister desks in alphabetical order, then BOOM Rome. A LIVE page links only
 // live sisters (a client never lands on a draft nobody approved); a draft
@@ -222,9 +273,14 @@ export function daysLabel(days) {
 // "Mon–Fri 09:00–19:00, Rome time": what a page without JS, a crawler and
 // the static HTML say — true in every season (the zone is named by city,
 // never as CET, which is wrong seven months a year).
+// The desk's hours zone in words ("London time", "Rome time", "Italian time"):
+// it also labels the Gate clock — never "At the desk", which put the person in
+// the city while the network says every desk answers from Rome.
+export function zoneWords(d) {
+  return d.zoneName || (d.timeZone === 'Europe/Rome' ? 'Rome time' : `${d.timeZone.split('/').pop().replace(/_/g, ' ')} time`);
+}
 export function deskHoursText(d) {
-  const zone = d.zoneName || (d.timeZone === 'Europe/Rome' ? 'Rome time' : `${d.timeZone.split('/').pop().replace(/_/g, ' ')} time`);
-  return `${daysLabel(d.days)} ${d.hours.from}–${d.hours.to}, ${zone}`;
+  return `${daysLabel(d.days)} ${d.hours.from}–${d.hours.to}, ${zoneWords(d)}`;
 }
 export function validateDesk(d, where) {
   need(d && typeof d === 'object', where, 'needs "desk" {person, role, timeZone, tzLabel, hours{from,to}, days[]}');
@@ -505,12 +561,12 @@ const R = {
   gate: (c, contact, doorLead, deskLineHtml) => {
     const hours = esc(deskHoursText(c.desk));
     return [
-      '      <div class="gate-g">',
+      '      <div class="gate-g quadro"><i class="tacca"></i>',
       `        <div class="who rv" style="--i:0"><span class="mono" aria-hidden="true">${esc(initialsOf(c.desk.person))}</span><p><b>${esc(c.desk.person)}</b> <span>${esc(c.desk.role)}</span></p></div>`,
       `        <p class="hrs rv" style="--i:1">${deskLineHtml}</p>`,
       '        <div id="deskClocks">',
       '          <div class="clocks quadro js" id="clocks" hidden><i class="tacca"></i>',
-      '            <div class="ck" data-instr><p class="ck-l">At the desk</p><p class="ck-v"><span class="ck-b" id="ckDesk" aria-hidden="true"></span><span class="ck-z" id="ckZone"></span><span class="sr" id="ckDeskSr"></span></p></div>',
+      `            <div class="ck" data-instr><p class="ck-l">${esc(zoneWords(c.desk))}</p><p class="ck-v"><span class="ck-b" id="ckDesk" aria-hidden="true"></span><span class="ck-z" id="ckZone"></span><span class="sr" id="ckDeskSr"></span></p></div>`,
       '            <div class="ck" id="ckYouRow" data-instr><p class="ck-l">Where you are</p><p class="ck-v" id="ckYou"></p></div>',
       `            <p class="gate"><i class="dot"></i><span data-gate="{w}">${hours}</span></p>`,
       '          </div>',
@@ -530,28 +586,39 @@ const R = {
   // all on a draft) and BOOM Rome. The map (decorative, ≥640px) puts every
   // dot at its real coordinates and draws an arc from Rome — the desks are
   // operated from Rome — this desk's in gold. The list is the navigation.
-  net: (c, fam, shared) => {
+  net: (c, fam, shared, cities = [c]) => {
     const hub = mapXY(shared.rome.geo);
-    const arc = (to, cls, i) => {
-      const [x1, y1] = hub, [x2, y2] = to;
-      const ch = Math.hypot(x2 - x1, y2 - y1);
-      return `<path class="arc${cls}" style="--i:${i}" pathLength="1" fill="none" d="M${r1(x1)} ${r1(y1)}Q${r1((x1 + x2) / 2)} ${r1((y1 + y2) / 2 - 0.18 * ch)} ${r1(x2)} ${r1(y2)}"/>`;
-    };
+    // the bows are chosen over every desk with coordinates, so an arc is the same on every page
+    const bows = bowArcs(hub, cities.filter((x) => x.iata && x.geo).map((x) => [x.iata, mapXY(x.geo)]).concat(cities.some((x) => x.iata === c.iata) ? [] : [[c.iata, mapXY(c.geo)]]));
     const sisters = fam.filter((f) => f.iata && f.iata !== ROME_IATA && f.geo);
     const me = mapXY(c.geo);
-    const lab = ([x, y], code, cls = '') => `<text class="m-l${cls}" x="${r1(x + 9)}" y="${r1(y + 4)}">${esc(code)}</text>`;
+    const arcs = [...sisters.map((f) => ({ key: f.iata, to: mapXY(f.geo) })), { key: c.iata, to: me, me: true }]
+      .map((a) => ({ ...a, c: arcCtrl(hub, a.to, bows.get(a.key) ?? 0.18) }));
+    const bad = arcViolations(hub, arcs, [...sisters.map((f) => ({ key: f.iata, xy: mapXY(f.geo), r: ARC_DOT_R })), { key: c.iata, xy: me, r: ARC_ME_R }]);
+    need(!bad.length, `cities/${c.slug}.json`, `the network map draws an arc over a desk: ${bad.join('; ')}`);
+    // the sisters' arcs first, this desk's (gold) over them; a label sits on the side its arc does not come from
+    const path = (a, i) => `<path class="arc${a.me ? ' me' : ''}" style="--i:${a.me ? 0 : i + 1}" pathLength="1" fill="none" d="M${r1(hub[0])} ${r1(hub[1])}Q${r1(a.c[0])} ${r1(a.c[1])} ${r1(a.to[0])} ${r1(a.to[1])}"/>`;
+    // a label (≈24×10 on the dot's line, 9px off its dot, 7 more past this desk's ring) takes the first side no arc crosses:
+    // first the side its own arc does not come from
+    const drawn = arcs.map((a) => arcPts(hub, a.c, a.to, 240));
+    const lab = (a, cls = '') => {
+      const off = 9 + (a.me ? 7 : 0), away = a.c[0] > a.to[0];
+      const clear = (left) => { const x0 = left ? a.to[0] - off - 25 : a.to[0] + off - 1, y0 = a.to[1] - 5; return drawn.every((pts) => pts.every(([x, y]) => x < x0 || x > x0 + 26 || y < y0 || y > y0 + 10)); };
+      const left = clear(away) || !clear(!away) ? away : !away;
+      return `<text class="m-l${cls}${left ? ' l' : ''}" x="${r1(a.to[0] + (left ? -9 : 9))}" y="${r1(a.to[1] + 4)}"${left ? ' text-anchor="end"' : ''}>${esc(a.key)}</text>`;
+    };
+    const mine = arcs[arcs.length - 1];
     const svg = [
       '<svg class="map" viewBox="0 0 600 420" aria-hidden="true" focusable="false">',
       '<defs><pattern id="netDots" width="12" height="12" patternUnits="userSpaceOnUse"><circle cx="6" cy="6" r=".5" fill="#fff" fill-opacity=".08"/></pattern></defs>',
       '<rect class="m-bg" width="600" height="420" fill="url(#netDots)"/>',
-      arc(me, ' me', 0),
-      ...sisters.map((f, i) => arc(mapXY(f.geo), '', i + 1)),
-      ...sisters.map((f) => { const [x, y] = mapXY(f.geo); return `<circle class="d" cx="${r1(x)}" cy="${r1(y)}" r="3"/>`; }),
-      `<circle class="d-ring" cx="${r1(me[0])}" cy="${r1(me[1])}" r="10" fill="none"/><circle class="d me" cx="${r1(me[0])}" cy="${r1(me[1])}" r="4"/>`,
+      ...arcs.map(path),
+      ...sisters.map((f) => { const [x, y] = mapXY(f.geo); return `<circle class="d" cx="${r1(x)}" cy="${r1(y)}" r="${ARC_DOT_R}"/>`; }),
+      `<circle class="d-ring" cx="${r1(me[0])}" cy="${r1(me[1])}" r="${ARC_ME_R}" fill="none"/><circle class="d me" cx="${r1(me[0])}" cy="${r1(me[1])}" r="4"/>`,
       `<circle class="hub" cx="${r1(hub[0])}" cy="${r1(hub[1])}" r="5" fill="none"/>`,
-      ...sisters.map((f) => lab(mapXY(f.geo), f.iata)),
-      lab(me, c.iata, ' me'),
-      lab(hub, ROME_IATA, ' hub'),
+      ...arcs.slice(0, -1).map((a) => lab(a)),
+      lab(mine, ' me'),
+      `<text class="m-l hub" x="${r1(hub[0] + 9)}" y="${r1(hub[1] + 4)}">${ROME_IATA}</text>`,
       '</svg>'
     ].join('');
     const items = fam.map((f) => `          <li><a href="${esc(f.href)}"><b data-instr>${esc(f.iata)}</b> ${esc(f.label)}</a></li>`);
@@ -1203,7 +1270,7 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
     lanesHtml: R.lanes(city),
     tagsHtml: R.tags(city),
     gateHtml: R.gate(city, contact, doorLead, deskLineHtml),
-    netHtml: R.net(city, fam, shared),
+    netHtml: R.net(city, fam, shared, cities),
     footHtml: R.foot(city, shared, contact, deskLineHtml)
   };
 

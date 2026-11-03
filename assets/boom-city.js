@@ -29,6 +29,9 @@
     root.setAttribute('data-armed', '');
   }
   var sell = C.CHECKOUT === true;
+  /* a desk still opening (Paris, Berlin) is never "open": its instruments
+     say when a reply comes, never "desk open" (loi Hoguet, §34c GewO) */
+  var waitlist = C.MODE === 'waitlist';
   function track(name, params) { try { if (typeof gtag === 'function') gtag('event', name, params || {}); } catch (e) {} }
   function convert(label) { try { window.dispatchEvent(new CustomEvent('boom-conversion', { detail: { label: label, section: 'pass' } })); } catch (e) {} }
   var CUR = C.CURRENCY || 'EUR', eur = function (n) { return (C.SYMBOL || '€') + String(Math.round(Number(n))).replace(/\B(?=(\d{3})+(?!\d))/g, ','); };
@@ -81,24 +84,32 @@
   /* the window said where the reader acts (data-window: the door, the strip)
      and on the instruments (data-gate: the header chip, its door twin, the
      Departures foot, the gate, the outlined door) — one line, one source */
-  function fill(attr, w) {
+  function sayLine(w) {
+    if (!waitlist) return w.line;
+    var z = w.tz ? ' ' + w.tz : '';
+    return w.open ? 'replies until ' + w.until + z : 'replies ' + (/^To/.test(w.day) ? w.day.toLowerCase() : w.day) + ' from ' + w.from + z;
+  }
+  function fill(attr, line) {
     $$('[' + attr + ']').forEach(function (n) {
-      var t = n.getAttribute(attr).replace('{w}', w.line);
+      var t = n.getAttribute(attr).replace('{w}', line);
       if (n.textContent !== t) n.textContent = t;
     });
   }
   function refreshClock() {
     var now = new Date(), w = win();
     if (w) {
-      fill('data-window', w); fill('data-gate', w);
+      var line = sayLine(w);
+      fill('data-window', line); fill('data-gate', line);
       /* the one hook for every "open" dot (the chip, the pill, the gate's pulse) */
       root.setAttribute('data-desk', w.open ? 'open' : 'closed');
       var pl = $('depPill');
-      if (pl) { pl.hidden = false; txt('depPillT', w.open ? 'DESK OPEN' : 'DESK CLOSED'); }
+      if (pl) { pl.hidden = false; txt('depPillT', waitlist ? (w.open ? 'REPLYING' : 'OFFLINE') : w.open ? 'DESK OPEN' : 'DESK CLOSED'); }
       $$('.dep-f').forEach(function (n) { n.hidden = false; });
       if (window.BOOM_ONDA && BOOM_ONDA.setOpen) BOOM_ONDA.setOpen(w.open);
     }
     gate(now);
+    /* row 01 follows the desk's clock: "REPLY TODAY" never outlives closing time */
+    if (lastS === 'open' || lastS === 'paid') depFact(lastS, lastD);
     if (pass.getAttribute('data-state') === 'open') txt('oNext', nextLine());
     /* the next minute boundary, never a countdown */
     setTimeout(refreshClock, 60000 - (Date.now() % 60000) + 50);
@@ -109,19 +120,29 @@
      real week (desk days minus the webhook's holidays — never a name) ── */
   var two = function (n) { return (n < 10 ? '0' : '') + n; };
   var DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  var ckB = null, weekKey = '';
+  var ckB = null, ckIO = null, ckSeen = !IO, weekKey = '';
   function gate(now) {
-    var p = CAL && C.DESK ? CAL.zoneParts(now, C.DESK.timeZone) : null, box = $('clocks'), h = $('ckDesk');
+    var p = CAL && C.DESK ? CAL.zoneParts(now, C.DESK.timeZone) : null, box = $('clocks'), h = $('ckDesk'), you = $('ckYou');
     if (!p || !box) return;
-    var hm = two(Math.floor(p.min / 60)) + ':' + two(p.min % 60), first = box.hidden;
+    var hm = two(Math.floor(p.min / 60)) + ':' + two(p.min % 60), fresh = false;
     box.hidden = false;
-    if (!ckB && window.BoomSolari && h) { ckB = new window.BoomSolari.Board(h, 5, ' 0123456789:'); h.classList.add('live'); }
+    /* the board where it is seen: in the stub (≥940, the first screen) at
+       once; below, plain text until the Gate comes within a screen (no
+       Solari calibration in the boot task) */
+    if (!ckB && !ckSeen && !ckIO && h && !wide.matches) {
+      ckIO = new IntersectionObserver(function (es) { if (es[es.length - 1].isIntersecting) { ckSeen = true; ckIO.disconnect(); gate(new Date()); } }, { rootMargin: '100% 0px' });
+      ckIO.observe(box);
+    }
+    if (!ckB && window.BoomSolari && h && (ckSeen || wide.matches)) { ckB = new window.BoomSolari.Board(h, 5, ' 0123456789:'); h.classList.add('live'); fresh = true; }
     /* a minute later only the changed cells flip; never a countdown */
-    if (!ckB) txt('ckDesk', hm); else if (first || reduce) ckB.show(hm, 60, first && !reduce); else ckB.update(hm);
+    if (!ckB) txt('ckDesk', hm); else if (fresh || reduce) ckB.show(hm, 60, fresh && !reduce); else ckB.update(hm);
     txt('ckZone', p.tz);
-    txt('ckDeskSr', 'At the desk: ' + hm + (p.tz ? ' ' + p.tz : ''));
+    /* said with the clock's own label (its zone: the desk answers from Rome) */
+    var lab = box.querySelector('.ck-l');
+    txt('ckDeskSr', (lab ? lab.textContent : 'Desk time') + ': ' + hm + (p.tz ? ' ' + p.tz : ''));
     var same = now.getFullYear() === p.y && now.getMonth() + 1 === p.m && now.getDate() === p.d && now.getHours() * 60 + now.getMinutes() === p.min;
     txt('ckYou', same ? 'Same time as you' : two(now.getHours()) + ':' + two(now.getMinutes()));
+    if (you) you.classList.toggle('same', same);
     if (p.key !== weekKey) { weekKey = p.key; week(p); }
   }
   function week(p) {
@@ -140,7 +161,7 @@
       b.textContent = DAYS[wd].slice(0, 3); s.textContent = n;
       li.appendChild(b); li.appendChild(s);
       if (!open) { var x = document.createElement('i'); x.textContent = 'closed'; li.appendChild(x); }
-      li.setAttribute('aria-label', DAYS[wd] + ' ' + n + (open ? ', desk open ' + hrs : ', desk closed'));
+      li.setAttribute('aria-label', DAYS[wd] + ' ' + n + (waitlist ? (open ? ', replies ' + hrs : ', no replies') : open ? ', desk open ' + hrs : ', desk closed'));
       if (i) li.removeAttribute('aria-current'); else li.setAttribute('aria-current', 'date');
     }
     ol.hidden = false;
@@ -180,23 +201,28 @@
     }, { threshold: .35 }).observe(depBox);
     else depMount();
   }
-  var DAY3 = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+  var DAY3 = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'], lastS = '', lastD = null;
   function depFact(s, d) {
-    var w = win(), when = !w ? '' : (w.open || w.day === 'Today') ? 'TODAY' : DAY3[w.wd] || '', word = '';
+    lastS = s; lastD = d;
+    var w = win(), today = !!w && (w.open || w.day === 'Today'), when = !w ? '' : today ? 'TODAY' : DAY3[w.wd] || '', word = '', say = '';
+    /* the board takes the drum's three letters; its screen-reader twin and
+       #depLive say the words ("reply Monday", "from 4 November") */
+    var day = today ? 'today' : w ? DAYS[w.wd] : '';
     /* sell: "Valentino writes to set your free call" — REPLY on the desk's
        next open day; a waitlist: the file is open, nothing more is promised */
-    if (s === 'open') word = sell ? (when && 'REPLY ' + when) : 'FILE OPEN';
+    if (s === 'open') { word = sell ? (when && 'REPLY ' + when) : 'FILE OPEN'; say = sell ? 'reply ' + day : 'file open'; }
     else if (s === 'paid' && sell) {
       if (d.startNow === false) {
         /* the payer did not tick Start now: the server's first working day */
-        var m = /^(\d{1,2}) ([A-Za-z]{3})/.exec(String(d.workFromLabel || ''));
-        word = m ? 'FROM ' + m[1] + ' ' + m[2].toUpperCase() : '';
-      } else word = when && 'START ' + when;
+        var m = /^(\d{1,2}) ([A-Za-z]{3,9})/.exec(String(d.workFromLabel || ''));
+        word = m ? 'FROM ' + m[1] + ' ' + m[2].slice(0, 3).toUpperCase() : '';
+        say = m ? 'from ' + m[1] + ' ' + m[2] : '';
+      } else { word = when && 'START ' + when; say = 'start ' + day; }
     }
     if (!word || word === dep.want[0] || !dep.hosts.length) return;
     dep.want[0] = word;
-    txt('dep-1-sr', 'Status: ' + word.toLowerCase());
-    txt('depLive', 'Step 1: ' + word.toLowerCase());
+    txt('dep-1-sr', 'Status: ' + say);
+    txt('depLive', 'Step 1: ' + say);
     if (dep.seen && dep.mounted) depFlip();
   }
 
@@ -273,7 +299,7 @@
     if (had) {
       try { had.focus({ preventScroll: true }); } catch (e) {}
       var hr = had.getBoundingClientRect();
-      if (hr.top < 0 || hr.bottom > innerHeight - stripH()) had.scrollIntoView({ block: 'center', behavior: 'auto' });
+      if (hr.top < topLim() || hr.bottom > innerHeight - stripH()) had.scrollIntoView({ block: 'center', behavior: 'auto' });
     }
   }
   var plan = '';
@@ -326,7 +352,7 @@
     if (focus) {
       var nm = $('fName');
       var r = act.getBoundingClientRect();
-      if (r.top < 0 || r.top > innerHeight * 0.6) act.scrollIntoView({ block: 'start', behavior: reduce ? 'auto' : 'smooth' });
+      if (r.top < topLim() || r.top > innerHeight * 0.6) act.scrollIntoView({ block: 'start', behavior: reduce ? 'auto' : 'smooth' });
       /* any focus the visitor moves in the meantime wins over ours */
       var movedOn = false, mark = function () { movedOn = true; };
       document.addEventListener('focusin', mark, true);
@@ -385,7 +411,7 @@
   function land(node, always) {
     if (!node) return;
     var r = node.getBoundingClientRect();
-    if (always || r.top < 0 || r.bottom > innerHeight - stripH()) node.scrollIntoView({ block: r.height > innerHeight * 0.8 ? 'start' : 'nearest', behavior: reduce ? 'auto' : 'smooth' });
+    if (always || r.top < topLim() || r.bottom > innerHeight - stripH()) node.scrollIntoView({ block: r.height > innerHeight * 0.8 ? 'start' : 'nearest', behavior: reduce ? 'auto' : 'smooth' });
     try { node.focus({ preventScroll: true }); } catch (e) {}
   }
   function setState(s, d) {
@@ -602,6 +628,9 @@
   var strip = $('strip'), topGo = $('topGo'), chip = $('topChip'), deskGo = $('deskGo'), filo = $('filo');
   var seen = { door: true, desk: false };
   function stripH() { return strip && strip.classList.contains('on') ? strip.offsetHeight : 0; }
+  /* the reading area's top: the html's scroll-padding-top (under the sticky
+     header from 760) — where scrollIntoView lands a node too */
+  function topLim() { return parseFloat(getComputedStyle(root).scrollPaddingTop) || 0; }
   function doorTwins() {
     var tillOpen = !!(till && till.open), blank = state() === 'blank';
     var on = IO && !seen.door && !seen.desk && blank && !tillOpen, narrow = innerWidth < 760;
@@ -627,13 +656,22 @@
   }
   if (IO && (door || deskGo)) {
     /* the gold button itself, half of it at least: the "not sure" line
-       peeking in at the foot of the screen is not a door */
-    var twinIO = new IntersectionObserver(function (es) {
-      es.forEach(function (e) { seen[e.target === door ? 'door' : 'desk'] = e.isIntersecting && e.intersectionRatio >= 0.5; });
-      doorTwins();
-    }, { threshold: [0, 0.5, 1] });
-    if (door) twinIO.observe(door);
-    if (deskGo) twinIO.observe(deskGo);
+       peeking in at the foot of the screen is not a door, nor is a door
+       under the sticky header (≥760: the root starts below it; rebuilt at
+       the 760 crossing, read in a frame, never in the boot task) */
+    var twinIO = null, mq760 = window.matchMedia ? matchMedia('(min-width: 760px)') : null;
+    var twinWatch = function () {
+      if (twinIO) twinIO.disconnect();
+      var t = document.querySelector('.top'), hh = t && getComputedStyle(t).position === 'sticky' ? t.offsetHeight : 0;
+      twinIO = new IntersectionObserver(function (es) {
+        es.forEach(function (e) { seen[e.target === door ? 'door' : 'desk'] = e.isIntersecting && e.intersectionRatio >= 0.5; });
+        doorTwins();
+      }, { rootMargin: -hh + 'px 0px 0px 0px', threshold: [0, 0.5, 1] });
+      if (door) twinIO.observe(door);
+      if (deskGo) twinIO.observe(deskGo);
+    };
+    requestAnimationFrame(twinWatch);
+    if (mq760) { if (mq760.addEventListener) mq760.addEventListener('change', twinWatch); else if (mq760.addListener) mq760.addListener(twinWatch); }
     addEventListener('resize', doorTwins);
   }
   [[$('stripGo'), 'strip_click'], [topGo, 'twin_click'], [deskGo, 'twin_click']].forEach(function (x) {
@@ -688,7 +726,8 @@
 
   sync();
   refreshClock();
-  where();
+  /* the first read of where you are waits for a frame (no forced layout in the boot task) */
+  onScroll();
   handleReturn();
   track('page_view_market', { market: C.SLUG });
   window.BOOM_TICKET = { state: state, setState: setState, openTill: openTill, nextLine: nextLine };

@@ -629,7 +629,7 @@
       ]
     },
     {
-      "source": "/assets/boom-city\\.(css|js)",
+      "source": "/assets/boom-(city\\.css|city\\.js|onda\\.js)",
       "headers": [
         {
           "key": "Cache-Control",

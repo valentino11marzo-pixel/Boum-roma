@@ -12,7 +12,7 @@
   var O = window.BOOM_ONDA = { running: false, start: start, setOpen: setOpen, stop: stop };
   var tela, ctx, src, still = false, open = false, seen = true, on = false, halt = false;
   var W = 0, H = 0, DPR = 1, MIN = 1, cw, ch, gap, cols, rows, E, AU, base, ox, oy;
-  var px = -1e4, py = -1e4, rush = -1e4, last = 0, prev = 0, beat = 700, flip = 2200, waves = [], cas = [], wait;
+  var px = -1e4, py = -1e4, rush = -1e4, last = 0, prev = 0, beat = 700, flip = 2200, waves = [], cas = [], wait, raf = 0;
 
   /* the vertical veil, baked into the alpha (no mask-image on the compositor) */
   function veil(y) { var q = y / H; return q < .72 ? 1 : Math.max(0, (.98 - q) / .26); }
@@ -118,14 +118,17 @@
     }
     ctx.globalAlpha = 1;
   }
+  /* ONE chain: the frame id is kept, so a callback a hidden tab parked can
+     never start a second loop next to the one wake() queues */
   function loop(t) {
+    raf = 0;
     if (!on) return;
-    requestAnimationFrame(loop);
+    raf = requestAnimationFrame(loop);
     /* at rest the field breathes at 30 fps; under the pointer, 60 */
     if (t - rush > 500 && t - last < 28) return;
     last = t; frame(t, true, 1);
   }
-  function sleep() { on = false; O.running = false; }
+  function sleep() { on = false; O.running = false; if (raf) { cancelAnimationFrame(raf); raf = 0; } }
   /* the still frame: from a clean field */
   function rest() {
     sleep();
@@ -135,7 +138,7 @@
   }
   function wake() {
     var go = !!tela && open && seen && !still && !halt && !document.hidden;
-    if (go && !on) { on = true; O.running = true; prev = 0; requestAnimationFrame(loop); }
+    if (go && !on) { on = true; O.running = true; prev = 0; if (!raf) raf = requestAnimationFrame(loop); }
     else if (!go && on) sleep();
   }
   function move(e) {

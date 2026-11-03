@@ -41,7 +41,7 @@
     <link rel="icon" href="/favicon.ico" sizes="any">
     <link rel="icon" href="/favicon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-    <link rel="stylesheet" href="/assets/boom-city.css?v=f4f3550947">
+    <link rel="stylesheet" href="/assets/boom-city.css?v=90d32665d4">
     <!-- §C the curtain (v1.6): html.vivo lets the walk's sections enter as they come into view.
          boom-city.js sets html[data-armed]; without it in 3 s, without IntersectionObserver,
          or when printing, vivo comes off and nothing waits hidden. -->
@@ -853,6 +853,9 @@ body::before, body::after { z-index: 1 !important; }
     <div class="perf" aria-hidden="true"><i class="notch a"></i><i class="notch b"></i><span class="route route-p"><b class="ra">YOU</b><span class="r-line"><i class="r-holes"></i><i class="r-tick t1"></i><i class="r-tick t2"></i><i class="r-tick t3"></i><i class="r-trail"></i><span class="r-run"><i class="r-hold"></i><svg class="r-plane" width="14" height="14" focusable="false"><use href="#boomPlane"/></svg></span></span><b class="rb">AMS</b></span></div>
 
     <div class="stub">
+      <!-- §B.2 the stub's track (≥940px): the route, the door and the gate ride down beside an open
+           ticket (sticky under the header) and stop above the foot, never over it -->
+      <div class="stub-track"><div class="stub-st">
       <div class="stub-in">
       <!-- §B.2 the stub's route (≥940px): FROM YOU, TO AMS — replaces v1.5's code-big -->
       <div class="route route-s" aria-hidden="true"><p class="r-lab"><span>From</span><span>To</span></p><p class="r-ends"><b class="ra">YOU</b><span class="r-line"><i class="r-holes"></i><i class="r-tick t1"></i><i class="r-tick t2"></i><i class="r-tick t3"></i><i class="r-trail"></i><span class="r-run"><i class="r-hold"></i><svg class="r-plane" width="14" height="14" focusable="false"><use href="#boomPlane"/></svg></span></span><b class="rb">AMS</b></p></div>
@@ -916,8 +919,9 @@ body::before, body::after { z-index: 1 !important; }
         <div><dt>Desk</dt><dd>Mon–Fri <span class="nw">09:00–19:00</span>, Rome time</dd></div>
       </dl>
       </div>
-      <!-- §B.2 the gate in the stub (≥940px): the JS moves the one #clocks node here; not sticky -->
+      <!-- §B.2 the gate in the stub (≥940px): the JS moves the one #clocks node here; it rides with the door -->
       <div class="stub-gate" id="stubGate"></div>
+      </div></div>
       <!-- §B.1 #7 / §B.2 the stub foot, pinned to the bottom (margin-top:auto): a barcode that encodes
            nothing and the code line (the issuer as served; the server's file code after OPEN / PAID —
            never computed by the page) -->
@@ -997,12 +1001,12 @@ body::before, body::after { z-index: 1 !important; }
     <section class="sec" id="desk" aria-labelledby="deskH">
       <p class="eb" data-instr>Gate</p>
       <h2 id="deskH">Who answers, <span class="g">and when.</span></h2>
-      <div class="gate-g">
+      <div class="gate-g quadro"><i class="tacca"></i>
         <div class="who rv" style="--i:0"><span class="mono" aria-hidden="true">VE</span><p><b>Valentino Egidi</b> <span>tenant-side agent</span></p></div>
         <p class="hrs rv" style="--i:1">Mon–Fri <span class="nw">09:00–19:00</span>, Rome time</p>
         <div id="deskClocks">
           <div class="clocks quadro js" id="clocks" hidden><i class="tacca"></i>
-            <div class="ck" data-instr><p class="ck-l">At the desk</p><p class="ck-v"><span class="ck-b" id="ckDesk" aria-hidden="true"></span><span class="ck-z" id="ckZone"></span><span class="sr" id="ckDeskSr"></span></p></div>
+            <div class="ck" data-instr><p class="ck-l">Rome time</p><p class="ck-v"><span class="ck-b" id="ckDesk" aria-hidden="true"></span><span class="ck-z" id="ckZone"></span><span class="sr" id="ckDeskSr"></span></p></div>
             <div class="ck" id="ckYouRow" data-instr><p class="ck-l">Where you are</p><p class="ck-v" id="ckYou"></p></div>
             <p class="gate"><i class="dot"></i><span data-gate="{w}">Mon–Fri 09:00–19:00, Rome time</span></p>
           </div>
@@ -1031,7 +1035,7 @@ body::before, body::after { z-index: 1 !important; }
       <h2 id="netH">Other desks, <span class="g">one company.</span></h2>
       <p class="net-c">Every desk answers from Rome.</p>
       <div class="net-g">
-        <svg class="map" viewBox="0 0 600 420" aria-hidden="true" focusable="false"><defs><pattern id="netDots" width="12" height="12" patternUnits="userSpaceOnUse"><circle cx="6" cy="6" r=".5" fill="#fff" fill-opacity=".08"/></pattern></defs><rect class="m-bg" width="600" height="420" fill="url(#netDots)"/><path class="arc me" style="--i:0" pathLength="1" fill="none" d="M432.9 336Q365.6 145.3 298.3 63.9"/><path class="arc" style="--i:1" pathLength="1" fill="none" d="M432.9 336Q341.4 309.7 249.8 349.4"/><path class="arc" style="--i:2" pathLength="1" fill="none" d="M432.9 336Q321 150.8 209.1 86.3"/><path class="arc" style="--i:3" pathLength="1" fill="none" d="M432.9 336Q289.3 303.2 145.7 374.7"/><path class="arc" style="--i:4" pathLength="1" fill="none" d="M432.9 336Q403.6 270 374.3 243.4"/><circle class="d" cx="249.8" cy="349.4" r="3"/><circle class="d" cx="209.1" cy="86.3" r="3"/><circle class="d" cx="145.7" cy="374.7" r="3"/><circle class="d" cx="374.3" cy="243.4" r="3"/><circle class="d-ring" cx="298.3" cy="63.9" r="10" fill="none"/><circle class="d me" cx="298.3" cy="63.9" r="4"/><circle class="hub" cx="432.9" cy="336" r="5" fill="none"/><text class="m-l" x="258.8" y="353.4">BCN</text><text class="m-l" x="218.1" y="90.3">LON</text><text class="m-l" x="154.7" y="378.7">MAD</text><text class="m-l" x="383.3" y="247.4">MIL</text><text class="m-l me" x="307.3" y="67.9">AMS</text><text class="m-l hub" x="441.9" y="340">ROM</text></svg>
+        <svg class="map" viewBox="0 0 600 420" aria-hidden="true" focusable="false"><defs><pattern id="netDots" width="12" height="12" patternUnits="userSpaceOnUse"><circle cx="6" cy="6" r=".5" fill="#fff" fill-opacity=".08"/></pattern></defs><rect class="m-bg" width="600" height="420" fill="url(#netDots)"/><path class="arc" style="--i:1" pathLength="1" fill="none" d="M432.9 336Q338.9 309.8 249.8 349.4"/><path class="arc" style="--i:2" pathLength="1" fill="none" d="M432.9 336Q246.1 278.3 209.1 86.3"/><path class="arc" style="--i:3" pathLength="1" fill="none" d="M432.9 336Q296.3 407 145.7 374.7"/><path class="arc" style="--i:4" pathLength="1" fill="none" d="M432.9 336Q420.3 279.2 374.3 243.4"/><path class="arc me" style="--i:0" pathLength="1" fill="none" d="M432.9 336Q300.3 232.3 298.3 63.9"/><circle class="d" cx="249.8" cy="349.4" r="3"/><circle class="d" cx="209.1" cy="86.3" r="3"/><circle class="d" cx="145.7" cy="374.7" r="3"/><circle class="d" cx="374.3" cy="243.4" r="3"/><circle class="d-ring" cx="298.3" cy="63.9" r="10" fill="none"/><circle class="d me" cx="298.3" cy="63.9" r="4"/><circle class="hub" cx="432.9" cy="336" r="5" fill="none"/><text class="m-l l" x="240.8" y="353.4" text-anchor="end">BCN</text><text class="m-l l" x="200.1" y="90.3" text-anchor="end">LON</text><text class="m-l l" x="136.7" y="378.7" text-anchor="end">MAD</text><text class="m-l" x="383.3" y="247.4">MIL</text><text class="m-l me l" x="289.3" y="67.9" text-anchor="end">AMS</text><text class="m-l hub" x="441.9" y="340">ROM</text></svg>
         <ul class="net">
           <li><a href="/barcelona"><b data-instr>BCN</b> Barcelona desk</a></li>
           <li><a href="/london"><b data-instr>LON</b> London desk</a></li>
@@ -1194,10 +1198,10 @@ body::before, body::after { z-index: 1 !important; }
       ],
       "unconfirmed": "Not confirmed yet. If no email reaches you, write to the desk."
     },
-    "ONDA": "/assets/boom-onda.js?v=e58370936a"
+    "ONDA": "/assets/boom-onda.js?v=e1d2717948"
   };
 </script>
-<script src="/assets/boom-city.js?v=a471f085a4"></script>
+<script src="/assets/boom-city.js?v=9ad1ce6ced"></script>
 <script>
   /* The door is served disabled and the desk script opens it. If that script
      never ran (a failed download, an early error) the button stays shut: say
