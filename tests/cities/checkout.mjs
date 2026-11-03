@@ -113,7 +113,7 @@ const mkRes = () => ({ code: 0, body: null, headers: {}, setHeader(k, v) { this.
 let ipSeq = 0;
 const post = async (handler, body, ip) => { const r = mkRes(); await handler({ method: 'POST', headers: { 'x-forwarded-for': ip || `10.7.0.${++ipSeq}` }, body, socket: {} }, r); return r; };
 const stream = (obj) => ({ method: 'POST', headers: { 'stripe-signature': 'sig' }, async *[Symbol.asyncIterator]() { yield Buffer.from(JSON.stringify(obj)); } });
-const event = (metadata, over = {}) => ({ type: 'checkout.session.completed', data: { object: { id: over.id || 'cs_city_1', amount_total: over.amount_total ?? 50000, currency: 'eur', customer_email: 'anna@example.com', customer_details: over.customer_details || null, payment_intent: 'pi_1', metadata } } });
+const event = (metadata, over = {}) => ({ type: 'checkout.session.completed', data: { object: { id: over.id || 'cs_city_1', amount_total: over.amount_total ?? 50000, currency: over.currency || 'eur', customer_email: 'anna@example.com', customer_details: over.customer_details || null, payment_intent: 'pi_1', metadata } } });
 
 const { default: checkout } = await import('../../api/service-checkout.js');
 const { default: webhook, withdrawalWindow, HOLIDAY_KEYS } = await import('../../api/stripe-webhook.js');
@@ -575,6 +575,42 @@ check(/Refunded in full if we decline the search in the first call/.test(CITY_PL
     'the page JS mounts the till and reads ?paid= ONLY when the build set CHECKOUT true');
   check(/city: C\.SLUG, kind: id/.test(js) && !/\beur:\s*p\.eur\b/.test(js.slice(js.indexOf('function pay()'), js.indexOf('go.addEventListener'))),
     'the sheet posts the city and the plan id — never a price');
+}
+
+// ── London (GBP) and Milan (02/11/2026) ─────────────────────────────────────
+{
+  const o = cityOffer('london', 'full-search'), m = cityOffer('milan', 'full-search');
+  check(o.ok && o.eur === 500 && o.currency === 'gbp' && m.ok && m.eur === 500 && m.currency === 'eur' && cityOffer('amsterdam', 'full-search').currency === 'eur',
+    'cityOffer: London charges £500 in GBP, Milan €500 in EUR, the euro desks unchanged');
+  check(CITY_MARKETS.london.holidays === 'gb-eng' && CITY_MARKETS.milan.holidays === 'it-mi' && HOLIDAY_KEYS.includes('gb-eng') && HOLIDAY_KEYS.includes('it-mi'),
+    'London reads the England & Wales bank holidays, Milan Italy + Sant\'Ambrogio — keys the webhook knows');
+  const r = await post(checkout, { city: 'london', kind: 'full-search', ...ANNA });
+  const c = globalThis.__stripeCalls.at(-1);
+  check(r.code === 200 && c.line_items[0].price_data.currency === 'gbp' && c.line_items[0].price_data.unit_amount === 50000 && c.line_items[0].price_data.product_data.name === 'BOOM London — Full Search'
+    && c.success_url === 'https://www.boomrome.com/london?paid=full-search&start=0&session_id={CHECKOUT_SESSION_ID}' && c.cancel_url === 'https://www.boomrome.com/london#fares' && c.metadata.currency === 'gbp',
+    'London: a GBP Stripe session (50000 pence), named for the desk, back to /london', JSON.stringify(c && c.line_items[0].price_data));
+  const r2 = await post(checkout, { city: 'milan', kind: 'attended-viewing', ...ANNA });
+  const c2 = globalThis.__stripeCalls.at(-1);
+  check(r2.code === 200 && c2.line_items[0].price_data.currency === 'eur' && c2.line_items[0].price_data.unit_amount === 14900 && c2.success_url.startsWith('https://www.boomrome.com/milan?paid=attended-viewing'),
+    'Milan: an EUR Stripe session, back to /milan');
+  const amsCall = globalThis.__stripeCalls.find((x) => x.metadata && x.metadata.city === 'amsterdam');
+  check(amsCall && amsCall.line_items[0].price_data.currency === 'eur', 'the euro desks still charge in EUR');
+  // the webhook: a London paid order is written and announced in pounds
+  const meta = { service: 'SERVICE', kind: 'full-search', city: 'london', market: 'london', name: 'Clara Hale', email: 'clara@example.com', phone: '', notes: '', amount_eur: '500', currency: 'gbp' };
+  const e0 = emails.length;
+  const w = await webhook(stream(event(meta, { id: 'cs_city_lon_1', currency: 'gbp', customer_details: { email: 'clara@example.com', phone: '+447700900123' } })), mkRes());
+  const lead = svcLead('cs_city_lon_1');
+  check(w.code === 200 && lead && lead.market === 'london' && /^LONDON — paid order · Full Search · £500 paid · file BM /.test(lead.message) && !/€/.test(lead.message) && lead.phone === '+447700900123',
+    'the London paid order: market london, "£500 paid" in the summary, never €', lead && lead.message);
+  const admin = emails[e0], client = emails[e0 + 1];
+  check(admin && /LONDON — FULL SEARCH — £500 paid/.test(admin.heading) && client && /£500/.test(JSON.stringify(client)) && !/€500/.test(JSON.stringify(client)) && /London time/.test(JSON.stringify(client)),
+    'the two London emails say £500 and the desk hours in London time', admin && admin.heading);
+  // the withdrawal window counts the desk's own holidays
+  const lonW = withdrawalWindow(Date.parse('2026-12-11T10:00:00Z') / 1000, 'gb-eng');
+  const milW = withdrawalWindow(Date.parse('2026-11-23T10:00:00Z') / 1000, 'it-mi');
+  const itW = withdrawalWindow(Date.parse('2026-11-23T10:00:00Z') / 1000, 'it');
+  check(JSON.stringify(lonW).includes('2026-12-29') && JSON.stringify(milW).includes('2026-12-09') && JSON.stringify(itW).includes('2026-12-07'),
+    'withdrawal: London rolls past Christmas and the Boxing Day substitute (Mon 28 Dec); Milan past Sant\'Ambrogio (7 Dec), Rome does not', JSON.stringify({ lonW, milW, itW }));
 }
 
 console.log(`\n  ${ok} passed, ${ko} failed`);

@@ -107,7 +107,9 @@
         "Rome",
         "Amsterdam",
         "Barcelona",
-        "Madrid"
+        "London",
+        "Madrid",
+        "Milan"
       ],
       "sameAs": [
         "https://maps.google.com/?cid=15671179095441549815"
@@ -626,18 +628,29 @@ body::before, body::after { z-index: 1 !important; }
     it: { fixed: ['01-01', '01-06', '04-25', '05-01', '06-02', '06-29', '08-15', '10-04', '11-01', '12-08', '12-25', '12-26'], easter: [1] },
     nl: { fixed: ['01-01', '04-27', '05-05', '12-25', '12-26'], easter: [-2, 1, 39, 50], kingsDay: true },
     es: { fixed: ['01-01', '01-06', '05-01', '05-02', '05-15', '08-15', '10-12', '11-01', '11-09', '12-06', '12-08', '12-25'], easter: [-3, -2] },
-    'es-bcn': { fixed: ['01-01', '01-06', '05-01', '06-24', '08-15', '09-11', '09-24', '10-12', '11-01', '12-06', '12-08', '12-25', '12-26'], easter: [-2, 1, 50], merceMonday: true }
+    'es-bcn': { fixed: ['01-01', '01-06', '05-01', '06-24', '08-15', '09-11', '09-24', '10-12', '11-01', '12-06', '12-08', '12-25', '12-26'], easter: [-2, 1, 50], merceMonday: true },
+    'gb-eng': { fixed: [], easter: [-2, 1], mondays: [[5, 1], [5, -1], [8, -1]], weekdays: [[1, 1, 1], [12, 25, 2]] },
+    'it-mi': { fixed: ['12-07'], easter: [] }
   };
   var HOLIDAY_KEYS = Object.keys(HOLIDAYS);
   function pad(n) { return (n < 10 ? '0' : '') + n; }
   function isHoliday(y, m, d, key) {
-    var mmdd = pad(m) + '-' + pad(d), em = easterOf(y), keys = ['it', key];
+    var mmdd = pad(m) + '-' + pad(d), em = easterOf(y), keys = ['it', key], wd = new Date(Date.UTC(y, m - 1, d)).getUTCDay(), r;
     for (var j = 0; j < keys.length; j++) {
       var h = HOLIDAYS[keys[j]];
       if (!h) continue;
       if (h.fixed.indexOf(mmdd) >= 0) return true;
       if (h.kingsDay && mmdd === '04-26' && new Date(Date.UTC(y, 3, 27)).getUTCDay() === 0) return true;
       if (h.merceMonday && mmdd === '09-25' && new Date(Date.UTC(y, 8, 24)).getUTCDay() === 0) return true;
+      for (r = 0; h.mondays && r < h.mondays.length; r++)
+        if (wd === 1 && h.mondays[r][0] === m && (h.mondays[r][1] > 0 ? d < 8 : new Date(Date.UTC(y, m - 1, d + 7)).getUTCMonth() !== m - 1)) return true;
+      for (r = 0; h.weekdays && r < h.weekdays.length; r++)
+        for (var w = h.weekdays[r], t = Date.UTC(y, w[0] - 1, w[1]), n = w[2]; n > 0; t += 864e5) {
+          var z = new Date(t);
+          if (z.getUTCDay() % 6 === 0) continue;
+          if (z.getUTCMonth() + 1 === m && z.getUTCDate() === d) return true;
+          n--;
+        }
       for (var q = 0; q < h.easter.length; q++) {
         var x = new Date(Date.UTC(y, em[0] - 1, em[1] + h.easter[q]));
         if (x.getUTCMonth() + 1 === m && x.getUTCDate() === d) return true;
@@ -663,7 +676,7 @@ body::before, body::after { z-index: 1 !important; }
     } catch (e) { return null; }
     if (!o.year || WD[o.weekday] === undefined) return null;
     var name = String(o.timeZoneName || '');
-    if (!/^[A-Z]{2,5}$/.test(name)) name = /\+2$/.test(name) ? 'CEST' : /\+1$/.test(name) ? 'CET' : '';
+    if (!/^[A-Z]{2,5}$/.test(name)) name = (tz === 'Europe/London' ? { '+0': 'GMT', '+1': 'BST' } : { '+1': 'CET', '+2': 'CEST' })[(/[+-]\d+$/.exec(name) || [''])[0]] || '';
     return {
       y: +o.year, m: +o.month, d: +o.day, wd: WD[o.weekday],
       min: (+o.hour % 24) * 60 + (+o.minute), tz: name, key: o.year + '-' + pad(+o.month) + '-' + pad(+o.day)
@@ -884,7 +897,9 @@ body::before, body::after { z-index: 1 !important; }
         <a href="/amsterdam">Amsterdam desk</a>
         <a href="/barcelona">Barcelona desk</a>
         <a href="/berlin">Berlin desk</a>
+        <a href="/london">London desk</a>
         <a href="/madrid">Madrid desk</a>
+        <a href="/milan">Milan desk</a>
         <a href="/">BOOM Rome</a>
       </nav>
       <p>© 2026 BOOM</p>
@@ -926,6 +941,8 @@ body::before, body::after { z-index: 1 !important; }
       ]
     },
     "HOLIDAYS": "fr",
+    "CURRENCY": "EUR",
+    "SYMBOL": "€",
     "PLANS": {
       "full-search": {
         "label": "Full Search",
@@ -971,7 +988,7 @@ body::before, body::after { z-index: 1 !important; }
     "PAID": null
   };
 </script>
-<script src="/assets/boom-city.js?v=fdf0db9c22"></script>
+<script src="/assets/boom-city.js?v=eb711e2b68"></script>
 <script>
   /* The door is served disabled and the desk script opens it. If that script
      never ran (a failed download, an early error) the button stays shut: say

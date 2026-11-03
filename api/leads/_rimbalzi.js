@@ -45,7 +45,7 @@ import { reportHealth } from '../pfs/_health.js';
 import { runBudget } from '../_budget.js';
 import { tgSend } from '../telegram/_lib.js';
 import { replyLang } from '../_lang.js';
-import { isReunion, isB2B, b2bSide, isCityMarket, cityMarketOf, cityLabel, cityPhone } from '../_market.js';
+import { isReunion, isB2B, b2bSide, isCityMarket, cityMarketOf, cityLabel, cityPhone, cityCurrency, moneyOf } from '../_market.js';
 
 const LOOKBACK_DAYS = 3;
 const MAX_CANDIDATES = 60;     // le più recenti: oltre, il prossimo giro
@@ -581,7 +581,11 @@ function personLines(p) {
     if (isPaid(p)) {
       const plan = (d.city && d.city.serviceLabel) || d.kind || '';
       const eur = euro(d.amount_eur);
-      state = '💶 PAGATO' + (plan ? ' ' + plan : '') + (eur ? ' €' + eur : '');
+      // amount_eur is the amount in the lead's `currency` (a London order is
+      // in pounds: «£500»); a lead without the field reads its desk's
+      // currency, and every euro lead prints the same «€500» as before
+      const cur = d.currency || (isCityMarket(d) ? cityCurrency(cityMarketOf(d)) : 'eur');
+      state = '💶 PAGATO' + (plan ? ' ' + plan : '') + (eur ? ' ' + moneyOf(eur, cur) : '');
     } else state = d.grade === 'dead' ? 'morto' : (d.status || 'nuovo');
   }
   const sent = d.clientEmailSentAt ? romeShort(d.clientEmailSentAt) : null;
