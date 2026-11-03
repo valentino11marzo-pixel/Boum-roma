@@ -20,17 +20,17 @@
       if (!source || u.pathname === '/' || u.pathname.length < 5) return null;
       u.protocol = 'https:';
       u.hash = '';
-      // Gli URL condivisi non conservano parametri di sessione o tracking.
+      /* Gli URL condivisi non conservano parametri di sessione o tracking. */
       u.search = '';
       return { url: u.toString(), source: source.name };
     } catch { return null; }
   }
-  // Identità dell'archivio: non cambia gli URL usati per leggere la fonte.
+  /* Identità dell'archivio: non cambia gli URL usati per leggere la fonte. */
   function storedListing(raw) {
     const source = normalizeUrl(raw);
     if (!source) return null;
     const value = String(raw || '').trim();
-    // URL() elimina le porte predefinite e le credenziali vuote: non sono alias archivio.
+    /* URL() elimina le porte predefinite e le credenziali vuote: non sono alias archivio. */
     const authority = value.replace(/[\t\r\n]/g, '').match(/^https?:\/\/([^/?#\\]+)/i)?.[1];
     if (!authority || /[:@]/.test(authority)) return null;
     const u = new URL(source.url);
@@ -62,7 +62,7 @@
     'Immobiliare.it': /^(?:[a-z0-9-]+\.)?im-cdn\.it$/,
     'Idealista': /^(?:[a-z0-9-]+\.)?idealista\.(?:it|com)$/,
     'Subito': /^(?:[a-z0-9-]+\.)?subito\.it$/,
-    // La galleria SmartLink CasaFari conserva anche il CDN originale Immobiliare.
+    /* La galleria SmartLink CasaFari conserva anche il CDN originale Immobiliare. */
     'Casafari': /^(?:[a-z0-9-]+\.)?(?:casafari\.com|im-cdn\.it)$/,
     'Casa.it': /^(?:[a-z0-9-]+\.)?casa\.it$/,
   };
@@ -71,7 +71,7 @@
       const value = String(raw || '').replace(/\\u002f/gi, '/').replace(/\\\//g, '/').replace(/&amp;/gi, '&');
       const u = new URL(value);
       if (u.protocol !== 'https:' || u.port || u.username || u.password || u.hash) return null;
-      // CDN delle fotografie Subito osservato nella galleria pubblica: URL senza estensione.
+      /* CDN delle fotografie Subito osservato nella galleria pubblica: URL senza estensione. */
       if(sourceName==='Subito' && u.hostname==='images.sbito.it') {
         if(!/^\/api\/v1\/sbt-ads-images-pro\/images\/[0-9a-f]{2}\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(u.pathname)) return null;
         u.search='?rule=fullscreen-1x-auto';
@@ -127,8 +127,8 @@
     if (unique.length !== images.length || unique.some(url => !validImageUrl(url, key))) return null;
     return unique;
   }
-  // Foto già appartenenti allo stesso annuncio BOOM, anche da un'altra bozza.
-  // La verifica si ripete sul server: il browser non può autorizzare un riuso.
+  /* Foto già appartenenti allo stesso annuncio BOOM, anche da un'altra bozza. */
+  /* La verifica si ripete sul server: il browser non può autorizzare un riuso. */
   function reusableImages(record, sourceUrl, images, draftKey) {
     if (record?.active !== true || !sameListingUrl(record.sourceUrl, sourceUrl)) return null;
     if (!Array.isArray(images) || !images.length || images.length > MAX_PHOTOS || new Set(images).size !== images.length) return null;
@@ -197,8 +197,8 @@
     const { title, price, zone, sqm, rooms, note, images, map, observedAt, availability } = d;
     return { title: publicText(title,130) || 'Una casa a Roma', price, zone:publicText(zone,90), sqm, rooms, note:publicText(note,400), images: Array.isArray(images) ? images.filter(validPublicImageUrl).slice(0,MAX_PHOTOS) : [], map: map ? { ...map, label:publicText(map.label,70) || 'Roma' } : null, observedAt, availability };
   }
-  // Un retry conferma la stessa pubblicazione, mai dati diversi sotto lo stesso link.
-  // Le date server cambiano a ogni tentativo e non fanno parte della proposta.
+  /* Un retry conferma la stessa pubblicazione, mai dati diversi sotto lo stesso link. */
+  /* Le date server cambiano a ogni tentativo e non fanno parte della proposta. */
   function samePublication(a, b) {
     const content = d => ({
       title:cleanText(d?.title,130) || 'Una casa a Roma',price:positiveNumber(d?.price,1000000),

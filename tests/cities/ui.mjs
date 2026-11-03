@@ -142,7 +142,7 @@ const RULE = JSON.parse(fs.readFileSync(path.join(R, 'cities/_shared.json'), 'ut
   await ctx.close();
 }
 
-for (const slug of ['amsterdam', 'madrid', 'barcelona', 'paris', 'berlin']) {
+for (const slug of ['amsterdam', 'madrid', 'barcelona', 'london', 'milan', 'paris', 'berlin']) {
   for (const [w, h] of [[390, 844], [1440, 900]]) {
     const { ctx, page } = await open({ slug, width: w, height: h });
     await page.waitForTimeout(400);
@@ -162,7 +162,7 @@ for (const slug of ['amsterdam', 'madrid', 'barcelona', 'paris', 'berlin']) {
     await ctx.close();
   }
 }
-for (const slug of ['amsterdam', 'madrid', 'barcelona']) {
+for (const slug of ['amsterdam', 'madrid', 'barcelona', 'london', 'milan']) {
   // L1: an iPhone's visible height in Safari (~664): the first screen always
   // has an action — the gold door, or the strip when the door is under the fold
   const { ctx, page } = await open({ slug, width: 390, height: 664 });
@@ -426,6 +426,25 @@ for (const [w, h] of [[390, 844], [320, 568], [430, 932]]) {
   check((await events(page)).filter((e) => e.name === 'purchase').length === 0, 'a reload of the paid return counts nothing twice');
   await ctx.close();
 }
+// London (02/11/2026): the till, the paid card and analytics speak pounds
+{
+  const { ctx, page, st } = await open({ slug: 'london', paid: (n) => (n < 1 ? { status: 200, body: { ok: true, pending: true } } : { status: 200, body: { ok: true, paid: true, plan: 'full-search', file: FILE, startNow: false, workFromLabel: '4 November 2026' } }) });
+  await page.waitForTimeout(300);
+  await page.click('#fare-full-search > summary');
+  await page.waitForTimeout(200);
+  await tap(page, '#fare-full-search [data-pay]');
+  await page.waitForTimeout(250);
+  check(await text(page, '#tPrice') === '£500' && await text(page, '#tGoL') === 'Pay and book · £500', 'London till: £500, "Pay and book · £500"');
+  await page.fill('#tName', 'Clara Hale');
+  await page.fill('#tEmail', 'clara@example.com');
+  await page.click('#tGo');
+  await page.waitForURL(/paid=full-search/, { timeout: 8000 });
+  await page.waitForFunction(() => document.getElementById('pass').getAttribute('data-state') === 'paid', null, { timeout: 8000 }).catch(() => {});
+  const p = (await events(page)).filter((e) => e.name === 'purchase');
+  check(st.checkouts.length === 1 && st.checkouts[0].city === 'london' && await text(page, '#pFare') === 'Full Search · £500' && p.length === 1 && p[0].p.currency === 'GBP' && p[0].p.value === 500,
+    'London paid: "Full Search · £500" on the card, ONE purchase reported in GBP', JSON.stringify(p.map((e) => e.p.currency)));
+  await ctx.close();
+}
 {
   const { ctx, page, st } = await open({ query: '?paid=full-search&session_id=cs_test_aaaaaaaaaaaa', paid: { status: 200, body: { ok: true, paid: true, plan: 'application-pack', file: 'BM AAAAA', startNow: true } } });
   await page.waitForFunction(() => document.getElementById('pass').getAttribute('data-state') === 'paid', null, { timeout: 4000 }).catch(() => {});
@@ -455,7 +474,10 @@ const CLOCKS = [
   ['amsterdam', '2026-10-27T08:00:00Z', 'no card · desk open until 19:00 CET', 'a Tuesday at 09:00: the desk is open'],
   ['barcelona', '2026-09-11T08:00:00Z', 'no card · Monday from 09:00 CEST', 'the Diada (Friday 11 September) in Barcelona: Monday'],
   ['madrid', '2026-09-11T08:00:00Z', 'no card · desk open until 19:00 CEST', 'the same Friday in Madrid: open (the Diada is Catalan)'],
-  ['paris', '2026-12-24T19:00:00Z', 'free · Monday from 09:00 CET', 'Christmas Eve at 20:00 on a waitlist desk: Monday (Christmas, Santo Stefano, the weekend)']
+  ['paris', '2026-12-24T19:00:00Z', 'free · Monday from 09:00 CET', 'Christmas Eve at 20:00 on a waitlist desk: Monday (Christmas, Santo Stefano, the weekend)'],
+  ['london', '2026-08-31T10:00:00Z', 'no card · Tomorrow from 08:00 BST', 'the summer bank holiday in London: tomorrow, in London time'],
+  ['london', '2026-12-24T18:30:00Z', 'no card · Tuesday from 08:00 GMT', 'Christmas Eve after hours in London: Tuesday (Christmas, the weekend, the Boxing Day substitute)'],
+  ['milan', '2026-12-07T08:00:00Z', 'no card · Wednesday from 09:00 CET', "Sant'Ambrogio (Monday 7 December) and the Immacolata: Wednesday"]
 ];
 for (const [slug, clock, want, what] of CLOCKS) {
   const { ctx, page } = await open({ slug, clock });

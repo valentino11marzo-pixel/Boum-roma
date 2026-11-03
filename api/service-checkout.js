@@ -17,7 +17,8 @@
 // THE CITY DESKS (BOOM_CITIES_BRIEF.md, 14/10): `{ city, kind }` sells one of
 // a city page's plans — Full Search / Application Pack / Attended Viewing —
 // at the price in CITY_PLANS (api/_market.js), the one copy the server
-// trusts. cityOffer() refuses a waitlist desk and a search desk whose
+// trusts, in the desk's currency (cityOffer: London charges in pounds since
+// 02/11/2026, every other desk in euros). cityOffer() refuses a waitlist desk and a search desk whose
 // checkout is not open (400 checkout_closed): the page shows the price and
 // opens the file, nobody is charged. The phone is optional here (Stripe
 // collects one at checkout); the webhook files the lead with market = the
@@ -76,7 +77,9 @@ export default async function handler(req, res) {
   if (cityKey) {
     offer = cityOffer(cityKey, kind);
     if (!offer.ok) return res.status(400).json({ ok: false, error: offer.error });
-    svc = { eur: offer.eur, label: offer.label, desc: offer.desc };
+    // `eur` is the amount in the desk's currency (London: pounds) — see
+    // CITY_PLANS in api/_market.js; the currency travels beside it
+    svc = { eur: offer.eur, currency: offer.currency, label: offer.label, desc: offer.desc };
   } else {
     svc = CATALOG[kind];
     if (!svc) return res.status(400).json({ ok: false, error: 'unknown_service' });
@@ -102,7 +105,9 @@ export default async function handler(req, res) {
       ...(offer && !phone ? { phone_number_collection: { enabled: true } } : {}),
       line_items: [{
         price_data: {
-          currency: 'eur',
+          // the desk's currency (cityOffer: 'gbp' for London); a Rome
+          // service and every other desk charge in euros
+          currency: svc.currency || 'eur',
           product_data: { name: offer ? offer.name : `BOOM ${svc.label}`, description: svc.desc },
           unit_amount: svc.eur * 100,
         },
@@ -117,6 +122,9 @@ export default async function handler(req, res) {
         listing: clip(body.listing, 400),
         notes: clip(body.notes, 400),
         amount_eur: String(svc.eur),
+        // the currency of that amount: amount_eur keeps its name for the
+        // readers that already know it, and on a London order it is pounds
+        currency: svc.currency || 'eur',
         // Codice del consumo (artt. 50 c.3, 57 c.3, 59) — Direttiva 2011/83/UE
         // art. 7(3) per i desk città: sul Pacchetto concordato e su un ordine
         // città il cliente che chiede di iniziare durante i 14 giorni del

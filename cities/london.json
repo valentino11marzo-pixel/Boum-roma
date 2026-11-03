@@ -1,0 +1,347 @@
+{
+  "slug": "london",
+  "city": "London",
+  "country": "GB",
+  "currency": "GBP",
+  "iata": "LON",
+  "live": true,
+  "mode": "search",
+  "config": {},
+  "updated": "2026-11-02",
+  "meta": {
+    "title": "Rental property finder for expats in London — BOOM",
+    "description": "Home search for expats moving to London, tenant side only: tenant file within one working day of your papers, applications as listings appear, tenancy checked.",
+    "ogTitle": "BOOM London — an agent on your side of the table",
+    "ogDescription": "Tenant-side rental search for expats and professionals moving to London. Tenant file within one working day of your papers, applications sent as listings appear, attended viewings, tenancy checked before you sign. Flat fees, paid by you — never by landlords."
+  },
+  "service": {
+    "name": "BOOM London — tenant-side rental search",
+    "serviceType": "Tenant-side rental search agent",
+    "audience": "Expats and international professionals relocating to London",
+    "description": "Rental search in London on the tenant's side only: tenant file and cover letter within one working day of the tenant's papers, applications sent as listings appear, attended viewings with live video and written report, negotiation of terms, tenancy checked before signing, Right to Rent timing planned. Flat fees paid by the tenant, nothing from landlords or their agents."
+  },
+  "hero": {
+    "h1Before": "Your home in",
+    "lead": "We search, apply, attend the viewings and check the tenancy.",
+    "leadStrong": "We work only for you; never paid by landlords.",
+    "faresHead": {
+      "b": "Flat fees",
+      "span": "Paid by you, so on your side"
+    }
+  },
+  "pricing": {
+    "plans": [
+      {
+        "id": "full-search",
+        "label": "Full Search",
+        "name": "We search. You choose.",
+        "price": 500,
+        "condition": "flat · incl. VAT",
+        "conditionLong": "VAT included. Invoice from Egidi Immobiliare S.r.l.",
+        "includes": [
+          "Every working day: Rightmove, Zoopla, OpenRent, agencies",
+          "Cover letter, applications as listings appear",
+          "One attended viewing (more: £149 each)",
+          "Terms negotiated, tenancy checked before you sign",
+          "Until you sign, or you say stop"
+        ],
+        "offerDescription": "Search, tenant file and cover letter, applications as listings appear, one attended viewing, negotiation and tenancy check, until the tenant signs or stops the search.",
+        "when": "Haven't started yet"
+      },
+      {
+        "id": "application-pack",
+        "label": "Application Pack",
+        "name": "You search. We make you win.",
+        "price": 199,
+        "condition": "flat · incl. VAT",
+        "conditionLong": "VAT included. Invoice from Egidi Immobiliare S.r.l.",
+        "includes": [
+          "Tenant file, one working day from your papers",
+          "Cover letter for the landlord",
+          "Income and guarantor strategy",
+          "Tenancy reviewed before you sign"
+        ],
+        "offerDescription": "Tenant file within one working day of your papers, cover letter, income and guarantor strategy, tenancy review before signing.",
+        "when": "Shortlisted, already in London"
+      },
+      {
+        "id": "attended-viewing",
+        "label": "Attended Viewing",
+        "unit": "per viewing",
+        "name": "Eyes on the ground.",
+        "price": 149,
+        "condition": "per viewing · incl. VAT",
+        "conditionLong": "VAT included. Invoice from Egidi Immobiliare S.r.l.",
+        "includes": [
+          "A BOOM person attends in your place",
+          "Live video walkthrough",
+          "Written report: light, noise, damp, neighbours, commute",
+          "A straight recommendation"
+        ],
+        "offerDescription": "A BOOM person attends the viewing in your place, with live video and a written report.",
+        "when": "Shortlisted, still abroad"
+      }
+    ]
+  },
+  "stub": {
+    "notSure": "Not sure which fare? On a free call we say which fits, or that none does."
+  },
+  "how": {
+    "h2": "From the first call",
+    "h2g": "to the keys.",
+    "steps": [
+      {
+        "k": "1 · Brief",
+        "h": "A free call",
+        "p": "Dates, budget, who's moving. We say what your budget buys today."
+      },
+      {
+        "k": "2 · Your file",
+        "h": "One working day from your papers",
+        "p": "Tenant file and cover letter, then applications as listings appear."
+      },
+      {
+        "k": "3 · Viewing & tenancy",
+        "h": "A BOOM person in the room",
+        "p": "Live video and a written report. The tenancy checked before you sign."
+      }
+    ]
+  },
+  "checks": {
+    "h2": "What we check",
+    "h2g": "before you sign.",
+    "items": [
+      {
+        "id": "fees",
+        "title": "Who may charge you",
+        "at": "Tenant Fees Act 2019",
+        "text": "The landlord's side can take rent, capped deposits and a few set charges, not letting fees. We are hired by you, paid by you, and never act for the landlord."
+      },
+      {
+        "id": "advance",
+        "title": "Rent in advance",
+        "at": "Renters' Rights Act 2025",
+        "text": "On most new tenancies: no rent before you sign, and at most one month's rent between signing and the start. Months upfront no longer replace a guarantor."
+      },
+      {
+        "id": "bidding",
+        "title": "One asking rent",
+        "at": "no bidding",
+        "text": "Landlords and agents must advertise one rent and may not invite or accept offers above it. A request to outbid is a breach, not a tactic."
+      },
+      {
+        "id": "deposit",
+        "title": "The deposit",
+        "at": "5 weeks' rent",
+        "text": "Five weeks' rent at most, six on the highest rents; a holding deposit, one week's. Within 30 days the landlord lodges it in a government-approved scheme (DPS, TDS or mydeposits) and sends you its details. We tell you what to ask for."
+      },
+      {
+        "id": "tenancy",
+        "title": "The tenancy",
+        "at": "periodic since 1 May 2026",
+        "text": "On most private tenancies there is no fixed term: you can leave with two months' notice. A sale or a landlord moving in normally cannot end it in the first 12 months."
+      },
+      {
+        "id": "right-to-rent",
+        "title": "Right to Rent",
+        "at": "eVisa · share code",
+        "text": "Every adult is checked before the start; eVisa holders give a share code. With time-limited permission the check comes no earlier than 28 days before the start, so a tenancy can be agreed in principle before you fly. We plan around it."
+      }
+    ]
+  },
+  "papers": {
+    "summary": "The papers a London landlord asks for",
+    "at": "8 papers",
+    "items": [
+      "Passport or eVisa share code",
+      "Employment contract or offer letter",
+      "Last three payslips",
+      "Employer reference",
+      "Previous landlord reference",
+      "Three months of bank statements",
+      "A UK guarantor, or a guarantor service",
+      "Proof of current address"
+    ],
+    "tail": "The rest we go through on the free call."
+  },
+  "faq": {
+    "h2": "Questions.",
+    "items": [
+      {
+        "q": "Can a London agent charge me fees?",
+        "a": "Not letting fees, if they act for the landlord: under the Tenant Fees Act 2019 the landlord's side can take rent, capped deposits and a few set charges. That agent is paid by the landlord and works for the landlord. BOOM London is a separate agent you hire: a flat fee, paid by you only, and we never act for any landlord."
+      },
+      {
+        "q": "What happens on the free call?",
+        "a": "A call with Valentino, by phone or WhatsApp, at a time that suits you both. We hear your dates, budget and who is moving, say which service fits, or that none does, and which papers you are missing. Nothing is charged for the call. Full Search is refunded in full if we decline the search in the first call."
+      },
+      {
+        "q": "I have no UK guarantor. Can I still rent?",
+        "a": "London landlords usually want a UK-based guarantor; family abroad is generally not accepted. Without one, many tenants use a paid guarantor service. Paying months upfront no longer replaces it: on most new tenancies, no rent before signing, and at most one month's rent between signing and the start. Application Pack sets the strategy with your papers."
+      },
+      {
+        "q": "How do I avoid a rental scam in London from abroad?",
+        "a": "Never pay a holding deposit or rent for a home nobody on your side has seen. Fake listings use stolen photos, or holiday lets staged as homes. With Attended Viewing (£149) a BOOM person visits it in your place, with live video and a written report. With Full Search or Application Pack we also check the tenancy before you sign."
+      },
+      {
+        "q": "What if you don't find anything?",
+        "a": "We tell you in the first call if your budget and timeline don't fit the market; if BOOM declines the search then, the £500 Full Search fee is refunded in full. Once we take it on, the search runs until you sign or stop it, and the fee pays for the work, not for a result."
+      }
+    ]
+  },
+  "bref": {
+    "h2": "BOOM London — fact sheet",
+    "rows": [
+      {
+        "dt": "Who",
+        "ddHtml": "BOOM London, the tenant-side rental desk of BOOM — operated by <b>Egidi Immobiliare S.r.l.</b>, a registered Italian agency. Hired by the tenant and paid by the tenant only, <b>never by the landlord or the landlord's agent</b>."
+      },
+      {
+        "dt": "For whom",
+        "ddHtml": "Expats and international professionals relocating to London — in finance, tech and consulting — plus researchers, couples and parents of international students, from abroad or already in the city."
+      },
+      {
+        "dt": "Language",
+        "ddHtml": "English."
+      },
+      {
+        "dt": "Fees",
+        "fees": true,
+        "ddHtml": "Paid by you only; nothing from landlords or their agents."
+      },
+      {
+        "dt": "What we do",
+        "ddHtml": "Tenant file within <b>one working day</b> of your papers, applications <b>as listings appear</b>, attended viewings with live video and written report, negotiation, the tenancy checked before you sign, Right to Rent timing planned."
+      },
+      {
+        "dt": "What we don't do",
+        "ddHtml": "We don't list homes, we don't act for landlords, we don't collect your rent or deposit, we don't promise a date."
+      },
+      {
+        "dt": "Reply time",
+        "ddHtml": "The same working day."
+      },
+      {
+        "dt": "Contact",
+        "contact": true,
+        "ddHtml": ""
+      }
+    ]
+  },
+  "footer": {
+    "statement": "BOOM London acts solely as a tenant-side search agent. We do not list properties, represent landlords, or receive remuneration from landlords or their agents."
+  },
+  "desk": {
+    "person": "Valentino Egidi",
+    "role": "tenant-side agent",
+    "timeZone": "Europe/London",
+    "tzLabel": "GMT/BST",
+    "hours": {
+      "from": "08:00",
+      "to": "18:00"
+    },
+    "days": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ]
+  },
+  "door": {
+    "label": "Start with a free call"
+  },
+  "form": {
+    "name": {
+      "label": "Your name",
+      "placeholder": "Clara Weiss"
+    },
+    "contact": {
+      "label": "Email or WhatsApp number",
+      "placeholder": "clara@company.com or +44 …"
+    },
+    "consentLead": "Used only to reply to you —",
+    "consentAlt": "Prefer WhatsApp or email?",
+    "errors": {
+      "name": "Your name, so we know who we're writing to.",
+      "contact": "An email or a number — otherwise we can't reply.",
+      "email": "That email looks incomplete — could you check it?",
+      "net": "The send failed on our side. Try again, or email us directly at hello@boom-rome.com."
+    },
+    "sending": "Opening your file…",
+    "sentNext": [
+      [
+        "{when}",
+        "Valentino writes to set your free call."
+      ],
+      [
+        "Nothing to prepare",
+        "On the call we say which papers matter."
+      ],
+      [
+        "Nothing by then?",
+        "Write to {email}."
+      ]
+    ],
+    "sentWhenDefault": "Same working day"
+  },
+  "checkout": true,
+  "checkoutCopy": {
+    "noteLabel": "A listing you already found, or anything we should know",
+    "notePlaceholder": "https://www.rightmove.co.uk/… · move-in 1 February",
+    "btnSubNow": "Starts in the desk’s first open hour · Stripe",
+    "btnSubWait": "Starts when your 14 days end · Stripe",
+    "altLead": "Prefer to talk first?",
+    "altLink": "Start with a free call, no card",
+    "startNow": "Start now: I ask BOOM to begin before my 14-day withdrawal period ends, and I understand that once the service is fully performed I can no longer withdraw.",
+    "withdrawal": "Withdrawal: 14 days from payment, by email to {email} or with the {form}. If you asked us to start and then withdraw, we refund the price minus the work already done. Without the tick, we start when the 14 days end.",
+    "fine": "Secure card payment by Stripe, in pounds sterling. Invoice from Egidi Immobiliare S.r.l., VAT included. Full Search is refunded in full if we decline the search in the first call.",
+    "errors": {
+      "name": "Your name, so we know who we're working for.",
+      "email": "A valid email — the invoice and your file go there.",
+      "net": "Checkout hiccuped on our side — try again, or start with a free call instead."
+    },
+    "paid": {
+      "before": "Paid — your file",
+      "em": "is open.",
+      "text": "The London desk writes by email, or on WhatsApp if you left a number. Questions? Write to",
+      "next": [
+        [
+          "First desk hour",
+          "an email from the desk with what we need"
+        ],
+        [
+          "Same working day",
+          "your brief: dates, budget, who's moving"
+        ],
+        [
+          "Then",
+          "the work as written on this page"
+        ]
+      ],
+      "nextWait": [
+        [
+          "First desk hour",
+          "an email with your order and start date"
+        ],
+        [
+          "When the 14 days end",
+          "your brief: dates, budget, who’s moving"
+        ],
+        [
+          "Then",
+          "the work as written on this page"
+        ]
+      ],
+      "wait": "You did not tick “Start now”: we start when your 14 days end. Sooner? Write to {email}.",
+      "pending": "Payment being confirmed. Your confirmation comes by email.",
+      "unconfirmed": "Not confirmed yet. If no email reaches you, write to the desk.",
+      "startsNow": "The desk’s first open hour",
+      "startsWait": "From {date}, after your 14-day withdrawal period"
+    }
+  },
+  "till": {
+    "label": "Pay and start",
+    "labelWait": "Pay and book"
+  }
+}

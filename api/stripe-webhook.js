@@ -5,7 +5,7 @@ import { sendPaEmails, shell, para, fine, btn, btn2 } from './preagreement/_noti
 import { sendEmail } from './agent/_lib.js';
 import { maybeAutoConvert } from './preagreement/_auto.js';
 import { tgNotify } from './pfs/_health.js';
-import { CITY_MARKETS, CITY_PLANS, cityPhone, serviceLeadId } from './_market.js';
+import { CITY_MARKETS, CITY_PLANS, cityPhone, serviceLeadId, moneyOf } from './_market.js';
 import SCALO from '../js/scalo-codes.js';
 import DESK_CAL from '../js/desk-calendar.js';
 
@@ -261,6 +261,12 @@ async function handleDeposit(res, session, m) {
 // questo file.
 const OFFICE_HOURS_EN = 'A person replies during office hours (Rome time); messages sent out of hours are answered the next working morning.';
 const OFFICE_HOURS_IT = "Una persona risponde in orario d'ufficio (ora di Roma); i messaggi fuori orario hanno risposta il mattino lavorativo dopo.";
+// A city desk that does not answer on Rome hours says its own
+// (CITY_MARKETS.<slug>.hoursEn — London: 'Mon–Fri 08:00–18:00, London
+// time'); every other desk keeps the Rome line above, byte for byte.
+const officeHoursEn = (desk) => (desk && desk.hoursEn
+  ? `A person replies during office hours (${desk.hoursEn}); messages sent out of hours are answered the next working morning.`
+  : OFFICE_HOURS_EN);
 
 // RESERVE — a tenant paid a refundable holding deposit to reserve an apartment.
 // SERVICE — a productised service was bought one-tap (Services 2.0):
@@ -356,6 +362,16 @@ const CITY_SERVICE_META = {
     next4: ['Written report', 'Light, noise, damp, neighbours, commute — and a straight recommendation'],
   },
 };
+// The cover letter's language, where "the local language and English" reads
+// wrong: in London the local language IS English, in Milan it is Italian.
+// The desks not listed keep the line above, byte for byte.
+const CITY_LETTER_LANG = { london: 'in English', milan: 'in Italian and English' };
+function cityServiceMeta(cityKey, kind) {
+  const base = CITY_SERVICE_META[kind] || { emoji: '✓' };
+  const lang = CITY_LETTER_LANG[cityKey];
+  if (kind !== 'application-pack' || !lang) return base;
+  return { ...base, next2: [base.next2[0], `From your papers — local format, cover letter ${lang}`] };
+}
 
 // The 14-day withdrawal period of a service contract (Directive 2011/83/EU
 // art. 9), on the Rome calendar. The day the contract is concluded does not
@@ -464,8 +480,14 @@ async function handleService(res, session, m, event = null) {
   const cityDesk = CITY_MARKETS[cityKey] || null;
   const cityPlan = cityDesk ? ((cityDesk.plans || CITY_PLANS)[m.kind] || null) : null;
   const meta = cityDesk
-    ? { ...(CITY_SERVICE_META[m.kind] || { emoji: '✓' }), title: `${cityDesk.label} — ${cityPlan ? cityPlan.label : (m.kind || 'order')}`, city: cityDesk }
+    ? { ...cityServiceMeta(cityKey, m.kind), title: `${cityDesk.label} — ${cityPlan ? cityPlan.label : (m.kind || 'order')}`, city: cityDesk }
     : (SERVICE_META[m.kind] || { title: m.kind || 'Service', emoji: '✓' });
+  // The currency the session was CHARGED in (Stripe's own field — a London
+  // order is 'gbp'); the desk's currency only when Stripe says nothing. Every
+  // printout of the amount below goes through moneyOf: '£500' for pounds,
+  // and for euros the same '€…' bytes as before.
+  const currency = String(session.currency || (cityDesk && cityDesk.currency) || 'eur').toLowerCase();
+  const paidAmount = moneyOf(amountEur, currency);
   // Stripe's phone_number_collection lands in customer_details.phone: the
   // city sheet leaves the phone optional, the checkout asks for it.
   // A desk order stores the number in E.164 with the desk's country, like
@@ -504,11 +526,13 @@ async function handleService(res, session, m, event = null) {
     // Telegram card quotes the first 240 characters, and the client quotes
     // that number on WhatsApp — a long note must not push it out
     message: cityDesk
-      ? `${cityDesk.label.toUpperCase()} — paid order · ${cityPlan ? cityPlan.label : m.kind} · €${amountEur} paid · file ${cityFile.file}. ${startLine ? startLine + ' ' : ''}${m.listing ? 'Property: ' + m.listing + '. ' : ''}${m.notes ? 'Notes: ' + m.notes + '. ' : ''}`.trim()
-      : `${meta.title} bought one-tap (€${amountEur}). ${m.listing ? 'Property: ' + m.listing + '. ' : ''}${m.notes ? 'Notes: ' + m.notes + '. ' : ''}${m.start_now === '1' ? 'Ha chiesto di iniziare subito (recesso: art. 50 c.3 Cod. cons.).' : m.start_now === '0' ? 'NON ha chiesto di iniziare subito: si comincia allo scadere dei 14 giorni del recesso.' : ''}`,
+      ? `${cityDesk.label.toUpperCase()} — paid order · ${cityPlan ? cityPlan.label : m.kind} · ${paidAmount} paid · file ${cityFile.file}. ${startLine ? startLine + ' ' : ''}${m.listing ? 'Property: ' + m.listing + '. ' : ''}${m.notes ? 'Notes: ' + m.notes + '. ' : ''}`.trim()
+      : `${meta.title} bought one-tap (${paidAmount}). ${m.listing ? 'Property: ' + m.listing + '. ' : ''}${m.notes ? 'Notes: ' + m.notes + '. ' : ''}${m.start_now === '1' ? 'Ha chiesto di iniziare subito (recesso: art. 50 c.3 Cod. cons.).' : m.start_now === '0' ? 'NON ha chiesto di iniziare subito: si comincia allo scadere dei 14 giorni del recesso.' : ''}`,
     amount_paid: session.amount_total || 0,
+    // amount_eur keeps its name (the bounce card, the portal and the tests
+    // read it): it is the amount in `currency` — pounds on a London order
     amount_eur: amountEur,
-    currency: session.currency || 'eur',
+    currency,
     stripe_session_id: session.id,
     paid_at: now,
     createdAt: now,
@@ -566,11 +590,11 @@ async function handleService(res, session, m, event = null) {
   try {
     await sendEmailJS({
       to_email: 'valentino@boom-rome.com',
-      heading: `${meta.emoji} ${meta.title.toUpperCase()} — €${amountEur} paid`,
+      heading: `${meta.emoji} ${meta.title.toUpperCase()} — ${paidAmount} paid`,
       subheading: m.name || 'New service purchase',
       name: 'Valentino',
       intro: meta.city
-        ? `A paid order from the ${meta.city.label} desk — ${meta.title}. The page promises a message in the desk's first open hour (Mon–Fri 09:00–19:00, Rome time).${cityStart === '1' ? ' The client asked to start now.' : cityStart === '0' ? ` The client did NOT ask to start now: their withdrawal period runs to the end of ${win.lastLabel}, so the brief and the work begin on ${win.startLabel} (an acknowledgement before then is fine; starting earlier needs their written request).` : ''} The page promised an invoice from Egidi Immobiliare S.r.l., VAT included: issue it.${cityKey === 'barcelona' ? ' Barcelona: on request the client gets the order, terms and invoice in Catalan or Spanish and the official complaint forms (fulls oficials de reclamació); a complaint is answered within one month.' : ''}`
+        ? `A paid order from the ${meta.city.label} desk — ${meta.title}. The page promises a message in the desk's first open hour (${meta.city.hoursEn || 'Mon–Fri 09:00–19:00, Rome time'}).${cityStart === '1' ? ' The client asked to start now.' : cityStart === '0' ? ` The client did NOT ask to start now: their withdrawal period runs to the end of ${win.lastLabel}, so the brief and the work begin on ${win.startLabel} (an acknowledgement before then is fine; starting earlier needs their written request).` : ''} The page promised an invoice from Egidi Immobiliare S.r.l., VAT included: issue it.${cityKey === 'barcelona' ? ' Barcelona: on request the client gets the order, terms and invoice in Catalan or Spanish and the official complaint forms (fulls oficials de reclamació); a complaint is answered within one month.' : ''}`
         : `Someone just bought ${meta.title} with one tap. Clock is running — the page promises first contact fast.`,
       card_color: '#D4AF37',
       card_title: meta.title,
@@ -578,7 +602,7 @@ async function handleService(res, session, m, event = null) {
       r2_icon: '📧', r2_label: 'Email', r2_value: email || '—',
       r3_icon: '📱', r3_label: 'Phone', r3_value: phone || '—',
       r4_icon: meta.city ? '🏙' : '🏠', r4_label: meta.city ? 'Desk' : 'Property', r4_value: meta.city ? `${meta.city.label}${m.listing ? ' · ' + m.listing : ''}` : (m.listing || '—'),
-      closing: `Paid €${amountEur}. ${cityFile ? `Your file: ${cityFile.file}. ` : ''}${m.notes ? 'Notes: ' + m.notes + '. ' : ''}Stripe: ${session.id}. Record: leads/${svcId}.`,
+      closing: `Paid ${paidAmount}. ${cityFile ? `Your file: ${cityFile.file}. ` : ''}${m.notes ? 'Notes: ' + m.notes + '. ' : ''}Stripe: ${session.id}. Record: leads/${svcId}.`,
       cta_text: 'Open portal',
       portal_link: 'https://www.boomrome.com/portal.html#leads',
     });
@@ -599,12 +623,12 @@ async function handleService(res, session, m, event = null) {
       subheading: it ? 'BOOM Rome — pagato, in lavorazione' : meta.city ? `BOOM ${meta.city.label} — paid, file open` : 'BOOM Rome — paid & scheduled',
       name: firstName,
       intro: it
-        ? `Pagamento ricevuto — €${amountEur}, via Stripe. Ecco esattamente cosa succede adesso:`
+        ? `Pagamento ricevuto — ${paidAmount}, via Stripe. Ecco esattamente cosa succede adesso:`
         : cityStart === '0'
           // no "Start now" tick: the steps below begin when the withdrawal
           // period ends — the email must not read as if they start today
-          ? `Payment received — €${amountEur}, Stripe-secured. Here's what happens from ${win.startLabel}, the day after your 14-day withdrawal period ends:`
-          : `Payment received — €${amountEur}, Stripe-secured. Here's exactly what happens next:`,
+          ? `Payment received — ${paidAmount}, Stripe-secured. Here's what happens from ${win.startLabel}, the day after your 14-day withdrawal period ends:`
+          : `Payment received — ${paidAmount}, Stripe-secured. Here's exactly what happens next:`,
       card_color: '#D4AF37',
       card_title: it ? 'I prossimi passi' : 'What happens next',
       r1_icon: '✓', r1_label: (meta.next1 || ['We take it from here'])[0], r1_value: (meta.next1 || ['', 'Right away'])[1],
@@ -627,8 +651,8 @@ async function handleService(res, session, m, event = null) {
           ? (cityStart === '1'
             ? 'You asked us to start straight away, so the desk starts in its first open hour. '
             : `You did not ask us to start straight away, so your 14-day withdrawal period runs to the end of ${win.lastLabel} and the work begins on ${win.startLabel}. Want it sooner? Reply to this email. `)
-            + `To withdraw within 14 days of payment, email hello@boom-rome.com or use the model withdrawal form at ${WITHDRAWAL_FORM_URL}?desk=${encodeURIComponent(meta.city.label)}&service=${encodeURIComponent(m.kind || '')} (its text is at the end of this email). If we started at your request and you withdraw, we refund the price minus the work already done; once the service is fully performed, the right to withdraw ends. The invoice from Egidi Immobiliare S.r.l., VAT included, follows by email. Anything else — reply to this email or message us on WhatsApp. ` + OFFICE_HOURS_EN + ' ' + WITHDRAWAL_FORM_TEXT
-          : 'Anything at all — reply to this email or message us on WhatsApp. ' + OFFICE_HOURS_EN),
+            + `To withdraw within 14 days of payment, email hello@boom-rome.com or use the model withdrawal form at ${WITHDRAWAL_FORM_URL}?desk=${encodeURIComponent(meta.city.label)}&service=${encodeURIComponent(m.kind || '')} (its text is at the end of this email). If we started at your request and you withdraw, we refund the price minus the work already done; once the service is fully performed, the right to withdraw ends. The invoice from Egidi Immobiliare S.r.l., VAT included, follows by email. Anything else — reply to this email or message us on WhatsApp. ` + officeHoursEn(meta.city) + ' ' + WITHDRAWAL_FORM_TEXT
+          : 'Anything at all — reply to this email or message us on WhatsApp. ' + officeHoursEn(meta.city)),
       cta_text: it ? 'Torna su BOOM' : meta.city ? `BOOM ${meta.city.label}` : 'Back to BOOM',
       portal_link: it ? 'https://www.boomrome.com/canone' : meta.city ? meta.city.url : 'https://www.boomrome.com/apartments.html',
     });
@@ -643,7 +667,7 @@ async function handleService(res, session, m, event = null) {
     try {
       await writeDoc('agentNotifications', 'svc-mail-' + docId, {
         type: 'service.client_email_failed',
-        summary: `📭 ${meta.title}${meta.city ? ' · ' + meta.city.label : ''} — €${amountEur} PAGATI da ${m.name || email || '?'}, ma l'email di conferma al cliente NON è partita (${clientMail}): mandala a mano${meta.city ? ', col testo del recesso' : ''}.`,
+        summary: `📭 ${meta.title}${meta.city ? ' · ' + (meta.city.labelIt || meta.city.label) : ''} — ${paidAmount} PAGATI da ${m.name || email || '?'}, ma l'email di conferma al cliente NON è partita (${clientMail}): mandala a mano${meta.city ? ', col testo del recesso' : ''}.`,
         priority: 'high', status: 'pending', actor: 'stripe-webhook',
         ref: { collection: 'leads', id: svcId },
         dedupKey: 'svc-mail-' + docId, createdAt: new Date().toISOString(), attempts: 0,
@@ -1063,7 +1087,9 @@ async function handleInvoice(res, session, m) {
 // il retry di Stripe trova il doc già scritto e non suona due volte).
 async function handleMoneyBack(res, event) {
   const o = event.data.object || {};
-  const eur = n => '€' + (Math.round(n || 0) / 100).toLocaleString('it-IT');
+  // in the currency of the charge or dispute (a London order is in pounds):
+  // '£…' for gbp, the same '€…' as before for everything else
+  const eur = n => moneyOf((Math.round(n || 0) / 100).toLocaleString('it-IT'), o.currency);
   const when = e => e ? new Intl.DateTimeFormat('it-IT', { timeZone: 'Europe/Rome', day: 'numeric', month: 'long' }).format(new Date(e * 1000)) : '—';
 
   let text = '';
