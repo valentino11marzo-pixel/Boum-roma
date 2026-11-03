@@ -6,8 +6,8 @@ import { join } from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { parse } from 'acorn';
-import { buildWorkflow, buildArtifact, writeArtifact, IDS, MEDIA_IDS, ROOT, toPlist } from './experimental.mjs';
-import { buildMergeSubset } from './merge-subset.mjs';
+import { buildWorkflow, buildArtifact, writeArtifact, compact, IDS, MEDIA_IDS, ROOT, toPlist } from './experimental.mjs';
+import { buildMergeSubset, buildShareSubset } from './merge-subset.mjs';
 import { Clock, page, mergeCases } from './experimental-fixture.mjs';
 import MEDIA from '../../js/smartlink-media-engine.js';
 import SHARE from '../../js/smartlink-share-engine.js';
@@ -139,7 +139,7 @@ function simulate(workflow, { flattened = false, start = 1, pageOptions = {}, tr
     frames: values.get(IDS.repeat).map(value=>JSON.parse(value)), now: epoch+clock.now() };
 }
 
-const { workflow } = buildWorkflow();
+const { workflow, scripts } = buildWorkflow();
 const representative = simulate(workflow);
 structural(workflow);
 let middle;
@@ -186,6 +186,76 @@ mutations++;
 const rulesSource=readFileSync(new URL('../../js/smartlink-engine.js',import.meta.url),'utf8');
 const shareSource=readFileSync(new URL('../../js/smartlink-share-engine.js',import.meta.url),'utf8');
 const subset=buildMergeSubset(rulesSource,shareSource);
+assert.deepEqual(buildShareSubset(rulesSource,shareSource,'combineFrames'),subset,'The existing merge entry point remains compatible');
+assert.throws(()=>buildShareSubset(rulesSource,shareSource,'capture'),/known native workflow entry points/,'Do not accept arbitrary public methods as pruning roots');
+function replaceScriptModules(source,rules,share) {
+  const tree=parse(source,{ecmaVersion:'latest'});
+  const outer=tree.body[0].expression.arguments[0].callee;
+  const guarded=outer.body.body.find(node=>node.type==='TryStatement');
+  const modules=guarded.block.body.filter(node=>node.type==='ExpressionStatement' && node.expression?.type==='CallExpression' && node.expression.callee?.type==='FunctionExpression');
+  assert.equal(modules.length,2);
+  let changed=source;
+  for(let i=1;i>=0;i--) changed=changed.slice(0,modules[i].start)+(i===0?rules:share)+changed.slice(modules[i].end);
+  return compact(changed);
+}
+const captureScripts=Object.fromEntries(scripts.filter(script=>['plan','frame'].includes(script.name)).map(script=>[script.name,script.text]));
+const completeCaptureScripts=Object.fromEntries(Object.entries(captureScripts).map(([name,source])=>[name,replaceScriptModules(source,rulesSource,shareSource)]));
+for(const key of ['plan','frame']) assert(Buffer.byteLength(captureScripts[key])<Buffer.byteLength(completeCaptureScripts[key]),'Select only needed definitions for '+key+' without assuming a native byte limit');
+function captureScenario(selected,options={},flattened=false) {
+  const clock=new Clock(),browser=page(clock,{prices:[2450],...options});
+  const epoch=Date.parse('2026-11-03T12:00:00.000Z');
+  class FixedDate extends Date {constructor(...args){super(...(args.length?args:[epoch+clock.now()]));}static now(){return epoch+clock.now();}}
+  let forbiddenAccess=0;
+  const run=(source,bindings={})=>{
+    const outputs=[];
+    const context={document:browser.document,location:{href:browser.state.url},URL,TextEncoder,Date:FixedDate,Map,Set,JSON,...bindings,completion(value){outputs.push(value);return 'completed';}};
+    for(const key of ['fetch','XMLHttpRequest','localStorage','sessionStorage','navigator']) Object.defineProperty(context,key,{get(){forbiddenAccess++;throw Error('Forbidden '+key);}});
+    assert.equal(vm.runInNewContext(flattened?source.replace(/\r\n?|\n/g,' '):source,context,{timeout:1000}),'completed');
+    assert.equal(outputs.length,1);return JSON.parse(outputs[0]);
+  };
+  const plan=run(selected.plan),frames=[];
+  if(plan.kind==='boom.smartlink.plan') {
+    if(options.expired) clock.advance(180001);
+    for(let step=1;step<=plan.count;step++) {
+      clock.advance(1000);
+      const frame=run(selected.frame,{__BOOM_FRAME_0__:plan,__BOOM_FRAME_1__:step});
+      frames.push(frame);if(frame.kind!=='boom.smartlink.frame') break;
+    }
+  }
+  assert.equal(forbiddenAccess,0);
+  return clone({plan,frames,clicks:browser.clicks,outside:browser.outside()});
+}
+const captureScenarios=[
+  ['complete from1',{start:1}],['complete from8',{start:8}],['complete from15',{start:15}],
+  ['single photo',{total:1}],['60 photos',{total:60,start:30}],['over60',{total:61}],
+  ['source changed',{sourceChangeAt:2}],['canonical changed',{canonicalChangeAt:2}],
+  ['total changed',{totalChangeAt:2}],['wrong position',{jumpAt:2}],['contact panel',{contactAt:2}],
+  ['no progress',{noProgress:true}],['disabled control',{disabled:true}],['slow transition',{delay:1500}],
+  ['multiple galleries',{multipleRoots:true}],['expired plan',{expired:true}],['ambiguous price',{prices:[2450,2500]}],
+];
+let captureComparisons=0;
+for(const flattened of [false,true]) for(const [label,options] of captureScenarios) {
+  assert.deepEqual(captureScenario(captureScripts,options,flattened),captureScenario(completeCaptureScripts,options,flattened),'Exact plan/frame/diagnostic/click equivalence for '+label+', flattened='+flattened);
+  captureComparisons++;
+}
+function omitCaptureHelper(source) {
+  const tree=parse(source,{ecmaVersion:'latest'});let helper;
+  const visit=node=>{
+    if(!node || typeof node!=='object') return;
+    if(node.type==='FunctionDeclaration' && node.id?.name==='galleryFrame') helper=node;
+    for(const value of Object.values(node)) if(Array.isArray(value)) value.forEach(visit); else if(value && typeof value==='object') visit(value);
+  };
+  visit(tree);assert(helper,'Capture dependency must be retained');
+  return source.slice(0,helper.start)+source.slice(helper.end);
+}
+for(const [name,method] of [['plan','capturePlan'],['frame','captureFrame']]) {
+  const sources=buildShareSubset(rulesSource,shareSource,method);
+  const omittedScript=replaceScriptModules(captureScripts[name],sources.rules,omitCaptureHelper(sources.share));
+  const broken=captureScenario({...captureScripts,[name]:omittedScript});
+  assert.equal(name==='plan'?broken.plan.error:broken.frames[0].error,'capture_unavailable','Missing '+name+' dependency fails closed');
+  assert.throws(()=>assert.deepEqual(broken,captureScenario(completeCaptureScripts)),'The semantic comparison detects an omitted '+name+' dependency');
+  mutations++;
+}
 const alteredInitializer=shareSource.replace("'use strict';","'use strict';const discardedEffect=globalThis.__boomSideEffect();");
 assert.notEqual(alteredInitializer,shareSource);
 assert.throws(()=>buildMergeSubset(rulesSource,alteredInitializer),/initializer must not remove effects/,'An initializer with effects cannot be silently removed');
@@ -263,4 +333,4 @@ try {
   for (const path of publishedTargets) rmSync(path, { force: true });
   rmSync(outputDirectory, { recursive: true, force: true });
 }
-console.log(JSON.stringify({ ok: true, actions: workflow.WFWorkflowActions.length, fullGalleryScenarios: 6, hostileStringScenarios: 12, errorScenariosWithZeroDownloads: 3, mergeEquivalenceScenarios: mergeScenarios.length, mutations, callbacksOnce: true, originalPlanDatePreserved: true, astEquivalent: true, expandedScriptBytes: { plan: representative.expandedScriptBytes[IDS.plan], frame: representative.expandedScriptBytes[IDS.frame], merge: representative.expandedScriptBytes[IDS.payload] }, networkRequests: 0, nativeExecuted: false }));
+console.log(JSON.stringify({ ok: true, actions: workflow.WFWorkflowActions.length, fullGalleryScenarios: 6, hostileStringScenarios: 12, errorScenariosWithZeroDownloads: 3, captureEquivalenceScenarios: captureComparisons, mergeEquivalenceScenarios: mergeScenarios.length, mutations, callbacksOnce: true, originalPlanDatePreserved: true, astEquivalent: true, expandedScriptBytes: { plan: representative.expandedScriptBytes[IDS.plan], frame: representative.expandedScriptBytes[IDS.frame], merge: representative.expandedScriptBytes[IDS.payload] }, networkRequests: 0, nativeExecuted: false }));

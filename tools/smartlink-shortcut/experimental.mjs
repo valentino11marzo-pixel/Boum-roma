@@ -8,7 +8,7 @@ import {fileURLToPath} from 'node:url';
 import {parse} from 'acorn';
 import escodegen from 'escodegen';
 import {CAPTURE_ERRORS,toPlist} from './build.mjs';
-import {buildMergeSubset} from './merge-subset.mjs';
+import {buildMergeSubset,buildShareSubset} from './merge-subset.mjs';
 
 export {toPlist};
 export const ROOT=resolve(dirname(fileURLToPath(import.meta.url)),'../..');
@@ -84,8 +84,10 @@ return output;
 export function buildWorkflow() {
   const rules=readFileSync(resolve(ROOT,'js/smartlink-engine.js'),'utf8');
   const share=readFileSync(resolve(ROOT,'js/smartlink-share-engine.js'),'utf8');
-  const plan=compact(wrapper(rules,share,['api.capturePlan(document,location.href)'],'plan').Value.string);
-  const frame=compactToken(wrapper(rules,share,['api.captureFrame(document,location.href,(',outputRef(IDS.plan,'JavaScript Result'),'),Number(',variable('Repeat Index'),'))'],'frame'),'FRAME');
+  const planSources=buildShareSubset(rules,share,'capturePlan');
+  const frameSources=buildShareSubset(rules,share,'captureFrame');
+  const plan=compact(wrapper(planSources.rules,planSources.share,['api.capturePlan(document,location.href)'],'plan').Value.string);
+  const frame=compactToken(wrapper(frameSources.rules,frameSources.share,['api.captureFrame(document,location.href,(',outputRef(IDS.plan,'JavaScript Result'),'),Number(',variable('Repeat Index'),'))'],'frame'),'FRAME');
   const subset=buildMergeSubset(rules,share);
   const merge=compactToken(wrapper(subset.rules,subset.share,['api.combineFrames((',outputRef(IDS.envelope,'Text'),'))'],'payload',{safeUrls:true}),'MERGE');
   const frames=tokenText(['{"kind":"boom.smartlink.share.frames","version":1,"plan":',outputRef(IDS.plan,'JavaScript Result'),',"frames":[',outputRef(IDS.combined,'Combined Text'),']}']);

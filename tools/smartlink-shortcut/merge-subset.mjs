@@ -86,8 +86,9 @@ function subset(source,requested,namespace) {
   for(const node of definitions.filter(value=>selected.has(value)))assert.ok(originalDefinitions.some(value=>JSON.stringify(value)===JSON.stringify(shape(node))),'Retained definitions must be unchanged');
   return {code:printed,tree:reparsed,names:[...decls].filter(([,node])=>selected.has(node)).map(([name])=>name)};
 }
-export function buildMergeSubset(rules,share) {
-  const selectedShare=subset(share,['combineFrames','MAX_BYTES'],'BOOM_SMARTLINK_SHARE');
+export function buildShareSubset(rules,share,method) {
+  assert.ok(['capturePlan','captureFrame','combineFrames'].includes(method),'Only known native workflow entry points can be selected');
+  const selectedShare=subset(share,[method,'MAX_BYTES'],'BOOM_SMARTLINK_SHARE');
   const members=new Set();
   walk(selectedShare.tree,(node,parent,key)=>{
     if(node.type==='Identifier' && node.name==='RULES') {
@@ -98,4 +99,7 @@ export function buildMergeSubset(rules,share) {
   });
   const selectedRules=subset(rules,[...members],'BOOM_SMARTLINK');
   return {rules:selectedRules.code,share:selectedShare.code,retained:{rules:selectedRules.names,share:selectedShare.names}};
+}
+export function buildMergeSubset(rules,share) {
+  return buildShareSubset(rules,share,'combineFrames');
 }

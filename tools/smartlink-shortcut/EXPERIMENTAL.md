@@ -4,7 +4,9 @@
 
 Servono le dipendenze dev del repository (`npm ci`): Acorn 8.15.0 ed Escodegen 2.1.0, fissati nel lockfile. La compattazione rimuove la formattazione e confronta gli AST prima e dopo, senza ottimizzazione o rinomina delle variabili. I riferimenti nativi vengono reinseriti con offset UTF-16 verificati. Le due dipendenze non entrano nelle API o nel comando generato.
 
-Il solo passo di combinazione usa `merge-subset.mjs`: dal medesimo sorgente conserva `combineFrames`, il limite del payload e tutte le dipendenze transitive, comprese le validazioni. I corpi delle definizioni conservate restano identici; vengono eliminati soltanto gli altri nodi del modulo e ristretto l'export. Strutture non riconosciute, inizializzatori con effetti e dipendenze `RULES` dinamiche fermano la build. Il confronto con il motore completo verifica esiti validi, incompleti e non validi; non attribuisce a una dimensione precisa i blocchi osservati nel runtime nativo.
+Piano, frame e combinazione usano `merge-subset.mjs`: dal medesimo sorgente conserva rispettivamente `capturePlan`, `captureFrame` o `combineFrames`, il limite del payload e tutte le dipendenze transitive, comprese le validazioni. I corpi delle definizioni conservate restano identici; vengono eliminati soltanto gli altri nodi del modulo e ristretto l'export. Strutture non riconosciute, inizializzatori con effetti e dipendenze `RULES` dinamiche fermano la build. `buildShareSubset` accetta solo questi tre ingressi; `buildMergeSubset` resta compatibile con i chiamanti esistenti.
+
+Sul sorgente attuale il piano scende da 30.899 a 22.345 byte e il template frame da 30.943 a 23.211 byte. La suite confronta anche piano, frame, diagnostiche e click con il bundle completo in 34 scenari, inclusi 60 foto, cambi di identità, galleria ferma e scadenza. `combineFrames` resta una dipendenza transitiva di `validate` anche nel piano/frame: non ne viene riscritto il corpo per rimuoverlo. Questa riduzione non prova un limite di dimensione o di tempo Apple, né risolve da sola il blocco nativo osservato.
 
 ```sh
 # Compila e mostra soltanto hash, versioni e dimensioni.
