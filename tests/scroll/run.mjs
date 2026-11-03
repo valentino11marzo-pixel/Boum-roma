@@ -50,7 +50,9 @@ const VENDONO = ['index.html', 'apartments.html', 'services.html', 'owners.html'
   // v1.6: the city desks sell too, and from 760px their header is sticky —
   // every anchor (the wayfinding: #fares #how #checks #papers #desk #faq)
   // must land under it, and the clocks moving into the stub must not shift
-  'london.html', 'amsterdam.html'];
+  'london.html', 'amsterdam.html',
+  // BOOM Desks (03/11/2026): the hub's wayfinding (#board #map #fares #rules #faq #brief) lands under the sticky header too
+  'desks.html'];
 
 console.log('\n\x1b[1m▸ scroll\x1b[0m  lo scorrimento in un browser vero: '
   + `${pagine.length} pagine a 390px, ${VENDONO.length} anche a 1440px`);

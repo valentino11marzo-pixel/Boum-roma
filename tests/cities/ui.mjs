@@ -1317,6 +1317,7 @@ async function hubUI() {
     const before = await page.$eval('#arc-lon', (a) => getComputedStyle(a).stroke);
     await page.hover('#pin-lon');
     await page.clock.runFor(500);
+    await page.waitForTimeout(450);   // the stroke's .2s transition runs on the real clock
     const after = await page.$eval('#arc-lon', (a) => ({ stroke: getComputedStyle(a).stroke, w: getComputedStyle(a).strokeWidth }));
     const other = await page.$eval('#arc-ams', (a) => getComputedStyle(a).stroke);
     check(after.stroke === 'rgb(255, 215, 0)' && before !== after.stroke && other !== after.stroke && await shown(page, '#pin-lon .pc') && /London · Live/.test(await text(page, '#pin-lon .pc')),
@@ -1340,7 +1341,7 @@ async function hubUI() {
     const { ctx, page } = await open({ slug: 'desks', width: 390 });
     await center(page, '.rtab');
     await page.waitForTimeout(300);
-    const g = await page.evaluate(() => ({ table: getComputedStyle(document.querySelector('.rtab')).display, head: getComputedStyle(document.querySelector('.rtab thead')).display, k: getComputedStyle(document.querySelector('.rtab td'), '::before').content }));
+    const g = await page.evaluate(() => ({ table: getComputedStyle(document.querySelector('.rtab')).display, head: getComputedStyle(document.querySelector('.rtab thead')).display, k: getComputedStyle(document.querySelector('.rtab tbody td'), '::before').content }));
     check(g.table === 'block' && g.head === 'none' && g.k === '"AMS"', 'desks 390: the rules render as cards, each cell prefixed by its desk\'s code', JSON.stringify(g));
     await ctx.close();
   }
