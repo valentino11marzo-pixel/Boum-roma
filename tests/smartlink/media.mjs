@@ -19,7 +19,11 @@ function binding(api) {
 function signatures(api) {
   const p=packet();p.images[0].mime='image/jpeg';assert.equal(api.validate(p).error,'invalid_media','Declared MIME must match binary signature');
   for(const content of ['<svg xmlns="http://www.w3.org/2000/svg"></svg>','<!doctype html><h1>Denied</h1>','GIF89a','%PDF-1.7','xxxxftypavif']) {
-    const p=packet();p.images[0].base64=Buffer.from(content).toString('base64');assert.equal(api.validate(p).ok,false);
+    for(const omitted of [false,true]) {
+      const p=packet();p.images[0].base64=Buffer.from(content).toString('base64');
+      if(omitted) delete p.images[0].mime;
+      assert.equal(api.validate(p).ok,false,'Unknown binary signatures remain invalid even without a declared MIME');
+    }
   }
 }
 function fileBound(api) {
@@ -37,7 +41,7 @@ assert.deepEqual(MEDIA.validate(payload()),SHARE.validate(payload()),'Ordinary s
 const oversized=payload();oversized.data.title='a'.repeat(131073);
 assert.equal(MEDIA.validate(oversized).error,'payload_too_large','Legacy payload keeps the 128KiB cap');
 const oversizedInner=packet();oversizedInner.payload=oversized;assert.equal(MEDIA.validate(oversizedInner).error,'payload_too_large');
-for(const mutate of [p=>p.version=2,p=>p.secret='not allowed',p=>p.images[0].secret='not allowed',p=>p.images[0].mime='image/svg+xml',p=>p.images[0].base64='data:image/png;base64,'+png,p=>p.images[0].base64=png+'\n',p=>p.images[0].base64='AA=A',p=>p.images[0].base64='AB==']) {
+for(const mutate of [p=>p.version=2,p=>p.secret='not allowed',p=>p.images[0].secret='not allowed',p=>p.images[0].mime='image/svg+xml',...([null,'',false,0,{}].map(value=>p=>p.images[0].mime=value)),p=>p.images[0].base64='data:image/png;base64,'+png,p=>p.images[0].base64=png+'\n',p=>p.images[0].base64='AA=A',p=>p.images[0].base64='AB==']) {
   const p=packet();mutate(p);assert.equal(MEDIA.validate(p).ok,false,'Reject unknown fields and noncanonical base64');
 }
 const wrong=packet();wrong.payload.pageUrl=source.replace('37221750','999999');assert.equal(MEDIA.validate(wrong).error,'source_mismatch');
@@ -49,12 +53,32 @@ assert.equal(blob.type,'image/png');assert.equal(blob.size,Buffer.from(png,'base
 assert.deepEqual(Buffer.from(await blob.arrayBuffer()),Buffer.from(png,'base64'),'The local Blob contains the supplied bytes exactly');
 const decoded=await sharp(Buffer.from(await blob.arrayBuffer())).raw().toBuffer({resolveWithObject:true});
 assert.equal(decoded.info.width,1);assert.equal(decoded.info.height,1,'The test uses an actual decodable raster, not a magic-byte stub');
-for(const [format,mime] of [['jpeg','image/jpeg'],['webp','image/webp']]) {
-  const bytes=await sharp(Buffer.from(png,'base64')).toFormat(format).toBuffer(),p=packet(1);
-  p.images[0].mime=mime;p.images[0].base64=bytes.toString('base64');
-  const validated=MEDIA.validate(p);assert.equal(validated.ok,true,mime+' bytes must be supported');
-  const local=MEDIA.toBlob(validated.media[0]);assert.equal(local.type,mime);
-  assert.deepEqual(Buffer.from(await local.arrayBuffer()),bytes);
+const rasters=[];
+for(const format of ['png','jpeg','webp']) {
+  const bytes=await sharp(Buffer.from(png,'base64')).toFormat(format).toBuffer();
+  rasters.push({bytes,mime:'image/'+format});
+}
+function derivedMime(api) {
+  for(const {bytes,mime} of rasters) {
+    const p=packet(1);p.images[0].base64=bytes.toString('base64');delete p.images[0].mime;
+    const validated=api.validate(p);assert.equal(validated.ok,true,'An omitted MIME is derived from actual '+mime+' bytes');
+    assert.equal(validated.media[0].mime,mime,'Normalized media always includes the binary-derived MIME');
+    assert.equal(api.toBlob(p.images[0]).type,mime,'Blob type is derived even for a raw entry without MIME');
+  }
+}
+derivedMime(MEDIA);
+for(const {bytes,mime} of rasters) {
+  for(const omitted of [false,true]) {
+    const p=packet(1);p.images[0].base64=bytes.toString('base64');
+    if(omitted) delete p.images[0].mime;else p.images[0].mime=mime;
+    const validated=MEDIA.validate(p);assert.equal(validated.ok,true,mime+' bytes must be supported');
+    const local=MEDIA.toBlob(validated.media[0]);assert.equal(local.type,mime);
+    assert.deepEqual(Buffer.from(await local.arrayBuffer()),bytes,'MIME derivation preserves every supplied byte');
+    assert.deepEqual(Buffer.from(await MEDIA.toBlob(p.images[0]).arrayBuffer()),bytes);
+    p.images[0].mime=mime==='image/png'?'image/jpeg':'image/png';
+    assert.equal(MEDIA.validate(p).error,'invalid_media','A supplied wrong MIME remains an error for every supported raster');
+    assert.throws(()=>MEDIA.toBlob(p.images[0]),/invalid_media/);
+  }
 }
 const implementation=readFileSync(new URL('../../js/smartlink-media-engine.js',import.meta.url),'utf8');
 function load(code) {
@@ -66,7 +90,10 @@ binding(load(implementation));
 for(const [name,before,after,check] of [
   ['image binding','item.url!==shared.images[i]','false',binding],
   ['image count','packet.images.length!==shared.images.length','false',binding],
-  ['MIME signature','if(mime!==item.mime)','if(false)',signatures],
+  ['MIME signature','if(!mime || (declared && mime!==item.mime))','if(!mime)',signatures],
+  ['unknown signature without MIME','if(!mime || (declared && mime!==item.mime))','if(declared && mime!==item.mime)',signatures],
+  ['derived normalized MIME','mime:info.mime','mime:item.mime',derivedMime],
+  ['derived Blob MIME','new Blob([bytes],{type:mime})','new Blob([bytes],{type:item.mime})',derivedMime],
   ['base64 syntax'," || !/^[A-Za-z0-9+/]*={0,2}$/.test(value)",'',canonicalBase64],
   ['single-file cap','MAX_IMAGE_BYTES=4_000_000','MAX_IMAGE_BYTES=8_000_000',fileBound],
   ['raw byte cap','MAX_BYTES=16_000_000','MAX_BYTES=20_000_000',totalBound],
@@ -76,4 +103,4 @@ for(const [name,before,after,check] of [
 const portal=readFileSync(new URL('../../portal.html',import.meta.url),'utf8');
 assert(portal.indexOf('/js/smartlink-share-engine.js')<portal.indexOf('/js/smartlink-media-engine.js'));
 const sw=readFileSync(new URL('../../sw.js',import.meta.url),'utf8');assert(sw.includes("url.pathname === '/js/smartlink-media-engine.js'"));
-console.log('SmartLink local media: PASS (real SHARE validation, exact image binding, 16MB/4MB/60, strict raster/base64, local Blob, 6 mutations; native transfer/browser decoding not certified)');
+console.log('SmartLink local media: PASS (real SHARE validation, exact image binding, 16MB/4MB/60, strict raster/base64, derived optional MIME and Blob, 9 mutations; native transfer/browser decoding not certified)');

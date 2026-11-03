@@ -140,6 +140,9 @@ firebase.json             Firebase deploy config (firestore + storage rules)
 | `sw.js` | Service worker (network-first HTML, cache-first static). |
 
 ### SmartLink annunci esterni (BOOM Tools)
+Nel carrier locale il MIME può essere assente: il Portal lo deriva sempre dalla firma dei byte JPEG/PNG/WebP, senza fidarsi dell'estensione dell'URL né richiedere una seconda elaborazione Safari.
+Se il campo è presente deve coincidere col formato reale: `null`, vuoto, tipi diversi e campi aggiuntivi restano invalidi. Il risultato normalizzato e il Blob portano soltanto il MIME derivato.
+`tests/smartlink/media.mjs` copre i tre raster reali con e senza dichiarazione, mismatch, conservazione dei byte e mutazioni; restano invariati limiti, identità, completezza e controller Studio.
 Il fallimento di `import-photo` registra solo fase, stato HTTP remoto, tipo MIME normalizzato, byte letti e formato rilevato: nessun URL, corpo, header grezzo o dettaglio dell'eccezione.
 La diagnostica distingue le cause dell'esistente `photo_unavailable`, senza cambiare richieste, redirect, risposte 422/502 o ritentare la fonte; gli altri consumatori di `fetchPhoto` restano silenziosi.
 `tests/smartlink/photo-diagnostics.mjs` guida l'handler reale con rete simulata, conversione Sharp e mutazioni di privacy/assenza log: non certifica il download da Vercel, che resta un collaudo separato.

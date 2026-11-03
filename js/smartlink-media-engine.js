@@ -7,8 +7,9 @@
   const closed=(value,allowed)=>!!value && typeof value==='object' && !Array.isArray(value) && Object.keys(value).length===allowed.length && Object.keys(value).every(key=>allowed.includes(key));
   const alphabet='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
   function imageInfo(item) {
-    if(!closed(item,['index','url','mime','base64']) || !Number.isSafeInteger(item.index) || item.index<1 || typeof item.url!=='string') throw new Error('invalid_media');
-    if(!['image/jpeg','image/png','image/webp'].includes(item.mime)) throw new Error('invalid_media');
+    const declared=!!item && Object.prototype.hasOwnProperty.call(item,'mime');
+    if(!closed(item,declared?['index','url','mime','base64']:['index','url','base64']) || !Number.isSafeInteger(item.index) || item.index<1 || typeof item.url!=='string') throw new Error('invalid_media');
+    if(declared && !['image/jpeg','image/png','image/webp'].includes(item.mime)) throw new Error('invalid_media');
     const value=item.base64;
     if(typeof value!=='string' || !value.length || value.length>Math.ceil(MAX_IMAGE_BYTES/3)*4) throw new Error('media_too_large');
     if(value.length%4 || !/^[A-Za-z0-9+/]*={0,2}$/.test(value)) throw new Error('invalid_media');
@@ -20,8 +21,8 @@
     const mime=byte(0)===255 && byte(1)===216 && byte(2)===255 ? 'image/jpeg' :
       [137,80,78,71,13,10,26,10].every((value,index)=>byte(index)===value) ? 'image/png' :
       prefix.slice(0,4)==='RIFF' && prefix.slice(8,12)==='WEBP' ? 'image/webp' : null;
-    if(mime!==item.mime) throw new Error('invalid_media');
-    return size;
+    if(!mime || (declared && mime!==item.mime)) throw new Error('invalid_media');
+    return {size,mime};
   }
   function validate(raw,now=Date.now()) {
     try {
@@ -34,18 +35,20 @@
       const shared=SHARE.validate(packet.payload,now);
       if(!shared.ok) return shared;
       if(!Array.isArray(packet.images) || packet.images.length!==shared.images.length) return fail('invalid_media');
+      const media=[];
       for(let i=0;i<packet.images.length;i++) {
         const item=packet.images[i];
-        imageInfo(item);
+        const info=imageInfo(item);
         if(item.index!==i+1 || item.url!==shared.images[i]) return fail('invalid_media');
+        media.push({index:item.index,url:item.url,mime:info.mime,base64:item.base64});
       }
-      return {...shared,media:packet.images.map(item=>({index:item.index,url:item.url,mime:item.mime,base64:item.base64}))};
+      return {...shared,media};
     } catch(error) {return fail(['invalid_media','media_too_large'].includes(error?.message)?error.message:'invalid_payload');}
   }
   function toBlob(item) {
-    const size=imageInfo(item), binary=atob(item.base64), bytes=new Uint8Array(size);
+    const {size,mime}=imageInfo(item), binary=atob(item.base64), bytes=new Uint8Array(size);
     for(let i=0;i<size;i++) bytes[i]=binary.charCodeAt(i);
-    return new Blob([bytes],{type:item.mime});
+    return new Blob([bytes],{type:mime});
   }
   const API={KIND,VERSION,MAX_BYTES,MAX_IMAGE_BYTES,validate,toBlob};
   if(typeof module!=='undefined' && module.exports) module.exports=API;
