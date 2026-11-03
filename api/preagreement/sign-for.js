@@ -63,6 +63,7 @@ import { sendEmail } from '../agent/_lib.js';
 import { shell, btn, para, fine } from './_notify.js';
 import MANDATO from '../../js/mandato-engine.js';
 import { ensureSignTokens, signUrl } from '../sign/_tokens.js';
+import { externalStatus, applyProfiles, feeLink, adoptExternal, prepareExternal, onboardExternal } from './_external.js';
 
 const BASE = 'https://www.boomrome.com';
 const SIG_MAX_LEN = 800_000;
@@ -294,6 +295,42 @@ export default async function handler(req, res) {
     if (!contract) return { code: 500, body: { ok: false, error: 'contract_missing' } };
     return null;
   };
+
+  // ── 📎 IL FIRMATO FUORI DA MAGIC SIGN + 💶 LA PROVVIGIONE (2/11/2026) ──
+  // La console instrada qui (admin, proposta accettata o pagata). La logica
+  // sta in _external.js e ORCHESTRA i pezzi esistenti: la conversione (sopra),
+  // linkExternalParty / adoptExternal / prepareExternal / onboardExternal
+  // (api/contracts/_external.js, stesse verifiche del pannello del portal) e
+  // la fattura BOOM con il link di /api/payments/link.
+  if (op === 'fee-link' || op.startsWith('ext-')) {
+    const actor = auth.email || auth.uid;
+    if (op === 'fee-link') {
+      const out = await feeLink({ pa, paId, contract, contractId, actor });
+      return res.status(out.ok ? 200 : (out.error === 'no_fee' ? 400 : 409)).json(out);
+    }
+    if (op === 'ext-status') return res.status(200).json(await externalStatus({ pa, paId, contractId, contract }));
+    if (op === 'ext-contract') {
+      const fail = await convertIfMissing();
+      if (fail) return res.status(fail.code).json(fail.body);
+      const st = await externalStatus({ pa, paId, contractId, contract });
+      return res.status(200).json({ ...st, created, propertyCreated });
+    }
+    if (!contract) return res.status(409).json({ ok: false, error: 'contract_required' });
+    let out;
+    if (op === 'ext-profiles') {
+      if (b.confirm !== true) return res.status(400).json({ ok: false, error: 'profile_confirmation_required' });
+      out = await applyProfiles(contractId, pa, paId);
+      out.state = await externalStatus({ pa, paId, contractId, contract });
+    } else if (op === 'ext-adopt') {
+      out = await adoptExternal(contractId, b, { uid: auth.uid, email: auth.email || '' });
+    } else if (op === 'ext-prepare') {
+      out = await prepareExternal(contractId);
+    } else if (op === 'ext-onboard') {
+      out = await onboardExternal(contractId, { welcome: b.welcome === true, schedule: b.schedule === true }, { uid: auth.uid, email: auth.email || '' });
+    } else return res.status(400).json({ ok: false, error: 'bad_op' });
+    if (op !== 'ext-profiles' || out.ok) await logActivity('preagreement_' + op.replace('-', '_'), 'contract', { paId, contractId, ok: !!out.ok, error: out.error || null }, actor).catch(() => {});
+    return res.status(out.ok || op === 'ext-profiles' ? 200 : (out.status || 422)).json(out);
+  }
 
   // ── 📋 LA SCHEDA DEL PROPRIETARIO, PER I SUOI DATI (12/10/2026) ───────
   // «Non riesco a inviare a Chiara Tavolieri la scheda per far compilare i
