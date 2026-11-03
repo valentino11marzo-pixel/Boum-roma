@@ -146,8 +146,11 @@
   }
 
   /* The desk window, said in words, at the instant `now`:
-       open   → { open: true,  until: '19:00', tz: 'CET', line: 'desk open until 19:00 CET' }
-       closed → { open: false, day: 'Tomorrow', from: '09:00', tz: 'CET', line: 'Tomorrow from 09:00 CET' }
+       open   → { open: true,  wd: 3, until: '19:00', tz: 'CET', line: 'desk open until 19:00 CET' }
+       closed → { open: false, wd: 4, day: 'Tomorrow', from: '09:00', tz: 'CET', line: 'Tomorrow from 09:00 CET' }
+     `wd` is the weekday (0 = Sunday) of the desk's NEXT open moment in its
+     own zone — today when open (the city pages' Departures row reads it:
+     "REPLY MON"). Additive: the webhook reads none of it.
      The zone name is the one of the OPENING instant, never today's. The
      search walks forward in 15-minute steps (a desk opens on the quarter)
      for at most three weeks: Christmas plus a weekend fits easily.
@@ -157,14 +160,14 @@
     var tz = desk.timeZone || 'Europe/Rome';
     var p = zoneParts(now, tz);
     if (!p) return null;
-    if (openAt(p, desk, key)) return { open: true, until: desk.hours.to, tz: p.tz, line: 'desk open until ' + desk.hours.to + (p.tz ? ' ' + p.tz : '') };
+    if (openAt(p, desk, key)) return { open: true, wd: p.wd, until: desk.hours.to, tz: p.tz, line: 'desk open until ' + desk.hours.to + (p.tz ? ' ' + p.tz : '') };
     var step = 9e5, t = new Date(Math.ceil(now.getTime() / step) * step);
     var tomorrow = zoneParts(new Date(now.getTime() + 864e5), tz);
     for (var i = 0; i < 21 * 96; i++, t = new Date(t.getTime() + step)) {
       var q = zoneParts(t, tz);
       if (q && openAt(q, desk, key)) {
         var day = q.key === p.key ? 'Today' : tomorrow && q.key === tomorrow.key ? 'Tomorrow' : DAY_NAMES[q.wd];
-        return { open: false, day: day, from: desk.hours.from, tz: q.tz, line: day + ' from ' + desk.hours.from + (q.tz ? ' ' + q.tz : '') };
+        return { open: false, wd: q.wd, day: day, from: desk.hours.from, tz: q.tz, line: day + ' from ' + desk.hours.from + (q.tz ? ' ' + q.tz : '') };
       }
     }
     return null;

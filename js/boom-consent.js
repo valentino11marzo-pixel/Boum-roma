@@ -397,6 +397,9 @@
       // open ticket — the plate never lands on it while it is on screen
       var act = document.getElementById('act');
       if (act && meets(act, box)) return true;
+      // its outlined twin at the desks' Gate (v1.6): the same rule
+      var dg = document.getElementById('deskGo');
+      if (dg && meets(dg, box)) return true;
       // la porta dell'hero: su un telefono basso «Accept» le si posava sopra
       var hc = document.querySelector('.hero-cta');
       if (hc && meets(hc, box)) return true;
@@ -423,7 +426,7 @@
   function lateInside(ev) {
     try {
       if (!ev || ev.type === 'wheel' || ev.type === 'touchmove') return false;
-      return !!(ev.target && ev.target.closest && ev.target.closest('#checkin, #pass, #contact, dialog'));
+      return !!(ev.target && ev.target.closest && ev.target.closest('#checkin, #pass, #contact, #desk, #topGo, dialog'));
     } catch (e) { return false; }
   }
   function lateArm(ev) {

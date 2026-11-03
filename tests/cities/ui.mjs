@@ -37,6 +37,16 @@
 //     leaves the screen, no price, never with the till open;
 //   - the waitlists (Paris, Berlin): "Open my file", no pay button, no till;
 //     Madrid's till repeats "Optional, chosen in writing";
+//   - v1.6, the complete aviation desk: ≤ 150 words on the first phone
+//     screen and nothing on it still moving after 1.6 s; the plane on the
+//     route parked by the SERVER's state (--at 0 · .25 · .125 with the hold),
+//     the code line empty of any file code until the server's answer; the
+//     Departures row 01 flipping to a fact (REPLY TODAY / REPLY MON / START /
+//     FROM 4 NOV / FILE OPEN) only when the board is seen, #depLive once; the
+//     clocks in the desk's zone and the reader's own (never sent); the week
+//     strip closing Koningsdag and the bank holiday without naming them; the
+//     header twin and the Gate door (one label, one POST); the loops — one
+//     at most with the desk open, none closed, none with reduced motion;
 //   - zero JS errors, no request to a host we did not stub.
 
 import http from 'node:http';
@@ -74,8 +84,8 @@ const FILE = 'BM 7K2QX';
 const LEAD_OK = { status: 200, body: { ok: true, id: 'city_ui0000test1', file: FILE } };
 const SID = 'cs_test_ui0000000001';
 const allErrors = [], allForeign = [];
-async function open({ js = true, width = 390, height = null, api = LEAD_OK, paid = { status: 200, body: { ok: true, pending: true } }, reducedMotion = 'no-preference', slug = 'amsterdam', query = '', checkout = null, consent = true, clock = null, touch = false } = {}) {
-  const ctx = await browser.newContext({ javaScriptEnabled: js, viewport: { width, height: height || (width < 600 ? 844 : 900) }, reducedMotion, ...(touch ? { isMobile: true, hasTouch: true } : {}) });
+async function open({ js = true, width = 390, height = null, api = LEAD_OK, paid = { status: 200, body: { ok: true, pending: true } }, reducedMotion = 'no-preference', slug = 'amsterdam', query = '', checkout = null, consent = true, clock = null, touch = false, tz = null } = {}) {
+  const ctx = await browser.newContext({ javaScriptEnabled: js, viewport: { width, height: height || (width < 600 ? 844 : 900) }, reducedMotion, ...(touch ? { isMobile: true, hasTouch: true } : {}), ...(tz ? { timezoneId: tz } : {}) });
   const page = await ctx.newPage();
   const st = { errors: [], posts: [], gets: [], checkouts: [], foreign: [] };
   page.on('pageerror', (e) => { st.errors.push(e.message); allErrors.push(`${slug}${query}: ${e.message}`); });
@@ -182,7 +192,11 @@ for (const slug of ['amsterdam', 'madrid', 'barcelona', 'london', 'milan']) {
   // page's own anchoring can keep the tapped row still
   await page.addStyleTag({ content: '*{overflow-anchor:none!important}' });
   await page.waitForTimeout(400);
-  await page.evaluate(() => window.scrollTo(0, 120));
+  // 'instant': the page scrolls smoothly (scroll-behavior), and a smooth
+  // scroll still running at the tap read as the ROW moving (-2 to -18 px,
+  // the scroll's remaining distance) — measured, not the page's anchoring
+  await page.evaluate(() => window.scrollTo({ top: 120, left: 0, behavior: 'instant' }));
+  await page.waitForFunction(() => scrollY === 120, null, { timeout: 2000 }).catch(() => {});
   await page.waitForTimeout(200);
   const before = await rect(page, '#fare-application-pack > summary');
   await page.click('#fare-application-pack > summary');
@@ -505,8 +519,13 @@ for (const [slug, clock, want, what] of CLOCKS) {
   const body = await page.evaluate(() => document.body.innerText);
   check(/Write to the desk on WhatsApp or at/.test(body), 'no JS: a line says where to write');
   check(/€500/.test(body) && /€199/.test(body) && /€149/.test(body) && body.includes(RULE), 'no JS: the three prices and the refund rule read as text');
-  check(/From the first call/.test(body) && /What we check/.test(body) && /Questions\./.test(body), 'no JS: every section reads');
+  check(/From the first call/.test(body) && /What we check/.test(body) && /The papers a Dutch landlord asks for\./.test(body) && /Who answers, and when\./.test(body) && /Questions\./.test(body) && /Other desks, one company\./.test(body), 'no JS: every section of the walk reads (Departures, Pre-flight, Baggage, Gate, Questions, Network)');
+  const papers = JSON.parse(fs.readFileSync(path.join(R, 'cities/amsterdam.json'), 'utf8')).papers.items;
+  check(papers.every((x) => body.includes(x)) && /\bFREE\b/.test(body) && /\b1 WORK DAY\b/.test(body) && /\bIN PERSON\b/.test(body) && body.includes('Valentino Egidi'), 'no JS: the eight papers and the Departures statuses (FREE, 1 WORK DAY, IN PERSON) read as text');
   check(!(await shown(page, '#strip')) && (await page.$$eval('[data-pay]', (b) => b.every((x) => !x.offsetParent))), 'no JS: no strip, no pay button (behaviour, not content)');
+  const beh = await page.$$eval('#clocks, #week, #topGo, #deskGo, #depPill, .dep-f', (es) => es.filter((e) => !!e.offsetParent && getComputedStyle(e).visibility !== 'hidden').map((e) => e.id || e.className));
+  check(beh.length === 0, 'no JS: the clocks, the week, the header twin, the Gate door, the desk pill and the Departures foot are not shown (behaviour)', beh.join());
+  check(await page.$eval('.pass', (p) => getComputedStyle(p).opacity === '1') && await page.$eval('#how', (p) => getComputedStyle(p).opacity !== '0'), 'no JS: nothing waits hidden for an entrance (the pass, the sections)');
   await ctx.close();
 }
 
@@ -515,9 +534,9 @@ for (const [slug, clock, want, what] of CLOCKS) {
   const { ctx, page } = await open({ width: 320, height: 568 });
   await page.waitForTimeout(400);
   check(await noHScroll(page), '320: no horizontal scroll');
-  const small = await page.evaluate(() => [...document.querySelectorAll('#fares summary, #door, .pill, .folds summary')]
+  const small = await page.evaluate(() => [...document.querySelectorAll('#fares summary, #door, .pill, .folds summary, .lane > summary, .net a, #deskGo')]
     .filter((e) => e.offsetParent).map((e) => ({ id: e.id || e.className || e.tagName, h: e.getBoundingClientRect().height })).filter((x) => x.h < 44));
-  check(small.length === 0, '320: every fare row, the door, the WhatsApp pill and every fold is ≥ 44 px tall', JSON.stringify(small.slice(0, 4)));
+  check(small.length === 0, '320: every fare row, the door, the WhatsApp pill, every fold, every Pre-flight lane, every Network link and the Gate door are ≥ 44 px tall', JSON.stringify(small.slice(0, 4)));
   await page.click('#fare-full-search > summary');
   await page.waitForTimeout(200);
   check(await noHScroll(page) && (await rect(page, '#fare-full-search [data-pay]')).h >= 44, '320: an open ticket fits, its pay button ≥ 44 px');
@@ -619,6 +638,288 @@ for (const slug of ['paris', 'berlin']) {
   await tap(page, '#fare-application-pack [data-pay]');
   await page.waitForTimeout(200);
   check(await shown(page, '.t-opt') && /^Optional, chosen in writing/.test(await text(page, '.t-opt')) && !(await shown(page, '#tRule')), 'madrid: the till repeats "Optional, chosen in writing"; no refund rule on the Application Pack');
+  await ctx.close();
+}
+
+// ── 9 · v1.6 «the complete aviation desk» ────────────────────────────────
+const SLUGS7 = ['amsterdam', 'madrid', 'barcelona', 'london', 'milan', 'paris', 'berlin'];
+const OPEN_T = '2026-11-03T10:00:00Z';    // a Tuesday: London 10:00 GMT, Amsterdam 11:00 CET — every desk open
+const SAT_T = '2026-10-31T09:00:00Z';     // a Saturday: every desk closed, next open Monday
+// the words a reader SEES on the first screen: text nodes inside the viewport,
+// not aria-hidden, not screen-reader-only, not in a hidden or closed box
+const firstScreenWords = (page) => page.evaluate(() => {
+  const W = innerWidth, H = innerHeight;
+  let n = 0;
+  const tw = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  while (tw.nextNode()) {
+    const t = tw.currentNode, el = t.parentElement;
+    // a closed <details> shows its summary only (Chromium keeps the rest laid out, content-visibility: hidden)
+    if (!el || !t.textContent.trim() || el.closest('[aria-hidden="true"],script,style,noscript,.sr,[hidden],template,details:not([open]) > :not(summary)')) continue;
+    if (el.checkVisibility && !el.checkVisibility({ visibilityProperty: true, contentVisibilityAuto: true })) continue;
+    const cs = getComputedStyle(el);
+    if (cs.visibility === 'hidden' || cs.display === 'none') continue;
+    const r = document.createRange(); r.selectNodeContents(t);
+    if (![...r.getClientRects()].some((q) => q.width > 0 && q.bottom > 0 && q.top < H && q.right > 0 && q.left < W)) continue;
+    n += t.textContent.split(/\s+/).filter((w) => /[A-Za-z0-9€£]/.test(w)).length;
+  }
+  return n;
+});
+// the animations running on elements that touch the first viewport
+const runningInView = (page) => page.evaluate(() => document.getAnimations().filter((a) => a.playState === 'running').map((a) => {
+  const t = a.effect && a.effect.target;
+  if (!t || !t.getBoundingClientRect) return null;
+  const r = t.getBoundingClientRect();
+  return r.bottom > 0 && r.top < innerHeight && r.right > 0 && r.left < innerWidth && r.width + r.height > 0 ? `${t.id || t.className || t.tagName}${a.effect.pseudoElement || ''}:${a.animationName || a.transitionProperty || 'anim'}` : null;
+}).filter(Boolean));
+const infinite = (page) => page.evaluate(() => document.getAnimations().filter((a) => a.playState === 'running' && a.effect && a.effect.getTiming().iterations === Infinity)
+  .map((a) => `${(a.effect.target && (a.effect.target.id || a.effect.target.className)) || '?'}:${a.animationName || ''}`));
+// a Departures status board: the cells' top halves only (the status's own
+// span.st wrapper would make a document-wide ".st b" read every half)
+const depWord = (page, n) => page.$eval(`#dep-${n} .st-b`, (e) => {
+  const cells = e.querySelectorAll(':scope > .fc2 > .st > b');
+  return (cells.length ? [...cells].map((b) => b.textContent || ' ').join('') : e.textContent).replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim();
+}).catch(() => '');
+const at = (page) => page.$eval('#pass', (p) => parseFloat(getComputedStyle(p).getPropertyValue('--at')));
+const runShift = (page, sel) => page.$eval(sel, (run) => { const m = new DOMMatrix(getComputedStyle(run).transform); return { x: m.m41, w: run.getBoundingClientRect().width }; });
+const fileOpen = async (page) => {
+  await tap(page, '#door');
+  await page.fill('#fName', 'Anna Keller'); await page.fill('#fContact', 'anna@example.com');
+  await page.click('#door');
+  await page.waitForFunction(() => document.getElementById('pass').getAttribute('data-state') === 'open', null, { timeout: 5000 }).catch(() => {});
+};
+
+// 1–2 · the first phone screen: ≤ 150 words, and nothing still moving after 1.6 s
+for (const slug of SLUGS7) {
+  const { ctx, page, st } = await open({ slug, clock: OPEN_T });
+  await page.waitForTimeout(1600);
+  const n = await firstScreenWords(page);
+  check(n <= 150 && n >= 60, `${slug} 390×844: ${n} words on the first screen (≤ 150: the pass, not a page of copy)`);
+  const moving = await runningInView(page);
+  check(moving.length === 0, `${slug} 390: after 1.6 s nothing on the first screen is still animating (an open desk)`, moving.slice(0, 4).join(' | '));
+  check(!(await shown(page, '.seal')) && await page.$eval('.seal', (e) => getComputedStyle(e).display === 'none') && !(await shown(page, '.lamina')), `${slug} 390: no seal, no foil band on a phone (the chip says the desk)`);
+  check(await page.$eval('#clocks', (c) => !!c.closest('#deskClocks')) && !(await shown(page, '.onda')), `${slug} 390: the clocks live in the Gate section; no onda canvas below 940`);
+  check(st.errors.length === 0, `${slug} 390: no JS error`, st.errors.join(' | '));
+  await ctx.close();
+}
+
+// 3–4 · the plane and the code line follow the SERVER's state, never the page's
+{
+  const { ctx, page } = await open({ clock: OPEN_T });
+  await page.waitForTimeout(400);
+  const perf0 = (await rect(page, '.perf')).h;
+  check(await at(page) === 0 && (await runShift(page, '.route-p .r-run')).x === 0, 'blank: the plane is parked at YOU (--at 0, no shift)');
+  check(!/BM /.test(await text(page, '#codeLine')) && await text(page, '#codeLine') === 'BOOM · AMS · TENANT SIDE · ISSUED ROM', 'blank: the code line names the issuer only — no file code before the server\'s');
+  await fileOpen(page);
+  await page.waitForTimeout(1100);
+  const sh = await runShift(page, '.route-p .r-run');
+  check(await at(page) === 0.25 && Math.abs(sh.x - 0.25 * sh.w) <= 1, `OPEN: the plane moves to the first tick (--at .25, shifted ${sh.x.toFixed(1)} of ${sh.w.toFixed(0)} px) — by transform`);
+  check((await rect(page, '.perf')).h === perf0 && perf0 === 24, `the perforation stays 24 px tall (${perf0}): the plane never moves the layout`);
+  check(await text(page, '#codeLine') === `FILE ${FILE} · AMS · TENANT SIDE`, 'OPEN: the code line prints the server\'s file number');
+  check(await page.$eval('#pass', (p) => p.classList.contains('struck')), 'OPEN strikes the pass (the foil flashes once)');
+  await ctx.close();
+}
+{
+  const PAID0 = { status: 200, body: { ok: true, paid: true, plan: 'full-search', file: FILE, startNow: false, workFromLabel: '4 November 2026' } };
+  const { ctx, page } = await open({ clock: OPEN_T, query: `?paid=full-search&start=0&session_id=${SID}`, paid: PAID0 });
+  await page.waitForFunction(() => document.getElementById('pass').getAttribute('data-state') === 'paid', null, { timeout: 5000 }).catch(() => {});
+  await page.waitForTimeout(1100);
+  check(await page.$eval('#pass', (p) => p.hasAttribute('data-hold')) && await at(page) === 0.125, 'PAID without "Start now": the plane holds before the first tick (--at .125, data-hold)');
+  check(await text(page, '#codeLine') === `PAID · FILE ${FILE} · AMS`, 'PAID: the code line prints the server\'s file number');
+  check(/^Status: from 4 nov$/i.test(await text(page, '#dep-1-sr')) && /^Step 1: from 4 nov$/i.test(await text(page, '#depLive')), 'PAID without "Start now": row 01 reads FROM 4 NOV (the server\'s first working day)', await text(page, '#dep-1-sr'));
+  await ctx.close();
+}
+
+// 5 · Departures: row 01 flips to a fact only on a server event, and its flap
+// waits until the board is on screen; #depLive says it once
+{
+  const { ctx, page } = await open({ clock: OPEN_T });
+  await page.waitForTimeout(300);
+  await center(page, '.dep');
+  await page.waitForTimeout(1900);
+  check(await depWord(page, 1) === 'FREE' && await depWord(page, 2) === '1 WORK DAY' && await depWord(page, 3) === 'IN PERSON',
+    'the Departures statuses flip in when the board comes into view: FREE · 1 WORK DAY · IN PERSON');
+  await page.evaluate(() => { window.scrollTo({ top: 0, left: 0, behavior: 'instant' }); window.__live = 0; new MutationObserver(() => { window.__live++; }).observe(document.getElementById('depLive'), { childList: true, characterData: true, subtree: true }); });
+  await page.waitForTimeout(300);
+  await fileOpen(page);
+  await page.waitForTimeout(600);
+  check(/^Status: reply today$/i.test(await text(page, '#dep-1-sr')) && await text(page, '#depLive') === 'Step 1: reply today', 'OPEN on an open desk: row 01 is REPLY TODAY for screen readers at once, and #depLive says it');
+  check(await page.evaluate(() => { const r = document.querySelector('.dep').getBoundingClientRect(); return r.top > innerHeight || r.bottom < 0; }) && await depWord(page, 1) === 'FREE', 'while the board is off the screen its flap still reads FREE (the fact waits to be seen)');
+  await center(page, '.dep');
+  await page.waitForTimeout(1600);
+  check(await depWord(page, 1) === 'REPLY TODAY', 'scrolled into view, row 01 flips to REPLY TODAY');
+  check(await page.evaluate(() => window.__live) === 1, `#depLive announced once (${await page.evaluate(() => window.__live)})`);
+  await ctx.close();
+}
+for (const [slug, clock, flow, want, what] of [
+  ['amsterdam', SAT_T, 'open', 'REPLY MON', 'OPEN on a Saturday: REPLY MON (the desk\'s next open day)'],
+  ['amsterdam', OPEN_T, 'paid1', 'START TODAY', 'PAID with "Start now" on an open desk: START TODAY'],
+  ['london', SAT_T, 'paid1', 'START MON', 'PAID with "Start now" on a Saturday: START MON'],
+  ['paris', OPEN_T, 'open', 'FILE OPEN', 'Paris (a desk still opening): FILE OPEN — never a reply day'],
+  ['berlin', SAT_T, 'open', 'FILE OPEN', 'Berlin on a Saturday: FILE OPEN']]) {
+  const PAID1 = { status: 200, body: { ok: true, paid: true, plan: 'application-pack', file: FILE, startNow: true } };
+  const { ctx, page } = await open({ slug, clock, ...(flow === 'paid1' ? { query: `?paid=application-pack&start=1&session_id=${SID}`, paid: PAID1 } : {}) });
+  await page.waitForTimeout(300);
+  if (flow === 'open') await fileOpen(page);
+  else await page.waitForFunction(() => document.getElementById('pass').getAttribute('data-state') === 'paid', null, { timeout: 5000 }).catch(() => {});
+  await page.waitForTimeout(400);
+  const sr = await text(page, '#dep-1-sr');
+  await center(page, '.dep');
+  await page.waitForTimeout(1900);
+  check(sr.toUpperCase() === `STATUS: ${want}` && await depWord(page, 1) === want, `${slug}: ${what}`, `${sr} / ${await depWord(page, 1)}`);
+  await ctx.close();
+}
+
+// 6 · the clocks: the desk's own time, the reader's own time (never sent);
+// the week: the desk's real days, a holiday "closed", never named
+for (const [tz, same] of [['America/New_York', false], ['Europe/London', true]]) {
+  const { ctx, page, st } = await open({ slug: 'london', clock: OPEN_T, tz, width: 1440 });
+  await page.waitForTimeout(800);
+  const desk = await text(page, '#ckDeskSr'), you = await text(page, '#ckYou');
+  check(desk === 'At the desk: 10:00 GMT' && (same ? you === 'Same time as you' : you === '05:00'),
+    `the clocks with the reader in ${tz}: "${desk}" and "${you}"${same ? ' (same zone: said, not repeated)' : ' (computed here)'}`);
+  check(await shown(page, '#clocks') && await page.$eval('#clocks', (c) => !!c.closest('#stubGate')), '1440: the ONE clocks node sits in the stub\'s gate');
+  check(st.posts.length === 0 && st.gets.length === 0, 'the reader\'s time is never sent anywhere');
+  await ctx.close();
+}
+for (const [slug, clock, day, label] of [['amsterdam', '2026-04-25T10:00:00Z', 'Monday 27', 'Koningsdag'], ['london', '2026-08-29T10:00:00Z', 'Monday 31', 'the summer bank holiday']]) {
+  const { ctx, page } = await open({ slug, clock });
+  await page.waitForTimeout(400);
+  const wk = await page.$$eval('#week li', (ls) => ls.map((l) => ({ c: l.className, a: l.getAttribute('aria-label'), t: l.textContent, cur: l.getAttribute('aria-current') })));
+  const hol = wk.find((x) => x.a && x.a.startsWith(day + ','));
+  const tue = wk[3];
+  check(await shown(page, '#week') && wk.length === 7 && wk[0].cur === 'date' && wk.slice(1).every((x) => !x.cur), `${slug}: the week strip shows seven days from today, today marked (aria-current=date)`);
+  check(hol && /closed/.test(hol.c) && hol.a === `${day}, desk closed` && /closed$/.test(hol.t) && tue && /open/.test(tue.c) && /desk open/.test(tue.a),
+    `${slug}: ${label} (${day}) reads "closed" and the next day is open`, JSON.stringify(hol));
+  check(!/Koning|King|bank|holiday|Pasqua|Easter/i.test(await page.$eval('#week', (w) => w.textContent + ' ' + [...w.children].map((l) => l.getAttribute('aria-label')).join(' '))), `${slug}: no holiday is named on the strip — only "closed"`);
+  await ctx.close();
+}
+
+// 7 · every [data-gate] node says the same window line as [data-window]
+for (const [slug, clock] of [['amsterdam', SAT_T], ['london', OPEN_T], ['paris', OPEN_T]]) {
+  const { ctx, page } = await open({ slug, clock });
+  await page.waitForTimeout(300);
+  const g = await page.evaluate(() => {
+    const bare = document.querySelector('.strip [data-window]').textContent.trim();
+    return { bare, bad: [...document.querySelectorAll('[data-gate]')].filter((n) => n.textContent.trim() !== n.getAttribute('data-gate').replace('{w}', bare)).map((n) => n.textContent), n: document.querySelectorAll('[data-gate]').length };
+  });
+  check(g.n >= 4 && g.bad.length === 0 && !/Rome time/.test(g.bare), `${slug}: the ${g.n} [data-gate] nodes say the door's window line ("${g.bare}")`, g.bad.join(' | '));
+  await ctx.close();
+}
+
+// 8 · the header at 1440: the chip at the top, the door's gold twin once no
+// door is on screen; the wayfinding follows the reader; at 390 nothing sticks
+{
+  const { ctx, page, st } = await open({ width: 1440, clock: OPEN_T });
+  await page.waitForTimeout(500);
+  check(!(await shown(page, '#topGo')) && await shown(page, '#topChip') && await page.$eval('header.top', (h) => getComputedStyle(h).position === 'sticky'), '1440 at the top: the header is sticky, the desk chip shows, the gold twin is not there yet');
+  await page.evaluate(() => document.getElementById('checks').scrollIntoView({ block: 'start', behavior: 'instant' }));
+  await page.waitForTimeout(600);
+  check(await shown(page, '#topGo') && !(await shown(page, '#topChip')) && await text(page, '#topGo b') === 'Start with a free call' && await page.$eval('header.top', (h) => h.getBoundingClientRect().top === 0),
+    'past the doors: the header\'s gold twin takes the chip\'s slot, reading door.label, and the header stays at the top');
+  const tg = await page.$$eval('#topGo, .wayf a', (es) => es.filter((e) => e.offsetParent).map((e) => ({ t: e.textContent.trim().slice(0, 14), h: e.getBoundingClientRect().height })).filter((x) => x.h < 44));
+  check(tg.length === 0, '1440: the twin and every wayfinding link are ≥ 44 px tall', JSON.stringify(tg));
+  await page.evaluate(() => { const p = document.getElementById('papers'); scrollTo({ top: p.getBoundingClientRect().top + scrollY - innerHeight * 0.2, left: 0, behavior: 'instant' }); });
+  await page.waitForTimeout(400);
+  check(await page.$$eval('.wayf a[aria-current="location"]', (a) => a.map((x) => x.getAttribute('href')).join()) === '#papers', 'the wayfinding marks the section in view (#papers, aria-current="location")');
+  await page.click('#topGo');
+  await page.waitForTimeout(700);
+  check(await page.evaluate(() => document.activeElement && document.activeElement.id === 'fName'), 'the twin takes the reader to the free door, the name focused');
+  await page.fill('#fName', 'Anna Keller'); await page.fill('#fContact', 'anna@example.com');
+  await page.click('#door');
+  await page.waitForTimeout(700);
+  check(st.posts.length === 1 && await page.getAttribute('#pass', 'data-state') === 'open', 'one POST, the file opens');
+  await page.evaluate(() => document.getElementById('checks').scrollIntoView({ block: 'start', behavior: 'instant' }));
+  await page.waitForTimeout(500);
+  check(!(await shown(page, '#topGo')) && !(await shown(page, '#deskGo')), 'after OPEN no twin offers a second door (header or Gate)');
+  await ctx.close();
+}
+{
+  const { ctx, page } = await open({ clock: OPEN_T });
+  await page.waitForTimeout(300);
+  check(await page.$eval('header.top', (h) => !['sticky', 'fixed'].includes(getComputedStyle(h).position)), '390: the header is not sticky (the strip is the phone\'s twin)');
+  await page.evaluate(() => scrollTo({ top: 1500, left: 0, behavior: 'instant' }));
+  await page.waitForTimeout(300);
+  check(await page.$eval('header.top', (h) => h.getBoundingClientRect().bottom <= 0) && !(await shown(page, '#topGo')), '390: scrolled, the header has left the screen; no header twin on a phone');
+  // 9 · the Gate's outlined door: on screen it switches the strip off; a tap opens the free door
+  await center(page, '#deskGo');
+  await page.waitForTimeout(500);
+  check(await shown(page, '#deskGo') && await text(page, '#deskGo b') === 'Start with a free call' && !(await page.$eval('#strip', (s) => s.classList.contains('on'))), 'the Gate\'s outlined door reads door.label, and while it is on screen the strip stays off');
+  await page.evaluate(() => document.getElementById('faq').scrollIntoView({ block: 'start', behavior: 'instant' }));
+  await page.waitForTimeout(500);
+  check(await page.$eval('#strip', (s) => s.classList.contains('on')), '(with both doors off the screen the strip is back)');
+  await center(page, '#deskGo');
+  await page.waitForTimeout(300);
+  await page.click('#deskGo');
+  await page.waitForTimeout(700);
+  check(await page.evaluate(() => document.activeElement && document.activeElement.id === 'fName') && await shown(page, '#fFields'), '#deskGo takes the reader to the free door, the name focused');
+  const bag = await page.$eval('#papers', (p) => ({ inputs: p.querySelectorAll('input, [role="checkbox"], meter, progress, details').length, tags: p.querySelectorAll('li.tag').length, h: p.querySelector('h2').textContent }));
+  check(bag.inputs === 0 && bag.tags === 8 && bag.h === 'The papers a Dutch landlord asks for.', 'Baggage: eight static tags, no input, no checkbox, no meter, no fold');
+  await ctx.close();
+}
+
+// 10 · the loops: only while the desk is open; never with reduced motion
+{
+  const { ctx, page, st } = await open({ width: 1440, clock: OPEN_T });
+  await page.waitForTimeout(4000);
+  const inf = await infinite(page);
+  const onda = await page.evaluate(() => !!(window.BOOM_ONDA && window.BOOM_ONDA.running));
+  check(inf.length <= 1 && onda === true && await page.evaluate(() => document.documentElement.getAttribute('data-desk')) === 'open',
+    `1440, desk open: the onda runs and at most one CSS loop (the gate dot): ${inf.join(', ') || 'none'}`);
+  check(await page.$eval('.seal', (e) => getComputedStyle(e).display !== 'none' && e.getBoundingClientRect().width > 80) && await shown(page, '.lamina'), '1440: the issuer seal and the foil band are drawn');
+  check(st.errors.length === 0, '1440 open: no JS error', st.errors.join(' | '));
+  await ctx.close();
+}
+{
+  const { ctx, page } = await open({ width: 1440, clock: SAT_T });
+  await page.waitForTimeout(4000);
+  const inf = await infinite(page);
+  check(inf.length === 0 && await page.evaluate(() => window.BOOM_ONDA ? window.BOOM_ONDA.running === false : null) === true && await page.evaluate(() => document.documentElement.getAttribute('data-desk')) === 'closed',
+    `1440, desk closed (Saturday): nothing loops — no CSS loop, the onda stopped after one dim frame`, inf.join(', '));
+  await ctx.close();
+}
+{
+  const { ctx, page } = await open({ width: 1440, clock: OPEN_T, reducedMotion: 'reduce' });
+  await page.waitForTimeout(3500);
+  const run = await page.evaluate(() => document.getAnimations().filter((a) => a.playState === 'running').map((a) => `${(a.effect.target && (a.effect.target.id || a.effect.target.className)) || '?'}:${a.animationName || a.transitionProperty || ''}`));
+  check(run.length === 0 && await page.evaluate(() => !window.BOOM_ONDA || window.BOOM_ONDA.running === false), 'reduced motion, desk open: no animation running after load, the onda never loops', run.slice(0, 4).join(', '));
+  check(await boardWord(page, '#placeBoard') === 'AMSTERDAM', 'reduced motion: the board set at once');
+  await ctx.close();
+}
+
+// the desktop pass: the stub full to the bottom, the clocks in its gate
+// without growing it, the board inside the main column
+for (const [w, h] of [[1440, 900], [1024, 800], [940, 800]]) {
+  for (const slug of ['amsterdam', 'barcelona']) {
+    const { ctx, page } = await open({ slug, width: w, height: h, clock: OPEN_T });
+    await page.waitForTimeout(1700);
+    const fit = await page.evaluate(() => { const b = document.getElementById('placeBoard').getBoundingClientRect(), m = document.querySelector('.p-main').getBoundingClientRect(); return { b: Math.round(b.right), m: Math.round(m.right), l: b.left >= m.left - 1 }; });
+    check(fit.l && fit.b <= fit.m + 1, `${slug} ${w}: the city board (${slug.toUpperCase()}) fits inside the pass's main column (${fit.b} ≤ ${fit.m})`);
+    if (w === 1440 && slug === 'amsterdam') {
+      const foot = async () => page.evaluate(() => document.querySelector('.pass').getBoundingClientRect().bottom - document.querySelector('.stub-foot').getBoundingClientRect().bottom);
+      const g0 = await foot();
+      const withClocks = (await rect(page, '#pass')).h;
+      await page.$eval('#clocks', (c) => { c.hidden = true; });
+      const without = (await rect(page, '#pass')).h;
+      await page.$eval('#clocks', (c) => { c.hidden = false; });
+      check(g0 >= 0 && g0 <= 40, `1440: the stub foot (barcode, code line) sits at the bottom of the pass (${g0.toFixed(0)} px from its edge)`);
+      check(Math.abs(withClocks - without) < 1, `1440: the clocks land in the stub's empty space — the pass is ${without.toFixed(0)} px with or without them`);
+      await page.click('#fare-full-search > summary');
+      await page.waitForTimeout(400);
+      const g1 = await foot();
+      check(g1 >= 0 && g1 <= 40, `1440, Full Search open: the stub foot follows the pass to its bottom (${g1.toFixed(0)} px)`);
+    }
+    await ctx.close();
+  }
+}
+
+// 11 · the waitlists: one label, four doors, no pay control, no "call"
+for (const slug of ['paris', 'berlin']) {
+  const { ctx, page } = await open({ slug, width: 1440, clock: OPEN_T });
+  await page.waitForTimeout(500);
+  const labels = await page.$$eval('#topGo b, #deskGo b, #doorL, #stripGo', (es) => es.map((e) => e.textContent.trim()));
+  const body = await page.evaluate(() => document.body.innerText);
+  check(labels.length === 4 && labels.every((x) => x === 'Open my file') && await page.$$eval('[data-pay]', (b) => b.length) === 0 && !/\bcall(s|ed|ing|back)?\b/i.test(body),
+    `${slug}: #topGo, #deskGo, the door and the strip read "Open my file"; no pay control; no "call" in the rendered text`, JSON.stringify(labels));
   await ctx.close();
 }
 

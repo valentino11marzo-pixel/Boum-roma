@@ -3,10 +3,14 @@
   "city": "Milan",
   "country": "IT",
   "iata": "MIL",
+  "geo": {
+    "lat": 45.4642,
+    "lon": 9.19
+  },
   "live": true,
   "mode": "search",
   "config": {},
-  "updated": "2026-11-02",
+  "updated": "2026-11-03",
   "meta": {
     "title": "Tenant-side rental agent for expats in Milan — BOOM",
     "description": "Apartment search for expats in Milan, tenant side only: viewings attended, the agency fee asked in writing, the Italian lease checked and explained in English.",
@@ -92,17 +96,20 @@
       {
         "k": "1 · Brief",
         "h": "A free call",
-        "p": "Dates, budget, who's moving. We tell you what your budget buys, and what to walk away from."
+        "p": "Dates, budget, who's moving. We tell you what your budget buys, and what to walk away from.",
+        "status": "FREE"
       },
       {
         "k": "2 · Your file",
         "h": "One working day",
-        "p": "Codice fiscale first, then your file and a letter in Italian. Applications as listings appear."
+        "p": "Codice fiscale first, then your file and a letter in Italian. Applications as listings appear.",
+        "status": "1 WORK DAY"
       },
       {
         "k": "3 · Viewing & lease",
         "h": "A BOOM person in the room",
-        "p": "Live video and a written report. The lease checked and explained in English before you sign."
+        "p": "Live video and a written report. The lease checked and explained in English before you sign.",
+        "status": "IN PERSON"
       }
     ]
   },

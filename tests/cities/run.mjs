@@ -1,6 +1,7 @@
-// tests/cities/run.mjs — the city desks (v1.5, «il biglietto»): built from
-// data, on one boarding pass, and the build must REFUSE rather than print
-// something wrong (BOOM_CITIES_BRIEF.md v1.5; CLAUDE.md «Il biglietto»).
+// tests/cities/run.mjs — the city desks (v1.6, «the complete aviation
+// desk»; v1.5 «il biglietto» underneath): built from data, on one boarding
+// pass, then a terminal walk, and the build must REFUSE rather than print
+// something wrong (BOOM_CITIES_BRIEF.md; CLAUDE.md «Il biglietto»).
 //
 // What breaks if this goes red:
 //   - a committed page that is NOT what the data builds (someone edited the
@@ -12,16 +13,26 @@
 //     desk that sells, a pay control that does not read till.label;
 //   - a waitlist desk (Paris, Berlin) with a till, a Stripe word, a refund
 //     rule, a bank transfer or a promised call anywhere — text, attributes,
-//     JSON-LD, config;
+//     JSON-LD, config, the seal and the SVG text;
 //   - a Spanish selling desk whose prices do not open "Optional, chosen in
-//     writing" (LAU art. 20) on the first screen and in the till;
+//     writing" (LAU art. 20) on the first screen and in the till, or whose
+//     "Who pays the agent · LAU art. 20" check is not the first one;
 //   - the till out of the order the law asks (CRD): the plan, the UNTICKED
 //     start-now box, the withdrawal line with the model form, the pay button
 //     that follows the tick;
 //   - the quiz pages coming back (Check-in, meter, shared pass, #checkin=,
 //     the v1.4 hero, the priced pay bar, U+2708) or their JSON keys;
-//   - the page fattening again: words at load, the lead, the fares, each
-//     ticket, the weight in KB;
+//   - v1.6: the walk out of order (Departures, Pre-flight, Baggage, Gate,
+//     Questions, Network, the fact sheet, the footer); a Departures status
+//     that is a flight remark (BOARDING, ON TIME, NOW…) or a promise; a key
+//     on a step, a check or a question nobody prints (a check "verdict");
+//     the seal saying anything but the desk's must-state; a file code in the
+//     served HTML; a second plane; an aviation word that promises a seat, a
+//     queue, a countdown or a Wallet pass; a map dot outside the map;
+//   - the page fattening past the founder's v1.6 caps (in writing, raised
+//     once): words at load (prose and instruments apart), the node rule,
+//     each section of the walk, the lead, the fares, each ticket, the
+//     weight in KB (the onda canvas script counted);
 //   - the FAQ schema or the Offers saying something the page doesn't show;
 //   - the desk window promising "open" on a holiday (the calendar is ONE
 //     file, read by the page and the webhook);
@@ -38,7 +49,8 @@ import os from 'node:os';
 import path from 'node:path';
 import {
   buildAll, renderCity, writeAll, fill, findPlaceholders, fragments, familyFor, BuildError, esc, eur, money, currencyOf, GENERATED_MARK, WEIGHT_KB, BUDGET,
-  daysLabel, deskHoursText, feesRowOf, holidayKeyOf, visibleAtLoad, visibleText, sliceOf, words, waHref, WITHDRAWAL_PATH, TERMS_PATH
+  daysLabel, deskHoursText, feesRowOf, holidayKeyOf, visibleAtLoad, visibleText, sliceOf, words, waHref, WITHDRAWAL_PATH, TERMS_PATH,
+  atLoadParts, longNodes, weightOf, mapXY, validGeo, sealText, sealPhrase, STATUS_RE, STATUS_BANNED_RE, AVIATION_BAN_RE
 } from '../../build-cities.mjs';
 import SCALO from '../../js/scalo-codes.js';
 import CAL from '../../js/desk-calendar.js';
@@ -64,14 +76,14 @@ const refuses = (mut, re, t, base = 'amsterdam') => {
 const clone = (o) => JSON.parse(JSON.stringify(o));
 const read = (f) => fs.readFileSync(path.join(R, f), 'utf8');
 
-console.log('\n\x1b[1m▸ cities\x1b[0m  the city desks (v1.5, il biglietto): one pass, built from data, refusing instead of lying');
+console.log('\n\x1b[1m▸ cities\x1b[0m  the city desks (v1.6, the complete aviation desk): one pass and a terminal walk, built from data, refusing instead of lying');
 
 const template = read('cities/_template.html');
 const shared = JSON.parse(read('cities/_shared.json'));
 const SLUGS = ['amsterdam', 'barcelona', 'berlin', 'london', 'madrid', 'milan', 'paris'];
 const CITY = Object.fromEntries(SLUGS.map((s) => [s, JSON.parse(read(`cities/${s}.json`))]));
 const ams = CITY.amsterdam;
-const assetVersion = { css: 'testcss000', js: 'testjs0000' };
+const assetVersion = { css: 'testcss000', js: 'testjs0000', onda: 'testonda00' };
 const frags = fragments(R);
 // the refusals are measured without the weight gate (it has its own check);
 // the family is the real one, so a mutation of one desk keeps its sisters
@@ -92,12 +104,36 @@ for (const p of pages) {
   const cur = fs.existsSync(f) ? fs.readFileSync(f, 'utf8') : null;
   check(cur === p.html, `${p.file} is up to date with its data`,
     cur === null ? 'missing — run npm run build:cities' : 'stale — run npm run build:cities (never edit the generated file)');
-  check(p.weight && p.weight.totalKb <= WEIGHT_KB.total && p.weight.jsKb <= WEIGHT_KB.js,
-    `${p.file}: ${p.weight.totalKb.toFixed(1)} KB gzipped first-party (≤ ${WEIGHT_KB.total}), the JS ${p.weight.jsKb.toFixed(1)} KB (≤ ${WEIGHT_KB.js})`);
-  check(p.words <= BUDGET.body, `${p.file}: ${p.words} words visible at load (≤ ${BUDGET.body}; v1.4 had 1,065 on Amsterdam)`);
+  check(p.weight && p.weight.totalKb <= WEIGHT_KB.total && p.weight.jsKb <= WEIGHT_KB.js && p.weight.cssKb <= WEIGHT_KB.css && p.weight.ondaKb <= WEIGHT_KB.onda,
+    `${p.file}: ${p.weight.totalKb.toFixed(1)} KB gzipped first-party (≤ ${WEIGHT_KB.total}), the JS ${p.weight.jsKb.toFixed(1)} (≤ ${WEIGHT_KB.js}), the CSS ${p.weight.cssKb.toFixed(1)} (≤ ${WEIGHT_KB.css}), the onda ${p.weight.ondaKb.toFixed(1)} (≤ ${WEIGHT_KB.onda})`);
+  check(p.words <= BUDGET.body && p.prose <= BUDGET.prose && p.instr <= BUDGET.instr && p.words === p.prose + p.instr,
+    `${p.file}: ${p.words} words visible at load (≤ ${BUDGET.body}): ${p.prose} of prose (≤ ${BUDGET.prose}), ${p.instr} of instruments (≤ ${BUDGET.instr}) — v1.4 had 1,065 on Amsterdam`);
 }
-check(WEIGHT_KB.total <= 60 && WEIGHT_KB.js <= 12 && BUDGET.body <= 460 && BUDGET.lead <= 30 && BUDGET.fares <= 70 && BUDGET.ticket <= 60,
-  'the budgets are where the founder set them (≤ 60 KB gz, JS ≤ 12, 460 words at load, lead 30, fares 70, ticket 60): a cap is never raised to fit');
+// v1.6 (03/11/2026): the founder raised the caps ONCE, in writing, to these
+// numbers («this new style is just too much synthesised … iterate the
+// aviation ticket style … also for a complete page»). They are pinned here:
+// a cap is never raised again to fit a change — the change cuts copy or craft.
+check(WEIGHT_KB.total <= 82 && WEIGHT_KB.js <= 14 && WEIGHT_KB.css <= 15 && WEIGHT_KB.onda <= 4
+  && BUDGET.body <= 640 && BUDGET.prose <= 520 && BUDGET.instr <= 120 && BUDGET.node <= 24 && BUDGET.first <= 150
+  && BUDGET.lead <= 30 && BUDGET.fares <= 70 && BUDGET.ticket <= 60
+  && BUDGET.departures <= 100 && BUDGET.preflight <= 60 && BUDGET.baggage <= 70 && BUDGET.gate <= 40 && BUDGET.network <= 40
+  && !('stub' in BUDGET),
+  'the budgets are where the founder set them on 03/11 (≤ 82 KB gz: JS 14, CSS 15, onda 4; 640 words at load: prose 520, instruments 120; a node ≤ 24 words; first screen 150; lead 30, fares 70, ticket 60; Departures 100, Pre-flight 60, Baggage 70, Gate 40, Network 40): a cap is never raised to fit');
+{
+  const bs = read('build-cities.mjs');
+  check(/FOUNDER DECISION, in writing/.test(bs) && bs.indexOf('FOUNDER DECISION, in writing') < bs.indexOf('export const WEIGHT_KB'), 'the raise is written above the caps in build-cities.mjs as the founder\'s decision, not a silent edit');
+}
+{
+  // weightOf reads the onda canvas script: a fatter onda makes every page heavier
+  const tmpW = fs.mkdtempSync(path.join(os.tmpdir(), 'boom-cities-w-'));
+  fs.mkdirSync(path.join(tmpW, 'assets'), { recursive: true }); fs.mkdirSync(path.join(tmpW, 'js'), { recursive: true });
+  for (const f of ['assets/boom-city.css', 'assets/boom-city.js', 'assets/boom-onda.js', 'js/boom-consent.js', 'js/boom-track.js']) fs.copyFileSync(path.join(R, f), path.join(tmpW, f));
+  const w0 = weightOf(pages[0].html, tmpW);
+  fs.appendFileSync(path.join(tmpW, 'assets/boom-onda.js'), '\n/*' + Array.from({ length: 4000 }, (_, i) => ((i * 2654435761) % 4294967296).toString(36)).join(' ') + '*/');
+  const w1 = weightOf(pages[0].html, tmpW);
+  check(w0.ondaKb > 0 && w1.ondaKb > w0.ondaKb && w1.totalKb - w0.totalKb > (w1.ondaKb - w0.ondaKb) * 0.99, `weightOf counts assets/boom-onda.js in the total and on its own (${w0.ondaKb.toFixed(1)} → ${w1.ondaKb.toFixed(1)} KB)`);
+  fs.rmSync(tmpW, { recursive: true, force: true });
+}
 const PAGE = Object.fromEntries(pages.map((p) => [p.slug, p.html]));
 const html = PAGE.amsterdam;
 
@@ -146,7 +182,22 @@ check(pass.includes(`<dt>Answers</dt><dd>${ams.desk.person}</dd>`) && pass.inclu
   `who answers and when, in the static HTML: "${ams.desk.person}" · "${deskHoursText(ams.desk)}" (true in every season: never "CET" alone)`);
 check(deskHoursText(ams.desk) === 'Mon–Fri 09:00–19:00, Rome time' && daysLabel([1, 2, 3, 4, 5]) === 'Mon–Fri' && daysLabel([1, 3]) === 'Mon, Wed' && daysLabel([6]) === 'Sat',
   'deskHoursText names the days and the city of the clock');
-check(/<p class="code-big" aria-hidden="true"><span>To<\/span><b>AMS<\/b><\/p>/.test(pass), 'the stub says where the ticket goes (AMS), decorative');
+// v1.6: the route replaces v1.5's code-big — on the phone the perforation
+// itself (YOU → AMS on the punched track), on desktop the stub (FROM YOU, TO
+// AMS); both decorative, both carrying the ONE plane parked at the reader's
+// state, the three ticks one per Departures row
+{
+  const perf = sliceOf(pass, '<div class="perf" aria-hidden="true">', '</div>');
+  const stubRoute = sliceOf(pass, '<div class="route route-s" aria-hidden="true">', '</div>');
+  const line = (h) => /<b class="ra">YOU<\/b><span class="r-line"><i class="r-holes"><\/i><i class="r-tick t1"><\/i><i class="r-tick t2"><\/i><i class="r-tick t3"><\/i><i class="r-trail"><\/i><span class="r-run"><i class="r-hold"><\/i><svg class="r-plane"[^>]*><use href="#boomPlane"\/><\/svg><\/span><\/span><b class="rb">AMS<\/b>/.test(h);
+  check(line(perf) && /<span class="route route-p">/.test(perf) && !/class="code-big"/.test(html), 'the phone perforation is the route: YOU, the punched track with three ticks and the parked plane, AMS — decorative (v1.5\'s code-big is gone)');
+  check(line(stubRoute) && stubRoute.includes('<p class="r-lab"><span>From</span><span>To</span></p>') && pass.indexOf('class="route route-s"') < pass.indexOf('<div id="act">'),
+    'the stub says where the ticket goes: FROM YOU, TO AMS, decorative, above the door (desktop)');
+  check(!/ROM<\/b><span class="r-line"|<b class="ra">ROM/.test(html) && /<p class="code" id="codeLine">BOOM · AMS · TENANT SIDE · ISSUED ROM<\/p>/.test(pass),
+    'Rome is never the passenger\'s origin: YOU is; ROM appears only as the issuer on the code line ("ISSUED ROM")');
+  check(/<div class="stub-foot" aria-hidden="true"><i class="bars"><\/i><p class="code" id="codeLine">/.test(pass) && pass.indexOf('class="stub-gate" id="stubGate"') < pass.indexOf('class="stub-foot"'),
+    'the stub foot: a barcode that encodes nothing and the code line, decorative, under the gate slot the clocks move into');
+}
 
 // the fares: three rows, each its own <details name="fare"> with its ticket in place
 const fares = sliceOf(html, '<!-- FARES -->', '<!-- /FARES -->');
@@ -189,7 +240,14 @@ check(strip.includes('<button class="st-go" id="stripGo" type="button">Start wit
 // one label everywhere; the v1.2–v1.4 labels and chrome are gone
 const vis = visibleText(html);
 check(!/Start my search|Get the pack|Book a viewing|Show my plan|Rather write first|Three questions|Open my file/.test(vis), 'one door label on a selling desk: none of the earlier labels');
-check(!/id="checkin"|id="ckStatus"|id="passWrap"|#checkin=|class="paybar"|id="flapCity"|boomPlane|class="hero"|data-consent="compact"|class="rail"|class="glance"/.test(html), 'the quiz, its ticket, the share links, the v1.4 hero, the rail and the priced bar left the page');
+check(!/id="checkin"|id="ckStatus"|id="passWrap"|#checkin=|class="paybar"|id="flapCity"|class="hero"|data-consent="compact"|class="rail"|class="glance"/.test(html), 'the quiz, its ticket, the share links, the v1.4 hero, the rail and the priced bar left the page');
+// v1.6, a recorded founder decision: the plane is back as ONE SVG symbol, used
+// on the route only — never a second or third plane, never the ✈ glyph
+for (const s of SLUGS) {
+  const h = PAGE[s];
+  check((h.match(/<symbol id="boomPlane"/g) || []).length === 1 && (h.match(/<use href="#boomPlane"\/>/g) || []).length === 2 && !/\u2708/.test(h) && !/<svg class="map"[\s\S]*?boomPlane[\s\S]*?<\/svg>/.test(h),
+    `${s}: ONE plane symbol, used twice (the phone perforation, the stub route) — no plane on the map, no ✈`);
+}
 check(!/✈/.test(html) && !/!(?=[\s<"]|$)/.test(vis.replace(/<!DOCTYPE/i, '')), 'no ✈ and no exclamation mark');
 check(!/(?<![\d,.])500\+|\b24\/7\b|off-market|within the hour|whichever is lower|founding|spots? left|\d+ (places|spots)/i.test(vis), 'no "500+", "24/7", "off-market", "within the hour", no founding cohort, no scarcity');
 
@@ -203,28 +261,168 @@ check((html.match(/on Google/g) || []).length === 1 && html.includes(`<a class="
   'the Rome rating appears once, says "in Rome" and links the public profile');
 check(/^https:\/\/maps\.google\.com\/\?cid=\d+$/.test(shared.rome.profileUrl), 'the proof link is the public profile (?cid=), never the "write a review" box');
 
-// the below: How it works, the checks, the FAQ, the folded fact sheet, the footer
-const iHow = html.indexOf('id="how"'), iChk = html.indexOf('id="checks"'), iFaq = html.indexOf('id="faq"'), iBrf = html.indexOf('id="enbref-wrap"'), iFoot = html.indexOf('class="foot"');
-check(html.indexOf('</article>') < iHow && iHow < iChk && iChk < iFaq && iFaq < iBrf && iBrf < iFoot, 'below the pass: How it works, the checks, the FAQ, the fact sheet, the footer');
-check((html.match(/<li><p class="k">/g) || []).length === 3, 'How it works keeps its three steps');
-check(ams.checks.items.every((k) => html.includes(`<details id="check-${k.id}"><summary><span class="t">${esc(k.title)}<span class="at">${esc(k.at)}</span></span></summary><p>${esc(k.text)}</p></details>`)),
-  `the checks are folded (title and its legal tag; the sentence opens): ${ams.checks.items.map((k) => k.id).join(', ')}`);
-check(/<details id="papers"><summary><span class="t">The papers a Dutch landlord asks for<span class="at">8 papers<\/span>/.test(html) && (sliceOf(html, '<ul class="papers">', '</ul>').match(/<li>/g) || []).length === 8,
-  'the eight papers a Dutch landlord asks for: a folded list, no meter, no score');
-check(/<details class="sheet">\s*<summary>BOOM Amsterdam — fact sheet<\/summary>\s*<dl class="enbref" id="enbref">/.test(html), 'the fact sheet is folded for people and whole in the DOM for machines (GEO)');
-check(html.includes(`<a href="${WITHDRAWAL_PATH}?desk=Amsterdam">Withdrawal form</a>`) && html.includes(`<a href="/terms#city-desks">Terms</a>`) && html.includes('<a href="/privacy">Privacy</a>'),
-  'the footer links the withdrawal form (with the desk), the Terms §12 and the privacy notice');
-check(html.includes(`<p class="stmt">${esc(ams.footer.statement)}</p>`) && html.includes(`P.IVA ${shared.entity.vat}`) && html.includes(`© ${shared.copyrightYear} BOOM`),
-  'the tenant-side statement, the entity with its VAT number, the year from data (never the clock)');
-
-// the family: a live page links only live sisters, then Rome
-{
-  const links = (h) => [...sliceOf(h, '<nav aria-label="Legal and contact">', '</nav>').matchAll(/<a href="\/([a-z]+)">([^<]+) desk<\/a>/g)].map((m) => m[1]);
-  check(links(PAGE.amsterdam).join() === 'barcelona,london,madrid,milan', `a live desk links only the live sisters (${links(PAGE.amsterdam).join(', ')})`);
-  check(links(PAGE.paris).join() === 'amsterdam,barcelona,berlin,london,madrid,milan', 'a draft links every sister (the review sees the suite)');
-  const fam = familyFor({ slug: 'x', live: true }, [{ slug: 'b', city: 'B', live: false }, { slug: 'a', city: 'A', live: true }], { family: [{ label: 'BOOM Rome', href: '/' }] });
-  check(fam.map((f) => f.href).join() === '/a,/' && fam[0].label === 'A desk', 'familyFor: live sisters only, alphabetical, labelled "<City> desk", then BOOM Rome');
+// the below (v1.6): the terminal walk — Departures, Pre-flight, Baggage,
+// Gate, Questions, Network, the fact sheet on the back, the footer
+const iHow = html.indexOf('id="how"'), iChk = html.indexOf('id="checks"'), iPap = html.indexOf('<section class="sec" id="papers"'), iDsk = html.indexOf('<section class="sec" id="desk"'),
+  iFaq = html.indexOf('id="faq"'), iNet = html.indexOf('<section class="sec" id="network"'), iBrf = html.indexOf('id="enbref-wrap"'), iFoot = html.indexOf('class="foot"');
+check(html.indexOf('</article>') < iHow && iHow < iChk && iChk < iPap && iPap < iDsk && iDsk < iFaq && iFaq < iNet && iNet < iBrf && iBrf < iFoot,
+  'below the pass, in order: Departures (#how), Pre-flight (#checks), Baggage (#papers), Gate (#desk), Questions (#faq), Network, the fact sheet, the footer');
+check(html.indexOf('<p class="proof">') > html.indexOf('</article>') && html.indexOf('<p class="proof">') < iHow && (html.match(/<p class="proof">/g) || []).length === 1, 'the proof line sits once, right under the pass');
+for (const s of SLUGS) {
+  const h = PAGE[s];
+  const secs = [...h.matchAll(/<section class="sec[^"]*" id="([\w-]+)"[^>]*>([\s\S]*?)<\/section>/g)];
+  const walk = secs.filter((m) => m[1] !== 'enbref-wrap');
+  const bad = walk.filter((m) => { const h2 = (m[2].match(/<h2\b[^>]*>([\s\S]*?)<\/h2>/) || [])[1] || ''; return (h2.match(/class="g"/g) || []).length !== 1 || !/^\s*<p class="eb" data-instr>[^<]+<\/p>/.test(m[2]); });
+  check(walk.map((m) => m[1]).join() === 'how,checks,papers,desk,faq,network' && !bad.length,
+    `${s}: every section of the walk opens with its eyebrow and an h2 with exactly ONE gold phrase (${walk.map((m) => m[1]).join(' → ')})`, bad.map((m) => m[1]).join());
 }
+check(['Departures', 'Pre-flight', 'Baggage', 'Gate', 'Before you ask', 'Network'].every((e, i) => sliceOf(html, ['id="how"', 'id="checks"', '<section class="sec" id="papers"', '<section class="sec" id="desk"', 'id="faq"', '<section class="sec" id="network"'][i], '</h2>').includes(`<p class="eb" data-instr>${e}</p>`))
+  && !/>(Check-in|Customs)</.test(html), 'the eyebrows name the walk (Departures, Pre-flight, Baggage, Gate, Before you ask, Network) — never "Check-in" or "Customs"');
+
+// DEPARTURES: the three steps as a board — N° and step from k, what happens
+// from h and p, the status a validated fact; row 01 flips only on a server event
+{
+  const dep = sliceOf(html, '<section class="sec" id="how"', '</section>');
+  check(dep.includes(`<h2 id="howH">${esc(ams.how.h2)} <span class="g">${esc(ams.how.h2g)}</span></h2>`) && /<p class="dep-h" aria-hidden="true"><b>AMS · DEPARTURES<\/b>/.test(dep), 'Departures: the h2 and its gold phrase, the board head "AMS · DEPARTURES" (decorative)');
+  const rows = [...dep.matchAll(/<li class="dep-r rv" id="dep-(\d)"[^>]*>([\s\S]*?)<\/li>/g)];
+  check(rows.length === 3 && ams.how.steps.every((st, i) => {
+    const [, , name] = /^(\d) · (.+)$/.exec(st.k);
+    const r = rows[i][2];
+    return rows[i][1] === String(i + 1) && r.includes(`<span class="n" data-instr aria-hidden="true">0${i + 1}</span>`) && r.includes(`<span class="s" data-instr>${esc(name)}</span>`)
+      && r.includes(`<b class="dh">${esc(st.h)}</b> <span class="dp">${esc(st.p)}</span>`)
+      && r.includes(`<span class="st-b" data-word="${st.status}" aria-hidden="true">${st.status}</span><span class="sr" id="dep-${i + 1}-sr">Status: ${st.status.toLowerCase()}</span>`);
+  }), 'three Departures rows: N°, the step name from k, what happens (h + p), the status on a board (decorative) with its screen-reader twin');
+  check(/<span class="pill-st js" id="depPill" hidden>/.test(dep) && /<p class="dep-f js" hidden>/.test(dep) && /<p class="sr" id="depLive" aria-live="polite"><\/p>/.test(dep), 'the desk pill and the foot line are served hidden (behaviour, not content); #depLive waits empty for row 01\'s fact');
+  check(!/class="st-b"[^>]*>[^<]*(BM |REPLY|START|FROM \d)/.test(html), 'no row is served flipped: REPLY / START / FROM only after the server answers');
+}
+// the statuses, desk by desk: a fact about the step, never a flight remark
+for (const s of SLUGS) {
+  const c = CITY[s], want = c.mode === 'waitlist' ? ['FREE', 'WITH PARTNER', 'AT OPENING'] : ['FREE', '1 WORK DAY', 'IN PERSON'];
+  const got = [...PAGE[s].matchAll(/<span class="st-b" data-word="([^"]+)"/g)].map((m) => m[1]);
+  check(JSON.stringify(c.how.steps.map((x) => x.status)) === JSON.stringify(want) && JSON.stringify(got) === JSON.stringify(want)
+    && got.every((x) => STATUS_RE.test(x) && !STATUS_BANNED_RE.test(x)) && c.how.steps.every((x, i) => new RegExp(`^${i + 1} · .{2,24}$`).test(x.k)),
+    `${s}: the Departures statuses are ${want.join(' · ')} (${c.mode === 'waitlist' ? 'a desk still opening: the partner, the opening' : 'a desk that sells'}), upper-case, ≤ 12 cells, no remark`);
+}
+
+// PRE-FLIGHT: what we check before you sign, as lanes — no verdict, no tick
+check(ams.checks.items.every((k, i) => html.includes(`<details class="lane rv" id="check-${k.id}" style="--i:${i}"><summary><span class="ln" aria-hidden="true">0${i + 1}</span> <span class="at" data-instr>${esc(k.at)}</span> <span class="t">${esc(k.title)}</span></summary><p>${esc(k.text)}</p></details>`))
+  && sliceOf(html, 'id="checks"', '</section>').includes('<p class="lanes-h" aria-hidden="true">AMS · PRE-FLIGHT · WHAT WE CHECK</p>'),
+  `the checks are lanes, folded (N°, the legal kicker, the title; the sentence opens): ${ams.checks.items.map((k) => k.id).join(', ')}`);
+check(!/verdict|✓|✔|☑|checked for you|class="tick"/i.test(sliceOf(html, 'id="checks"', '</section>')), 'Pre-flight carries no verdict and no tick: "a point we check", never "checked for you"');
+
+// BAGGAGE: the eight papers as static tags — no fold, no input, no count
+{
+  const bag = sliceOf(html, '<section class="sec" id="papers"', '</section>');
+  const tags = [...bag.matchAll(/<li class="tag rv" style="--i:(\d)"><span class="eye" aria-hidden="true"><\/span><span class="tn" aria-hidden="true">AMS 0(\d)<\/span> <span class="tt">([^<]+)<\/span><\/li>/g)];
+  check(tags.length === 8 && tags.every((m, i) => m[1] === String(i) && m[2] === String(i + 1) && m[3] === esc(ams.papers.items[i])) && bag.includes(`<p class="tail rv">${esc(ams.papers.tail)}</p>`),
+    'Baggage: the eight papers a Dutch landlord asks for, as eight tags, in the order of the data, then the tail line');
+  check(bag.includes('<h2 id="papersH">The papers <span class="g">a Dutch landlord asks for.</span></h2>') && bag.includes('<p class="manifest" aria-hidden="true">AMS · BAGGAGE · 8 PAPERS</p>'),
+    'the Baggage h2 is split from papers.summary ("The papers" + the gold phrase); the manifest is decorative');
+  check(!/<details/.test(bag) && !/<input|role="checkbox"|<meter|<progress|of 8|\d\/8/i.test(bag) && !/<details id="papers"|class="papers"/.test(html),
+    'the papers are static: no fold, no input, no checkbox, no meter, no "n of 8"');
+}
+for (const s of SLUGS) check(/^The papers an? .+ asks for$/.test(CITY[s].papers.summary) && PAGE[s].includes(`The papers <span class="g">${esc(CITY[s].papers.summary.replace(/^The papers /, ''))}.</span>`), `${s}: the Baggage heading is "${CITY[s].papers.summary}."`);
+
+// GATE: who answers and when; the clocks, the week and the outlined door twin
+// are served hidden (behaviour); the dot is the only thing that may pulse
+{
+  const g = sliceOf(html, '<section class="sec" id="desk"', '</section>');
+  check(g.includes('<h2 id="deskH">Who answers, <span class="g">and when.</span></h2>') && g.includes('<span class="mono" aria-hidden="true">VE</span><p><b>Valentino Egidi</b> <span>tenant-side agent</span></p>')
+    && g.includes('<p class="hrs rv" style="--i:1">Mon–Fri <span class="nw">09:00–19:00</span>, Rome time</p>'), 'Gate: "Who answers, and when.", the person (monogram VE, decorative) and the desk hours as text');
+  check(/<div class="clocks quadro js" id="clocks" hidden>/.test(g) && /<ol class="week js" id="week" hidden aria-label="The desk this week"><\/ol>/.test(g) && /<button class="door2 js" id="deskGo" type="button" hidden>/.test(g),
+    'the clocks, the week strip and #deskGo are served hidden and empty: the JS fills them from the desk calendar');
+  check(!/Rome<\/p>\s*<p class="ck-v"|>Rome clock|ckRome/.test(g) && (g.match(/<div class="ck"/g) || []).length === 2, 'two clocks only — the desk and where you are: no Rome clock');
+  check(/<p class="write rv"[^>]*>Write instead: <a class="lnk" href="https:\/\/wa\.me\//.test(g), 'the Gate keeps the written way in (WhatsApp, email)');
+}
+// one label, four doors: the door, its header twin, its gate twin, the strip
+for (const s of SLUGS) {
+  const h = PAGE[s], lab = esc(CITY[s].door.label);
+  const four = [sliceOf(h, 'id="topGo"', '</button>').includes(`<b>${lab}</b>`), sliceOf(h, 'id="deskGo"', '</button>').includes(`<b>${lab}</b>`),
+    h.includes(`<b id="doorL">${lab}</b>`), h.includes(`<button class="st-go" id="stripGo" type="button">${lab}</button>`)];
+  check(four.every(Boolean) && (h.match(/id="topGo"/g) || []).length === 1 && (h.match(/id="deskGo"/g) || []).length === 1,
+    `${s}: #topGo, #deskGo, #doorL and #stripGo all read "${CITY[s].door.label}" — one label, four nodes`, JSON.stringify(four));
+  check((h.match(/data-window=/g) || []).length === 2, `${s}: exactly two [data-window] nodes (the door and the strip)`);
+  const w = deskHoursText(CITY[s].desk), gates = [...h.matchAll(/data-gate="([^"]*)">([^<]*)</g)];
+  check(gates.length >= 4 && gates.every((m) => m[1].includes('{w}') && m[2] === m[1].replace('{w}', w).replace(/&amp;/g, '&')),
+    `${s}: every [data-gate] node serves the static desk hours ("${w}") until the JS fills the window`, gates.map((m) => m[2]).join(' | '));
+  check(/<header class="top">/.test(h) && /<nav class="wayf" aria-label="On this page" data-instr>/.test(h) && ['fares', 'how', 'checks', 'papers', 'desk', 'faq'].every((x) => sliceOf(h, '<nav class="wayf"', '</nav>').includes(`href="#${x}"`) && h.includes(`id="${x}"`)),
+    `${s}: the header's wayfinding lands on ids that exist (#fares #how #checks #papers #desk #faq)`);
+  check(/<button class="top-go js" id="topGo" type="button" hidden>/.test(h) && /<p class="chip js" id="topChip" data-instr>/.test(h) && /<div class="twin">/.test(h),
+    `${s}: the header twin: the chip served, #topGo served hidden in the same slot`);
+}
+check(!/id="contact"/.test(html) && /<article class="pass" id="pass"/.test(html) && /<div id="act">/.test(html) && /<div class="fares" id="fares"/.test(html) && /id="door"/.test(html) && /id="stripGo"/.test(html),
+  'the ids the consent code and the server depend on stay (#pass, #act, #fares, #door, #stripGo) and no #contact comes back');
+
+// THE SEAL and THE STAMPS: the desk's must-state on a ring, never a new claim;
+// FILE OPEN / PAID only on the cards the server opens
+{
+  const SEAL = { amsterdam: 'NEVER PAID BY LANDLORDS', london: 'NEVER PAID BY LANDLORDS', milan: 'NEVER PAID BY LANDLORDS', madrid: 'WE DO NOT ACT FOR THE LANDLORD', barcelona: 'WE DO NOT ACT FOR THE LANDLORD', paris: 'OPENING WITH A LICENSED PARTNER', berlin: 'OPENING WITH A LICENSED PARTNER' };
+  for (const s of SLUGS) {
+    const h = PAGE[s], C = CITY[s].city.toUpperCase();
+    const seal = sliceOf(h, '<svg class="seal"', '</svg>');
+    check(sealPhrase(CITY[s]) === SEAL[s] && sealText(CITY[s]) === `BOOM ${C} · TENANT SIDE · ${SEAL[s]} · ` && seal.includes(`<textPath href="#sealArc" textLength="310" lengthAdjust="spacing">${sealText(CITY[s])}</textPath>`)
+      && /<svg class="seal"[^>]*aria-hidden="true" focusable="false"/.test(h) && (SEAL[s] !== 'OPENING WITH A LICENSED PARTNER' || /^Opening with a licensed partner\./.test(CITY[s].hero.lead)),
+      `${s}: the seal reads "BOOM ${C} · TENANT SIDE · ${SEAL[s]}", derived from the desk's own must-state, decorative`);
+    const stamps = [...h.matchAll(/<span class="stamp" aria-hidden="true"><svg[\s\S]*?<textPath href="#stampArc"[^>]*>([^<]+)<\/textPath><\/text><text class="st-w"[^>]*>([^<]+)<\/text><\/svg><\/span>/g)].map((m) => [m[1], m[2]]);
+    const sells = CITY[s].checkout === true;
+    const want = [[`FILE OPEN · BOOM ${C} · TENANT SIDE · `, 'OPEN'], ...(sells ? [[`PAID · BOOM ${C} · TENANT SIDE · `, 'PAID']] : [])];
+    check(JSON.stringify(stamps) === JSON.stringify(want) && sliceOf(h, 'id="cOpen"', '</div>').includes('class="stamp"') && (!sells || sliceOf(h, 'id="cPaid"', '<dl').includes('class="stamp"')),
+      `${s}: the SVG stamps — FILE OPEN on the OPEN card${sells ? ', PAID on the paid card' : '; no PAID stamp (no money is taken)'}`, JSON.stringify(stamps));
+  }
+}
+
+// NETWORK: the sisters and Rome, on a map (decorative) and as a list (the navigation)
+{
+  const netList = (h) => [...sliceOf(h, '<ul class="net">', '</ul>').matchAll(/<li><a href="\/([a-z]*)"><b data-instr>([A-Z]{3})<\/b> ([^<]+)<\/a><\/li>/g)].map((m) => [m[1], m[2], m[3]]);
+  const ams2 = netList(PAGE.amsterdam), par = netList(PAGE.paris);
+  check(ams2.map((x) => x[0]).join() === 'barcelona,london,madrid,milan,' && ams2.map((x) => x[1]).join() === 'BCN,LON,MAD,MIL,ROM' && ams2[4][2] === 'BOOM Rome',
+    `a live desk links only the live sisters, then BOOM Rome (${ams2.map((x) => x[1]).join(', ')})`);
+  check(par.map((x) => x[0]).join() === 'amsterdam,barcelona,berlin,london,madrid,milan,', 'a draft links every sister (the review sees the suite)');
+  check(!/<a href="\/(amsterdam|barcelona|berlin|london|madrid|milan|paris)">/.test(sliceOf(html, '<footer class="foot">', '</footer>')), 'the network list replaces the family links of the footer (said once)');
+  const fam = familyFor({ slug: 'x', live: true }, [{ slug: 'b', city: 'B', live: false, iata: 'BBB', geo: { lat: 50, lon: 5 } }, { slug: 'a', city: 'A', live: true, iata: 'AAA', geo: { lat: 48, lon: 2 } }], { family: [{ label: 'BOOM Rome', href: '/' }], rome: { geo: shared.rome.geo } });
+  check(fam.map((f) => f.href).join() === '/a,/' && fam[0].label === 'A desk' && fam[0].iata === 'AAA' && fam[0].geo.lat === 48 && fam[1].iata === 'ROM' && fam[1].geo === shared.rome.geo,
+    'familyFor: live sisters only, alphabetical, labelled "<City> desk" with their IATA and coordinates, then BOOM Rome (ROM, the hub)');
+  check(sliceOf(html, '<section class="sec" id="network"', '</section>').includes('<p class="net-c">Every desk answers from Rome.</p>'), 'the caption: "Every desk answers from Rome."');
+  for (const s of SLUGS) {
+    const h = PAGE[s], map = sliceOf(h, '<svg class="map"', '</svg>');
+    const fam2 = familyFor(CITY[s], SLUGS.map((x) => CITY[x]), shared);
+    const xy = (g) => mapXY(g).map((v) => Math.round(v * 10) / 10);
+    const [mx, my] = xy(CITY[s].geo), [rx, ry] = xy(shared.rome.geo);
+    const dots = [...map.matchAll(/<circle class="(d(?: me)?|hub)" cx="([\d.]+)" cy="([\d.]+)"/g)].map((m) => [m[1], +m[2], +m[3]]);
+    const arcs = [...map.matchAll(/<path class="arc( me)?"[^>]*d="M([\d.]+) ([\d.]+)Q[\d.]+ [\d.]+ ([\d.]+) ([\d.]+)"/g)];
+    const inside = dots.every(([, x, y]) => x >= 20 && x <= 580 && y >= 20 && y <= 400);
+    const me = dots.find((d) => d[0] === 'd me'), hub = dots.find((d) => d[0] === 'hub');
+    const sisters = fam2.filter((f) => f.href !== '/');
+    check(/viewBox="0 0 600 420" aria-hidden="true" focusable="false"/.test(map) && inside && me && me[1] === mx && me[2] === my && hub && hub[1] === rx && hub[2] === ry
+      && sisters.every((f) => { const [x, y] = xy(f.geo); return dots.some((d) => d[0] === 'd' && d[1] === x && d[2] === y); })
+      && arcs.length === sisters.length + 1 && arcs.every((a) => +a[2] === rx && +a[3] === ry) && arcs.filter((a) => a[1]).length === 1 && +arcs.find((a) => a[1])[4] === mx
+      && SLUGS.every((x) => validGeo(CITY[x].geo)) && validGeo(shared.rome.geo),
+      `${s}: the map's dots are the projected real coordinates, inside the 600×420 viewBox margins (this desk ${mx},${my}; ROM ${rx},${ry}); one arc from Rome per desk, this desk's in gold`);
+  }
+}
+
+check(/<details class="sheet">\s*<summary>BOOM Amsterdam — fact sheet<\/summary>\s*<dl class="enbref" id="enbref">/.test(html) && /<section class="sec brief" id="enbref-wrap"[^>]*>\s*<span class="corner" aria-hidden="true">Conditions<\/span>/.test(html),
+  'the fact sheet is folded for people and whole in the DOM for machines (GEO), on the back of the ticket (CONDITIONS, decorative)');
+check(html.includes(`<a href="${WITHDRAWAL_PATH}?desk=Amsterdam">Withdrawal form</a>`) && html.includes(`<a href="/terms#city-desks">Terms</a>`) && html.includes('<a href="/privacy">Privacy</a>')
+  && /<nav aria-label="Legal"><h3>Legal<\/h3> <a href="\/terms#city-desks">Terms<\/a> <a href="\/privacy">Privacy<\/a> <a href="\/withdrawal\?desk=Amsterdam">Withdrawal form<\/a><\/nav>/.test(html)
+  && /<nav aria-label="Legal"><h3>Legal<\/h3> <a href="\/terms#city-desks">Terms<\/a> <a href="\/privacy">Privacy<\/a><\/nav>/.test(PAGE.paris),
+  'the footer\'s Legal column links the Terms §12, the privacy notice and — where the desk sells — the withdrawal form with the desk');
+check(html.includes(`<p class="stmt">${esc(ams.footer.statement)}</p>`) && html.includes(`P.IVA ${shared.entity.vat}`) && html.includes(`© ${shared.copyrightYear} BOOM`) && html.includes(`<p class="tm">${esc(shared.entity.trademark)}</p>`),
+  'the tenant-side statement, the entity with its VAT number, the trademark, the year from data (never the clock)');
+check(/<nav aria-label="This desk"><h3>This desk<\/h3> <a href="mailto:hello@boom-rome\.com">/.test(html) && sliceOf(html, '<nav aria-label="This desk">', '</nav>').includes('<p>Mon–Fri <span class="nw">09:00–19:00</span>, Rome time</p>'),
+  'the footer\'s "This desk" column: email, phone, WhatsApp and the desk hours');
+
+// no aviation word that promises what does not exist: a seat, a queue, a
+// countdown, a Wallet pass (whole words: "London time" is not "on time")
+for (const s of SLUGS) {
+  const said = visibleText(PAGE[s].replace(/<!--[\s\S]*?-->/g, ' '));
+  const hit = said.match(AVIATION_BAN_RE);
+  check(!hit && !/\bON TIME\b/i.test(said.replace(/London time/g, '')) && !/Check-in|Customs/.test(said), `${s}: no seat, admit one, boarding, last or final call, on time, delayed, Wallet, countdown, Check-in or Customs on the page`, hit && hit[0]);
+}
+check(!AVIATION_BAN_RE.test('Mon–Fri 08:00–18:00, London time') && AVIATION_BAN_RE.test('Departing ON TIME') && AVIATION_BAN_RE.test('3 days left'), 'the aviation ban reads whole words: "London time" passes, "ON TIME" and "3 days left" do not');
+
+// the served HTML never carries a file code: the server's answer fills it
+for (const s of SLUGS) check(!/BM [A-HJ-NP-Z2-9]{5}/.test(PAGE[s]) && /<p class="code" id="codeLine">BOOM · [A-Z]{3} · TENANT SIDE · ISSUED ROM<\/p>/.test(PAGE[s]), `${s}: no file code in the served page; the code line reads the issuer only`);
 
 // the config: what the JS reads, no secrets
 {
@@ -273,7 +471,7 @@ check(Array.isArray(svc.offers) && svc.offers.length === 3 && svc.offers.every((
 check(svc.offers[0].description.includes(shared.refund.rule) && !svc.offers[1].description.includes('refunded'), 'the Full Search Offer carries the refund rule; the others do not');
 check(svc.hoursAvailable.opens === '09:00' && svc.hoursAvailable.dayOfWeek.join() === 'Monday,Tuesday,Wednesday,Thursday,Friday', 'the Service states the desk hours and days');
 check(faqLd.mainEntity.length === ams.faq.items.length && faqLd.mainEntity.every((q, i) => q.name === ams.faq.items[i].q && q.acceptedAnswer.text === ams.faq.items[i].a
-  && html.includes(`<summary><span class="t">${esc(q.name)}</span></summary><p>${esc(q.acceptedAnswer.text)}</p>`)),
+  && html.includes(`<summary><span class="qn" aria-hidden="true">0${i + 1}</span> <span class="t">${esc(q.name)}</span></summary><p>${esc(q.acceptedAnswer.text)}</p>`)),
   `the FAQPage (${faqLd.mainEntity.length} questions) is the visible FAQ, word for word`);
 check(/og-amsterdam\.png\?v=[0-9a-f]{10}/.test(html) && (html.match(/og-amsterdam\.png\?v=/g) || []).length >= 3, 'the social card is declared with its byte hash (og, twitter, primaryImageOfPage): an immutable PNG cannot stay stale in a cache');
 
@@ -411,7 +609,75 @@ refuses((c) => { c.word = 'AMSTERDAMNORTHHOLLAND'; }, /2–12 letters/, 'a board
 refuses((c) => { c.iata = 'Ams'; }, /"iata" \(three upper-case letters\)/, 'the stub destination is three upper-case letters');
 // the word budgets bite on the OUTPUT (not only the data)
 refuses((c) => { c.pricing.plans[0].includes[0] += ', and a very long extra clause about everything else we do for you on the Full Search, from the brief to the keys, the registration and the first week'; }, /ticket is \d+ words, over 60/, 'a ticket over its 60 words is refused');
-refuses((c) => { for (const k of c.how.steps) k.p += ' ' + 'Every word here is read at load, so the page cannot quietly grow back past the budget the founder set for it.'.repeat(3); }, /visible words at load, over the 460 budget/, 'the page over its 460 words at load is refused: it cannot grow back');
+refuses((c) => { for (const k of c.how.steps) k.p += ' ' + 'Every word here is read at load, so the page cannot quietly grow back past the budget the founder set for it.'.repeat(5); }, /visible words at load, over the 640 budget/, 'the page over its 640 words at load is refused: it cannot grow back');
+// v1.6: the prose has its own cap under the total (the richness comes from
+// instruments, not paragraphs), and no text node runs past 24 words
+{
+  const q24 = (i, head) => `${head} ${'about the rent the papers the flat and the street'.split(' ').concat('in this city for the people who move here from far away to work'.split(' ')).slice(0, 24 - head.split(' ').length).join(' ')}`;
+  const six = (c) => {
+    const base = c.faq.items;
+    c.faq.items = [0, 1, 2, 3, 4, 5].map((i) => ({ q: q24(i, i === 0 ? "Isn't it the landlord who pays the agent here," : `Question ${'abcdef'[i]} asks`), a: (base[i] || base[base.length - 1]).a }));
+    check(c.faq.items.every((f) => words(f.q) === 24), '(the six questions are 24 words each: none breaks the node rule)');
+  };
+  refuses(six, /words of prose at load, over the 520 budget/, 'six 24-word questions push the prose past its 520 words (under the 640 total): refused', 'barcelona');
+  refuses((c) => { c.how.steps[0].p = 'Dates, budget, who is moving, the areas you like, the commute you can live with, and what your budget really buys today in this city, said plainly.'; check(words(c.how.steps[0].p) === 27, '(the step line is 27 words)'); },
+    /a text node over 24 words at load/, 'a Departures line over 24 words is refused by the node rule (an instrument, not a paragraph)');
+  const tooLong = clone(ams); tooLong.how.steps[1].p = Array.from({ length: 30 }, (_, i) => `w${i}`).join(' ');
+  check(longNodes(atLoadParts(render(clone(ams)).html).html).length === 0 && /a text node over 24 words/.test(String(throws(() => render(tooLong), /x^/))), 'longNodes: the page as built has no node over 24 words; a 30-word step is caught');
+}
+
+// ── 6b · v1.6: the terminal walk refuses instead of lying ─────────────────
+// the Departures statuses: a fact about the step, never a flight remark
+refuses((c) => { c.how.steps[1].status = 'BOARDING'; }, /is a flight remark/, 'a status "BOARDING" is refused (a flight remark, not a fact about the step)');
+refuses((c) => { c.how.steps[2].status = 'NOW OPEN'; }, /is a flight remark/, 'a status "NOW OPEN" is refused (NOW is a remark)');
+refuses((c) => { c.how.steps[2].status = 'ONLY 2 LEFT'; }, /is a flight remark/, 'a status "ONLY 2 LEFT" is refused (scarcity is never a status)');
+refuses((c) => { c.how.steps[1].status = 'ONE WORK DAYS'; }, /2–12 characters \(a 12-cell board\)/, 'a 13-character status is refused (the board has 12 cells)');
+refuses((c) => { c.how.steps[0].status = 'free'; }, /upper-case letters, digits and spaces/, 'a lower-case status is refused');
+refuses((c) => { c.how.steps[1].status = '24H'; }, /no clock promise in the copy/, 'a status "24H" is refused (a clock promise the desk cannot keep)');
+refuses((c) => { c.how.steps[1].status = 'CALL'; }, /promises no call/, 'a status "CALL" on a desk still opening is refused (it takes no call)', 'paris');
+refuses((c) => { c.how.steps[1].status = 'FILE CHECK'; }, /FREE on step 1 and the partner or the opening/, 'a desk still opening says the partner or the opening on steps 2 and 3, never a service it does not run yet', 'berlin');
+refuses((c) => { c.how.steps[0].k = '2 · Brief'; }, /must read "1 · <step name>"/, 'a step whose number is not its row is refused (the board prints N° from k)');
+refuses((c) => { delete c.how.steps[2].status; }, /how\.steps\[2\]\.status/, 'a step without its status is refused');
+// the item allow-lists: a key nobody prints is refused — the rejected proposals' keys first
+refuses((c) => { c.checks.items[0].verdict = 'OK'; }, /checks\.item\.verdict is a key the page does not read/, 'a check "verdict" is refused (no verdicts, no ticks: we check, we do not certify)');
+refuses((c) => { c.how.steps[0].when = 'Today'; }, /how\.step\.when is a key the page does not read/, 'a step "when" is refused (no promised day on the board)');
+refuses((c) => { c.faq.items[0].tag = 'new'; }, /faq\.item\.tag is a key the page does not read/, 'an unknown key on a question is refused');
+for (const k of ['ops', 'flight', 'rules', 'routeMap']) refuses((c) => { c[k] = {}; }, new RegExp(`"${k}" is a leftover`), `the rejected proposals' key "${k}" is refused by name`);
+// the map: real public coordinates, inside the map
+refuses((c) => { delete c.geo; }, /"geo" \{lat, lon\} is required/, 'a desk without "geo" is refused (the Network map places it)');
+refuses((c) => { c.geo = { lat: 70, lon: 5 }; }, /"geo" \{lat, lon\} is required/, 'a latitude of 70 is refused (outside western Europe and outside the map)');
+refuses((c) => { c.geo = { lat: '52.37', lon: 4.9 }; }, /"geo" \{lat, lon\} is required/, 'a latitude written as text is refused');
+{
+  const sh = clone(shared); delete sh.rome.geo;
+  check(throws(() => render(ams, sh), /rome\.geo \{lat, lon\} is required/) === true, '_shared.json without rome.geo is refused (the hub of the map)');
+  const XY = SLUGS.map((s) => [s, ...mapXY(CITY[s].geo)]);
+  check(XY.every(([, x, y]) => x >= 20 && x <= 580 && y >= 20 && y <= 400) && validGeo(shared.rome.geo) && !validGeo({ lat: 52, lon: 40 }) && !validGeo({ lat: 64, lon: -21 }),
+    `every desk projects inside the 600×420 map (${XY.map(([s, x, y]) => `${s} ${Math.round(x)},${Math.round(y)}`).join(' · ')}); Moscow and Reykjavik would not`);
+}
+// the Baggage heading, the seal
+refuses((c) => { c.papers.summary = 'Documents'; }, /papers\.summary must read "The papers a\/an … asks for"/, 'papers.summary "Documents" is refused (the Baggage heading is split from it)');
+refuses((c) => { c.hero.lead = 'Opening with a call from a licensed partner. Until it opens we file your request.'; }, /promises no call/, 'a waitlist seal that would read "call" is refused (the seal derives from the lead; a desk still opening promises no call)', 'paris');
+check(/CALL/.test(sealText({ ...clone(CITY.paris), hero: { ...CITY.paris.hero, lead: 'Opening with a call. Later.' } })), '(the seal derives the waitlist phrase from the lead\'s first sentence: a "call" there would reach the ring)');
+refuses((c) => { c.hero.leadStrong = 'We work for you, only.'; }, /leadStrong is its must-state|issuer seal cannot derive its phrase/, 'a selling desk whose leadStrong carries no must-state has no seal to print: refused', 'london');
+// Spain: the LAU art. 20 lane is the first one
+refuses((c) => { c.checks.items.push(c.checks.items.shift()); }, /as the first lane/, 'a Spanish desk whose "Who pays the agent · LAU art. 20" is not the first Pre-flight lane is refused', 'madrid');
+
+// ── 7b · v1.6: the output refusals (each proven by mutating the template) ─
+tplRefuses('  <symbol id="boomPlane"', '  <symbol id="boomPlane" viewBox="0 0 24 24"><path d="M0 0"/></symbol>\n  <symbol id="boomPlane"', /one SVG plane symbol/, 'a second plane symbol is refused (ONE plane, on the route)');
+tplRefuses('<h2 id="deskH">Who answers, <span class="g">and when.</span></h2>', '<h2 id="deskH">Who answers, and when.</h2>', /exactly one gold phrase/, 'a section h2 without its gold phrase is refused');
+tplRefuses('<h2 id="deskH">Who answers, <span class="g">and when.</span></h2>', '<h2 id="deskH"><span class="g">Who answers,</span> <span class="g">and when.</span></h2>', /exactly one gold phrase/, 'a section h2 with two gold phrases is refused');
+tplRefuses('<p class="eb" data-instr>Gate</p>', '', /opens with its eyebrow/, 'a section without its eyebrow is refused');
+tplRefuses('<p class="proof">', '<p class="proof"><small data-window="{w}">x</small>', /exactly two \[data-window\] nodes/, 'a third [data-window] node is refused (the door and the strip only)');
+tplRefuses('<a href="#papers">Papers</a>', '<a href="#bags">Papers</a>', /wayfinding links land on ids that exist/, 'a wayfinding link to an id that does not exist is refused');
+tplRefuses('id="topGo" type="button" hidden><b>{{door.label}}</b>', 'id="topGo" type="button" hidden><b>Book a slot</b>', /#topGo reads door\.label/, 'a header twin with another label is refused (one label, four doors)');
+tplRefuses('<p class="proof">', '<p class="proof">Boarding now · ', /no seat, "admit one", boarding/, 'an aviation promise ("Boarding now") is refused');
+tplRefuses('<p class="proof">', '<p class="proof">Only 3 days left · ', /no seat, "admit one", boarding/, 'a countdown ("3 days left") is refused');
+tplRefuses('<p class="proof">', '<p class="proof">Add it to your Wallet · ', /no seat, "admit one", boarding/, 'a Wallet promise is refused (there is no pass)');
+tplRefuses('<p class="proof">', '<p class="proof">Your file BM 7K2QX · ', /no file code/, 'a file code in the served page is refused (only the server prints one)');
+// the price, refund and call scans read SVG <text> too (visibleText takes it)
+tplRefuses('<p class="proof">', '<p class="proof"><svg aria-hidden="true"><text x="0" y="9">Full Search from €129</text></svg>', /a price the plans do not charge is stated on the page: €129/, 'a price written in SVG <text> no plan charges is refused (decorative is not invisible)');
+tplRefuses('<p class="proof">', '<p class="proof"><svg aria-hidden="true"><text x="0" y="9">Full Search €500</text></svg>', /stands without the refund rule/, 'a €500 in SVG <text> without the refund rule is refused');
+tplRefuses('<p class="proof">', '<p class="proof"><svg aria-hidden="true"><text x="0" y="9">We call you back</text></svg>', /promises no call anywhere/, 'a call promised in SVG <text> on a desk still opening is refused', 'paris');
 
 // ── 7 · the output refusals (each proven by mutating the template) ────────
 tplRefuses('<!-- FARES -->\n{{{faresHtml}}}', '<!-- FARES -->\n<p>Full Search €500</p>\n{{{faresHtml}}}', /stands without the refund rule/, 'a €500 printed outside the fares, the till and the fees row without the refund rule is refused');
@@ -496,7 +762,8 @@ tplRefuses('<p class="proof">', '<p class="proof">Pay by bank transfer · ', /no
   for (const s of ['madrid', 'barcelona']) {
     const h = PAGE[s];
     check(h.includes('<b id="faresH">Optional, chosen in writing</b>') && h.includes('<b>You hire us; we do not act for the landlord.</b>'), `${s}: the prices open "Optional, chosen in writing"; the must-state in bold`);
-    check(/<details id="check-fees"><summary><span class="t">[^<]+<span class="at">[^<]*LAU art\. 20/.test(h), `${s}: the check "Who pays the agent · LAU art. 20"`);
+    check(/<details class="lane rv" id="check-fees" style="--i:0"><summary><span class="ln" aria-hidden="true">01<\/span> <span class="at" data-instr>LAU art\. 20<\/span> <span class="t">[^<]+<\/span><\/summary>/.test(h) && CITY[s].checks.items[0].id === 'fees',
+      `${s}: the check "Who pays the agent · LAU art. 20" is the FIRST Pre-flight lane`);
   }
   check(!/AICAT/.test(PAGE.barcelona.replace(/<!--[\s\S]*?-->/g, '')), 'barcelona: no AICAT registration is claimed anywhere (there is no number to print)');
   for (const s of ['paris', 'berlin']) {
@@ -509,7 +776,7 @@ tplRefuses('<p class="proof">', '<p class="proof">Pay by bank transfer · ', /no
 {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'boom-cities-'));
   for (const d of ['cities', 'assets', 'css', 'js', 'design/pages-deco']) fs.mkdirSync(path.join(tmp, d), { recursive: true });
-  for (const f of ['cities/_template.html', 'cities/_shared.json', 'cities/paris.json', 'assets/boom-city.css', 'assets/boom-city.js',
+  for (const f of ['cities/_template.html', 'cities/_shared.json', 'cities/paris.json', 'assets/boom-city.css', 'assets/boom-city.js', 'assets/boom-onda.js',
     'css/boom-scroll.css', 'js/boom-scroll.js', 'js/boom-consent.js', 'js/boom-track.js', 'js/desk-calendar.js', 'design/pages-deco/solari-engine.html', 'og-paris.png']) fs.copyFileSync(path.join(R, f), path.join(tmp, f));
   fs.writeFileSync(path.join(tmp, 'paris.html'), '<!doctype html><title>hand-made</title>');
   check(throws(() => writeAll({ root: tmp }), /not generated by this script — refusing/) === true && fs.readFileSync(path.join(tmp, 'paris.html'), 'utf8').includes('hand-made'),

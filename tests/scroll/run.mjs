@@ -46,7 +46,11 @@ for (const u of [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1])) 
 const VENDONO = ['index.html', 'apartments.html', 'services.html', 'owners.html',
   'deal-assistance.html', 'virtual-viewing.html', 'contract-check-express.html',
   'deposit-recovery.html', 'remote-move-pack.html', 'concierge.html',
-  'property-finding.html', 'executive.html', 'reunion.html', 'welcome-to-rome.html'];
+  'property-finding.html', 'executive.html', 'reunion.html', 'welcome-to-rome.html',
+  // v1.6: the city desks sell too, and from 760px their header is sticky —
+  // every anchor (the wayfinding: #fares #how #checks #papers #desk #faq)
+  // must land under it, and the clocks moving into the stub must not shift
+  'london.html', 'amsterdam.html'];
 
 console.log('\n\x1b[1m▸ scroll\x1b[0m  lo scorrimento in un browser vero: '
   + `${pagine.length} pagine a 390px, ${VENDONO.length} anche a 1440px`);
