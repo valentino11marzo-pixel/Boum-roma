@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "name": "Crea SmartLink BOOM",
+  "unsigned": {
+    "path": "assets/tools/boom-smartlink-safari-1.0.0.unsigned.shortcut",
+    "sha256": "7a19257dc14916fd73161477622604f2542bf7b774a8606dd9b88cbaa5a20f5d"
+  },
+  "signed": {
+    "path": "assets/tools/boom-smartlink-safari.shortcut",
+    "sha256": "65379987dc224e0843013b54730592893c3088c11f1ceac4e674d9013db11b34"
+  },
+  "sources": [
+    {
+      "path": "js/smartlink-engine.js",
+      "sha256": "36fb6570063fb5a331bb991b93026d176ff23733d51f90df5aa5897bdb8fac75"
+    },
+    {
+      "path": "js/smartlink-share-engine.js",
+      "sha256": "8e35aab1331ac626c928bb195618c87d157b425286c60ebacd658409dc74584c"
+    }
+  ]
+}

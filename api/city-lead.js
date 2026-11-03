@@ -1,7 +1,9 @@
 // api/city-lead.js
 // Public lead-capture for the BOOM city pages (/amsterdam, /madrid,
-// /barcelona, /paris, /berlin — the closed list is CITY_MARKETS in
-// _market.js; BOOM_CITIES_BRIEF.md). A city in
+// /barcelona, /london, /milan, /paris, /berlin — the closed list is
+// CITY_MARKETS in _market.js; BOOM_CITIES_BRIEF.md). The phone is stored in
+// E.164 read with the desk's country (cityPhone: a London '07700 900123' is
+// +447700900123, a Milan '02 1234 5678' keeps its 0: +390212345678). A city in
 // `mode: 'waitlist'` (Paris and Berlin: the desk opens with a licensed
 // partner) files the SAME tenant lead, but says so: intent `city_waitlist`,
 // summary head "PARIS — waitlist", so the operator never reads a file opened

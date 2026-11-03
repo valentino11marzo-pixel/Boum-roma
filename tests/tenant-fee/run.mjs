@@ -34,6 +34,9 @@
 //  9. «through Stripe» si dice solo dei pagamenti ALLA FIRMA: il canone va
 //     anche per bonifico, e su carta porta la commissione di servizio
 //     (api/payments/pay.js rentFee) — detta, mai taciuta sotto «one fee».
+// 10. i Termini §4.3 dicono gratis la visita e la candidatura delle case del
+//     CATALOGO e il Virtual Viewing a pagamento al prezzo di api/_catalog.js;
+//     nessuna pagina dice «no viewing fees» senza dire di quali case.
 //
 // La suite legge di proposito file di altri pacchetti (index, apartments,
 // apartment-detail, property-finding, llms.txt, ask-listing): diventa verde
@@ -138,6 +141,34 @@ function frasiSenzaIva(testo) {
 const STRIPE_TUTTO = /\bevery (?:euro|payment)\s+(?:moves\s+|goes\s+)?through Stripe\b(?![^.]{0,20}\bor bank transfer)/gi;
 function promesseStripe(testo) {
   return [...testo.matchAll(STRIPE_TUTTO)].map((m) => testo.slice(Math.max(0, m.index - 30), m.index + m[0].length + 30).trim());
+}
+
+// regola 10: «no viewing fees» detto senza dire DI QUALI CASE contraddice il
+// Virtual Viewing (€89, api/_catalog.js), che è una visita a pagamento per un
+// annuncio trovato altrove. La frase vera nomina le case del catalogo.
+const VISITE_NUDE = /\bno viewing (?:or application )?fees?\b|<li>\s*Viewing fees\s*<\/li>/gi;
+function visiteGratisNude(testo) {
+  return [...testo.matchAll(VISITE_NUDE)].map((m) => testo.slice(Math.max(0, m.index - 30), m.index + m[0].length + 30).trim());
+}
+// i Termini §4.3: cosa non si paga e cosa è facoltativo, al prezzo del catalogo
+function difettiSez43(html, vv) {
+  const sez = (html.match(/4\.3 What we do not charge, and what is optional([\s\S]*?)<\/div>/) || [])[1];
+  if (!sez) return ['la sezione «4.3 What we do not charge, and what is optional» non si trova'];
+  const t = testoVisibile(sez);
+  const via = [];
+  /to view a home in our catalogue, in person or on a live video call/.test(t) || via.push('non dice che la visita delle case del catalogo è gratis');
+  /an application fee, for any home: one in our catalogue or one you found yourself/.test(t) || via.push('non dice che non c\'è una tassa di candidatura, per nessuna casa (deal-assistance e property-finding la citano)');
+  /Seeing a listing you found elsewhere by yourself costs nothing from us/.test(t) || via.push('non dice che vedere da sé un annuncio trovato altrove non costa nulla (deal-assistance lo cita)');
+  // §4.2: le visite delle case PRESENTATE dal Property Finding sono dentro i €350 (property-finding.html lo cita)
+  const sez42 = testoVisibile((html.match(/4\.2 Property Finding Service([\s\S]*?)4\.3 What we do not charge/) || [])[1] || '');
+  /Viewings of the properties we present to you, in person or on a live video call, are included in the €350/.test(sez42) || via.push('§4.2 non dice che le visite delle case presentate sono comprese nei €350');
+  t.includes(`Virtual Viewing (€${vv.eur})`) || via.push(`non dice il Virtual Viewing al prezzo del catalogo (€${vv.eur})`);
+  (/listing you found elsewhere/.test(t)) || via.push('non dice che il Virtual Viewing è per un annuncio trovato altrove');
+  (/credited to the commission in §4\.1/.test(t) && /\bcredited\b/i.test(vv.desc)) || via.push('non dice che il Virtual Viewing si scala dalla commissione (§4.1), come dice il catalogo');
+  (/refunded in full if we cannot reach the property/.test(t) && /refunded in full if we cannot reach the property/i.test(vv.desc)) || via.push('non dice il rimborso del Virtual Viewing come lo dice il catalogo');
+  /card fee, shown on the payment page before you confirm/.test(t) || via.push('non dice la commissione della carta sul canone (api/payments/pay.js rentFee)');
+  visiteGratisNude(sez).length && via.push('elenca ancora «Viewing fees» fra le cose che non si pagano');
+  return via;
 }
 
 // regola 5: ogni domanda del FAQPage = la <details> visibile, parola per parola
@@ -413,9 +444,50 @@ const hiw = leggi('how-it-works.html');
     : bene('nessuna promessa numerica sui tempi di risposta nelle pagine del pacchetto');
 }
 
+// ── 8b · §4.3: la visita del catalogo è gratis, il Virtual Viewing no ──
+// Il reperto (31/10/2026): i Termini §4.3 dicevano «We do not charge:
+// Viewing fees» e cinque pagine li citavano («no viewing fees… Terms §4.3»)
+// mentre /virtual-viewing vende a €89 una visita in video, che è una visita
+// a pagamento. Le due cose sono vere insieme solo se si dice DI QUALI CASE:
+// le nostre si vedono gratis, l'annuncio trovato altrove no.
+const { CATALOG } = await import(path.join(R, 'api/_catalog.js'));
+const VV = CATALOG['virtual-viewing'];
+{
+  const via = difettiSez43(terms, VV);
+  via.length
+    ? male('terms.html §4.3 non dice cosa è gratis e cosa è facoltativo:' + elenco(via))
+    : bene(`terms.html §4.3: visita e candidatura del catalogo gratis, Virtual Viewing a €${VV.eur} come il catalogo (scalato dalla commissione, rimborsato se non si raggiunge la casa), la commissione carta detta`);
+  const fuori = [];
+  for (const f of [...pubbliche, 'llms.txt']) {
+    const s = leggi(f);
+    const fonti = f.endsWith('.txt') ? [s] : [testoVisibile(s), ...metaDescrizioni(s)];
+    if (!f.endsWith('.txt')) for (const b of blocchiLd(s)) if (b.ok) fonti.push(...stringheDi(b.dato));
+    for (const t of fonti) for (const x of visiteGratisNude(t)) fuori.push(`${f} → …${x}…`);
+  }
+  fuori.length
+    ? male('«no viewing fees» senza dire di quali case — il Virtual Viewing costa €' + VV.eur + ':' + elenco(fuori))
+    : bene(`nessuna pagina pubblica né llms.txt dice «no viewing fees» senza il catalogo (${pubbliche.length} pagine + llms.txt)`);
+}
+
 // ── 9 · le regole mordono: campioni SBAGLIATI devono essere presi ──────
 {
   const prese = [];
+  visiteGratisNude('transparent pricing with no viewing or application fees (Terms §4.3)').length === 1
+    || prese.push('«no viewing or application fees» non preso');
+  visiteGratisNude('No viewing fees, no application fees (§4.3).').length === 1
+    || prese.push('«No viewing fees» non preso');
+  visiteGratisNude('viewing or applying for a home in our catalogue costs nothing (Terms §4.3)').length === 0
+    || prese.push('la frase giusta col catalogo rifiutata');
+  const vecchio43 = terms.replace(/<p><strong>4\.3 What we do not charge[\s\S]*?(?=<\/div>)/,
+    '<p><strong>4.3 What we do not charge, and what is optional</strong><br>We do not charge:</p><ul><li>Viewing fees</li><li>Application fees</li></ul>');
+  vecchio43 !== terms && difettiSez43(vecchio43, VV).length >= 3
+    || prese.push('il vecchio §4.3 («We do not charge: Viewing fees») non preso');
+  difettiSez43(terms.replace(`Virtual Viewing</a> (€${VV.eur})`, 'Virtual Viewing</a> (€99)'), VV).some((x) => /prezzo del catalogo/.test(x))
+    || prese.push('un prezzo del Virtual Viewing diverso dal catalogo non preso');
+  difettiSez43(terms.replace(/<p>Viewings of the properties we present to you[^<]*<\/p>/, ''), VV).some((x) => /§4\.2/.test(x))
+    || prese.push('§4.2 senza le visite comprese nei €350 non preso');
+  difettiSez43(terms.replace('an application fee, for any home: one in our catalogue or one you found yourself', 'an application fee for a home in our catalogue'), VV).some((x) => /candidatura/.test(x))
+    || prese.push('la tassa di candidatura ristretta al solo catalogo non presa');
   calcoliSenzaIva('var fee = Math.round(p * 12 * .10);').length === 1 || prese.push('calcolo senza IVA non preso');
   calcoliSenzaIva('var fee = Math.round(p * 12 * 0.1);').length === 1 || prese.push('calcolo «0.1» senza IVA non preso');
   calcoliSenzaIva('var fee = Math.round(p * 12 * .10); var t = fee * 1.22;').length === 1 || prese.push('IVA in un\'altra istruzione accettata');

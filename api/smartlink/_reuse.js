@@ -15,7 +15,7 @@ export async function findArchivedListing(source) {
   const records=[...new Map(reads.flatMap(read=>read.value).map(record=>[record.id,record])).values()];
   const candidates=records.filter(record=>/^[A-Za-z0-9_-]{20}$/.test(record.id || '') &&
     RULES.sameListingUrl(record.sourceUrl,source.url) && Array.isArray(record.images) &&
-    RULES.reusableImages(record,source.url,[...new Set(record.images.filter(RULES.validPublicImageUrl))].slice(0,12)));
+    RULES.reusableImages(record,source.url,[...new Set(record.images.filter(RULES.validPublicImageUrl))].slice(0,RULES.MAX_PHOTOS)));
   const now=Date.now();
   const timestamp=value=>{const date=Date.parse(value);return Number.isFinite(date)&&date<=now?date:null;};
   const version=record=>timestamp(record.createdAt)??timestamp(record.observedAt)??0;
@@ -24,7 +24,7 @@ export async function findArchivedListing(source) {
     (a.id<b.id?-1:a.id>b.id?1:0));
   const record=candidates[0];
   if(!record) return null;
-  const images=[...new Set(record.images.filter(RULES.validPublicImageUrl))].slice(0,12);
+  const images=[...new Set(record.images.filter(RULES.validPublicImageUrl))].slice(0,RULES.MAX_PHOTOS);
   const date=timestamp(record.observedAt);
   const observedAt=date===null?null:new Date(date).toISOString();
   return {

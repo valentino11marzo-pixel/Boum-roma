@@ -100,6 +100,21 @@
       "permanent": true
     },
     {
+      "source": "/londra",
+      "destination": "/london",
+      "permanent": true
+    },
+    {
+      "source": "/milano",
+      "destination": "/milan",
+      "permanent": true
+    },
+    {
+      "source": "/(cities|boom-desks)",
+      "destination": "/desks",
+      "permanent": true
+    },
+    {
       "source": "/(owner|owner.html)",
       "destination": "/owner-dashboard",
       "permanent": false
@@ -547,6 +562,14 @@
   ],
   "headers": [
     {
+      "source": "/assets/tools/boom-smartlink-safari.shortcut",
+      "headers": [
+        { "key": "Content-Type", "value": "application/octet-stream" },
+        { "key": "Content-Disposition", "value": "attachment; filename=\"Crea SmartLink BOOM.shortcut\"" },
+        { "key": "Cache-Control", "value": "no-store" }
+      ]
+    },
+    {
       "source": "/(.*)",
       "headers": [
         {
@@ -611,7 +634,7 @@
       ]
     },
     {
-      "source": "/assets/boom-city\\.(css|js)",
+      "source": "/assets/boom-(city\\.css|city\\.js|onda\\.js|desks\\.css|desks\\.js)",
       "headers": [
         {
           "key": "Cache-Control",

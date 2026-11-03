@@ -400,7 +400,7 @@ const magicKeys = () => [...store.keys()].filter(k => k.startsWith('magicLinks/'
 {
   const fin = readFileSync(new URL('../../api/sign/_finalize.js', import.meta.url), 'utf8');
   const probeAt = fin.indexOf('signing-certificate.pdf');
-  const deadlinesAt = fin.indexOf("fsCreate('deadlines'");
+  const deadlinesAt = fin.indexOf('writeObligations(contract.id');
   check('sorgente finalize: la sonda (upload certificato) sta PRIMA delle scadenze',
     probeAt > -1 && deadlinesAt > -1 && probeAt < deadlinesAt);
   check('sorgente finalize: il bail storage_unavailable esiste e sta prima delle scadenze',

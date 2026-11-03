@@ -3,9 +3,14 @@
   "city": "Paris",
   "country": "FR",
   "iata": "PAR",
+  "geo": {
+    "lat": 48.8566,
+    "lon": 2.3522
+  },
   "live": false,
   "mode": "waitlist",
   "config": {},
+  "updated": "2026-11-03",
   "meta": {
     "title": "Tenant-side rental agent in Paris — BOOM",
     "description": "BOOM Paris works only for the tenant and opens with a licensed partner. Open your file today: rent-cap check, lease read, French-format dossier, attended viewings.",
@@ -90,17 +95,20 @@
       {
         "k": "1 · File",
         "h": "Open it today",
-        "p": "Budget, move-in date, arrondissements, who's moving. We reply the same working day with what your budget buys."
+        "p": "Budget, move-in date, arrondissements, who's moving. We reply the same working day with what your budget buys.",
+        "status": "FREE"
       },
       {
         "k": "2 · Opening",
         "h": "A licensed partner",
-        "p": "A chasseur immobilier needs a carte professionnelle (loi Hoguet). The desk opens with a licensed partner, not around the rule."
+        "p": "A chasseur immobilier needs a carte professionnelle (loi Hoguet). The desk opens with a licensed partner, not around the rule.",
+        "status": "WITH PARTNER"
       },
       {
         "k": "3 · The search",
         "h": "Then as in every BOOM city",
-        "p": "French-format dossier, applications as listings appear, a BOOM person at the viewing, rent cap and lease checked before you sign."
+        "p": "French-format dossier, applications as listings appear, a BOOM person at the viewing, rent cap and lease checked before you sign.",
+        "status": "AT OPENING"
       }
     ]
   },

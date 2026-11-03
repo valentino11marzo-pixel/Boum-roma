@@ -12,6 +12,10 @@ import { withProfileDocs } from '../sign/_iddocs.js';
 import { buildFascicolo } from '../fiscal/fascicolo.js';
 import { buildRegistrationPack } from '../sign/_pack.js';
 import { buildRegistrationSheet } from '../sign/_foglio.js';
+import { applyOccupancy } from './_occupancy.js';
+import { postSignatureObligations, writeObligations, cedolareOf, isEU } from '../sign/_obligations.js';
+import { ensureRentSchedule } from '../payments/_schedule.js';
+import { sendWelcomeEmails, gather } from '../sign/_notify.js';
 
 const sha = b => crypto.createHash('sha256').update(b).digest('hex');
 const stable = v => JSON.stringify(v, function(k,x) { return x && !Array.isArray(x) && typeof x === 'object' ? Object.fromEntries(Object.keys(x).sort().map(key => [key,x[key]])) : x; });
@@ -124,6 +128,18 @@ export async function prepareExternal(contractId) {
     }
     return {ok:true};
   });
+  // La casa È affittata e lo scadenzario è quello di Magic Sign (2/11/2026):
+  // prima il firmato esterno lasciava l'immobile libero, l'annuncio senza data
+  // di rilascio e la sola RLI a scadenzario. Scritture deterministiche,
+  // nessuna email (benvenuto e calendario canoni sono in onboardExternal).
+  await step('occupancy',async () => applyOccupancy(contractId,c));
+  await step('obligations',async () => {
+    const tenant = c.tenantId ? await fsGet('users/'+c.tenantId).catch(()=>null) : null;
+    const signed = c.fullySignedAt || (c.externalSignedDocument.signedDate+'T12:00:00.000Z');
+    const ob = postSignatureObligations({contract:c,nationality:c.tenantNationality||(tenant&&tenant.nationality)||'',now:new Date(),signDate:new Date(signed)});
+    const r = await writeObligations(contractId,ob);
+    return {ok:r.failed===0,created:r.created};
+  });
   await step('dossier',async () => {
     c = {...c,identityDocs:(await withProfileDocs(c,p)).identityDocs||c.identityDocs};
     const r = await buildFascicolo(contractId,{contract:c,property:p});
@@ -219,4 +235,63 @@ export async function linkExternalParty(contractId,b) {
     {docPath:'users/'+b.userId,fields:{},precondition:{updateTime:uv.updateTime}});
   try{await fsCommit(writes);}catch(e){if(e.conflict)return fail('review_changed',409);throw e;}
   return {ok:true};
+}
+
+// ── Dopo il firmato esterno, la vita continua (console pre-agreement) ──
+// Benvenuto alle parti e calendario dei canoni: gli effetti che il recupero
+// NON ripete da solo (prepareExternal resta senza email né rate). Partono solo
+// quando l'operatore li chiede, una volta: il benvenuto si timbra
+// (welcomeEmailSent, come il finalize di Magic Sign) e una seconda richiesta
+// non rimanda niente; il calendario usa gli id `pay_<contratto>_<mese>` e non
+// si raddoppia mai, nemmeno con il portal.
+export async function onboardExternal(contractId, b = {}, actor = {}) {
+  const v = await fsGetVersioned('contracts/'+contractId);
+  if (!v) return fail('contract_not_found',404);
+  const c = {...v.data,id:contractId};
+  if (!completion.external(c) || !completion.definitive(c)) return fail('external_contract_required');
+  const p = await propertyOf(c);
+  if (!externalTermsValid(c,p)) return fail('signed_terms_changed',409);
+  const out = {ok:true};
+  if (b.schedule === true) {
+    try { out.schedule = {ok:true,...await ensureRentSchedule(contractId,c)}; }
+    catch { out.schedule = {ok:false,error:'schedule_failed'}; }
+  }
+  if (b.welcome === true) out.welcome = await externalWelcome(contractId,p,actor);
+  return out;
+}
+
+async function externalWelcome(contractId, p, actor) {
+  const v = await fsGetVersioned('contracts/'+contractId);
+  const c = {...v.data,id:contractId};
+  if (c.welcomeEmailSent) return {ok:true,skipped:'already_sent',at:c.welcomeEmailSentAt||null};
+  const w = c.externalWelcome;
+  // Partito ad almeno una parte: un secondo tap non lo rimanda a chi l'ha già
+  // ricevuto (sendWelcomeEmails scrive a entrambe). Il resto si fa a mano.
+  if (w && w.status === 'sent') return {ok:true,skipped:'already_sent',at:w.at||null,tenant:!!w.tenant,landlord:!!w.landlord};
+  if (w && w.status === 'sending' && Date.now()-Date.parse(w.at) < 90000) return {ok:false,error:'welcome_running'};
+  const g = await gather(c,p);
+  if (!g.tenantEmail && !g.landlordEmail) return {ok:false,error:'no_recipients'};
+  const now = new Date(), claim = crypto.randomUUID();
+  try { await fsCommit([{docPath:'contracts/'+contractId,fields:{externalWelcome:{status:'sending',at:now.toISOString(),claim}},precondition:{updateTime:v.updateTime}}]); }
+  catch(e) { if (e.conflict) return {ok:false,error:'welcome_running'}; throw e; }
+  // Il link al portale, monouso e 72h: lo stesso del finalize di Magic Sign.
+  let magicId = '';
+  try {
+    const ml = await fsCreate('magicLinks',{contractId,tenantId:c.tenantId||'',tenantEmail:g.tenantEmail||'',
+      used:false,expiresAt:new Date(now.getTime()+72*60*60*1000),issuedBy:'external',createdAt:now});
+    magicId = ml.id;
+  } catch(e) { console.warn('[external] magicLink failed:',e.message); }
+  const portalLink = magicId ? `https://www.boomrome.com/portal.html?postSign=1&magicToken=${magicId}` : 'https://www.boomrome.com/portal.html';
+  const tenant = g.tenant || {};
+  let sent = {tenant:false,landlord:false};
+  try { sent = await sendWelcomeEmails(c,p,{portalLink,signedPdfUrl:c.signedPdfUrl,cedolare:cedolareOf(c),nonEU:!isEU(c.tenantNationality||tenant.nationality||'')}); }
+  catch(e) { console.warn('[external] welcome:',e.message); }
+  const at = new Date().toISOString();
+  const state = {status:(sent.tenant||sent.landlord)?'sent':'failed',at,claim,tenant:!!sent.tenant,landlord:!!sent.landlord,
+    tenantEmail:!!g.tenantEmail,landlordEmail:!!g.landlordEmail,by:actor.uid||actor.email||''};
+  // Il timbro di Magic Sign (badge «Onboarding incompleto», 🚀 Ri-attiva):
+  // solo a invio riuscito all'inquilino — un false non cancella mai un true.
+  const fields = {externalWelcome:state,...(sent.tenant?{welcomeEmailSent:true,welcomeEmailSentAt:at,welcomeEmailBy:'external'}:{})};
+  try { await fsPatch('contracts/'+contractId,fields); } catch(e) { console.warn('[external] welcome stamp:',e.message); }
+  return {ok:state.status==='sent',...state,error:state.status==='sent'?undefined:'welcome_failed'};
 }

@@ -337,7 +337,9 @@ export async function sendWelcomeEmails(contract, property, { portalLink, certUr
     const atts = attachFor('BOOM_Signed_Contract.pdf', 'BOOM_Signing_Certificate.pdf');
     out.tenant = await trySend(g.tenantEmail, '🔑 Welcome home — your BOOM contract is active', shell(
       para(`Hi ${esc(first)},<br>your lease for <b>${esc(g.propLabel)}</b> is now <b>fully signed and active</b>. One tap and you’re in your portal — payments, documents and support in one place.`)
-      + (contractPdf ? fine('📎 Attached: your <b>signed contract</b> and the signing certificate (PDF) — keep them with your records.', 'text-align:center') : '')
+      // il certificato FES esiste solo con Magic Sign: un contratto firmato
+      // fuori (api/contracts/_external.js) non ne ha uno, e l'email non lo promette
+      + (contractPdf ? fine('📎 Attached: your <b>signed contract</b>' + (certPdf ? ' and the signing certificate' : '') + ' (PDF) — keep ' + (certPdf ? 'them' : 'it') + ' with your records.', 'text-align:center') : '')
       + btn(portalLink || BASE + '/casa', 'Enter my portal')
       + (contract.id ? btn2(tenantWalletUrl(contract.id), ' Add to Apple Wallet — your home pass') : '')
       + (depositPending
@@ -364,7 +366,7 @@ export async function sendWelcomeEmails(contract, property, { portalLink, certUr
     const atts = attachFor('BOOM_Contratto_firmato.pdf', 'BOOM_Certificato_di_firma.pdf');
     out.landlord = await trySend(g.landlordEmail, '✓ Contratto firmato — i prossimi passi', shell(
       para(`Gentile ${esc(first)},<br>il contratto per <b>${esc(g.propLabel)}</b> è <b>firmato da entrambe le parti</b>. BOOM ha già messo a scadenzario i passi qui sotto — la registrazione la seguiamo insieme.`)
-      + (contractPdf ? fine('📎 In allegato: il <b>contratto firmato</b> e il certificato di firma (PDF) — da conservare.', 'text-align:center') : '')
+      + (contractPdf ? fine('📎 In allegato: il <b>contratto firmato</b>' + (certPdf ? ' e il certificato di firma' : '') + ' (PDF) — da conservare.', 'text-align:center') : '')
       + includes(fiscal.map(esc))
       + btn(BASE + '/portal', 'Apri la dashboard')
       + (contractPdf ? '' : (certHref ? fine(`⬇ <a href="${esc(certHref)}" style="color:#8A6D1D">Certificato di firma (PDF)</a>`, 'text-align:center') : '')),

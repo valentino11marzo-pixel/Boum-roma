@@ -70,7 +70,8 @@ def card(c):
     # the sentence the page carries ("charged only when the desk opens")
     da = min(p['price'] for p in c['pricing']['plans'])
     da_label = 'from' if c.get('mode') == 'search' else 'opening &middot; from'
-    prezzo = f'<div class="prezzo"><u>{da_label}</u><s>&euro;{da}</s></div>'
+    sym = {'GBP': '&pound;'}.get(str(c.get('currency', 'EUR')).upper(), '&euro;')
+    prezzo = f'<div class="prezzo"><u>{da_label}</u><s>{sym}{da}</s></div>'
     # the proof line says only what every desk page says too (the v1.2
     # `machine` strip it used to read is gone, and with it "dossier 24h ·
     # apply <1h" — speed promises the pages dropped on 21/10 and the card
@@ -96,16 +97,55 @@ def card(c):
 </div></body></html>'''
 
 
+# BOOM DESKS (03/11/2026): the hub's card, `--hub`. It reads only what the hub
+# page reads: _hub.json hero.word (the board word) and the LIVE desks' codes
+# from cities/*.json — no price, no desk that is not open.
+def card_hub(hub, codes):
+    parola = re.sub(r'[^A-Z]', '', hub['hero']['word'].upper())
+    celle = ''.join(f'<i>{ch}</i>' for ch in parola)
+    fila = ''.join(f'<span class="cod">{"".join(f"<i>{ch}</i>" for ch in k)}</span>' for k in codes)
+    return f'''<!DOCTYPE html><html><head><meta charset="utf-8">
+<style>{STILE}
+.codici {{ display:flex; gap:22px; }}
+.cod {{ display:inline-flex; gap:4px; }}
+.cod i {{ font-style:normal; display:inline-block; width:30px; height:44px; line-height:44px; text-align:center;
+  font-size:30px; font-weight:300; color:#FFE55C;
+  background:linear-gradient(180deg,#17171A 49.5%,#040404 50%,#0E0E10 50.5%,#111114);
+  border-radius:4px; box-shadow:inset 0 0 0 1px rgba(239,235,223,.06), 0 4px 12px rgba(0,0,0,.6); }}
+h1.hubh {{ font-size:60px; max-width:none; }}
+</style></head><body>
+<div class="griglia"></div><div class="velo"></div>
+<div class="dentro">
+  <div class="marchio"><span>BOOM</span><i>desks &middot; tenant side</i></div>
+  <div class="codici">{fila}</div>
+  <h1 class="hubh">A rental agent on your side, in<br><span class="tab">{celle}</span></h1>
+  <div class="fondo">
+    <span><span class="punto"></span>Three flat fares &middot; paid by you, never by landlords</span>
+    <span class="sito">BOOMROME.COM/DESKS</span>
+  </div>
+</div></body></html>'''
+
+
 lavoro = []
+HUB = '--hub' in sys.argv[1:]
+FILTRO = [a for a in sys.argv[1:] if a != '--hub']
+cities = []
 for f in sorted(os.listdir(CITTA)):
     if not f.endswith('.json') or f.startswith('_'):
         continue
     c = json.load(open(os.path.join(CITTA, f), encoding='utf-8'))
-    if sys.argv[1:] and c['slug'] not in sys.argv[1:]:
+    cities.append(c)
+    if HUB or (FILTRO and c['slug'] not in FILTRO):
         continue
     p = os.path.join(QUI, f"og-{c['slug']}-card.html")
     open(p, 'w', encoding='utf-8').write(card(c))
     lavoro.append((p, os.path.join(RADICE, f"og-{c['slug']}.png")))
+if HUB:
+    hub = json.load(open(os.path.join(CITTA, '_hub.json'), encoding='utf-8'))
+    codes = [c['iata'] for c in sorted(cities, key=lambda c: c['slug']) if c.get('live') is True]
+    p = os.path.join(QUI, 'og-desks-card.html')
+    open(p, 'w', encoding='utf-8').write(card_hub(hub, codes))
+    lavoro.append((p, os.path.join(RADICE, 'og-desks.png')))
 
 JS = '''
 const { loadChromium, launchOptions } = require(%r);
@@ -135,4 +175,4 @@ for p, out in lavoro:
     os.remove(p)
     print('  %s  %d KB' % (os.path.basename(out), os.path.getsize(out) // 1024))
 os.remove(sp)
-print(len(lavoro), 'card città generate')
+print(len(lavoro), 'card generate')
