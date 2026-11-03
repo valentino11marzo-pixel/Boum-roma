@@ -1445,8 +1445,8 @@ const { termsFingerprint } = await import('../../api/magic-sign/_shared.js');
   const cons = R('pre-agreement-admin.html'), app = R('js/portal-app.js'), sf = R('api/preagreement/sign-for.js'), sh = R('api/magic-sign/_shared.js'), cv = R('api/preagreement/convert.js');
   check('server: mandateCheck e tenantMandateFor confrontano con termsForMandate; l\'id dell\'immobile nato dalla proposta in UNA copia',
     /const current = MANDATO\.termsForMandate\(contract, m\);/.test(sh) && /MANDATO\.diffTerms\(terms, MANDATO\.termsForMandate\(contract, \{ terms, paId, propertyMatch \}\)\)/.test(cv) && /export const propertyIdForPa = \(paId\) => MANDATO\.proposalPropertyId\(paId\);/.test(cv));
-  check('sign-for: 🏠 e 📋 fanno nascere il contratto dalla STESSA funzione (convertIfMissing), 📋 non arma il mandato',
-    (sf.match(/const fail = await convertIfMissing\(\);/g) || []).length === 2 && /if \(op === 'landlord-scheda'\)/.test(sf)
+  check('sign-for: 🏠, 📋 e 📎 (firmato esterno, 2/11/2026) fanno nascere il contratto dalla STESSA funzione (convertIfMissing), 📋 non arma il mandato',
+    (sf.match(/const fail = await convertIfMissing\(\);/g) || []).length === 3 && /if \(op === 'ext-contract'\) \{\s*const fail = await convertIfMissing\(\);/.test(sf) && /if \(op === 'landlord-scheda'\)/.test(sf)
     && !/askLandlordMandate: true/.test(sf.slice(sf.indexOf("if (op === 'landlord-scheda')"), sf.indexOf("if (op === 'ask-landlord-mandate')"))));
   check('console: 📋 Scheda proprietario sulla riga (proprietario non firmato), op landlord-scheda con createProperty se la proposta non è collegata',
     /\(done&&!sig\.landlordSigned&&sig\.status!=='complete'\?'<button class="pbtn" onclick="sendLandlordScheda\(/.test(cons)

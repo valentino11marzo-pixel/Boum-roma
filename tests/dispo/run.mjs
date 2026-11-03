@@ -245,8 +245,9 @@ ok(/requireCronOrAdmin|x-wizard-secret/i.test(api), 'la porta di scrittura è au
 ok(/parseBatch/.test(api), 'la porta usa lo stesso cervello del bot');
 
 const sign = src('api/magic-sign/submit.js');
-ok(/availableFrom/.test(sign) && /endDate/.test(sign),
-  'alla firma il listing registra QUANDO torna libero (prima si scriveva solo status:rented)');
+const occ = src('api/contracts/_occupancy.js');
+ok(/await applyOccupancy\(contractId, fullContract\)/.test(sign) && /patch\.availableFrom = iso/.test(occ) && /freeFrom\(c\.endDate\)/.test(occ),
+  'alla firma il listing registra QUANDO torna libero (prima si scriveva solo status:rented) — una copia per Magic Sign e firmato esterno');
 
 const bot = src('bot/boom_listing_wizard.py');
 ok(/api\/listings-availability/.test(bot), 'il bot chiama la porta, non scrive Firestore per conto suo');

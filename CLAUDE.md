@@ -5823,6 +5823,52 @@ prese su motore, conversione, mandato dato dopo, sign-for e console) e
 `tests/firma/console.mjs` (la seconda console: stessa casa, preflight, ripiego
 senza motore).
 
+### 📎 Il firmato fuori da Magic Sign dalla console + 💶 la provvigione con un tap (2/11/2026)
+«Voglio caricare direttamente i contratti che ho firmato senza Magic Sign e continuare tutta la journey;
+poi con un tap il link Stripe della provvigione, che si paga sempre all'ingresso.» Il recupero del firmato
+esterno (`api/contracts/_external.js`) esisteva, ma solo nel pannello Registrazione del portal, solo a
+contratto già nato, e bloccato da `party_profiles_required` finché OGNI parte non aveva un profilo — un
+proprietario nato dalla proposta non ce l'ha mai. La provvigione viaggiava sul contratto (`agencyFee`) senza
+nessun documento pagabile.
+- **📎 Carica firmato** (riga della proposta, accettata/pagata, firme non complete): un pannello in quattro
+  passi. 1) le parti nel portal: `profilePlan` riconosce un profilo da un dato ESATTO (email, CF, o per un
+  co-conduttore la scheda che la conversione ha creato per QUESTA proposta — mai un nome simile), poi crea
+  (con accesso se c'è l'email, scheda senza accesso altrimenti) o collega; il collegamento passa SEMPRE da
+  `linkExternalParty` (ruolo e CF controllati lì); un'email di un profilo con altro ruolo è un conflitto
+  detto. 2) i dati che il PDF deve riportare. 3) PDF + data + le due conferme (`adoptExternal`, invariato:
+  stessi byte, nessun certificato FES inventato). 4) dopo: benvenuto e calendario canoni, spunte esplicite.
+  Senza contratto, nasce dalla proposta con la conferma di sempre (`confirmContractBirth`, immobile
+  compreso). Il link al portal resta solo a firme complete («🏛 Registrazione e documenti»).
+- **Il recupero ora completa la vita del contratto**: `prepareExternal` aggiunge `occupancy` (immobile
+  affittato + `currentContractId`, annuncio `rented` con `availableFrom = endDate + 1`, lead chiuso) e
+  `obligations` (lo scadenzario di Magic Sign: consegna chiavi + verbale, APE/deposito, cedolare o registro,
+  TARI, utenze, cessione di fabbricato se extra-UE). Restano deterministici e senza email: i test di Codex
+  (niente rate, niente email nel recupero) valgono ancora. Le tre copie sono state ESTRATTE, non duplicate:
+  `api/sign/_obligations.js` (da `_finalize`), `api/contracts/_occupancy.js` e `api/payments/_schedule.js`
+  (da `magic-sign/submit`) — Magic Sign e firmato esterno scrivono le stesse cose.
+- **`onboardExternal`** (solo se chiesto): calendario canoni (`pay_<contratto>_<mese>`, mai raddoppiato) e
+  benvenuto alle parti con la copia firmata in allegato e il magic link del portale, UNA volta
+  (`welcomeEmailSent`, claim `externalWelcome` con precondizione). L'email non promette un certificato che
+  non c'è (`sendWelcomeEmails` lo nomina solo se esiste). Condizioni cambiate dopo il caricamento → 409.
+  Il journey riparte da solo: contratto `active` + `signatureStatus:'complete'` = `journeyEligible`.
+- **💶 Link provvigione**: `invoices/prov_<proposta>` (id deterministico, 409 = già emessa: una fattura
+  emessa non si riscrive mai, una cifra cambiata si DICE) con la cifra firmata sulla proposta (`feeTotal`),
+  `netAmount`/`vatAmount`/`vatPct` dichiarati, `dueDate` = decorrenza; il link è quello stabile di
+  `/api/payments/link` (si manda oggi, si paga all'ingresso, nessuna commissione carta sulla fattura). Mai
+  un secondo link se la provvigione era nel dovuto alla firma (`fee_paid_at_signing`/`fee_in_due_at_signing`).
+  Il webhook INVOICE timbra anche la proposta (`feePaidAt`, precondizione `exists`): la riga si aggiorna da
+  sola. Nata prima del contratto, la fattura si collega all'inquilino appena il contratto c'è (importo
+  intatto). Contabile e scadenzario usano `netAmount` quando la fattura lo dichiara: prima l'IVA stimata
+  contava l'IVA della fattura come imponibile.
+- Le operazioni stanno in `api/preagreement/_external.js`, instradate da `sign-for.js` (admin, 60 s, nessuna
+  regola nuova in vercel.json): `ext-status`, `ext-contract`, `ext-profiles`, `ext-adopt`, `ext-prepare`,
+  `ext-onboard`, `fee-link`.
+- **Da sapere**: la fattura `prov_` è il documento INTERNO che rende pagabile la provvigione, non la fattura
+  elettronica SDI. Le carte extra-SEE costano ~3,25% a BOOM (nessun sovrapprezzo sulle fatture): il bonifico
+  resta gratuito. Il caricamento di un PDF non lo legge: la verifica dei termini è dell'operatore (due spunte).
+Test: `node tests/pa-external/run.mjs` (16 scenari, handler veri), `mutate.mjs` (10 mutazioni prese),
+`ui.mjs` (Chromium 390/1280, 38 controlli).
+
 ### Le regole IN VIGORE ≠ le regole nel file (31/08/2026)
 Il difetto più caro trovato in questa tornata, e nessuna suite poteva
 vederlo: **tutte leggono `firestore.rules`, cioè l'INTENZIONE, e nessuna la
