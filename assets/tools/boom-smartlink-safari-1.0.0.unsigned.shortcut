@@ -260,7 +260,7 @@
   if (root) root.BOOM_SMARTLINK = API;
 })(typeof window !== &apos;undefined&apos; ? window : this);
 
-/* js/smartlink-share-engine.js sha256:98d7536fe0f65c9a017c2c75b8e73dbda2c4c49659fa2181ce58931bb427af1b */
+/* js/smartlink-share-engine.js sha256:8e35aab1331ac626c928bb195618c87d157b425286c60ebacd658409dc74584c */
 /* Safari Share: legge solo il documento che l&apos;operatore ha già aperto. */
 (function (root) {
   &apos;use strict&apos;;
@@ -324,7 +324,7 @@
   /* Nessuna lettura globale delle immagini: i suggerimenti di altre case restano fuori. */
   const GALLERIES={
     &apos;immobiliare.it&apos;:[&apos;.in-gallery&apos;,&apos;[data-testid=&quot;listing-gallery&quot;]&apos;,&apos;[data-testid=&quot;gallery&quot;]&apos;],
-    &apos;idealista.it&apos;:[&apos;#main-multimedia&apos;,&apos;.detail-multimedia&apos;,&apos;.multimedia-container&apos;,&apos;[data-testid=&quot;listing-gallery&quot;]&apos;],
+    &apos;idealista.it&apos;:[&apos;#main-multimedia&apos;,&apos;.detail-multimedia&apos;,&apos;.multimedia-container&apos;,&apos;[data-testid=&quot;listing-gallery&quot;]&apos;,&apos;.image-gallery-slide-wrapper&apos;],
   };
   const COUNTERS={
     &apos;immobiliare.it&apos;:[&apos;.in-gallery__counter&apos;,&apos;.in-carousel__counter&apos;,&apos;[data-testid=&quot;gallery-counter&quot;]&apos;],

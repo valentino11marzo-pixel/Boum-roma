@@ -61,7 +61,7 @@
   /* Nessuna lettura globale delle immagini: i suggerimenti di altre case restano fuori. */
   const GALLERIES={
     'immobiliare.it':['.in-gallery','[data-testid="listing-gallery"]','[data-testid="gallery"]'],
-    'idealista.it':['#main-multimedia','.detail-multimedia','.multimedia-container','[data-testid="listing-gallery"]'],
+    'idealista.it':['#main-multimedia','.detail-multimedia','.multimedia-container','[data-testid="listing-gallery"]','.image-gallery-slide-wrapper'],
   };
   const COUNTERS={
     'immobiliare.it':['.in-gallery__counter','.in-carousel__counter','[data-testid="gallery-counter"]'],

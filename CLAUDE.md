@@ -140,6 +140,9 @@ firebase.json             Firebase deploy config (firestore + storage rules)
 | `sw.js` | Service worker (network-first HTML, cache-first static). |
 
 ### SmartLink annunci esterni (BOOM Tools)
+La lettura Safari riconosce ora il wrapper Idealista `.image-gallery-slide-wrapper`, osservato il 3/11 sull'annuncio 37221750: il vecchio `#main-multimedia` era presente ma vuoto.
+La prova DOM conteneva soltanto due foto e il contatore `1/15`, senza JSON-LD: il payload resta incompleto 2/15, non inventa i dati mancanti e non autorizza la pubblicazione della galleria incompleta.
+La fixture in `tests/smartlink/share.mjs` conserva questa evidenza, esclude avatar/raccomandazioni e verifica per mutazione selettore e ambito della galleria; acquisire tutte le foto resta un collaudo separato.
 Dal 3/11 il bundle Safari consegna il risultato con `completion` esterno e incorpora soltanto commenti `/* ... */`: il confronto nativo Mac ha isolato il fallimento della chiamata annidata e dei commenti `//`.
 Il generatore rifiuta commenti di riga nei motori; la regressione esegue lo stesso payload anche senza separatori di riga. Il modello protegge il formato osservato, senza attribuirlo a una regola Apple documentata.
 Il motore completo ha restituito la diagnostica prevista su una pagina BOOM; il collaudo annuncio/galleria e la pubblicazione autenticata restano verifiche separate.
