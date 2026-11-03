@@ -1599,7 +1599,11 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
     const r2 = throws(() => hubRender(), /a fact-sheet answer is \d+ words, over 20/);
     HUB_BUDGET.dd = save2;
     check(r2 === true, 'a fact-sheet answer over its cap is refused', r2 === true ? '' : r2);
+    // the node rule alone: the body cap is lifted for this one render (the hub
+    // sits near its 980, and a long paragraph must be refused for its length)
+    const saveB = HUB_BUDGET.body, saveP = HUB_BUDGET.prose; HUB_BUDGET.body = 5000; HUB_BUDGET.prose = 5000;
     const r3 = throws(() => hubRender((h) => { h.map.rome.p = 'Where the company lives and works every single working day of the week, with homes to rent, owners, leases, papers and keys, in a city that every desk answers from.'; }), /a text node over 24 words/);
+    HUB_BUDGET.body = saveB; HUB_BUDGET.prose = saveP;
     check(r3 === true, 'a paragraph over 24 words is refused (the node rule)', r3 === true ? '' : r3);
   }
   // hoursSentence and hubText

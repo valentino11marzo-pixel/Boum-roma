@@ -40,7 +40,8 @@
 .db-go:focus-visible{outline:0}
 .db-r:has(.db-go:focus-visible){outline:2px solid var(--gold);outline-offset:-2px}
 .db-sub{font:400 11.5px var(--mono);letter-spacing:.03em;color:var(--t3)}
-.db-tag{margin-top:4px;padding:1px 7px;border:1px solid var(--gold-line);border-radius:999px;font:500 9.5px var(--mono);letter-spacing:.14em;color:var(--gold)}
+.db-tag{margin-top:4px;padding:1px 7px;border:1px solid var(--gold-line);border-radius:999px;font:500 9.5px var(--mono);letter-spacing:.14em;color:var(--gold);white-space:nowrap}
+@media (max-width:939px){.db-tag{letter-spacing:.06em}}
 .c-w{display:none}
 .db-st{font:500 11px var(--mono);letter-spacing:.16em;color:var(--gold)}
 .db-tv,.db-nb{font:400 13px var(--mono);letter-spacing:.06em;color:var(--t2);white-space:nowrap}
@@ -54,7 +55,7 @@
 .db-pill i{font-size:18px;font-style:normal}
 .db-r.live:hover,.db-r.hub:hover{background:var(--gold-faint)}
 .db-r.off,.db-r.off .db-code,.db-r.off .db-name{color:var(--t3)}
-.db-r.off .db-st{color:rgba(255,255,255,.42)}
+.db-r.off .db-st{color:rgba(255,255,255,.5)}
 .db-r.hub .db-st{color:var(--ink)}
 .hub .pill-st .dot{background:var(--open);box-shadow:0 0 8px rgba(92,255,174,.5)}
 @media (prefers-reduced-motion:no-preference){.hub .pill-st .dot{animation:dpulse 2.4s ease-in-out infinite}}
@@ -109,6 +110,9 @@ html.vivo .hmap .arc{transition:stroke-dashoffset .9s var(--ease) calc(var(--i,0
 .pc-go{margin-top:4px;color:var(--gold)}
 .pin:focus-visible .pc{display:block}
 @media (hover:hover){.pin:hover .pc{display:block}}
+/* under 600px a card fits on neither side of a central pin: the pin is a plain
+   link there (its aria-label names the desk), a tap goes straight to it */
+@media (max-width:599px){.pin:focus-visible .pc,.pin:hover .pc{display:none}}
 .m-legend{display:flex;flex-wrap:wrap;align-items:center;row-gap:6px;margin-top:12px;font:400 11px var(--mono);letter-spacing:.1em;color:var(--t3)}
 .m-legend i{width:7px;height:7px;margin:0 6px 0 16px;border-radius:50%;background:rgba(255,255,255,.8)}.m-legend i:first-child{margin-left:0}
 .m-legend .lg-o{background:none;border:1px solid rgba(255,255,255,.42)}.m-legend .lg-h{background:none;border:1.5px solid #fff}
@@ -167,7 +171,7 @@ html.vivo .hmap .arc{transition:stroke-dashoffset .9s var(--ease) calc(var(--i,0
 .rc.held .rc-t{text-decoration:underline dotted var(--gold-line);text-underline-offset:3px}
 a.rc:hover>span{color:var(--ink)}
 .rc.none{color:var(--t5)}
-.rc-tag{display:inline-block;margin-left:6px;padding:1px 7px;border:1px solid var(--gold-line);border-radius:999px;font:500 9.5px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--gold);vertical-align:1px}
+.rc-tag{display:inline-block;margin-left:6px;padding:1px 7px;border:1px solid var(--gold-line);border-radius:6px;font:500 9.5px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--gold);vertical-align:1px}
 .r-held{margin-top:12px;font-size:13px;color:var(--t3)}
 .rfull{margin-top:22px}
 .rfull-in{padding:4px 2px 18px;border-top:1px dashed var(--line)}
@@ -197,13 +201,18 @@ a.rc:hover>span{color:var(--ink)}
   .hub .brief .enbref dt,.hub .brief .enbref dd{padding:13px 0;border-top:1px solid var(--line-soft)}
   .hub .brief .enbref dt{padding-top:16px}
   .hub .brief .enbref dt:first-of-type,.hub .brief .enbref dt:first-of-type+dd{border-top:0}
-  .hft-who{min-height:3.4em}
+  .hft-who{min-height:3.9em}
 }
+@media (min-width:760px) and (max-width:819px){.hft-who{min-height:5.1em}}
+/* under 380: the kicker on one line, the legend dots beside their words, the phone number whole */
+@media (max-width:379px){.kicker{font-size:10px;letter-spacing:.08em}.m-legend{letter-spacing:.04em}.m-legend i{margin-left:12px}}
+.hub .enbref a[href^="tel:"]{white-space:nowrap}
 
 @media (forced-colors:active){
   .hmap .arc,.hmap circle.hub,.hmap circle.hub-r,.hmap .d.off{stroke:CanvasText}.hmap .d{fill:CanvasText}
   .kicker,.hft-band{background:Canvas;color:CanvasText;border:1px solid CanvasText}
   .hft-price::before,.hft-price::after{display:none}
+  .m-legend .lg-l{forced-color-adjust:none;background:CanvasText}
 }
 @media print{
   .hmap-box,.hgates,.db-gate,.pin,.m-legend{display:none!important}

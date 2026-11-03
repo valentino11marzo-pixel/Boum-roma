@@ -2857,6 +2857,142 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
     - il Full Search pagato in anticipo e l'art. 6 L. 39/89.
   - Il radar PFS non copre Londra né Milano: si cerca a mano.
   Test: `tests/cities/run.mjs` 415, `checkout.mjs` 113, `calendar.mjs` 80, `ui.mjs` 144.
+- **IL DESK AVIAZIONE COMPLETO (v1.6, 03/11/2026 — il fondatore: «questo stile è
+  troppo sintetizzato… itera lo stile del biglietto… anche per una pagina
+  completa»).** Il primo schermo resta UNA carta d'imbarco, rifatta come oggetto
+  di qualità della home (lamina d'oro coi toni scuri, stampa di sicurezza,
+  filetto interno, perforazione che porta la rotta YOU → LON con l'aereo SVG
+  fermo sullo stato che dice il server, il sigillo, lo stub pieno su desktop).
+  Sotto, la pagina è una camminata da terminal: **Departures** (come funziona),
+  **Pre-flight** (i controlli), **Baggage** (gli otto documenti, ora visibili),
+  **Gate** (chi risponde, la settimana del desk, la porta), **Questions**,
+  **Network** (vedi BOOM Desks: tutti i desk sulla mappa), la scheda dei fatti e
+  il piede. Ogni blocco è uno strumento che mostra un fatto che la pagina ha già
+  (JSON, calendario del desk, stato del server).
+  1. **I tetti, alzati UNA volta dal fondatore il 03/11** (`WEIGHT_KB`, `BUDGET`
+     in `build-cities.mjs`): 82 KB gz in tutto (JS 14, CSS 15, onda 4 contata nel
+     totale); 640 parole al caricamento divise in **prosa** 520 e **strumenti**
+     120 (il testo dentro `[data-instr]`: codici, intestazioni, stati, etichette
+     — la ricchezza viene dagli strumenti, non dai paragrafi); un nodo di testo ≤
+     24 parole (eccetto `.stmt`); primo schermo a 390 ≤ 150; per sezione
+     departures 100 · pre-flight 60 · baggage 70 · gate 40 · network 40. Da qui
+     non si alzano più per farci stare una modifica: si taglia copia o
+     artigianato.
+  2. **L'onda** (`assets/boom-onda.js`, il campo a palette della home, solo oro,
+     ≥ 940): caricata dopo `load` quando il browser è libero; il battito parte
+     dal codice di destinazione dello stub; **gira SOLO mentre il desk è
+     aperto** (`boom-city.js` lo dice ogni minuto dal calendario del desk),
+     chiuso disegna un fotogramma fermo e attenuato, sotto reduced-motion mai un
+     ciclo, fuori schermo o a scheda nascosta dorme. Una sola catena di
+     `requestAnimationFrame` (la revisione ha trovato catene che si
+     moltiplicavano a ogni nascondi/mostra). Servita `immutable` come gli altri
+     asset con hash.
+  3. **Le correzioni della revisione**: un link profondo (`/<slug>#fares`, il
+     `cancel_url` di Stripe) atterra sotto la testata sticky (≥ 760:
+     `scroll-padding-top` 82px, e `land()`/`openForm()` usano lo stesso limite);
+     forced-colors e stampa non spostano la griglia del biglietto quando la
+     lamina sparisce; stampa in bianco e nero; lo stub e la porta restano in
+     vista mentre una tariffa è aperta (blocco sticky); gli archi della rete non
+     passano mai sopra il pallino di un altro desk (`bowArcs` + `arcViolations`,
+     rifiuto del build); l'orologio porta il nome del suo fuso («London time»,
+     «Italian time»), mai «At the desk»; i desk in waitlist non scrivono mai
+     «desk open» (REPLYING/OFFLINE, «replies until 19:00 CET»); «Reply today»
+     non sopravvive alla chiusura né alla mezzanotte; sotto 940 il tabellone
+     dell'orologio si monta solo in vista.
+  Non fatti, dichiarati: il fuoco dopo un ridimensionamento (v1.5), la targa dei
+  cookie sopra la porta del Gate, la misura a inizio pagina di
+  `js/boom-scroll.js` per tutto il sito (lavoro a parte).
+  Test: `tests/cities/run.mjs`, `ui.mjs`, `checkout.mjs`, `calendar.mjs`, più
+  consent, scroll, cielo, seo, crawl.
+
+### BOOM Desks (`/desks` + `cities/_hub.json` + `cities/_hub.html` + `assets/boom-desks.*`) — 03/11/2026
+Il fondatore (03/11): «un artefatto geniale per la SEO/GEO, per i crawler AI… la
+mappa con tutti i nostri desk… un sito monumentale… andiamo in Europa». L'hub dei
+desk è GENERATO da `build-cities.mjs` dagli stessi JSON dei desk (`buildHub`,
+`desks.html` col marchio GENERATED, `--check` lo copre; `buildAll` resta le sette
+pagine città).
+- **La pagina, in ordine**: H1 «A rental agent on your side, in» + il tabellone
+  Solari **EUROPE** (fuori dall'H1, che si legge «…in Europe»); il **tabellone
+  delle partenze** (otto righe: i cinque desk live linkati con codice IATA,
+  orari, ora del desk, OPEN/CLOSED e «from €149/£149»; Berlino e Parigi «NOT
+  OPEN» senza link; ROM, l'hub, verso `/`). L'HTML statico porta solo gli orari:
+  orologio, finestra e OPEN/CLOSED li scrive `assets/boom-desks.js` dal
+  calendario del desk (`js/desk-calendar.js`, festivi compresi), dentro span
+  `data-nosnippet`; a ≥ 760 la colonna NOW è un tabellone a palette di sei
+  celle (verde se aperto) che gira SOLO quando il desk apre o chiude. Poi la
+  **mappa d'Europa** (vedi sotto), **le tre tariffe** uguali a ogni desk (la
+  regola del rimborso sotto ogni €500/£500, la nota LAU art. 20 prima del primo
+  prezzo, nessun pagamento qui: le porte portano a `/<slug>#fares`), la tabella
+  **«Renting rules, city by city»** dai `checks` dei JSON (l'etichetta `at`
+  verbatim, una riga per tema, sotto 760 una scheda per tema), le FAQ, la scheda
+  «in brief» APERTA, il piede.
+- **La mappa** (`viewBox 0 -40 640 520`, la stessa `mapXY` delle pagine desk):
+  la **costa vera** di Natural Earth 1:50m (dominio pubblico) scritta UNA volta
+  da `design/pages-deco/genera-europa.py` in `cities/_europe.json` (proiezione
+  `mapXY`, ritaglio al riquadro ±5, Douglas–Peucker 1,2, anelli sotto 10 u²
+  tolti, unità intere; due tracciati dalla stessa fonte: `path` per l'hub, `desk`
+  per la Rete delle pagine desk; il build non scarica niente e regge senza il
+  file). La terra è una matrice di puntini ritagliata sulla costa più un filo;
+  gli archi da Roma hanno lo STESSO `d` dell'arco d'oro di ogni pagina desk
+  (test di uguaglianza), sfumati oro → bianco; i desk live hanno pallino e anello
+  d'oro, Berlino e Parigi un pallino vuoto senza arco, Roma tre anelli. I pin
+  (≥ 44px) sono link veri: al passaggio o al fuoco una regola `:has()` generata
+  accende di oro il SUO arco, una cometa percorre l'arco UNA volta (0,9 s, solo
+  senza reduced-motion) e la scheda del pin mostra codice, ora del desk,
+  finestra, «from …» e «Go to the … desk →». Sotto 640 le etichette crescono.
+- **L'onda** dietro il tabellone (≥ 940), lo stesso `boom-onda.js` delle pagine
+  desk con hash nell'URL: il battito parte da ROM, gira solo mentre almeno un
+  desk è aperto (un fotogramma fermo quando sono tutti chiusi, mai sotto
+  reduced-motion). Cicli a riposo: la pillola «Desks open» e l'onda con un desk
+  aperto, zero con tutti chiusi.
+- **JSON-LD**: l'organizzazione condivisa (identica alle pagine desk),
+  CollectionPage con `speakable` (`.hub-lead`, `.enbref`), ItemList dei desk
+  live, i cinque `Service` IDENTICI a quelli delle pagine desk (stessa funzione
+  `serviceNode`, test di uguaglianza), FAQPage = le domande visibili. Nessun desk
+  non aperto in nessun nodo JSON-LD tranne la FAQ visibile. Nessuna cassa,
+  nessun WhatsApp generico (una città sconosciuta finirebbe nella macchina di
+  Roma), il rating una volta sola («on Google in Rome»).
+- **Decisioni**:
+  1. Parigi e Berlino «NOT OPEN» (non «Opening»): mai un link, un prezzo, un
+     orario, un arco o un nodo JSON-LD su una pagina live.
+  2. **Milano (decisione del fondatore, 03/11)**: Egidi Immobiliare S.r.l. è
+     un'agenzia immobiliare italiana (REA RM-1710623), e a Milano valgono le
+     stesse regole italiane di Roma. Milano però resta un desk: tariffe fisse,
+     lato inquilino, pagato solo dall'inquilino, mai la provvigione del 10% di
+     Roma, mai «ufficio/sede/registrata a Milano». Il desk del paese di casa si
+     DERIVA (`country` = paese dell'organizzazione, nessuna chiave nuova): riga
+     «ITALIAN LAW · AS ROME» sul tabellone, la scheda Milano accanto alla mappa,
+     una FAQ, una riga in brief, e su `/milan` la riga Who, la dichiarazione del
+     piede, la FAQ 6 e la riga di prova «an Italian real estate agency, under the
+     same Italian law as in Rome».
+  3. La tabella non ripete fatti ancora da confermare: `rules.hold` (Londra
+     tutta, Madrid contract, Barcellona rentcap/contract, Milano
+     fees/registration) mostra solo il titolo col link; `rules.cut` toglie da
+     Amsterdam «Agents still ask for three. We don't let them.». Sbloccare =
+     togliere la chiave dopo il parere del legale.
+  4. Ogni pagina desk mostra tutti i desk nella Rete (pallino pieno live, vuoto
+     «not open», ROM con l'anello, la costa sotto) e linka «Every BOOM desk» →
+     `/desks`; il breadcrumb è Home → BOOM Desks → città.
+- **I tetti dell'hub** (`HUB_WEIGHT_KB`, `HUB_BUDGET`, mai alzati per farci
+  stare qualcosa): 78 KB gz in tutto (pagina 28, CSS 6, JS 6); parole al
+  caricamento 980 (prosa 740, strumenti 280), primo schermo a 390 ≤ 120, lead 30,
+  nodo 24, una risposta FAQ ≤ 42, una riga in brief ≤ 45; per sezione board 120 ·
+  map 90 · fares 230 · rules 160 · faq 70 · brief 240. Oggi: 957 parole, 71,7 KB
+  (pagina 26,8: la costa pesa 3 KB). Le pagine desk con la costa: 77,0–80,0 KB
+  su 82.
+- **Da confermare col legale (non bloccano)**: per Milano, un'unità locale con
+  preposto (DM 26/10/2011) se una persona BOOM va alle visite; il Full Search
+  pagato prima (art. 6 L. 39/1989, provvigione o mandato); moduli in CCIAA;
+  capitale sociale nel blocco Company (art. 2250 c.c.); polizza RC; ammorbidire
+  «Unregistered, it is void» (Cass. SS.UU. 23601/2017); un check `fees` per
+  Amsterdam solo dopo il legale; IVA UK (NETP) e redress scheme di Londra; la
+  conferma del voto del 12/11 sul RDL 29/2026 per Madrid. **Del fondatore**: la
+  foto, una voce «Desks» nel menu della home, Wikidata nei `Service`.
+- Test: `tests/cities/run.mjs` (THE HUB, la rete, Milano, la costa, la cometa,
+  l'onda), `ui.mjs` (hub: primo schermo, orologi con Koningsdag e il bank
+  holiday, senza JS, 320px, pin e archi, cometa, tabellone a palette, onda
+  aperta/chiusa, reduced-motion), più seo, llmstxt, crawl, verita, consent,
+  scroll (`desks.html` in VENDONO), radici (`genera-europa.py`).
 
 ### BOOM Proprietari (`/owners` + `api/owner-lead.js`) — 30/09/2026
 Rifatta da zero su richiesta del fondatore («non è attraente, non converte,

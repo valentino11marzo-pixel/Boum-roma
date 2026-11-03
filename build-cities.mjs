@@ -1890,6 +1890,9 @@ export function renderHub({ template, shared, hub, cities, assetVersion, frags, 
 
   // ── the board ──
   const fromOf = (c) => money(Math.min(...c.pricing.plans.map((p) => Number(p.price))), curOf(c));
+  // LAU art. 20: on a Spanish desk every fare is optional, chosen in writing —
+  // a price shown before the #fares note says so where it stands
+  const optOf = (c) => (String(c.country).toUpperCase() === 'ES' ? ' · optional' : '');
   const idOf = (c) => `db-${c.iata.toLowerCase()}`;
   const codeCell = (iata) => `<th scope="row" class="db-code" role="rowheader"><b class="db-b" data-word="${esc(iata)}" aria-hidden="true"></b><span class="db-iata" data-instr>${esc(iata)}</span></th>`;
   const boardRows = [
@@ -1900,7 +1903,7 @@ export function renderHub({ template, shared, hub, cities, assetVersion, frags, 
       '          <td class="db-st c-w" role="cell" data-instr>LIVE</td>',
       `          <td class="db-t c-w" role="cell"><span class="db-tv" data-nosnippet data-clk="${esc(c.slug)}"></span></td>`,
       `          <td class="db-now c-w" role="cell"><b class="db-nb" aria-hidden="true"></b><span class="sr" data-nosnippet data-nsr="${esc(c.slug)}"></span></td>`,
-      `          <td class="db-fare c-w" role="cell">from <b>${fromOf(c)}</b></td>`,
+      `          <td class="db-fare c-w" role="cell">from <b>${fromOf(c)}</b>${optOf(c)}</td>`,
       '          <td class="db-gate" role="cell" aria-hidden="true"><span class="db-pill">Go to desk <i>→</i></span></td>',
       '        </tr>'
     ].join('\n')),
@@ -1916,7 +1919,7 @@ export function renderHub({ template, shared, hub, cities, assetVersion, frags, 
   ];
   const boardHtml = [
     '      <div class="dboard-w quadro"><i class="tacca"></i>',
-    '        <p class="db-h" aria-hidden="true"><b>BOOM · DESKS</b><span class="pill-st js" id="hubPill" hidden><i class="dot"></i><span>Desks open</span></span></p>',
+    '        <p class="db-h" aria-hidden="true"><b>BOOM · DESKS</b><span class="pill-st js" id="hubPill" data-nosnippet hidden><i class="dot"></i><span>Desks open</span></span></p>',
     '        <table class="dboard" id="dboard" role="table" aria-label="BOOM desks" data-instr>',
     '          <thead data-instr><tr role="row"><th scope="col" role="columnheader">Code</th><th scope="col" role="columnheader">Desk</th><th scope="col" class="c-w" role="columnheader">Status</th><th scope="col" class="c-w" role="columnheader">Desk time</th><th scope="col" class="c-w" role="columnheader">Now</th><th scope="col" class="c-w" role="columnheader">Fares from</th><th scope="col" role="columnheader"><span class="sr">Desk page</span></th></tr></thead>',
     '          <tbody>',
@@ -1963,7 +1966,7 @@ export function renderHub({ template, shared, hub, cities, assetVersion, frags, 
     const px = Math.round(r1n(x) / 640 * 1000) / 10, py = Math.round((r1n(y) + 40) / 520 * 1000) / 10;
     return `<a class="pin${px > 60 ? ' pc-l' : ''}" id="pin-${c.iata.toLowerCase()}" href="/${esc(c.slug)}" style="--x:${px.toFixed(1)}%;--y:${py.toFixed(1)}%" aria-label="Tenant-side rental agent in ${esc(c.city)}">`
       + '<i class="pin-dot" aria-hidden="true"></i>'
-      + `<span class="pc" aria-hidden="true"><span class="pc-h"><b>${esc(c.iata)}</b> ${esc(c.city)} · Live<span class="pc-t" data-nosnippet data-clk="${esc(c.slug)}"></span></span><span class="pc-w" data-nosnippet data-dw="${esc(c.slug)}">${esc(deskHoursText(c.desk))}</span><span class="pc-f">from ${fromOf(c)}</span><span class="pc-go">Go to the ${esc(c.city)} desk →</span></span></a>`;
+      + `<span class="pc" aria-hidden="true"><span class="pc-h"><b>${esc(c.iata)}</b> ${esc(c.city)} · Live<span class="pc-t" data-nosnippet data-clk="${esc(c.slug)}"></span></span><span class="pc-w" data-nosnippet data-dw="${esc(c.slug)}">${esc(deskHoursText(c.desk))}</span><span class="pc-f">from ${fromOf(c)}${optOf(c)}</span><span class="pc-go">Go to the ${esc(c.city)} desk →</span></span></a>`;
   });
   // one rule per live desk: its pin lights its arc; with motion allowed, the comet runs once
   const mapCss = '<style>' + arcs.map((a) => `.hmap:has(#pin-${kOf(a)}:is(:hover,:focus-visible)) #arc-${kOf(a)}{stroke:var(--gold);stroke-width:2;opacity:1}`).join('')
@@ -2283,6 +2286,12 @@ export function renderHub({ template, shared, hub, cities, assetVersion, frags, 
       const note = fa.indexOf('class="hnote es"'), first = fa.search(/[€£]\d/);
       need(note > -1 && note < first, where, `the Spain note ("optional, chosen in writing", LAU art. 20) comes before the first price in #fares`);
       need(listJoin(es.map((c) => c.city)) === tok.esDesks && (spain || '').includes(tok.esDesks), where, 'the Spain note names exactly the Spanish live desks');
+      // outside #fares (the board row, the pin card) a Spanish price stands
+      // beside its own "optional": it is read before the note (LAU art. 20)
+      for (const c of es) for (const [open, close] of [[`<tr class="db-r live" id="db-${c.iata.toLowerCase()}"`, '</tr>'], [`<a class="pin" id="pin-${c.iata.toLowerCase()}"`, '</a>']]) {
+        const box = sliceOf(html, open, close);
+        need(box && (!/[€£]\d/.test(box) || /[€£]\d[\d,]*<\/b>\s*· optional|[€£]\d[\d,]*\s*· optional/.test(box)), where, `${c.city}: a price outside #fares stands without "· optional" (LAU art. 20)`);
+      }
     }
   }
   // 13 · the rating once, in Rome
