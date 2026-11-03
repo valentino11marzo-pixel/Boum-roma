@@ -140,6 +140,9 @@ firebase.json             Firebase deploy config (firestore + storage rules)
 | `sw.js` | Service worker (network-first HTML, cache-first static). |
 
 ### SmartLink annunci esterni (BOOM Tools)
+Il fallimento di `import-photo` registra solo fase, stato HTTP remoto, tipo MIME normalizzato, byte letti e formato rilevato: nessun URL, corpo, header grezzo o dettaglio dell'eccezione.
+La diagnostica distingue le cause dell'esistente `photo_unavailable`, senza cambiare richieste, redirect, risposte 422/502 o ritentare la fonte; gli altri consumatori di `fetchPhoto` restano silenziosi.
+`tests/smartlink/photo-diagnostics.mjs` guida l'handler reale con rete simulata, conversione Sharp e mutazioni di privacy/assenza log: non certifica il download da Vercel, che resta un collaudo separato.
 Il candidato Portal riceve anche `boom.smartlink.share.media`: payload SHARE invariato più byte delle immagini già scaricate dal dispositivo, con limiti 16 MB complessivi e 4 MB per foto; il motore separato `smartlink-media-engine.js` non entra nel comando Safari.
 Prima di cambiare bozza valida schema chiuso, 128 KiB del payload interno, conteggio/ordine/URL esatti, base64 canonico e firme JPEG/PNG/WebP coerenti col MIME. SVG, HTML e altri formati restano esclusi.
 I byte diventano Blob locali e passano nella preparazione e nell'upload esistenti: questo ramo non richiama `import-photo` né altre fonti, conserva revisione, storico e veti per foto mancanti o sessione cambiata. Nessun nuovo endpoint o segreto.

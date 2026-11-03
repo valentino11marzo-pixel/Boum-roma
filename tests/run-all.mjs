@@ -24,6 +24,7 @@ const SUITES = [
   { name: 'rentwriteui', file: 'tests/rent-write/ui.mjs', what: 'form reali: doppio tap, risposta persa, bozza, sessione e conferma dal server' },
   { name: 'rentwritemutations', file: 'tests/rent-write/mutate.mjs', what: 'difetti ripristinati: stato protetto, versione obsoleta, centesimi, riferimenti e copertura' },
   { name: 'smartlink', file: 'tests/smartlink/run.mjs', what: 'annuncio esterno: fonte privata, auth admin, foto approvate, mappa indicativa e POI' },
+  { name: 'smartlinkphoto', file: 'tests/smartlink/photo-diagnostics.mjs', what: 'handler foto reale: cause 422/502 distinte, risposte e fetch invariati, log chiusi senza URL o credenziali; mutazioni' },
   { name: 'smartlinkshare', file: 'tests/smartlink/share.mjs', what: 'condivisione Safari: identità annuncio, dati selezionati, galleria, limiti e nessun accesso a rete o sessioni' },
   { name: 'smartlinkmedia', file: 'tests/smartlink/media.mjs', what: 'foto locali condivise: limiti16MB/4MB/60, fonte/indice esatti, raster/base64 verificati e Blob senza rete' },
   { name: 'smartlinkgallery', file: 'tests/smartlink/gallery.mjs', what: 'protocollo galleria nativa: piano/frame/envelope, identità stabile, ordine 1..N, foto/contatto, prefissi e durata simulata' },
