@@ -106,6 +106,20 @@ check(line('2026-12-31T19:00:00Z', 'it') === 'Monday from 09:00 CET', 'New Year\
   const c = CAL.deskWindow(at('2026-10-31T09:00:00Z'), DESK, 'nl');
   check(c && c.open === false && c.day === 'Monday' && c.from === '09:00' && c.tz === 'CET', 'a closed window carries day/from/tz');
   check(CAL.deskWindow(at('2026-10-27T08:00:00Z'), null, 'nl') === null && CAL.deskWindow(at('2026-10-27T08:00:00Z'), { ...DESK, days: [] }, 'nl') === null, 'no desk, or a desk with no days: null, never an invented window');
+  // v1.6: `wd` (0 = Sunday) is the weekday of the desk's NEXT open moment —
+  // today when open, else the day it opens. The Departures board writes
+  // "REPLY TODAY" / "REPLY MON" from it, so it must agree with the line.
+  check(w.wd === 2 && c.wd === 1, 'wd: open on a Tuesday → 2 (today); closed on a Saturday → 1 (it opens Monday)', JSON.stringify([w.wd, c.wd]));
+  const k = CAL.deskWindow(at('2026-04-27T08:00:00Z'), DESK, 'nl');
+  check(k && k.open === false && k.day === 'Tomorrow' && k.wd === 2, 'wd on Koningsdag (Monday 27 April): "Tomorrow", and tomorrow is a Tuesday (2)', JSON.stringify(k));
+  const f = CAL.deskWindow(at('2026-10-23T18:00:00Z'), DESK, 'nl');
+  check(f && f.open === false && f.day === 'Monday' && f.wd === 1, 'wd on a Friday after hours: Monday (1)', JSON.stringify(f));
+  const e = CAL.deskWindow(at('2026-10-27T05:00:00Z'), DESK, 'nl');
+  check(e && e.open === false && e.day === 'Today' && e.wd === 2, 'wd early on a working day: "Today" from 09:00, and today is a Tuesday (2)', JSON.stringify(e));
+  const DAY = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const probes = ['2026-01-01T09:00:00Z', '2026-04-03T09:00:00Z', '2026-06-06T12:00:00Z', '2026-12-24T19:00:00Z', '2026-12-31T23:30:00Z', '2027-03-28T01:30:00Z'];
+  check(probes.every((iso) => { const x = CAL.deskWindow(at(iso), DESK, 'nl'); return x && Number.isInteger(x.wd) && x.wd >= 0 && x.wd <= 6 && DESK.days.includes(x.wd) && (x.open || ['Today', 'Tomorrow'].includes(x.day) || x.day === DAY[x.wd]); }),
+    'wd is always a desk day, and a closed window\'s named day IS that weekday (New Year, Good Friday, a Saturday, Christmas Eve, New Year\'s Eve, the clock change)');
 }
 
 // ── one copy: the webhook imports it, the page inlines it ─────────────────

@@ -5,13 +5,17 @@ description: Launch or change a BOOM city desk (tenant-side search page with car
 
 # Launching a BOOM city desk
 
-A desk is DATA plus a registry entry: `cities/<slug>.json` → `build-cities.mjs` → `/<slug>.html`, and `api/_market.js` `CITY_MARKETS.<slug>` for the server (lead door, Stripe, webhook, Telegram card). Read CLAUDE.md «BOOM Cities» (v1.5 «il biglietto») first. The build refuses anything false or off-budget: let it tell you what is missing.
+A desk is DATA plus a registry entry: `cities/<slug>.json` → `build-cities.mjs` → `/<slug>.html`, and `api/_market.js` `CITY_MARKETS.<slug>` for the server (lead door, Stripe, webhook, Telegram card). Read CLAUDE.md «BOOM Cities» (v1.6 «il desk aviazione completo») and «BOOM Desks» (the hub, `/desks`) first. The build refuses anything false or off-budget: let it tell you what is missing.
+
+A new desk is never one page: the hub `/desks` and every other desk's Network map are built from the same JSONs, so they change with it (see §5b).
 
 ## 1 · Decide (write the decisions down before coding)
 - slug (English: `london`, `milan`), label = JSON `city` exactly, Italian label for operator strings (`labelIt`)
 - currency (EUR default; non-EUR needs `currency` in CITY_MARKETS **and** the JSON), prices (the grid is 500 / 199 / 149 in the desk's currency)
 - mode `search` (sells, checkout) or `waitlist` (no till, no Stripe)
 - desk hours and zone: `desk.timeZone` (IANA; `Europe/Milan` does not exist → `Europe/Rome` + `desk.zoneName`), the holidays key
+- the map: `iata` (3 capital letters, the airport-style code the boards and the map print) and `geo` `{lat, lon}`, the city's real coordinates. `validGeo` keeps a desk inside the network map's margins (about lon −10.8…20.8, lat 39.4…54.1): a city outside (Lisbon, Stockholm, Athens) needs the crop changed first — `mapXY`, the hub `HUB_VIEWBOX`, and `cities/_europe.json` regenerated (`python3 design/pages-deco/genera-europa.py`)
+- the desk's country (`country`, ISO upper) and whether it is the home country (Italy = same Italian rules as Rome, still a desk: derived, never a key)
 - legal checklist to hand the founder (see «Known open items»)
 
 ## 2 · Server registry — `api/_market.js`
@@ -27,16 +31,25 @@ A desk is DATA plus a registry entry: `cities/<slug>.json` → `build-cities.mjs
 ## 4 · The page — `cities/<slug>.json`
 - copy the key structure of a non-Spanish selling desk (`amsterdam.json`), add `currency` if not EUR
 - facts only from sources; no statistics, no market rents, no amounts other than the three plan prices (deposits in weeks/months of rent); banned phrases live in `tests/verita` and `build-cities.mjs` (CLOCK_RE, off-market, 500+, exclamation marks, a second rating)
-- 3–6 checks (the local law that protects the tenant), exactly 8 papers, 3–6 FAQ including the free call and the refund rule
-- budgets: ≤ 460 visible words at load, lead+leadStrong ≤ 30, fares ≤ 70, each ticket ≤ 60; meta title ≤ 62, description 110–165
+- 3–6 checks (the local law that protects the tenant; each `{id, title, at, text}`, `at` is the short legal label the hub table prints verbatim), exactly 8 papers, 3–6 FAQ including the free call and the refund rule
+- the Departures steps carry a `status` each (`how.steps[i].status`: capitals, ≤ 12 characters, STATUS_RE; no SEAT/BOARDING/ON TIME/GATE/NOW words). Selling desks: `FREE`, `1 WORK DAY`, `IN PERSON`; waitlist desks: `FREE`, `WITH PARTNER`, `AT OPENING`
+- v1.6 budgets (raised once by the founder on 03/11, never raised to fit): ≤ 640 visible words at load (prose ≤ 520, instruments ≤ 120 — the text inside `[data-instr]`), a text node ≤ 24 words, first phone screen ≤ 150, lead+leadStrong ≤ 30, fares ≤ 70, each ticket ≤ 60, per section departures 100 · pre-flight 60 · baggage 70 · gate 40 · network 40; weight ≤ 82 KB gz (JS 14, CSS 15, onda 4). Meta title ≤ 62, description 110–165
 
 ## 5 · Generate and wire
 - `python3 design/pages-deco/genera-og-cities.py <slug>` (needs `BOOM_PLAYWRIGHT`, Pillow) → `og-<slug>.png` ≤ 120 KB
 - `npm run build:cities` (every page changes: sister links and `areaServed` are derived)
 - hand-maintained surfaces: `sitemap.xml` (lastmod = JSON `updated`), `llms.txt` (link the URL), `terms.html` §12 (+ Last Updated and its sitemap lastmod), `privacy.html` city line (+ dates), `withdrawal.html` option + prose, the «Company & Markets» footers (index, apartments, try, your-money, how-it-works, apartment-detail, `design/pages-deco/pt.html`, `patch-lotto2.py`), `vercel.json` aliases
 
+## 5b · The hub and the network follow (nothing to hand-write, a few things to check)
+- `/desks` (`desks.html`, generated with the desks by the same `npm run build:cities`) reads every city JSON: a LIVE desk with `checkout: true` gets its board row (code, hours, clock, OPEN/CLOSED from `js/desk-calendar.js`), its arc and pin on the map, its gate chip, its column in «Renting rules, city by city» and its `Service` in the hub's JSON-LD (identical to its own page's); a draft gets a «NOT OPEN» row and a hollow dot — never a link, a price, an hour or an arc. Counts and lists are tokens (`{cities}`, `{n}`): no hub copy to edit
+- the hub REFUSES until: the desk's fares equal the other live desks' (label, price, condition, unit); `desk.person` is the same; every check `id` sits in one `rules.rows[].ids` of `cities/_hub.json` (add a new theme id to the right row); its «What we don't do» fact-sheet row says it does not list homes, represent/act for landlords, or promise a date; a fact a lawyer has not confirmed goes in `rules.hold` (`"<slug>:<id>": "<reason>"`, the hub shows the title only); the country has a name in `COUNTRY_NAME` (or its cell reads «—» with a warning)
+- the hub's `dateModified` is the newest `updated` of the hub and the live desks: the `/desks` `<lastmod>` in `sitemap.xml` must equal it (the build refuses otherwise)
+- every desk page's Network redraws (arcs from Rome, hollow dots for desks not open, the coast under them) and the arcs' bows are chosen over ALL desks: `arcViolations` refuses an arc drawn over a dot — if it fires, the new desk's position needs another bow, not a hidden dot
+- `python3 design/pages-deco/genera-og-cities.py --hub` when the live set changes (`og-desks.png` prints the live codes)
+- weights: the hub ≤ 78 KB gz (page 28, the coast is 3 KB of it); a desk page with the coast ≤ 82 — at the cap, the coast on the desk Network is the first cut
+
 ## 6 · Tests (all must be green before the PR)
-- `node tests/cities/run.mjs` (SLUGS alphabetical, live set, sister links, currency checks and refusal mutations), `checkout.mjs` (Stripe currency, webhook summary, withdrawal window), `calendar.mjs`, `BOOM_PLAYWRIGHT=… node tests/cities/ui.mjs` (loops, CLOCKS, a paid run for a non-EUR desk)
+- `node tests/cities/run.mjs` (SLUGS alphabetical, live set, sister links, currency checks and refusal mutations; THE HUB section: board rows, arcs = each desk's gold arc, pins, Services = each desk's, rules table), `checkout.mjs` (Stripe currency, webhook summary, withdrawal window), `calendar.mjs`, `BOOM_PLAYWRIGHT=… node tests/cities/ui.mjs` (loops, CLOCKS, a paid run for a non-EUR desk; `CITIES_UI_ONLY=hub` runs the hub alone — its clock cases name the desks by code, so a new live desk is a new row to add there)
 - then `npm test -- seo verita llmstxt crawl tenantfee consent cielo scroll testata`
 
 ## Known open items to hand the founder (never block validation on them, never hide them)
