@@ -42,11 +42,12 @@
 // cookie _ga/_gid e i contatti salvati. E nessuna pagina NUOVA può
 // chiamare gtag('config') senza un consent default «denied» prima.
 //
-// E le regole MORDONO: otto mutanti del vero js/boom-consent.js (il
+// E le regole MORDONO: nove mutanti del vero js/boom-consent.js (il
 // comportamento di prima, la misura della barra spenta, lo scorrimento
 // sordo, il timer dei 5s spento, .zz rimesso dentro la media query del
 // telefono, nessun ripensamento, il timer dal load, la misura solo per chi
-// parte da telefono) devono far cadere ciascuno la sua regola. Una guardia che non
+// parte da telefono, la Gate dei desk città fuori da «al lavoro») devono
+// far cadere ciascuno la sua regola. Una guardia che non
 // cade mai sul difetto che deve fermare non è una guardia.
 
 import fs from 'node:fs';
@@ -83,6 +84,10 @@ const sw = fs.readFileSync(path.join(R, 'sw.js'), 'utf8');
   // i desk città (data-consent-late): la targa aspetta solo ciò che coprirebbe DAVVERO —
   // in altezza E in larghezza (sul desktop sta a sinistra; il caso del browser è in tests/cities/ui.mjs)
   if (!/r\.bottom > box\.top && r\.top < box\.bottom && r\.right > box\.left && r\.left < box\.right/.test(src)) guai.push('meets() non chiede più la sovrapposizione orizzontale');
+  // v1.6: la Gate dei desk (#desk, con la porta tracciata #deskGo) e il gemello
+  // d'oro dell'header (#topGo) sono il lettore al lavoro: un tap lì non arma
+  if (!/closest\('#checkin, #pass, #contact, #desk, #topGo, dialog'\)/.test(src)) guai.push('lateInside() non conta più #desk e #topGo come «al lavoro»');
+  if (!/var dg = document\.getElementById\('deskGo'\);\s*if \(dg && meets\(dg, box\)\) return true;/.test(src)) guai.push('atWork() non aspetta più la porta della Gate (#deskGo)');
   guai.length ? male('sorgente di boom-consent.js:' + elenco(guai)) : bene('boom-consent.js: telefono compatto con lift e .zz, desktop a 700ms, eventi invariati');
 }
 {
@@ -700,6 +705,38 @@ async function ripensa(sorgente = null) {
       + '«Essential only» su /pre-arrival toglie boom_attr, _ga, _gid e i contatti; senza scelta i _ga già scritti spariscono, col consenso restano; #cookie-preferences riapre');
 }
 
+// ── v1.6: un tap sulla porta della Gate (#deskGo) non arma la targa ───────
+// I desk città aspettano la prima mossa del lettore FUORI dal suo lavoro:
+// un tap dentro la diagnosi, il pass, la Gate o il gemello d'oro è lavoro.
+// Controprova: un tap sulla didascalia della Rete la arma.
+async function gate(sorgente = null) {
+  const guai = [];
+  const pg = await apri('/amsterdam', 390, 844, { sorgente });
+  const visibile = () => pg.evaluate(() => { const el = document.querySelector('.boomcst'); return !!el && !el.classList.contains('zz') && getComputedStyle(el).visibility !== 'hidden'; });
+  try {
+    await pg.waitForTimeout(900);
+    if (await visibile()) guai.push('/amsterdam: la targa compare prima di qualunque mossa');
+    await pg.$eval('#deskGo', (e) => e.scrollIntoView({ block: 'center', behavior: 'instant' }));
+    await pg.waitForTimeout(250);
+    await pg.tap('#deskGo');
+    await pg.waitForTimeout(1500);
+    if (!(await pg.evaluate(() => document.activeElement && document.activeElement.id === 'fName'))) guai.push('/amsterdam: il tap su #deskGo non porta alla porta (fName)');
+    if (await visibile()) guai.push('/amsterdam: un tap su #deskGo ha armato la targa (è lavoro, non una mossa oltre)');
+    await pg.$eval('#network', (e) => e.scrollIntoView({ block: 'start', behavior: 'instant' }));
+    await pg.waitForTimeout(250);
+    await pg.tap('.net-c');
+    await pg.waitForTimeout(1500);
+    if (!(await visibile())) guai.push('/amsterdam: un tap sulla Rete non arma la targa (la controprova non regge)');
+  } catch (e) { guai.push('/amsterdam → ' + String(e.message || e).split('\n')[0]); }
+  finally { await pg.close(); }
+  return guai;
+}
+{
+  const guai = await gate();
+  guai.length ? male('la Gate dei desk:' + elenco(guai))
+    : bene('/amsterdam 390: un tap sulla porta della Gate (#deskGo) apre la porta e non arma la targa; un tap sulla Rete sì');
+}
+
 // ── le regole mordono: cinque mutanti del sorgente vero ───────────────────
 function muta(trova, metti) {
   const out = [];
@@ -799,6 +836,15 @@ function muta(trova, metti) {
     const r = (await Promise.all(['/pacchetto-concordato', '/faq'].map((u) => stringi(u, m8)))).flat();
     r.some((t) => /sta sopra/.test(t)) ? bene(`mutante «misura solo dal telefono» preso dalla regola della finestra ristretta (${r.filter((t) => /sta sopra/.test(t)).length} pagine)`)
       : male('mutante «misura solo dal telefono»: la regola della finestra ristretta non lo prende — non morde');
+  }
+
+  // M9 — v1.6 com'era: la Gate e il gemello d'oro fuori da «al lavoro»
+  const m9 = muta(["closest('#checkin, #pass, #contact, #desk, #topGo, dialog')"], ["closest('#checkin, #pass, #contact, dialog')"]);
+  if (!m9) male('mutante «Gate sorda»: il sorgente è cambiato, il mutante non si costruisce più');
+  else {
+    const r = await gate(m9);
+    r.some((t) => /un tap su #deskGo ha armato/.test(t)) ? bene('mutante «Gate sorda» preso dalla regola della porta della Gate')
+      : male(`mutante «Gate sorda»: la regola non lo prende (${r.join('; ') || 'nessun guasto'}) — non morde`);
   }
 }
 

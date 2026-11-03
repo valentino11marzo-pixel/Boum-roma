@@ -82,7 +82,11 @@
   "rome": {
     "rating": "4.9",
     "reviews": "47",
-    "profileUrl": "https://maps.google.com/?cid=15671179095441549815"
+    "profileUrl": "https://maps.google.com/?cid=15671179095441549815",
+    "geo": {
+      "lat": 41.9028,
+      "lon": 12.4964
+    }
   },
   "copyrightYear": "2026"
 }

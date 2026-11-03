@@ -3,10 +3,14 @@
   "city": "Amsterdam",
   "country": "NL",
   "iata": "AMS",
+  "geo": {
+    "lat": 52.3676,
+    "lon": 4.9041
+  },
   "live": true,
   "mode": "search",
   "config": {},
-  "updated": "2026-10-26",
+  "updated": "2026-11-03",
   "meta": {
     "title": "Tenant-side rental agent for expats in Amsterdam — BOOM",
     "description": "Apartment search for expats in Amsterdam, tenant side only: a Dutch-format dossier, applications sent as listings appear, viewings attended, contract checked.",
@@ -92,17 +96,20 @@
       {
         "k": "1 · Brief",
         "h": "A free call",
-        "p": "Dates, budget, who's moving. We tell you what your budget buys today."
+        "p": "Dates, budget, who's moving. We tell you what your budget buys today.",
+        "status": "FREE"
       },
       {
         "k": "2 · Your file",
         "h": "Dutch-format, one working day",
-        "p": "Dossier and motivation letter from your papers. Applications as listings appear."
+        "p": "Dossier and motivation letter from your papers. Applications as listings appear.",
+        "status": "1 WORK DAY"
       },
       {
         "k": "3 · Viewing & lease",
         "h": "A BOOM person in the room",
-        "p": "Live video and a written report. The contract checked against Dutch law before you sign."
+        "p": "Live video and a written report. The contract checked against Dutch law before you sign.",
+        "status": "IN PERSON"
       }
     ]
   },

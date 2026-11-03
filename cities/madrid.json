@@ -3,10 +3,14 @@
   "city": "Madrid",
   "country": "ES",
   "iata": "MAD",
+  "geo": {
+    "lat": 40.4168,
+    "lon": -3.7038
+  },
   "live": true,
   "mode": "search",
   "config": {},
-  "updated": "2026-10-26",
+  "updated": "2026-11-03",
   "meta": {
     "title": "Tenant-side rental agent for expats in Madrid — BOOM",
     "description": "Apartment search for expats in Madrid, tenant side only: a Spanish-format file, applications sent as listings appear, viewings attended, contract checked.",
@@ -93,17 +97,20 @@
       {
         "k": "1 · Brief",
         "h": "A free call",
-        "p": "Dates, budget, who's moving. We tell you what your budget buys today."
+        "p": "Dates, budget, who's moving. We tell you what your budget buys today.",
+        "status": "FREE"
       },
       {
         "k": "2 · Your file",
         "h": "Spanish-format, one working day",
-        "p": "Your file and a presentation letter in Spanish. Applications as listings appear."
+        "p": "Your file and a presentation letter in Spanish. Applications as listings appear.",
+        "status": "1 WORK DAY"
       },
       {
         "k": "3 · Viewing & lease",
         "h": "A BOOM person in the room",
-        "p": "Live video and a written report. Rent, deposit and lease type checked before you sign."
+        "p": "Live video and a written report. Rent, deposit and lease type checked before you sign.",
+        "status": "IN PERSON"
       }
     ]
   },
