@@ -140,6 +140,16 @@ firebase.json             Firebase deploy config (firestore + storage rules)
 | `sw.js` | Service worker (network-first HTML, cache-first static). |
 
 ### SmartLink annunci esterni (BOOM Tools)
+La lettura Safari riconosce ora il wrapper Idealista `.image-gallery-slide-wrapper`, osservato il 3/11 sull'annuncio 37221750: il vecchio `#main-multimedia` era presente ma vuoto.
+La prova DOM conteneva soltanto due foto e il contatore `1/15`, senza JSON-LD: il payload resta incompleto 2/15, non inventa i dati mancanti e non autorizza la pubblicazione della galleria incompleta.
+La fixture in `tests/smartlink/share.mjs` conserva questa evidenza, esclude avatar/raccomandazioni e verifica per mutazione selettore e ambito della galleria; acquisire tutte le foto resta un collaudo separato.
+Dal 3/11 il bundle Safari consegna il risultato con `completion` esterno e incorpora soltanto commenti `/* ... */`: il confronto nativo Mac ha isolato il fallimento della chiamata annidata e dei commenti `//`.
+Il generatore rifiuta commenti di riga nei motori; la regressione esegue lo stesso payload anche senza separatori di riga. Il modello protegge il formato osservato, senza attribuirlo a una regola Apple documentata.
+Il motore completo ha restituito la diagnostica prevista su una pagina BOOM; il collaudo annuncio/galleria e la pubblicazione autenticata restano verifiche separate.
+Dal 2/11 il percorso Safari riconosce anche la galleria Idealista osservata `/immobile/{id}/foto/{numero}/`: conserva la pagina visitata, ma pubblica l'URL base; canonical e dati strutturati devono appartenere allo stesso ID.
+Il pacchetto Comandi Rapidi collega esplicitamente risultato JavaScript → appunti e URL costante → apertura tramite UUID/`WFInput`; i campi impliciti lasciavano il trasporto non verificato nel comando nativo.
+Le regressioni in `tests/smartlink/share.mjs` e `tools/smartlink-shortcut/test.mjs` ripristinano per mutazione route, identità e collegamenti mancanti/scambiati. I due motori restano incorporati e il comando va rifirmato a ogni build.
+Permessi Safari, installazione del file firmato e importazione effettiva delle fotografie sono prove distinte: un comando installato e test automatici verdi non certificano il collaudo completo sul dispositivo.
 Dal 31/10 è disponibile un percorso Safari in anteprima: il comando «Crea SmartLink BOOM» legge soltanto la pagina già aperta e copia un payload minimo negli appunti locali; il Portal lo importa dopo un tocco esplicito e con la sessione admin esistente.
 `smartlink-share-engine.js` è il motore comune incorporato nel comando: identità Immobiliare/Idealista, galleria circoscritta, 128 KiB e 60 foto. Nessun fetch della pagina, cookie, storage, API nascosta o codice remoto; il download delle foto usa l'ordinario `import-photo`, che può essere negato dalla fonte.
 Galleria dichiarata incompleta o download falliti fermano la pubblicazione; il totale ignoto richiede confronto dell'operatore. I dati ricevuti da Safari conservano `historicalData:true`, senza attribuire loro una verifica automatica odierna.
