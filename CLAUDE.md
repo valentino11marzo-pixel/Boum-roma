@@ -140,6 +140,9 @@ firebase.json             Firebase deploy config (firestore + storage rules)
 | `sw.js` | Service worker (network-first HTML, cache-first static). |
 
 ### SmartLink annunci esterni (BOOM Tools)
+Dal 3/11 il bundle Safari consegna il risultato con `completion` esterno e incorpora soltanto commenti `/* ... */`: il confronto nativo Mac ha isolato il fallimento della chiamata annidata e dei commenti `//`.
+Il generatore rifiuta commenti di riga nei motori; la regressione esegue lo stesso payload anche senza separatori di riga. Il modello protegge il formato osservato, senza attribuirlo a una regola Apple documentata.
+Il motore completo ha restituito la diagnostica prevista su una pagina BOOM; il collaudo annuncio/galleria e la pubblicazione autenticata restano verifiche separate.
 Dal 2/11 il percorso Safari riconosce anche la galleria Idealista osservata `/immobile/{id}/foto/{numero}/`: conserva la pagina visitata, ma pubblica l'URL base; canonical e dati strutturati devono appartenere allo stesso ID.
 Il pacchetto Comandi Rapidi collega esplicitamente risultato JavaScript → appunti e URL costante → apertura tramite UUID/`WFInput`; i campi impliciti lasciavano il trasporto non verificato nel comando nativo.
 Le regressioni in `tests/smartlink/share.mjs` e `tools/smartlink-shortcut/test.mjs` ripristinano per mutazione route, identità e collegamenti mancanti/scambiati. I due motori restano incorporati e il comando va rifirmato a ogni build.

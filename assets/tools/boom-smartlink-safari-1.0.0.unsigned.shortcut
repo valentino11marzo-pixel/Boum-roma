@@ -37,13 +37,13 @@
         <key>UUID</key>
         <string>2C72F043-4E2D-4635-851B-12AB70D6E6D1</string>
         <key>WFJavaScript</key>
-        <string>(function () {
+        <string>completion((function () {
   &apos;use strict&apos;;
   let output = &quot;{\&quot;kind\&quot;:\&quot;boom.smartlink.share\&quot;,\&quot;version\&quot;:1,\&quot;error\&quot;:\&quot;capture_unavailable\&quot;}&quot;;
   try {
     const window = Object.create(null);
     const module = undefined;
-// js/smartlink-engine.js sha256:5facfaa3d6e1c09cd32526b314c9100d3325e5857fe7468294f0c2cce8fc7d11
+/* js/smartlink-engine.js sha256:36fb6570063fb5a331bb991b93026d176ff23733d51f90df5aa5897bdb8fac75 */
 /* SmartLink esterni: regole pure condivise da portale e API. */
 (function (root) {
   &apos;use strict&apos;;
@@ -66,17 +66,17 @@
       if (!source || u.pathname === &apos;/&apos; || u.pathname.length &lt; 5) return null;
       u.protocol = &apos;https:&apos;;
       u.hash = &apos;&apos;;
-      // Gli URL condivisi non conservano parametri di sessione o tracking.
+      /* Gli URL condivisi non conservano parametri di sessione o tracking. */
       u.search = &apos;&apos;;
       return { url: u.toString(), source: source.name };
     } catch { return null; }
   }
-  // Identità dell&apos;archivio: non cambia gli URL usati per leggere la fonte.
+  /* Identità dell&apos;archivio: non cambia gli URL usati per leggere la fonte. */
   function storedListing(raw) {
     const source = normalizeUrl(raw);
     if (!source) return null;
     const value = String(raw || &apos;&apos;).trim();
-    // URL() elimina le porte predefinite e le credenziali vuote: non sono alias archivio.
+    /* URL() elimina le porte predefinite e le credenziali vuote: non sono alias archivio. */
     const authority = value.replace(/[\t\r\n]/g, &apos;&apos;).match(/^https?:\/\/([^/?#\\]+)/i)?.[1];
     if (!authority || /[:@]/.test(authority)) return null;
     const u = new URL(source.url);
@@ -108,7 +108,7 @@
     &apos;Immobiliare.it&apos;: /^(?:[a-z0-9-]+\.)?im-cdn\.it$/,
     &apos;Idealista&apos;: /^(?:[a-z0-9-]+\.)?idealista\.(?:it|com)$/,
     &apos;Subito&apos;: /^(?:[a-z0-9-]+\.)?subito\.it$/,
-    // La galleria SmartLink CasaFari conserva anche il CDN originale Immobiliare.
+    /* La galleria SmartLink CasaFari conserva anche il CDN originale Immobiliare. */
     &apos;Casafari&apos;: /^(?:[a-z0-9-]+\.)?(?:casafari\.com|im-cdn\.it)$/,
     &apos;Casa.it&apos;: /^(?:[a-z0-9-]+\.)?casa\.it$/,
   };
@@ -117,7 +117,7 @@
       const value = String(raw || &apos;&apos;).replace(/\\u002f/gi, &apos;/&apos;).replace(/\\\//g, &apos;/&apos;).replace(/&amp;amp;/gi, &apos;&amp;&apos;);
       const u = new URL(value);
       if (u.protocol !== &apos;https:&apos; || u.port || u.username || u.password || u.hash) return null;
-      // CDN delle fotografie Subito osservato nella galleria pubblica: URL senza estensione.
+      /* CDN delle fotografie Subito osservato nella galleria pubblica: URL senza estensione. */
       if(sourceName===&apos;Subito&apos; &amp;&amp; u.hostname===&apos;images.sbito.it&apos;) {
         if(!/^\/api\/v1\/sbt-ads-images-pro\/images\/[0-9a-f]{2}\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(u.pathname)) return null;
         u.search=&apos;?rule=fullscreen-1x-auto&apos;;
@@ -173,8 +173,8 @@
     if (unique.length !== images.length || unique.some(url =&gt; !validImageUrl(url, key))) return null;
     return unique;
   }
-  // Foto già appartenenti allo stesso annuncio BOOM, anche da un&apos;altra bozza.
-  // La verifica si ripete sul server: il browser non può autorizzare un riuso.
+  /* Foto già appartenenti allo stesso annuncio BOOM, anche da un&apos;altra bozza. */
+  /* La verifica si ripete sul server: il browser non può autorizzare un riuso. */
   function reusableImages(record, sourceUrl, images, draftKey) {
     if (record?.active !== true || !sameListingUrl(record.sourceUrl, sourceUrl)) return null;
     if (!Array.isArray(images) || !images.length || images.length &gt; MAX_PHOTOS || new Set(images).size !== images.length) return null;
@@ -243,8 +243,8 @@
     const { title, price, zone, sqm, rooms, note, images, map, observedAt, availability } = d;
     return { title: publicText(title,130) || &apos;Una casa a Roma&apos;, price, zone:publicText(zone,90), sqm, rooms, note:publicText(note,400), images: Array.isArray(images) ? images.filter(validPublicImageUrl).slice(0,MAX_PHOTOS) : [], map: map ? { ...map, label:publicText(map.label,70) || &apos;Roma&apos; } : null, observedAt, availability };
   }
-  // Un retry conferma la stessa pubblicazione, mai dati diversi sotto lo stesso link.
-  // Le date server cambiano a ogni tentativo e non fanno parte della proposta.
+  /* Un retry conferma la stessa pubblicazione, mai dati diversi sotto lo stesso link. */
+  /* Le date server cambiano a ogni tentativo e non fanno parte della proposta. */
   function samePublication(a, b) {
     const content = d =&gt; ({
       title:cleanText(d?.title,130) || &apos;Una casa a Roma&apos;,price:positiveNumber(d?.price,1000000),
@@ -260,7 +260,7 @@
   if (root) root.BOOM_SMARTLINK = API;
 })(typeof window !== &apos;undefined&apos; ? window : this);
 
-// js/smartlink-share-engine.js sha256:3d42d6da8b8eadc92c8ca6729698991d920f9b4c3239d7fe2cb752d4627930cc
+/* js/smartlink-share-engine.js sha256:98d7536fe0f65c9a017c2c75b8e73dbda2c4c49659fa2181ce58931bb427af1b */
 /* Safari Share: legge solo il documento che l&apos;operatore ha già aperto. */
 (function (root) {
   &apos;use strict&apos;;
@@ -281,7 +281,7 @@
       const match=route &amp;&amp; u.pathname.match(route), id=match?.[1];
       if(!id || ![host,&apos;www.&apos;+host].includes(u.hostname)) return null;
       const page=RULES.normalizeUrl(raw);
-      // La galleria navigata resta la pagina osservata; la scheda usa l&apos;annuncio base.
+      /* La galleria navigata resta la pagina osservata; la scheda usa l&apos;annuncio base. */
       return {...page,url:match[2]?u.origin+&apos;/immobile/&apos;+id+&apos;/&apos;:page.url,pageUrl:page.url,host,id};
     } catch {return null;}
   }
@@ -321,7 +321,7 @@
       return {ok:true,source:{url:source.url,source:source.source},data,images,gallery:{expected:gallery.expected,found:images.length},capturedAt:at};
     } catch {return fail(&apos;invalid_payload&apos;);}
   }
-  // Nessuna lettura globale delle immagini: i suggerimenti di altre case restano fuori.
+  /* Nessuna lettura globale delle immagini: i suggerimenti di altre case restano fuori. */
   const GALLERIES={
     &apos;immobiliare.it&apos;:[&apos;.in-gallery&apos;,&apos;[data-testid=&quot;listing-gallery&quot;]&apos;,&apos;[data-testid=&quot;gallery&quot;]&apos;],
     &apos;idealista.it&apos;:[&apos;#main-multimedia&apos;,&apos;.detail-multimedia&apos;,&apos;.multimedia-container&apos;,&apos;[data-testid=&quot;listing-gallery&quot;]&apos;],
@@ -350,7 +350,7 @@
           try {return typeof identity===&apos;string&apos;?listing(new URL(identity,source.url).toString()):null;} catch {return null;}
         });
         const own=resolved[0] || null;
-        // Un&apos;identità esplicita diversa non eredita mai quella della pagina padre.
+        /* Un&apos;identità esplicita diversa non eredita mai quella della pagina padre. */
         const inconsistent=resolved.some(identity=&gt;!same(source,identity));
         const linked=identities.length ? (inconsistent?null:own) : inherited;
         if(property &amp;&amp; linked) {
@@ -359,7 +359,7 @@
         }
         if(property &amp;&amp; inconsistent) foreign=true;
         if(value[&apos;@graph&apos;]) collect(value[&apos;@graph&apos;],null,depth+1);
-        // Solo l&apos;entità principale, mai ItemList/recommendation/offers.itemListElement.
+        /* Solo l&apos;entità principale, mai ItemList/recommendation/offers.itemListElement. */
         if(value.mainEntity) collect(value.mainEntity,inconsistent?null:own,depth+1);
         if(property &amp;&amp; value.itemOffered) collect(value.itemOffered,linked,depth+1);
       };
@@ -389,7 +389,7 @@
       for(const gallery of galleries) {
         count(gallery.getAttribute(&apos;data-total&apos;));count(gallery.getAttribute(&apos;data-count&apos;));
         for(const img of gallery.querySelectorAll(&apos;img&apos;)) {
-          // La prima variante valida per la foto prevale; nessuna URL viene inventata.
+          /* La prima variante valida per la foto prevale; nessuna URL viene inventata. */
           for(const raw of [img.getAttribute(&apos;data-original&apos;),img.getAttribute(&apos;data-src&apos;),img.currentSrc,img.getAttribute(&apos;src&apos;)]) if(add(raw)) break;
         }
       }
@@ -423,10 +423,10 @@
       output = JSON.stringify({kind:&apos;boom.smartlink.share&apos;,version:1,error:result.error});
     }
   } catch (_) {
-    // La diagnostica non include eccezioni, HTML o altri dati della pagina.
+    /* La diagnostica non include eccezioni, HTML o altri dati della pagina. */
   }
-  completion(output);
-})();
+  return output;
+})());
 </string>
       </dict>
     </dict>

@@ -18,17 +18,21 @@ const failure = error => JSON.stringify({kind:'boom.smartlink.share',version:1,e
 const sha256 = source => createHash('sha256').update(source).digest('hex');
 
 export function buildCaptureScript(rulesSource, shareSource) {
+  for (const [name, source] of [['rules', rulesSource], ['share', shareSource]]) {
+    if (/^[ \t]*\/\//m.test(source)) throw new Error(`Shortcut ${name} source must use block comments, not line comments`);
+  }
   // I due UMD hanno un root locale: non leggono eventuali omonimi della pagina.
-  // completion è fuori dal try: viene invocata una volta anche in caso di errore.
-  return `(function () {
+  // Il callback esterno conserva anche il valore dell'espressione finale: compatibilità
+  // osservata con l'azione Safari sul Mac, senza cambiare il payload o il suo isolamento.
+  return `completion((function () {
   'use strict';
   let output = ${JSON.stringify(failure('capture_unavailable'))};
   try {
     const window = Object.create(null);
     const module = undefined;
-// js/smartlink-engine.js sha256:${sha256(rulesSource)}
+/* js/smartlink-engine.js sha256:${sha256(rulesSource)} */
 ${rulesSource}
-// js/smartlink-share-engine.js sha256:${sha256(shareSource)}
+/* js/smartlink-share-engine.js sha256:${sha256(shareSource)} */
 ${shareSource}
     const api = window.BOOM_SMARTLINK_SHARE;
     const result = api.capture(document, location.href);
@@ -42,10 +46,10 @@ ${shareSource}
       output = JSON.stringify({kind:'boom.smartlink.share',version:1,error:result.error});
     }
   } catch (_) {
-    // La diagnostica non include eccezioni, HTML o altri dati della pagina.
+    /* La diagnostica non include eccezioni, HTML o altri dati della pagina. */
   }
-  completion(output);
-})();
+  return output;
+})());
 `;
 }
 

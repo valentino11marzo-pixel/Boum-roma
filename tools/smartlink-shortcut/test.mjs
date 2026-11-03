@@ -24,14 +24,18 @@ const fixture={
 };
 function run(script,{document=fixture,url=sourceUrl}={}) {
   const outputs=[];
+  const completionValue='BOOM-completion-return';
   const untouched={BOOM_SMARTLINK_SHARE:{capture(){throw new Error('Page global must not run');}}};
   const context={document,location:{href:url},URL,TextEncoder,window:untouched,module:{exports:{}},
-    completion:value=>outputs.push(value),
+    completion:value=>{outputs.push(value);return completionValue;},
     fetch(){throw new Error('Network is forbidden');},
   };
   Object.defineProperty(document,'cookie',{get(){throw new Error('Cookies are forbidden');},configurable:true});
-  vm.runInNewContext(script,context,{timeout:1000});
+  const scriptValue=vm.runInNewContext(script,context,{timeout:1000});
   assert.equal(outputs.length,1,'completion must run exactly once');
+  // Observed Mac action compatibility: do not discard completion's expression result
+  // inside an outer IIFE. This is a regression model, not a documented Apple rule.
+  assert.equal(scriptValue,completionValue,'the outer expression must preserve the completion result');
   assert.equal(context.window,untouched,'page window must not be replaced');
   assert.equal(context.window.BOOM_SMARTLINK,undefined,'rules must stay inside the shortcut scope');
   assert.equal(typeof outputs[0],'string','clipboard receives a JSON string');
@@ -63,6 +67,8 @@ assert.equal(artifact,buildArtifact(),'artifact is deterministic');
 
 const script=workflow.WFWorkflowActions[0].WFWorkflowActionParameters.WFJavaScript;
 assert.ok(script.includes(rulesSource) && script.includes(shareSource),'both engines are embedded verbatim');
+assert.throws(()=>buildCaptureScript('// Reintroduced rules comment\n'+rulesSource,shareSource),/rules source must use block comments/);
+assert.throws(()=>buildCaptureScript(rulesSource,'  // Reintroduced share comment\n'+shareSource),/share source must use block comments/);
 const captured=run(script);
 assert.equal(captured.kind,'boom.smartlink.share');
 assert.equal(captured.version,1);
@@ -71,6 +77,18 @@ assert.equal(captured.data.title,'Casa & luce <Roma>');
 assert.equal(captured.data.price,1500);
 assert.deepEqual(captured.images,photos,'gallery beyond 12 photos reaches the clipboard');
 assert.equal('ok' in captured,false,'only the payload is copied, not the capture result envelope');
+// Native Mac probes failed with line comments, and succeeded without them. Flattening
+// is a regression stress test, not a claim about Apple's undocumented bridge internals.
+const flatten=code=>code.replace(/\r\n?|\n/g,' ');
+const expectFlattened=code=>{
+  const flattened=run(flatten(code));
+  assert.deepEqual({...flattened,capturedAt:captured.capturedAt},captured,'line layout must not change the captured payload');
+};
+expectFlattened(script);
+assert.deepEqual(run(flatten(script),{url:'https://www.boomrome.com/'}),diagnostic('unsupported_listing_url'));
+const lineComment=script.replace("  'use strict';","  'use strict';\n  // Reintroduced native incompatibility");
+assert.notEqual(lineComment,script);
+assert.throws(()=>expectFlattened(lineComment),error=>error.name==='SyntaxError','mutation: a reintroduced line comment must break the flattened script');
 function resolveNativeInputs(actions, javascriptResult) {
   const outputs=new Map();
   let clipboard, opened;
@@ -119,6 +137,9 @@ const expectBounded=code=>assert.deepEqual(run(code),diagnostic('payload_too_lar
 expectBounded(oversized);
 assert.throws(()=>expectBounded(oversized.replace('new TextEncoder().encode(serialized).length <= api.MAX_BYTES','true')),assert.AssertionError,'mutation: unbounded clipboard output must fail');
 assert.throws(()=>run(script.replace('const window = Object.create(null);','const window = globalThis.window;')),assert.AssertionError,'mutation: writing to page globals must fail');
+const nestedCompletion=script.replace(/^completion\(\(function \(\) \{/,'(function () {').replace('  return output;\n})());','  completion(output);\n})();');
+assert.notEqual(nestedCompletion,script);
+assert.throws(()=>run(nestedCompletion),assert.AssertionError,'mutation: nested completion discarding its result must fail');
 
 // macOS native plist parser verifies escaping and the complete action dictionary, without
 // importing, signing, installing or executing a shortcut. Linux CI still runs all JS checks.
@@ -126,7 +147,7 @@ if(process.platform==='darwin') {
   const parsed=JSON.parse(execFileSync('/usr/bin/plutil',['-convert','json','-o','-','-'],{input:artifact,encoding:'utf8',maxBuffer:1024*1024}));
   assert.deepEqual(parsed,workflow,'native plist roundtrip preserves exact JS and action inputs');
 }
-console.log('SmartLink Shortcut source: PASS (explicit inputs, 20 photos, bounded diagnostics, 5 mutations; native execution not tested)');
+console.log('SmartLink Shortcut source: PASS (external completion, explicit inputs, line-layout stress, 20 photos, bounded diagnostics, 7 mutations; full native workflow not tested)');
 assert.ok(artifact===readFileSync(resolve(REPO_ROOT,OUTPUT_RELATIVE),'utf8'),'committed artifact must include current engines and native input references');
 const manifestPath=resolve(REPO_ROOT,MANIFEST_RELATIVE), signedPath=resolve(REPO_ROOT,SIGNED_RELATIVE);
 if(existsSync(signedPath)) {
@@ -137,4 +158,4 @@ if(existsSync(signedPath)) {
   assert.equal(manifest.unsigned.sha256,createHash('sha256').update(artifact).digest('hex'),'unsigned release must match manifest even without signed binary');
   for(const source of manifest.sources) assert.equal(source.sha256,createHash('sha256').update(readFileSync(resolve(REPO_ROOT,source.path))).digest('hex'),'source release must match manifest');
 }
-console.log('SmartLink Shortcut: PASS (4 actions, explicit output references, local clipboard, embedded capture, 20 photos, bounded diagnostics, 5 mutations; native execution not tested)');
+console.log('SmartLink Shortcut: PASS (4 actions, external completion, explicit output references, local clipboard, embedded capture, line-layout stress, 20 photos, bounded diagnostics, 7 mutations; full native workflow not tested)');

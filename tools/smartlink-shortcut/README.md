@@ -20,6 +20,10 @@ L'artefatto XML plist è riproducibile: stessi motori, stessi byte. Il generator
 identificano le copie incorporate. Non scarica codice e non aggiunge dipendenze.
 Il controllo `--check` fallisce se uno dei due motori è cambiato dopo la build.
 Rigenerare il file e ricreare la copia firmata dopo ogni aggiornamento dei motori.
+I sorgenti incorporati e il wrapper usano commenti a blocco `/* ... */`; la build
+rifiuta righe di commento `//` nei motori, senza riscriverne automaticamente il codice.
+I test eseguono anche il bundle con le interruzioni di riga sostituite da spazi e
+verificano lo stesso payload. Reinserire un commento di riga fa cadere questa prova.
 
 Quattro azioni native, con collegamenti espliciti tra gli output:
 
@@ -36,6 +40,8 @@ risoluzione dei riferimenti e rilevano la loro rimozione o lo scambio con il pay
 
 Il JS legge la pagina ricevuta, senza richieste, cookie, storage o credenziali.
 I due UMD usano un oggetto locale, senza affidarsi a globals della pagina.
+Il blocco isolato restituisce la stringa a una sola chiamata esterna
+`completion((function () { /* lettura e controlli */ return output; })());`.
 Negli appunti finiscono il payload validato oppure un codice errore chiuso;
 mai HTML integrale, stack o messaggi di eccezione. Limiti del motore: 128 KiB,
 60 foto, indirizzi e fonti consentiti. La copia sostituisce gli appunti correnti.
@@ -97,6 +103,22 @@ attivo**. Non è stata aggiunta un'azione che legge un altro browser: si mantien
 la risoluzione della pagina prevista dall'azione Apple. Il primo `WFInput` non è
 forzato a `ExtensionInput`, per conservare questo comportamento; su iPhone il
 comando riceve la pagina dal menu Condividi.
+
+Nel collaudo locale del 3 novembre 2026 una prova minima con `completion(...)`
+dentro una IIFE restituiva l'avviso generico Apple Events, mentre la stessa
+stringa restituita dalla IIFE a `completion(...)` esterno arrivava correttamente.
+Il generatore usa questa seconda forma e il test rileva la perdita del valore
+dell'espressione esterna. È una compatibilità osservata su quel runtime, non una
+restrizione documentata da Apple; non prova ancora il flusso completo o l'iPhone.
+
+Nella stessa sessione un commento `//` faceva fallire anche una prova minima;
+tolti i commenti di riga, il codice completo ha restituito correttamente il JSON
+`unsupported_listing_url` sulla pagina BOOM usata come controllo. I commenti dei
+motori e del wrapper sono quindi scritti a blocco, lasciando i motori incorporati
+verbatim. Il test che elimina le interruzioni di riga è una regressione prudenziale,
+non una descrizione accertata del ponte interno Apple. Questa prova nativa certifica
+soltanto l'esecuzione del codice sul controllo: dati e fotografie di un annuncio,
+catena delle quattro azioni e condivisione iPhone richiedono collaudi distinti.
 
 Il percorso documentato da Apple sul Mac è Safari → Servizi. Se il comando non
 compare, nei dettagli del comando abilitare Menu Servizi e limitare l'input a

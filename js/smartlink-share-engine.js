@@ -18,7 +18,7 @@
       const match=route && u.pathname.match(route), id=match?.[1];
       if(!id || ![host,'www.'+host].includes(u.hostname)) return null;
       const page=RULES.normalizeUrl(raw);
-      // La galleria navigata resta la pagina osservata; la scheda usa l'annuncio base.
+      /* La galleria navigata resta la pagina osservata; la scheda usa l'annuncio base. */
       return {...page,url:match[2]?u.origin+'/immobile/'+id+'/':page.url,pageUrl:page.url,host,id};
     } catch {return null;}
   }
@@ -58,7 +58,7 @@
       return {ok:true,source:{url:source.url,source:source.source},data,images,gallery:{expected:gallery.expected,found:images.length},capturedAt:at};
     } catch {return fail('invalid_payload');}
   }
-  // Nessuna lettura globale delle immagini: i suggerimenti di altre case restano fuori.
+  /* Nessuna lettura globale delle immagini: i suggerimenti di altre case restano fuori. */
   const GALLERIES={
     'immobiliare.it':['.in-gallery','[data-testid="listing-gallery"]','[data-testid="gallery"]'],
     'idealista.it':['#main-multimedia','.detail-multimedia','.multimedia-container','[data-testid="listing-gallery"]'],
@@ -87,7 +87,7 @@
           try {return typeof identity==='string'?listing(new URL(identity,source.url).toString()):null;} catch {return null;}
         });
         const own=resolved[0] || null;
-        // Un'identità esplicita diversa non eredita mai quella della pagina padre.
+        /* Un'identità esplicita diversa non eredita mai quella della pagina padre. */
         const inconsistent=resolved.some(identity=>!same(source,identity));
         const linked=identities.length ? (inconsistent?null:own) : inherited;
         if(property && linked) {
@@ -96,7 +96,7 @@
         }
         if(property && inconsistent) foreign=true;
         if(value['@graph']) collect(value['@graph'],null,depth+1);
-        // Solo l'entità principale, mai ItemList/recommendation/offers.itemListElement.
+        /* Solo l'entità principale, mai ItemList/recommendation/offers.itemListElement. */
         if(value.mainEntity) collect(value.mainEntity,inconsistent?null:own,depth+1);
         if(property && value.itemOffered) collect(value.itemOffered,linked,depth+1);
       };
@@ -126,7 +126,7 @@
       for(const gallery of galleries) {
         count(gallery.getAttribute('data-total'));count(gallery.getAttribute('data-count'));
         for(const img of gallery.querySelectorAll('img')) {
-          // La prima variante valida per la foto prevale; nessuna URL viene inventata.
+          /* La prima variante valida per la foto prevale; nessuna URL viene inventata. */
           for(const raw of [img.getAttribute('data-original'),img.getAttribute('data-src'),img.currentSrc,img.getAttribute('src')]) if(add(raw)) break;
         }
       }
