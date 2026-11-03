@@ -962,7 +962,10 @@ s = s.replace(CODA_A, """</script>
   });
 
   righe.forEach(function (r) {
+    var visto = r.open;  /* il toggle del markup (la prima nasce open) non e' un gesto */
     r.addEventListener('toggle', function () {
+      if (r.open === visto) return;
+      visto = r.open;
       if (r.open) {
         [].forEach.call(r.querySelectorAll('.sale'), function (e) {
           e.classList.add('dentro');

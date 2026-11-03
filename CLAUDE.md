@@ -8579,6 +8579,43 @@ grida al lupo si smette di ascoltarla. Soglia CLS 0,02, dieci volte sotto
 il «buono» di Google. Il test blocca ogni richiesta non locale: un test di
 layout non deve dipendere dalla rete.
 
+**Il link profondo aperto da fuori (03/11/2026).** La misura partiva nella
+`<head>`, senza `<body>`: `elementsFromPoint` non trovava niente e lo script
+scriveva `--boom-barra:0px` sopra il ripiego da 76px. Chi apriva
+`/pagina#sezione` da un messaggio atterrava con 18px di margine, il titolo
+sotto la barra (al primo giro del test 29 combinazioni pagina×larghezza; `services#tenants` col
+testo a 17px sotto una barra di 113). La rimisura al `load` arrivava dopo e
+nessuno riscorreva; la regola delle ancore non lo vedeva perché chiama
+`scrollIntoView()` a pagina caricata. Ora la prima misura aspetta il
+documento (`readyState`, poi DOMContentLoaded + un fotogramma) e al `load`,
+se il margine è cambiato DOPO che il browser aveva già portato la sezione in
+cima col valore vecchio, la si riporta una volta — solo su navigazione nuova
+(mai su ricarica o indietro) e solo se il lettore non ha toccato niente
+(rotella, dito, tasto, clic; mai l'evento `scroll`, che il frammento genera da
+sé). La regola 4 di `tests/scroll` apre ogni pagina della sitemap a 390 e 1440
+da `about:blank` col frammento (la prima sezione con id che obbliga a
+scorrere), aspetta load + 1s e lo scorrimento fermo, e pretende il primo testo
+sotto la barra — o, senza barra, la sezione al margine senza buco. La regola 5
+prova che morde: `services` con la misura nella head torna sotto la barra, e
+una pagina finta la cui barra cresce 40→100px fra il frammento e il `load`
+viene recuperata, non viene toccata se il lettore ha premuto un tasto, e resta
+sotto la barra senza il recupero. Undici pagine non hanno una sezione da
+raggiungere scorrendo e il test le nomina.
+La regola ha trovato due difetti delle pagine, non della misura:
+`property-finding` e i sei servizi a console (`concierge`, `deal-assistance`,
+`deposit-recovery`, `remote-move-pack`, `virtual-viewing`,
+`contract-check-express`) hanno la prima domanda `<details open>` nel markup,
+che dopo il parsing emette un `toggle`; se il listener arrivava in tempo
+faceva `replaceState('#q1')` PRIMA che il browser leggesse il frammento —
+sul telefono `/property-finding#lastra` finiva su q1 una volta su due, l'URL
+del visitatore riscritto, q1 segnata come letta e un `pfs_q_open` falso in
+GA. Ora il listener agisce solo se lo stato `open` cambia davvero rispetto
+all'ultimo visto (anche nei builder `console_motore.py` e
+`costruisci-console.py`). E `faq.html` centrava QUALSIASI id col suo
+`goToFaq()`: `#faqSection`, alta tremila pixel, atterrava a metà; ora si
+centra solo una `.q-card`. Lo scorrimento al frammento su iPhone vero resta da
+guardare: Chromium non ha l'àncora di WebKit.
+
 ## La striscia dell'orologio su iPhone (css/boom-scroll.css + tests/cielo, 22/10/2026)
 
 «L'header resta bloccato e il sito scorre sopra di lei», su iPhone/Safari, a

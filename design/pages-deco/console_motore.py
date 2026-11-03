@@ -216,7 +216,10 @@ def costruisci(spec, css, piede_prove):
     if (f >= 2) basta.classList.add('viva');
   }}
   righe.forEach(function (r) {{
+    var visto = r.open;  /* il toggle del markup (la prima nasce open) non e' un gesto */
     r.addEventListener('toggle', function () {{
+      if (r.open === visto) return;
+      visto = r.open;
       if (r.open) {{
         r.classList.add('letta'); ricorda(r.id);
         try {{ history.replaceState(null, '', '#' + r.id); }} catch (e) {{}}
