@@ -52,6 +52,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import crypto from 'node:crypto';
 import {
   buildAll, renderCity, writeAll, fill, findPlaceholders, fragments, familyFor, BuildError, esc, eur, money, currencyOf, GENERATED_MARK, WEIGHT_KB, BUDGET,
   daysLabel, deskHoursText, feesRowOf, holidayKeyOf, visibleAtLoad, visibleText, sliceOf, words, waHref, WITHDRAWAL_PATH, TERMS_PATH,
@@ -143,6 +144,8 @@ check(WEIGHT_KB.total <= 82 && WEIGHT_KB.js <= 14 && WEIGHT_KB.css <= 15 && WEIG
   fs.rmSync(tmpW, { recursive: true, force: true });
 }
 const PAGE = Object.fromEntries(pages.map((p) => [p.slug, p.html]));
+// the coast drawing (P4, optional): design/pages-deco/genera-europa.py → cities/_europe.json
+const EUROPE = fs.existsSync(path.join(R, 'cities/_europe.json')) ? JSON.parse(fs.readFileSync(path.join(R, 'cities/_europe.json'), 'utf8')) : null;
 const html = PAGE.amsterdam;
 
 // ── 2 · the Amsterdam page, as built ──────────────────────────────────────
@@ -421,6 +424,11 @@ check(!/id="contact"/.test(html) && /<article class="pass" id="pass"/.test(html)
       && dots.filter((d) => d[0] === 'd off').length === offSis.length,
       `${s}: the desks not open (${offSis.map((x) => x.iata).join(', ')}) are hollow dots (fill="none") at their real coordinates, and NO arc ends at them (an arc means "operated from Rome")`);
     check(ring && ring[1] === rx && ring[2] === ry && ring[3] === 10 && ring[4] && map.indexOf('class="hub-r"') > map.indexOf('class="hub"'), `${s}: Rome, the hub, wears its ring (r 10, hollow)`);
+    // the coast (P4): Natural Earth's land cut to this map's box (cities/_europe.json `desk`), drawn as a
+    // dot matrix clipped to it, under the arcs; the same drawing as the hub, never a second source
+    if (EUROPE) check(map.includes(`<clipPath id="netCoast" clip-rule="evenodd"><path d="${EUROPE.desk}"/></clipPath>`) && /<rect class="m-land" width="600" height="420" fill="url\(#netLand\)" clip-path="url\(#netCoast\)"\/>/.test(map)
+      && map.indexOf('class="m-land"') > map.indexOf('class="m-bg"') && map.indexOf('class="m-land"') < map.indexOf('<path class="arc'),
+      `${s}: the coast lies under the network (land dots clipped to cities/_europe.json \`desk\`, before the arcs)`);
     const offLab = [...map.matchAll(/<text class="m-l off(?: l)?"[^>]*>([A-Z]{3})<\/text>/g)].map((m) => m[1]);
     check(offLab.join() === offSis.map((x) => x.iata).join(), `${s}: each desk not open carries its code, dimmed (m-l off): ${offLab.join(', ')}`);
     const key = sliceOf(h, '<p class="net-k"', '</p>');
@@ -1413,8 +1421,8 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
     'Berlin and Paris read "Not open" / NOT OPEN: no price, no hour, no partner, no opening');
   check(/<h1 id="h1"><span class="h1a">A rental agent on your side, in<\/span> <span class="sr">Europe<\/span><\/h1>\n\s*<p class="board-row" aria-hidden="true"><span class="board" id="hubBoard" data-word="EUROPE" style="--n:6"><\/span><\/p>/.test(H)
     && visibleText(sliceOf(H, '<h1', '</h1>') + '</h1>').trim() === 'A rental agent on your side, in Europe', 'the H1 reads "A rental agent on your side, in Europe"; the EUROPE board sits outside it, served empty');
-  check([...H.matchAll(/<[^>]*\sdata-(?:clk|dw|nsr)="[^"]*"[^>]*>/g)].every((m) => /data-nosnippet/.test(m[0])) && [...H.matchAll(/data-(?:clk|nsr)="[a-z]+"><\/span>/g)].length === 10,
-    'every clock, window and status span carries data-nosnippet; the clocks and statuses are served empty (the script fills them)');
+  check([...H.matchAll(/<[^>]*\sdata-(?:clk|dw|nsr)="[^"]*"[^>]*>/g)].every((m) => /data-nosnippet/.test(m[0])) && [...H.matchAll(/data-(?:clk|nsr)="[a-z]+"><\/span>/g)].length === 15,
+    'every clock, window and status span carries data-nosnippet; the clocks (board and pin cards) and statuses are served empty (the script fills them)');
 
   // the map
   const svg = sliceOf(H, '<svg class="hmap-svg"', '</svg>');
@@ -1434,7 +1442,43 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
     const arcs = LIVE.map((s) => { const to = mapXY(CITY[s].geo); return { key: CITY[s].iata, to, c: arcCtrl(hubXY, to, bows.get(CITY[s].iata)) }; });
     check(arcViolations(hubXY, arcs, SLUGS.map((s) => ({ key: CITY[s].iata, xy: mapXY(CITY[s].geo), r: ARC_DOT_R }))).length === 0 && arcs.every((a) => svg.includes(arcD(hubXY, a))), 'no arc on the hub passes over a desk it does not serve (arcViolations = 0)');
     check(LIVE.every((s) => H.includes(`.hmap:has(#pin-${CITY[s].iata.toLowerCase()}:is(:hover,:focus-visible)) #arc-${CITY[s].iata.toLowerCase()}{stroke:var(--gold)`)), 'a pin lights its own arc (one generated :has rule per live desk)');
-    check(!fs.existsSync(path.join(R, 'cities/_europe.json')) || (() => { const e = JSON.parse(read('cities/_europe.json')); return /^[MLZ0-9 .\-]+$/.test(e.path) && e.path.length <= 16000 && e.source && e.url && e.generated; })(), 'the optional coast path, when present, is plain M/L/Z numbers ≤ 16000 characters with its provenance');
+    check(!EUROPE || ([EUROPE.path, EUROPE.desk].every((d) => typeof d === 'string' && /^[MLZ0-9 .\-]+$/.test(d) && d.length <= 16000) && /Natural Earth/.test(EUROPE.source) && /^https:\/\/raw\.githubusercontent\.com\/nvkelso\/natural-earth-vector\//.test(EUROPE.url) && /^\d{4}-\d{2}-\d{2}$/.test(EUROPE.generated)),
+      'the optional coast paths, when present, are plain M/L/Z numbers ≤ 16000 characters, with their provenance (Natural Earth, the raw URL, the date)');
+    if (EUROPE) {
+      const nums = (d) => [...d.matchAll(/-?\d+(?:\.\d+)?/g)].map((x) => +x[0]);
+      const inBox = (d, [x0, y0, x1, y1]) => { const n = nums(d); return n.length > 100 && n.every((v, i) => (i % 2 ? v >= y0 && v <= y1 : v >= x0 && v <= x1)); };
+      check(inBox(EUROPE.path, [-5, -45, 645, 485]) && inBox(EUROPE.desk, [-5, -5, 605, 425]), 'each coast stays within its map box ±5 (the hub 0 −40 640 520, a desk 0 0 600 420)');
+      // the generator: the root derived from its own file (tests/radici), the same projection as mapXY, and the
+      // simplification the JSON declares is the one the script runs
+      const gen = read('design/pages-deco/genera-europa.py');
+      check(/RADICE = os\.path\.dirname\(os\.path\.dirname\(QUI\)\)/.test(gen) && /return \(300 \+ \(lon - 5\) \* 17\.73, 210 \+ \(46\.75 - lat\) \* 26\)/.test(gen) && mapXY({ lon: 5, lat: 46.75 }).join() === '300,210'
+        && gen.includes(`EPS = ${EUROPE.simplify.douglasPeucker.toFixed(1)}`) && gen.includes(`MIN_AREA = ${EUROPE.simplify.minRingArea.toFixed(1)}`) && gen.includes(`DECIMALS = ${EUROPE.simplify.decimals}`),
+        'design/pages-deco/genera-europa.py projects with mapXY, derives its root from its own file, and runs the simplification cities/_europe.json declares');
+      check(svg.includes(`<path id="coast" d="${EUROPE.path}"/><clipPath id="land" clip-rule="evenodd"><use href="#coast"/></clipPath>`) && /<rect class="land"[^>]*fill="url\(#landDots\)" clip-path="url\(#land\)"\/><use class="coast" href="#coast" fill="none"\/>/.test(svg)
+        && svg.indexOf('class="land"') < svg.indexOf('<path class="arc'), 'the hub map draws the land as a dot matrix clipped to the coast, plus one hairline, under the arcs');
+    }
+    // the comet: the SAME curve as the arc, one per live desk, run once on hover/focus — only with motion allowed
+    const comets = [...svg.matchAll(/<path class="comet" id="cm-([a-z]{3})" pathLength="1" fill="none" d="([^"]+)"\/>/g)].map((m) => [m[1], m[2]]);
+    check(comets.length === LIVE.length && comets.every(([k, d]) => (hubArcs.find((a) => a[0] === k) || [])[1] === d), `one comet per live desk, on the same d as its arc (${comets.map((c) => c[0]).join(', ')})`);
+    const motion = sliceOf(H, '@media (prefers-reduced-motion:no-preference){.hmap:has(#pin-', '}}');
+    check(motion && LIVE.every((sl) => motion.includes(`.hmap:has(#pin-${CITY[sl].iata.toLowerCase()}:is(:hover,:focus-visible)) #cm-${CITY[sl].iata.toLowerCase()}`)) && /\{animation:comet \.9s [^;}]* both$/.test(motion) && !/infinite/.test(motion),
+      'the comet runs once (.9s, never infinite), only under prefers-reduced-motion: no-preference');
+    const dcss = read('assets/boom-desks.css');
+    check(/@keyframes comet\{0%\{stroke-dashoffset:[.\d]+;opacity:1\}[^@]*100%\{stroke-dashoffset:-1;opacity:0\}\}/.test(dcss) && /\.hmap \.comet\{[^}]*opacity:0/.test(dcss), 'the comet is invisible at rest and ends where it started: invisible (assets/boom-desks.css)');
+  }
+
+  // the onda (P4): the desk pages' canvas script, versioned in its URL; the hub's script loads it
+  // at ≥940 after load and it loops only while a desk is open (boom-desks.js says so each minute)
+  {
+    const cfg = JSON.parse((H.match(/window\.BOOM_DESKS = (\{[\s\S]*?\});\s*<\/script>/) || [])[1] || '{}');
+    const ondaHash = crypto.createHash('sha256').update(fs.readFileSync(path.join(R, 'assets/boom-onda.js'))).digest('hex').slice(0, 10);
+    check(cfg.ONDA === `/assets/boom-onda.js?v=${ondaHash}` && /<canvas class="onda" id="onda" aria-hidden="true"><\/canvas>/.test(H) && H.indexOf('id="onda"') < H.indexOf('<main'),
+      `the hub carries the onda canvas and its versioned script URL (${cfg.ONDA})`);
+    const djs = read('assets/boom-desks.js');
+    check(/min-width: 940px/.test(djs) && /requestIdleCallback\(onda/.test(djs) && /BOOM_ONDA\.start\(cv, \{ origin: document\.querySelector\('#db-rom \.db-code'\), open: anyOpen \}\)/.test(djs) && /BOOM_ONDA\.setOpen\(any\)/.test(djs),
+      'boom-desks.js loads the onda at ≥940 when idle, from ROM, and tells it each minute whether a desk is open');
+    check(/new window\.BoomSolari\.Board\(h, 6, DRUM\)/.test(djs) && /if \(!f \|\| f\.w === word\) return;/.test(djs) && /set\(nb, w\.open \? 'OPEN' : 'CLOSED'\)/.test(djs),
+      'DESK NOW: a 6-cell flap board beside the text the script keeps, flipping only when the word changes');
   }
 
   // the fares
@@ -1458,6 +1502,8 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
     const held = Object.keys(HUBJ.rules.hold), cut = HUBJ.rules.cut;
     check(held.every((k) => { const [s, id] = k.split(':'); const c = CITY[s].checks.items.find((x) => x.id === id); return ru.includes(`<a class="rc held" href="/${s}#check-${id}"><span class="rc-t">${esc(c.title)}</span></a>`) && !ru.includes(`href="/${s}#check-${id}"><span class="rc-at"`); }),
       `the ${held.length} held checks show their title only (no label, no sentence)`);
+    // the one string the hub never prints: why each check is held (a lawyer unblocks it by removing the key)
+    for (const k of held) console.log(`      · held ${k}: ${HUBJ.rules.hold[k]}`);
     const plain = LIVE.flatMap((s) => CITY[s].checks.items.filter((k) => !HUBJ.rules.hold[`${s}:${k.id}`]).map((k) => [s, k]));
     check(plain.every(([s, k]) => ru.includes(`<a class="rc" href="/${s}#check-${k.id}"><span class="rc-at" data-instr>${esc(k.at)}</span></a>`)), 'every other cell is the desk\'s own `at` label, verbatim, linking its check');
     check(/<td data-k="AMS"><span class="rc none" aria-hidden="true">—<\/span><span class="sr">Not one of the Amsterdam checks<\/span><\/td>/.test(sliceOf(ru, '<th scope="row">Who may charge you</th>', '</tr>')), 'Amsterdam has no fees check: its cell is "—" with a screen-reader sentence, never an invented rule');

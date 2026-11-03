@@ -639,7 +639,7 @@ const R = {
   // family (familyFor: live sisters on a live page, all on a draft), the
   // desks not open as plain text on a live page, BOOM Rome, then every desk
   // on one page (/desks).
-  net: (c, fam, shared, cities = [c]) => {
+  net: (c, fam, shared, cities = [c], europe = null) => {
     const hub = mapXY(shared.rome.geo);
     // the bows are chosen over every desk with coordinates, so an arc is the same on every page
     const bows = bowArcs(hub, cities.filter((x) => x.iata && x.geo).map((x) => [x.iata, mapXY(x.geo)]).concat(cities.some((x) => x.iata === c.iata) ? [] : [[c.iata, mapXY(c.geo)]]));
@@ -658,10 +658,16 @@ const R = {
     const drawn = arcs.map((a) => arcPts(hub, a.c, a.to, 240));
     const lab = (a, cls = '') => labelFor(a, drawn, cls);
     const mine = arcs[arcs.length - 1];
+    const coast = europe && typeof europe.desk === 'string' && /^[MLZ0-9 .\-]+$/.test(europe.desk) ? europe.desk : null;
     const svg = [
       '<svg class="map" viewBox="0 0 600 420" aria-hidden="true" focusable="false">',
-      '<defs><pattern id="netDots" width="12" height="12" patternUnits="userSpaceOnUse"><circle cx="6" cy="6" r=".5" fill="#fff" fill-opacity=".08"/></pattern></defs>',
+      // the coast (cities/_europe.json `desk`, the same Natural Earth drawing as the hub, cut to this
+      // box): land as a finer dot matrix under the sea dots; without the file, the sea dots alone
+      '<defs><pattern id="netDots" width="12" height="12" patternUnits="userSpaceOnUse"><circle cx="6" cy="6" r=".5" fill="#fff" fill-opacity=".08"/></pattern>'
+        + (coast ? '<pattern id="netLand" width="6" height="6" patternUnits="userSpaceOnUse"><circle cx="3" cy="3" r=".8" fill="#fff" fill-opacity=".14"/></pattern>'
+          + `<clipPath id="netCoast" clip-rule="evenodd"><path d="${esc(coast)}"/></clipPath>` : '') + '</defs>',
       '<rect class="m-bg" width="600" height="420" fill="url(#netDots)"/>',
+      coast ? '<rect class="m-land" width="600" height="420" fill="url(#netLand)" clip-path="url(#netCoast)"/>' : '',
       ...arcs.map(path),
       ...liveSis.map((x) => { const [px, py] = mapXY(x.geo); return `<circle class="d" cx="${r1(px)}" cy="${r1(py)}" r="${ARC_DOT_R}"/>`; }),
       ...offs.map((o) => `<circle class="d off" cx="${r1(o.to[0])}" cy="${r1(o.to[1])}" r="${ARC_DOT_R}" fill="none"/>`),
@@ -673,7 +679,7 @@ const R = {
       // the hub's label clears its ring
       `<text class="m-l hub" x="${r1(hub[0] + HUB_RING_R + 4)}" y="${r1(hub[1] + 4)}">${ROME_IATA}</text>`,
       '</svg>'
-    ].join('');
+    ].filter(Boolean).join('');
     // the family's sisters, then (a live page) the desks not open — plain
     // text, never a link — then BOOM Rome, then every desk on one page
     const sisterHref = new Set(cities.map((x) => `/${x.slug}`));
@@ -1086,7 +1092,7 @@ export function identityGuard(text, shared, where) {
   for (const m of String(text).matchAll(/(?:VAT|P\.?\s?IVA)\s+(?:IT)?(\d{11})/g)) need(m[1] === e.vat, where, `"VAT ${m[1]}" is not the company's VAT number (${e.vat}, cities/_shared.json): the identity is said once, never typed`);
 }
 
-export function renderCity({ template, shared, city, assetVersion, frags, root = ROOT, cities = [city], weigh = true }) {
+export function renderCity({ template, shared, city, assetVersion, frags, root = ROOT, cities = [city], weigh = true, europe = null }) {
   const where = `cities/${city.slug}.json`;
   need(/^[a-z0-9-]+$/.test(city.slug || ''), where, 'slug must be lowercase letters, digits and dashes');
   need(typeof city.live === 'boolean', where, '"live" must be true or false');
@@ -1364,7 +1370,7 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
     lanesHtml: R.lanes(city),
     tagsHtml: R.tags(city),
     gateHtml: R.gate(city, contact, doorLead, deskLineHtml),
-    netHtml: R.net(city, fam, shared, cities),
+    netHtml: R.net(city, fam, shared, cities, europe),
     footHtml: R.foot(city, shared, contact, deskLineHtml)
   };
 
@@ -1925,16 +1931,25 @@ export function renderHub({ template, shared, hub, cities, assetVersion, frags, 
   const grat = [];
   for (let lon = -10; lon <= 20; lon += 5) { const x = mapXY({ lon, lat: 46.75 })[0]; grat.push(`<line x1="${N(x)}" y1="-40" x2="${N(x)}" y2="480"/>`); }
   for (const lat of [40, 45, 50, 55]) { const y = mapXY({ lon: 5, lat })[1]; grat.push(`<line x1="0" y1="${N(y)}" x2="640" y2="${N(y)}"/><text x="6" y="${N(y - 4)}">${lat}°N</text>`); }
-  const land = europe && europe.path ? europe.path : null;
+  // the land: Natural Earth's coast (cities/_europe.json, design/pages-deco/genera-europa.py),
+  // drawn as a dot matrix clipped to it plus one hairline; without the file, sea dots only
+  const land = europe && typeof europe.path === 'string' && europe.path ? europe.path : null;
+  if (land) need(/^[MLZ0-9 .\-]+$/.test(land) && land.length <= 16000, 'cities/_europe.json', 'path: plain M/L/Z numbers, at most 16000 characters (python3 design/pages-deco/genera-europa.py)');
+  const kOf = (a) => a.key.toLowerCase();
+  // each live arc is lit FROM Rome: gold at the hub, fading toward the desk
+  const grads = arcs.map((a) => `<linearGradient id="ga-${kOf(a)}" gradientUnits="userSpaceOnUse" x1="${N(hubXY[0])}" y1="${N(hubXY[1])}" x2="${N(a.to[0])}" y2="${N(a.to[1])}"><stop offset="0" stop-color="#FFD700" stop-opacity=".62"/><stop offset="1" stop-color="#fff" stop-opacity=".34"/></linearGradient>`).join('');
   const svg = [
     `<svg class="hmap-svg" viewBox="${HUB_VIEWBOX}" aria-hidden="true" focusable="false">`,
     '<defs><pattern id="seaDots" width="8" height="8" patternUnits="userSpaceOnUse"><circle cx="4" cy="4" r=".5" fill="#fff" fill-opacity=".06"/></pattern>'
       + '<pattern id="landDots" width="5" height="5" patternUnits="userSpaceOnUse"><circle cx="2.5" cy="2.5" r=".9" fill="#fff" fill-opacity=".22"/></pattern>'
-      + (land ? `<clipPath id="land"><path d="${esc(land)}"/></clipPath>` : '') + '</defs>',
+      + (land ? `<path id="coast" d="${esc(land)}"/><clipPath id="land" clip-rule="evenodd"><use href="#coast"/></clipPath>` : '') + grads + '</defs>',
     '<rect class="sea" x="0" y="-40" width="640" height="520" fill="url(#seaDots)"/>',
-    land ? '<rect class="land" x="0" y="-40" width="640" height="520" fill="url(#landDots)" clip-path="url(#land)"/>' : '',
+    land ? '<rect class="land" x="0" y="-40" width="640" height="520" fill="url(#landDots)" clip-path="url(#land)"/><use class="coast" href="#coast" fill="none"/>' : '',
     `<g class="grat">${grat.join('')}</g>`,
-    ...arcs.map((a, i) => `<path class="arc" id="arc-${a.key.toLowerCase()}" style="--i:${i + 1}" pathLength="1" fill="none" d="${arcD(hubXY, a)}"/>`),
+    ...arcs.map((a, i) => `<path class="arc" id="arc-${kOf(a)}" style="--i:${i + 1};--s:url(#ga-${kOf(a)})" pathLength="1" fill="none" d="${arcD(hubXY, a)}"/>`),
+    // the comet: the same curve, one short dash that runs ROM → desk once on hover or focus (the generated rules)
+    ...arcs.map((a) => `<path class="comet" id="cm-${kOf(a)}" pathLength="1" fill="none" d="${arcD(hubXY, a)}"/>`),
+    ...arcs.map((a) => `<circle class="lr" cx="${N(a.to[0])}" cy="${N(a.to[1])}" r="6" fill="none"/>`),
     ...arcs.map((a) => `<circle class="d" cx="${N(a.to[0])}" cy="${N(a.to[1])}" r="${ARC_DOT_R}"/>`),
     ...offs.map((o) => `<circle class="d off" cx="${N(o.to[0])}" cy="${N(o.to[1])}" r="${ARC_DOT_R}" fill="none"/>`),
     `<circle class="hub" cx="${N(hubXY[0])}" cy="${N(hubXY[1])}" r="5" fill="none"/><circle class="hub-r" cx="${N(hubXY[0])}" cy="${N(hubXY[1])}" r="${HUB_RING_R}" fill="none"/><circle class="hub-r r2" cx="${N(hubXY[0])}" cy="${N(hubXY[1])}" r="16" fill="none"/>`,
@@ -1948,9 +1963,11 @@ export function renderHub({ template, shared, hub, cities, assetVersion, frags, 
     const px = Math.round(r1n(x) / 640 * 1000) / 10, py = Math.round((r1n(y) + 40) / 520 * 1000) / 10;
     return `<a class="pin${px > 60 ? ' pc-l' : ''}" id="pin-${c.iata.toLowerCase()}" href="/${esc(c.slug)}" style="--x:${px.toFixed(1)}%;--y:${py.toFixed(1)}%" aria-label="Tenant-side rental agent in ${esc(c.city)}">`
       + '<i class="pin-dot" aria-hidden="true"></i>'
-      + `<span class="pc" aria-hidden="true"><b>${esc(c.iata)}</b> ${esc(c.city)} · Live<span class="pc-w" data-nosnippet data-dw="${esc(c.slug)}">${esc(deskHoursText(c.desk))}</span><span class="pc-f">from ${fromOf(c)}</span><span class="pc-go">Go to the ${esc(c.city)} desk →</span></span></a>`;
+      + `<span class="pc" aria-hidden="true"><span class="pc-h"><b>${esc(c.iata)}</b> ${esc(c.city)} · Live<span class="pc-t" data-nosnippet data-clk="${esc(c.slug)}"></span></span><span class="pc-w" data-nosnippet data-dw="${esc(c.slug)}">${esc(deskHoursText(c.desk))}</span><span class="pc-f">from ${fromOf(c)}</span><span class="pc-go">Go to the ${esc(c.city)} desk →</span></span></a>`;
   });
-  const mapCss = '<style>' + arcs.map((a) => `.hmap:has(#pin-${a.key.toLowerCase()}:is(:hover,:focus-visible)) #arc-${a.key.toLowerCase()}{stroke:var(--gold);stroke-width:2;opacity:1}`).join('') + '</style>';
+  // one rule per live desk: its pin lights its arc; with motion allowed, the comet runs once
+  const mapCss = '<style>' + arcs.map((a) => `.hmap:has(#pin-${kOf(a)}:is(:hover,:focus-visible)) #arc-${kOf(a)}{stroke:var(--gold);stroke-width:2;opacity:1}`).join('')
+    + '@media (prefers-reduced-motion:no-preference){' + arcs.map((a) => `.hmap:has(#pin-${kOf(a)}:is(:hover,:focus-visible)) #cm-${kOf(a)}`).join(',') + '{animation:comet .9s cubic-bezier(.3,.7,.2,1) both}}</style>';
   const mp = hub.map;
   const romeCard = `          <article class="m-card"><h3><b data-instr>${ROME_IATA}</b> ${esc(T(mp.rome.h))}</h3><p>${esc(T(mp.rome.p))}</p><a class="lnk" href="/">${esc(T(mp.rome.link))} →</a></article>`;
   let homeCard = '';
@@ -2173,7 +2190,9 @@ export function renderHub({ template, shared, hub, cities, assetVersion, frags, 
   const config = {
     WORD: hub.hero.word,
     CODES: [...live.map((c) => c.iata), ...drafts.filter((c) => c.iata).map((c) => c.iata), ROME_IATA],
-    DESKS: live.map((c) => ({ slug: c.slug, iata: c.iata, city: c.city, desk: { timeZone: c.desk.timeZone, hours: c.desk.hours, days: c.desk.days }, holidays: holidayKeyOf(c.slug) }))
+    DESKS: live.map((c) => ({ slug: c.slug, iata: c.iata, city: c.city, desk: { timeZone: c.desk.timeZone, hours: c.desk.hours, days: c.desk.days }, holidays: holidayKeyOf(c.slug) })),
+    // the onda behind the hero (≥940): the same script as the desk pages, versioned in its URL
+    ...(assetVersion && assetVersion.onda ? { ONDA: `/assets/boom-onda.js?v=${assetVersion.onda}` } : {})
   };
   const rome = shared.rome;
   const rating = `${esc(rome.rating)} on Google in Rome, ${esc(rome.reviews)} reviews`;
@@ -2377,6 +2396,7 @@ export function buildHub({ root = ROOT, pages = null } = {}) {
   for (const f of ['assets/boom-desks.css', 'assets/boom-desks.js']) need(fs.existsSync(path.join(root, f)), f, 'is missing: the hub links it');
   const assetVersion = {
     css: hash(path.join(root, 'assets/boom-city.css')),
+    onda: hash(path.join(root, 'assets/boom-onda.js')),
     desksCss: hash(path.join(root, 'assets/boom-desks.css')),
     desksJs: hash(path.join(root, 'assets/boom-desks.js'))
   };
@@ -2414,7 +2434,10 @@ export function buildAll({ root = ROOT } = {}) {
       need(city.slug === f.replace(/\.json$/, ''), `cities/${f}`, `slug "${city.slug}" must match the file name`);
       return city;
     });
-  return cities.map((city) => renderCity({ template, shared, city, assetVersion, frags, root, cities }));
+  // the coast under every network map (optional: design/pages-deco/genera-europa.py)
+  const ef = path.join(dir, '_europe.json');
+  const europe = fs.existsSync(ef) ? readJson(ef) : null;
+  return cities.map((city) => renderCity({ template, shared, city, assetVersion, frags, root, cities, europe }));
 }
 
 // Writes (or, with check, compares) every page. Every page is validated

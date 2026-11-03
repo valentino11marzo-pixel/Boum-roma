@@ -1257,6 +1257,9 @@ async function hubUI() {
     check(await page.$eval('#hubBoard', (b) => b.classList.contains('live') && [...b.querySelectorAll(':scope > .fc2 > .st > b')].map((x) => x.textContent).join('') === 'EUROPE') && await text(page, '#h1') === 'A rental agent on your side, in Europe',
       'desks 390: EUROPE settles on its board and the H1 still reads "A rental agent on your side, in Europe"');
     check(await noHScroll(page) && st.errors.length === 0, 'desks 390: no horizontal scroll, no JS error', st.errors.join(' | '));
+    await page.waitForTimeout(2600);
+    check(await page.$$eval('.db-nf', (x) => x.length) === 0 && await page.evaluate(() => !window.BOOM_ONDA && !document.querySelector('script[src*="boom-onda"]')),
+      'desks 390: no DESK NOW flaps and no onda (the phone shows the text and loads nothing more)');
     await ctx.close();
   }
 
@@ -1270,11 +1273,25 @@ async function hubUI() {
     const { ctx, page, st } = await open({ slug: 'desks', width: 1440, pwClock: t });
     await page.clock.runFor(1500);
     const now = await nowOf(page), sub = await subOf(page), pill = await shown(page, '#hubPill');
-    const clk = await page.$$eval('[data-clk]', (cs) => cs.map((c) => c.textContent.trim()));
+    const clk = await page.$$eval('.db-tv[data-clk]', (cs) => cs.map((c) => c.textContent.trim()));
     let ok2 = JSON.stringify(now) === JSON.stringify(want) && clk.length === 5 && clk.every((c) => /^\d{2}:\d{2} (CET|CEST|GMT|BST)$/.test(c));
     if (extra === 'pill') ok2 = ok2 && pill && sub.ams === 'Desk open until 19:00 CET' && sub.lon === 'Desk open until 18:00 GMT';
     if (extra === 'sat') ok2 = ok2 && !pill && sub.ams === 'Monday from 09:00 CET' && sub.mil === 'Monday from 09:00 CET' && sub.lon === 'Monday from 08:00 GMT';
     check(ok2 && st.errors.length === 0, `desks: ${label}`, JSON.stringify({ now, sub, pill, clk, e: st.errors }));
+    if (extra) {
+      // DESK NOW as flaps (≥760): one 6-cell board per live desk, green ("on") only where the desk is open;
+      // the onda (≥940) loops only while a desk is open — the Saturday field is one still frame
+      await page.clock.runFor(3000);
+      await page.waitForTimeout(400);
+      await page.clock.runFor(2500);
+      const fl = await page.$$eval('.db-r.live', (rs) => rs.map((r) => { const f = r.querySelector('.db-nf'); return f ? `${f.querySelectorAll('.fc2').length}${f.classList.contains('on') ? '+' : '-'}` : 'none'; }));
+      const onda = await page.evaluate(() => !!(window.BOOM_ONDA && window.BOOM_ONDA.running));
+      const wantFl = extra === 'pill' ? '6+,6+,6+,6+,6+' : '6-,6-,6-,6-,6-';
+      check(fl.join() === wantFl && onda === (extra === 'pill') && await page.evaluate(() => !!window.BOOM_ONDA),
+        `desks 1440: DESK NOW is a flap board per live desk (${fl.join(' ')}); the onda ${extra === 'pill' ? 'loops while desks are open' : 'is one still frame when every desk is closed'}`, JSON.stringify({ fl, onda }));
+      const clk2 = await page.$$eval('.pc-t[data-clk]', (cs) => cs.map((c) => c.textContent.trim()));
+      check(clk2.length === 5 && clk2.every((c) => /^\d{2}:\d{2} (CET|CEST|GMT|BST)$/.test(c)), `desks 1440: each pin card carries its desk's clock (${clk2.join(', ')})`);
+    }
     await ctx.close();
   }
 
@@ -1322,6 +1339,10 @@ async function hubUI() {
     const other = await page.$eval('#arc-ams', (a) => getComputedStyle(a).stroke);
     check(after.stroke === 'rgb(255, 215, 0)' && before !== after.stroke && other !== after.stroke && await shown(page, '#pin-lon .pc') && /London · Live/.test(await text(page, '#pin-lon .pc')),
       'desks 1440: hovering the London pin strokes ITS arc gold (computed) and shows its card', JSON.stringify({ before, after, other }));
+    const comet = await page.evaluate(() => document.getAnimations().filter((a) => a.animationName === 'comet').map((a) => `${a.effect.target.id}:${a.effect.getTiming().iterations}`));
+    check(comet.join() === 'cm-lon:1', `desks 1440: the hover sends ONE comet along London's arc, once (${comet.join(', ') || 'none'})`);
+    const land = await page.evaluate(() => { const r = document.querySelector('.hmap-svg rect.land'); return r ? r.getBoundingClientRect().width > 300 && getComputedStyle(r).clipPath !== 'none' : false; });
+    check(land, 'desks 1440: the land is drawn, clipped to the coast');
     const gap = await page.evaluate(() => {
       const svg = document.querySelector('.hmap-svg');
       const m = svg.getScreenCTM();
@@ -1351,6 +1372,12 @@ async function hubUI() {
     await page.waitForTimeout(800);
     const inf = await page.evaluate(() => document.getAnimations().filter((x) => x.playState === 'running' && x.effect && x.effect.getTiming().iterations === Infinity).map((x) => `${(x.effect.target && (x.effect.target.id || x.effect.target.className)) || '?'}:${x.animationName || ''}`));
     check(inf.length === 0 && await page.$eval('#hubBoard', (b) => b.classList.contains('live')), 'desks, reduced motion: EUROPE is shown at once and no infinite animation runs', inf.join(' | '));
+    await center(page, '#hmap');
+    await page.hover('#pin-ams');
+    await page.waitForTimeout(300);
+    const rmComet = await page.evaluate(() => document.getAnimations().filter((a) => a.animationName === 'comet').length);
+    await page.waitForTimeout(2200);
+    check(rmComet === 0 && await page.evaluate(() => !window.BOOM_ONDA || !window.BOOM_ONDA.running), 'desks, reduced motion: no comet on hover, and the onda never loops');
     await ctx.close();
   }
 }
