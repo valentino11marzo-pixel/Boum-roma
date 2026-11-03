@@ -34,6 +34,11 @@
 //     each section of the walk, the lead, the fares, each ticket, the
 //     weight in KB (the onda canvas script counted);
 //   - the FAQ schema or the Offers saying something the page doesn't show;
+//   - v1.6 review: a network arc that passes over a desk it does not serve
+//     (read from the drawn SVG; a desk no bow can serve is refused by the
+//     build); a content-hashed asset (the onda included) not served immutable;
+//     the stub's door block not ONE sticky block above the foot; a pass child
+//     left to auto-placement (forced colors and print drop the foil band);
 //   - the desk window promising "open" on a holiday (the calendar is ONE
 //     file, read by the page and the webhook);
 //   - the lead endpoint filing a city lead into the Rome machine, or the
@@ -50,7 +55,8 @@ import path from 'node:path';
 import {
   buildAll, renderCity, writeAll, fill, findPlaceholders, fragments, familyFor, BuildError, esc, eur, money, currencyOf, GENERATED_MARK, WEIGHT_KB, BUDGET,
   daysLabel, deskHoursText, feesRowOf, holidayKeyOf, visibleAtLoad, visibleText, sliceOf, words, waHref, WITHDRAWAL_PATH, TERMS_PATH,
-  atLoadParts, longNodes, weightOf, mapXY, validGeo, sealText, sealPhrase, STATUS_RE, STATUS_BANNED_RE, AVIATION_BAN_RE
+  atLoadParts, longNodes, weightOf, mapXY, validGeo, sealText, sealPhrase, STATUS_RE, STATUS_BANNED_RE, AVIATION_BAN_RE,
+  arcViolations, bowArcs, arcCtrl, ARC_CLEAR, ARC_DOT_R, ARC_ME_R
 } from '../../build-cities.mjs';
 import SCALO from '../../js/scalo-codes.js';
 import CAL from '../../js/desk-calendar.js';
@@ -197,6 +203,15 @@ check(deskHoursText(ams.desk) === 'Mon–Fri 09:00–19:00, Rome time' && daysLa
     'Rome is never the passenger\'s origin: YOU is; ROM appears only as the issuer on the code line ("ISSUED ROM")');
   check(/<div class="stub-foot" aria-hidden="true"><i class="bars"><\/i><p class="code" id="codeLine">/.test(pass) && pass.indexOf('class="stub-gate" id="stubGate"') < pass.indexOf('class="stub-foot"'),
     'the stub foot: a barcode that encodes nothing and the code line, decorative, under the gate slot the clocks move into');
+  // v1.6 review (visual F7): ONE sticky block — the route, the door and the gate — on a track that ends above the foot
+  const iTr = pass.indexOf('<div class="stub-track"><div class="stub-st">'), iIn = pass.indexOf('<div class="stub-in">'), iGt = pass.indexOf('<div class="stub-gate" id="stubGate"></div>'),
+    iShut = pass.indexOf('</div></div>', iGt), iFt = pass.indexOf('<div class="stub-foot"');
+  const css = read('assets/boom-city.css'), desk940 = sliceOf(css, '@media (min-width:940px){\n  .pass{display:grid', '\n}\n');
+  check(iTr > 0 && iTr < iIn && iIn < iGt && iGt < iShut && iShut < iFt && /\.stub-st\{position:sticky;top:\d+px\}/.test(desk940) && /\.stub-track\{flex:1 0 auto\}/.test(desk940),
+    'the stub\'s door block (route, door, gate) rides in ONE sticky .stub-st on a .stub-track that ends above the foot (≥940)');
+  // v1.6 review (visual F1): forced colors and print drop the foil band — the other children keep their own tracks
+  check(/\.lamina\{grid-column:1\}\.p-main\{grid-column:2\}\.perf\{grid-column:3\}\.stub\{grid-column:4\}/.test(desk940),
+    'the pass places every child on its own column (≥940): without the foil band nothing shifts into the 28/30px tracks');
 }
 
 // the fares: three rows, each its own <details name="fare"> with its ticket in place
@@ -399,7 +414,35 @@ check(!/id="contact"/.test(html) && /<article class="pass" id="pass"/.test(html)
       && SLUGS.every((x) => validGeo(CITY[x].geo)) && validGeo(shared.rome.geo),
       `${s}: the map's dots are the projected real coordinates, inside the 600×420 viewBox margins (this desk ${mx},${my}; ROM ${rx},${ry}); one arc from Rome per desk, this desk's in gold`);
   }
+  // v1.6 review (visual F9): an arc never passes over a desk it does not serve. Read from
+  // what is DRAWN (the path's control point, each dot with the mark it carries: 3px, this
+  // desk's 10px ring), and the same arc on every page (the bows are chosen over every desk)
+  const drawnCtrl = {};
+  for (const s of SLUGS) {
+    const map = sliceOf(PAGE[s], '<svg class="map"', '</svg>');
+    const hub = (map.match(/<circle class="hub" cx="([\d.]+)" cy="([\d.]+)"/) || []).slice(1).map(Number);
+    const at = (x, y) => `${x},${y}`;
+    const dots = [...map.matchAll(/<circle class="(d|d-ring)" cx="([\d.]+)" cy="([\d.]+)" r="([\d.]+)"/g)].map((m) => ({ key: at(m[2], m[3]), xy: [+m[2], +m[3]], r: +m[4] }));
+    const arcs = [...map.matchAll(/<path class="arc(?: me)?"[^>]*d="M[\d.]+ [\d.]+Q([\d.]+) ([\d.]+) ([\d.]+) ([\d.]+)"/g)].map((m) => ({ key: at(m[3], m[4]), c: [+m[1], +m[2]], to: [+m[3], +m[4]] }));
+    for (const a of arcs) (drawnCtrl[a.key] = drawnCtrl[a.key] || new Set()).add(a.c.join());
+    const bad = arcViolations(hub, arcs, dots);
+    check(hub.length === 2 && arcs.length >= 2 && dots.some((d) => d.r === ARC_ME_R) && bad.length === 0,
+      `${s}: every arc drawn from Rome clears every other desk's dot by ≥ ${ARC_CLEAR}px (this desk's ${ARC_ME_R}px ring counted)`, bad.join('; '));
+  }
+  check(Object.values(drawnCtrl).every((set) => set.size === 1), 'the arc to a desk is the same on every page (one bow per desk, chosen over all of them)',
+    JSON.stringify(Object.entries(drawnCtrl).filter(([, v]) => v.size > 1).map(([k, v]) => [k, [...v]])));
+  // the check bites: v1.5's control point (the chord's midpoint raised by 0.18 × chord) took ROM → LON through Milan's dot
+  const H = mapXY(shared.rome.geo), LON = mapXY(CITY.london.geo), MIL = mapXY(CITY.milan.geo), L = Math.hypot(LON[0] - H[0], LON[1] - H[1]);
+  const old = arcViolations(H, [{ key: 'LON', to: LON, c: [(H[0] + LON[0]) / 2, (H[1] + LON[1]) / 2 - 0.18 * L] }], [{ key: 'MIL', xy: MIL, r: ARC_DOT_R }, { key: 'LON', xy: LON, r: ARC_DOT_R }]);
+  check(old.length === 1 && /^ROM → LON passes -?\d+\.\dpx from MIL$/.test(old[0]), `(arcViolations catches v1.5's arc: "${old[0]}")`);
+  const bows = bowArcs(H, SLUGS.map((x) => [CITY[x].iata, mapXY(CITY[x].geo)]));
+  check(bows.size === SLUGS.length && [...bows.values()].every((f) => Math.abs(f) >= 0.12 && Math.abs(f) <= 0.36) && arcViolations(H, SLUGS.map((x) => ({ key: CITY[x].iata, to: mapXY(CITY[x].geo), c: arcCtrl(H, mapXY(CITY[x].geo), bows.get(CITY[x].iata)) })), SLUGS.map((x) => ({ key: CITY[x].iata, xy: mapXY(CITY[x].geo), r: ARC_ME_R }))).length === 0,
+    'bowArcs bows every desk (|f| 0.12–0.36) so no arc comes near ANY desk\'s ring, whichever page draws it');
 }
+// a desk that no bow can serve is a build error, never an arc through a sister:
+// one set on the hub's doorstep sits under the start of every other arc
+refuses((c) => { c.geo = { lat: 42.15, lon: 12.62 }; check(validGeo(c.geo), '(the doorstep coordinates are a valid geo: only the arcs refuse them)'); },
+  /network map: no bow takes the arc ROM → [A-Z]{3} clear of the other desks|draws an arc over a desk/, 'a desk placed where every arc from Rome would cross its dot is refused by the build (no arc through a sister)');
 
 check(/<details class="sheet">\s*<summary>BOOM Amsterdam — fact sheet<\/summary>\s*<dl class="enbref" id="enbref">/.test(html) && /<section class="sec brief" id="enbref-wrap"[^>]*>\s*<span class="corner" aria-hidden="true">Conditions<\/span>/.test(html),
   'the fact sheet is folded for people and whole in the DOM for machines (GEO), on the back of the ticket (CONDITIONS, decorative)');
@@ -843,9 +886,20 @@ tplRefuses('<p class="proof">', '<p class="proof">Pay by bank transfer · ', /no
   check(cityLine && !/Check-in|list of papers/i.test(cityLine) && /name/i.test(cityLine) && /service you were looking at/.test(cityLine),
     'privacy describes what the v1.5 door sends (a name, one contact, the service being read) — never the retired Check-in', cityLine.replace(/<[^>]+>/g, '').slice(0, 200));
   const vj = JSON.parse(read('vercel.json'));
-  const rule = (vj.headers || []).find((h) => h.source === '/assets/boom-city\\.(css|js)');
-  check(!!rule && rule.headers.some((x) => x.key === 'Cache-Control' && /immutable/.test(x.value)) && !(vj.headers || []).some((h) => /^\/(css|js)\//.test(h.source) && h.headers.some((x) => /immutable/.test(x.value))),
-    'the hashed city assets are cached immutable; the unhashed shared /css and /js (the desk calendar\'s file included) never are');
+  // what Vercel would send for a path: every rule whose source matches applies,
+  // and for one header the LAST match wins (the sources are regex-shaped here)
+  const ccOf = (p) => (vj.headers || []).filter((h) => new RegExp(`^${h.source}$`).test(p))
+    .reduce((v, h) => { const x = h.headers.find((k) => k.key.toLowerCase() === 'cache-control'); return x ? x.value : v; }, null);
+  // every content-hashed URL a desk page asks for (?v=), the onda's config URL included —
+  // read from the built pages, never from a list kept by hand (the v1.6 review: the onda
+  // was hashed and never immutable, while a check found the rule by its old exact string)
+  const hashed = [...new Set(SLUGS.flatMap((s) => [...PAGE[s].matchAll(/(?:https:\/\/www\.boomrome\.com)?(\/[A-Za-z0-9_./-]+)\?v=[0-9a-f]{6,}/g)].map((m) => m[1])))].sort();
+  const mutable = hashed.filter((p) => !/immutable/.test(ccOf(p) || ''));
+  check(['/assets/boom-city.css', '/assets/boom-city.js', '/assets/boom-onda.js'].every((p) => hashed.includes(p)) && mutable.length === 0,
+    `every content-hashed asset a desk asks for is served immutable (${hashed.join(', ')})`, `not immutable: ${mutable.map((p) => `${p} → ${ccOf(p)}`).join('; ')}`);
+  const unhashed = [...new Set(SLUGS.flatMap((s) => [...PAGE[s].matchAll(/(?:src|href)="(\/(?:js|css)\/[^"?#]+)"/g)].map((m) => m[1])))].concat(['/js/desk-calendar.js', '/css/boom-2026.css']);
+  check(!(vj.headers || []).some((h) => /^\/(css|js)\//.test(h.source) && h.headers.some((x) => /immutable/.test(x.value))) && unhashed.every((p) => !/immutable/.test(ccOf(p) || '')),
+    `the unhashed shared files (${unhashed.join(', ')}) are never immutable — the desk calendar\'s file included`);
 }
 
 // ── 11 · the visible-at-load reader is honest ─────────────────────────────

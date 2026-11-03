@@ -47,6 +47,14 @@
 //     strip closing Koningsdag and the bank holiday without naming them; the
 //     header twin and the Gate door (one label, one POST); the loops — one
 //     at most with the desk open, none closed, none with reduced motion;
+//   - the v1.6 review (§12, one guard per confirmed finding): a fresh
+//     /<slug>#fares (the Stripe cancel_url) lands below the sticky header;
+//     forced colors at ≥940 keep the pass's columns; the CONDITIONS chip never
+//     covers the fact sheet's summary nor its '+'; the stub's door block rides
+//     beside an open ticket and stops on the foot; the onda keeps ONE frame
+//     chain through tab hide/show; the door under the header brings the twin;
+//     row 01 follows the desk across closing time; Paris and Berlin never say
+//     "desk open" (REPLYING / OFFLINE). `CITIES_UI_ONLY=review` runs §12 alone;
 //   - zero JS errors, no request to a host we did not stub.
 
 import http from 'node:http';
@@ -84,9 +92,13 @@ const FILE = 'BM 7K2QX';
 const LEAD_OK = { status: 200, body: { ok: true, id: 'city_ui0000test1', file: FILE } };
 const SID = 'cs_test_ui0000000001';
 const allErrors = [], allForeign = [];
-async function open({ js = true, width = 390, height = null, api = LEAD_OK, paid = { status: 200, body: { ok: true, pending: true } }, reducedMotion = 'no-preference', slug = 'amsterdam', query = '', checkout = null, consent = true, clock = null, touch = false, tz = null } = {}) {
-  const ctx = await browser.newContext({ javaScriptEnabled: js, viewport: { width, height: height || (width < 600 ? 844 : 900) }, reducedMotion, ...(touch ? { isMobile: true, hasTouch: true } : {}), ...(tz ? { timezoneId: tz } : {}) });
+async function open({ js = true, width = 390, height = null, api = LEAD_OK, paid = { status: 200, body: { ok: true, pending: true } }, reducedMotion = 'no-preference', slug = 'amsterdam', query = '', checkout = null, consent = true, clock = null, touch = false, tz = null, init = null, pwClock = null, forced = false } = {}) {
+  const ctx = await browser.newContext({ javaScriptEnabled: js, viewport: { width, height: height || (width < 600 ? 844 : 900) }, reducedMotion, ...(touch ? { isMobile: true, hasTouch: true } : {}), ...(tz ? { timezoneId: tz } : {}), ...(forced ? { forcedColors: 'active' } : {}) });
   const page = await ctx.newPage();
+  // a script that must run before the page's own (e.g. a counter wrapped around requestAnimationFrame)
+  if (init) await page.addInitScript(init);
+  // playwright's clock: Date AND the page's timers, moved on with page.clock.runFor (crossing closing time)
+  if (pwClock) await page.clock.install({ time: new Date(pwClock) });
   const st = { errors: [], posts: [], gets: [], checkouts: [], foreign: [] };
   page.on('pageerror', (e) => { st.errors.push(e.message); allErrors.push(`${slug}${query}: ${e.message}`); });
   // the consent plate stays closed unless a test is about it
@@ -132,6 +144,8 @@ const center = (page, sel) => page.$eval(sel, (el) => el.scrollIntoView({ block:
 const tap = async (page, sel) => { await center(page, sel); await page.waitForTimeout(120); await page.click(sel); };
 const noHScroll = (page) => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1);
 const RULE = JSON.parse(fs.readFileSync(path.join(R, 'cities/_shared.json'), 'utf8')).refund.rule;
+// the v1.6 review's guards alone (§12), e.g. to watch one bite under a mutation
+if (process.env.CITIES_UI_ONLY === 'review') { await reviewFixes(); await finish(); }
 
 // ── 1 · the first phone screen is one pass ───────────────────────────────
 {
@@ -488,7 +502,7 @@ const CLOCKS = [
   ['amsterdam', '2026-10-27T08:00:00Z', 'no card · desk open until 19:00 CET', 'a Tuesday at 09:00: the desk is open'],
   ['barcelona', '2026-09-11T08:00:00Z', 'no card · Monday from 09:00 CEST', 'the Diada (Friday 11 September) in Barcelona: Monday'],
   ['madrid', '2026-09-11T08:00:00Z', 'no card · desk open until 19:00 CEST', 'the same Friday in Madrid: open (the Diada is Catalan)'],
-  ['paris', '2026-12-24T19:00:00Z', 'free · Monday from 09:00 CET', 'Christmas Eve at 20:00 on a waitlist desk: Monday (Christmas, Santo Stefano, the weekend)'],
+  ['paris', '2026-12-24T19:00:00Z', 'free · replies Monday from 09:00 CET', 'Christmas Eve at 20:00 on a waitlist desk: Monday (Christmas, Santo Stefano, the weekend) — and a desk still opening says "replies", never "desk"'],
   ['london', '2026-08-31T10:00:00Z', 'no card · Tomorrow from 08:00 BST', 'the summer bank holiday in London: tomorrow, in London time'],
   ['london', '2026-12-24T18:30:00Z', 'no card · Tuesday from 08:00 GMT', 'Christmas Eve after hours in London: Tuesday (Christmas, the weekend, the Boxing Day substitute)'],
   ['milan', '2026-12-07T08:00:00Z', 'no card · Wednesday from 09:00 CET', "Sant'Ambrogio (Monday 7 December) and the Immacolata: Wednesday"]
@@ -725,7 +739,8 @@ for (const slug of SLUGS7) {
   await page.waitForTimeout(1100);
   check(await page.$eval('#pass', (p) => p.hasAttribute('data-hold')) && await at(page) === 0.125, 'PAID without "Start now": the plane holds before the first tick (--at .125, data-hold)');
   check(await text(page, '#codeLine') === `PAID · FILE ${FILE} · AMS`, 'PAID: the code line prints the server\'s file number');
-  check(/^Status: from 4 nov$/i.test(await text(page, '#dep-1-sr')) && /^Step 1: from 4 nov$/i.test(await text(page, '#depLive')), 'PAID without "Start now": row 01 reads FROM 4 NOV (the server\'s first working day)', await text(page, '#dep-1-sr'));
+  // the board prints the drum word (FROM 4 NOV); a screen reader hears words (v1.6 review B4)
+  check(await text(page, '#dep-1-sr') === 'Status: from 4 November' && await text(page, '#depLive') === 'Step 1: from 4 November', 'PAID without "Start now": row 01 says "from 4 November" (the server\'s first working day) — in words, not the drum\'s "4 nov"', await text(page, '#dep-1-sr'));
   await ctx.close();
 }
 
@@ -750,12 +765,13 @@ for (const slug of SLUGS7) {
   check(await page.evaluate(() => window.__live) === 1, `#depLive announced once (${await page.evaluate(() => window.__live)})`);
   await ctx.close();
 }
-for (const [slug, clock, flow, want, what] of [
-  ['amsterdam', SAT_T, 'open', 'REPLY MON', 'OPEN on a Saturday: REPLY MON (the desk\'s next open day)'],
-  ['amsterdam', OPEN_T, 'paid1', 'START TODAY', 'PAID with "Start now" on an open desk: START TODAY'],
-  ['london', SAT_T, 'paid1', 'START MON', 'PAID with "Start now" on a Saturday: START MON'],
-  ['paris', OPEN_T, 'open', 'FILE OPEN', 'Paris (a desk still opening): FILE OPEN — never a reply day'],
-  ['berlin', SAT_T, 'open', 'FILE OPEN', 'Berlin on a Saturday: FILE OPEN']]) {
+// the board keeps the drum word; the screen-reader twin says it in words (v1.6 review B4)
+for (const [slug, clock, flow, want, said, what] of [
+  ['amsterdam', SAT_T, 'open', 'REPLY MON', 'reply Monday', 'OPEN on a Saturday: REPLY MON (the desk\'s next open day), heard as "reply Monday"'],
+  ['amsterdam', OPEN_T, 'paid1', 'START TODAY', 'start today', 'PAID with "Start now" on an open desk: START TODAY'],
+  ['london', SAT_T, 'paid1', 'START MON', 'start Monday', 'PAID with "Start now" on a Saturday: START MON, heard as "start Monday"'],
+  ['paris', OPEN_T, 'open', 'FILE OPEN', 'file open', 'Paris (a desk still opening): FILE OPEN — never a reply day'],
+  ['berlin', SAT_T, 'open', 'FILE OPEN', 'file open', 'Berlin on a Saturday: FILE OPEN']]) {
   const PAID1 = { status: 200, body: { ok: true, paid: true, plan: 'application-pack', file: FILE, startNow: true } };
   const { ctx, page } = await open({ slug, clock, ...(flow === 'paid1' ? { query: `?paid=application-pack&start=1&session_id=${SID}`, paid: PAID1 } : {}) });
   await page.waitForTimeout(300);
@@ -765,7 +781,7 @@ for (const [slug, clock, flow, want, what] of [
   const sr = await text(page, '#dep-1-sr');
   await center(page, '.dep');
   await page.waitForTimeout(1900);
-  check(sr.toUpperCase() === `STATUS: ${want}` && await depWord(page, 1) === want, `${slug}: ${what}`, `${sr} / ${await depWord(page, 1)}`);
+  check(sr === `Status: ${said}` && await depWord(page, 1) === want, `${slug}: ${what}`, `${sr} / ${await depWord(page, 1)}`);
   await ctx.close();
 }
 
@@ -775,8 +791,11 @@ for (const [tz, same] of [['America/New_York', false], ['Europe/London', true]])
   const { ctx, page, st } = await open({ slug: 'london', clock: OPEN_T, tz, width: 1440 });
   await page.waitForTimeout(800);
   const desk = await text(page, '#ckDeskSr'), you = await text(page, '#ckYou');
-  check(desk === 'At the desk: 10:00 GMT' && (same ? you === 'Same time as you' : you === '05:00'),
+  // the clock is labelled by its zone ("London time"), never "At the desk" (every desk answers from Rome — v1.6 review money F5)
+  check(desk === 'London time: 10:00 GMT' && (same ? you === 'Same time as you' : you === '05:00') && !/At the desk/.test(await page.$eval('#clocks', (c) => c.textContent)),
     `the clocks with the reader in ${tz}: "${desk}" and "${you}"${same ? ' (same zone: said, not repeated)' : ' (computed here)'}`);
+  const yr = await page.$eval('#ckYou', (n) => ({ same: n.classList.contains('same'), h: n.getBoundingClientRect().height, lh: parseFloat(getComputedStyle(n).lineHeight) || 0 }));
+  check(yr.same === same && (!same || yr.h <= yr.lh * 1.5), `#ckYou${same ? '.same: "Same time as you" set small, on one line' : ' carries no .same'} (${Math.round(yr.h)} px, line ${Math.round(yr.lh)} px)`, JSON.stringify(yr));
   check(await shown(page, '#clocks') && await page.$eval('#clocks', (c) => !!c.closest('#stubGate')), '1440: the ONE clocks node sits in the stub\'s gate');
   check(st.posts.length === 0 && st.gets.length === 0, 'the reader\'s time is never sent anywhere');
   await ctx.close();
@@ -923,10 +942,253 @@ for (const slug of ['paris', 'berlin']) {
   await ctx.close();
 }
 
-check(allErrors.length === 0, 'zero JS errors across every run', allErrors.slice(0, 3).join(' | '));
-check(allForeign.length === 0, 'no request to a host we did not stub', allForeign.slice(0, 3).join(' | '));
+await reviewFixes();
+await finish();
 
-await browser.close();
-srv.close();
-console.log(`\n  ${ok} passed, ${ko} failed`);
-process.exit(ko ? 1 : 0);
+// ── 12 · the v1.6 review (03/11/2026): one guard per confirmed finding ────
+// Each was reproduced on the committed v1.6 before its fix (review.json); the
+// guard measures the defect itself, so the fix cannot quietly come undone.
+// `CITIES_UI_ONLY=review node tests/cities/ui.mjs` runs this section alone.
+async function reviewFixes() {
+  const R_OPEN = '2026-11-03T10:00:00Z', R_SAT = '2026-10-31T09:00:00Z';
+  const LIVE5 = ['amsterdam', 'madrid', 'barcelona', 'london', 'milan'];
+  const dep1 = (page) => page.$eval('#dep-1 .st-b', (e) => {
+    const cells = e.querySelectorAll(':scope > .fc2 > .st > b');
+    return (cells.length ? [...cells].map((b) => b.textContent || ' ').join('') : e.textContent).replace(/ /g, ' ').replace(/\s+/g, ' ').trim();
+  }).catch(() => '');
+  const noSmooth = (page) => page.addStyleTag({ content: 'html{scroll-behavior:auto!important}' });
+
+  // A1 (money F1 · visual F2 · platform PERF-1): a FRESH deep link — the Stripe
+  // cancel_url is /<slug>#fares — lands below the sticky header (≥760), never under it.
+  // The head-time scroll contract measured no header (no <body> yet) and wrote 0.
+  for (const slug of LIVE5) {
+    for (const w of [800, 1440]) {
+      const { ctx, page } = await open({ slug, width: w, height: 800, query: '#fares' });
+      await page.waitForTimeout(1500);
+      const m = await page.evaluate(() => {
+        const top = document.querySelector('header.top'), hb = top.getBoundingClientRect().bottom, f = document.querySelector('.fares-h').getBoundingClientRect();
+        const at = document.elementFromPoint(f.left + 6, f.top + 4);
+        return { pos: getComputedStyle(top).position, hb: Math.round(hb), top: Math.round(f.top), y: Math.round(scrollY), clear: !!at && !at.closest('header.top') };
+      });
+      check(m.pos === 'sticky' && m.y > 0 && m.top >= m.hb && m.clear, `${slug} ${w}: a fresh /${slug}#fares (the Stripe cancel_url) lands the fares' head below the sticky header (${m.top} ≥ ${m.hb})`, JSON.stringify(m));
+      await ctx.close();
+    }
+  }
+  {
+    const { ctx, page } = await open({ slug: 'london', width: 1440, height: 800, query: '#papers' });
+    await page.waitForTimeout(1500);
+    const m = await page.evaluate(() => ({ hb: Math.round(document.querySelector('header.top').getBoundingClientRect().bottom), eb: Math.round(document.querySelector('#papers .eb').getBoundingClientRect().top) }));
+    check(m.eb >= m.hb, `london 1440: a fresh /london#papers lands the Baggage eyebrow below the header (${m.eb} ≥ ${m.hb})`);
+    await ctx.close();
+  }
+
+  // A2 (visual F1): forced colors drop the foil band; at ≥940 the pass must keep its
+  // columns (it collapsed into the 28/30px tracks: a 42px-wide door spelled letter by letter)
+  for (const [slug, w] of [['london', 1440], ['paris', 1440], ['barcelona', 940]]) {
+    const { ctx, page } = await open({ slug, width: w, forced: true });
+    await page.waitForTimeout(400);
+    const m = await page.evaluate(() => {
+      const wd = (s) => Math.round(document.querySelector(s).getBoundingClientRect().width), d = document.getElementById('door').getBoundingClientRect();
+      return { door: wd('#door'), doorH: Math.round(d.height), main: wd('.p-main'), stub: wd('.stub'), lamina: getComputedStyle(document.querySelector('.lamina')).display, onda: getComputedStyle(document.querySelector('.onda')).display };
+    });
+    check(m.door > 300 && m.doorH < 90 && m.main > 380 && m.stub >= 370 && m.lamina === 'none' && m.onda === 'none',
+      `${slug} ${w}, forced colors: the pass keeps its columns — door ${m.door}×${m.doorH}, main ${m.main}, stub ${m.stub}; no foil band, no onda behind the text`, JSON.stringify(m));
+    await ctx.close();
+  }
+
+  // A3 (visual F4): the CONDITIONS chip straddles the fact sheet's top edge; it never
+  // covers the summary's words nor its '+', and a click on the '+' opens the sheet
+  for (const slug of ['london', 'paris']) {
+    for (const w of [320, 390, 1024, 1440]) {
+      const { ctx, page } = await open({ slug, width: w, height: 800 });
+      await noSmooth(page);
+      await center(page, '#enbref-wrap');
+      await page.waitForTimeout(1000);
+      const m = await page.evaluate(() => {
+        const chip = document.querySelector('.corner').getBoundingClientRect(), sum = document.querySelector('.sheet > summary'), sr = sum.getBoundingClientRect(), sh = document.querySelector('.sheet').getBoundingClientRect();
+        const rg = document.createRange(); rg.selectNodeContents(sum);
+        const hit = (a, b) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+        const plus = { left: sr.right - 2 - 18, right: sr.right - 2, top: (sr.top + sr.bottom) / 2 - 11, bottom: (sr.top + sr.bottom) / 2 + 11 };
+        return { straddles: chip.top < sh.top && chip.bottom > sh.top, overText: [...rg.getClientRects()].some((t) => hit(chip, t)), overPlus: hit(chip, plus),
+          pe: getComputedStyle(document.querySelector('.corner')).pointerEvents, px: (plus.left + plus.right) / 2, py: (plus.top + plus.bottom) / 2, chip: [chip.left, chip.top, chip.right, chip.bottom].map(Math.round) };
+      });
+      await page.mouse.click(m.px, m.py);
+      await page.waitForTimeout(200);
+      const opened = await page.$eval('.sheet', (d) => d.open);
+      check(m.straddles && !m.overText && !m.overPlus && m.pe === 'none' && opened,
+        `${slug} ${w}: the CONDITIONS chip straddles the sheet's edge, covers neither the summary nor its '+', and a click on the '+' opens the sheet`, JSON.stringify({ ...m, opened }));
+      await ctx.close();
+    }
+  }
+
+  // A5 (visual F7): Full Search open at 1440 — the stub's door block rides down beside
+  // the ticket under the header (no dead band, the door one glance away), and stops on
+  // the foot: it never runs over the barcode, nor out of the pass
+  for (const slug of ['london', 'barcelona']) {
+    const { ctx, page } = await open({ slug, width: 1440, height: 900, clock: R_OPEN });
+    await noSmooth(page);
+    await page.waitForTimeout(500);
+    await page.click('#fare-full-search > summary');
+    await page.waitForTimeout(500);
+    const seen = [];
+    for (let y = 0; y <= 1600; y += 40) {
+      await page.evaluate((v) => scrollTo({ top: v, left: 0, behavior: 'instant' }), y);
+      seen.push(await page.evaluate(() => {
+        const r = (q) => { const b = document.querySelector(q).getBoundingClientRect(); return { t: b.top, b: b.bottom }; };
+        return { y: Math.round(scrollY), hb: document.querySelector('header.top').getBoundingClientRect().bottom, st: r('.stub-st'), door: r('#door'), foot: r('.stub-foot'), pass: r('#pass'), stub: r('.stub'),
+          clocks: !!document.querySelector('.stub-st #clocks'), ih: innerHeight };
+      }));
+    }
+    // riding = held under the header while the stub's own top has gone past that line
+    const riding = seen.filter((s) => s.stub.t + 30 < s.st.t - 1 && s.foot.t > s.st.b + 1);
+    const over = seen.filter((s) => s.st.b > s.foot.t + 0.5 || s.st.b > s.pass.b + 0.5);
+    const lost = riding.filter((s) => !(s.st.t >= s.hb && s.door.t >= s.hb && s.door.b <= s.ih));
+    check(riding.length >= 4 && riding.every((s) => Math.abs(s.st.t - riding[0].st.t) < 1) && !over.length && !lost.length && seen.every((s) => s.clocks),
+      `${slug} 1440, Full Search open: the door block (route, door, clocks) rides under the header for ${riding.length * 40} px of scroll with the door on screen, then stops on the foot — never over it`,
+      JSON.stringify(over.concat(lost).concat(riding.length < 4 ? seen.slice(0, 3) : []).slice(0, 3).map((s) => ({ y: s.y, st: [Math.round(s.st.t), Math.round(s.st.b)], foot: Math.round(s.foot.t), door: [Math.round(s.door.t), Math.round(s.door.b)] }))));
+    await ctx.close();
+  }
+
+  // B1 (behaviour B1, MAJOR): the onda keeps ONE frame chain. A hidden tab parks the
+  // pending frame; before the fix each hide/show added a loop (58 → 160 calls/s after 3)
+  {
+    const parkRaf = () => {
+      const orig = window.requestAnimationFrame.bind(window), cancel = window.cancelAnimationFrame.bind(window), ids = new Map();
+      let n = 0;
+      window.__loops = 0; window.__frames = 0; window.__hid = false; window.__parked = [];
+      // the page's frame rate, on the browser's own clock: ONE chain means one loop call per frame
+      (function tick() { window.__frames++; orig(tick); })();
+      window.requestAnimationFrame = (cb) => {
+        const f = cb.name === 'loop' ? function loop(t) { window.__loops++; return cb(t); } : cb, id = ++n;
+        ids.set(id, orig((t) => { ids.delete(id); if (window.__hid) { window.__parked.push({ id, f }); return; } f(t); }));
+        return id;
+      };
+      window.cancelAnimationFrame = (id) => { if (ids.has(id)) { cancel(ids.get(id)); ids.delete(id); } window.__parked = window.__parked.filter((p) => p.id !== id); };
+      window.__setHidden = (h) => {
+        window.__hid = h;
+        Object.defineProperty(document, 'hidden', { configurable: true, get: () => h });
+        Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => (h ? 'hidden' : 'visible') });
+        document.dispatchEvent(new Event('visibilitychange'));
+        if (!h) window.__parked.splice(0).forEach((x) => orig(x.f));     // a visible tab runs what it parked
+      };
+    };
+    const { ctx, page, st } = await open({ slug: 'london', width: 1440, clock: R_OPEN, init: parkRaf });
+    await page.waitForFunction(() => window.BOOM_ONDA && window.BOOM_ONDA.running, null, { timeout: 8000 }).catch(() => {});
+    await page.waitForTimeout(800);
+    const rate = async () => { await page.evaluate(() => { window.__loops = 0; window.__frames = 0; }); await page.waitForTimeout(1000); return page.evaluate(() => [window.__loops, window.__frames]); };
+    const base0 = await rate();
+    let last = [0, 0], hidden = 0;
+    for (let i = 0; i < 3; i++) {
+      await page.evaluate(() => window.__setHidden(true));
+      await page.waitForTimeout(150);
+      await page.evaluate(() => { window.__loops = 0; });
+      await page.waitForTimeout(400);
+      hidden += await page.evaluate(() => window.__loops);
+      await page.evaluate(() => window.__setHidden(false));
+      await page.waitForTimeout(200);
+      last = await rate();
+    }
+    // one chain = at most one loop call per frame (two chains = two per frame: 58 → 160 calls/s before the fix)
+    check(base0[0] >= 10 && base0[0] <= base0[1] + 3 && last[0] >= 10 && last[0] <= last[1] + 3 && hidden === 0 && await page.evaluate(() => window.BOOM_ONDA.running),
+      `1440, desk open: three tab hide/show cycles keep ONE onda frame chain — ${base0[0]} → ${last[0]} loop calls/s for ${base0[1]} → ${last[1]} frames/s, none while hidden (${hidden})`);
+    check(st.errors.length === 0, 'the onda under hide/show: no JS error', st.errors.join(' | '));
+    await ctx.close();
+  }
+
+  // B2 (behaviour B2): the door slid under the sticky header counts as gone — the
+  // header's gold twin comes as soon as less than half the door shows below it. (At ≥940
+  // the door rides in the stub's sticky block, so it goes under only where that track ends.)
+  for (const [slug, w, h] of [['london', 1440, 900], ['london', 1024, 768], ['paris', 800, 900]]) {
+    const { ctx, page } = await open({ slug, width: w, height: h, clock: R_OPEN });
+    await noSmooth(page);
+    await page.waitForTimeout(500);
+    // the first scroll at which less than half the door shows below the header, found by walking down
+    const yUnder = await page.evaluate(() => {
+      const d = document.getElementById('door'), hdr = document.querySelector('header.top');
+      for (let y = 0; y < 6000; y += 3) {
+        scrollTo({ top: y, left: 0, behavior: 'instant' });
+        const r = d.getBoundingClientRect(), hb = hdr.getBoundingClientRect().bottom;
+        const below = Math.max(0, Math.min(r.bottom, innerHeight) - Math.max(r.top, hb)) / r.height;
+        if (below > 0.05 && below < 0.45) return y;
+      }
+      return -1;
+    });
+    const at = async (y) => {
+      await page.evaluate((v) => scrollTo({ top: v, left: 0, behavior: 'instant' }), y);
+      await page.waitForTimeout(450);
+      return page.evaluate(() => {
+        const d = document.getElementById('door').getBoundingClientRect(), hb = document.querySelector('header.top').getBoundingClientRect().bottom, tg = document.getElementById('topGo');
+        return { y: Math.round(scrollY), below: Math.round(100 * Math.max(0, Math.min(d.bottom, innerHeight) - Math.max(d.top, hb)) / d.height) / 100, twin: !tg.hidden && getComputedStyle(tg).visibility !== 'hidden' };
+      });
+    };
+    const clear = await at(Math.max(0, yUnder - 140));
+    const under = await at(yUnder);
+    const back = await at(Math.max(0, yUnder - 140));
+    check(yUnder > 0 && clear.below === 1 && !clear.twin && under.below < 0.5 && under.twin && back.below === 1 && !back.twin,
+      `${slug} ${w}: the door under the sticky header (${Math.round(under.below * 100)}% showing below it) brings the gold twin; the door clear of it sends the twin away`, JSON.stringify({ clear, under, back }));
+    await ctx.close();
+  }
+
+  // B4 (money F3): row 01 follows the desk clock — an OPEN file at 17:58 in London says
+  // "reply today"; three minutes later the desk has closed and it says Thursday, like the pill
+  {
+    const { ctx, page, st } = await open({ slug: 'london', width: 1440, tz: 'Europe/London', pwClock: '2026-11-04T17:58:30Z' });
+    await page.clock.runFor(500);
+    await tap(page, '#door');
+    await page.fill('#fName', 'Clara Hale'); await page.fill('#fContact', 'clara@example.com');
+    await page.click('#door');
+    await page.waitForFunction(() => document.getElementById('pass').getAttribute('data-state') === 'open', null, { timeout: 5000 }).catch(() => {});
+    await page.clock.runFor(300);
+    const a = { sr: await text(page, '#dep-1-sr'), pill: await text(page, '#depPillT') };
+    await page.clock.runFor(3 * 60 * 1000);
+    await page.waitForTimeout(200);
+    await center(page, '.dep');
+    await page.clock.runFor(3000);
+    await page.waitForTimeout(300);
+    const z = { sr: await text(page, '#dep-1-sr'), live: await text(page, '#depLive'), pill: await text(page, '#depPillT'), next: await text(page, '#oNext'), word: await dep1(page) };
+    check(a.sr === 'Status: reply today' && a.pill === 'DESK OPEN' && z.sr === 'Status: reply Thursday' && z.live === 'Step 1: reply Thursday' && z.word === 'REPLY THU' && z.pill === 'DESK CLOSED' && z.next === 'Tomorrow from 08:00 GMT',
+      'london, an OPEN file across closing time (Wed 17:58 → 18:01 GMT): row 01 goes from "reply today" to REPLY THU, agreeing with the pill and the card', JSON.stringify({ a, z }));
+    check(st.errors.length === 0, 'across closing time: no JS error', st.errors.join(' | '));
+    await ctx.close();
+  }
+
+  // B6 (money F2): a desk still opening (Paris, Berlin) never says "desk open": the
+  // instruments speak of replies (REPLYING / OFFLINE, "replies until 19:00 CET"); the
+  // selling desks keep DESK OPEN. ("Charged only when the desk opens" is a true sentence.)
+  const DESK_OPEN = /\bdesk open\b(?!s)/i;
+  for (const slug of ['paris', 'berlin']) {
+    for (const [clock, opened] of [[R_OPEN, true], [R_SAT, false]]) {
+      for (const w of [1440, 390]) {
+        const { ctx, page } = await open({ slug, width: w, clock });
+        await page.waitForTimeout(400);
+        const g = await page.evaluate(() => ({
+          text: document.body.innerText,
+          labels: [...document.querySelectorAll('[aria-label],[data-window],[data-gate]')].map((n) => `${n.getAttribute('aria-label') || ''} ${n.textContent}`).join(' | '),
+          pill: document.getElementById('depPillT').textContent.trim(),
+          gates: [...document.querySelectorAll('[data-gate]')].map((n) => n.textContent.trim()),
+          week: [...document.querySelectorAll('#week li')].map((l) => l.getAttribute('aria-label'))
+        }));
+        const where = (g.text.match(/.{0,30}\bdesk open\b(?!s).{0,20}/i) || g.labels.match(/.{0,30}\bdesk open\b(?!s).{0,20}/i) || [''])[0];
+        check(!DESK_OPEN.test(g.text) && !DESK_OPEN.test(g.labels) && g.pill === (opened ? 'REPLYING' : 'OFFLINE')
+          && g.gates.length >= 4 && g.gates.every((x) => /\breplies\b/.test(x)) && g.week.length === 7 && g.week.every((x) => /, (replies 09:00–19:00|no replies)$/.test(x)),
+          `${slug} ${w} ${opened ? 'Tuesday 11:00' : 'Saturday'}: no "desk open" anywhere after the JS — the pill reads ${g.pill}, the lines and the week speak of replies`, where || JSON.stringify({ pill: g.pill, gates: g.gates.slice(0, 2), week: g.week.slice(0, 2) }));
+        await ctx.close();
+      }
+    }
+  }
+  {
+    const { ctx, page } = await open({ slug: 'london', width: 1440, clock: R_OPEN });
+    await page.waitForTimeout(400);
+    check(await text(page, '#depPillT') === 'DESK OPEN' && DESK_OPEN.test(await page.evaluate(() => document.body.innerText)), 'london (a desk that sells): the pill still reads DESK OPEN');
+    await ctx.close();
+  }
+}
+
+async function finish() {
+  check(allErrors.length === 0, 'zero JS errors across every run', allErrors.slice(0, 3).join(' | '));
+  check(allForeign.length === 0, 'no request to a host we did not stub', allForeign.slice(0, 3).join(' | '));
+  await browser.close();
+  srv.close();
+  console.log(`\n  ${ok} passed, ${ko} failed`);
+  process.exit(ko ? 1 : 0);
+}
