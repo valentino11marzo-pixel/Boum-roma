@@ -140,8 +140,8 @@
     if(state.view==='home'){M.mount(byId('nextHomeMap'));M.scope(exploreHomes().map(function(c){return c.id;}));M.setBudget(0);document.title='BOOM — Your next chapter, Rome.';}
     else if(state.view==='apartments'){renderResults();if(state.layout==='skyline')M.mount(byId('nextApartmentsMap'));else M.hide();document.title='Your possibilities in Rome — BOOM';}
     else{M.hide();renderDetail();}
-    if(window.BoomFlightDirections)window.BoomFlightDirections.render({state:state,catalogue:catalogue,url:url});
     window.dispatchEvent(new CustomEvent('boom:flight-view',{detail:{view:state.view}}));
+    if(window.BoomFlightDirections)window.BoomFlightDirections.render({state:state,catalogue:catalogue,url:url});
     if(focus){window.scrollTo({top:0,behavior:'instant'});var heading=state.view==='detail'?byId('nextDetailTitle'):state.view==='apartments'?byId('nextAptsTitle'):byId('nextHeroTitle');if(heading){heading.setAttribute('tabindex','-1');heading.focus({preventScroll:true});}}
   }
   function navigate(view,home) {

@@ -98,10 +98,16 @@
     var activeController=controller;
     var timer=setTimeout(function(){activeController.abort();},8000);
     function get(path) { return fetch(path,{signal:activeController.signal}).then(function(r){if(!r.ok)throw Error('unavailable');return r.json();}); }
-    Promise.all([get('/cities/'+slug+'.json'),loaded.shared?Promise.resolve(loaded.shared):get('/cities/_shared.json')]).then(function(result){
+    get('/assets/boom-desks-public.json').then(function(result){
       if(n!==loadNumber)return;
-      if(result[0].slug!==slug || !validConfig(result[0]))throw Error('city details unavailable');
-      loaded[slug]=result[0];loaded.shared=result[1];paintService(result[0],result[1]);
+      var selected=result&&result.cities&&result.cities[slug];
+      if(!selected || selected.slug!==slug || !validConfig(selected) || !result.refund || typeof result.refund.rule!=='string')throw Error('city details unavailable');
+      Object.keys(places).forEach(function(key){
+        var config=result.cities[key];
+        if(config&&config.slug===key&&validConfig(config)&&config.live===true&&config.mode==='search')loaded[key]=config;
+      });
+      loaded.shared={refund:{rule:result.refund.rule}};
+      paintService(selected,loaded.shared);
     }).catch(function(){if(n===loadNumber)paintService(null);}).finally(function(){clearTimeout(timer);});
   }
   function renderCity(animate) {

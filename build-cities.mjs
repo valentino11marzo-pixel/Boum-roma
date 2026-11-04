@@ -2418,6 +2418,26 @@ function readJson(file) {
 }
 const hash = (file) => crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex').slice(0, 10);
 
+// cities/ stays private at deployment. Flight reads this generated projection,
+// never source JSON, internal launch notes or a separately maintained price list.
+export const PUBLIC_DESKS_FILE = 'assets/boom-desks-public.json';
+export function publicDeskProjection(shared, cities) {
+  const out = { refund: { rule: shared.refund.rule }, cities: {} };
+  for (const city of [...cities].sort((a, b) => a.slug.localeCompare(b.slug))) {
+    if (city.live !== true || city.mode !== 'search' || city.checkout !== true) continue;
+    out.cities[city.slug] = {
+      slug: city.slug, live: city.live, mode: city.mode,
+      hero: { faresHead: { b: city.hero.faresHead.b } },
+      pricing: { plans: city.pricing.plans.map((plan) => ({
+        id: plan.id, label: plan.label, price: plan.price,
+        condition: plan.condition, offerDescription: plan.offerDescription,
+        includes: plan.includes.slice()
+      })) }
+    };
+  }
+  return out;
+}
+
 export function buildAll({ root = ROOT } = {}) {
   const dir = path.join(root, 'cities');
   const template = fs.readFileSync(path.join(dir, '_template.html'), 'utf8');
@@ -2467,7 +2487,14 @@ export function writeAll({ root = ROOT, check = false } = {}) {
     }
     return { ...p, out, stale: cur !== p.html };
   });
+  const shared = readJson(path.join(root, 'cities', '_shared.json'));
+  const cities = desks.map((p) => readJson(path.join(root, 'cities', `${p.slug}.json`)));
+  const projection = JSON.stringify(publicDeskProjection(shared, cities), null, 2) + '\n';
+  const publicPath = path.join(root, PUBLIC_DESKS_FILE);
+  const publicStale = !fs.existsSync(publicPath) || fs.readFileSync(publicPath, 'utf8') !== projection;
+  if (check && publicStale) throw new BuildError(`${PUBLIC_DESKS_FILE} is stale — run: npm run build:cities`);
   if (!check) for (const r of results) if (r.stale) fs.writeFileSync(r.out, r.html);
+  if (!check && publicStale) fs.writeFileSync(publicPath, projection);
   return results;
 }
 
@@ -2486,6 +2513,7 @@ if (isMain) {
         for (const x of p.placeholders) console.log('   - ' + x);
       }
     }
+    console.log(`${check ? '✓ up to date' : '✓ built'}  ${PUBLIC_DESKS_FILE}  ·  public live-desk projection`);
     if (stale) process.exit(1);
   } catch (e) {
     if (e instanceof BuildError) { console.error('✗ ' + e.message); process.exit(1); }
