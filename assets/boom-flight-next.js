@@ -152,7 +152,7 @@
     else if(state.view==='apartments'){renderResults();if(state.layout==='skyline')M.mount(byId('nextApartmentsMap'));else M.hide();document.title='Your possibilities in Rome — BOOM';}
     else{M.hide();renderDetail();}
     window.dispatchEvent(new CustomEvent('boom:flight-view',{detail:{view:state.view}}));
-    if(window.BoomFlightDirections)window.BoomFlightDirections.render({state:state,catalogue:catalogue,url:url});
+    if(window.BoomFlightDirections)window.BoomFlightDirections.render({state:state,catalogue:catalogue,url:url,loaded:loaded,error:loadError});
     if(focus){window.scrollTo({top:0,behavior:'instant'});var heading=state.view==='detail'?byId('nextDetailTitle'):state.view==='apartments'?byId('nextAptsTitle'):byId('nextHeroTitle');if(heading){heading.setAttribute('tabindex','-1');heading.focus({preventScroll:true});}}
   }
   function navigate(view,home,afterRender,immediate) {
@@ -218,12 +218,13 @@
       loadError=true;refreshClub();
       var error='<div class="empty-state"><h2>The collection is taking a moment.</h2><p>We could not load the current homes. Your choices are still here.</p><button type="button" data-retry>Try again ↗</button><br><a href="/apartments">Open the existing catalogue ↗</a></div>';
       byId('nextHomeRail').innerHTML=error;byId('nextResults').innerHTML=error;byId('nextResultCount').textContent='Connection interrupted';if(state.view==='detail')byId('nextDetailContent').innerHTML=error;
+      if(window.BoomFlightDirections)window.BoomFlightDirections.render({state:state,catalogue:catalogue,url:url,loaded:loaded,error:loadError});
     }finally{loading=false;}
   }
   document.addEventListener('click',function(e){
     var b=e.target.closest('button,a');if(!b)return;
     if(b.hasAttribute('data-view')){if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return;e.preventDefault();navigate(b.dataset.view);}
-    else if(b.hasAttribute('data-home')){if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return;e.preventDefault();navigate('detail',b.dataset.home);}
+    else if(b.hasAttribute('data-home')){if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return;e.preventDefault();if(homeDirty&&state.view==='home'){if(!readHome())return;commit(true);}navigate('detail',b.dataset.home);}
     else if(b.hasAttribute('data-save-home')){toggleSave(b.dataset.saveHome);}
     else if(b.hasAttribute('data-guide')){guide(b);}
     else if(b.hasAttribute('data-edit-stay')||b.id==='nextEditStay'){editStay(b);}

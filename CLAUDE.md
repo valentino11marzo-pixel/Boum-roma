@@ -3370,6 +3370,12 @@ Apartments riduce altezza di titolo, filtri e brief; un solo ingresso in guida, 
 Grain SVG statico solo al bordo dei pass; hover su puntatore fine, pressioni brevi, pausa/riduzione rispettate. Lo scroll misura prima di scrivere e non calcola sezioni nascoste fuori Home; nessun nuovo clock o dipendenza.
 Verifica: `flighteditionsui` Club320/390/1280, `flightclubmotion`, `flightclubflight`; misure prima/dopo e controllo mobile del passaggio Roma↔Desks. Solo preview Flight, nessuna modifica agli ingressi pubblici `/` o `/desks`.
 
+Flight Club media 04/11: l’apertura affianca Solari/globo a una galleria della stessa casa pubblica; fotografia intera, proporzioni native, scorrimento manuale con frecce/tastiera. Montezebio usa l’ordine editoriale 0/2/4, poi tutte le altre foto; prezzo/stato restano dal catalogo e una casa chiusa non diventa cover.
+`boom-club-media.*` è opt-in su Club; nessuna seconda fetch del catalogo, archivio o clock. Caricamento, guasto/retry, collezione vuota e singola foto fallita hanno stati distinti, senza perdere il collegamento alla scheda.
+Su mobile la fotografia precede il planner, che mantiene i suoi nodi e resta prima del globo; nel dettaglio le immagini non vengono tagliate. I Desks mostrano il ritratto già pubblico del fondatore con base a Roma, mai inventario romano attribuito a un’altra città.
+Il clic Home→Detail valida e conserva la bozza con `readHome` e history canonici; l’arrivo estero dal globo si riallinea dopo l’assestamento del contenuto. Nessun nuovo submit, lead o pagamento; ingressi pubblici e post-submit invariati.
+Verifica `flightclubmediaui`: foto/ID, ordine e proporzioni, 320/390/1280, tastiera, guasti, casa chiusa/vuoto, cambio città e brief; regressioni `flighteditionsui`, `flightclubflight`, `flightclubmotion`, `flighteuropeui`, `flightnextui`. Audit pubblico: 48 record/265 immagini al 04/11, soltanto due Shorts in schede non libere; nessun video aggiunto o foto estera inventata.
+
 Flight Lab 31/10: `/flight-lab` confronta Atlas, Residence e Club sulle stesse viste reali di `/flight-next?direction=…`, senza cambiare il sito pubblico.
 Le composizioni riusano catalogo, Solari, iframe Skyline, salvataggi e Apply; nessun secondo catalogo o nuovo handler di invio.
 Residence usa una foto realmente restituita dal catalogo pubblico (fallback a una casa pubblica non chiusa); Atlas sposta la stessa mappa nel primo schermo.

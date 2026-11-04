@@ -69,6 +69,8 @@
     Promise.resolve(transition).then(function(result){
       if(version!==flightVersion)return;flightTarget='';
       if(result&&['cancelled','superseded'].includes(result.status))return;
+      // City-dependent media and the original form have settled before the final arrival.
+      if(entered&&slug!=='rome')byId('europeDeskStory').scrollIntoView({block:'start',behavior:'instant'});
       var target=entered?(slug==='rome'?byId('nextAptsTitle'):byId('europeStoryCity')):byId('nextSearchError');
       if(target){target.setAttribute('tabindex','-1');target.focus({preventScroll:true});}
     }).catch(function(){if(version===flightVersion){flightTarget='';if(!entered)arrive();}});
@@ -91,7 +93,7 @@
   function syncCity(){
     var city=document.body.dataset.europeCity||'rome',foreign=city!=='rome';
     arrangeHome();
-    hero.querySelector('.hero-pretitle').textContent='Your next chapter in';
+    hero.querySelector('.hero-pretitle').textContent=foreign?'Your BOOM desk in':'Find your place in';
     hero.querySelector('.hero-centre .eyebrow').textContent=foreign?'BOOM Desks · Your agent, on your side.':'BOOM Rome · Homes & Skyline';
     hero.querySelector('.hero-promise').textContent=foreign?'Rental search, applications and viewings. Clear scope, clear fees, a person to guide your move.':'Explore the homes. Compare your everyday journey. Find the place that fits your life.';
     planLink.href=foreign?'#europeDeskStory':'#nextSearch';
@@ -105,7 +107,7 @@
     queueFit();queueScroll();
   }
   var fitFrame=0;
-  function fitDestination(){fitFrame=0;var host=byId('nextDestinationBoard'),heading=byId('nextHeroTitle'),letters=(host.getAttribute('aria-label')||'ROME').length,width=heading.clientWidth;if(width>0)host.style.setProperty('--europe-board-size',Math.max(23,Math.min(innerWidth<650?91:136,(width-6)/(letters*.91)))+'px');}
+  function fitDestination(){fitFrame=0;var host=byId('nextDestinationBoard'),heading=byId('nextHeroTitle'),letters=(host.getAttribute('aria-label')||'ROME').length,width=heading.clientWidth;if(width>0)host.style.setProperty('--europe-board-size',Math.max(23,Math.min(innerWidth<650?78:110,(width-6)/(letters*.91)))+'px');}
   function queueFit(){if(!fitFrame)fitFrame=requestAnimationFrame(fitDestination);}
   new MutationObserver(syncCity).observe(document.body,{attributes:true,attributeFilter:['data-europe-city']});
   window.addEventListener('resize',queueFit,{passive:true});
