@@ -826,6 +826,10 @@ export const papersG = (c) => String(c.papers.summary).replace(/^The papers /, '
 
 // ── the renderers ─────────────────────────────────────────────────────────
 const MAIL = (contact) => `<a class="lnk" href="mailto:${esc(contact.email)}">${esc(contact.email)}</a>`;
+// a pair member's condition in three parts ('per viewing · incl. VAT · at opening'): the closed pair breaks it after
+// its first part below 600 px, so both tickets carry two lines and their stubs start on one line (v1.7, CI fonts)
+const condThree = (p) => p.id !== 'full-search' && String(p.condition || '').split(' · ').length > 2;
+
 const R = {
   // THE FARES: one row per plan, DERIVED from pricing.plans. The row is the
   // <summary> of its ticket (label · for whom · price · condition), the
@@ -851,12 +855,13 @@ const R = {
     const rows = list(c, 'pricing.plans').map((p) => {
       const first = p.id === 'full-search', fs0 = sell && first;
       const cond = esc(p.condition).replace(' · incl. VAT', ' ·<br> incl. VAT');
+      const c3 = condThree(p);  // a three-part condition breaks after its first part in the closed pair (boom-city.css)
       return [
         `        <li class="bp${first ? ' eroe' : ''}">`,
         `        <details class="fare" name="fare" id="fare-${esc(p.id)}" data-plan="${esc(p.id)}"${fs0 ? ' data-fs' : ''}>`,
         '          <summary>',
         `            <span class="f-l"><b class="f-name">${esc(p.label)}</b><span class="f-when">${esc(p.when)}</span>${first ? `<span class="f-say">${esc(p.name)}</span>` : ''}</span>`,
-        `            <span class="f-r"><span class="f-price" data-plan-price="${esc(p.id)}">${money(p.price, cur)}</span><span class="f-cond">${cond}</span>${first ? '<i class="bars" aria-hidden="true"></i>' : ''}<i class="f-tog" aria-hidden="true"></i></span>`,
+        `            <span class="f-r"><span class="f-price" data-plan-price="${esc(p.id)}">${money(p.price, cur)}</span><span class="f-cond${c3 ? ' f-c3' : ''}">${cond}</span>${first ? '<i class="bars" aria-hidden="true"></i>' : ''}<i class="f-tog" aria-hidden="true"></i></span>`,
         '          </summary>',
         '          <div class="tk">',
         first ? '' : `            <p class="tk-tag">${esc(p.name)}</p>`,
@@ -2000,7 +2005,7 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
     need(hAt > -1 && pAt > -1 && hAt < pAt && fares.includes(`<b id="faresH">${esc(fh.b)}</b>`), where, 'LAU art. 20: on a Spanish desk that sells, the fares head "Optional, chosen in writing" (#faresH) comes BEFORE the first price in #fares');
   }
   for (const p of plans) {
-    need(fares.includes(`<span class="f-price" data-plan-price="${esc(p.id)}">${pr(p.price)}</span><span class="f-cond">${esc(p.condition).replace(' · incl. VAT', ' ·<br> incl. VAT')}</span>`), where, `plan "${p.id}": its price ${pr(p.price)} is not on its fare row with its condition`);
+    need(fares.includes(`<span class="f-price" data-plan-price="${esc(p.id)}">${pr(p.price)}</span><span class="f-cond${condThree(p) ? ' f-c3' : ''}">${esc(p.condition).replace(' · incl. VAT', ' ·<br> incl. VAT')}</span>`), where, `plan "${p.id}": its price ${pr(p.price)} is not on its fare row with its condition`);
     need(fares.includes(`<span class="f-when">${esc(p.when)}</span>`), where, `plan "${p.id}": its "when" line is not on its fare row`);
   }
   // one city board, served empty (the raw H1 reads the city once)

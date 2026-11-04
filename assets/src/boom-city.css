@@ -238,6 +238,12 @@ h1 .h1a{display:block;color:var(--t2);font-size:clamp(26px,7vw,50px);text-wrap:b
   .bps:not(.pair-open):not(:has(>.bp:not(.eroe)>[open]))>.bp:not(.eroe) .f-r::before{left:9px;right:9px;top:-3px;bottom:auto;width:auto;height:8px;background-size:9px 8px;background-repeat:repeat-x}
   .bps:not(.pair-open):not(:has(>.bp:not(.eroe)>[open]))>.bp:not(.eroe) .f-r::after{left:0;right:0;top:-8px;bottom:auto;width:auto;height:18px;background:radial-gradient(circle 9px at 0 50%,var(--cut) 96%,transparent),radial-gradient(circle 9px at 100% 50%,var(--cut) 96%,transparent)}
 }
+/* the pair's conditions keep to the same number of lines in any common font (v1.7, CI): under 390 the tracking is
+   .03em, so 'per viewing · incl. VAT' fits one line at 360 in Arial/Helvetica metrics too (it wrapped there and the
+   two stubs stood 11.7 px apart); below 600 a three-part condition ('… · at opening', class f-c3 from the build)
+   breaks after its first part, so both tickets carry two lines (at 430–500 one fitted on one line, the other not) */
+@media (min-width:360px) and (max-width:389px){.bps:not(.pair-open):not(:has(>.bp:not(.eroe)>[open]))>.bp:not(.eroe) .f-cond{letter-spacing:.03em}}
+@media (min-width:360px) and (max-width:599px){.bps:not(.pair-open):not(:has(>.bp:not(.eroe)>[open]))>.bp:not(.eroe) .f-c3 br{display:inline}}
 /* the open ticket: torn under its row; the promise, the ✓ lines, then a second tear and the darker stub */
 .tk{position:relative;margin:0 14px 0 calc(var(--bw) + 13px);padding:18px 0 0}
 .tk::before{content:'';position:absolute;left:-4px;right:-4px;top:0;height:10px;background:var(--hole);background-size:11px 10px;background-repeat:repeat-x;background-position:center}

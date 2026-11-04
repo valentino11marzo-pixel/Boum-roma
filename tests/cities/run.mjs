@@ -980,6 +980,16 @@ tplRefuses('<p class="proof">', '<p class="proof">Pay by bank transfer · ', /no
     const svcLd = [...h.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => JSON.parse(m[1])).find((b) => b['@graph'])['@graph'].find((n) => n['@type'] === 'Service');
     check(svcLd.offers.every((o) => o.availability === 'https://schema.org/PreOrder' && /opens|sign/i.test(o.description) && !/refunded/.test(o.description)), `${s}: its Offers are PreOrder and say when they are charged`);
   }
+  // v1.7 (CI fonts): a pair member whose condition has three parts carries f-c3, so the closed pair breaks it after
+  // its first part and both stubs start on one line; Full Search (not in the pair) and two-part conditions do not
+  for (const s of SLUGS) {
+    const marks = Object.fromEntries(CITY[s].pricing.plans.map((p) => [p.id, new RegExp(`data-plan-price="${p.id}">[^<]*</span><span class="f-cond f-c3">`).test(PAGE[s])]));
+    const want = Object.fromEntries(CITY[s].pricing.plans.map((p) => [p.id, p.id !== 'full-search' && p.condition.split(' · ').length > 2]));
+    check(JSON.stringify(marks) === JSON.stringify(want), `${s}: the three-part conditions of the pair, and only those, carry f-c3`, JSON.stringify({ marks, want }));
+  }
+  { const css = read('assets/src/boom-city.css');
+    check(/@media \(min-width:360px\) and \(max-width:389px\)\{\.bps:not\(\.pair-open\)[^{]*\.f-cond\{letter-spacing:\.03em\}\}/.test(css) && /@media \(min-width:360px\) and \(max-width:599px\)\{\.bps:not\(\.pair-open\)[^{]*\.f-c3 br\{display:inline\}\}/.test(css),
+      'the closed pair: .03em tracking under 390, and the three-part condition breaks after its first part below 600 (CI fonts: the stubs stood 11.7 px apart)'); }
   check(CITY.berlin.hero.faresHead.span === 'Nothing charged today' && /data-plan-price="full-search">€500<\/span><span class="f-cond">flat ·<br> incl\. VAT · on signing<\/span>/.test(PAGE.berlin),
     'berlin: nothing is charged today, and Full Search says on its own row that it is due only once you sign (WoVermRG §2–§3)');
   check(/Catalan or Spanish/.test(CITY.barcelona.checkoutCopy.fine) && /fulls oficials/i.test(PAGE.barcelona), 'barcelona: documents in Catalan or Spanish on request, the official complaint forms named');

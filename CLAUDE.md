@@ -2927,8 +2927,8 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
   reclamaciones, il calendario 2028; nessuno ha ancora letto un lead o un
   ordine dei desk: «validato» non si può dire. Test: i conteggi del lancio
   (Stage 1) sono superati; quelli in vigore stanno in «IL BIGLIETTO v1.7»
-  (dopo il quinto giro della revisione: `run.mjs` 1085, `ui.mjs` 477, `checkout.mjs` 117,
-  `calendar.mjs` 97).
+  (dopo il quinto giro e la coppia col font della CI: `run.mjs` 1094, `ui.mjs` 541,
+  `checkout.mjs` 117, `calendar.mjs` 97).
 - **IL BIGLIETTO v1.7 (04/11/2026 — «iteriamo la prima card verso i biglietti
   della home, la mappa, l'onda, e Valencia live»).** Quattro prototipi della prima
   card (A–D) davanti a tre giudici (occhio del fondatore A 8 · conversione C 8 ·
@@ -3481,6 +3481,16 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
      build di Milano rifiuta «MIL 08»), niente `<br>` (1), niente prosa (2),
      niente spazio nella forma di numero (3), il lint del follower (1), le
      sigle in minuscolo (2).
+  9. **La coppia economy col font della CI (04/11, sera)**: la CI ha trovato quello che la sandbox non vedeva.
+     Con Liberation Sans (metrica Arial/Helvetica, il font dei runner) a 360px «PER VIEWING · INCL. VAT» andava a
+     capo e i due tagliandi della coppia partivano a 11,7px di distanza; in Inter, il font della sandbox, entrava
+     con 0px di margine. Ora sotto i 390px la condizione della coppia ha tracking .03em (a 360 restano 4px di
+     margine in Liberation, 6 in Inter) e, sotto i 600px, una condizione in tre parti (Parigi e Berlino,
+     «… · at opening», classe `f-c3` messa dal build) va a capo dopo la prima parte: i due biglietti hanno sempre
+     lo stesso numero di righe. A 430–480px (iPhone Plus e Pro Max) Parigi e Berlino erano disallineati anche
+     loro. G4 in `ui.mjs` gira a 360, 375, 390, 430 e 480px, col font della pagina e con Liberation Sans, e
+     confronta anche il numero di righe delle due condizioni; `run.mjs` pinna la classe e le due regole.
+     La sandbox simula il font della CI con un `FONTCONFIG_FILE` che rifiuta Inter.
   Aperte, del fondatore e del legale: il parere valenciano sul RAICV; la data di
   convalida del RDL 29/2026 (12/11 in questo file, ~6–7/11 dedotta, non
   confermata: regge l'«Optional, chosen in writing» di TRE desk con la cassa);
@@ -3495,10 +3505,10 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
   stampa già nel piede del pass; +~80 B di JS se lo si vuole); le porte dell'hub
   restano su `#fares`; nessuno ha ancora letto un lead o un ordine dei desk —
   «validato» non si può dire.
-  Test (dopo il quinto giro del 04/11): `tests/cities/run.mjs` 1085, `ui.mjs`
-  477 (le pagine costruite non sono cambiate dal quarto giro), `checkout.mjs`
-  117, `calendar.mjs` 97, `tests/pfs/markets-ui.mjs` 25 (dopo il quarto giro
-  1064 e 477; dopo il terzo giro 1027 e 477; dopo il secondo giro 998 e 475; dopo il primo 993 e 444; prima della revisione 978 e 423); più consentbanner, scroll, cielo, seo, crawl, llmstxt,
+  Test (dopo il quinto giro e la coppia col font della CI, 04/11): `tests/cities/run.mjs`
+  1094, `ui.mjs` 541 (G4 a cinque larghezze e in due font, 541 anche con il font della CI
+  simulato), `checkout.mjs` 117, `calendar.mjs` 97, `tests/pfs/markets-ui.mjs` 25 (dopo il
+  quinto giro 1085 e 477; dopo il quarto giro 1064 e 477; dopo il terzo giro 1027 e 477; dopo il secondo giro 998 e 475; dopo il primo 993 e 444; prima della revisione 978 e 423); più consentbanner, scroll, cielo, seo, crawl, llmstxt,
   verita, whatsapp, testata; il `npm test` intero il 04/11 (2.291 s, `BOOM_PLAYWRIGHT` impostato): 288 suite
   verdi, 4 rosse per ragioni estranee ai desk — `magicsigncustomui` e
   `magicsigncustomsigner` scaricano pdf.js da cdn.jsdelivr.net e il sandbox non
@@ -3506,8 +3516,12 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
   prima non ha riempito la cache in `/tmp`), `planciaui` conta un «Failed to
   load resource: ERR_TUNNEL_CONNECTION_FAILED» di una risorsa esterna che il
   proxy rifiuta, `portalnavigationui` pretende la prima azione di Oggi sopra la
-  tab bar a 390×844 (fondo 850 contro 784) su `portal.html`, che v1.7 non tocca:
-  da rivedere a parte, non qui.
+  tab bar e fallisce solo di MERCOLEDÌ: a 320px la data «MERCOLEDÌ 4 NOVEMBRE» è più
+  larga di «Oggi, Valentino.» e manda «Strumenti ↓» e «↻» su una seconda riga, la
+  proposta scende di 59px (con il font della CI: fondo 802,7 contro 784; con Inter
+  della sandbox cade anche negli altri giorni). Codice di Oggi che v1.7 non tocca:
+  la diagnosi e una patch di sei righe per `css/oggi-workspace.css` stanno nel
+  commento sulla PR #331, non applicate qui.
 - **IL DESK AVIAZIONE COMPLETO (v1.6, 03/11/2026 — il fondatore: «questo stile è
   troppo sintetizzato… itera lo stile del biglietto… anche per una pagina
   completa»).** Il primo schermo resta UNA carta d'imbarco, rifatta come oggetto

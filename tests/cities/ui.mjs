@@ -1793,16 +1793,23 @@ async function v17Fixes() {
     await ctx.close();
   }
 
-  // G4 · the closed economy pair: the two tickets as tall as their row, both stubs on one line (every desk, 390×844 and 360×780)
-  for (const slug of ['amsterdam', 'madrid', 'barcelona', 'london', 'milan', 'valencia', 'paris', 'berlin']) {
-    for (const [w, h] of [[390, 844], [360, 780]]) {
-      const { ctx, page } = await open({ slug, width: w, height: h });
-      await page.waitForTimeout(300);
-      const m = await page.evaluate(() => { const q = (x) => document.querySelector(x).getBoundingClientRect();
-        return { ap: q('#fare-application-pack').bottom, av: q('#fare-attended-viewing').bottom, apR: q('#fare-application-pack .f-r').top, avR: q('#fare-attended-viewing .f-r').top, apT: q('#fare-application-pack').top, avT: q('#fare-attended-viewing').top }; });
-      check(Math.abs(m.apT - m.avT) <= 1 && Math.abs(m.ap - m.av) <= 1 && Math.abs(m.apR - m.avR) <= 1, `${slug} ${w}×${h}: the closed economy pair, side by side, ends on one line and its two stubs start on one line`, JSON.stringify(m));
-      if (w === 390 && ['london', 'valencia', 'paris', 'milan'].includes(slug)) await shot(page, `first-${slug}-390.png`);
-      await ctx.close();
+  // G4 · the closed economy pair: the two tickets as tall as their row, both stubs on one line (every desk, 360 to 480 px),
+  // in the page's own font AND in Arial/Helvetica metrics (Liberation Sans, the font CI renders with: at 360 'per viewing ·
+  // incl. VAT' wrapped there and the stubs stood 11.7 px apart; at 430–480 Paris and Berlin had one condition on one line
+  // and the other on two)
+  for (const font of ['page', 'liberation']) {
+    for (const slug of ['amsterdam', 'madrid', 'barcelona', 'london', 'milan', 'valencia', 'paris', 'berlin']) {
+      for (const [w, h] of [[390, 844], [360, 780], [375, 812], [430, 932], [480, 900]]) {
+        const { ctx, page } = await open({ slug, width: w, height: h });
+        if (font === 'liberation') await page.addStyleTag({ content: ":root{--sans:'Liberation Sans',Arial,sans-serif}" });
+        await page.waitForTimeout(300);
+        const m = await page.evaluate(() => { const q = (x) => document.querySelector(x).getBoundingClientRect();
+          const lines = (x) => { const c = document.querySelector(x + ' .f-cond'); return Math.round(c.getBoundingClientRect().height / parseFloat(getComputedStyle(c).lineHeight)); };
+          return { ap: q('#fare-application-pack').bottom, av: q('#fare-attended-viewing').bottom, apR: q('#fare-application-pack .f-r').top, avR: q('#fare-attended-viewing .f-r').top, apT: q('#fare-application-pack').top, avT: q('#fare-attended-viewing').top, apLines: lines('#fare-application-pack'), avLines: lines('#fare-attended-viewing') }; });
+        check(Math.abs(m.apT - m.avT) <= 1 && Math.abs(m.ap - m.av) <= 1 && Math.abs(m.apR - m.avR) <= 1 && m.apLines === m.avLines, `${slug} ${w}×${h} (${font} font): the closed economy pair, side by side, ends on one line, its two conditions take the same lines and its two stubs start on one line`, JSON.stringify(m));
+        if (font === 'page' && w === 390 && ['london', 'valencia', 'paris', 'milan'].includes(slug)) await shot(page, `first-${slug}-390.png`);
+        await ctx.close();
+      }
     }
   }
 
