@@ -265,7 +265,8 @@
       }
     }
     if (Math.abs(dy) > 1) scrollByY(dy);
-    if (opening) track('fare_open', { plan: d.getAttribute('data-plan'), market: C.SLUG });
+    /* the reader's tap: a small ripple from the ticket's price (the onda, §D) */
+    if (opening) { track('fare_open', { plan: d.getAttribute('data-plan'), market: C.SLUG }); ping(d.querySelector('.f-price'), 's'); }
   }
   fares.forEach(function (d) {
     d.removeAttribute('name');
@@ -288,6 +289,11 @@
   function place() {
     /* the ONE clocks node: in the stub's gate on a desktop pass, in the Gate section below */
     var ck = $('clocks'), to = $(wide.matches ? 'stubGate' : 'deskClocks');
+    /* the ONE onda canvas: behind the page on a desktop (the pass paper is translucent at the
+       top), INSIDE the pass on a phone — the card's living security print. Crossing 940 moves
+       it; its ResizeObserver re-measures (v1.7 §D) */
+    var cv = $('onda'), home = wide.matches ? document.body : pass;
+    if (cv && cv.parentNode !== home) home.insertBefore(cv, home.firstChild);
     if (ck && to && ck.parentNode !== to) { to.appendChild(ck); if (ckB) window.BoomSolari.calibrate($('ckDesk'), ' 0123456789:'); }
     var s = currentSlot();
     if (!s || !act || act.parentNode === s) return;
@@ -449,7 +455,7 @@
       txt('oName', String(d.name || '').slice(0, 40) || '—');
       txt('oFile', d.file || '—');
       txt('oNext', nextLine() || ($('oNext') || {}).textContent);
-      show('cOpen'); land($('cOpen'));
+      show('cOpen'); ping($('cOpen').querySelector('.stamp'), 'l'); land($('cOpen'));
     } else if (s === 'confirming' || s === 'unconfirmed') {
       if (st) st.textContent = s === 'confirming' ? 'Confirming' : 'Not confirmed';
       txt('slotSr', s === 'confirming' ? 'Payment being confirmed' : 'Payment not confirmed yet');
@@ -471,7 +477,7 @@
         if ($('pWait')) $('pWait').hidden = false;
         if ($('pText')) $('pText').hidden = true;
       }
-      show('cPaid');
+      show('cPaid'); ping($('cPaid').querySelector('.stamp'), 'p');
     }
     doorTwins();
   }
@@ -707,25 +713,31 @@
   addEventListener('scroll', onScroll, { passive: true });
   addEventListener('resize', onScroll, { passive: true });
 
-  /* ── §D the onda: after load, when idle, only on a desktop pass (≥940).
-     It loops only while the desk is open (refreshClock tells it each minute). ── */
-  var ondaIn = false;
+  /* ── §D the onda (v1.7): after load, when idle, at every width — behind the page on a
+     desktop pass, inside the pass on a phone (place). It loops only while the desk is
+     open (refreshClock tells it each minute); the heartbeat rises from the stub's
+     destination code at ≥940, from the city's board below; the ambient stays above the
+     fares (calm) and, on a phone, sleeps while the board is above the viewport (hero).
+     A FACT pings it once from where it happens: OPEN from its stamp, PAID doubled, a fare
+     from its price. A fact that lands before the engine waits for it (ondaQ). ── */
+  var ondaIn = false, ondaQ = [];
+  function ping(n, s) { if (window.BOOM_ONDA && BOOM_ONDA.pulse) BOOM_ONDA.pulse(n, s, 220); else if (n) ondaQ.push([n, s]); }
   function onda() {
     var cv = $('onda');
-    if (ondaIn || !C.ONDA || !cv || innerWidth < 940) return;
+    if (ondaIn || !C.ONDA || !cv) return;
     ondaIn = true;
     var s = document.createElement('script');
     s.src = C.ONDA; s.async = true;
     s.onload = function () {
-      var w = win();
-      if (window.BOOM_ONDA && BOOM_ONDA.start) BOOM_ONDA.start(cv, { origin: document.querySelector('.route-s .rb'), open: !!(w && w.open) });
+      var w = win(), O = window.BOOM_ONDA;
+      if (!O || !O.start) return;
+      O.start(cv, { origin: function () { return wide.matches ? document.querySelector('.route-s .rb') : $('placeBoard'); }, calm: faresBox, hero: $('placeBoard'), open: !!(w && w.open) });
+      ondaQ.splice(0).forEach(function (x) { O.pulse(x[0], x[1], 220); });
     };
     document.head.appendChild(s);
   }
   function ondaLater() { if (window.requestIdleCallback) requestIdleCallback(onda, { timeout: 2000 }); else setTimeout(onda, 200); }
   if (document.readyState === 'complete') ondaLater(); else addEventListener('load', ondaLater, { once: true });
-  var wideOnda = function () { if (wide.matches && document.readyState === 'complete') ondaLater(); };
-  if (wide.addEventListener) wide.addEventListener('change', wideOnda); else if (wide.addListener) wide.addListener(wideOnda);
 
   /* the Horizon comes alive when it nears the screen (assets/boom-map.js) */
   var hzMap = document.querySelector('svg.hz'), hzIn = false;

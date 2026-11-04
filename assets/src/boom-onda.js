@@ -1,150 +1,167 @@
-/* assets/boom-onda.js — the onda behind a city desk's pass (v1.6, ≥940px):
-   the home's flap field (index.html cartaRoma), gold only. The heartbeat
-   rises from the stub's destination code (.route-s .rb). It LOOPS only
-   while the desk is open — boom-city.js says so each minute, from the desk
-   calendar; closed, it draws one dim still frame and stops. Reduced motion:
-   one frame, never a loop. Off screen or in a hidden tab it sleeps. No tap
-   ripple, no scroll front, no green. Loaded by assets/boom-city.js after
-   load, only at ≥940px. window.BOOM_ONDA = { start, setOpen, stop, running } */
+/* assets/boom-onda.js — the onda (v1.7): the home's flap field, gold only,
+   behind a desk's pass (inside it on a phone, calm below opt.calm) and the
+   /desks board. It beats while the desk is open; a fact pulses once from
+   where it happens: pulse(node, 'l' file · 'p' paid · 's' fare).
+   start(canvas, { origin: node | () => node, calm: node, hero: node, open })
+   — origin: where the heartbeat rises; calm: the box the ambient stays
+   above (full until 30px over it, gone 140px below); hero: inside a card,
+   the ambient sleeps while this node (the board) is above the viewport,
+   a fact still lights the card; open: the desk is open now.
+   One requestAnimationFrame chain; IntersectionObserver sleep;
+   visibilitychange; ResizeObserver on the canvas (a ticket opening grows
+   the pass; crossing 940 moves the canvas — both re-measure). Reduced
+   motion: one still frame, never a loop, never a pulse. 'boom:beat' is a
+   payload-free Event on window at each heartbeat (PERIOD 8200 ms). */
 (function () {
   'use strict';
-  var GOLD = '255,215,0', MILK = '250,248,240';
-  var O = window.BOOM_ONDA = { running: false, start: start, setOpen: setOpen, stop: stop };
-  var tela, ctx, src, still = false, open = false, seen = true, on = false, halt = false;
-  var W = 0, H = 0, DPR = 1, MIN = 1, cw, ch, gap, cols, rows, E, AU, base, ox, oy;
-  var px = -1e4, py = -1e4, rush = -1e4, last = 0, prev = 0, beat = 700, flip = 2200, waves = [], cas = [], wait, raf = 0;
+  var Q = 16, PERIOD = 8200, FS = [];
+  for (var q = 0; q < Q; q++) {
+    FS[q] = 'rgba(250,248,240,' + ((q + .5) / Q * .15).toFixed(3) + ')';
+    FS[q + Q] = 'rgba(255,215,0,' + ((q + .5) / Q * .5).toFixed(3) + ')';
+  }
+  var O = window.BOOM_ONDA = { running: false, PERIOD: PERIOD, start: start, setOpen: setOpen, pulse: pulse };
+  var tela, ctx, opt, card, still = false, open = false, seen = true, hero = true, on = false;
+  var W = 0, H = 0, D = 1, U = 1, Z = 0, cw, ch, px, py, cols, rows, N, E, AU, K, VY, lo = 0, hi = 0;
+  var mx = -1e4, my = -1e4, rush = -1e4, last = 0, prev = 0, beat = 700, flip = 2200, hot = 0, lit = 0, waves = [], cas = [], wait, tw, raf = 0;
 
-  /* the vertical veil, baked into the alpha (no mask-image on the compositor) */
-  function veil(y) { var q = y / H; return q < .72 ? 1 : Math.max(0, (.98 - q) / .26); }
-  function cell(g, x, y) {
-    g.beginPath();
-    if (g.roundRect) g.roundRect(x, y, cw, ch, 3 * DPR); else g.rect(x, y, cw, ch);
-    g.fill();
+  /* a node's centre, in canvas px */
+  function at(n) {
+    var r = tela.getBoundingClientRect(), o = n && n.getBoundingClientRect && n.getBoundingClientRect();
+    return o && o.width ? [(o.left + o.width / 2 - r.left) * D, (o.top + o.height / 2 - r.top) * D] : [W * .56, H * .42];
   }
-  /* the heartbeat's origin: the centre of the stub's destination code,
-     read again at each beat (the stub is sticky) and on resize */
-  function origin() {
-    var r = tela.getBoundingClientRect(), o = src && src.getBoundingClientRect();
-    if (o && o.width) { ox = (o.left + o.width / 2 - r.left) * DPR; oy = (o.top + o.height / 2 - r.top) * DPR; }
-    else { ox = W * .56; oy = H * .42; }
-  }
+  function origin() { var o = opt.origin; return at(typeof o === 'function' ? o() : o); }
+  /* the ambient: the desk open and, inside a card, the board (hero) not scrolled above the viewport */
+  function amb() { return open && (!card || hero); }
   function measure() {
-    var r = tela.getBoundingClientRect();
-    /* an area cap: sharp where it shows, never a monster canvas */
-    DPR = Math.min(window.devicePixelRatio || 1, 2, Math.max(1, Math.sqrt(2.3e6 / Math.max(1, r.width * r.height))));
-    W = tela.width = Math.round(r.width * DPR); H = tela.height = Math.round(r.height * DPR);
-    MIN = Math.max(1, Math.min(W, H));
-    cw = Math.round(40 * DPR); ch = Math.round(cw * .68); gap = Math.round(7 * DPR);
-    cols = Math.ceil(W / (cw + gap)) + 1; rows = Math.ceil(H / (ch + gap)) + 1;
-    E = new Float32Array(cols * rows); AU = new Float32Array(cols * rows);
-    base = null;
-    if (W && H) {
-      /* the quiet layer is drawn once, under; each frame paints only the lit cells */
-      base = document.createElement('canvas'); base.width = W; base.height = H;
-      var g = base.getContext('2d');
-      for (var y = 0; y < rows; y++) for (var x = 0; x < cols; x++) {
-        var v = veil(y * (ch + gap));
-        if (v <= 0) continue;
-        g.fillStyle = 'rgba(' + MILK + ',' + (.031 * v) + ')';
-        cell(g, x * (cw + gap), y * (ch + gap));
-      }
-    }
-    origin();
+    var r = tela.getBoundingClientRect(), b = document.createElement('canvas'), g, y, v, sm, c = (card = tela.parentNode !== document.body) && opt.calm, sm = r.width < 600;
+    D = Math.min(window.devicePixelRatio || 1, sm ? 1.5 : 2, Math.max(1, Math.sqrt(2.3e6 / Math.max(1, r.width * r.height))));
+    W = tela.width = Math.round(r.width * D); H = tela.height = Math.round(r.height * D);
+    cw = Math.round((sm ? 30 : 40) * D); ch = Math.round(cw * .68);
+    px = cw + Math.round(7 * D); py = ch + px - cw; U = (sm ? 12 : 20) * px;
+    cols = Math.ceil(W / px) + 1; rows = Math.ceil(H / py) + 1; N = cols * rows; lo = 0; hi = rows;
+    E = new Float32Array(N); AU = new Float32Array(N); K = new Int8Array(N); VY = new Float32Array(rows);
+    var a = c ? (c.getBoundingClientRect().top - r.top - 30) * D : (Math.min(innerHeight, 1000) - r.top - scrollY) * D * .55;
+    var z = c ? a + 140 * D : a / .55 * .98;
+    for (y = 0; y < rows; y++) { v = y * py + ch / 2; VY[y] = v < a ? 1 : Math.max(0, (z - v) / (z - a)); }
+    Z = Math.min(H, z);
+    /* the quiet layer: the canvas's background */
+    b.width = px; b.height = py; g = b.getContext('2d');
+    g.fillStyle = 'rgba(250,248,240,.031)'; cell(g, 0, 0);
+    tela.style.background = 'url(' + b.toDataURL() + ') 0 0/' + px / D + 'px ' + py / D + 'px';
+    dim();
   }
-  /* one frame. live: the tides move, the heartbeat and the cascades come;
-     still: one band, at alpha k (the closed desk dims it to .6) */
-  function frame(t, live, k) {
-    ctx.clearRect(0, 0, W, H);
-    if (!base) return;
-    var i, r, c;
-    if (live && t > beat) {
-      origin();
-      waves.push({ x: ox, y: oy, via: t });
-      if (waves.length > 3) waves.shift();
-      beat = t + 8200;
+  function cell(g, x, y) { if (g.roundRect) g.roundRect(x, y, cw, ch, 3 * D); else g.rect(x, y, cw, ch); }
+  /* ms, reach, gain, band: beat 'b' + echo 'e' (< 'f': veiled), fact 'l', opening 'o', fare 's' */
+  var KIND = { b: [3000, 1.05, 1, .12], e: [3000, 1.05, .45, .12], l: [2400, 1.05, 1.3, .12], o: [4200, 1.3, 1, .12], s: [900, .5, .8, .09] };
+  function wave(x, y, t, s) {
+    var k = KIND[s], b = s < 'f' ? Z : H, d = Math.max(Math.hypot(x, y - b), Math.hypot(W - x, y - b), Math.hypot(x, y), Math.hypot(W - x, y));
+    waves.push({ x: x, y: y, via: t, s: s, dur: k[0], reach: U * k[1], g: k[2], w: U * k[3], life: Math.min(1.4, (d + U * k[3]) / (U * k[1])) });
+    if (waves.length > 6) waves.shift();
+  }
+  function set(i, f) { if (f * .85 > AU[i]) AU[i] = f * .85; if (f > E[i]) E[i] = f; }
+  function frame(t, live) {
+    var i, r, c, w, x, y, a, s, f, ii, tide = live && amb();
+    ctx.clearRect(0, lo * py, W, (hi - lo + 1) * py);
+    if (tide && t > beat) {
+      var o = origin();
+      wave(o[0], o[1], t, 'b'); wave(o[0], o[1], t + 300, 'e');
+      beat = t + PERIOD;
+      dispatchEvent(new Event('boom:beat'));
     }
-    /* a column cascade: one row of the board updating, top to bottom — gold */
-    if (live && t > flip) {
-      cas.push({ c: Math.floor(Math.random() * cols), via: t });
-      if (cas.length > 3) cas.shift();
-      flip = t + 4600 + Math.random() * 3800;
-    }
+    if (tide && t > flip) { cas.push({ c: Math.floor(Math.random() * cols), via: t }); flip = t + 4600 + Math.random() * 3800; }
+    if (cas.length > 4) cas.shift();
+    hot = 0;
     for (i = 0; i < cas.length; i++) {
-      var ca = cas[i], head = (t - ca.via) / 46;
-      if (head > rows + 3) continue;
-      for (r = Math.max(0, Math.floor(head) - 2); r <= Math.min(rows - 1, Math.floor(head)); r++) {
-        var ii = r * cols + ca.c, f = 1 - (head - r) / 3;
+      var ca = cas[i], head = (t - ca.via) / (ca.r != null ? 38 : 46);
+      if (head < 0 || head > (ca.r != null ? cols : Z / py) + 3) continue;
+      hot++;
+      for (s = Math.max(0, Math.floor(head) - 2); s <= Math.floor(head); s++) {
+        f = 1 - (head - s) / 3;
         if (f <= 0) continue;
-        AU[ii] = Math.max(AU[ii], f * .85); E[ii] = Math.max(E[ii], f);
+        /* a fact's row: the board writes the line */
+        if (ca.r != null) { ii = ca.r * cols; if (ca.c + s < cols) set(ii + ca.c + s, f); if (ca.c - s >= 0) set(ii + ca.c - s, f); }
+        else if (s < rows) set(s * cols + ca.c, f * VY[s]);
       }
     }
-    var f1 = live ? ((t * .00009) % 1.6) * (W + H) - H * .4 : W * .6;
-    var f2 = live ? (1 - (t * .00005) % 1.6) * (W + H) - H * .4 : -1;
-    for (r = 0; r < rows; r++) for (c = 0; c < cols; c++) {
-      var x = c * (cw + gap) + cw / 2, y = r * (ch + gap) + ch / 2;
-      i = r * cols + c;
-      var v1 = Math.max(0, 1 - Math.abs((x + y * .82) - f1) / (MIN * .34));
-      var v2 = Math.max(0, 1 - Math.abs((x - y * .6 + H * .6) - f2) / (MIN * .5));
-      var vm = Math.max(0, 1 - Math.hypot(x - px, y - py) / (MIN * .26));
-      E[i] = Math.max(E[i], v1 * v1 * .9, v2 * v2 * .35, vm * vm);
-      if (live && v1 > .96 && Math.random() < .006) AU[i] = .9;
-      for (var w = 0; w < waves.length; w++) {
-        var od = waves[w], age = (t - od.via) / 3000;
-        if (age > 1.4) continue;
-        /* the beat: a narrow crest leads, the band behind holds the gold */
-        var da = Math.abs(Math.hypot(x - od.x, y - od.y) - age * MIN * 1.05);
-        var vo = Math.max(0, 1 - da / (MIN * .12)), vc = Math.max(0, 1 - da / (MIN * .035));
-        E[i] = Math.max(E[i], vo * (1.2 - age), vc * 1.15 * (1 - age * .3));
-        AU[i] = Math.max(AU[i], vo * vo * (1 - age * .35) * .9, vc * (1 - age * .25));
+    for (w = waves.length - 1; w >= 0; w--) if ((t - waves[w].via) / waves[w].dur > waves[w].life) waves.splice(w, 1); else hot++;
+    var f1 = tide ? ((t * .00009) % 1.6) * (W + H) - H * .4 : W * .6;
+    var f2 = tide ? (1 - (t * .00005) % 1.6) * (W + H) - H * .4 : -1;
+    var b1 = U * .34, b2 = U * .5, bm = U * .26;
+    for (r = 0, i = 0; r < rows; r++) {
+      y = r * py + ch / 2;
+      var vy = VY[r];
+      for (c = 0; c < cols; c++, i++) {
+        x = c * px + cw / 2;
+        var v1 = 1 - Math.abs(x + y * .82 - f1) / b1, v2 = 1 - Math.abs(x - y * .6 + H * .6 - f2) / b2, dx = x - mx, dy = y - my;
+        a = E[i];
+        if (v1 > 0 && v1 * v1 * .9 * vy > a) a = v1 * v1 * .9 * vy;
+        if (v2 > 0 && v2 * v2 * .35 * vy > a) a = v2 * v2 * .35 * vy;
+        if (dx * dx + dy * dy < bm * bm) { f = 1 - Math.sqrt(dx * dx + dy * dy) / bm; if (f * f > a) a = f * f; }
+        E[i] = a;
+        if (tide && v1 > .96 && Math.random() < .006) AU[i] = .9 * vy;
+        for (w = 0; w < waves.length; w++) {
+          var od = waves[w], age = (t - od.via) / od.dur;
+          if (age < 0) continue;
+          dx = x - od.x; dy = y - od.y;
+          var da = Math.abs(Math.sqrt(dx * dx + dy * dy) - age * od.reach);
+          if (da > U * .12) continue;
+          var vo = Math.max(0, 1 - da / od.w), vc = Math.max(0, 1 - da / (U * .035)), g = od.g * (od.s < 'f' ? vy : 1);
+          a = Math.max(vo * (1.2 - age), vc * 1.15 * (1 - age * .3)) * g;
+          if (a > E[i]) E[i] = a;
+          a = Math.max(vo * vo * (1 - age * .35) * .9, vc * (1 - age * .25)) * g;
+          if (a > AU[i]) AU[i] = Math.min(1, a);
+        }
       }
     }
-    var dt = Math.min(80, t - (prev || t)), kd = Math.pow(.9, dt / 16.7);
-    prev = t;
-    for (i = 0; i < E.length; i++) {
+    var kd = Math.pow(.9, Math.min(80, t - (prev || t)) / 16.7);
+    prev = t; lit = 0; lo = rows; hi = 0;
+    /* 16 milk, 16 gold steps: one fill each */
+    for (i = 0; i < N; i++) {
       E[i] *= kd; AU[i] *= kd;
       if (E[i] < .003) E[i] = 0;
-      if (AU[i] < .003) AU[i] = 0;
+      if (AU[i] < .003) AU[i] = 0; else lit = 1;
+      K[i] = AU[i] > .05 ? Q + Math.min(Q - 1, AU[i] * Q | 0) : E[i] >= .02 ? Math.min(Q - 1, E[i] / 1.2 * Q | 0) : -1;
+      if (K[i] >= 0) { r = (i / cols) | 0; if (r < lo) lo = r; if (r > hi) hi = r; }
     }
-    ctx.globalAlpha = k;
-    ctx.drawImage(base, 0, 0);
-    for (r = 0; r < rows; r++) for (c = 0; c < cols; c++) {
-      i = r * cols + c;
-      if (E[i] < .02 && AU[i] < .05) continue;
-      var x2 = c * (cw + gap), y2 = r * (ch + gap), vy = veil(y2);
-      if (vy <= 0) continue;
-      ctx.fillStyle = AU[i] > .05 ? 'rgba(' + GOLD + ',' + (AU[i] * .5 * vy) + ')' : 'rgba(' + MILK + ',' + (E[i] * .13 * vy) + ')';
-      cell(ctx, x2, y2);
-      if (E[i] > .14 || AU[i] > .1) { ctx.fillStyle = 'rgba(3,3,3,.55)'; ctx.fillRect(x2, y2 + ch * .48, cw, Math.max(1, DPR)); }
-    }
-    ctx.globalAlpha = 1;
+    for (q = 0; q < 2 * Q; q++) paint(q);
+    paint(-1);
   }
-  /* ONE chain: the frame id is kept, so a callback a hidden tab parked can
-     never start a second loop next to the one wake() queues */
+  function paint(q) {
+    var n = 0, i, x, y;
+    for (i = 0; i < N; i++) {
+      if (q < 0 ? !(K[i] >= 0 && (E[i] > .14 || AU[i] > .1)) : K[i] !== q) continue;
+      if (!n++) ctx.beginPath();
+      x = (i % cols) * px; y = ((i / cols) | 0) * py;
+      if (q < 0) ctx.rect(x, y + ch * .48, cw, Math.max(1, D)); else cell(ctx, x, y);
+    }
+    if (n) { ctx.fillStyle = q < 0 ? 'rgba(3,3,3,.55)' : FS[q]; ctx.fill(); }
+  }
+  /* ONE chain: a callback a hidden tab parked never starts a second */
   function loop(t) {
     raf = 0;
     if (!on) return;
     raf = requestAnimationFrame(loop);
-    /* at rest the field breathes at 30 fps; under the pointer, 60 */
-    if (t - rush > 500 && t - last < 28) return;
-    last = t; frame(t, true, 1);
+    if (t - rush > 500 && t - last < (hot ? 28 : 75)) return;
+    last = t; frame(t, true);
+    if (!amb() && !hot && !lit) rest();
   }
   function sleep() { on = false; O.running = false; if (raf) { cancelAnimationFrame(raf); raf = 0; } }
-  /* the still frame: from a clean field */
   function rest() {
     sleep();
     if (!tela) return;
-    E.fill(0); AU.fill(0); waves = []; cas = []; prev = 0;
-    frame(0, false, open ? 1 : .6);
+    E.fill(0); AU.fill(0); waves = []; cas = []; prev = 0; hot = lit = 0; lo = 0; hi = rows;
+    frame(0, false);
   }
   function wake() {
-    var go = !!tela && open && seen && !still && !halt && !document.hidden;
+    var go = !!tela && (amb() || hot || lit) && seen && !still && !document.hidden;
     if (go && !on) { on = true; O.running = true; prev = 0; if (!raf) raf = requestAnimationFrame(loop); }
     else if (!go && on) sleep();
   }
+  function dim() { tela.style.opacity = (open ? 1 : .6) * (card ? .6 : 1); }
   function move(e) {
     if (!on) return;
     var r = tela.getBoundingClientRect();
-    px = (e.clientX - r.left) * DPR; py = (e.clientY - r.top) * DPR; rush = performance.now();
+    mx = (e.clientX - r.left) * D; my = (e.clientY - r.top) * D; rush = performance.now();
   }
   function resize() {
     clearTimeout(wait);
@@ -152,29 +169,45 @@
   }
   function start(c, o) {
     o = o || {};
-    if (tela) { if (c === tela) { halt = false; setOpen(o.open); } return O; }
+    if (tela) { setOpen(o.open); return O; }
     if (!c || !c.getContext || !(ctx = c.getContext('2d'))) return O;
-    tela = c;
-    src = o.origin && o.origin.nodeType ? o.origin : document.querySelector(o.origin || '.route-s .rb');
+    tela = c; opt = o;
     open = !!o.open;
-    still = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+    still = matchMedia('(prefers-reduced-motion: reduce)').matches;
     measure();
     if (!still) {
-      addEventListener('pointermove', move, { passive: true });
-      if ('IntersectionObserver' in window) new IntersectionObserver(function (es) { var e = es[es.length - 1]; seen = e.isIntersecting && e.intersectionRatio >= .04; wake(); }, { threshold: .04 }).observe(c);
+      if (matchMedia('(pointer: fine)').matches) addEventListener('pointermove', move, { passive: true });
+      new IntersectionObserver(function (es) { var e = es[es.length - 1]; seen = e.isIntersecting && e.intersectionRatio >= .04; wake(); }, { threshold: .04 }).observe(c);
+      /* "watch the board": on a phone the lower half of the pass alone on screen is no reason to run the tides */
+      if (o.hero) new IntersectionObserver(function (es) { hero = es[es.length - 1].isIntersecting; wake(); }).observe(o.hero);
       document.addEventListener('visibilitychange', wake);
     }
-    addEventListener('resize', resize, { passive: true });
+    new ResizeObserver(resize).observe(c);
     if (open && !still) wake(); else rest();
     return O;
   }
-  /* the desk opens or closes: the loop follows (closed → one dim frame) */
   function setOpen(b) {
     b = !!b;
     if (!tela) { open = b; return; }
-    if (b === open && (on || !b || still)) return;
+    if (b === open) { if (b && !on) wake(); return; }
     open = b;
-    if (open && !still) wake(); else rest();
+    /* the dim over 1.2s, then the transition goes: a lingering transition property
+       would animate every later opacity (a re-measure) — and under a fake clock
+       (tests/cities/ui.mjs B4) it stalls the page's other flap boards */
+    if (!still) { tela.style.transition = 'opacity 1.2s'; clearTimeout(tw); tw = setTimeout(function () { tela.style.transition = ''; }, 1300); }
+    dim();
+    if (still) return rest();
+    if (b) { var o = origin(); wave(o[0], o[1], performance.now(), 'o'); beat = performance.now() + PERIOD; }
+    wake();
   }
-  function stop() { halt = true; sleep(); }
+  function pulse(n, s, ms) {
+    if (!tela || still) return;
+    setTimeout(function () {
+      var p = at(n), t = performance.now();
+      wave(p[0], p[1], t, s === 'p' ? 'l' : s);
+      if (s === 'p') wave(p[0], p[1], t + 300, 'l');
+      if (s !== 's') cas.push({ r: Math.floor(p[1] / py), c: Math.floor(p[0] / px), via: t });
+      hot++; wake();
+    }, ms || 0);
+  }
 })();

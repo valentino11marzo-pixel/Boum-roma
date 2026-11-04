@@ -4,9 +4,9 @@
    fetches. The static HTML carries the hours only: the clock, the window
    and OPEN/CLOSED are written here, from the calendar, and change only when
    a fact changes (the DESK NOW flaps flip only when a desk opens or
-   closes). At ≥940 it loads the onda (assets/boom-onda.js) after load; it
-   loops only while a desk is open. Without JS, or without the calendar,
-   the page stays as served. */
+   closes). At every width it loads the onda (assets/boom-onda.js) after
+   load, when idle; it loops only while a desk is open. Without JS, or
+   without the calendar, the page stays as served. */
 (function () {
   'use strict';
   var D = window.BOOM_DESKS || {};
@@ -158,22 +158,22 @@
   document.addEventListener('click', function (e) { if (sel && !sel.contains(e.target)) unsel(); });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') unsel(); });
 
-  /* the onda behind the board (≥940): after load, when idle. Its heartbeat
-     rises from ROM, the hub's row; it loops only while a desk is open. */
+  /* the onda behind the board, at every width (v1.7): after load, when idle.
+     Its heartbeat rises from ROM (the hub's row) on a desktop, from the
+     EUROPE board on a phone (ROM is below its first screen); it loops only
+     while a desk is open (tick says so each minute). */
   var ondaIn = false, big = mq('(min-width: 940px)');
   function onda() {
     var cv = $('onda');
-    if (ondaIn || !D.ONDA || !cv || !big.matches) return;
+    if (ondaIn || !D.ONDA || !cv) return;
     ondaIn = true;
     var s = document.createElement('script');
     s.src = D.ONDA; s.async = true;
     s.onload = function () {
-      if (window.BOOM_ONDA && window.BOOM_ONDA.start) window.BOOM_ONDA.start(cv, { origin: document.querySelector('#db-rom .db-code'), open: anyOpen });
+      if (window.BOOM_ONDA && window.BOOM_ONDA.start) window.BOOM_ONDA.start(cv, { origin: function () { return big.matches ? document.querySelector('#db-rom .db-code') : $('hubBoard'); }, open: anyOpen });
     };
     document.head.appendChild(s);
   }
   function ondaLater() { if (window.requestIdleCallback) requestIdleCallback(onda, { timeout: 2000 }); else setTimeout(onda, 200); }
   if (document.readyState === 'complete') ondaLater(); else addEventListener('load', ondaLater, { once: true });
-  var bigOnda = function () { if (big.matches && document.readyState === 'complete') ondaLater(); };
-  if (big.addEventListener) big.addEventListener('change', bigOnda); else if (big.addListener) big.addListener(bigOnda);
 })();

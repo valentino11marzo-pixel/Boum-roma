@@ -1675,16 +1675,17 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
     check(!/comet|cm-[a-z]{3}|hmap-svg/.test(H) && !/comet/.test(read('assets/boom-desks.css')) && /<symbol id="boomPlane" viewBox="0 0 24 24">/.test(H), 'the comet is gone (page and boom-desks.css); the hub carries the plane symbol the script flies');
   }
 
-  // the onda (P4): the desk pages' canvas script, versioned in its URL; the hub's script loads it
-  // at ≥940 after load and it loops only while a desk is open (boom-desks.js says so each minute)
+  // the onda (P4, v1.7): the desk pages' canvas script, versioned in its URL; the hub's script loads
+  // it at every width after load, when idle (origin ROM at ≥940, the EUROPE board below) and it loops
+  // only while a desk is open (boom-desks.js says so each minute)
   {
     const cfg = JSON.parse((H.match(/window\.BOOM_DESKS = (\{[\s\S]*?\});\s*<\/script>/) || [])[1] || '{}');
     const ondaHash = crypto.createHash('sha256').update(fs.readFileSync(path.join(R, 'assets/boom-onda.js'))).digest('hex').slice(0, 10);
     check(cfg.ONDA === `/assets/boom-onda.js?v=${ondaHash}` && /<canvas class="onda" id="onda" aria-hidden="true"><\/canvas>/.test(H) && H.indexOf('id="onda"') < H.indexOf('<main'),
       `the hub carries the onda canvas and its versioned script URL (${cfg.ONDA})`);
     const djs = read('assets/boom-desks.js');
-    check(/min-width: 940px/.test(djs) && /requestIdleCallback\(onda/.test(djs) && /BOOM_ONDA\.start\(cv, \{ origin: document\.querySelector\('#db-rom \.db-code'\), open: anyOpen \}\)/.test(djs) && /BOOM_ONDA\.setOpen\(any\)/.test(djs),
-      'boom-desks.js loads the onda at ≥940 when idle, from ROM, and tells it each minute whether a desk is open');
+    check(/requestIdleCallback\(onda/.test(djs) && !/\|\| !big\.matches\) return;/.test(djs) && /BOOM_ONDA\.start\(cv, \{ origin: function \(\) \{ return big\.matches \? document\.querySelector\('#db-rom \.db-code'\) : \$\('hubBoard'\); \}, open: anyOpen \}\)/.test(djs) && /BOOM_ONDA\.setOpen\(any\)/.test(djs),
+      'boom-desks.js loads the onda when idle at every width — origin ROM at ≥940, the EUROPE board below — and tells it each minute whether a desk is open');
     check(/new window\.BoomSolari\.Board\(h, 6, DRUM\)/.test(djs) && /if \(!f \|\| f\.w === word\) return;/.test(djs) && /set\(nb, w\.open \? 'OPEN' : 'CLOSED'\)/.test(djs),
       'DESK NOW: a 6-cell flap board beside the text the script keeps, flipping only when the word changes');
   }

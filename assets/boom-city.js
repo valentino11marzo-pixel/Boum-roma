@@ -213,7 +213,7 @@
       }
     }
     if (Math.abs(dy) > 1) scrollByY(dy);
-    if (opening) track('fare_open', { plan: d.getAttribute('data-plan'), market: C.SLUG });
+    if (opening) { track('fare_open', { plan: d.getAttribute('data-plan'), market: C.SLUG }); ping(d.querySelector('.f-price'), 's'); }
   }
   fares.forEach(function (d) {
     d.removeAttribute('name');
@@ -231,6 +231,8 @@
   }
   function place() {
     var ck = $('clocks'), to = $(wide.matches ? 'stubGate' : 'deskClocks');
+    var cv = $('onda'), home = wide.matches ? document.body : pass;
+    if (cv && cv.parentNode !== home) home.insertBefore(cv, home.firstChild);
     if (ck && to && ck.parentNode !== to) { to.appendChild(ck); if (ckB) window.BoomSolari.calibrate($('ckDesk'), ' 0123456789:'); }
     var s = currentSlot();
     if (!s || !act || act.parentNode === s) return;
@@ -374,7 +376,7 @@
       txt('oName', String(d.name || '').slice(0, 40) || '—');
       txt('oFile', d.file || '—');
       txt('oNext', nextLine() || ($('oNext') || {}).textContent);
-      show('cOpen'); land($('cOpen'));
+      show('cOpen'); ping($('cOpen').querySelector('.stamp'), 'l'); land($('cOpen'));
     } else if (s === 'confirming' || s === 'unconfirmed') {
       if (st) st.textContent = s === 'confirming' ? 'Confirming' : 'Not confirmed';
       txt('slotSr', s === 'confirming' ? 'Payment being confirmed' : 'Payment not confirmed yet');
@@ -394,7 +396,7 @@
         if ($('pWait')) $('pWait').hidden = false;
         if ($('pText')) $('pText').hidden = true;
       }
-      show('cPaid');
+      show('cPaid'); ping($('cPaid').querySelector('.stamp'), 'p');
     }
     doorTwins();
   }
@@ -596,23 +598,24 @@
   addEventListener('scroll', onScroll, { passive: true });
   addEventListener('resize', onScroll, { passive: true });
 
-  var ondaIn = false;
+  var ondaIn = false, ondaQ = [];
+  function ping(n, s) { if (window.BOOM_ONDA && BOOM_ONDA.pulse) BOOM_ONDA.pulse(n, s, 220); else if (n) ondaQ.push([n, s]); }
   function onda() {
     var cv = $('onda');
-    if (ondaIn || !C.ONDA || !cv || innerWidth < 940) return;
+    if (ondaIn || !C.ONDA || !cv) return;
     ondaIn = true;
     var s = document.createElement('script');
     s.src = C.ONDA; s.async = true;
     s.onload = function () {
-      var w = win();
-      if (window.BOOM_ONDA && BOOM_ONDA.start) BOOM_ONDA.start(cv, { origin: document.querySelector('.route-s .rb'), open: !!(w && w.open) });
+      var w = win(), O = window.BOOM_ONDA;
+      if (!O || !O.start) return;
+      O.start(cv, { origin: function () { return wide.matches ? document.querySelector('.route-s .rb') : $('placeBoard'); }, calm: faresBox, hero: $('placeBoard'), open: !!(w && w.open) });
+      ondaQ.splice(0).forEach(function (x) { O.pulse(x[0], x[1], 220); });
     };
     document.head.appendChild(s);
   }
   function ondaLater() { if (window.requestIdleCallback) requestIdleCallback(onda, { timeout: 2000 }); else setTimeout(onda, 200); }
   if (document.readyState === 'complete') ondaLater(); else addEventListener('load', ondaLater, { once: true });
-  var wideOnda = function () { if (wide.matches && document.readyState === 'complete') ondaLater(); };
-  if (wide.addEventListener) wide.addEventListener('change', wideOnda); else if (wide.addListener) wide.addListener(wideOnda);
 
   var hzMap = document.querySelector('svg.hz'), hzIn = false;
   function hzGo() { if (hzIn || !hzMap || !C.MAP) return; hzIn = true; var e = document.createElement('script'); e.src = C.MAP; e.async = true; document.head.appendChild(e); }

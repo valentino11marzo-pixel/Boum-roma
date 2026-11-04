@@ -911,7 +911,11 @@ for (const slug of SLUGS7) {
   const moving = await runningInView(page);
   check(moving.length === 0, `${slug} 390: after 1.6 s nothing on the first screen is still animating (an open desk)`, moving.slice(0, 4).join(' | '));
   check(!(await shown(page, '.seal')) && await page.$eval('.seal', (e) => getComputedStyle(e).display === 'none') && !(await shown(page, '.lamina')), `${slug} 390: no seal, no foil band on a phone (the chip says the desk)`);
-  check(await page.$eval('#clocks', (c) => !!c.closest('#deskClocks')) && !(await shown(page, '.onda')), `${slug} 390: the clocks live in the Gate section; no onda canvas below 940`);
+  // v1.7 (S4): the onda lives INSIDE the pass on a phone — the card's living security print, .6 open — not "no onda below 940"
+  await page.waitForFunction(() => window.BOOM_ONDA && document.getElementById('onda').style.opacity !== '', null, { timeout: 8000 }).catch(() => {});
+  const ondaIn = await page.evaluate(() => { const c = document.getElementById('onda'); return { parent: c.parentNode.id, op: getComputedStyle(c).opacity, disp: getComputedStyle(c).display, run: !!(window.BOOM_ONDA && window.BOOM_ONDA.running) }; });
+  check(await page.$eval('#clocks', (c) => !!c.closest('#deskClocks')) && ondaIn.parent === 'pass' && ondaIn.op === '0.6' && ondaIn.disp === 'block',
+    `${slug} 390: the onda lives inside the pass (#onda parent #pass, opacity .6 with the desk open); the clocks live in the Gate`, JSON.stringify(ondaIn));
   check(st.errors.length === 0, `${slug} 390: no JS error`, st.errors.join(' | '));
   await ctx.close();
 }
@@ -1074,6 +1078,79 @@ for (const [slug, clock] of [['amsterdam', SAT_T], ['london', OPEN_T], ['paris',
   const bag = await page.$eval('#papers', (p) => ({ inputs: p.querySelectorAll('input, [role="checkbox"], meter, progress, details').length, tags: p.querySelectorAll('li.tag').length, h: p.querySelector('h2').textContent }));
   check(bag.inputs === 0 && bag.tags === 8 && bag.h === 'The papers a Dutch landlord asks for.', 'Baggage: eight static tags, no input, no checkbox, no meter, no fold');
   await ctx.close();
+}
+
+// 9b · v1.7 (S4) the onda's facts: OPEN, PAID and a fare opened pulse the field ONCE from where they
+// happen; a PAID that confirms before the engine loads is queued and fires when it does; nothing
+// under reduced motion; crossing 940 moves the one canvas between the pass and the body
+{
+  // a setter trap on window.BOOM_ONDA wraps pulse() the moment the engine installs itself
+  const trap = () => {
+    window.__pulses = [];
+    Object.defineProperty(window, 'BOOM_ONDA', { configurable: true, get() { return undefined; }, set(v) {
+      const p = v.pulse; v.pulse = function (n, s, ms) { window.__pulses.push(s + ':' + (n && n.className || '?')); return p.apply(this, arguments); };
+      Object.defineProperty(window, 'BOOM_ONDA', { value: v, writable: true, configurable: true });
+    } });
+  };
+  const pulses = (page) => page.evaluate(() => window.__pulses || []);
+  {
+    const { ctx, page, st } = await open({ slug: 'london', clock: SAT_T, init: trap });
+    await page.waitForFunction(() => window.BOOM_ONDA, null, { timeout: 8000 }).catch(() => {});
+    await page.waitForTimeout(400);
+    check(await page.evaluate(() => ({ r: window.BOOM_ONDA.running, op: getComputedStyle(document.getElementById('onda')).opacity })).then((o) => !o.r && o.op === '0.36'), 'london 390, Saturday: the onda in the pass is one dim still frame (opacity .36, not running)');
+    await tap(page, '#fare-full-search summary');
+    await page.waitForTimeout(500);
+    check((await pulses(page)).join() === 's:f-price', `a fare opened: ONE small pulse from its price (${(await pulses(page)).join()})`);
+    check(await page.evaluate(() => window.BOOM_ONDA.running), 'a fact on a closed desk runs its wave');
+    await fileOpen(page);
+    await page.waitForTimeout(600);
+    const after = await pulses(page);
+    check(after.filter((x) => x.startsWith('l:')).length === 1 && /^l:stamp/.test(after[after.length - 1]), `OPEN: ONE strong pulse from the OPEN stamp (${after.join(' · ')})`);
+    // the OPEN wave (2.4 s × life ≤ 1.4, after the stamp's 220 ms) and its row cascade, then the glow's decay
+    await page.waitForFunction(() => !window.BOOM_ONDA.running, null, { timeout: 9000 }).catch(() => {});
+    check(await page.evaluate(() => !window.BOOM_ONDA.running), 'and the closed desk rests again on its still frame once the wave is spent');
+    check(st.errors.length === 0, 'the facts on a closed desk: no JS error', st.errors.join(' | '));
+    await ctx.close();
+  }
+  {
+    // the paid return confirms (GET ?paid → paid:true) BEFORE the engine arrives: the pulse waits for it
+    const { ctx, page, st } = await open({ slug: 'london', clock: SAT_T, init: trap, query: `?paid=full-search&start=1&session_id=${SID}`, paid: { status: 200, body: { ok: true, paid: true, plan: 'full-search', file: FILE, startNow: true } } });
+    await page.waitForFunction(() => document.getElementById('pass').getAttribute('data-state') === 'paid', null, { timeout: 8000 }).catch(() => {});
+    const early = await page.evaluate(() => !!window.BOOM_ONDA);
+    await page.waitForFunction(() => window.BOOM_ONDA && (window.__pulses || []).length, null, { timeout: 9000 }).catch(() => {});
+    await page.waitForTimeout(400);
+    const pp = await pulses(page);
+    check(pp.filter((x) => x.startsWith('p:')).length === 1 && /^p:stamp/.test(pp[0]) && await page.evaluate(() => window.BOOM_ONDA.running),
+      `PAID: ONE doubled pulse from the PAID stamp${early ? '' : ', queued until the engine loaded'} (${pp.join(' · ')})`);
+    check(st.errors.length === 0, 'the PAID pulse: no JS error', st.errors.join(' | '));
+    await ctx.close();
+  }
+  {
+    const { ctx, page, st } = await open({ slug: 'london', clock: OPEN_T, init: trap, reducedMotion: 'reduce' });
+    await page.waitForFunction(() => window.BOOM_ONDA, null, { timeout: 8000 }).catch(() => {});
+    await tap(page, '#fare-full-search summary');
+    await fileOpen(page);
+    await page.waitForTimeout(700);
+    check(await page.evaluate(() => !window.BOOM_ONDA.running) && (await pulses(page)).length === 2, 'reduced motion: a fare opened and OPEN never set the field in motion (one still frame)');
+    check(st.errors.length === 0, 'reduced motion facts: no JS error', st.errors.join(' | '));
+    await ctx.close();
+  }
+  {
+    const { ctx, page, st } = await open({ slug: 'london', clock: OPEN_T });
+    await page.waitForFunction(() => window.BOOM_ONDA && window.BOOM_ONDA.running, null, { timeout: 8000 }).catch(() => {});
+    const parentOf = () => page.evaluate(() => document.getElementById('onda').parentNode.id || document.getElementById('onda').parentNode.tagName);
+    const a = await parentOf();
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.waitForTimeout(700);
+    const b = await parentOf(), bw = await page.evaluate(() => document.getElementById('onda').width);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.waitForTimeout(700);
+    const c = await parentOf(), cw = await page.evaluate(() => document.getElementById('onda').width);
+    check(a === 'pass' && b === 'BODY' && c === 'pass' && bw >= 1440 && cw < 400 && await page.evaluate(() => window.BOOM_ONDA.running),
+      `crossing 940 both ways moves the one canvas (pass → body ${bw}px wide → pass ${cw}px) and re-measures it; still running`, [a, b, c, bw, cw].join());
+    check(st.errors.length === 0, 'crossing 940: no JS error', st.errors.join(' | '));
+    await ctx.close();
+  }
 }
 
 // 10 · the loops: only while the desk is open; never with reduced motion
@@ -1344,6 +1421,10 @@ async function reviewFixes() {
     await page.clock.runFor(3 * 60 * 1000);
     await page.waitForTimeout(200);
     await center(page, '.dep');
+    // the board mounts from an IntersectionObserver, which fires on a RENDERING frame the fake clock
+    // cannot advance: wait for the mount (its 500ms fill timer is then inside the next runFor), or the
+    // read races a frame — green or blank by a few ms (S4: seen blank with the onda asleep at 18:01)
+    await page.waitForFunction(() => document.querySelector('#dep-1 .st-b.live'), null, { timeout: 3000 }).catch(() => {});
     await page.clock.runFor(3000);
     await page.waitForTimeout(300);
     const z = { sr: await text(page, '#dep-1-sr'), live: await text(page, '#depLive'), pill: await text(page, '#depPillT'), next: await text(page, '#oNext'), word: await dep1(page) };
@@ -1411,7 +1492,7 @@ async function hubUI() {
 
   // 390×844: the first screen
   {
-    const { ctx, page, st } = await open({ slug: 'desks', clock: '2027-03-01T09:00:00Z' });
+    const { ctx, page, st } = await open({ slug: 'desks', clock: '2027-03-01T09:00:00Z', init: () => { window.__beats = 0; addEventListener('boom:beat', () => { window.__beats++; }); } });
     await page.waitForTimeout(1800);
     const n = await words(page);
     check(n <= 120 && n >= 40, `desks 390×844: ${n} words on the first screen (≤ 120)`);
@@ -1422,8 +1503,11 @@ async function hubUI() {
       'desks 390: EUROPE settles on its board and the H1 still reads "A rental agent on your side, in Europe"');
     check(await noHScroll(page) && st.errors.length === 0, 'desks 390: no horizontal scroll, no JS error', st.errors.join(' | '));
     await page.waitForTimeout(2600);
-    check(await page.$$eval('.db-nf', (x) => x.length) === 0 && await page.evaluate(() => !window.BOOM_ONDA && !document.querySelector('script[src*="boom-onda"]')),
-      'desks 390: no DESK NOW flaps and no onda (the phone shows the text and loads nothing more)');
+    // v1.7 (S4): the phone hub loads the onda too (page mode, after load when idle) and it beats from the EUROPE board
+    await page.waitForFunction(() => window.BOOM_ONDA && window.BOOM_ONDA.running, null, { timeout: 8000 }).catch(() => {});
+    const hubOnda = await page.evaluate(() => ({ run: !!(window.BOOM_ONDA && window.BOOM_ONDA.running), parent: document.getElementById('onda').parentNode.tagName, beats: window.__beats || 0, board: !!document.getElementById('hubBoard') }));
+    check(await page.$$eval('.db-nf', (x) => x.length) === 0 && hubOnda.run && hubOnda.parent === 'BODY' && hubOnda.beats >= 1 && hubOnda.board,
+      `desks 390: no DESK NOW flaps; the onda runs behind the page (a desk is open) and beats from EUROPE (${hubOnda.beats} beat)`, JSON.stringify(hubOnda));
     await ctx.close();
   }
 

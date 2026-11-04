@@ -39,9 +39,9 @@ button.lnk{display:inline;font-size:inherit}
 
 .filo{position:fixed;top:0;left:0;right:0;height:2px;z-index:70;pointer-events:none;transform-origin:0 50%;transform:scaleX(var(--p,0));
   background:linear-gradient(90deg,var(--gold),var(--gold-hi));box-shadow:0 0 8px rgba(255,215,0,.45)}
-.onda{display:none;position:absolute;top:0;left:0;width:100%;height:min(100vh,1000px);z-index:0;pointer-events:none;
+.onda{position:absolute;top:0;left:0;width:100%;height:min(100vh,1000px);z-index:0;pointer-events:none;
   -webkit-mask:linear-gradient(#000 55%,transparent);mask:linear-gradient(#000 55%,transparent)}
-@media (min-width:940px){.onda{display:block}}
+.pass>.onda{height:100%;border-radius:inherit;-webkit-mask:none;mask:none}
 
 .top-in{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:60px}
 .brand{display:inline-flex;align-items:center;gap:11px;min-height:44px;text-decoration:none}
@@ -87,7 +87,7 @@ button.lnk{display:inline;font-size:inherit}
 }
 
 .pass{position:relative;--at:0;border-radius:24px;border:1px solid var(--gold-line);
-  background:radial-gradient(90% 60% at 100% 0%,rgba(255,215,0,.07),transparent 60%),linear-gradient(180deg,#141417 0%,#0D0D10 62%,#0B0B0D 100%);
+  background:radial-gradient(90% 60% at 100% 0%,rgba(255,215,0,.07),transparent 60%),linear-gradient(rgba(20,20,23,.5),rgba(16,16,19,.62) 240px,rgba(13,13,16,.95) 470px,#0B0B0D);
   box-shadow:0 44px 90px -44px rgba(0,0,0,.95),inset 0 1px 0 rgba(255,255,255,.06)}
 .pass::before{content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:.5;
   background:repeating-linear-gradient(115deg,rgba(255,215,0,.12) 0 1px,transparent 1px 9px),repeating-linear-gradient(63deg,rgba(255,215,0,.12) 0 1px,transparent 1px 14px);

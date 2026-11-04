@@ -138,17 +138,15 @@
   var ondaIn = false, big = mq('(min-width: 940px)');
   function onda() {
     var cv = $('onda');
-    if (ondaIn || !D.ONDA || !cv || !big.matches) return;
+    if (ondaIn || !D.ONDA || !cv) return;
     ondaIn = true;
     var s = document.createElement('script');
     s.src = D.ONDA; s.async = true;
     s.onload = function () {
-      if (window.BOOM_ONDA && window.BOOM_ONDA.start) window.BOOM_ONDA.start(cv, { origin: document.querySelector('#db-rom .db-code'), open: anyOpen });
+      if (window.BOOM_ONDA && window.BOOM_ONDA.start) window.BOOM_ONDA.start(cv, { origin: function () { return big.matches ? document.querySelector('#db-rom .db-code') : $('hubBoard'); }, open: anyOpen });
     };
     document.head.appendChild(s);
   }
   function ondaLater() { if (window.requestIdleCallback) requestIdleCallback(onda, { timeout: 2000 }); else setTimeout(onda, 200); }
   if (document.readyState === 'complete') ondaLater(); else addEventListener('load', ondaLater, { once: true });
-  var bigOnda = function () { if (big.matches && document.readyState === 'complete') ondaLater(); };
-  if (big.addEventListener) big.addEventListener('change', bigOnda); else if (big.addListener) big.addListener(bigOnda);
 })();

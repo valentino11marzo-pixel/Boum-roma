@@ -44,12 +44,13 @@ button.lnk{display:inline;font-size:inherit}
 .dot{flex:none;display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--t3)}
 [data-desk=open] .dot{background:var(--open);box-shadow:0 0 8px rgba(92,255,174,.5)}
 
-/* §D the filament (where you are) and the onda (≥940, behind the pass) */
+/* §D the filament (where you are) and the onda (behind the pass at ≥940, INSIDE it below:
+   the page's script moves the one canvas; in the pass it fills the card, unmasked) */
 .filo{position:fixed;top:0;left:0;right:0;height:2px;z-index:70;pointer-events:none;transform-origin:0 50%;transform:scaleX(var(--p,0));
   background:linear-gradient(90deg,var(--gold),var(--gold-hi));box-shadow:0 0 8px rgba(255,215,0,.45)}
-.onda{display:none;position:absolute;top:0;left:0;width:100%;height:min(100vh,1000px);z-index:0;pointer-events:none;
+.onda{position:absolute;top:0;left:0;width:100%;height:min(100vh,1000px);z-index:0;pointer-events:none;
   -webkit-mask:linear-gradient(#000 55%,transparent);mask:linear-gradient(#000 55%,transparent)}
-@media (min-width:940px){.onda{display:block}}
+.pass>.onda{height:100%;border-radius:inherit;-webkit-mask:none;mask:none}
 
 /* ── §B.2 THE HEADER: below 760 the mark and one way to talk, not sticky;
    from 760 sticky, 64px, the lockup, the wayfinding (≥1180), the twin slot ── */
@@ -100,7 +101,8 @@ button.lnk{display:inline;font-size:inherit}
 
 /* ── THE PASS ── */
 .pass{position:relative;--at:0;border-radius:24px;border:1px solid var(--gold-line);
-  background:radial-gradient(90% 60% at 100% 0%,rgba(255,215,0,.07),transparent 60%),linear-gradient(180deg,#141417 0%,#0D0D10 62%,#0B0B0D 100%);
+  /* the paper is translucent at the top (≥940 the field shows through the card's head ~40–50%, opaque from 470px) */
+  background:radial-gradient(90% 60% at 100% 0%,rgba(255,215,0,.07),transparent 60%),linear-gradient(rgba(20,20,23,.5),rgba(16,16,19,.62) 240px,rgba(13,13,16,.95) 470px,#0B0B0D);
   box-shadow:0 44px 90px -44px rgba(0,0,0,.95),inset 0 1px 0 rgba(255,255,255,.06)}
 /* the security print (two crossing guilloche lines, masked to the top-left) */
 .pass::before{content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:.5;
