@@ -237,11 +237,49 @@ for (const p of ams.pricing.plans) {
   const row = sliceOf(fares, `id="fare-${p.id}"`, '</details>');
   check(row.includes(`<b class="f-name">${esc(p.label)}</b><span class="f-when">${esc(p.when)}</span>`) && row.includes(`data-plan-price="${p.id}">${eur(p.price)}</span><span class="f-cond">`),
     `${p.label}: the row says who it is for ("${p.when}") and its price ${eur(p.price)} with its condition`);
-  check(p.includes.every((x) => row.includes(`<li>${esc(x)}</li>`)) && row.includes(`<p class="tk-tag">${esc(p.name)}</p>`), `${p.label}: its ticket says what the fee buys (${p.includes.length} lines)`);
+  // v1.7 (card-S): Full Search prints its promise in the closed summary (f-say), the economy tickets keep it in the open ticket (tk-tag)
+  const promise = p.id === 'full-search' ? `<span class="f-say">${esc(p.name)}</span></span>` : `<p class="tk-tag">${esc(p.name)}</p>`;
+  check(p.includes.every((x) => row.includes(`<li>${esc(x)}</li>`)) && row.includes(promise) && (p.id === 'full-search' ? !row.includes('tk-tag') : !row.includes('f-say')),
+    `${p.label}: its ticket says what the fee buys (${p.includes.length} lines) and prints its promise ${p.id === 'full-search' ? 'in the summary' : 'in the ticket'}`);
   check(row.includes(`data-pay="${p.id}"><span>${esc(ams.till.label)} · ${eur(p.price)}</span>`), `${p.label}: the ticket's pay button reads till.label with ITS price`);
 }
 check(fares.includes(`<p class="fares-h"><b id="faresH">Flat fees</b><span>No percentage of your rent</span></p>`), 'the line over the fares: "Flat fees · No percentage of your rent"');
 check((html.match(/data-pay="/g) || []).length === 3, 'pay controls live only inside the tickets (three, one per plan): no pay bar, no pay button outside a ticket');
+// v1.7 (04/11, card-S): three tickets in the home's grammar — an <ol class="bps"> of
+// three <li class="bp">, the first .eroe (Full Search lies down, the flagship);
+// the pip INSIDE the stub; the open ticket ends in a darker stub (slot, barcode,
+// pay); the €500 coupon and the desk-width pay slot follow the FS <details>
+// inside ITS <li>; the leftovers of the four prototypes are banned by name.
+{
+  const lis = [...fares.matchAll(/<li class="bp( eroe)?">/g)].map((m) => !!m[1]);
+  check(/<ol class="bps">\s*<li class="bp eroe">/.test(fares) && lis.length === 3 && lis.join() === 'true,false,false' && fares.includes('</li>\n        </ol>'),
+    'the fares are an <ol class="bps"> of three <li class="bp">, the first .eroe (Full Search, the flagship)');
+  for (const p of ams.pricing.plans) {
+    const row = sliceOf(fares, `id="fare-${p.id}"`, '</details>');
+    check(/<span class="f-r">.*<i class="f-tog" aria-hidden="true"><\/i><\/span>\s*<\/summary>/.test(row) && !/<span class="f-tog"/.test(row), `${p.label}: the pip (.f-tog) lives inside the stub .f-r, last`);
+    check(/<div class="tk-stub">\s*<div class="tk-slot" data-slot><\/div>\s*<i class="bars" aria-hidden="true"><\/i>\s*<button class="pay2 js" type="button" data-pay="/.test(row) && row.trimEnd().endsWith('</button>\n            </div>\n          </div>'),
+      `${p.label}: the ticket ends in a darker stub holding the door's slot, a barcode and the pay button`);
+    check((row.match(/class="bars"/g) || []).length === (p.id === 'full-search' ? 2 : 1), `${p.label}: a barcode on the open stub${p.id === 'full-search' ? ' and one on the flagship\'s closed stub' : ', none on the closed row'}`);
+  }
+  const li = sliceOf(fares, '<li class="bp eroe">', '</li>\n        <li class="bp">');
+  check(/<\/details>\s*<p class="refund fs">[^<]+<\/p>\s*<span class="bp-pay"><\/span>\s*$/.test(li), 'after the Full Search </details>, inside its <li>: the ✓ coupon, then the empty desk-width pay slot');
+  for (const s of ['paris', 'berlin']) {
+    const f = sliceOf(PAGE[s], '<!-- FARES -->', '<!-- /FARES -->');
+    check(/<ol class="bps">\s*<li class="bp eroe">/.test(f) && !f.includes('bp-pay') && !f.includes('class="refund') && !f.includes('data-pay='), `${s} (waitlist): the same three tickets, no coupon, no pay slot, no pay button`);
+  }
+  // the Departures board keeps its v1.6 "N°" column (steps 1–3, real facts): the ban on a code is on the TICKETS
+  const LEFTOVERS = /First class|f-band|tk-band|tk-foot|f-kind|class="deck|class="pair"/;
+  check(SLUGS.every((s) => { const f = sliceOf(PAGE[s], '<!-- FARES -->', '<!-- /FARES -->'); return f && !LEFTOVERS.test(PAGE[s]) && !/N°|tk-code|\bBM [A-Z0-9]{5}\b/.test(f); }),
+    'no prototype leftover on any page: no "First class" word (the band is wordless), no N° or code on a ticket, no f-band/tk-band/tk-foot/f-kind, no deck, no .pair div');
+  const css = read('assets/src/boom-city.css');
+  check(/\.door:hover,\.pay:hover\{box-shadow:/.test(css) && !/\.door:hover,\.pay:hover\{[^}]*translateY\(-1px\)/.test(css) && !/\.door:hover\{[^}]*transform/.test(css), 'the door no longer lifts on hover (the lift moved the edge away from the pointer and the hover flickered)');
+  const bare = [...css.matchAll(/(?:^|[}{;])\s*([^{}@]+)\{/g)].map((m) => m[1]).filter((sel) => sel.split(',').some((x) => x.trim() === '.refund'));
+  check(bare.length === 0 && /\.pass \.refund,\.till \.refund\{/.test(css) && /\.bp>\.refund\.fs\{/.test(css), 'the ✓ rule is scoped to the pass, the till and the coupon: boom-city.css has no bare .refund{ rule, so the hub\'s .hft .refund keeps its own look', bare.join(' | '));
+  check(/\.hft \.refund\{/.test(read('assets/src/boom-desks.css')), 'the hub styles its own .hft .refund');
+  check(/\.f-when::after\{content:'\?'\}/.test(css) && /\.bps:not\(\.pair-open\):not\(:has\(>\.bp:not\(\.eroe\)>\[open\]\)\)\{grid-template-columns:repeat\(2,minmax\(0,1fr\)\)\}/.test(css),
+    'the situation ends in a CSS "?"; between 360 and 939 the two economy tickets are a pair while neither is open (pair-open from the page, :has without it)');
+  check(/\.bp:has\(>\[data-fs\]\[open\]\)>\.refund\.fs,\.fs-open \.refund\.fs,\.bp-pay:empty\{display:none\}/.test(css), 'the coupon hides while Full Search is open; an empty desk pay slot takes no room');
+}
 
 // the door: one node, one label, the desk window under it, nothing pre-selected
 check((html.match(/id="door"/g) || []).length === 1 && (html.match(/id="fileForm"/g) || []).length === 1 && (html.match(/id="act"/g) || []).length === 1, 'one door, one form, one act node (it moves into the open ticket on a phone; it is never two doors)');
@@ -1264,8 +1302,10 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
   check(l && l.language === 'en' && l.zone === 'De Pijp, Oud-West' && l.city && l.city.serviceLabel === 'Full Search', 'English by default, areas as zone, the service by its label');
   check(r.notif && /^🇳🇱 AMSTERDAM · Anna Keller · Full Search · €1,500 – €2,000 · February 2027 · file BM [A-HJ-NP-Z2-9]{5}$/.test(r.notif.summary) && r.notif.priority === 'high', 'the operator is pinged with the flag, the name, the service, the band and the month', r.notif && r.notif.summary);
   const reply = cityReplyText(l);
-  check(/^Hi Anna, Valentino here from BOOM/.test(reply) && reply.includes('move to Amsterdam') && reply.endsWith(CITY_MARKETS.amsterdam.url) && !reply.includes('/apartments') && !/Roma/.test(reply),
-    'the pre-written WhatsApp reply is English, about Amsterdam, links /amsterdam — never the Rome catalogue');
+  // v1.7 (04/11): the reply ends with the desk url, then one more line for the lead who has decided — the till link
+  check(/^Hi Anna, Valentino here from BOOM/.test(reply) && reply.includes('move to Amsterdam') && reply.endsWith(`${CITY_MARKETS.amsterdam.url}\nIf you'd rather start now: ${CITY_MARKETS.amsterdam.url}#pay-full-search`) && !reply.includes('/apartments') && !/Roma/.test(reply),
+    'the pre-written WhatsApp reply is English, about Amsterdam, links /amsterdam and then /amsterdam#pay-full-search ("If you\'d rather start now") — never the Rome catalogue');
+  check((reply.match(/#pay-/g) || []).length === 1 && reply.split('\n').length === 4, 'the till link is one line, the last, once');
   // v1.4 review (22/10): the OPEN card promises "Valentino writes to set your
   // free call" — the ready reply sets it, with the ticket's file number, and
   // asks nothing in writing that the call covers (no questionnaire, no "I'll
@@ -1292,6 +1332,13 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
   const waReply = cityReplyText({ market: 'madrid', name: 'Luis', phone: '+34612345678', message: 'Hi BOOM Madrid, I\'m moving to Madrid.' });
   check(waReply.startsWith('Hi Luis, Valentino here from BOOM 👋 Thanks for your message about your move to Madrid. The first step is a free call.') && /which day and time suit you\?/.test(waReply) && !/this week|your file|budget|come back today/.test(waReply),
     'a desk lead that came from WhatsApp (no door, no file) is thanked for its message and offered the same free call', waReply);
+  check(waReply.endsWith(`${CITY_MARKETS.madrid.url}\nIf you'd rather start now: ${CITY_MARKETS.madrid.url}#pay-full-search`), 'the WhatsApp-born lead of a selling desk gets the same till link');
+  for (const s of ['paris', 'berlin']) {
+    const wl = cityReplyText({ market: s, name: 'Ana', intent: 'city_waitlist', message: '' });
+    check(wl.length > 40 && !/#pay-|call/i.test(wl) && wl.includes(CITY_MARKETS[s].url), `${s} (waitlist): the ready reply never carries #pay- (no till exists) nor "call"`, wl);
+  }
+  check(!/#pay-/.test(cityReplyText({ market: 'amsterdam', name: 'Bo', paid: true, city: { serviceLabel: 'Full Search' } })) && !/#pay-/.test(cityReplyText({ market: 'amsterdam', name: 'Bo', city: { abandoned: true, serviceLabel: 'Full Search' } })),
+    'the paid and the abandoned-checkout replies never carry #pay-');
   check(cityLabel(l) === '🇳🇱 Amsterdam', 'the Telegram card label');
   check(l && l.phone === '+31612345678' && l.raw.phone === '+31 6 1234 5678', 'the phone is stored as E.164 read with the desk\'s country (the WhatsApp reply arrives so, and now matches); the typed value stays on raw');
   check(l && l.attribution === null, 'no consent cookie, no attribution: the field is there and empty');

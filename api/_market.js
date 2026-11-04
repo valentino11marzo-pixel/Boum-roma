@@ -592,8 +592,13 @@ export function cityReplyText(lead = {}) {
       : `Thanks for your message about your move to ${c.label}. The first step is a free call`;
     // never "this week": the desk is Mon–Fri, and a reply sent on a Friday
     // evening or a weekend would offer a week already spent (review 22/10)
+    // v1.7 (04/11): a second line for the lead who has already decided —
+    // /<slug>#pay-full-search opens the till on Full Search (Start-now never
+    // pre-ticked). Only here: never on a waitlist desk, never after a payment
+    // or an abandoned checkout.
     return `Hi${first ? ' ' + first : ''}, Valentino here from BOOM 👋 ${opener}${file ? ` (your file ${file})` : ''}.\n` +
-      `By phone or WhatsApp — which day and time suit you?\n${c.url}`;
+      `By phone or WhatsApp — which day and time suit you?\n${c.url}\n` +
+      `If you'd rather start now: ${c.url}#pay-full-search`;
   }
   const q = asks.length
     ? `To set up the search properly: ${asks.join(', ')}? `

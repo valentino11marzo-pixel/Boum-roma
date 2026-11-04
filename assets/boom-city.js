@@ -239,14 +239,23 @@
     if (had) {
       try { had.focus({ preventScroll: true }); } catch (e) {}
       var hr = had.getBoundingClientRect();
-      if (hr.top < topLim() || hr.bottom > innerHeight - stripH()) had.scrollIntoView({ block: 'center', behavior: 'auto' });
+      if (hr.top < topLim() || hr.bottom > innerHeight - stripH()) had.scrollIntoView({ block: 'center', behavior: 'instant' });
     }
+  }
+  var fsPay = $$('[data-pay="full-search"]')[0], fsBp = fsPay && fsPay.closest('.bp'), fsSlot = fsBp && fsBp.querySelector('.bp-pay'), fsHome = fsPay && fsPay.parentNode;
+  function placePay() {
+    if (!fsPay || !fsSlot) return;
+    var fs = $('fare-full-search'), to = wide.matches && fs && !fs.open ? fsSlot : fsHome;
+    if (fsPay.parentNode !== to) to.appendChild(fsPay);
   }
   var plan = '';
   function sync() {
     var o = openFare();
     if (faresBox) faresBox.classList.toggle('fs-open', !!(o && o.hasAttribute('data-fs')));
+    var bps = faresBox && faresBox.querySelector('.bps');
+    if (bps) bps.classList.toggle('pair-open', !!(o && !o.parentNode.classList.contains('eroe')));
     place();
+    placePay();
     plan = o ? o.getAttribute('data-plan') : '';
     if (state() === 'blank') {
       var p = planOf(plan);
@@ -618,6 +627,22 @@
   refreshClock();
   onScroll();
   handleReturn();
+  function deep() {
+    var m = /^#(fare-|pay-)?([a-z-]+)$/.exec(location.hash), id = m && m[2], d = id && planOf(id) && $('fare-' + id);
+    if (!d || /[?&]paid=/.test(location.search) || state() !== 'blank') return;
+    try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
+    var was = d.open;
+    fares.forEach(function (o) { o.open = o === d; });
+    last = d; sync();
+    var t = d.querySelector('[data-pay]') || $('door');
+    var go = function () { if (moved) return; t.scrollIntoView({ block: 'end', behavior: 'instant' }); try { t.focus({ preventScroll: true }); } catch (e) {} };
+    go();
+    if (document.readyState !== 'complete') addEventListener('load', go, { once: true });
+    if (!was) track('fare_open', { plan: id, market: C.SLUG, via: 'link' });
+    if (m[1] === 'pay-' && sell) { track('pay_link', { plan: id, market: C.SLUG }); openTill(id, t); }
+  }
+  deep();
+  addEventListener('hashchange', deep);
   track('page_view_market', { market: C.SLUG });
   window.BOOM_TICKET = { state: state, setState: setState, openTill: openTill, nextLine: nextLine };
 })();

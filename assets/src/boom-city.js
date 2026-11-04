@@ -226,13 +226,10 @@
     if (dep.seen && dep.mounted) depFlip();
   }
 
-  /* ── the fares: a row opens ITS ticket in place; the tapped row stays put.
-     Without JS the rows are an exclusive accordion (<details name>); with
-     JS the page opens and closes them itself, in the tap, so the layout is
-     final before the next frame and the row is put back under the finger
-     in the same task (Safari has no native scroll anchoring). A ticket
-     ABOVE the tapped row is closed only when the page can scroll back by
-     its height; otherwise it stays open and nothing jumps. ── */
+  /* ── the fares: a row opens ITS ticket in place; the tapped row stays put
+     (Safari has no scroll anchoring: the page corrects in the tap). Without
+     JS: an exclusive accordion (<details name>). A ticket above is closed
+     only when the page can scroll back by its height. ── */
   var fares = $$('details.fare');
   var faresBox = $('fares');
   var last = null;
@@ -299,14 +296,26 @@
     if (had) {
       try { had.focus({ preventScroll: true }); } catch (e) {}
       var hr = had.getBoundingClientRect();
-      if (hr.top < topLim() || hr.bottom > innerHeight - stripH()) had.scrollIntoView({ block: 'center', behavior: 'auto' });
+      if (hr.top < topLim() || hr.bottom > innerHeight - stripH()) had.scrollIntoView({ block: 'center', behavior: 'instant' });
     }
+  }
+  /* v1.7: on a desk (>=940) the CLOSED Full Search ticket shows its quiet pay button under the stub; it is the
+     same node that sits in the open ticket's stub (one [data-pay] per plan), moved by the page like the door */
+  var fsPay = $$('[data-pay="full-search"]')[0], fsBp = fsPay && fsPay.closest('.bp'), fsSlot = fsBp && fsBp.querySelector('.bp-pay'), fsHome = fsPay && fsPay.parentNode;
+  function placePay() {
+    if (!fsPay || !fsSlot) return;
+    var fs = $('fare-full-search'), to = wide.matches && fs && !fs.open ? fsSlot : fsHome;
+    if (fsPay.parentNode !== to) to.appendChild(fsPay);
   }
   var plan = '';
   function sync() {
     var o = openFare();
     if (faresBox) faresBox.classList.toggle('fs-open', !!(o && o.hasAttribute('data-fs')));
+    /* an open economy ticket unfolds the pair into rows (the class covers a browser without :has) */
+    var bps = faresBox && faresBox.querySelector('.bps');
+    if (bps) bps.classList.toggle('pair-open', !!(o && !o.parentNode.classList.contains('eroe')));
     place();
+    placePay();
     plan = o ? o.getAttribute('data-plan') : '';
     if (state() === 'blank') {
       var p = planOf(plan);
@@ -734,6 +743,27 @@
   /* the first read of where you are waits for a frame (no forced layout in the boot task) */
   onScroll();
   handleReturn();
+  /* ── links to one fare: /<slug>#fare-<plan> (or #<plan>) opens that ticket and lands it whole — the pay button
+     (the door on a desk still opening) at the bottom edge, focused without a jump; /<slug>#pay-<plan> then opens
+     the till on that plan (the Start-now tick never pre-ticked): the operator's link for a lead who has decided.
+     Skipped on a paid return and on a pass that is not blank; the hash folds back; again once at load (the browser
+     re-applies a fragment) unless the reader has moved; fare_open {via:'link'} counts it. ── */
+  function deep() {
+    var m = /^#(fare-|pay-)?([a-z-]+)$/.exec(location.hash), id = m && m[2], d = id && planOf(id) && $('fare-' + id);
+    if (!d || /[?&]paid=/.test(location.search) || state() !== 'blank') return;
+    try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
+    var was = d.open;
+    fares.forEach(function (o) { o.open = o === d; });
+    last = d; sync();
+    var t = d.querySelector('[data-pay]') || $('door');
+    var go = function () { if (moved) return; t.scrollIntoView({ block: 'end', behavior: 'instant' }); try { t.focus({ preventScroll: true }); } catch (e) {} };
+    go();
+    if (document.readyState !== 'complete') addEventListener('load', go, { once: true });
+    if (!was) track('fare_open', { plan: id, market: C.SLUG, via: 'link' });
+    if (m[1] === 'pay-' && sell) { track('pay_link', { plan: id, market: C.SLUG }); openTill(id, t); }
+  }
+  deep();
+  addEventListener('hashchange', deep);
   track('page_view_market', { market: C.SLUG });
   window.BOOM_TICKET = { state: state, setState: setState, openTill: openTill, nextLine: nextLine };
 })();

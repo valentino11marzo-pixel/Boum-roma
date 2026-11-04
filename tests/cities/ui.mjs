@@ -157,11 +157,15 @@ if (process.env.CITIES_UI_ONLY === 'hub') { await hubUI(); await finish(); }
   const fold = 844;
   const doorR = await rect(page, '#door'), lastRow = await rect(page, '#fare-attended-viewing > summary');
   check(lastRow.bottom <= fold && doorR.bottom <= fold, `at 390×844 the three fares (bottom ${Math.round(lastRow.bottom)}) and the gold door (bottom ${Math.round(doorR.bottom)}) are on the first screen`);
-  const order = await page.evaluate(() => ['#h1', '.lead', '#fare-full-search', '#fare-application-pack', '#fare-attended-viewing', '#door', '.fields.desk'].map((s) => document.querySelector(s).getBoundingClientRect().top));
-  check(order.every((v, i) => i === 0 || v > order[i - 1]), 'reading order at 390: title · sentence · three fares · door · who answers');
+  // v1.7 (card-S): Full Search lies down alone; Application Pack and Attended Viewing are a pair side by side (AV to the right)
+  const o = await page.evaluate(() => ['#h1', '.lead', '#fare-full-search', '#fare-application-pack', '#fare-attended-viewing', '#door', '.fields.desk'].map((s) => { const r = document.querySelector(s).getBoundingClientRect(); return [r.top, r.left]; }));
+  check(o[0][0] < o[1][0] && o[1][0] < o[2][0] && o[2][0] < o[3][0] && Math.abs(o[3][0] - o[4][0]) <= 1 && o[4][1] > o[3][1] && o[4][0] < o[5][0] && o[5][0] < o[6][0],
+    'reading order at 390: title · sentence · Full Search lying · the economy pair side by side (Attended Viewing to the right) · door · who answers', JSON.stringify(o));
   check(JSON.stringify(await page.$$eval('.fields.desk dd', (d) => d.map((x) => x.textContent.trim()))) === JSON.stringify(['Valentino Egidi', 'Mon–Fri 09:00–19:00, Rome time']) && await shown(page, '.fields.desk'), 'who answers and when, said on the pass');
   check(await page.$$eval('#fares details[open]', (d) => d.length) === 0 && await shown(page, '#notSure') && !(await shown(page, '#planLn')), 'nothing pre-selected: no fare open, the "not sure" line over the door');
-  check(await shown(page, '#fares > .refund.fs') && await text(page, '#fares > .refund.fs') === RULE, 'the refund rule is rendered under the closed Full Search row');
+  const cp = await page.evaluate(() => { const r = document.querySelector('#fares .refund.fs').getBoundingClientRect(), f = document.getElementById('fare-full-search').getBoundingClientRect(); return { rt: r.top, rb: r.bottom, rl: r.left, rr: r.right, fb: f.bottom, fl: f.left, fr: f.right }; });
+  check(await shown(page, '#fares .refund.fs') && await text(page, '#fares .refund.fs') === RULE && cp.rt >= cp.fb - 2 && cp.rt <= cp.fb + 2 && cp.rl >= cp.fl - 1 && cp.rr <= cp.fr + 1,
+    'the refund rule is a coupon torn under the closed Full Search ticket, within its width', JSON.stringify(cp));
   check(await noHScroll(page), 'no horizontal scroll at 390');
   check(st.errors.length === 0 && st.foreign.length === 0, 'no JS error, no request to a foreign host', st.errors.concat(st.foreign).join(' | '));
   await ctx.close();
@@ -174,18 +178,51 @@ for (const slug of ['amsterdam', 'madrid', 'barcelona', 'london', 'milan', 'vale
     if (w === 390) {
       const b = await page.evaluate(() => ['#door', '.fields.desk', '#fare-attended-viewing > summary'].map((q) => Math.round(document.querySelector(q).getBoundingClientRect().bottom)));
       check(b.every((x) => x <= 844), `${slug} 390×844: the three fares, the gold door and who answers are all above the fold (${b.join(', ')})`);
+    } else {
+      const t = await page.evaluate(() => ['#fare-full-search', '#fare-application-pack', '#fare-attended-viewing'].map((q) => document.querySelector(q).getBoundingClientRect().top));
+      check(t[0] < t[1] && t[1] < t[2], `${slug} 1440: the three tickets lie down one under the other`, t.join(', '));
     }
     // the legally load-bearing first-screen text is RENDERED, not only written
     const legal = await page.evaluate(() => {
       const vis = (e) => !!e && !!e.offsetParent && getComputedStyle(e).visibility !== 'hidden' && e.getBoundingClientRect().height > 0;
       return { cond: [...document.querySelectorAll('#fares .f-cond')].map(vis), lead: vis(document.querySelector('.lead b')), head: vis(document.getElementById('faresH')) && vis(document.querySelector('.fares-h span')),
-        rule: document.querySelector('#fares > .refund.fs') ? [vis(document.querySelector('#fares > .refund.fs')), document.querySelector('#fares > .refund.fs').textContent] : null };
+        rule: document.querySelector('#fares .refund.fs') ? [vis(document.querySelector('#fares .refund.fs')), document.querySelector('#fares .refund.fs').textContent] : null };
     });
     const sells = slug !== 'paris' && slug !== 'berlin';
     check(legal.cond.length === 3 && legal.cond.every(Boolean) && legal.lead && legal.head && (sells ? legal.rule && legal.rule[0] && legal.rule[1] === RULE : legal.rule === null),
       `${slug} ${w}: every fare's condition, the must-state in bold, the line over the fares${sells ? ' and the refund rule under the closed €500' : ''} are on screen, not only in the HTML`, JSON.stringify(legal));
     await ctx.close();
   }
+}
+// v1.7 (card-S, the lead's hard pins): on EVERY desk, at 390×664, 375×812 and
+// 390×844, each price and its condition are READABLE — the box inside the
+// viewport side to side and its bottom above the strip when the strip is on;
+// at 375×812 the door and who-answers are above the fold too (the founder's
+// promise that v1.6 missed by 19–22 px on every desk).
+for (const slug of ['amsterdam', 'madrid', 'barcelona', 'london', 'milan', 'valencia', 'paris', 'berlin']) {
+  for (const [w, h] of [[390, 664], [375, 812], [390, 844]]) {
+    const { ctx, page } = await open({ slug, width: w, height: h });
+    await page.waitForTimeout(700);
+    const g = await page.evaluate(() => {
+      const s = document.getElementById('strip'), lim = innerHeight - (s && s.classList.contains('on') ? s.offsetHeight : 0);
+      const box = (e) => { const r = e.getBoundingClientRect(); return { t: Math.round(r.top), b: Math.round(r.bottom), l: Math.round(r.left), r: Math.round(r.right) }; };
+      const ok = (b) => b.t >= 0 && b.l >= 0 && b.r <= innerWidth && b.b <= lim;
+      const bad = [];
+      for (const d of document.querySelectorAll('details.fare')) for (const k of ['.f-price', '.f-cond']) { const b = box(d.querySelector(k)); if (!ok(b)) bad.push(`${d.id} ${k} ${JSON.stringify(b)}`); }
+      return { lim, bad, door: box(document.getElementById('door')).b, who: box(document.querySelector('.fields.desk')).b, n: document.querySelectorAll('details.fare .f-price').length };
+    });
+    check(g.n === 3 && g.bad.length === 0, `${slug} ${w}×${h}: the three prices and their conditions are readable (inside the viewport, above the strip: lim ${g.lim})`, g.bad.join(' | '));
+    if (h === 812) check(g.door <= 812 && g.who <= 812, `${slug} 375×812: the gold door (${g.door}) and who answers (${g.who}) are above the fold`);
+    await ctx.close();
+  }
+}
+{
+  // ≤359: the pair's rule does not apply — all three tickets lie down, one under the other
+  const { ctx, page } = await open({ slug: 'amsterdam', width: 320, height: 568 });
+  await page.waitForTimeout(500);
+  const t = await page.evaluate(() => ['#fare-full-search', '#fare-application-pack', '#fare-attended-viewing', '#door'].map((q) => document.querySelector(q).getBoundingClientRect().top));
+  check(t[0] < t[1] && t[1] < t[2] && t[2] < t[3] && await noHScroll(page), 'at 320 the three tickets lie down one under the other, then the door; no horizontal scroll', t.join(', '));
+  await ctx.close();
 }
 for (const slug of ['amsterdam', 'madrid', 'barcelona', 'london', 'milan', 'valencia']) {
   // L1: an iPhone's visible height in Safari (~664): the first screen always
@@ -197,6 +234,73 @@ for (const slug of ['amsterdam', 'madrid', 'barcelona', 'london', 'milan', 'vale
     return { doorIn: d.top >= 0 && d.bottom <= innerHeight, half: d.top + d.height / 2 <= innerHeight, strip: s.classList.contains('on') };
   });
   check(a.doorIn || a.strip, `${slug} 390×664 (Safari's visible height): the gold door or the strip is on the first screen`, JSON.stringify(a));
+  await ctx.close();
+}
+
+// ── 1b · deep links (v1.7): /<slug>#fare-<plan>, #<plan>, #pay-<plan> ───────
+// The ticket opens alone and lands whole, its pay button (the door on a
+// waitlist desk) at the bottom edge and focused; the hash folds; #pay- then
+// opens the till on that plan with Start-now unticked. Guards: an unknown
+// plan does nothing and keeps its hash; a paid return and a pass that is not
+// blank are left alone. A hashchange to #fare-… makes the BROWSER jump before
+// the handler folds: the fold and the ticket are asserted, never scrollY.
+const probeDeep = (page) => page.evaluate(() => {
+  const open = [...document.querySelectorAll('details.fare')].filter((d) => d.open).map((d) => d.id);
+  const d = open.length ? document.getElementById(open[0]) : null, pay = d && d.querySelector('[data-pay]'), door = document.getElementById('door');
+  const on = (e) => { if (!e) return null; const b = e.getBoundingClientRect(); const s = document.getElementById('strip'); const lim = innerHeight - (s && s.classList.contains('on') ? s.offsetHeight : 0); return b.top >= 0 && b.bottom <= lim; };
+  const card = d && d.getBoundingClientRect();
+  return { open, pay: on(pay), door: on(door), ticketTop: card ? Math.round(card.top) : null, cardIn: card ? card.left >= 0 && card.right <= innerWidth : null, hash: location.hash, till: !!(document.getElementById('till') || {}).open,
+    tick: !!(document.getElementById('tStart') || {}).checked, tillPlan: (document.getElementById('tillForm') || { getAttribute: () => null }).getAttribute('data-plan'),
+    focusPay: !!(document.activeElement && document.activeElement.hasAttribute('data-pay')), focusDoor: !!(document.activeElement && document.activeElement.id === 'door'),
+    events: (window.dataLayer || []).map((a) => [].slice.call(a)).filter((a) => a[0] === 'event' && (a[1] === 'fare_open' || a[1] === 'pay_link')).map((a) => [a[1], a[2] && a[2].via, a[2] && a[2].plan]) };
+});
+for (const [slug, hash, w, h] of [['barcelona', '#fare-full-search', 390, 844], ['barcelona', '#full-search', 390, 664], ['london', '#fare-application-pack', 390, 844], ['madrid', '#fare-attended-viewing', 375, 812], ['london', '#fare-full-search', 1440, 900], ['paris', '#fare-full-search', 390, 844], ['berlin', '#pay-application-pack', 390, 844], ['amsterdam', '#fares', 390, 844], ['amsterdam', '#fare-nope', 390, 844], ['amsterdam', '#pay-constructor', 390, 844]]) {
+  const { ctx, page, st } = await open({ slug, width: w, height: h, query: hash });
+  await page.waitForTimeout(800);
+  const r = await probeDeep(page);
+  const m = /^#(?:fare-|pay-)?(full-search|application-pack|attended-viewing)$/.exec(hash), sells = !/paris|berlin/.test(slug);
+  if (!m) check(r.open.length === 0 && r.hash === hash && !r.till, `${slug}${hash}: not a fare — nothing opens, no till, the hash stays`, JSON.stringify(r));
+  else check(r.open.length === 1 && r.open[0] === 'fare-' + m[1] && r.cardIn && r.ticketTop >= 0 && (sells ? r.pay && r.focusPay : r.door && r.focusDoor) && r.hash === '' && !r.till && st.errors.length === 0 && r.events.some((e) => e[0] === 'fare_open' && e[1] === 'link' && e[2] === m[1]),
+    `${slug}${hash} at ${w}×${h}: that ticket alone, whole on screen, ${sells ? 'the pay button' : 'the door'} above the strip and focused, the hash folded, no till, fare_open via link`, JSON.stringify(r));
+  await ctx.close();
+}
+for (const [slug, hash] of [['barcelona', '#pay-full-search'], ['london', '#pay-attended-viewing'], ['paris', '#pay-full-search']]) {
+  const { ctx, page, st } = await open({ slug, query: hash });
+  await page.waitForTimeout(900);
+  const r = await probeDeep(page);
+  const sells = !/paris|berlin/.test(slug);
+  if (sells) {
+    check(r.till && !r.tick && r.hash === '' && r.tillPlan === hash.slice(5) && r.open[0] === 'fare-' + hash.slice(5) && st.errors.length === 0 && r.events.some((e) => e[0] === 'pay_link' && e[2] === hash.slice(5)),
+      `${slug}${hash}: the till opens on ${hash.slice(5)}, Start-now unticked, the hash folded, pay_link tracked`, JSON.stringify(r));
+    await page.keyboard.press('Escape'); await page.waitForTimeout(300);
+    check(await page.evaluate(() => !document.getElementById('till').open && !!document.activeElement && document.activeElement.hasAttribute('data-pay')), `${slug}${hash}: Escape closes the till and the focus returns to the pay button that opened it`);
+  } else check(!r.till && r.door && r.focusDoor && r.hash === '' && r.open[0] === 'fare-full-search', `${slug}${hash}: a waitlist desk has no till — the ticket opens and the door comes into view, focused`, JSON.stringify(r));
+  await ctx.close();
+}
+{
+  const { ctx, page } = await open({ slug: 'london' });
+  await page.waitForTimeout(500);
+  await page.evaluate(() => { location.hash = '#fare-application-pack'; });
+  await page.waitForTimeout(600);
+  const r = await probeDeep(page);
+  check(r.open.length === 1 && r.open[0] === 'fare-application-pack' && r.pay && r.hash === '' && !r.till, 'a hashchange after load opens Application Pack alone and lands its pay button, the hash folded', JSON.stringify(r));
+  await ctx.close();
+}
+{
+  const { ctx, page } = await open({ slug: 'london', query: `?paid=full-search&start=0&session_id=${SID}#fare-attended-viewing` });
+  await page.waitForTimeout(900);
+  const r = await probeDeep(page);
+  check(!r.open.includes('fare-attended-viewing') && r.hash === '' && await page.getAttribute('#pass', 'data-state') !== 'blank', 'a paid return ignores the fare fragment: the pass is not blank, no ticket is forced open', JSON.stringify(r));
+  await ctx.close();
+}
+{
+  const { ctx, page } = await open({ slug: 'london', query: '#full-search' });
+  await page.waitForTimeout(600);
+  await page.evaluate(() => { scrollTo(0, 0); dispatchEvent(new WheelEvent('wheel')); });
+  await page.evaluate(() => { location.hash = '#fare-full-search'; });
+  await page.waitForTimeout(500);
+  const r = await probeDeep(page);
+  check(r.open.length === 1 && r.open[0] === 'fare-full-search' && r.hash === '', 'a repeated fare link after the reader moved: the ticket stays open and the hash folds (where the page sits is the browser\'s fragment jump, not asserted)');
   await ctx.close();
 }
 

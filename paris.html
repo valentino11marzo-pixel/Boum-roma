@@ -41,7 +41,7 @@
     <link rel="icon" href="/favicon.ico" sizes="any">
     <link rel="icon" href="/favicon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-    <link rel="stylesheet" href="/assets/boom-city.css?v=017fb47a73">
+    <link rel="stylesheet" href="/assets/boom-city.css?v=ceeb68f797">
     <!-- §C the curtain (v1.6): html.vivo lets the walk's sections enter as they come into view.
          boom-city.js sets html[data-armed]; without it in 3 s, without IntersectionObserver,
          or when printing, vivo comes off and nothing waits hidden. -->
@@ -804,42 +804,55 @@ body::before, body::after { z-index: 1 !important; }
       <!-- FARES -->
       <div class="fares long" id="fares" role="group" aria-labelledby="faresH">
         <p class="fares-h"><b id="faresH">List prices</b><span>Nothing charged today</span></p>
+        <ol class="bps">
+        <li class="bp eroe">
         <details class="fare" name="fare" id="fare-full-search" data-plan="full-search">
           <summary>
-            <span class="f-l"><b class="f-name">Full Search</b><span class="f-when">Haven't started yet</span></span>
-            <span class="f-r"><span class="f-price" data-plan-price="full-search">€500</span><span class="f-cond">flat ·<br> incl. VAT · at opening</span></span>
-            <span class="f-tog" aria-hidden="true"></span>
+            <span class="f-l"><b class="f-name">Full Search</b><span class="f-when">Haven't started yet</span><span class="f-say">We search. You choose.</span></span>
+            <span class="f-r"><span class="f-price" data-plan-price="full-search">€500</span><span class="f-cond">flat ·<br> incl. VAT · at opening</span><i class="bars" aria-hidden="true"></i><i class="f-tog" aria-hidden="true"></i></span>
           </summary>
           <div class="tk">
-            <p class="tk-tag">We search. You choose.</p>
             <ul class="tk-inc"><li>Search every working day: SeLoger, PAP, Leboncoin, agencies</li><li>One-page presentation, applications as listings appear</li><li>Attended viewing, live video + report</li><li>Rent cap and lease checked, charges read</li></ul>
+            <div class="tk-stub">
             <div class="tk-slot" data-slot></div>
+            <i class="bars" aria-hidden="true"></i>
+            </div>
           </div>
         </details>
+        </li>
+        <li class="bp">
         <details class="fare" name="fare" id="fare-application-pack" data-plan="application-pack">
           <summary>
             <span class="f-l"><b class="f-name">Application Pack</b><span class="f-when">Found one, or shortlisted and already in Paris</span></span>
-            <span class="f-r"><span class="f-price" data-plan-price="application-pack">€199</span><span class="f-cond">flat ·<br> incl. VAT · at opening</span></span>
-            <span class="f-tog" aria-hidden="true"></span>
+            <span class="f-r"><span class="f-price" data-plan-price="application-pack">€199</span><span class="f-cond">flat ·<br> incl. VAT · at opening</span><i class="f-tog" aria-hidden="true"></i></span>
           </summary>
           <div class="tk">
             <p class="tk-tag">You search. We make you win.</p>
             <ul class="tk-inc"><li>French-format dossier locatif, one working day from your papers</li><li>Guarantor or Visale strategy</li><li>One-page presentation in French</li><li>Lease review before you sign</li></ul>
+            <div class="tk-stub">
             <div class="tk-slot" data-slot></div>
+            <i class="bars" aria-hidden="true"></i>
+            </div>
           </div>
         </details>
+        </li>
+        <li class="bp">
         <details class="fare" name="fare" id="fare-attended-viewing" data-plan="attended-viewing">
           <summary>
             <span class="f-l"><b class="f-name">Attended Viewing</b><span class="f-when">Shortlisted, still abroad</span></span>
-            <span class="f-r"><span class="f-price" data-plan-price="attended-viewing">€149</span><span class="f-cond">per viewing ·<br> incl. VAT · at opening</span></span>
-            <span class="f-tog" aria-hidden="true"></span>
+            <span class="f-r"><span class="f-price" data-plan-price="attended-viewing">€149</span><span class="f-cond">per viewing ·<br> incl. VAT · at opening</span><i class="f-tog" aria-hidden="true"></i></span>
           </summary>
           <div class="tk">
             <p class="tk-tag">Eyes on the ground.</p>
             <ul class="tk-inc"><li>A BOOM person attends in your place</li><li>Live video walkthrough</li><li>Written report: light, noise, damp, neighbours, commute</li><li>A straight recommendation</li></ul>
+            <div class="tk-stub">
             <div class="tk-slot" data-slot></div>
+            <i class="bars" aria-hidden="true"></i>
+            </div>
           </div>
         </details>
+        </li>
+        </ol>
       </div>
       <!-- /FARES -->
     </div>
@@ -1140,7 +1153,7 @@ body::before, body::after { z-index: 1 !important; }
     "MAP": "/assets/boom-map.js?v=34da1e235b"
   };
 </script>
-<script src="/assets/boom-city.js?v=6e955bcb95"></script>
+<script src="/assets/boom-city.js?v=988927cf14"></script>
 <script>
   /* The door is served disabled and the desk script opens it. If that script
      never ran (a failed download, an early error) the button stays shut: say

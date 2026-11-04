@@ -834,33 +834,52 @@ const R = {
   // (open — the duplicate outside hides by CSS), then the slot the door
   // moves into on a phone, then the quiet pay button.
   fares: (c, shared) => {
+    // v1.7 «card-S»: three tickets in the home's grammar, inside the one
+    // pass. Full Search LIES DOWN (a wordless gold-leaf band, the situation as
+    // a question, the name, its promise | a punched tear | the stub: the price
+    // as the ticket's value, its condition, a barcode, the pip); its ✓ rule is
+    // a coupon torn under it. Application Pack and Attended Viewing are an
+    // economy pair (silver leaf). An open fare is the full ticket: the band
+    // lit, the promise, the ✓ lines, a second tear, a darker stub with the
+    // door (phones), a barcode and the quiet pay button. Same <details>, the
+    // same verbatim price/condition pair; each ticket is an <li>, so the €500
+    // and its rule share one block; .bp-pay is where the pay button sits on a
+    // DESK while the ticket is closed (one node, moved by the page).
     const sell = c.checkout === true;
     const rule = esc(shared.refund.rule);
+    const cur = currencyOf(c.slug);
     const rows = list(c, 'pricing.plans').map((p) => {
-      const fs0 = sell && p.id === 'full-search';
+      const first = p.id === 'full-search', fs0 = sell && first;
       const cond = esc(p.condition).replace(' · incl. VAT', ' ·<br> incl. VAT');
       return [
+        `        <li class="bp${first ? ' eroe' : ''}">`,
         `        <details class="fare" name="fare" id="fare-${esc(p.id)}" data-plan="${esc(p.id)}"${fs0 ? ' data-fs' : ''}>`,
         '          <summary>',
-        `            <span class="f-l"><b class="f-name">${esc(p.label)}</b><span class="f-when">${esc(p.when)}</span></span>`,
-        `            <span class="f-r"><span class="f-price" data-plan-price="${esc(p.id)}">${money(p.price, currencyOf(c.slug))}</span><span class="f-cond">${cond}</span></span>`,
-        '            <span class="f-tog" aria-hidden="true"></span>',
+        `            <span class="f-l"><b class="f-name">${esc(p.label)}</b><span class="f-when">${esc(p.when)}</span>${first ? `<span class="f-say">${esc(p.name)}</span>` : ''}</span>`,
+        `            <span class="f-r"><span class="f-price" data-plan-price="${esc(p.id)}">${money(p.price, cur)}</span><span class="f-cond">${cond}</span>${first ? '<i class="bars" aria-hidden="true"></i>' : ''}<i class="f-tog" aria-hidden="true"></i></span>`,
         '          </summary>',
         '          <div class="tk">',
-        `            <p class="tk-tag">${esc(p.name)}</p>`,
+        first ? '' : `            <p class="tk-tag">${esc(p.name)}</p>`,
         `            <ul class="tk-inc">${p.includes.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>`,
         fs0 ? `            <p class="refund">${rule}</p>` : '',
+        '            <div class="tk-stub">',
         '            <div class="tk-slot" data-slot></div>',
-        sell ? `            <button class="pay2 js" type="button" data-pay="${esc(p.id)}"><span>${esc(c.till.label)} · ${money(p.price, currencyOf(c.slug))}</span><span class="ar" aria-hidden="true">→</span></button>` : '',
+        '            <i class="bars" aria-hidden="true"></i>',
+        sell ? `            <button class="pay2 js" type="button" data-pay="${esc(p.id)}"><span>${esc(c.till.label)} · ${money(p.price, cur)}</span><span class="ar" aria-hidden="true">→</span></button>` : '',
+        '            </div>',
         '          </div>',
         '        </details>',
-        fs0 ? `        <p class="refund fs">${rule}</p>` : ''
+        fs0 ? `        <p class="refund fs">${rule}</p>` : '',
+        fs0 ? '        <span class="bp-pay"></span>' : '',
+        '        </li>'
       ].filter(Boolean).join('\n');
     });
     return [
       `      <div class="fares${c.mode === 'waitlist' ? ' long' : ''}" id="fares" role="group" aria-labelledby="faresH">`,
       `        <p class="fares-h"><b id="faresH">${esc(c.hero.faresHead.b)}</b><span>${esc(c.hero.faresHead.span)}</span></p>`,
+      '        <ol class="bps">',
       ...rows,
+      '        </ol>',
       '      </div>'
     ].join('\n');
   },
