@@ -986,7 +986,42 @@ tplRefuses('<p class="proof">', '<p class="proof">Pay by bank transfer · ', /no
       `${s}: the check "Who pays the agent · LAU art. 20" is the FIRST Pre-flight lane`);
   }
   check(!/AICAT/.test(PAGE.barcelona.replace(/<!--[\s\S]*?-->/g, '')), 'barcelona: no AICAT registration is claimed anywhere (there is no number to print)');
-  check(!/RAICV|Registro de Agentes|registered (?:in|with) (?:Valencia|Spain|the Generalitat)|licensed (?:in|by) (?:Valencia|Spain)/i.test(PAGE.valencia.replace(/<!--[\s\S]*?-->/g, '')), 'valencia: no registration in the Valencian agents\' registry (RAICV) or any Spanish licence is claimed anywhere (there is no number to print)');
+  // v1.7 review: LAU art. 20 is an ORDER — "Optional, chosen in writing" is read before the first price in #fares
+  for (const s of ['madrid', 'barcelona', 'valencia']) {
+    const fares = sliceOf(PAGE[s], '<!-- FARES -->', '<!-- /FARES -->');
+    const hAt = fares.indexOf('id="faresH"'), pAt = fares.search(/data-plan-price=/);
+    check(hAt > -1 && pAt > -1 && hAt < pAt, `${s}: in #fares the head "Optional, chosen in writing" (#faresH) comes BEFORE the first price (LAU art. 20)`, `head at ${hAt}, first price at ${pAt}`);
+  }
+  // v1.7 review: the only registration a desk states is the company's, in Rome — on every desk the vague
+  // "a registered agency" and any licence/registration that does not land on Rome; on a desk that sells,
+  // any licence or register it does not hold (visible text, meta, JSON-LD; comments out)
+  {
+    const strsR = (v) => (typeof v === 'string' ? [v] : v && typeof v === 'object' ? Object.values(v).flatMap(strsR) : []);
+    const saidOf = (h) => [visibleText(h.replace(/<!--[\s\S]*?-->/g, ' ')), ...[...h.matchAll(/<meta [^>]*content="([^"]*)"/g)].map((m) => m[1]),
+      ...[...h.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].flatMap((m) => strsR(JSON.parse(m[1])))].join(' \n ');
+    const VAGUE = /\ba registered (?:Italian )?(?:real estate )?agency\b/i;
+    const CLAIM = /\b(?:licensed|registered|listed|authori[sz]ed|accredited|enrolled)\s+(?:in|with|by|at|under|on)\s+(?!Rome\b|the Rome Chamber of Commerce\b|the town hall\b|an? (?:university|school|college)\b|university\b)/i;
+    const HELD = /\bRAICV\b|Registro de Agentes|\bAICAT\b|carte professionnelle|§\s?34c|licensed agent|registered (?:estate )?agent\b/i;
+    const hitOf = (said, re) => { const m = said.match(re); return m ? said.slice(Math.max(0, m.index - 30), m.index + m[0].length + 30).replace(/\s+/g, ' ') : ''; };
+    for (const s of SLUGS) {
+      const said = saidOf(PAGE[s]), sells = CITY[s].checkout === true;
+      const bad = [hitOf(said, VAGUE), hitOf(said, CLAIM), sells ? hitOf(said, HELD) : ''].filter(Boolean);
+      check(!bad.length, `${s}: no registration but Rome's is stated${sells ? ', no licence or register the desk does not hold (RAICV, AICAT, §34c, carte professionnelle…)' : ''}`, bad.join(' | '));
+    }
+    // the guard is not blind: the legitimate phrases pass, the claims are caught
+    const ok = ['an Italian real estate agency registered in Rome', 'registered with the Rome Chamber of Commerce (REA RM-1710623)', 'Registered at the town hall with your lease', 'register on the padrón', 'The lease must be registered within 30 days', 'BOOM® is a registered European Union trade mark', 'Registered office: Viale Liegi 42', 'opening with a licensed partner', 'students enrolled at a university away from home'];
+    const ko = ['a registered Italian agency', 'we are registered with the Comunitat Valenciana', 'listed in the RAICV', 'licensed by the Generalitat', 'accredited under Spanish law', 'registered in Valencia'];
+    check(ok.every((x) => !VAGUE.test(x) && !CLAIM.test(x)) && ko.every((x) => VAGUE.test(x) || CLAIM.test(x)) && HELD.test('listed in the RAICV') && !HELD.test('a licensed partner'),
+      'the registration guard passes the true phrases (registered in Rome, the Rome Chamber of Commerce, the town hall, a university, the trade mark, the office) and catches the claims');
+    // the PFS plancia: every LIVE desk has its voice in the client modal's market select (pfs-command.html #cm-market),
+    // or saving a Full Search client of that desk would rewrite it to 'roma' and the radar would push Rome listings
+    const cm = (read('pfs-command.html').match(/<select id="cm-market">([\s\S]*?)<\/select>/) || [])[1] || '';
+    const missing = SLUGS.filter((s) => CITY[s].live === true && !cm.includes(`<option value="${s}">`));
+    check(cm && !missing.length, 'pfs-command.html: every live desk has an <option> in the client modal\'s market select (#cm-market)', `missing: ${missing.join(', ')}`);
+    const llms = read('llms.txt');
+    check(!/registered Italian agency/i.test(llms) && /Operated by Egidi Immobiliare S\.r\.l\., an Italian real estate agency registered in Rome/.test(llms),
+      'llms.txt: the desks paragraph says "an Italian real estate agency registered in Rome", never "the registered Italian agency"');
+  }
   check(['madrid', 'barcelona', 'valencia'].every((s) => !/seguro de impago|rent[- ]default insurance|rent guarantee insurance/i.test(JSON.stringify(CITY[s]))), 'the Spanish desks never list rent-default insurance among the papers (a landlord may not require it: RDL 29/2026)');
   check(/Generalitat/.test(CITY.valencia.checks.items.find((k) => k.id === 'deposit').text) && /deposit receipt/.test(CITY.valencia.checks.items.find((k) => k.id === 'deposit').text) && /\btoday\b/.test(CITY.valencia.checks.items.find((k) => k.id === 'rent').text),
     'valencia: the deposit is lodged with the Generalitat (ask for the receipt); the no-stressed-zone line is dated ("today") and held on the hub');
@@ -1078,13 +1113,17 @@ tplRefuses('<p class="proof">', '<p class="proof">Pay by bank transfer · ', /no
   check(SLUGS.every((s) => { const cfg = JSON.parse((PAGE[s].match(/window\.BOOM_CITY = (\{[\s\S]*?\});\s*<\/script>/) || [])[1] || '{}'); return cfg.MAP === `/assets/boom-map.js?v=${sha('assets/boom-map.js')}`; }),
     'every desk page carries the map script\'s versioned URL (the hash of the served file) in its config');
   const cityJs = read('assets/src/boom-city.js'), desksJs = read('assets/src/boom-desks.js');
-  check([cityJs, desksJs].every((j) => /var hzMap = document\.querySelector\('svg\.hz'\), hzIn = false;/.test(j) && /rootMargin: '600px 0px'/.test(j) && /if \(es\[0\]\.isIntersecting\) \{ hzIO\.disconnect\(\); hzGo\(\); \}/.test(j) && /if \(hzIn \|\| !hzMap \|\| ![CD]\.MAP\) return; hzIn = true;/.test(j))
+  check([cityJs, desksJs].every((j) => /var hzMap = document\.querySelector\('svg\.hz'\), hzIn = false;/.test(j) && /rootMargin: '600px 0px'/.test(j) && /if \(es\.some\(function \(e\) \{ return e\.isIntersecting; \}\)\) \{ hzIO\.disconnect\(\); hzGo\(\); \}/.test(j) && !/es\[0\]\.isIntersecting/.test(j) && /if \(hzIn \|\| !hzMap \|\| ![CD]\.MAP\) return; hzIn = true;/.test(j))
     && /e\.src = C\.MAP; e\.async = true;/.test(cityJs) && /e\.src = D\.MAP; e\.async = true;/.test(desksJs),
-    'boom-city.js and boom-desks.js inject the map script once, when the map nears the screen (600px ahead)');
+    'boom-city.js and boom-desks.js inject the map script once, when the map nears the screen (600px ahead) — on ANY entry of the batch, never es[0] alone');
   // the script: one rAF chain, the stagger ≥ 260ms, never two planes on an arc, nothing under reduced motion, the night every minute from the desk calendar
   check((mapJs.match(/requestAnimationFrame\(/g) || []).length === 2 && /raf = raf \|\| requestAnimationFrame\(step\);/.test(mapJs) && /raf = fl\.length \? requestAnimationFrame\(step\) : 0;/.test(mapJs) && !/setInterval|\.animate\(|@keyframes/.test(mapJs),
     'boom-map.js: ONE requestAnimationFrame chain for every plane (a flight joins the list; the chain ends when the list is empty); no interval, no CSS animation');
   const stagger = +((mapJs.match(/fly\(k, i \* (\d+), !seen\)/) || [])[1] || 0);
+  check(/if \(es\.some\(function \(e\) \{ return e\.isIntersecting; \}\)\) \{ io\.disconnect\(\);/.test(mapJs) && !/es\[0\]/.test(mapJs),
+    'boom-map.js: the first-view flights start on ANY intersecting entry of the batch (never es[0] alone: a batch can lead with a stale entry)');
+  check(/return !!\(drawn \|\| \/L\/\.test\(d\)\);/.test(mapJs) && /var dark = night\(sun\(\+now\)\);/.test(mapJs) && /x\.hidden = !!x\.querySelector\('\.k-n'\) && !dark;/.test(mapJs),
+    'boom-map.js: the "night, now" key shows only when night() drew a veil pixel or a terminator segment in the frame; "open now" always');
   check(stagger >= 260 && /if \(!a \|\| reduce \|\| fl\.some\(function \(f\) \{ return f\.a === a; \}\)\) return;/.test(mapJs), `boom-map.js: the first view sends the planes ${stagger}ms apart (≥ 260), never two on one arc`);
   check(/var reduce = matchMedia\('\(prefers-reduced-motion: reduce\)'\)\.matches/.test(mapJs) && /if \(!reduce && window\.IntersectionObserver\)/.test(mapJs), 'boom-map.js: under reduced motion no plane flies and no arc is drawn in');
   check(/60080 - Date\.now\(\) % 60000/.test(mapJs) && /if \(!document\.hidden\) timer = setTimeout/.test(mapJs) && /addEventListener\('visibilitychange'/.test(mapJs)
@@ -1684,8 +1723,8 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
     check(cfg.ONDA === `/assets/boom-onda.js?v=${ondaHash}` && /<canvas class="onda" id="onda" aria-hidden="true"><\/canvas>/.test(H) && H.indexOf('id="onda"') < H.indexOf('<main'),
       `the hub carries the onda canvas and its versioned script URL (${cfg.ONDA})`);
     const djs = read('assets/boom-desks.js');
-    check(/requestIdleCallback\(onda/.test(djs) && !/\|\| !big\.matches\) return;/.test(djs) && /BOOM_ONDA\.start\(cv, \{ origin: function \(\) \{ return big\.matches \? document\.querySelector\('#db-rom \.db-code'\) : \$\('hubBoard'\); \}, open: anyOpen \}\)/.test(djs) && /BOOM_ONDA\.setOpen\(any\)/.test(djs),
-      'boom-desks.js loads the onda when idle at every width — origin ROM at ≥940, the EUROPE board below — and tells it each minute whether a desk is open');
+    check(/requestIdleCallback\(onda/.test(djs) && !/\|\| !big\.matches\) return;/.test(djs) && /BOOM_ONDA\.start\(cv, \{ origin: function \(\) \{ return \$\('hubBoard'\); \}, open: anyOpen \}\)/.test(djs) && !/#db-rom \.db-code/.test(djs) && /BOOM_ONDA\.setOpen\(any\)/.test(djs),
+      'boom-desks.js loads the onda when idle at every width — the heartbeat rises from the EUROPE board at every width (ROM\'s row sits below the ≤1000px canvas on a desktop) — and tells it each minute whether a desk is open');
     check(/new window\.BoomSolari\.Board\(h, 6, DRUM\)/.test(djs) && /if \(!f \|\| f\.w === word\) return;/.test(djs) && /set\(nb, w\.open \? 'OPEN' : 'CLOSED'\)/.test(djs),
       'DESK NOW: a 6-cell flap board beside the text the script keeps, flipping only when the word changes');
   }

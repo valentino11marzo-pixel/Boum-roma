@@ -10,7 +10,7 @@
   "live": false,
   "mode": "waitlist",
   "config": {},
-  "updated": "2026-11-03",
+  "updated": "2026-11-04",
   "meta": {
     "title": "Tenant-side rental agent in Berlin — BOOM",
     "description": "BOOM Berlin works only for the tenant and opens with a licensed partner. Open your file today: rent-brake check, lease read, German dossier, attended viewings.",
@@ -179,7 +179,7 @@
     "rows": [
       {
         "dt": "Who",
-        "ddHtml": "BOOM Berlin, the tenant-side desk of BOOM — operated by <b>Egidi Immobiliare S.r.l.</b>, a registered Italian agency, opening with a <b>licensed partner (§34c GewO)</b>. Hired and paid by the tenant only."
+        "ddHtml": "BOOM Berlin, the tenant-side desk of BOOM — operated by <b>Egidi Immobiliare S.r.l.</b>, an Italian real estate agency registered in Rome, opening with a <b>licensed partner (§34c GewO)</b>. Hired and paid by the tenant only."
       },
       {
         "dt": "For whom",

@@ -539,6 +539,10 @@
     });
     till.addEventListener('close', function () {
       document.documentElement.style.overflow = '';
+      /* the opener may now sit in a CLOSED ticket (placePay moved the Full Search pay node home after the
+         window shrank below 940): open that ticket as a tap does, or the focus would fall to <body> */
+      var fd = opener && opener.closest && opener.closest('details.fare');
+      if (fd && !fd.open && document.contains(fd)) { fares.forEach(function (o) { o.open = o === fd; }); last = fd; sync(); }
       if (opener && document.contains(opener) && !opener.hidden) { try { opener.focus({ preventScroll: true }); } catch (e) {} }
       doorTwins();
     });
@@ -742,7 +746,7 @@
   /* the Horizon comes alive when it nears the screen (assets/boom-map.js) */
   var hzMap = document.querySelector('svg.hz'), hzIn = false;
   function hzGo() { if (hzIn || !hzMap || !C.MAP) return; hzIn = true; var e = document.createElement('script'); e.src = C.MAP; e.async = true; document.head.appendChild(e); }
-  if (hzMap && IO) { var hzIO = new IntersectionObserver(function (es) { if (es[0].isIntersecting) { hzIO.disconnect(); hzGo(); } }, { rootMargin: '600px 0px' }); hzIO.observe(hzMap); } else addEventListener('load', hzGo);
+  if (hzMap && IO) { var hzIO = new IntersectionObserver(function (es) { if (es.some(function (e) { return e.isIntersecting; })) { hzIO.disconnect(); hzGo(); } }, { rootMargin: '600px 0px' }); hzIO.observe(hzMap); } else addEventListener('load', hzGo);
 
   /* ── small things: the WhatsApp links, the questions ── */
   $$('a[href^="https://wa.me/"]').forEach(function (a) {
@@ -761,6 +765,9 @@
      Skipped on a paid return and on a pass that is not blank; the hash folds back; again once at load (the browser
      re-applies a fragment) unless the reader has moved; fare_open {via:'link'} counts it. ── */
   function deep() {
+    /* a link followed while the till is open never re-targets the tickets behind the modal; the browser's own
+       fragment jump blurs the till, so the focus goes back to its title */
+    if (till && till.open) { if (!till.contains(document.activeElement)) { try { $('tTitle').focus({ preventScroll: true }); } catch (e) {} } return; }
     var m = /^#(fare-|pay-)?([a-z-]+)$/.exec(location.hash), id = m && m[2], d = id && planOf(id) && $('fare-' + id);
     if (!d || /[?&]paid=/.test(location.search) || state() !== 'blank') return;
     try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}

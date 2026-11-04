@@ -1,7 +1,7 @@
 // api/city-lead.js
-// Public lead-capture for the BOOM city pages (/amsterdam, /madrid,
-// /barcelona, /london, /milan, /paris, /berlin — the closed list is
-// CITY_MARKETS in _market.js; BOOM_CITIES_BRIEF.md). The phone is stored in
+// Public lead-capture for the BOOM city pages (/amsterdam, /barcelona,
+// /london, /madrid, /milan, /valencia, /paris, /berlin — the closed list is
+// CITY_MARKETS in api/_market.js; BOOM_CITIES_BRIEF.md). The phone is stored in
 // E.164 read with the desk's country (cityPhone: a London '07700 900123' is
 // +447700900123, a Milan '02 1234 5678' keeps its 0: +390212345678). A city in
 // `mode: 'waitlist'` (Paris and Berlin: the desk opens with a licensed

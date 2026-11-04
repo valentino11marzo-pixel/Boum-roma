@@ -3214,9 +3214,10 @@ pagine città).
   o un tap altrove la chiude. La mappa si mostra ANCHE sui telefoni (il pin v1.6
   «niente mappa sotto i 640» è girato); sotto i 640 le etichette crescono.
 - **L'onda** dietro il tabellone, lo stesso `boom-onda.js` delle pagine desk
-  con hash nell'URL: a ≥ 940 il battito parte da ROM, sotto i 940 (dal 04/11,
-  v1.7: anche il telefono dell'hub la carica, dopo `load`, quando è libero) dal
-  tabellone EUROPE (`#hubBoard`); gira solo mentre almeno un desk è aperto
+  con hash nell'URL (dal 04/11, v1.7: anche il telefono dell'hub la carica, dopo
+  `load`, quando è libero): il battito parte dal tabellone EUROPE (`#hubBoard`) a
+  ogni larghezza — la riga ROM su desktop sta a y≈1010, sotto la tela (≤ 1000px)
+  e il suo velo, e l'anello non si vedeva nascere (revisione v1.7); gira solo mentre almeno un desk è aperto
   (`setOpen` ogni minuto; un fotogramma fermo quando sono tutti chiusi, mai
   sotto reduced-motion). Cicli a riposo: la pillola «Desks open» e l'onda con un
   desk aperto, zero con tutti chiusi.

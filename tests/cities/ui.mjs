@@ -61,6 +61,7 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { loadChromium, launchOptions } from '../_browser.mjs';
+import { BUDGET, HUB_BUDGET } from '../../build-cities.mjs';
 
 const R = path.resolve(new URL('../..', import.meta.url).pathname);
 let ok = 0, ko = 0;
@@ -147,6 +148,7 @@ const RULE = JSON.parse(fs.readFileSync(path.join(R, 'cities/_shared.json'), 'ut
 // the v1.6 review's guards alone (§12), e.g. to watch one bite under a mutation
 if (process.env.CITIES_UI_ONLY === 'review') { await reviewFixes(); await finish(); }
 if (process.env.CITIES_UI_ONLY === 'hub') { await hubUI(); await finish(); }
+if (process.env.CITIES_UI_ONLY === 'v17') { await v17Fixes(); await finish(); }
 
 // ── 1 · the first phone screen is one pass ───────────────────────────────
 {
@@ -907,7 +909,7 @@ for (const slug of SLUGS7) {
   const { ctx, page, st } = await open({ slug, clock: OPEN_T });
   await page.waitForTimeout(1600);
   const n = await firstScreenWords(page);
-  check(n <= 150 && n >= 60, `${slug} 390×844: ${n} words on the first screen (≤ 150: the pass, not a page of copy)`);
+  check(n <= BUDGET.first && n >= 60, `${slug} 390×844: ${n} words on the first screen (≤ ${BUDGET.first}, BUDGET.first: the pass, not a page of copy)`);
   const moving = await runningInView(page);
   check(moving.length === 0, `${slug} 390: after 1.6 s nothing on the first screen is still animating (an open desk)`, moving.slice(0, 4).join(' | '));
   check(!(await shown(page, '.seal')) && await page.$eval('.seal', (e) => getComputedStyle(e).display === 'none') && !(await shown(page, '.lamina')), `${slug} 390: no seal, no foil band on a phone (the chip says the desk)`);
@@ -1221,6 +1223,7 @@ for (const slug of ['paris', 'berlin']) {
 
 await hubUI();
 await reviewFixes();
+await v17Fixes();
 await finish();
 
 // ── 12 · the v1.6 review (03/11/2026): one guard per confirmed finding ────
@@ -1495,7 +1498,7 @@ async function hubUI() {
     const { ctx, page, st } = await open({ slug: 'desks', clock: '2027-03-01T09:00:00Z', init: () => { window.__beats = 0; addEventListener('boom:beat', () => { window.__beats++; }); } });
     await page.waitForTimeout(1800);
     const n = await words(page);
-    check(n <= 120 && n >= 40, `desks 390×844: ${n} words on the first screen (≤ 120)`);
+    check(n <= HUB_BUDGET.first && n >= 40, `desks 390×844: ${n} words on the first screen (≤ ${HUB_BUDGET.first}, HUB_BUDGET.first)`);
     const fold = 844;
     const on = await page.evaluate((ids) => ids.every((s) => { const e = document.querySelector(s); const r = e && e.getBoundingClientRect(); return r && r.bottom <= innerHeight && r.top >= 0; }), ['#h1', '.hub-lead', '.db-h', '#db-ams', '#db-bcn', '#db-lon']);
     check(on, `desks 390: the H1, the lead, the board head and the AMS, BCN and LON rows are on the first screen (${fold}px)`);
@@ -1658,6 +1661,162 @@ async function hubUI() {
     const rmPlanes = await page.$$eval('g.hz-pl', (x) => x.length);
     await page.waitForTimeout(2200);
     check(rmPlanes === 0 && await page.$$eval('g.hz-pl', (x) => x.length) === 0 && await page.evaluate(() => !!window.BOOM_MAP && (!window.BOOM_ONDA || !window.BOOM_ONDA.running)), 'desks, reduced motion: the map script is there but no plane flies on hover, and the onda never loops');
+    await ctx.close();
+  }
+}
+
+// ── 14 · the v1.7 review (04/11/2026): one guard per confirmed finding ────
+// `CITIES_UI_ONLY=v17 node tests/cities/ui.mjs` runs this section alone;
+// CITIES_UI_SHOTS=<dir> saves the review's screenshots there.
+async function v17Fixes() {
+  const SHOTS = process.env.CITIES_UI_SHOTS || '';
+  if (SHOTS) fs.mkdirSync(SHOTS, { recursive: true });
+  const shot = (page, name, opt = {}) => (SHOTS ? page.screenshot({ path: path.join(SHOTS, name), ...opt }) : null);
+
+  // R1 · LAU art. 20 is an order: "Optional, chosen in writing" sits above the first price, phone and desk
+  for (const slug of ['madrid', 'barcelona', 'valencia']) {
+    for (const [w, h] of [[390, 844], [1440, 900]]) {
+      const { ctx, page } = await open({ slug, width: w, height: h });
+      await page.waitForTimeout(300);
+      const a = await rect(page, '#faresH'), b = await rect(page, '#fare-full-search .f-price');
+      check(a.bottom <= b.top && await text(page, '#faresH') === 'Optional, chosen in writing', `${slug} ${w}×${h}: "Optional, chosen in writing" is read above the €500 (LAU art. 20)`, JSON.stringify({ head: a.bottom, price: b.top }));
+      await ctx.close();
+    }
+  }
+
+  // R3 · forced colors: the economy tear is the standing dashed line wherever the economy tickets lie down
+  {
+    const tear = (page) => page.$eval('#fare-application-pack .f-r', (e) => { const s = getComputedStyle(e, '::before'); return { l: s.borderLeftStyle + ' ' + s.borderLeftWidth, t: s.borderTopStyle + ' ' + s.borderTopWidth }; });
+    let x = await open({ width: 1440, forced: true });
+    const lie = await tear(x.page);
+    check(lie.l === 'dashed 1px', 'forced colors, 1440: the economy tear stands, a 1px dashed line on its left (not a 10px dash on top)', JSON.stringify(lie));
+    await x.ctx.close();
+    x = await open({ width: 390, forced: true });
+    const pair = await tear(x.page);
+    check(pair.t === 'dashed 1px' && /^none|0px/.test(pair.l.replace('none ', 'none')), 'forced colors, 390 pair closed: the economy tear lies across the stub (dashed top)', JSON.stringify(pair));
+    await x.page.click('#fare-application-pack > summary');
+    await x.page.waitForTimeout(250);
+    const openPair = await tear(x.page);
+    check(openPair.l === 'dashed 1px', 'forced colors, 390 with Application Pack open: the economy tickets lie down and the tear stands again (dashed left)', JSON.stringify(openPair));
+    await x.ctx.close();
+  }
+
+  // R4 · the hub's heartbeat rises from the EUROPE board, inside the canvas, on a desktop
+  {
+    const { ctx, page, st } = await open({ slug: 'desks', width: 1440, height: 900, clock: '2027-03-01T10:00:00Z', init: () => {
+      window.__beat = null;
+      addEventListener('boom:beat', () => {
+        if (window.__beat) return;
+        const t0 = performance.now(), probe = () => {
+          const cv = document.getElementById('onda'), b = document.getElementById('hubBoard');
+          if (!cv || !b) return 0;
+          const r = cv.getBoundingClientRect(), br = b.getBoundingClientRect(), D = cv.width / r.width;
+          const cx = br.left + br.width / 2 - r.left, cy = br.top + br.height / 2 - r.top;
+          const x0 = Math.max(0, Math.floor((cx - 250) * D)), y0 = Math.max(0, Math.floor((cy - 250) * D));
+          const w = Math.min(cv.width - x0, Math.ceil(500 * D)), h = Math.min(cv.height - y0, Math.ceil(500 * D));
+          if (w <= 0 || h <= 0) return -1;
+          const px = cv.getContext('2d').getImageData(x0, y0, w, h).data;
+          let n = 0;
+          for (let y = 0; y < h; y += 3) for (let x = 0; x < w; x += 3) {
+            const dx = (x0 + x) / D - cx, dy = (y0 + y) / D - cy, k = 4 * (y * w + x);
+            if (dx * dx + dy * dy <= 250 * 250 && px[k] > 180 && px[k + 1] > 130 && px[k + 2] < 90 && px[k + 3] >= 8) n++;
+          }
+          return n;
+        };
+        window.__beat = { samples: [] };
+        [150, 350, 600].forEach((ms) => setTimeout(() => { window.__beat.samples.push({ ms: Math.round(performance.now() - t0), gold: probe() }); }, ms));
+      });
+    } });
+    await page.waitForFunction(() => window.__beat && window.__beat.samples.length >= 1, null, { timeout: 15000 }).catch(() => {});
+    await shot(page, 'desks-1440-beat.png');
+    await page.waitForFunction(() => window.__beat && window.__beat.samples.length === 3, null, { timeout: 3000 }).catch(() => {});
+    const beat = await page.evaluate(() => window.__beat);
+    check(!!beat && beat.samples.some((x) => x.gold > 0), 'desks 1440: within 700 ms of a heartbeat the canvas has gold pixels within 250 px of the EUROPE board (the ring is born on screen)', JSON.stringify(beat));
+    check(st.errors.length === 0, 'desks 1440 heartbeat: no JS error', st.errors.join(' | '));
+    await ctx.close();
+  }
+
+  // R6 · the till opened from the pay button under the stub, the window shrunk below 940, Escape: the focus goes back to it
+  {
+    const { ctx, page } = await open({ width: 1440, height: 900 });
+    await page.waitForTimeout(300);
+    check(await page.$eval('#fare-full-search', (d) => !d.open) && await page.$eval('.bp-pay [data-pay="full-search"]', () => true).catch(() => false), '1440: Full Search closed, its pay button rides under the stub');
+    await tap(page, '.bp-pay [data-pay="full-search"]');
+    await page.waitForTimeout(300);
+    const opened = await page.$eval('#till', (d) => d.open);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.waitForTimeout(400);
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(350);
+    const f = await page.evaluate(() => { const a = document.activeElement; return { pay: a && a.getAttribute('data-pay'), fs: document.getElementById('fare-full-search').open, till: document.getElementById('till').open, body: a === document.body }; });
+    check(opened && f.pay === 'full-search' && f.fs === true && f.till === false, 'till opened at 1440 from under the stub, window shrunk to 390, Escape: Full Search opens and the focus is back on its pay button (never <body>)', JSON.stringify(f));
+    await ctx.close();
+  }
+
+  // R7 · a link followed while the till is open does not re-target the tickets behind it
+  {
+    const { ctx, page } = await open({ slug: 'barcelona', query: '#pay-full-search' });
+    await page.waitForTimeout(500);
+    const before = await page.evaluate(() => ({ till: document.getElementById('till').open, plan: document.getElementById('tillForm').getAttribute('data-plan'), fs: document.getElementById('fare-full-search').open, ap: document.getElementById('fare-application-pack').open }));
+    await page.evaluate(() => { location.hash = '#fare-application-pack'; });
+    await page.waitForTimeout(400);
+    const after = await page.evaluate(() => ({ till: document.getElementById('till').open, plan: document.getElementById('tillForm').getAttribute('data-plan'), fs: document.getElementById('fare-full-search').open, ap: document.getElementById('fare-application-pack').open, inTill: document.getElementById('till').contains(document.activeElement) }));
+    check(before.till && before.plan === 'full-search' && after.till && after.plan === 'full-search' && after.fs === before.fs && after.ap === before.ap && after.inTill,
+      'barcelona#pay-full-search, then #fare-application-pack with the till open: the till stays on Full Search, the tickets behind do not move, the focus stays in the till', JSON.stringify({ before, after }));
+    await ctx.close();
+  }
+
+  // R8 · the keyboard ring on a fare row is whole: gold on its four sides, above the stub
+  {
+    const ring = async (page, sel) => {
+      await page.keyboard.press('Tab');
+      await page.$eval(sel, (e) => { e.scrollIntoView({ block: 'center', behavior: 'instant' }); e.focus(); });
+      await page.waitForTimeout(150);
+      const r = await page.$eval(sel, (e) => { const b = e.getBoundingClientRect(); return { x: Math.round(b.left), y: Math.round(b.top), w: Math.round(b.width), h: Math.round(b.height), fv: e.matches(':focus-visible') }; });
+      const png = await page.screenshot({ clip: { x: r.x, y: r.y, width: r.w, height: r.h } });
+      const sides = await page.evaluate(async ({ b64, w, h }) => {
+        const im = new Image(); im.src = 'data:image/png;base64,' + b64; await im.decode();
+        const c = document.createElement('canvas'); c.width = im.width; c.height = im.height;
+        const g = c.getContext('2d'); g.drawImage(im, 0, 0);
+        const d = g.getImageData(0, 0, c.width, c.height).data, W = c.width, H = c.height;
+        const gold = (x, y) => { const k = 4 * (y * W + x); return d[k] > 190 && d[k + 1] > 160 && d[k + 2] < 90; };
+        const band = (x, y, horiz) => [0, 1, 2, 3, 4].some((o) => horiz ? gold(x, Math.min(H - 1, Math.max(0, y + o))) : gold(Math.min(W - 1, Math.max(0, x + o)), y));
+        const frac = (pts) => pts.filter(Boolean).length / Math.max(1, pts.length);
+        const xs = [], ys = [];
+        for (let x = 20; x < W - 20; x += 2) xs.push(x);
+        for (let y = 20; y < H - 20; y += 2) ys.push(y);
+        return { top: frac(xs.map((x) => band(x, 0, true))), bottom: frac(xs.map((x) => band(x, H - 5, true))), left: frac(ys.map((y) => band(0, y, false))), right: frac(ys.map((y) => band(W - 5, y, false))) };
+      }, { b64: png.toString('base64'), w: r.w, h: r.h });
+      return { fv: r.fv, sides };
+    };
+    for (const [w, h] of [[390, 844], [1440, 900]]) {
+      for (const id of ['fare-full-search', 'fare-application-pack']) {
+        const { ctx, page } = await open({ width: w, height: h });
+        await page.waitForTimeout(300);
+        const res = await ring(page, `#${id} > summary`);
+        const s = res.sides;
+        await shot(page, `ring-${w}-${id}.png`);
+        check(res.fv && s.top > 0.9 && s.bottom > 0.9 && s.left > 0.9 && s.right > 0.9, `${w}: the keyboard ring on #${id} is gold on all four sides (the stub no longer paints over it)`, JSON.stringify(res));
+        await ctx.close();
+      }
+    }
+    const { ctx, page } = await open({ width: 390, forced: true });
+    await page.keyboard.press('Tab');
+    await page.$eval('#fare-full-search > summary', (e) => e.focus());
+    const fc = await page.$eval('#fare-full-search > summary', (e) => { const s = getComputedStyle(e, '::after'); return { c: s.content, b: s.borderTopStyle + ' ' + s.borderTopWidth, z: s.zIndex }; });
+    check(fc.c !== 'none' && fc.b === 'solid 2px' && fc.z === '2', 'forced colors: the fare row\'s focus ring is the ::after above the stub (2px, z-index 2, Highlight)', JSON.stringify(fc));
+    await ctx.close();
+  }
+
+  // R9 · the map's key says "night, now" only when a night is drawn
+  for (const [clock, night] of [['2027-06-21T11:00:00Z', false], ['2027-03-01T17:30:00Z', true]]) {
+    const { ctx, page } = await open({ width: 1440, height: 900, clock });
+    await center(page, 'svg.hz');
+    await page.waitForFunction(() => !!window.BOOM_MAP, null, { timeout: 8000 }).catch(() => {});
+    await page.waitForTimeout(300);
+    const k = await page.evaluate(() => [...document.querySelectorAll('.k-x')].map((x) => ({ night: !!x.querySelector('.k-n'), hidden: x.hidden })));
+    const n = k.find((x) => x.night), o = k.find((x) => !x.night);
+    check(!!n && !!o && n.hidden === !night && o.hidden === false, `${clock}: the "night, now" key is ${night ? 'shown (a night is drawn on the frame)' : 'hidden (the whole frame is in daylight)'}; "open now" always`, JSON.stringify(k));
     await ctx.close();
   }
 }

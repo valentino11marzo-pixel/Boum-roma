@@ -112,7 +112,7 @@
 
   var hzMap = document.querySelector('svg.hz'), hzIn = false;
   function hzGo() { if (hzIn || !hzMap || !D.MAP) return; hzIn = true; var e = document.createElement('script'); e.src = D.MAP; e.async = true; document.head.appendChild(e); }
-  if (hzMap && IO) { var hzIO = new IntersectionObserver(function (es) { if (es[0].isIntersecting) { hzIO.disconnect(); hzGo(); } }, { rootMargin: '600px 0px' }); hzIO.observe(hzMap); } else addEventListener('load', hzGo);
+  if (hzMap && IO) { var hzIO = new IntersectionObserver(function (es) { if (es.some(function (e) { return e.isIntersecting; })) { hzIO.disconnect(); hzGo(); } }, { rootMargin: '600px 0px' }); hzIO.observe(hzMap); } else addEventListener('load', hzGo);
 
   var touch = mq('(hover: none), (max-width: 599px)'), sel = null;
   function unsel() { if (sel) { sel.classList.toggle('sel', false); sel.querySelector('.pc').classList.toggle('dock', false); $('hmap').querySelector('.hmap-box').style.marginBottom = ''; sel = null; } }
@@ -135,7 +135,7 @@
   document.addEventListener('click', function (e) { if (sel && !sel.contains(e.target)) unsel(); });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') unsel(); });
 
-  var ondaIn = false, big = mq('(min-width: 940px)');
+  var ondaIn = false;
   function onda() {
     var cv = $('onda');
     if (ondaIn || !D.ONDA || !cv) return;
@@ -143,7 +143,7 @@
     var s = document.createElement('script');
     s.src = D.ONDA; s.async = true;
     s.onload = function () {
-      if (window.BOOM_ONDA && window.BOOM_ONDA.start) window.BOOM_ONDA.start(cv, { origin: function () { return big.matches ? document.querySelector('#db-rom .db-code') : $('hubBoard'); }, open: anyOpen });
+      if (window.BOOM_ONDA && window.BOOM_ONDA.start) window.BOOM_ONDA.start(cv, { origin: function () { return $('hubBoard'); }, open: anyOpen });
     };
     document.head.appendChild(s);
   }

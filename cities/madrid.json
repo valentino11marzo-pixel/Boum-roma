@@ -10,7 +10,7 @@
   "live": true,
   "mode": "search",
   "config": {},
-  "updated": "2026-11-03",
+  "updated": "2026-11-04",
   "meta": {
     "title": "Tenant-side rental agent for expats in Madrid — BOOM",
     "description": "Apartment search for expats in Madrid, tenant side only: a Spanish-format file, applications sent as listings appear, viewings attended, contract checked.",
@@ -191,7 +191,7 @@
     "rows": [
       {
         "dt": "Who",
-        "ddHtml": "BOOM Madrid, the tenant-side rental desk of BOOM — operated by <b>Egidi Immobiliare S.r.l.</b>, a registered Italian agency. You hire us; we do not act for the landlord. Paid by the tenant only."
+        "ddHtml": "BOOM Madrid, the tenant-side rental desk of BOOM — operated by <b>Egidi Immobiliare S.r.l.</b>, an Italian real estate agency registered in Rome. You hire us; we do not act for the landlord. Paid by the tenant only."
       },
       {
         "dt": "For whom",

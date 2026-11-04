@@ -131,7 +131,7 @@
   /* the Horizon comes alive when it nears the screen (assets/boom-map.js) */
   var hzMap = document.querySelector('svg.hz'), hzIn = false;
   function hzGo() { if (hzIn || !hzMap || !D.MAP) return; hzIn = true; var e = document.createElement('script'); e.src = D.MAP; e.async = true; document.head.appendChild(e); }
-  if (hzMap && IO) { var hzIO = new IntersectionObserver(function (es) { if (es[0].isIntersecting) { hzIO.disconnect(); hzGo(); } }, { rootMargin: '600px 0px' }); hzIO.observe(hzMap); } else addEventListener('load', hzGo);
+  if (hzMap && IO) { var hzIO = new IntersectionObserver(function (es) { if (es.some(function (e) { return e.isIntersecting; })) { hzIO.disconnect(); hzGo(); } }, { rootMargin: '600px 0px' }); hzIO.observe(hzMap); } else addEventListener('load', hzGo);
 
   /* the map's pins on a touch screen (or under 600px): the first tap opens the
      desk's card docked under the map and flies its plane; the second tap, or
@@ -159,10 +159,11 @@
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') unsel(); });
 
   /* the onda behind the board, at every width (v1.7): after load, when idle.
-     Its heartbeat rises from ROM (the hub's row) on a desktop, from the
-     EUROPE board on a phone (ROM is below its first screen); it loops only
-     while a desk is open (tick says so each minute). */
-  var ondaIn = false, big = mq('(min-width: 940px)');
+     Its heartbeat rises from the EUROPE board at every width — on a desktop
+     ROM's row sits below the canvas (≤ 1000px) and its veil, so a ring born
+     there was never seen (v1.7 review); it loops only while a desk is open
+     (tick says so each minute). */
+  var ondaIn = false;
   function onda() {
     var cv = $('onda');
     if (ondaIn || !D.ONDA || !cv) return;
@@ -170,7 +171,7 @@
     var s = document.createElement('script');
     s.src = D.ONDA; s.async = true;
     s.onload = function () {
-      if (window.BOOM_ONDA && window.BOOM_ONDA.start) window.BOOM_ONDA.start(cv, { origin: function () { return big.matches ? document.querySelector('#db-rom .db-code') : $('hubBoard'); }, open: anyOpen });
+      if (window.BOOM_ONDA && window.BOOM_ONDA.start) window.BOOM_ONDA.start(cv, { origin: function () { return $('hubBoard'); }, open: anyOpen });
     };
     document.head.appendChild(s);
   }

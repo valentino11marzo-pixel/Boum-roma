@@ -769,7 +769,7 @@ body.triage-lock { overflow: hidden; }
             <div class="mfield full"><label for="cm-zone">Zone preferite</label><input type="text" id="cm-zone" placeholder="Trastevere, Monti"></div>
             <div class="mfield"><label for="cm-bedrooms">Camere</label><select id="cm-bedrooms"><option value="">—</option><option value="1">1</option><option value="2">2</option><option value="3">3+</option></select></div>
             <div class="mfield"><label for="cm-movein">Ingresso</label><input type="text" id="cm-movein" placeholder="Settembre 2026"></div>
-            <div class="mfield"><label for="cm-market">Mercato</label><select id="cm-market"><option value="roma">🇮🇹 Roma</option><option value="madrid">🇪🇸 Madrid</option><option value="barcelona">🇪🇸 Barcellona</option><option value="valencia">🇪🇸 Valencia · radar spento</option></select></div>
+            <div class="mfield"><label for="cm-market">Mercato</label><select id="cm-market"><option value="roma">🇮🇹 Roma</option><option value="madrid">🇪🇸 Madrid</option><option value="barcelona">🇪🇸 Barcellona</option><option value="amsterdam">🇳🇱 Amsterdam · radar spento</option><option value="london">🇬🇧 Londra · radar spento</option><option value="milan">🇮🇹 Milano · radar spento</option><option value="valencia">🇪🇸 Valencia · radar spento</option></select></div>
             <div class="mfield full"><label for="cm-musthaves">Must have</label><input type="text" id="cm-musthaves" placeholder="Balcone, ascensore…"></div>
             <div class="mfield full"><label for="cm-notes">Note</label><textarea id="cm-notes"></textarea></div>
         </div>
@@ -1562,7 +1562,8 @@ function openClientModal(id) {
     // Il mercato: assente = Roma. Uno scritto male si DICE (il radar intanto
     // non gli spinge niente) e si corregge scegliendo qui.
     var cmk = clientMkt(c);
-    // una città col radar spento (Valencia) ha la sua voce: resta quella, mai
+    // una città col radar spento (Amsterdam, Londra, Milano, Valencia: ogni desk live
+    // senza radar) ha la sua voce: resta quella, mai
     // 'roma' per difetto (salvare la scheda la sposterebbe a Roma, e il radar
     // le manderebbe le case romane)
     var mk = String(c.market || '').trim().toLowerCase();

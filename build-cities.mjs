@@ -799,7 +799,6 @@ export const isHomeDesk = (c, shared) => !!homeCountryOf(shared) && String(c.cou
 
 // ── v1.6 derivations ──────────────────────────────────────────────────────
 const pad2 = (n) => String(n).padStart(2, '0');
-const r1 = (n) => String(Math.round(n * 10) / 10);
 // the city in capitals for the foil, the side text and the stamps (the
 // accents fall: "MÜNCHEN" would not; the desks today have none)
 export const upperCity = (c) => String(c.city).toUpperCase();
@@ -1973,6 +1972,23 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
   need(!/!(?=[\s<"]|$)/.test(html.replace(/<!--[\s\S]*?-->|<!DOCTYPE[^>]*>|<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, '').replace(/<[^>]+>/g, ' ')), where, 'no exclamation mark in the copy');
   // every price is one of the plans', on its row with its condition
   const fares = sliceOf(html, '<!-- FARES -->', '<!-- /FARES -->');
+  // LAU art. 20 (v1.7 review): on a Spanish desk that sells, "Optional, chosen in
+  // writing" is read BEFORE the first price — the order is the legal claim
+  if (ES && sell) {
+    const hAt = fares.indexOf('id="faresH"'), pAt = fares.search(/data-plan-price=/);
+    need(hAt > -1 && pAt > -1 && hAt < pAt && fares.includes(`<b id="faresH">${esc(fh.b)}</b>`), where, 'LAU art. 20: on a Spanish desk that sells, the fares head "Optional, chosen in writing" (#faresH) comes BEFORE the first price in #fares');
+  }
+  // the registration a desk may state (v1.7 review): Rome's, never a local one
+  {
+    const strsB = (v) => (typeof v === 'string' ? [v] : v && typeof v === 'object' ? Object.values(v).flatMap(strsB) : []);
+    const ldB = [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].flatMap((m) => strsB(JSON.parse(m[1])));
+    const metaB = [...html.matchAll(/<meta [^>]*content="([^"]*)"/g)].map((m) => m[1]);
+    const saidB = [visibleText(html.replace(/<!--[\s\S]*?-->/g, ' ')), ...metaB, ...ldB].join(' \n ');
+    for (const [re, why] of [...DESK_BANNED, ...(sell ? DESK_BANNED_SELL : [])]) {
+      const m = saidB.match(re);
+      need(!m, where, `${why}: "…${m ? saidB.slice(Math.max(0, m.index - 40), m.index + m[0].length + 30).replace(/\s+/g, ' ').trim() : ''}…"`);
+    }
+  }
   for (const p of plans) {
     need(fares.includes(`<span class="f-price" data-plan-price="${esc(p.id)}">${pr(p.price)}</span><span class="f-cond">${esc(p.condition).replace(' · incl. VAT', ' ·<br> incl. VAT')}</span>`), where, `plan "${p.id}": its price ${pr(p.price)} is not on its fare row with its condition`);
     need(fares.includes(`<span class="f-when">${esc(p.when)}</span>`), where, `plan "${p.id}": its "when" line is not on its fare row`);
@@ -2228,6 +2244,25 @@ const HUB_BANNED = [
   [/law firm/i, 'a law firm (only "not a law firm" is said)'],
   [/founding|spots? left|places? left|\blimited\b|closing in|\d+\s*min(?:utes)? left/i, 'scarcity'],
   [/\d+\s*(?:km|miles)\b/, 'a distance']
+];
+
+// v1.7 review (04/11/2026): the registration a desk page may state is ONE — the
+// company's, in Rome (the founder took Valencia live on that condition, and
+// Barcelona's AICAT is the same question). Every desk refuses the vague claim
+// ("a registered agency", which a reader in a registry region reads as the
+// local register) and any "licensed/registered/listed/… in|with|by|at|under|on"
+// that does not land on Rome, the Rome Chamber of Commerce or the town hall
+// (the padrón); a student "enrolled at a university" is not a claim. A desk
+// that SELLS also refuses naming a licence or a register it does not hold;
+// Paris and Berlin (noindex drafts) say they open WITH a licensed partner, and
+// keep the first two rules only. Run on the visible text, the meta and the JSON-LD.
+const DESK_CLAIM_RE = /\b(?:licensed|registered|listed|authori[sz]ed|accredited|enrolled)\s+(?:in|with|by|at|under|on)\s+(?!Rome\b|the Rome Chamber of Commerce\b|the town hall\b|an? (?:university|school|college)\b|university\b)/i;
+export const DESK_BANNED = [
+  [/\ba registered (?:Italian )?(?:real estate )?agency\b/i, 'a registration stated without its place ("a registered agency" reads as the local register): say "an Italian real estate agency registered in Rome"'],
+  [DESK_CLAIM_RE, 'a licence or registration that does not land on Rome (the company is registered in Rome; no desk holds a local licence)']
+];
+export const DESK_BANNED_SELL = [
+  [/\bRAICV\b|Registro de Agentes|\bAICAT\b|carte professionnelle|§\s?34c|licensed agent|registered (?:estate )?agent\b/i, 'a licence or a register a selling desk does not hold (RAICV, AICAT, carte professionnelle, §34c, "licensed/registered agent")']
 ];
 
 const DAY_NAMES_LONG = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];

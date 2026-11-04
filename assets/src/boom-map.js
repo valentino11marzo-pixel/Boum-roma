@@ -21,10 +21,11 @@
     return [M.cos(de) * M.cos(lo), M.cos(de) * M.sin(lo), M.sin(de)];
   }
   // the night: the build's camera, one ray per 4 units, the sun's height sets the veil
+  // returns whether any night is drawn inside the frame (a veil pixel, or a terminator segment)
   function night(s) {
-    if (!cx || !nite) return;
+    if (!cx || !nite) return false;
     img = img || cx.createImageData(lw, lh);
-    var p = img.data, Cs = dot(C, s);
+    var p = img.data, Cs = dot(C, s), drawn = 0;
     for (var j = 0; j < lh; j++) for (var i = 0; i < lw; i++) {
       var x = (X0 + (i + 0.5) * q - TX) / S, y = (Y0 + (j + 0.5) * q - TY) / S, k = 4 * (j * lw + i);
       var r = [F[0] + R[0] * x - U[0] * y, F[1] + R[1] * x - U[1] * y, F[2] + R[2] * x - U[2] * y], L = M.sqrt(dot(r, r));
@@ -34,6 +35,7 @@
       a = a * a * (3 - 2 * a) * 0.56;
       var w = M.max(0, 1 - M.abs(mu - 0.02) / 0.09) * (0.56 - a) * 0.3, A = a + w;
       p[k] = A && 255 * w / A; p[k + 1] = A && (180 * w + 6 * a) / A; p[k + 2] = A && (90 * w + 26 * a) / A; p[k + 3] = A * 255;
+      if (p[k + 3]) drawn = 1;
     }
     cx.putImageData(img, 0, 0);
     if (!im) nite.appendChild(im = el('image', { x: X0, y: Y0, width: lw * q, height: lh * q, preserveAspectRatio: 'none' })), nite.appendChild(term = el('path', { 'class': 'hz-term' }));
@@ -49,17 +51,19 @@
       d += (on ? 'L' : 'M') + px.toFixed(1) + ' ' + py.toFixed(1); on = 1;
     }
     term.setAttribute('d', d);
+    return !!(drawn || /L/.test(d));
   }
   // the glow: open now, the board's calendar
   function tick() {
     var now = new Date();
-    night(sun(+now));
+    var dark = night(sun(+now));
     for (var k in D.d) {
       var x = D.d[k], g = document.getElementById('hzd-' + k);
       var w = CAL && g && CAL.deskWindow(now, { timeZone: x.z || 'Europe/Rome', hours: { from: x.f || '09:00', to: x.t || '19:00' }, days: x.w || [1, 2, 3, 4, 5] }, x.h);
       if (w) g.classList.toggle('on', !!w.open);
     }
-    [].forEach.call(document.querySelectorAll('.k-x'), function (x) { x.hidden = false; });
+    // the key says only what the map shows: 'open now' always, 'night, now' only when a night is drawn
+    [].forEach.call(document.querySelectorAll('.k-x'), function (x) { x.hidden = !!x.querySelector('.k-n') && !dark; });
   }
   var timer;
   function plan() { clearTimeout(timer); if (!document.hidden) timer = setTimeout(function () { tick(); plan(); }, 60080 - Date.now() % 60000); }
@@ -98,7 +102,7 @@
     var r0 = svg.getBoundingClientRect(), seen = r0.top < innerHeight * 0.7 && r0.bottom > innerHeight * 0.3;
     if (!seen) keys.forEach(function (k) { arcs[k].style.strokeDasharray = arcs[k].style.strokeDashoffset = 1; });
     var io = new IntersectionObserver(function (es) {
-      if (es[0].isIntersecting) { io.disconnect(); keys.forEach(function (k, i) { fly(k, i * 260, !seen); }); }
+      if (es.some(function (e) { return e.isIntersecting; })) { io.disconnect(); keys.forEach(function (k, i) { fly(k, i * 260, !seen); }); }
     }, { threshold: 0.35 });
     io.observe(svg);
   }

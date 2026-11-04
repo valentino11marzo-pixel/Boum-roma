@@ -136,7 +136,8 @@ h1 .h1a{display:block;color:var(--t2);font-size:clamp(26px,7vw,50px);text-wrap:b
 .fare[open]{--band:repeating-linear-gradient(0deg,rgba(0,0,0,.14) 0 1px,transparent 1px 3px),linear-gradient(180deg,#5c5e64,#d8dade 30%,#8d9097 55%,#e6e7ea 78%,#55575c)}
 .fare>summary{position:relative;display:grid;list-style:none;cursor:pointer;padding-left:var(--bw)}
 .fare>summary::-webkit-details-marker{display:none}
-.fare>summary:focus-visible{outline-offset:-3px;border-radius:16px}
+.fare>summary:focus-visible{outline:none;border-radius:16px}
+.fare>summary:focus-visible::after{content:'';position:absolute;inset:1px;border:2px solid var(--gold);border-radius:inherit;pointer-events:none;z-index:2}
 .f-l,.f-r{position:relative;min-width:0}
 .f-l{display:flex;flex-direction:column;justify-content:center}
 .f-when::after{content:'?'}
@@ -668,10 +669,13 @@ dialog.till::backdrop{background:rgba(0,0,0,.74);-webkit-backdrop-filter:blur(6p
   .f-tog::before,.f-tog::after,.r-trail,.r-tick,.r-hold{background:CanvasText}
   .r-plane{fill:CanvasText}
   .f-r::before{background:none;border-left:1px dashed CanvasText}
-  .bp:not(.eroe) .f-r::before{border-left:0;border-top:1px dashed CanvasText}
+  .fare>summary:focus-visible::after{border-color:Highlight}
   .r-holes,.perf::before,.tk::before,.tk-stub::before,.bp>.refund.fs::after{background:none;border-top:1px dashed CanvasText}
   .hz-nite,.hz .gl,.hz .limb{display:none}.hz .arc,.hz circle{stroke:CanvasText}.hz .d,.hz .m-l{fill:CanvasText}
 }
+@media (forced-colors:active) and (min-width:360px) and (max-width:939px){
+  .bps:not(.pair-open):not(:has(>.bp:not(.eroe)>[open]))>.bp:not(.eroe) .f-r::before{border-left:0;border-top:1px dashed CanvasText}}
+@media (forced-colors:active) and (max-width:300px){.bps>.bp .f-r::before{border-left:0;border-top:1px dashed CanvasText}}
 @media print{
   html.vivo .rv,html.vivo .tag.rv{opacity:1!important;transform:none!important;translate:none!important}
   html.vivo .sec>h2{clip-path:none!important}
