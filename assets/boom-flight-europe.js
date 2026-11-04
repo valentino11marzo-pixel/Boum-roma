@@ -38,7 +38,8 @@
       if(slug==='rome') input.dispatchEvent(new Event('input',{bubbles:true}));
     });
   }
-  function canonicalHome(slug) { return '/flight-next?direction=club&city='+slug; }
+  function editionURL(path){var u=new URL(path,location.origin),q=new URLSearchParams(location.search);if(['club','perspective'].includes(q.get('edition')))u.searchParams.set('edition',q.get('edition'));if(q.get('duo')==='1')u.searchParams.set('duo','1');return u.pathname+u.search+u.hash;}
+  function canonicalHome(slug) { return editionURL('/flight-next?direction=club&city='+slug); }
   function cleanQuery(params) {
     Array.from(params.keys()).forEach(function(key){
       if(/^(privateplace|private_place|lat|lng|lon|latitude|longitude|coordinates|address|name|email|phone|contact|token)$/i.test(key))params.delete(key);
@@ -285,7 +286,7 @@
       var brief=values(target);['moveIn','moveOut','budget','people'].forEach(function(key){if(brief[key])u.searchParams.set(key,brief[key]);});
       if(brief.budget)u.searchParams.set('currency',currency(target));u.searchParams.set('city',target);u.searchParams.set('need',need);
     }else{u.searchParams.delete('city');u.searchParams.delete('need');u.searchParams.delete('currency');}
-    return u.pathname+u.search+u.hash;
+    return editionURL(u.pathname+u.search+u.hash);
   }};
   if(city!=='rome')fill(city,{moveIn:query.get('moveIn'),moveOut:query.get('moveOut'),budget:city!=='london'||query.get('currency')==='GBP'?query.get('budget'):'',people:query.get('people')});
   renderCity(false);

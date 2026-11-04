@@ -1,0 +1,352 @@
+/* CLUB / arrival deck. Existing forms, catalogue and skyline; a new composition. */
+body[data-direction="club"][data-edition="club"].europe-ready{--edition-paper:#f2eee2;--edition-ink:#11120f;--edition-gutter:clamp(24px,4vw,72px);--europe-nav-h:76px;background:#090a0b;color:#f3f1e9}
+body[data-direction="club"][data-edition="club"].europe-ready .next-nav{padding-inline:var(--edition-gutter);border-bottom:1px solid #ffffff25;background:#090a0b}
+body[data-direction="club"][data-edition="club"].europe-ready .next-nav nav{gap:32px}
+body[data-direction="club"][data-edition="club"].europe-ready #nextHero{padding:0 var(--edition-gutter) 18px;--next-solari-field-opacity:.74;overflow:visible}
+body[data-direction="club"][data-edition="club"].europe-ready #nextSolariField{overflow:hidden}
+body[data-direction="club"][data-edition="club"].europe-ready #nextHero:after{pointer-events:none;background:linear-gradient(180deg,#090a0b45,transparent 30%,#090a0b 94%)}
+body[data-direction="club"][data-edition="club"].europe-ready .europe-city-switch{max-width:1600px;margin:0 auto 24px;grid-template-columns:126px minmax(0,1fr);border-bottom-color:#ffffff30}
+body[data-direction="club"][data-edition="club"].europe-ready .europe-cities button{min-height:66px;font-size:16px}
+body[data-direction="club"][data-edition="club"].europe-ready .europe-city-code{font-size:11px}
+body[data-direction="club"][data-edition="club"].europe-ready #directionClubTicket{grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);gap:clamp(28px,4vw,64px);max-width:1600px;min-height:0;align-items:stretch}
+body[data-direction="club"][data-edition="club"].europe-ready .hero-centre{padding:27px 0 24px;justify-content:center}
+body[data-direction="club"][data-edition="club"].europe-ready .hero-centre .eyebrow{margin-bottom:27px;color:#b6b8a9;font-size:11px;letter-spacing:.09em}
+body[data-direction="club"][data-edition="club"].europe-ready .hero-centre h1{gap:18px}
+body[data-direction="club"][data-edition="club"].europe-ready .hero-pretitle{max-width:440px;font-size:clamp(29px,3vw,48px);line-height:1.1;letter-spacing:-.045em}
+body[data-direction="club"][data-edition="club"].europe-ready #nextHero #nextDestinationBoard{font-size:var(--europe-board-size,112px)}
+body[data-direction="club"][data-edition="club"].europe-ready .hero-promise{max-width:390px;margin-top:24px;font-size:16px;line-height:1.6;color:#c2c3b7}
+body[data-direction="club"][data-edition="club"].europe-ready .edition-plan-link{display:none}
+body[data-direction="club"][data-edition="club"].europe-ready .europe-city-signature{margin-top:24px;gap:15px}
+body[data-direction="club"][data-edition="club"].europe-ready .europe-city-icon{width:70px;height:53px;flex-basis:70px}
+body[data-direction="club"][data-edition="club"].europe-ready .edition-home-stage{position:relative;min-width:0;min-height:390px;perspective:1100px}
+body[data-direction="club"][data-edition="club"].europe-ready .edition-home-feature{position:relative;display:block;height:100%;min-height:390px;overflow:hidden;border-radius:4px 4px 34px 4px;border:1px solid #ffffff30;background:#1b1c19;isolation:isolate;transform:rotateX(var(--edition-rx,0deg)) rotateY(var(--edition-ry,0deg));transition:transform .38s cubic-bezier(.16,1,.3,1),border-color .2s}
+body[data-direction="club"][data-edition="club"].europe-ready .edition-home-feature:after{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg,#0000 30%,#0003 53%,#000d);pointer-events:none}
+body[data-direction="club"][data-edition="club"].europe-ready .edition-home-photo{position:absolute;inset:0;z-index:-2;width:100%;height:100%;object-fit:cover;object-position:var(--edition-photo-focus,50% 50%);transition:transform .8s cubic-bezier(.16,1,.3,1)}
+/* This supplied cover includes white side margins. Crop only its presentation. */
+body[data-direction="club"][data-edition="club"].europe-ready .edition-home-feature[data-home="Kz9bXztv5QXmQrNhAcoU"] .edition-home-photo{width:114%;max-width:none;left:-7%;right:auto}
+body[data-direction="club"][data-edition="club"].europe-ready .edition-home-caption{position:absolute;bottom:0;left:0;right:0;display:grid;gap:12px;padding:28px;color:#fff}
+body[data-direction="club"][data-edition="club"].europe-ready .edition-home-meta{font-size:12px;line-height:1.5;color:#ecece3}
+body[data-direction="club"][data-edition="club"].europe-ready .edition-home-name{font-size:clamp(27px,3.1vw,44px);font-weight:300;letter-spacing:-.04em;line-height:1.06;text-wrap:balance}
+body[data-direction="club"][data-edition="club"].europe-ready .edition-home-bottom{display:flex;align-items:center;justify-content:space-between;gap:16px;padding-top:14px;border-top:1px solid #fff6}
+body[data-direction="club"][data-edition="club"].europe-ready .edition-home-price{font-size:17px;font-weight:400}
+body[data-direction="club"][data-edition="club"].europe-ready .edition-home-open{display:flex;align-items:center;gap:17px;min-height:44px;font-size:14px}
+body[data-direction="club"][data-edition="club"].europe-ready .edition-home-open>span{font-size:25px;color:#ffd700}
+body[data-direction="club"][data-edition="club"].europe-ready .edition-home-placeholder{height:100%;min-height:390px;display:flex;flex-direction:column;justify-content:flex-end;align-items:flex-start;gap:20px;padding:34px;border:1px solid #b4a36e55;background:linear-gradient(135deg,#202219,#11130f)}
+body[data-direction="club"][data-edition="club"].europe-ready .edition-home-placeholder>span{font:12px var(--club-mono);color:#beb78e}
+body[data-direction="club"][data-edition="club"].europe-ready .edition-home-placeholder p{font-size:42px;line-height:1.1;font-weight:300;max-width:360px;letter-spacing:-.04em}
+body[data-direction="club"][data-edition="club"].europe-ready .edition-home-placeholder a{min-height:44px;display:flex;align-items:center;gap:40px;color:#ffd700;font-size:15px}
+body[data-direction="club"][data-edition="club"].europe-ready .edition-home-stage[data-ready="true"] .edition-home-placeholder{display:none}
+/* A single working pass under the photographic opening. */
+body[data-direction="club"][data-edition="club"].europe-ready .edition-club-runway{position:relative;z-index:2;max-width:1600px;width:100%;margin:26px auto 0;border:0;border-radius:3px 3px 17px 3px;background:var(--edition-paper);box-shadow:0 25px 65px -40px #000;color:var(--edition-ink)}
+body[data-direction="club"][data-edition="club"].europe-ready .edition-runway-head{display:flex;align-items:center;justify-content:space-between;gap:15px;margin:0 27px;padding:15px 0 13px;border-bottom:1px solid #41453435;font:400 11px/1.5 var(--club-mono);letter-spacing:.05em;color:#56594b}
+body[data-direction="club"][data-edition="club"].europe-ready .edition-runway-head>span:last-child{font:400 12px/1.5 "Helvetica Neue",Helvetica,Arial,sans-serif;letter-spacing:0}
+body[data-direction="club"][data-edition="club"].europe-ready .edition-club-runway #nextSearch{padding:20px 27px 17px;background:none;scroll-margin-top:calc(var(--europe-nav-h) + 16px)}
+body[data-direction="club"][data-edition="club"].europe-ready #nextSearchForm{display:grid;grid-template-columns:minmax(180px,1.35fr) repeat(4,minmax(115px,1fr)) minmax(155px,1.1fr);gap:0;align-items:stretch}
+body[data-direction="club"][data-edition="club"].europe-ready #nextDestinationSummary{grid-column:auto;grid-template-columns:minmax(0,1fr) 18px;min-height:85px;margin:0;padding:0 21px 0 0;border:0;border-right:1px solid #3f423035;gap:5px 8px}
+body[data-direction="club"][data-edition="club"].europe-ready #nextDestinationSummary strong{font-size:20px;line-height:1.12;max-width:220px}
+body[data-direction="club"][data-edition="club"].europe-ready #nextDestinationSummary .destination-label{font-size:11px;letter-spacing:.02em}
+body[data-direction="club"][data-edition="club"].europe-ready #nextDestinationSummary .destination-arrow{font-size:20px}
+body[data-direction="club"][data-edition="club"].europe-ready #nextDestinationSummary .destination-hint{font-size:12px}
+body[data-direction="club"][data-edition="club"].europe-ready #nextSearchForm>label{display:flex;flex-direction:column;justify-content:center;padding:0 16px!important;min-height:85px;border:0;border-right:1px solid #3f423035}
+body[data-direction="club"][data-edition="club"].europe-ready #nextSearchForm label>span{font-size:12px;letter-spacing:0;margin-bottom:8px;line-height:1.4;font-weight:400}
+body[data-direction="club"][data-edition="club"].europe-ready #nextSearchForm :is(input,select){font-size:16px;width:100%;height:34px;min-width:0}
+body[data-direction="club"][data-edition="club"].europe-ready #nextSearchForm .search-submit{grid-column:auto;align-self:center;min-height:60px;min-width:0;margin-left:20px;padding:13px 15px;font-size:16px;line-height:1.3;gap:10px;box-shadow:none;border-radius:4px}
+body[data-direction="club"][data-edition="club"].europe-ready #nextSearch .search-caption{padding-top:15px;font-size:12px;display:flex;justify-content:space-between;gap:20px}
+body[data-direction="club"][data-edition="club"].europe-ready #nextSearch .search-caption>span+span{margin:0}
+body[data-direction="club"][data-edition="club"].europe-ready .hero-bottom{max-width:1600px;margin-top:15px}
+body[data-direction="club"][data-edition="club"].europe-ready .hero-bottom a{font-size:12px}
+body[data-direction="club"][data-edition="club"].europe-ready .europe-trustbar{max-width:1600px;width:calc(100% - var(--edition-gutter)*2);margin:0 auto;padding:16px 0;border-bottom:1px solid #ffffff24;border-top:0}
+/* Foreign desks retain their actual service, never a photograph of Rome. */
+body[data-direction="club"][data-edition="club"].europe-ready[data-europe-city]:not([data-europe-city="rome"]) .edition-home-stage{display:none}
+body[data-direction="club"][data-edition="club"].europe-ready[data-europe-city]:not([data-europe-city="rome"]) #directionClubTicket{grid-template-columns:minmax(0,1fr)}
+body[data-direction="club"][data-edition="club"].europe-ready[data-europe-city]:not([data-europe-city="rome"]) .hero-centre{display:grid;grid-template-columns:minmax(0,1fr) 280px;column-gap:60px;padding:30px 0}
+body[data-direction="club"][data-edition="club"].europe-ready[data-europe-city]:not([data-europe-city="rome"]) .hero-centre .eyebrow{grid-column:1;margin-bottom:20px}
+body[data-direction="club"][data-edition="club"].europe-ready[data-europe-city]:not([data-europe-city="rome"]) .hero-centre h1{grid-column:1}
+body[data-direction="club"][data-edition="club"].europe-ready[data-europe-city]:not([data-europe-city="rome"]) .hero-promise{grid-column:1;max-width:680px}
+body[data-direction="club"][data-edition="club"].europe-ready[data-europe-city]:not([data-europe-city="rome"]) .europe-city-signature{grid-column:2;grid-row:1/4;flex-direction:column;align-items:flex-start;justify-content:center;margin:0;gap:14px}
+body[data-direction="club"][data-edition="club"].europe-ready[data-europe-city]:not([data-europe-city="rome"]) .europe-city-icon{width:220px;height:165px;flex-basis:auto}
+body[data-direction="club"][data-edition="club"].europe-ready #europeDeskPlanner{display:grid;grid-template-columns:minmax(0,1fr) minmax(320px,.75fr);gap:0 40px;padding:24px 30px}
+body[data-direction="club"][data-edition="club"].europe-ready .europe-planner-top{grid-column:1;max-width:none;padding-bottom:14px}
+body[data-direction="club"][data-edition="club"].europe-ready #europeDeskTitle{grid-column:1;margin:18px 0;font-size:32px}
+body[data-direction="club"][data-edition="club"].europe-ready .europe-needs{grid-column:1;margin:0;grid-template-columns:repeat(3,minmax(0,1fr));border-top:0;gap:15px}
+body[data-direction="club"][data-edition="club"].europe-ready [data-europe-need]{display:flex;flex-direction:column;align-items:flex-start;gap:10px;padding:16px 0;min-height:130px;border-top:1px solid #3f423035}
+body[data-direction="club"][data-edition="club"].europe-ready [data-europe-need]>span:first-child{align-self:flex-start}
+body[data-direction="club"][data-edition="club"].europe-ready [data-europe-need]>div{display:grid;gap:8px}
+body[data-direction="club"][data-edition="club"].europe-ready [data-europe-need]:after{position:absolute;top:16px;right:0;width:12px;height:12px}
+body[data-direction="club"][data-edition="club"].europe-ready [data-europe-need] strong{font-size:18px}
+body[data-direction="club"][data-edition="club"].europe-ready [data-europe-need][aria-pressed="true"]{border-bottom:2px solid #b59800}
+body[data-direction="club"][data-edition="club"].europe-ready #europeDeskForm{grid-column:2;grid-row:1/4;align-self:center;padding-left:32px;border-left:1px dashed #3f423050}
+/* Skyline and photographs read as a place to explore, not another feature card. */
+body[data-direction="club"][data-edition="club"].europe-ready .next-section{max-width:1744px;padding:74px var(--edition-gutter)}
+body[data-direction="club"][data-edition="club"].europe-ready .chapter-heading{margin-bottom:32px;align-items:flex-end}
+body[data-direction="club"][data-edition="club"].europe-ready .chapter-heading h2{font-size:clamp(40px,4vw,62px);max-width:720px;line-height:1.03}
+body[data-direction="club"][data-edition="club"].europe-ready .chapter-aside{font-size:16px;max-width:360px}
+body[data-direction="club"][data-edition="club"].europe-ready .europe-explore-grid{grid-template-columns:minmax(0,1.25fr) minmax(0,.75fr);gap:36px}
+body[data-direction="club"][data-edition="club"].europe-ready .europe-explore-grid>.next-city-scene{border-radius:3px;min-height:520px;border-color:#ffffff38}
+body[data-direction="club"][data-edition="club"].europe-ready .europe-explore-grid .next-home-rail .next-card-image{aspect-ratio:1.3;border-radius:3px}
+body[data-direction="club"][data-edition="club"].europe-ready .europe-explore-grid>.homes-chapter{padding:0}
+body[data-direction="club"][data-edition="club"].europe-ready .services-chapter{border-top:1px solid #ffffff26}
+body[data-direction="club"][data-edition="club"].europe-ready .next-tickets{gap:32px;perspective:1400px}
+body[data-direction="club"][data-edition="club"].europe-ready .next-ticket{border-radius:4px 4px 25px 4px;padding:30px 34px 24px;border:1px solid #bda76c6b;box-shadow:none;transform:rotateX(var(--edition-rx,0deg)) rotateY(var(--edition-ry,0deg));transition:transform .38s cubic-bezier(.16,1,.3,1),border-color .2s}
+body[data-direction="club"][data-edition="club"].europe-ready .ticket-gold{background:linear-gradient(120deg,#f6f1e5,#dfd4b5);color:#25241e}
+body[data-direction="club"][data-edition="club"].europe-ready .ticket-dark{background:#131511}
+body[data-direction="club"][data-edition="club"].europe-ready .ticket-route{font-size:64px;line-height:1;margin:35px 0 32px;letter-spacing:-.06em}
+body[data-direction="club"][data-edition="club"].europe-ready .next-ticket h3{font-size:clamp(30px,3vw,44px);max-width:490px;min-height:1.1em}
+body[data-direction="club"][data-edition="club"].europe-ready .ticket-stub{margin-inline:-34px;padding:25px 34px 10px}
+body[data-direction="club"][data-edition="club"].europe-ready .ticket-stub>strong{font-size:58px}
+body[data-direction="club"][data-edition="club"].europe-ready .europe-service-proof{background:#151811;padding:22px 26px;border:1px solid #a59a6b4d;border-radius:3px;margin-top:24px}
+body[data-direction="club"][data-edition="club"].europe-ready .next-journey{border-top:1px solid #ffffff22;grid-template-columns:.7fr 1.3fr;gap:60px}
+body[data-direction="club"][data-edition="club"].europe-ready .next-journey ol{gap:32px}
+body[data-direction="club"][data-edition="club"].europe-ready .next-journey li>span{font-size:25px;font-weight:300;border:0;border-bottom:1px solid #b9a55c80;padding:0 0 12px;margin-bottom:19px;border-radius:0;min-width:66px}
+body[data-direction="club"][data-edition="club"].europe-ready .club-network{max-width:1600px;width:calc(100% - var(--edition-gutter)*2);margin:0 auto 50px;padding:27px 0}
+/* Apartments: photographs as decisions, one large map, comparison on demand. */
+body[data-direction="club"][data-edition="club"].europe-ready .next-discovery-heading{padding:37px var(--edition-gutter) 29px;align-items:flex-end}
+body[data-direction="club"][data-edition="club"].europe-ready .next-discovery-heading h1{font-size:clamp(48px,5.5vw,78px);line-height:1.03;letter-spacing:-.055em}
+body[data-direction="club"][data-edition="club"].europe-ready .next-view-switch{border:1px solid #ffffff45;border-radius:3px;background:transparent}
+body[data-direction="club"][data-edition="club"].europe-ready .next-view-switch button{min-height:46px;padding-inline:25px;font-size:14px}
+body[data-direction="club"][data-edition="club"].europe-ready .next-filter-bar{padding:10px var(--edition-gutter);background:var(--edition-paper);color:#23261d;border:0;gap:0}
+body[data-direction="club"][data-edition="club"].europe-ready .next-filter-bar select{background:transparent;color:#23261d;font-size:16px}
+body[data-direction="club"][data-edition="club"].europe-ready .next-filter-bar>button,body[data-direction="club"][data-edition="club"].europe-ready .next-filter-bar>label{border-color:#23261d40;font-size:13px;min-height:44px}
+body[data-direction="club"][data-edition="club"].europe-ready .next-filter-bar .balance-button{color:#38351b;border-color:#23261d40}
+body[data-direction="club"][data-edition="club"].europe-ready .next-discovery{grid-template-columns:minmax(400px,.9fr) minmax(0,1.1fr)}
+body[data-direction="club"][data-edition="club"].europe-ready .next-results-panel{padding:25px 28px 35px var(--edition-gutter);height:calc(100svh - 76px);scrollbar-width:thin;scrollbar-color:#8e835b #131411}
+body[data-direction="club"][data-edition="club"].europe-ready .next-discovery>.next-map-slot{height:calc(100svh - 76px);top:76px}
+body[data-direction="club"][data-edition="club"].europe-ready .next-discovery .next-results .next-card{display:block;padding:22px 0 27px;border-color:#ffffff32}
+body[data-direction="club"][data-edition="club"].europe-ready .next-discovery .next-results .next-card-image{height:auto;aspect-ratio:1.65;border-radius:3px}
+body[data-direction="club"][data-edition="club"].europe-ready .next-results .next-card-info{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:0 14px;padding-top:17px}
+body[data-direction="club"][data-edition="club"].europe-ready .next-results .card-location{grid-column:1;margin:0 0 7px;font-size:12px}
+body[data-direction="club"][data-edition="club"].europe-ready .next-results .next-card-info h3{grid-column:1;font-size:29px;line-height:1.1;margin:0;font-weight:300;overflow-wrap:normal}
+body[data-direction="club"][data-edition="club"].europe-ready .next-results .card-facts{grid-column:1/-1;font-size:13px;margin-top:12px}
+body[data-direction="club"][data-edition="club"].europe-ready .next-results .card-price{grid-column:2;grid-row:1/3;display:grid;grid-template-columns:auto auto;gap:2px 6px;align-content:start;align-items:baseline;justify-content:end;margin:0;padding:0;border:0}
+body[data-direction="club"][data-edition="club"].europe-ready .next-results .card-price strong{font-size:31px;line-height:1}
+body[data-direction="club"][data-edition="club"].europe-ready .next-results .card-price small{font-size:12px}
+body[data-direction="club"][data-edition="club"].europe-ready .next-results .card-price>button{grid-column:2;justify-self:end;min-width:44px;min-height:44px}
+body[data-direction="club"][data-edition="club"].europe-ready .next-results .card-status{font-size:12px;left:13px;bottom:13px;padding:8px 10px}
+body[data-direction="club"][data-edition="club"].europe-ready .next-discovery[data-layout="gallery"]>.next-results-panel{height:auto;padding-inline:var(--edition-gutter)}
+body[data-direction="club"][data-edition="club"].europe-ready .next-discovery[data-layout="gallery"] .next-results{grid-template-columns:repeat(2,minmax(0,1fr));gap:0 38px;max-width:1600px}
+body[data-direction="club"][data-edition="club"].europe-ready #nextBalance{padding:65px var(--edition-gutter);border-top:1px solid #ffffff25;background:#11130f}
+body[data-direction="club"][data-edition="club"].europe-ready .balance-heading,body[data-direction="club"][data-edition="club"].europe-ready .balance-grid,body[data-direction="club"][data-edition="club"].europe-ready .balance-foot{max-width:1600px}
+body[data-direction="club"][data-edition="club"].europe-ready .balance-heading h2{font-size:46px}
+body[data-direction="club"][data-edition="club"].europe-ready .balance-card{padding:23px;border-radius:3px;background:#161a13;gap:16px}
+body[data-direction="club"][data-edition="club"].europe-ready .balance-card[data-primary="true"]{background:#222719}
+body[data-direction="club"][data-edition="club"].europe-ready .balance-photo{height:auto;aspect-ratio:1.55;border-radius:2px}
+body[data-direction="club"][data-edition="club"].europe-ready .balance-card h3{font-size:28px;font-weight:300}
+/* Detail: a photographic opening, with the real decision pass on the image edge. */
+body[data-direction="club"][data-edition="club"].europe-ready #nextDetailContent{position:relative;display:grid;grid-template-columns:minmax(0,1fr) 340px;grid-template-areas:"opening opening" "controls controls" "everyday everyday" "body body";gap:0 28px;max-width:1744px;padding:24px var(--edition-gutter) 0}
+body[data-direction="club"][data-edition="club"].europe-ready #nextDetailContent:before{content:"";grid-area:opening;z-index:1;pointer-events:none;background:linear-gradient(0deg,#000b,transparent 55%);border-radius:4px}
+body[data-direction="club"][data-edition="club"].europe-ready .next-photo-rail{grid-area:opening;height:clamp(530px,calc(100svh - 140px),710px);margin:0;padding:0;gap:14px;scroll-padding-left:0;border-radius:4px;background:#131411}
+body[data-direction="club"][data-edition="club"].europe-ready .next-photo-rail button{flex-basis:100%;border-radius:3px;max-width:none}
+body[data-direction="club"][data-edition="club"].europe-ready .detail-heading{grid-area:opening;z-index:2;align-self:end;justify-self:start;width:calc(100% - 390px);margin:0;padding:28px 32px 40px;background:none;color:#fff;pointer-events:none}
+body[data-direction="club"][data-edition="club"].europe-ready .detail-heading :is(a,button){pointer-events:auto}
+body[data-direction="club"][data-edition="club"].europe-ready .detail-breadcrumb{display:flex;flex-wrap:wrap;gap:5px 20px;align-items:center;margin-bottom:12px;color:#eeeae0;font-size:12px}
+body[data-direction="club"][data-edition="club"].europe-ready .detail-breadcrumb>span{padding:7px 10px;border:1px solid #ffffff40;background:#14150f70}
+body[data-direction="club"][data-edition="club"].europe-ready .detail-title-row{display:block}
+body[data-direction="club"][data-edition="club"].europe-ready .detail-title-row h1{font-size:clamp(42px,4.7vw,68px);line-height:1;letter-spacing:-.055em;text-wrap:balance;text-shadow:0 2px 24px #0008}
+body[data-direction="club"][data-edition="club"].europe-ready .detail-title-row .card-facts{font-size:15px;gap:8px 17px;color:#fff;margin-top:17px}
+body[data-direction="club"][data-edition="club"].europe-ready .detail-actions{display:flex;flex-direction:row;gap:9px;margin-top:18px}
+body[data-direction="club"][data-edition="club"].europe-ready .detail-actions button{background:#121510d9;color:#fff;border:1px solid #ffffff50;border-radius:50%;width:46px;height:46px}
+body[data-direction="club"][data-edition="club"].europe-ready .detail-decision{grid-area:opening;z-index:3;width:340px;max-width:100%;justify-self:end;align-self:end;margin:0 24px -34px 0;padding:25px;border-radius:3px 3px 19px 3px;background:var(--edition-paper);box-shadow:0 20px 55px -22px #0009;border:1px solid #f7efdc}
+body[data-direction="club"][data-edition="club"].europe-ready .detail-decision:before{height:5px;border-radius:0;background:linear-gradient(90deg,#f1d480,#b19142,#edd491)}
+body[data-direction="club"][data-edition="club"].europe-ready .decision-price{padding-bottom:16px}
+body[data-direction="club"][data-edition="club"].europe-ready .decision-price strong{font-size:51px}
+body[data-direction="club"][data-edition="club"].europe-ready .decision-price small{display:inline;font-size:13px;margin-left:7px}
+body[data-direction="club"][data-edition="club"].europe-ready .decision-price .eyebrow{font-size:12px;margin-bottom:10px}
+body[data-direction="club"][data-edition="club"].europe-ready .decision-status{padding:15px 0;font-size:16px;border-top:1px solid #565b3e40}
+body[data-direction="club"][data-edition="club"].europe-ready .decision-status small{font-size:13px;line-height:1.45;margin-top:7px}
+body[data-direction="club"][data-edition="club"].europe-ready .edition-costs{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:0;padding:17px 0;border-top:1px dashed #565b3e55;color:#25271e}
+body[data-direction="club"][data-edition="club"].europe-ready .edition-costs>div{min-width:0}
+body[data-direction="club"][data-edition="club"].europe-ready .edition-costs dt{font-size:12px;line-height:1.4;color:#626553}
+body[data-direction="club"][data-edition="club"].europe-ready .edition-costs dd{margin:7px 0;font-size:21px;line-height:1.15;letter-spacing:-.02em}
+body[data-direction="club"][data-edition="club"].europe-ready .edition-costs small,body[data-direction="club"][data-edition="club"].europe-ready .edition-cost-note{font-size:12px;line-height:1.5;color:#626553}
+body[data-direction="club"][data-edition="club"].europe-ready .edition-cost-note{margin:0 0 17px}
+body[data-direction="club"][data-edition="club"].europe-ready .decision-cta{margin-inline:-25px;padding:18px 25px 0}
+body[data-direction="club"][data-edition="club"].europe-ready .decision-cta .button{font-size:16px;min-height:56px;border-radius:3px}
+body[data-direction="club"][data-edition="club"].europe-ready .photo-controls{grid-area:controls;position:relative;padding:14px 0 18px;margin-right:390px;min-height:76px;gap:15px;font-size:13px}
+body[data-direction="club"][data-edition="club"].europe-ready .photo-controls>button{font-size:13px}
+body[data-direction="club"][data-edition="club"].europe-ready .detail-everyday{grid-area:everyday;margin:32px 0 0;padding:24px;border-radius:3px;background:#13170f;border-color:#b8a66c65}
+body[data-direction="club"][data-edition="club"].europe-ready .detail-body{grid-area:body;padding:64px 0 80px;grid-template-columns:minmax(0,1.2fr) minmax(0,.8fr);gap:80px}
+body[data-direction="club"][data-edition="club"].europe-ready .detail-body h2{font-size:44px}
+body[data-direction="club"][data-edition="club"].europe-ready .detail-copy{font-size:17px;line-height:1.8;max-width:800px}
+body[data-direction="club"][data-edition="club"].europe-ready .detail-support{padding:25px;border:1px solid #ffffff25;background:#11140e}
+body[data-direction="club"][data-edition="club"].europe-ready .detail-failure{grid-column:1/-1}
+@media(max-width:1190px){
+body[data-direction="club"][data-edition="club"].europe-ready #nextSearchForm{grid-template-columns:repeat(4,minmax(0,1fr));gap:18px 0}
+body[data-direction="club"][data-edition="club"].europe-ready #nextDestinationSummary{grid-column:1/4;min-height:68px;border-right:0;border-bottom:1px solid #3f423035;padding-bottom:14px;grid-template-columns:minmax(0,1fr) 24px}
+body[data-direction="club"][data-edition="club"].europe-ready #nextDestinationSummary strong{max-width:none;font-size:23px}
+body[data-direction="club"][data-edition="club"].europe-ready #nextSearchForm .search-submit{grid-column:4;grid-row:1;min-height:58px}
+body[data-direction="club"][data-edition="club"].europe-ready #nextSearchForm>label{grid-row:2;min-height:68px}
+body[data-direction="club"][data-edition="club"].europe-ready #nextSearchForm>label:nth-of-type(1){padding-left:0!important}
+body[data-direction="club"][data-edition="club"].europe-ready #nextSearchForm>label:last-of-type{border-right:0}
+body[data-direction="club"][data-edition="club"].europe-ready .edition-home-stage,body[data-direction="club"][data-edition="club"].europe-ready .edition-home-feature{min-height:370px}
+body[data-direction="club"][data-edition="club"].europe-ready .europe-explore-grid{grid-template-columns:minmax(0,1fr) minmax(0,.9fr);gap:25px}
+body[data-direction="club"][data-edition="club"].europe-ready .next-results .next-card-info{display:block}
+body[data-direction="club"][data-edition="club"].europe-ready .next-results .card-price{display:flex;justify-content:flex-start;margin-top:13px;border-top:1px solid #ffffff25;padding-top:12px}
+body[data-direction="club"][data-edition="club"].europe-ready .next-results .card-price>button{margin-left:auto}
+body[data-direction="club"][data-edition="club"].europe-ready #europeDeskPlanner{grid-template-columns:minmax(0,1fr) 300px;gap:0 27px}
+body[data-direction="club"][data-edition="club"].europe-ready .detail-decision{width:305px;margin-right:20px;padding:21px}
+body[data-direction="club"][data-edition="club"].europe-ready .detail-heading{width:calc(100% - 350px);padding:24px}
+body[data-direction="club"][data-edition="club"].europe-ready .detail-title-row h1{font-size:49px}
+body[data-direction="club"][data-edition="club"].europe-ready .decision-cta{margin-inline:-21px;padding-inline:21px}
+body[data-direction="club"][data-edition="club"].europe-ready .photo-controls{margin-right:350px}
+}
+@media(max-width:900px){
+body[data-direction="club"][data-edition="club"].europe-ready #directionClubTicket{gap:24px;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr)}
+body[data-direction="club"][data-edition="club"].europe-ready .hero-centre .eyebrow{font-size:10px;letter-spacing:.03em}
+body[data-direction="club"][data-edition="club"].europe-ready .hero-pretitle{font-size:29px}
+body[data-direction="club"][data-edition="club"].europe-ready .hero-promise{font-size:15px}
+body[data-direction="club"][data-edition="club"].europe-ready .edition-home-caption{padding:23px}
+body[data-direction="club"][data-edition="club"].europe-ready .edition-home-name{font-size:31px}
+body[data-direction="club"][data-edition="club"].europe-ready .next-discovery{grid-template-columns:minmax(340px,.9fr) minmax(0,1.1fr)}
+body[data-direction="club"][data-edition="club"].europe-ready .next-results-panel{padding-right:22px}
+body[data-direction="club"][data-edition="club"].europe-ready #europeDeskPlanner{display:block}
+body[data-direction="club"][data-edition="club"].europe-ready #europeDeskForm{padding:20px 0 0;border-left:0;border-top:1px dashed #3f423050}
+body[data-direction="club"][data-edition="club"].europe-ready .europe-needs{margin-bottom:20px}
+}
+@media(max-width:760px){
+body[data-direction="club"][data-edition="club"].europe-ready{--edition-gutter:20px;--europe-nav-h:100px}
+body[data-direction="club"][data-edition="club"].europe-ready .next-nav{height:100px;grid-template-rows:48px 44px;padding:4px 20px;column-gap:15px}
+body[data-direction="club"][data-edition="club"].europe-ready .next-nav nav{gap:17px}
+body[data-direction="club"][data-edition="club"].europe-ready .next-nav .next-brand img.europe-brand-lockup{width:130px}
+body[data-direction="club"][data-edition="club"].europe-ready #nextHero{padding:0 20px 12px}
+body[data-direction="club"][data-edition="club"].europe-ready .europe-city-switch{grid-template-columns:1fr;gap:5px;margin:0 0 21px;padding-top:12px}
+body[data-direction="club"][data-edition="club"].europe-ready .europe-cities{gap:0 15px}
+body[data-direction="club"][data-edition="club"].europe-ready .europe-cities button{min-height:55px;font-size:16px}
+body[data-direction="club"][data-edition="club"].europe-ready #directionClubTicket{display:grid;grid-template-columns:minmax(0,1fr);gap:23px}
+body[data-direction="club"][data-edition="club"].europe-ready .hero-centre{padding:0;display:block}
+body[data-direction="club"][data-edition="club"].europe-ready .hero-centre .eyebrow{font-size:11px;margin-bottom:14px}
+body[data-direction="club"][data-edition="club"].europe-ready .hero-centre h1{gap:13px}
+body[data-direction="club"][data-edition="club"].europe-ready .hero-pretitle{font-size:27px;max-width:none}
+body[data-direction="club"][data-edition="club"].europe-ready .hero-promise{font-size:15px;max-width:440px;margin-top:16px}
+body[data-direction="club"][data-edition="club"].europe-ready .edition-plan-link{display:inline-flex;align-items:center;justify-content:space-between;gap:32px;min-height:44px;margin-top:11px;padding:5px 0;border-bottom:1px solid #bca26080;font-size:14px;line-height:1.5;color:#eed790}
+body[data-direction="club"][data-edition="club"].europe-ready .edition-plan-link>span{font-size:19px;color:#ffd700}
+body[data-direction="club"][data-edition="club"].europe-ready[data-europe-city]:not([data-europe-city="rome"]) .edition-plan-link{display:none}
+body[data-direction="club"][data-edition="club"].europe-ready .europe-city-signature{display:none}
+body[data-direction="club"][data-edition="club"].europe-ready .edition-home-stage,body[data-direction="club"][data-edition="club"].europe-ready .edition-home-feature,body[data-direction="club"][data-edition="club"].europe-ready .edition-home-placeholder{height:340px;min-height:340px}
+body[data-direction="club"][data-edition="club"].europe-ready .edition-home-feature{border-radius:3px 3px 24px 3px}
+body[data-direction="club"][data-edition="club"].europe-ready .edition-home-caption{gap:10px;padding:21px}
+body[data-direction="club"][data-edition="club"].europe-ready .edition-home-meta{font-size:12px}
+body[data-direction="club"][data-edition="club"].europe-ready .edition-home-name{font-size:34px;max-width:320px}
+body[data-direction="club"][data-edition="club"].europe-ready .edition-home-bottom{padding-top:9px;gap:10px}
+body[data-direction="club"][data-edition="club"].europe-ready .edition-home-price{font-size:16px}
+body[data-direction="club"][data-edition="club"].europe-ready .edition-home-open{font-size:13px;gap:10px}
+body[data-direction="club"][data-edition="club"].europe-ready .edition-club-runway{margin-top:23px;border-radius:3px 3px 16px 3px}
+body[data-direction="club"][data-edition="club"].europe-ready .edition-runway-head{margin-inline:21px;padding-block:14px;font-size:11px}
+body[data-direction="club"][data-edition="club"].europe-ready .edition-runway-head>span:last-child{display:none}
+body[data-direction="club"][data-edition="club"].europe-ready .edition-club-runway #nextSearch{padding:22px 21px 20px}
+body[data-direction="club"][data-edition="club"].europe-ready #nextSearchForm{grid-template-columns:repeat(2,minmax(0,1fr));gap:19px 17px}
+body[data-direction="club"][data-edition="club"].europe-ready #nextDestinationSummary{grid-column:1/-1;grid-row:auto;padding:0 0 19px;min-height:100px;border-bottom:1px solid #3f423035}
+body[data-direction="club"][data-edition="club"].europe-ready #nextDestinationSummary strong{font-size:25px;max-width:300px}
+body[data-direction="club"][data-edition="club"].europe-ready #nextDestinationSummary .destination-label{font-size:12px}
+body[data-direction="club"][data-edition="club"].europe-ready #nextSearchForm>label{grid-row:auto;padding:0 0 10px!important;min-height:72px;border-right:0;border-bottom:1px solid #3f423035}
+body[data-direction="club"][data-edition="club"].europe-ready #nextSearchForm label>span{font-size:12px}
+body[data-direction="club"][data-edition="club"].europe-ready #nextSearchForm :is(input,select){font-size:16px;height:35px}
+body[data-direction="club"][data-edition="club"].europe-ready #nextSearchForm .search-submit{grid-column:1/-1;grid-row:auto;margin:0;min-height:56px;font-size:17px;padding-inline:18px}
+body[data-direction="club"][data-edition="club"].europe-ready #nextSearch .search-caption{display:block;font-size:12px}
+body[data-direction="club"][data-edition="club"].europe-ready #nextSearch .search-caption>span+span{display:none}
+body[data-direction="club"][data-edition="club"].europe-ready .hero-bottom{margin-top:12px}
+body[data-direction="club"][data-edition="club"].europe-ready .hero-bottom a,body[data-direction="club"][data-edition="club"].europe-ready .hero-bottom button{font-size:12px}
+body[data-direction="club"][data-edition="club"].europe-ready .europe-trustbar{margin:0 auto;padding:17px 0}
+body[data-direction="club"][data-edition="club"].europe-ready[data-europe-city]:not([data-europe-city="rome"]) .hero-centre{display:block;padding:7px 0 0}
+body[data-direction="club"][data-edition="club"].europe-ready[data-europe-city]:not([data-europe-city="rome"]) .europe-city-signature{display:flex;flex-direction:row;align-items:center;justify-content:flex-start;gap:15px;margin-top:23px}
+body[data-direction="club"][data-edition="club"].europe-ready[data-europe-city]:not([data-europe-city="rome"]) .europe-city-icon{width:76px;height:57px;flex-basis:76px}
+body[data-direction="club"][data-edition="club"].europe-ready #europeDeskPlanner{display:block;padding:22px 21px}
+body[data-direction="club"][data-edition="club"].europe-ready .europe-needs{display:block;margin:0}
+body[data-direction="club"][data-edition="club"].europe-ready [data-europe-need]{display:grid;grid-template-columns:23px minmax(0,1fr) 15px;gap:10px;min-height:86px;padding:16px 0;border-top:0}
+body[data-direction="club"][data-edition="club"].europe-ready [data-europe-need]>span:first-child{align-self:center}
+body[data-direction="club"][data-edition="club"].europe-ready [data-europe-need]:after{position:static}
+body[data-direction="club"][data-edition="club"].europe-ready [data-europe-need]>div{gap:5px}
+body[data-direction="club"][data-edition="club"].europe-ready #europeDeskForm{padding-top:18px;margin-top:18px}
+body[data-direction="club"][data-edition="club"].europe-ready .next-section{padding:54px 20px}
+body[data-direction="club"][data-edition="club"].europe-ready .chapter-heading h2{font-size:38px}
+body[data-direction="club"][data-edition="club"].europe-ready .chapter-aside{font-size:15px}
+body[data-direction="club"][data-edition="club"].europe-ready .europe-explore-grid{grid-template-columns:minmax(0,1fr);gap:29px}
+body[data-direction="club"][data-edition="club"].europe-ready .europe-explore-grid>.next-city-scene{min-height:0}
+body[data-direction="club"][data-edition="club"].europe-ready .europe-explore-grid #nextHomeMap{height:300px;min-height:300px}
+body[data-direction="club"][data-edition="club"].europe-ready .europe-explore-grid .next-home-rail .next-card-image{aspect-ratio:1.5}
+body[data-direction="club"][data-edition="club"].europe-ready .next-tickets{gap:22px}
+body[data-direction="club"][data-edition="club"].europe-ready .next-ticket{padding:27px 24px 23px}
+body[data-direction="club"][data-edition="club"].europe-ready .ticket-route{font-size:50px;margin-block:28px}
+body[data-direction="club"][data-edition="club"].europe-ready .next-ticket h3{font-size:34px}
+body[data-direction="club"][data-edition="club"].europe-ready .ticket-stub{margin-inline:-24px;padding:22px 24px 9px}
+body[data-direction="club"][data-edition="club"].europe-ready .ticket-stub>strong{font-size:48px}
+body[data-direction="club"][data-edition="club"].europe-ready .europe-service-proof{padding:21px;gap:16px}
+body[data-direction="club"][data-edition="club"].europe-ready .next-journey{display:block}
+body[data-direction="club"][data-edition="club"].europe-ready .next-journey ol{gap:26px}
+body[data-direction="club"][data-edition="club"].europe-ready .next-journey li>span{font-size:23px;min-width:44px;margin:0;padding-bottom:10px;align-self:start}
+body[data-direction="club"][data-edition="club"].europe-ready .club-network{padding:25px 0;margin:0 auto 37px}
+body[data-direction="club"][data-edition="club"].europe-ready .next-discovery-heading{padding:28px 20px 24px;display:block}
+body[data-direction="club"][data-edition="club"].europe-ready .next-discovery-heading h1{font-size:46px}
+body[data-direction="club"][data-edition="club"].europe-ready .next-view-switch{margin-top:22px}
+body[data-direction="club"][data-edition="club"].europe-ready .next-filter-bar{padding:9px 20px}
+body[data-direction="club"][data-edition="club"].europe-ready .next-filter-bar>button,body[data-direction="club"][data-edition="club"].europe-ready .next-filter-bar>label{font-size:12px;padding-inline:11px;min-height:46px}
+body[data-direction="club"][data-edition="club"].europe-ready .next-filter-bar>button:first-child{padding-left:0}
+body[data-direction="club"][data-edition="club"].europe-ready .next-filter-bar .balance-button{min-height:46px;margin-top:5px;padding:6px 0 0;font-size:13px}
+body[data-direction="club"][data-edition="club"].europe-ready .next-discovery{display:flex;flex-direction:column}
+body[data-direction="club"][data-edition="club"].europe-ready .next-discovery>.next-map-slot{position:relative;height:340px;min-height:340px;top:auto;border-bottom:1px solid #ffffff30}
+body[data-direction="club"][data-edition="club"].europe-ready .next-results-panel,body[data-direction="club"][data-edition="club"].europe-ready .next-discovery[data-layout="gallery"]>.next-results-panel{padding:20px 20px 36px;height:auto}
+body[data-direction="club"][data-edition="club"].europe-ready .next-discovery[data-layout="gallery"] .next-results{grid-template-columns:minmax(0,1fr);gap:0}
+body[data-direction="club"][data-edition="club"].europe-ready .next-discovery .next-results .next-card{padding:24px 0 28px}
+body[data-direction="club"][data-edition="club"].europe-ready .next-discovery .next-results .next-card-image{aspect-ratio:1.45}
+body[data-direction="club"][data-edition="club"].europe-ready .next-results .next-card-info{display:block;padding-top:17px}
+body[data-direction="club"][data-edition="club"].europe-ready .next-results .next-card-info h3{font-size:30px}
+body[data-direction="club"][data-edition="club"].europe-ready .next-results .card-price{margin-top:14px;padding-top:12px}
+body[data-direction="club"][data-edition="club"].europe-ready .next-results .card-price strong{font-size:33px}
+body[data-direction="club"][data-edition="club"].europe-ready #nextBalance{padding:45px 20px;background:#11150e}
+body[data-direction="club"][data-edition="club"].europe-ready .balance-heading h2{font-size:37px}
+body[data-direction="club"][data-edition="club"].europe-ready .balance-card{padding:20px;flex-basis:92%}
+body[data-direction="club"][data-edition="club"].europe-ready .balance-photo{height:auto;aspect-ratio:1.45}
+body[data-direction="club"][data-edition="club"].europe-ready #nextDetailContent{grid-template-columns:minmax(0,1fr);grid-template-areas:"heading" "photos" "controls" "decision" "everyday" "body";gap:0;padding:0 20px}
+body[data-direction="club"][data-edition="club"].europe-ready #nextDetailContent:before{display:none}
+body[data-direction="club"][data-edition="club"].europe-ready .detail-heading{grid-area:heading;width:100%;padding:15px 0 25px;color:#f4f3ed;pointer-events:auto}
+body[data-direction="club"][data-edition="club"].europe-ready .detail-breadcrumb{margin-bottom:12px;font-size:12px}
+body[data-direction="club"][data-edition="club"].europe-ready .detail-breadcrumb>span{padding:0;border:0;background:none;font-size:11px}
+body[data-direction="club"][data-edition="club"].europe-ready .detail-title-row{display:flex;gap:15px;align-items:flex-start}
+body[data-direction="club"][data-edition="club"].europe-ready .detail-title-row h1{font-size:42px;text-shadow:none}
+body[data-direction="club"][data-edition="club"].europe-ready .detail-title-row .card-facts{font-size:13px;margin-top:15px;gap:6px 12px;color:#c4c5b9}
+body[data-direction="club"][data-edition="club"].europe-ready .detail-actions{margin:0;flex-direction:column;gap:8px}
+body[data-direction="club"][data-edition="club"].europe-ready .detail-actions button{width:44px;height:44px}
+body[data-direction="club"][data-edition="club"].europe-ready .next-photo-rail{grid-area:photos;height:360px;min-width:0;margin-inline:-20px;padding-inline:20px;gap:12px;scroll-padding-left:20px;border-radius:0}
+body[data-direction="club"][data-edition="club"].europe-ready .next-photo-rail button{flex-basis:94%;border-radius:3px}
+body[data-direction="club"][data-edition="club"].europe-ready .photo-controls{margin:0;padding:12px 0 18px;min-height:72px;font-size:12px}
+body[data-direction="club"][data-edition="club"].europe-ready .photo-controls>button{font-size:12px}
+body[data-direction="club"][data-edition="club"].europe-ready .detail-decision{grid-area:decision;width:100%;max-width:none;margin:0;padding:25px;display:grid;grid-template-columns:1fr 1fr;column-gap:20px;row-gap:0;border-radius:3px 3px 21px 3px;box-shadow:none}
+body[data-direction="club"][data-edition="club"].europe-ready .decision-price{padding:0 0 19px}
+body[data-direction="club"][data-edition="club"].europe-ready .decision-price strong{font-size:44px}
+body[data-direction="club"][data-edition="club"].europe-ready .decision-price small{display:block;margin:4px 0 0;font-size:13px}
+body[data-direction="club"][data-edition="club"].europe-ready .decision-price .eyebrow{font-size:11px}
+body[data-direction="club"][data-edition="club"].europe-ready .decision-status{border:0;padding:0 0 18px;font-size:15px}
+body[data-direction="club"][data-edition="club"].europe-ready .edition-costs{grid-column:1/-1;padding-block:18px}
+body[data-direction="club"][data-edition="club"].europe-ready .edition-cost-note{grid-column:1/-1}
+body[data-direction="club"][data-edition="club"].europe-ready .decision-cta{grid-column:1/-1;margin-inline:-25px;padding:19px 25px 0}
+body[data-direction="club"][data-edition="club"].europe-ready .detail-everyday{margin:29px 0 0;padding:20px;display:grid;grid-template-columns:minmax(0,1fr)}
+body[data-direction="club"][data-edition="club"].europe-ready .detail-body{padding:45px 0 60px;display:block}
+body[data-direction="club"][data-edition="club"].europe-ready .detail-body h2{font-size:36px}
+body[data-direction="club"][data-edition="club"].europe-ready .detail-copy{font-size:16px}
+body[data-direction="club"][data-edition="club"].europe-ready .detail-body>aside{margin-top:36px}
+body[data-direction="club"][data-edition="club"].europe-ready .detail-support{padding:23px}
+}
+@media(max-width:370px){
+body[data-direction="club"][data-edition="club"].europe-ready{--edition-gutter:16px}
+body[data-direction="club"][data-edition="club"].europe-ready .next-nav,body[data-direction="club"][data-edition="club"].europe-ready #nextHero{padding-inline:16px}
+body[data-direction="club"][data-edition="club"].europe-ready .next-nav nav{gap:12px}
+body[data-direction="club"][data-edition="club"].europe-ready .hero-pretitle{font-size:25px}
+body[data-direction="club"][data-edition="club"].europe-ready .edition-home-stage,body[data-direction="club"][data-edition="club"].europe-ready .edition-home-feature{height:315px;min-height:315px}
+body[data-direction="club"][data-edition="club"].europe-ready .edition-home-caption{padding:19px}
+body[data-direction="club"][data-edition="club"].europe-ready .edition-home-name{font-size:31px}
+body[data-direction="club"][data-edition="club"].europe-ready .edition-home-bottom{display:block}
+body[data-direction="club"][data-edition="club"].europe-ready .edition-home-open{justify-content:space-between;margin-top:5px}
+body[data-direction="club"][data-edition="club"].europe-ready .edition-club-runway #nextSearch{padding-inline:18px}
+body[data-direction="club"][data-edition="club"].europe-ready .edition-runway-head{margin-inline:18px}
+body[data-direction="club"][data-edition="club"].europe-ready #nextSearchForm{gap:18px 13px}
+body[data-direction="club"][data-edition="club"].europe-ready .detail-title-row h1{font-size:36px}
+body[data-direction="club"][data-edition="club"].europe-ready .detail-decision{padding:21px;column-gap:16px}
+body[data-direction="club"][data-edition="club"].europe-ready .decision-price strong{font-size:37px}
+body[data-direction="club"][data-edition="club"].europe-ready .decision-cta{margin-inline:-21px;padding-inline:21px}
+}
+@media(hover:hover) and (pointer:fine){
+body[data-direction="club"][data-edition="club"].europe-ready[data-edition-motion="active"] .edition-home-feature:hover .edition-home-photo{transform:scale(1.025)}
+}
+body[data-direction="club"][data-edition="club"].europe-ready[data-edition-motion="still"] :is(.edition-home-feature,.next-ticket,.edition-home-photo){transform:none;transition:none}
+@media(prefers-reduced-motion:reduce){
+body[data-direction="club"][data-edition="club"].europe-ready :is(.edition-home-feature,.next-ticket,.edition-home-photo){transform:none;transition:none;animation:none}
+}

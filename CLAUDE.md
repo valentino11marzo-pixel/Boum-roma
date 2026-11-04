@@ -3341,6 +3341,13 @@ Find my balance prosegue dopo la scelta della meta; una normale modifica resta l
 I link Home riflettono subito il cambio città, anche prima di aprire Apartments. Gli stessi nodi/catalogo restano validi per foto, salvataggi, mappa e dettaglio.
 Test `flighteuropeui` 9, `flightclubui` 8 e `flightnextui` 12: foto→mappa→scheda, singolo iframe, controlli 320/390, scelta campus/luogo privato, annullamento e Back senza salti.
 
+Flight Duo 04/11: `/flight-duo` confronta due composizioni complete, `edition=club|perspective`, dello stesso percorso Home→Apartments→Detail, anche a390px; il sito precedente resta disponibile.
+Club porta foto reale e pass orizzontale accanto al Solari originale; Prospettiva sposta lo stesso Skyline nella cover avorio, con ricerca laterale e schede editoriali. Ogni preview conserva un solo iframe e il clock originale con pausa/reduced-motion.
+Il confronto sincronizza solo vista e ID pubblico, controllando origine e finestra; brief indipendenti e salvataggi canonici, apertura a pieno schermo con preferenze pubbliche, nessun luogo privato nella URL.
+Il dettaglio espone commissione dal motore Facts e deposito solo se dichiarato, senza totale inventato; Apply resta quello reale, con date/budget/persone. Nessun nuovo invio o archivio.
+Gli adapter `boom-edition-*` sono opt-in; cambiare città conserva l'edizione, nasconde foto e Skyline romani nei desk. Il pulsante mappa di ogni scheda Prospettiva seleziona il suo ID reale.
+`flighteditionsui` verifica i due percorsi a320/390/1280, costi noti/ignoti, motion, desk, confronto simultaneo e isolamento dei brief; regressioni `flightnextui`, `flightclubui`, `flighteuropeui`, `flightdirectionsui`.
+
 Flight Lab 31/10: `/flight-lab` confronta Atlas, Residence e Club sulle stesse viste reali di `/flight-next?direction=…`, senza cambiare il sito pubblico.
 Le composizioni riusano catalogo, Solari, iframe Skyline, salvataggi e Apply; nessun secondo catalogo o nuovo handler di invio.
 Residence usa una foto realmente restituita dal catalogo pubblico (fallback a una casa pubblica non chiusa); Atlas sposta la stessa mappa nel primo schermo.

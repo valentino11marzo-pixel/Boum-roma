@@ -72,7 +72,7 @@
     }
     document.querySelectorAll('a[data-home]').forEach(function(a){a.href=context.url('detail',a.dataset.home);});
     // Only public identifiers leave the frame. Dates and household stay inside it.
-    if (parent !== window) parent.postMessage({type:'boom-design-state', direction:direction, view:context.state.view, home:context.state.home || (chosen && chosen.id) || ''}, location.origin);
+    if (parent !== window) parent.postMessage({type:'boom-design-state', direction:direction, edition:document.body.dataset.edition||'', view:context.state.view, home:context.state.home || (chosen && chosen.id) || ''}, location.origin);
   }
   window.BoomFlightDirections = {name:direction, defaultLayout:direction === 'residence' ? 'gallery' : 'skyline', render:render};
 })();
