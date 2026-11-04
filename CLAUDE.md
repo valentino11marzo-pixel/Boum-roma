@@ -2927,7 +2927,7 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
   reclamaciones, il calendario 2028; nessuno ha ancora letto un lead o un
   ordine dei desk: «validato» non si può dire. Test: i conteggi del lancio
   (Stage 1) sono superati; quelli in vigore stanno in «IL BIGLIETTO v1.7»
-  (dopo il quinto giro e la coppia col font della CI: `run.mjs` 1094, `ui.mjs` 541,
+  (dopo il sesto giro: `run.mjs` 1105, `ui.mjs` 541,
   `checkout.mjs` 117, `calendar.mjs` 97).
 - **IL BIGLIETTO v1.7 (04/11/2026 — «iteriamo la prima card verso i biglietti
   della home, la mappa, l'onda, e Valencia live»).** Quattro prototipi della prima
@@ -3126,7 +3126,17 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
        no. CV-1234», «Reg. 123456», «Regd. 1234», «Lic. no. 4471», «Agent ref.
        CV-1234», «Agent number CV 1234», «Iscrizione n. 1234»; e l'ordine
        spagnolo e italiano, «Número de agente 1234», «numero di iscrizione
-       1234»; «Nov 2026» non è «no 2026», e una citazione italiana con «n.»,
+       1234»; dal sesto giro le parole chiave in ogni maiuscola ma le LETTERE
+       del codice solo maiuscole — minuscole solo unite alle cifre o col
+       trattino, «cv-1234», mai attraverso uno spazio: col flag i «in», «for»,
+       «fee» erano le lettere di un codice e «Find your agent in 2026», «Hire an
+       agent for 300 euros», «The agency fee 300 €» erano forme di numero —,
+       mai un codice seguito da un importo o da una misura (%, €, £, $, euro,
+       pound, EUR, GBP, per cent, percent, months, weeks, days, years, hours,
+       minutes, km, m², mq, sqm, sq ft, metres, m: «An agency 100% on your
+       side»), né un anno dopo in/since/from/until («AGENT IN 2026»), e una
+       copula fra la parola chiave e il codice (is, es, è, ist, est: «Our agent
+       number is 1234», «Our agent no. is CV-1234»); «Nov 2026» non è «no 2026», e una citazione italiana con «n.»,
        «L. n. 392/1978», è letta come forma di numero: si mette in lista come
        law) e lo statuto (§34c, «§34 c», «Paragraph 34c», «34c GewO»).
        **L'estrazione** (`reviewSentences(html)`, esportata, la usano i test):
@@ -3139,9 +3149,11 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
        strumento non entrano più in una voce: «MIL 08», «One company»), poi su
        . ! ? ; e sul · spaziato (mai dentro una parola: «col·legiada»), MAI
        dopo il punto di un'abbreviazione di numero (quinto giro: no., nr., n.,
-       núm., num., reg., regd., lic., ref., n.º, in ogni maiuscola: «Agent no.
-       CV-1234» resta una frase; senza flag i, così «S.r.l. is» resta una frase
-       e «as an agent. What» si spezza ancora); OGNI
+       núm., num., reg., regd., lic., ref., n.º, ogni lettera nelle due
+       maiuscole — la «N.» maiuscola dal sesto giro: «Agent N. 1234» resta una
+       frase —, la «o» di n.º solo minuscola: «Agent no. CV-1234» resta una
+       frase; senza flag i, così «S.r.l. is» resta una frase e «as an agent.
+       What» si spezza ancora); OGNI
        meta e OGNI stringa JSON-LD per conto suo (mai concatenate); OGNI
        attributo con lettere, fra virgolette doppie, singole o senza (title,
        aria-*, value, label, data-*, alt…) tranne quelli che non sono testo
@@ -3167,8 +3179,44 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
        blocco cambia con «S.r.l.») — della somma delle sue frasi, il divisore
        ha tagliato una pretesa: la stringa è rifiutata intera («a registration
        or licence word, a register's initials or a number shape is split by
-       the sentence splitter»: «Agent. CV-1234», «Registration. CV-1234»,
-       «agent» e «4471» separati da un a capo).
+       the sentence splitter»: «Agent. CV-1234», «Registration. CV-1234», e
+       «agent» e «4471» separati da un a capo in una meta, in una stringa
+       JSON-LD o in un attributo: nel testo visibile l'a capo divide il blocco
+       in due righe PRIMA della cintura, e quelle due righe le legge la cintura
+       tra i blocchi). **La cintura tra i blocchi** (sesto giro, `joinCut`,
+       dentro `reviewSentences`): un'etichetta e il suo valore sono due blocchi
+       di testo, e una forma di numero, una parola del lessico o le iniziali di
+       un registro divise fra i due si leggono sulla pagina come una pretesa
+       sola ({dt «Agent no.», dd «CV-1234»} costruiva su ogni desk che vende).
+       Si leggono uniti: ogni blocco di testo di al più quattro parole col
+       blocco dopo (un dt, un th, l'etichetta legale o il titolo di un
+       controllo, un documento, una riga chiusa da un `<br>` o da un a capo);
+       due righe dello stesso blocco divise da un `<br>` o da un a capo,
+       qualunque sia la loro lunghezza («Every file of yours goes to one
+       agent⏎4471, on every invoice»); un `<summary>` (la domanda di una FAQ;
+       l'etichetta legale e il titolo di un controllo, senza il numero della
+       corsia) col primo blocco dopo dentro il suo `<details>` (la risposta, il
+       testo del controllo). L'unione è rifiutata («a registration or licence
+       word, a register's initials or a number shape is split between a label
+       and its value») quando ha più occorrenze del lessico delle sue parti
+       (sul testo e sulla copia con le iniziali chiuse, separatamente: «Agent
+       no.» | «CV-1234», «Reg.⏎123456», «R A I» | «C V»), o quando una parte
+       prima dell'ultima porta una CHIAVE DI NUMERO — la parola chiave col suo
+       numero («agent no.», «agency number», «registration ID», «número de
+       agente») o un'etichetta che è solo un numero («No.», «Number», «ID»,
+       «Ref.», «Code») — e l'ultima un codice (`VALUE_NUM_RE`: lettere maiuscole e tre cifre o più,
+       o quattro cifre o più; mai un anno, un prezzo, una misura): «What is
+       your agent number in Valencia?» | «CV-1234.». Un'unione rifiutata non si
+       mette in lista: si riscrive l'etichetta o il valore. Misurato sulle nove
+       pagine costruite: 1.511 unioni lette (1.236 etichetta+blocco, 164 righe
+       dello stesso blocco, 111 summary+risposta), nessuna rifiutata; le più
+       vicine sono le righe della società col codice sotto un'etichetta che
+       non è una chiave di numero («Operated by» | «… VAT IT17322991005, REA
+       RM-1710623 …», «Who» | «BOOM Milan … (REA RM-1710623)», «Egidi
+       Immobiliare S.r.l.» | «Via dei Coronari 181/184, 00186 Roma»), «Passport
+       or EU ID» | «AMS 02» (due cifre), gli orari sotto «Valentino Egidi
+       tenant-side agent» (09:00) e «Code» | «Desk» (le testate del tabellone
+       dell'hub).
        **I campi di markup fidato** (le chiavi che finiscono in `Html`, oggi
        solo `bref.rows[].ddHtml`, e quelli dell'hub e di `_shared.json`)
        portano SOLO `<b>`, `<strong>`, `<em>`, `<i>`, `<br>` e `<a href="…">`
@@ -3237,7 +3285,29 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
        «Registration» con l'etichetta «agency file 4471», il controllo della
        cauzione («fianza · Generalitat») con «Our agency number there is
        V-5521.». Le sei frasi vere in prima persona accanto alle chiavi sono in
-       lista come `follower`.
+       lista come `follower`. Dal sesto giro un valore IN LISTA vale solo se è
+       un `follower` o una frase di più di quattro parole: una voce di al più
+       quattro parole è una chiave essa stessa, e accanto a un'altra chiave
+       compone una pretesa che nessuno ha rivisto («Registration» —
+       «Generalitat», «INCASÒL» o «§34c GewO», nei due sensi, in una riga della
+       scheda, in un controllo, nella prosa: «Registration. Generalitat.»);
+       nel suo blocco vale solo la chiave stessa, e due chiavi nello stesso
+       blocco («Registration · Generalitat») sono rifiutate tutte e due. E
+       un'etichetta subito prima di una chiave che chiede CHI o CHE STATO (who,
+       whom, whose, status, statut, estado, stato, operator(s), operated, run
+       by, managed by, held by, owned by, company, firm, agency, agent(s),
+       broker(s), desk(s): `LABEL_WHO_RE`) ne fa la sua risposta ed è rifiutata
+       («Who» — «A licensed partner», «Status» — «A licensed partner» sulle
+       bozze; la tappa vera delle bozze «Opening» — «A licensed partner»
+       passa). Il messaggio: «another reviewed label of four words or fewer, or
+       a label that asks who or what status, reads as its value». Misurato
+       sulle nove pagine: 17 valori in lista letti accanto a una chiave, tutti
+       `follower` o di più di quattro parole (il più corto che non è un
+       follower, «The landlord lodges it with INCASÒL», sei); nessun blocco con
+       due chiavi; 11 etichette
+       subito prima di una chiave (BRP, BSN, padrón, NIE, Agenzia delle
+       Entrate, Opening, The deposit, i numeri di corsia), nessuna chiede chi o
+       che stato.
        **Il lint del file** (`lintClaims`, nel build): nessuna voce nomina
        RAICV, AICAT, Registro de Agentes, Registre d'Agents, Property
        Ombudsman, Property Redress, redress scheme, Propertymark, ARLA, NAEA,
@@ -3323,11 +3393,20 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
        caratteri invisibili); l'aggiramento deliberato (omoglifi cirillici, un
        trattino dentro la parola) è fuori portata. Una pretesa senza lessico
        di iscrizione/approvazione/appartenenza, senza nome di autorità o di
-       registro, senza la forma «agent/reg/lic no.» e senza un luogo di un desk
-       accanto a una frase della società («We are on the official list.») NON
-       è presa da una guardia di lessico; né un valore accanto a una chiave in
-       lista che non porta nessuno dei segni del valore («Registration — On
-       request»).
+       registro, senza una forma di numero — né in una stringa sola né divisa
+       fra un'etichetta e il suo valore — e senza un luogo di un desk accanto a
+       una frase della società («We are on the official list.») NON è presa da
+       una guardia di lessico; né un valore accanto a una chiave in lista che
+       non porta nessuno dei segni del valore («Registration — On request»);
+       né una forma di numero con fra la parola chiave e il codice una parola
+       che non è la copula («Our agent no. today is CV-1234»), con le lettere
+       minuscole staccate dalle cifre («agent no. cv 1234»), o sotto
+       un'etichetta senza parola chiave («Our number» | «CV-1234»,
+       «Reference» | «CV-1234»), o sotto una domanda che nomina l'agente senza
+       la parola del numero («Who is your agent?» | «CV-1234»: una domanda che
+       finisce su «agency?» non può essere una chiave di numero, perché «Is BOOM
+       Milan a real estate agency?» ha per risposta la riga della società con
+       REA RM-1710623 — provato: il build di Milano la rifiutava).
        La riga Who dei desk e `llms.txt` dicono «an Italian real estate agency
        registered in Rome».
      - **Forced colors**: lo strappo orizzontale delle economy vale solo nella
@@ -3481,6 +3560,57 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
      build di Milano rifiuta «MIL 08»), niente `<br>` (1), niente prosa (2),
      niente spazio nella forma di numero (3), il lint del follower (1), le
      sigle in minuscolo (2).
+     **Il sesto giro (04/11, notte, l'ultimo; commit «registration guard sixth
+     round»)**, sui rilievi del verificatore del quinto. (1) Una forma di
+     numero divisa fra un'etichetta e il suo valore non arrivava mai al
+     lessico: {dt «Agent no.», dd «CV-1234»} costruiva su ogni desk che vende,
+     e così «Reg. no.» | «123456», «Agency number» | «CV 1234», «Agent ref.»,
+     «Número de agente» | «1234», «No.» | «12345678», «Agent ID», «Agent» |
+     «CV-1234», «Agent no.<br>CV-1234.», «Reg.<br>123456.», «Our agent⏎4471
+     handles it.», il controllo {at «Agent no.», title «CV-1234»} e la FAQ
+     «What is your agent number in Valencia?» | «CV-1234.»; ora la cintura tra
+     i blocchi (sopra) li rifiuta tutti, sui sei desk che vendono, sulle due
+     bozze e su /desks («R A I» | «C V»). (2) Due frasi brevi in lista si
+     componevano («Registration» | «Generalitat», «INCASÒL» o «§34c GewO», nei
+     due sensi, in una riga, in un controllo, «Registration. Generalitat.»
+     nella prosa; sulle bozze «Who» | «A licensed partner» e «Status» | «A
+     licensed partner»): ora un valore in lista è un `follower` o una frase di
+     più di quattro parole, due chiavi nello stesso blocco sono rifiutate e
+     un'etichetta che chiede chi o che stato prima di una chiave è rifiutata
+     (la regola delle chiavi, sopra). Il brief accettava una frase breve in
+     lista «nel blocco della sua chiave»: letta così, «Registration.
+     Generalitat.» nella prosa (un blocco solo) e «Registration · Generalitat»
+     in un dt passavano, quindi nel suo blocco vale solo la chiave stessa. (3)
+     Col flag i «Find your agent in 2026», «An agency 100% on your side»,
+     «Hire an agent for 300 euros» e «The agency fee 300 € …» erano forme di
+     numero e andavano in revisione; ora no (le lettere del codice maiuscole,
+     gli importi e le misure, gli anni dopo in/since), e restano rifiutate
+     «Our agent number is 1234» (la copula: col flag i la prendeva per caso
+     «is» letto come lettere del codice), «Our agent no. is CV-1234» e
+     «Agent no. cv-1234». (4) La «N.» maiuscola è un'abbreviazione di numero.
+     Misurato sulle nove pagine costruite: le occorrenze del lessico non
+     cambiano su nessuna delle 5.232 frasi lette (vecchio e nuovo codice
+     confrontati frase per frase); 1.511 unioni lette, nessuna rifiutata; 17
+     valori in lista accanto a una chiave, nessuno di quattro parole o meno;
+     nessun blocco con due chiavi; 11 etichette prima di una chiave, nessuna
+     chiede chi o che stato; le pagine costruite non cambiano di un byte.
+     Rieseguiti su copie i banchi del quarto e del quinto giro (le 126 forme
+     F1, 47 valori F2, 49 parole F3, e 93 + 38 + 11 + 22 sonde del quarto):
+     stesso verdetto su ognuna. Una domanda che finisce su «agency?» come
+     chiave di numero è stata provata e tolta: il build di Milano rifiutava la
+     sua FAQ vera «Is BOOM Milan a real estate agency?» | «… (REA
+     RM-1710623) …». Provato su copie, dodici mutazioni, ognuna fa cadere
+     `run.mjs` (il `--check` resta verde: nessuna pagina cambia): la cintura
+     tra i blocchi tolta (4 prove cadono), i valori brevi in lista di nuovo
+     accettati (2), le lettere del codice di nuovo in ogni maiuscola (1: le
+     quattro frasi del brief sono protette anche dagli importi e dagli anni,
+     quindi la prova che morde è «The agency has 1200 homes.», «Your agent saw
+     300 flats in a week.»), la «N.» tolta dal divisore (1), la regola di chi
+     e che stato tolta (2), la chiave di numero tolta (2), le righe dello
+     stesso blocco non unite (1), il summary non unito (2), importi e misure
+     di nuovo codici (1), la frase breve in lista accettata nel blocco della
+     sua chiave — la lettura letterale del brief — (2), gli anni dopo in/since
+     di nuovo codici (1), la copula tolta (1).
   9. **La coppia economy col font della CI (04/11, sera)**: la CI ha trovato quello che la sandbox non vedeva.
      Con Liberation Sans (metrica Arial/Helvetica, il font dei runner) a 360px «PER VIEWING · INCL. VAT» andava a
      capo e i due tagliandi della coppia partivano a 11,7px di distanza; in Inter, il font della sandbox, entrava
@@ -3505,10 +3635,10 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
   stampa già nel piede del pass; +~80 B di JS se lo si vuole); le porte dell'hub
   restano su `#fares`; nessuno ha ancora letto un lead o un ordine dei desk —
   «validato» non si può dire.
-  Test (dopo il quinto giro e la coppia col font della CI, 04/11): `tests/cities/run.mjs`
-  1094, `ui.mjs` 541 (G4 a cinque larghezze e in due font, 541 anche con il font della CI
-  simulato), `checkout.mjs` 117, `calendar.mjs` 97, `tests/pfs/markets-ui.mjs` 25 (dopo il
-  quinto giro 1085 e 477; dopo il quarto giro 1064 e 477; dopo il terzo giro 1027 e 477; dopo il secondo giro 998 e 475; dopo il primo 993 e 444; prima della revisione 978 e 423); più consentbanner, scroll, cielo, seo, crawl, llmstxt,
+  Test (dopo il sesto giro, 04/11): `tests/cities/run.mjs`
+  1105, `ui.mjs` 541 (G4 a cinque larghezze e in due font, 541 anche con il font della CI
+  simulato; il sesto giro non cambia nessuna pagina), `checkout.mjs` 117, `calendar.mjs` 97, `tests/pfs/markets-ui.mjs` 25 (dopo il
+  quinto giro e la coppia col font della CI 1094 e 541; dopo il quinto giro 1085 e 477; dopo il quarto giro 1064 e 477; dopo il terzo giro 1027 e 477; dopo il secondo giro 998 e 475; dopo il primo 993 e 444; prima della revisione 978 e 423); più consentbanner, scroll, cielo, seo, crawl, llmstxt,
   verita, whatsapp, testata; il `npm test` intero il 04/11 (2.291 s, `BOOM_PLAYWRIGHT` impostato): 288 suite
   verdi, 4 rosse per ragioni estranee ai desk — `magicsigncustomui` e
   `magicsigncustomsigner` scaricano pdf.js da cdn.jsdelivr.net e il sandbox non

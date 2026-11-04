@@ -2322,12 +2322,50 @@ const CLAIM_ABBR_RE = /(?<![\p{L}\p{N}])(?:RAICV|AICAT|TPO|PRS|CMP|ARLA|NAEA|RIC
 // "Agent ref. CV-1234", "Agent ID CV-1234", "Agency number CV 1234", "Iscrizione n. 1234"); the Spanish and Italian order
 // ("Número de agente 1234", "numero di iscrizione 1234"); §34c in every spelling. The keyword is a whole word: "Nov 2026"
 // is not "no 2026"; "n." needs its dot.
-const NUM_CODE = String.raw`[:\s]*[A-Z]{0,3}[\s-]?\d{3,}`;
+// Sixth round: the keywords are case-insensitive, the CODE's letters are UPPER CASE only — with the i flag [A-Z]{0,3} took
+// "in", "for", "fee" ("Find your agent in 2026", "Hire an agent for 300 euros", "The agency fee 300 €" read as number
+// shapes). JS has no inline (?i:…) before Node 23, so the keyword fragments are spelled caseless ("agent" →
+// "[aA][gG][eE][nN][tT]", "[úu]" → "[úÚuU]"); lower-case letters are a code only joined or hyphenated to the digits
+// ("cv-1234"), never across a space. A run of digits is never a code when an amount or a measure follows it
+// (%, €, £, $, euro, pound, EUR, GBP, per cent, months, weeks, days, years, hours, minutes, km, m², mq, sqm, metres …:
+// "An agency 100% on your side"), nor a year right after in / since / from / until ("AGENT IN 2026"); a copula may
+// stand between the keyword and the code ("Our agent number is 1234", "Our agent no. is CV-1234": with the i flag the
+// first was caught by accident, through "is" taken as the code's letters).
+const caseless = (src) => {
+  let out = '', inClass = false;
+  for (let i = 0; i < src.length; i++) {
+    const c = src[i];
+    if (c === '\\') { const m = /^\\(?:[pPu]\{[^}]*\}|.)/su.exec(src.slice(i)); out += m[0]; i += m[0].length - 1; continue; }
+    const lo = c.toLowerCase(), up = c.toUpperCase(), both = lo !== up && lo.length === 1 && up.length === 1 ? lo + up : '';
+    if (inClass) { if (c === ']') inClass = false; out += both || c; continue; }
+    if (c === '[') { inClass = true; out += c; continue; }
+    out += both ? `[${both}]` : c;
+  }
+  return out;
+};
+const NUM_UNIT = String.raw`(?:[%€£$]|${caseless(String.raw`(?:euros?|pounds?|eur|gbp|per\s*cent|percent|months?|weeks?|days?|years?|hours?|minutes?|mins?|km|kms|m2|m²|mq|sqm|sq\s*m|sq\s*ft|metres?|meters?|m)`)}(?![\p{L}\p{N}]))`;
+const NUM_CODE = String.raw`[:\s]*(?!${caseless('(?:in|since|from|until)')}\s+(?:1[89]|20)\d{2}(?!\d))(?:[A-Z]{0,3}[\s-]?|[a-z]{1,3}-?)\d{3,}(?!\d)(?![\s-]*${NUM_UNIT})`;
+const NUM_KW = caseless(String.raw`(?:agent|agency|reg|regd|lic|licen[cs]e|registration|ref|n\.?[ºo°]|no|nr|n[úu]m)`);
+const NUM_WORD = caseless(String.raw`(?:no|nr|n\.?[ºo°]|n[úu]m|ref)`), NUM_NOUN = caseless(String.raw`(?:n[úu]mero|number|id|code)`);
+const NUM_COPULA = String.raw`(?:${caseless('(?:is|es|è|ist|est)')}(?!\p{L})\s*)?`;
 const CLAIM_NUM_RE = new RegExp([
-  String.raw`(?<!\p{L})(?:(?:agent|agency|reg|regd|lic|licen[cs]e|registration|ref|n\.?[ºo°]|no|nr|n[úu]m)(?!\p{L})\.?|n\.)\s*(?:(?:no|nr|n\.?[ºo°]|n[úu]m|ref)(?!\p{L})\.?\s*|(?:n[úu]mero|number|id|code|#)(?!\p{L})\s*)?${NUM_CODE}`,
-  String.raw`(?<!\p{L})n[úu]mero\s+(?:de|di|del|della)\s+(?:agente|registro|inscripci[óo]n|iscrizione|licencia|licenza|llic[eè]ncia)${NUM_CODE}`,
-  String.raw`§\s*34\s*c`, String.raw`(?<!\p{L})paragraph\s*34\s*c`, String.raw`(?<![\p{L}\p{N}])34\s*c\s*GewO`
-].join('|'), 'giu');
+  String.raw`(?<!\p{L})(?:${NUM_KW}(?!\p{L})\.?|${caseless('n')}\.)\s*(?:${NUM_WORD}(?!\p{L})\.?\s*|(?:${NUM_NOUN}(?!\p{L})|#)\s*)?${NUM_COPULA}${NUM_CODE}`,
+  String.raw`(?<!\p{L})${caseless(String.raw`n[úu]mero\s+(?:de|di|del|della)\s+(?:agente|registro|inscripci[óo]n|iscrizione|licencia|licenza|llic[eè]ncia)`)}${NUM_COPULA}${NUM_CODE}`,
+  String.raw`§\s*34\s*[cC]`, String.raw`(?<!\p{L})${caseless('paragraph')}\s*34\s*[cC]`, String.raw`(?<![\p{L}\p{N}])34\s*[cC]\s*${caseless('gewo')}`
+].join('|'), 'gu');
+// sixth round: a NUMBER KEY — the keyword of a number shape with its number word ("agent no.", "agency number", "registration
+// ID", "número de agente") or a label that is only a number word ("No.", "Number", "ID", "Ref.", "Code") — and a CODE of the
+// value (upper-case letters and three digits or more, or four digits or more; never a year, nor a price or a measure): the
+// two halves of a number shape a label and its value carry apart ("What is your agent number in Valencia?" — "CV-1234.")
+const NUM_KEY_RE = new RegExp([
+  String.raw`(?<!\p{L})${caseless(String.raw`(?:agent|agency|reg|regd|lic|licen[cs]e|registration|ref)`)}(?:['’][sS])?(?!\p{L})\.?\s*(?:${NUM_WORD}|${NUM_NOUN})(?!\p{L})`,
+  String.raw`(?<!\p{L})${caseless(String.raw`n[úu]mero\s+(?:de|di|del|della)\s+(?:agente|registro|inscripci[óo]n|iscrizione|licencia|licenza|llic[eè]ncia)`)}(?!\p{L})`,
+  String.raw`^\s*(?:${caseless(String.raw`(?:no|nr|n\.?[ºo°]|n[úu]m|n|ref|n[úu]mero|number|nummer|id|code)`)}\.?|#)\s*:?\s*$`
+].join('|'), 'u');
+export const VALUE_NUM_RE = new RegExp(String.raw`(?<![\p{L}\p{N}€£$])(?:[A-Z]{1,3}[\s-]?\d{3,}|(?!(?:1[89]|20)\d{2}(?!\d))\d{4,})(?!\d)(?![\s-]*${NUM_UNIT})`, 'u');
+// (a question that only ends on the agent is no number key: "Is BOOM Milan a real estate agency?" is answered by the company's
+// line with REA RM-1710623)
+export const numKeySplit = (label, value) => NUM_KEY_RE.test(label) && VALUE_NUM_RE.test(value);
 // "R.A.I.C.V." → "RAICV", "K.v.K." → "KvK", "T P O" → "TPO" (single letters closed up; only for matching)
 export const closeUp = (t) => String(t).replace(/(?<!\p{L})\p{L}(?:\.\p{L}(?!\p{L})){1,}\.?/gu, (m) => m.replace(/[.\s]/g, '')).replace(/(?<!\p{L})\p{Lu}(?:\s\p{Lu}(?!\p{L})){2,}/gu, (m) => m.replace(/\s/g, ''));
 // every vocabulary hit of one text (on the text and on its closed-up copy)
@@ -2386,6 +2424,9 @@ const CONTEXT_ADD_RE = /^(?:and|also|plus|too|as well)\b|\b(?:also|too|as well|s
 export const VALUE_CODE_RE = /(?<![\p{L}\p{N}])[A-Z]{1,4}[\s-]?\d{2,}|\d{3,}/u;
 export const VALUE_WORDS_RE = /(?<!\p{L})(?:yes|sí|si|oui|ja|since|desde|dal|seit|depuis|numbers?|números?|numer[oi]|nummers?|files?|lists?|listas?|liste|listings?|records?|director(?:y|ies)|rosters?|active|valid|done|granted|held|current|confirmed|in place|ok)(?!\p{L})|[✓✔☑✅]/iu;
 export const neutralValue = (t) => !hasClaimVocab(t) && !PLACE_RE.test(t) && !VALUE_CODE_RE.test(t) && !LINT_FIRST_RE.test(t) && !VALUE_WORDS_RE.test(t);
+// sixth round: the label right before a key that asks WHO or WHAT STATUS ("Who", "Status", "Operator", "Run by",
+// "Company", "Agency", "Agent", "Desk" …): the key reads as its answer ("Who — A licensed partner", "Status — Registration")
+export const LABEL_WHO_RE = /(?<!\p{L})(?:who|whom|whose|status|statut|estado|stato|operators?|operated|run by|managed by|held by|owned by|company|firm|agency|agents?|brokers?|desks?)(?!\p{L})/iu;
 // a reviewed follower (kind follower) may speak for us ("We confirm it before you sign") but never says that we hold,
 // have or are on something
 const LINT_HOLD_RE = /\b(?:holds?|has|have|had|got|obtained|owns?|granted|issued|carr(?:y|ies))\b|\b(?:is|are|am|we're)\s+(?:on|in|with|under|part\s+of)\b/i;
@@ -2427,9 +2468,10 @@ export const normSentence = (s) => {
 };
 // sentences: decoded and cleaned FIRST (so "&#101;" or "&shy;" is not split at its ";"), then . ! ? ; and a spaced ·.
 // Never after the abbreviation of a number (fifth round): "Agent no. CV-1234", "Reg. 123456", "Lic. No. 4471", "n. 12",
-// "Agent ref. CV-1234" stay one sentence — no., nr., n., núm., num., reg., regd., lic., ref., n.º — so the number shapes of
+// "Agent ref. CV-1234" stay one sentence — no., nr., n., núm., num., reg., regd., lic., ref., n.º, every letter in both cases
+// (the upper-case "N." too since the sixth round: "Agent N. 1234"), the o of n.º lower case only — so the number shapes of
 // the vocabulary see them whole. No i flag: "S.r.l. is" is not a split, and "as an agent. What" still is.
-const NUM_ABBR_DOT = String.raw`(?<!\p{L})(?:[Nn][Oo]|[Nn][Rr]|n|[Nn][ÚúUu][Mm]|[Rr][Ee][Gg][Dd]?|[Ll][Ii][Cc]|[Rr][Ee][Ff]|[Nn]\.?[ºo°])\.`;
+const NUM_ABBR_DOT = String.raw`(?<!\p{L})(?:[Nn][Oo]|[Nn][Rr]|[Nn]|[Nn][ÚúUu][Mm]|[Rr][Ee][Gg][Dd]?|[Ll][Ii][Cc]|[Rr][Ee][Ff]|[Nn]\.?[ºo°])\.`;
 const SPLIT_RE = new RegExp(String.raw`(?<=[.!?])(?<!${NUM_ABBR_DOT})\s+(?=[A-Z0-9"“‘'(«¿¡])|[;\n]|\s+·\s*|\s*·\s+`, 'u');
 const splitSentences = (t) => cleanText(t).split(SPLIT_RE).map(normSentence).filter(Boolean);
 // the belt: a hit the sentences lost (a number shape or a name cut by the splitter). Hits are counted on the plain text
@@ -2440,6 +2482,22 @@ const lostHits = (t, parts) => {
   const w = cleanText(t).replace(/\s+/g, ' '), plain = hitCount(w), closed = hitCount(closeUp(w));
   return (plain > 0 || closed > 0) && (plain > parts.reduce((n, p) => n + hitCount(p), 0) || closed > parts.reduce((n, p) => n + hitCount(closeUp(p)), 0));
 };
+// sixth round, the belt ACROSS blocks: a label and its value are two text blocks, and a number shape, a registration word or a
+// register's initials split between them reads as one claim on the page ({dt "Agent no.", dd "CV-1234"}). A join is refused
+// when its text has more vocabulary hits than its parts (on the text and on the closed-up copy, apart), or when a part
+// before the last carries a NUMBER KEY and the last carries a code (numKeySplit: "What is your agent number in Valencia?" —
+// "CV-1234."). The joins are (reviewSentences): every text block of four words or fewer with the next text block (a dt, a
+// th, a check's legal label or title, a paper, a line ended by a <br> or a newline); two lines of one block split by a <br>
+// or a newline, whatever their length; and a <summary> (a FAQ question, a check's legal label and title, without the lane
+// number) with the first text block after it inside its <details> (the answer, the check's text). A refused join is
+// rewritten, never listed: no allowlist entry clears it.
+export function joinCut(parts) {
+  const all = parts.join(' '), plain = hitCount(all), closed = hitCount(closeUp(all));
+  if ((plain || closed) && (plain > parts.reduce((n, p) => n + hitCount(p), 0) || closed > parts.reduce((n, p) => n + hitCount(closeUp(p)), 0))) return 'hits';
+  const value = parts[parts.length - 1], labels = parts.slice(0, -1);
+  if ([...labels, labels.join(' ')].some((l) => numKeySplit(l, value))) return 'number';
+  return null;
+}
 // block boundaries, plus the start of an instrument field (data-instr) or of a row's description (.dp); the END of
 // an instrument field and the span.tn / span.tt labels are boundaries too (markInstr)
 const BLOCK_RE = /<\/?(?:address|article|aside|blockquote|br|button|caption|cite|dd|details|dialog|div|dl|dt|fieldset|figcaption|figure|footer|form|h[1-6]|header|hr|label|legend|li|main|nav|noscript|ol|option|optgroup|p|section|select|summary|svg|table|tbody|td|text|textarea|tfoot|th|thead|title|tr|ul)\b[^>]*>|<[a-z][\w-]*\b[^>]*(?:\sdata-instr\b|\sclass="(?:dp|at|rc-at|ln|n|s|t|rc-t|tn|tt)")[^>]*>/gi;
@@ -2470,7 +2528,7 @@ export const ATTR_SKIP = new Set(['href', 'src', 'srcset', 'class', 'id', 'style
   'cx', 'cy', 'r', 'rx', 'ry', 'x', 'y', 'x1', 'x2', 'y1', 'y2', 'dx', 'dy', 'offset', 'stop-color', 'stop-opacity', 'gradientunits', 'gradienttransform', 'preserveaspectratio', 'vector-effect', 'pathlength',
   'text-anchor', 'dominant-baseline', 'font-size', 'font-family', 'font-weight', 'letter-spacing', 'mask', 'filter', 'marker-end', 'marker-start', 'shape-rendering', 'paint-order', 'focusable', 'xlink:href', 'version', 'datetime', 'min', 'max', 'step', 'maxlength', 'minlength', 'nonce']);
 const ATTR_RE = /\s([^\s"'=<>\/`]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/g;
-export function reviewSentences(html) {
+export function reviewSentences(html, { joins: seenJoins } = {}) {
   const out = [], late = [];
   let block = 0;
   const add = (t, where, b = block++, flags = {}) => {
@@ -2507,6 +2565,9 @@ export function reviewSentences(html) {
   const tables = [...body.matchAll(/<table\b[\s\S]*?<\/table>/gi)].map((m) => [m.index, m.index + m[0].length]);
   const cuts = [...body.matchAll(new RegExp(`${BLOCK_RE.source}|\\n`, 'gi')), { index: body.length, 0: '' }];
   let from = 0, opener = '';
+  // the non-empty text lines, each with the cuts that separate it from the line before (the belt across blocks)
+  const lines = [];
+  let seps = [];
   for (const c of cuts) {
     const line = body.slice(from, c.index), at = from, tag = opener;
     from = c.index + c[0].length; opener = c[0];
@@ -2517,6 +2578,25 @@ export function reviewSentences(html) {
     // the squashed copy: inline tags and comments removed with no space ("Regis<span>tered</span>")
     const squashed = line.replace(/\u0001/g, '').replace(INLINE_TAG_RE, '').replace(/<[^>]+>/g, ' ');
     if (squashed !== spaced && claimHits(squashed).length > claimHits(spaced).length) for (const s of splitSentences(squashed)) if (hasClaimVocab(s)) out.push({ text: s, where: 'text', block: b, split: true });
+    const t = cleanText(spaced).replace(/\s+/g, ' ').trim();
+    if (t) { lines.push({ t, b, at, seps }); seps = []; }
+    seps.push(c[0]);
+  }
+  // the belt across blocks (sixth round): a label and its value, two lines of one block, a summary and its first block
+  const joins = [];
+  for (let k = 0; k + 1 < lines.length; k++) {
+    const a = lines[k], n = lines[k + 1], line = n.seps.every((x) => /^(?:<br\b[^>]*>|\n)$/i.test(x));
+    if (line || a.t.split(' ').length <= 4) joins.push({ how: line ? 'line' : 'label', parts: [a.t, n.t], block: a.b });
+  }
+  for (const m of body.matchAll(/<summary\b[^>]*>[\s\S]*?<\/summary>/gi)) {
+    // the head without the lane or question number ("05", "01": the build's own, aria-hidden)
+    const e = m.index + m[0].length, head = lines.filter((l) => l.at > m.index && l.at < e && !/^\d{1,2}$/.test(l.t)), next = lines.find((l) => l.at >= e);
+    if (head.length && next && !/<\/details>/i.test(body.slice(e, next.at))) joins.push({ how: 'summary', parts: [...head.map((l) => l.t), next.t], block: head[0].b });
+  }
+  for (const j of joins) {
+    j.cut = joinCut(j.parts);
+    if (seenJoins) seenJoins.push(j);
+    if (j.cut) out.push({ text: normSentence(j.parts.join(' ')), where: 'text', block: j.block, xcut: j.cut });
   }
   return [...out.sort((a, b) => (a.where === 'text' ? 0 : 1) - (b.where === 'text' ? 0 : 1)), ...late];
 }
@@ -2615,20 +2695,21 @@ export function claimProblems(html, { claims, sell = false } = {}) {
   const out = [], seen = new Set();
   const all = reviewSentences(html);
   for (const s of all) {
-    const key = `${s.where}|${s.text}|${s.split ? 1 : 0}|${s.cut ? 1 : 0}`;
+    const key = `${s.where}|${s.text}|${s.split ? 1 : 0}|${s.cut ? 1 : 0}|${s.xcut ? 1 : 0}`;
     if (seen.has(key)) continue;
     seen.add(key);
     const ban = sell ? sellHit(s.text) : null;
     if (ban) { out.push({ ...s, why: 'banned', hit: ban }); continue; }
     if (s.split) { out.push({ ...s, why: 'split' }); continue; }
     if (s.cut) { out.push({ ...s, why: 'cut' }); continue; }
+    if (s.xcut) { out.push({ ...s, why: 'xcut' }); continue; }
     if (!hasClaimVocab(s.text)) continue;
     if (!kind.has(s.text)) out.push({ ...s, why: 'unreviewed' });
     else if (sell && kind.get(s.text) === 'partner') out.push({ ...s, why: 'partner' });
   }
   // the context rules
   const byBlock = new Map();
-  for (const s of all) if (!s.split && !s.cut) byBlock.set(s.block, [...(byBlock.get(s.block) || []), s]);
+  for (const s of all) if (!s.split && !s.cut && !s.xcut) byBlock.set(s.block, [...(byBlock.get(s.block) || []), s]);
   const blocks = [...byBlock.keys()].sort((a, b) => a - b);
   for (const b of blocks) {
     const list = byBlock.get(b);
@@ -2661,13 +2742,26 @@ export function claimProblems(html, { claims, sell = false } = {}) {
     if (list[0].code || (list[0].cell && !list[0].th)) continue;
     const keys = list.flatMap((s, k) => (kind.has(s.text) && words(s.text) <= 4 ? [k] : []));
     if (!keys.length) continue;
-    const hit = keys.map((k) => list[k].text).join(' · ');
-    const value = (l) => { for (const s of l) if (!kind.has(s.text) && !neutralValue(s.text)) out.push({ ...s, why: 'label', hit }); };
+    const hit = keys.map((k) => list[k].text).join(' · '), own = keys.length === 1 ? list[keys[0]] : null;
+    // sixth round: a reviewed value is a follower or a sentence of more than four words; a reviewed sentence of four words
+    // or fewer is a key itself, and next to another key it composes a claim neither was reviewed for ('Registration' —
+    // 'Generalitat'): only the key itself is accepted in its own block, and two keys in one block are each refused
+    const value = (l) => {
+      for (const s of l) {
+        if (s === own) continue;
+        if (kind.has(s.text) ? kind.get(s.text) === 'follower' || words(s.text) > 4 : neutralValue(s.text)) continue;
+        out.push({ ...s, why: kind.has(s.text) ? 'pair' : 'label', hit });
+      }
+    };
     if (short(list)) {
       value(list);
       if (!isText) continue;
       const prev = text[i - 1];
-      if (prev && !list[0].cell && !prev[0].code && short(prev)) value(prev);
+      if (prev && !list[0].cell && !prev[0].code && short(prev)) {
+        value(prev);
+        // a label that asks who, or what status, makes the key its answer ('Who' — 'A licensed partner')
+        for (const s of prev) if (LABEL_WHO_RE.test(s.text) && !kind.has(s.text)) out.push({ ...s, why: 'pair', hit });
+      }
       after(i, value);
     } else for (const k of keys) {
       // in prose: the sentences after the key, to the first of more than two words; a key that ends its block reads on
@@ -2683,13 +2777,15 @@ export function claimGuard(html, { claims, sell = false }, where) {
   const group = (list) => [...list.reduce((m, p) => m.set(p.text, [...(m.get(p.text) || []), p.where]), new Map())].map(([text, w]) => ({ text, where: [...new Set(w)].join(', '), hit: (list.find((p) => p.text === text) || {}).hit }));
   const say = (p) => `"${p.text}" (${p.where})`;
   const of = (why) => group(bad.filter((p) => p.why === why));
-  const ban = of('banned'), part = of('partner'), split = of('split'), cut = of('cut'), place = of('place'), label = of('label'), unrev = of('unreviewed');
+  const ban = of('banned'), part = of('partner'), split = of('split'), cut = of('cut'), place = of('place'), label = of('label'), pair = of('pair'), xcut = of('xcut'), unrev = of('unreviewed');
   need(!ban.length, where, `a desk that sells names a register or a licence it does not hold (${ban.map((p) => p.hit).join(', ')}): ${ban.map(say).join(' | ')} — it cannot ship`);
   need(!part.length, where, `"a licensed partner" is the wording of a desk that is not open (kind partner): a desk that sells cannot say it: ${part.map(say).join(' | ')}`);
   need(!split.length, where, `a registration or licence word is split by inline tags or comments (it reads as one word on the page): ${split.map(say).join(' | ')} — write the word whole, and review the sentence`);
   need(!cut.length, where, `a registration or licence word, a register's initials or a number shape is split by the sentence splitter (on the page it reads as one claim): ${cut.map(say).join(' | ')} — write it as one sentence, and review it`);
   need(!place.length, where, `next to the company's Rome line, a sentence names another desk place (${place.map((p) => p.hit).join(', ')}) and is not reviewed: ${place.map(say).join(' | ')} — the Rome registration cannot be continued elsewhere; if it is not about the company, add it to ${CLAIMS_FILE}`);
   need(!label.length, where, `next to the reviewed label (${[...new Set(label.map((p) => `"${p.hit}"`))].join(', ')}), a sentence is not reviewed and reads as its value (it names a desk place, an authority, a number or a code, speaks for us, or says yes, since, number, file, list, active, valid, done, ✓…): ${label.map(say).join(' | ')} — if it does not complete a claim that BOOM or the company holds a registration, licence or membership outside Rome, add it to ${CLAIMS_FILE} with its kind (follower for a plain sentence) and a note; if it does, it cannot ship`);
+  need(!pair.length, where, `next to the reviewed label (${[...new Set(pair.map((p) => `"${p.hit}"`))].join(', ')}), another reviewed label of four words or fewer, or a label that asks who or what status, reads as its value — two labels make a claim neither was reviewed for: ${pair.map(say).join(' | ')} — a true value next to a reviewed label is a sentence of more than four words or a kind follower; if the two say that BOOM or the company holds a registration, licence or membership outside Rome, it cannot ship`);
+  need(!xcut.length, where, `a registration or licence word, a register's initials or a number shape is split between a label and its value (on the page they read as one claim): ${xcut.map(say).join(' | ')} — if it does not say that BOOM or the company holds a registration, licence or membership outside Rome, rewrite the label or the value so they no longer read as one; if it does, it cannot ship`);
   need(!unrev.length, where, `${unrev.length} sentence(s) about registration or licences not reviewed in ${CLAIMS_FILE}: ${unrev.map(say).join(' | ')} — if it does not say that BOOM or the company holds a registration, licence or membership outside Rome, add it to ${CLAIMS_FILE} with its kind and a note; if it does, it cannot ship`);
 }
 

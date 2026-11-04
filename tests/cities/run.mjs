@@ -64,7 +64,7 @@ import {
   orgNode, serviceNode, numberWord, listJoin, dateLong, homeCountryOf, isHomeDesk,
   renderHub, buildHub, HUB_WEIGHT_KB, HUB_BUDGET, HUB_FILE, HUB_PATH, COUNTRY_NAME, hoursSentence, hubText, CALL_RE, RATING_RE,
   reviewSentences, claimProblems, claimGuard, lintClaims, loadClaims, CLAIM_VOCAB_RE, CLAIM_KINDS, CLAIMS_FILE,
-  hasClaimVocab, claimHits, sellHit, closeUp, cleanText, normSentence, PLACE_RE, htmlFieldGuard, neutralValue
+  hasClaimVocab, claimHits, sellHit, closeUp, cleanText, normSentence, PLACE_RE, htmlFieldGuard, neutralValue, joinCut
 } from '../../build-cities.mjs';
 import SCALO from '../../js/scalo-codes.js';
 import CAL from '../../js/desk-calendar.js';
@@ -1332,6 +1332,99 @@ tplRefuses('<p class="proof">', '<p class="proof">Pay by bank transfer · ', /no
       check(['Wales', 'Welsh', 'Scotland', 'Scottish'].every((t) => PLACE_RE.test(t)) && why5('<dl><dt>Who</dt><dd>Egidi Immobiliare S.r.l. is an Italian real estate agency, registered in Rome. Also in Wales.</dd></dl>').includes('place')
         && ['PRS', 'FNAIM', 'IVD', 'IHK'].every((n) => lintRefuses({ text: `The tenant checks the ${n} register`, kind: 'law' }, new RegExp(`names a register or a scheme no desk holds \\(${n}\\)`))),
         'fifth round: Wales, Welsh, Scotland, Scottish are desk places (the place rule); an entry naming PRS, FNAIM, IVD or IHK is refused by the lint');
+    }
+    // ── sixth round (04/11/2026, the last): the belt ACROSS blocks (a number shape, a registration word or a register's
+    //    initials split between a label and its value), two reviewed short labels that compose, a label that asks who, and
+    //    the number shapes' precision (the code's letters upper case; amounts, measures and years after in/since not codes) ──
+    {
+      const desk = (slug, mut) => { const c = clone(CITY[slug]); mut(c); try { render(c); return 'built clean'; } catch (e) { return e instanceof BuildError ? e.message : `threw ${e.name}: ${e.message}`; } };
+      const reEsc = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const pg6 = (b) => `<!DOCTYPE html><html><head><title>t</title></head><body><main>${b}</main></body></html>`;
+      const why6 = (h, sell = true) => claimProblems(pg6(h), { claims, sell }).map((p) => p.why);
+      const row = (dt, dd, at) => (c) => { c.bref.rows.splice(at, 0, { dt, ddHtml: dd }); };
+      const XCUT = 'split between a label and its value \\(on the page they read as one claim\\): ';
+      const PAIR = /another reviewed label of four words or fewer, or a label that asks who or what status, reads as its value — two labels make a claim neither was reviewed for/;
+      // (G1) the fifth round's verifier built these clean: a number shape split between a fact-sheet row's label and its value,
+      // on the six desks that sell (at several rows, Valencia's first row included) and on the two drafts
+      const G1 = [['valencia', 0, 'Agent no.', 'CV-1234'], ['valencia', 2, 'Agent no.', 'CV-1234'], ['valencia', 6, 'Agent no.', 'CV-1234.'], ['valencia', 2, 'Reg. no.', '123456'], ['valencia', 6, 'Reg. no.', '123456'],
+        ['valencia', 2, 'Agency number', 'CV 1234'], ['valencia', 6, 'Agent ref.', 'CV-1234'], ['valencia', 2, 'Número de agente', '1234'], ['valencia', 6, 'No.', 'CV-1234'], ['valencia', 2, 'Agent ID', 'CV-1234'],
+        ['valencia', 6, 'Agent', 'CV-1234'], ['valencia', 2, 'Agent', 'CV-1234'], ['madrid', 6, 'Agent no.', 'M-4471'], ['london', 6, 'Agent no.', '4471'], ['amsterdam', 6, 'No.', '12345678'], ['milan', 6, 'Reg. no.', 'MI-123456'],
+        ['barcelona', 6, 'Agent no.', 'B-5521'], ['barcelona', 2, 'Número de agente', '5521'], ['berlin', 2, 'Agent no.', 'CV-1234'], ['paris', 5, 'No.', '12345']];
+      const g1miss = G1.filter(([s, at, dt, dd]) => !new RegExp(`${XCUT}.*"${reEsc(normSentence(`${dt} ${dd}`))}" \\(text\\)`).test(desk(s, row(dt, dd, at))));
+      check(!g1miss.length, `sixth round: the ${G1.length} fact-sheet rows that split a number shape between the label and its value ({dt "Agent no.", dd "CV-1234"}, "Reg. no." | "123456", "Agency number" | "CV 1234", "Agent ref.", "Número de agente" | "1234", "No." | "12345678", "Agent ID", "Agent" | "CV-1234") are refused on the six desks that sell and on the two drafts, the join quoted`,
+        g1miss.map(([s, at, dt, dd]) => `${s}@${at} ${dt}|${dd} → ${desk(s, row(dt, dd, at)).slice(0, 160)}`).join(' | '));
+      // a <br> or a newline inside one value, a check's legal label and title, a FAQ question and its answer
+      const G1b = [
+        ['valencia', 'a fact-sheet value "… Agent no.<br>CV-1234."', (c) => { c.bref.rows[4].ddHtml += ' Agent no.<br>CV-1234.'; }, 'Agent no. CV-1234'],
+        ['valencia', 'a fact-sheet value "… Reg.<br>123456."', (c) => { c.bref.rows[4].ddHtml += ' Reg.<br>123456.'; }, 'Reg. 123456'],
+        ['valencia', 'a fact-sheet value "… Our agent\\n4471 handles it."', (c) => { c.bref.rows[4].ddHtml += ' Our agent\n4471 handles it.'; }, 'Our agent 4471 handles it'],
+        ['madrid', 'a fact-sheet value whose long first line ends "… one agent" and whose next line is "4471, on every invoice."', (c) => { c.bref.rows[4].ddHtml += ' Every file of yours goes to one agent\n4471, on every invoice.'; }, 'one agent 4471, on every invoice'],
+        ['valencia', 'a check whose legal label is "Agent no." and whose title is "CV-1234"', (c) => { Object.assign(c.checks.items[4], { at: 'Agent no.', title: 'CV-1234' }); }, 'Agent no. CV-1234'],
+        ['valencia', 'a FAQ item "What is your agent number in Valencia?" / "CV-1234."', (c) => { c.faq.items.splice(3, 0, { q: 'What is your agent number in Valencia?', a: 'CV-1234.' }); }, 'What is your agent number in Valencia? CV-1234'],
+        ['london', 'a FAQ item "Your agent number?" / "4471."', (c) => { c.faq.items.splice(2, 0, { q: 'Your agent number?', a: '4471.' }); }, 'Your agent number? 4471'],
+        ['valencia', 'a fact-sheet row "Agent number in Valencia" / "CV-1234" (a number key, the code apart)', row('Agent number in Valencia', 'CV-1234', 6), 'Agent number in Valencia CV-1234']];
+      const g1bmiss = G1b.filter(([s, , mut, join]) => !new RegExp(`${XCUT}.*${reEsc(join)}" \\(text\\)`).test(desk(s, mut)));
+      check(!g1bmiss.length, `sixth round: the ${G1b.length} splits inside one value (a <br>, a newline — whatever the first line's length), between a check's legal label and its title, and between a FAQ question and its answer (a number key, "agent number", and a code) are refused, the join quoted`,
+        g1bmiss.map(([s, t, mut]) => `${s}: ${t} → ${desk(s, mut).slice(0, 200)}`).join(' | '));
+      // the register's initials split between a label and its value: a ban on a desk that sells, the belt on /desks
+      check(/names a register or a licence it does not hold \(RAICV\): "R A I C V"/.test(desk('valencia', row('R A I', 'C V', 2))) && why6('<dl><dt>R A I</dt><dd>C V</dd></dl>', false).includes('xcut'),
+        'sixth round: "R A I" | "C V" (the initials split between a label and its value) is refused on a desk that sells (RAICV, closed up across the two) and by the belt across blocks on a draft');
+      {
+        const hub = JSON.parse(read('cities/_hub.json')); hub.brief.rows[0] = { dt: 'R A I', dd: 'C V' };
+        const r = throws(() => renderHub({ template: read('cities/_hub.html'), shared, hub, cities: SLUGS.map((s) => clone(CITY[s])), assetVersion: { css: 'testcss000', desksCss: 'testdcss00', desksJs: 'testdjs000' }, frags, root: R, weigh: false }), /cities\/_hub\.json: a registration or licence word, a register's initials or a number shape is split between a label and its value .*"R A I C V" \(text\)/);
+        check(r === true, 'sixth round: on /desks a fact-sheet row "R A I" | "C V" is refused by the belt across blocks', r);
+        const r2 = ['Registration|Generalitat', 'Generalitat|Registration', 'Who|A licensed partner'].map((x) => { const [dt, dd] = x.split('|'); const h = JSON.parse(read('cities/_hub.json')); h.brief.rows[0] = { dt, dd }; return throws(() => renderHub({ template: read('cities/_hub.html'), shared, hub: h, cities: SLUGS.map((s) => clone(CITY[s])), assetVersion: { css: 'testcss000', desksCss: 'testdcss00', desksJs: 'testdjs000' }, frags, root: R, weigh: false }), /cities\/_hub\.json: next to the reviewed label/); });
+        check(r2.every((x) => x === true), 'sixth round: on /desks a fact-sheet row "Registration" | "Generalitat", "Generalitat" | "Registration" or "Who" | "A licensed partner" is refused next to its reviewed label', r2.join(' | '));
+      }
+      // the belt across blocks on the nine built pages: every join read, none refused (prices, dates, the Rome company line
+      // with VAT IT17322991005 and REA RM-1710623 under "Operated by", the Who rows, the papers' codes, the hours)
+      {
+        let n = 0; const fired = [], kinds = {};
+        for (const [x, h] of [...SLUGS.map((y) => [y, PAGE[y]]), ['desks', hubHtml]]) {
+          const joins = []; reviewSentences(h, { joins });
+          for (const j of joins) { n++; kinds[j.how] = (kinds[j.how] || 0) + 1; if (j.cut) fired.push(`${x}: ${j.parts.join(' | ')}`); }
+        }
+        check(n > 1000 && kinds.label > 0 && kinds.line > 0 && kinds.summary > 0 && !fired.length, `sixth round: on the nine built pages the belt across blocks reads ${n} joins (label ${kinds.label}, line ${kinds.line}, summary ${kinds.summary}) and refuses none`, fired.join(' | '));
+        check(['Who', 'Operated by', 'Egidi Immobiliare S.r.l.', 'Passport or EU ID', 'Email or WhatsApp number', 'Valentino Egidi tenant-side agent'].every((l) => !joinCut([l, 'VAT IT17322991005, REA RM-1710623, 00186 Roma, AMS 02, Mon–Fri 09:00–19:00']))
+          && joinCut(['Agent no.', 'CV-1234']) === 'hits' && joinCut(['What is your agent number in Valencia?', 'CV-1234.']) === 'number' && joinCut(['ID', 'CV-1234']) === 'number' && !joinCut(['Agent number', 'Since 2026, €500 and 2,500 m² of flats']),
+          'sixth round: joinCut — a label that is no number key (Who, Operated by, the company, "EU ID", "WhatsApp number", the hours) never makes a value\'s code a claim; "Agent no." | "CV-1234" is a hit, a number key and a code apart is a split; a year, a price, a measure are no code');
+      }
+      // (G2) two reviewed short labels compose a claim; a label that asks who makes the key its answer
+      const G2 = [
+        ['valencia', 'a fact-sheet row "Registration" / "Generalitat"', row('Registration', 'Generalitat', 6)],
+        ['barcelona', 'a fact-sheet row "Registration" / "INCASÒL"', row('Registration', 'INCASÒL', 6)],
+        ['berlin', 'a fact-sheet row "Registration" / "§34c GewO" (draft)', row('Registration', '§34c GewO', 5)],
+        ['valencia', 'a fact-sheet row "Generalitat" / "Registration"', row('Generalitat', 'Registration', 6)],
+        ['valencia', 'a fact-sheet row "Registration" / "Generalitat. We confirm it in writing before you sign." (row 2)', row('Registration', 'Generalitat. We confirm it in writing before you sign.', 2)],
+        ['valencia', 'a fact-sheet row "Registration" / "Generalitat. We confirm it in writing before you sign." (row 6)', row('Registration', 'Generalitat. We confirm it in writing before you sign.', 6)],
+        ['valencia', 'a fact-sheet row "Registration" / "Generalitat. We confirm it in writing before you sign." (last row)', row('Registration', 'Generalitat. We confirm it in writing before you sign.', 99)],
+        ['valencia', 'a check "Registration" (legal label) / "Generalitat" (title) / "The details are on request."', (c) => { Object.assign(c.checks.items[4], { at: 'Registration', title: 'Generalitat', text: 'The details are on request.' }); }],
+        ['valencia', 'a check "Generalitat" / "Registration" / "The details are on request."', (c) => { Object.assign(c.checks.items[4], { at: 'Generalitat', title: 'Registration', text: 'The details are on request.' }); }],
+        ['valencia', 'a check "Generalitat" / "Registration" / "Ask the landlord for the receipt."', (c) => { Object.assign(c.checks.items[4], { at: 'Generalitat', title: 'Registration', text: 'Ask the landlord for the receipt.' }); }],
+        ['barcelona', 'a check "Registration" / "INCASÒL" / "The details are on request."', (c) => { Object.assign(c.checks.items[4], { at: 'Registration', title: 'INCASÒL', text: 'The details are on request.' }); }],
+        ['berlin', 'a check "Registration" / "§34c GewO" / "The details are on request." (draft)', (c) => { Object.assign(c.checks.items[3], { at: 'Registration', title: '§34c GewO', text: 'The details are on request.' }); }],
+        ['valencia', 'a FAQ answer ending "Registration. Generalitat."', (c) => { c.faq.items[2].a += ' Registration. Generalitat.'; }],
+        ['berlin', 'a fact-sheet row "Who" / "A licensed partner" (draft)', row('Who', 'A licensed partner', 5)],
+        ['paris', 'a fact-sheet row "Status" / "A licensed partner" (draft)', row('Status', 'A licensed partner', 5)]];
+      const g2miss = G2.filter(([s, , mut]) => !PAIR.test(desk(s, mut)));
+      check(!g2miss.length, `sixth round: the ${G2.length} compositions of two reviewed short labels ("Registration" — "Generalitat", "INCASÒL", "§34c GewO", either way round, in a fact-sheet row, a check, a FAQ answer) and the drafts' "Who" / "Status" — "A licensed partner" are refused on their desk`,
+        g2miss.map(([s, t, mut]) => `${s}: ${t} → ${desk(s, mut).slice(0, 200)}`).join(' | '));
+      check(why6('<dl><dt>Registration · Generalitat</dt><dd>On request.</dd></dl>').filter((w) => w === 'pair').length === 2 && why6('<dl><dt>Registration</dt><dd>Generalitat</dd></dl>').includes('pair')
+        && why6('<dl><dt>Who</dt><dd>A licensed partner</dd></dl>', false).includes('pair') && why6('<dl><dt>Operated by</dt><dd>Generalitat</dd></dl>').includes('pair')
+        && !why6('<ol><li><span class="s" data-instr>Opening</span> <span class="w"><b class="dh">A licensed partner</b> <span class="dp">We open with a licensed partner, not around the rule.</span></span></li></ol>', false).length
+        && !why6('<dl><dt>Registration</dt><dd>We confirm it before you sign.</dd></dl>').length
+        && !why6('<details><summary><span class="at" data-instr>fianza · Generalitat</span> <span class="t">The deposit</span></summary><p>Habitual lease: one month. The landlord lodges it with the Generalitat Valenciana; we ask for the deposit receipt.</p></details>').length,
+        'sixth round: two reviewed short labels in one block are each refused ("Registration · Generalitat"), and so is one as the value of another or of "Who" / "Operated by"; the drafts\' how step ("Opening" — "A licensed partner"), a follower value and the true deposit check pass');
+      // (G3) the number shapes' precision: the code's letters upper case, no amount, measure or year after in/since
+      // the lead's four, then two that only the upper-case rule protects (no amount, no measure, no year after them)
+      const G3 = ['Find your agent in 2026.', 'An agency 100% on your side.', 'Hire an agent for 300 euros.', 'The agency fee 300 € is paid by the landlord.', 'The agency has 1200 homes.', 'Your agent saw 300 flats in a week.'];
+      const g3bad = G3.flatMap((t) => [['a FAQ answer', (c) => { c.faq.items[1].a += ` ${t}`; }], ['a check text', (c) => { c.checks.items[0].text += ` ${t}`; }]].map(([w, mut]) => [t, w, desk('valencia', mut)])).filter(([, , r]) => r !== 'built clean');
+      check(!g3bad.length && G3.every((t) => !hasClaimVocab(t)) && ['AGENT IN 2026', 'Agency since 2019, on your side', 'Agency 2500 EUR', 'The agency is 1500 metres away', 'An agent 100 percent on your side', 'agency fee 10%'].every((t) => !hasClaimVocab(t)),
+        `sixth round: "${G3.join('", "')}" build clean in a FAQ answer and a check text on valencia (with the i flag the code's letters took "in", "for", "fee", "has", "saw"), and no amount, measure or year after in/since reads as a code`,
+        g3bad.map(([t, w, r]) => `${t} in ${w}: ${r.slice(0, 160)}`).join(' | '));
+      check(['Our agent number is 1234.', 'Our agent no. is CV-1234.', 'Agent no. cv-1234.', 'Agent N. 1234.'].every((t) => new RegExp(`not reviewed in cities/_claims\\.json: "${reEsc(normSentence(t))}" \\(`).test(desk('valencia', (c) => { c.faq.items[1].a += ` ${t}`; })))
+        && JSON.stringify(reviewSentences(pg6('<p>Agent N. 1234. Iscrizione N. 5678.</p>')).filter((x) => x.where === 'text' && !x.cut).map((x) => x.text)) === '["Agent N. 1234","Iscrizione N. 5678"]',
+        'sixth round: the copula ("Our agent number is 1234", "Our agent no. is CV-1234") and a lower-case code joined to its digits ("cv-1234") are number shapes; "Agent N. 1234" stays one sentence (an upper-case "N." is a number abbreviation), refused as unreviewed');
     }
     // (g) the page-level mirror, a literal copy independent of the build: no selling desk names a register it does not hold
     const HELD = /\bRAICV\b|Registro de Agentes|\bAICAT\b|Registre d['’]Agents|carte professionnelle|\bcarte T\b|§\s*34\s*c|Paragraph\s*34\s*c|Property Ombudsman|Property Redress|redress scheme|Propertymark|\bARLA\b|\bNAEA\b|\bKvK|Kamer van Koophandel|\bTPO\b|\bCMP\b|client money protection|\bRICS\b|\bNVM\b|\bVBO\b|Agente de la Propiedad|colegiad|\bFIMAA\b|\bFIAIP\b|\bPRS\b|\bFNAIM\b|\bIVD\b|\bIHK\b/i;
