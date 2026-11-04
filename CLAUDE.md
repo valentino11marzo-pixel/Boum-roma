@@ -2902,9 +2902,10 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
   tolte (corpo 975/980, board 118/120, rules 153/160, brief 239/240); la lista
   Network senza «desk» («AMS Amsterdam», 35/40 sui live); un altro desk costa
   all'hub ~31 parole contro 5 di margine: il #8 è una decisione strutturale.
-  `bowArcs`: `BOW_FIRST = { VLC: -0.18 }` (si sposta solo Madrid, −0.18 →
-  −0.12; i sette archi di prima restano) — TEMPORANEO, sparisce con la mappa
-  Horizon dello Stage 2. Radar: Valencia DICHIARATA e spenta in
+  Sulla mappa piatta del 03/11 Valencia voleva `BOW_FIRST = { VLC: -0.18 }`
+  (spostava l'arco di Madrid): sparito lo stesso giorno con la mappa Horizon
+  dello Stage 2, che si inquadra da sola (vedi «IL BIGLIETTO v1.7» e «BOOM
+  Desks → La mappa»). Radar: Valencia DICHIARATA e spenta in
   `js/radar-markets.js` (il Full Search si cerca a mano; prima di accenderla:
   «Calle de Valencia» a Madrid e «Carrer de València» a Barcellona collidono
   col token della città → maschera delle vie, zone, scope idealista, alias,
@@ -2920,6 +2921,164 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
   reclamaciones, il calendario 2028; nessuno ha ancora letto un lead o un
   ordine dei desk: «validato» non si può dire. Test: `tests/cities/run.mjs`
   914, `calendar.mjs` 97, `checkout.mjs` 117, `ui.mjs` 336.
+- **IL BIGLIETTO v1.7 (04/11/2026 — «iteriamo la prima card verso i biglietti
+  della home, la mappa, l'onda, e Valencia live»).** Quattro prototipi della prima
+  card (A–D) davanti a tre giudici (occhio del fondatore A 8 · conversione C 8 ·
+  ingegneria C 8), sciolti dal lead nell'ibrido `card-S` e portati in cinque
+  stage sopra lo Stage 0: Valencia (S1), la Horizon (S2), la card (S3), l'onda
+  (S4), docs, suite intera e fotografie di revisione (S5).
+  1. **La prima card è la famiglia dei biglietti della home.** Full Search è
+     l'ammiraglia: un biglietto SDRAIATO (`li.bp.eroe` > `details.fare`) con la
+     banda di lamina d'oro SENZA parole (`.fare::before`, 16px: la parola «First
+     class» non compare da nessuna parte — un'etichetta è un fatto che non
+     abbiamo), la domanda di situazione in oro maiuscolo col «?» disegnato dal
+     CSS (`.f-when::after`: «HAVEN'T STARTED YET?»), il nome del piano
+     (`.f-name`), la promessa che il biglietto v1.6 teneva dentro (`.f-say` =
+     `pricing.plans[].name`, «We search. You choose.»), lo strappo in piedi
+     (`.f-r::before/::after`: fori e due mezzi dischi), lo stub più scuro col
+     prezzo come quota d'oro (32px peso 200, 40 a desk), la condizione, un
+     codice a barre decorativo (`.bars`: non codifica NIENTE) e il pip d'oro
+     (`.f-tog`, anello sottile ±). Sotto, sui desk che vendono, il **coupon**
+     strappato del rimborso (`.bp>.refund.fs`: «✓ Full Search is refunded in
+     full…», fori lungo il bordo, nascosto mentre il biglietto è aperto).
+     Application Pack e Attended Viewing sono la **coppia economy** affiancata
+     fra 360 e 939px (`.bps:not(.pair-open)`: banda d'argento 6px, nome in
+     maiuscolo, situazione, strappo, stub con prezzo 24px + pip, condizione
+     sotto); la rotta del pass è in carattere da display (`.route-p .ra` 15px
+     «YOU», `.rb` 20px oro; `.perf` resta 24px). **La tariffa aperta è il
+     biglietto intero della home**: la banda si accende (il foil a sette stop
+     della home sull'ammiraglia, argento vivo sulle altre) e una luce la spazza
+     UNA volta; la promessa in display sulle economy (`tk-tag`), le ✓ di cosa
+     compra, la ✓ del rimborso su FS, un secondo strappo, lo stub scuro
+     `.tk-stub` che sul telefono ospita la PORTA (`.tk-slot[data-slot]`: il nodo
+     si sposta, non si duplica), un codice a barre da 20px, il pagamento
+     contornato `button.pay2[data-pay]`. A ≥ 940 i tre biglietti si sdraiano in
+     un ritmo (`summary` 1fr | 236px) e il `li.eroe` è la card incorniciata:
+     riga 1 il biglietto, riga 2 = la ✓ regola + il pagamento quieto (`.bp-pay`,
+     46px — l'UNICO `[data-pay="full-search"]` passa dallo stub al `.bp-pay`
+     con `placePay()` finché è largo e chiuso), mentre la porta resta nello stub
+     del pass (fondo 294 a 1440 con FS aperto; pass 1009px). **Tolto da v1.6**: i
+     divisori fra le righe, la barra d'oro del rimborso dentro il pass, le righe
+     ≤ 374 e `.fares.long`, il `summary` da 66px a desk, la rotta mono da 10px e
+     il sollevamento `.door:hover{translateY(-1px)}` (A: spostava il bordo via
+     dal puntatore e l'hover sfarfallava; il build lo rifiuta). Il «?» entra nel
+     nome accessibile del summary (accettato). Nessun JSON cambia: la promessa è
+     il `name` del piano (le tariffe chiuse salgono di 4 parole, il biglietto FS
+     ne perde 4).
+  2. **I link profondi** (`deep()` in `boom-city.js`: al boot dopo
+     `handleReturn`, su `hashchange`, e una volta al `load` se il lettore non si
+     è mosso — il browser riapplica un frammento al load): `/<slug>#fare-<piano>`,
+     l'alias `#<piano>` e `#pay-<piano>`. Guardie: il piano deve esistere
+     (`planOf`: `#fares`, `#fare-nope`, `#pay-constructor` non fanno niente e
+     tengono l'hash), niente con `paid=` nella query né a pass non `blank`. Poi
+     l'hash si ripiega (`replaceState`), si apre SOLO quel biglietto, il
+     `[data-pay]` (la porta sui waitlist) atterra al bordo inferiore
+     (`scrollIntoView({block:'end', behavior:'instant'})`: lo scroll-padding
+     della barra lo tiene sopra) e prende il fuoco senza scorrere; `fare_open
+     {via:'link'}` solo se non era già aperto, `pay_link` sui `#pay-`;
+     `#pay-<piano>` su un desk che vende apre la cassa su quel piano (Start-now
+     MAI pre-spuntato, il bottone di pagamento è l'apritore: Escape torna lì),
+     su Parigi e Berlino porta alla porta. La risposta pronta dell'operatore
+     (`cityReplyText`, SOLO il ramo dei desk che vendono — mai waitlist, pagato
+     o abbandonato) chiude con «If you'd rather start now: <url>#pay-full-search».
+     Il `cancel_url` di Stripe resta `#fares`, e le porte dell'hub restano su
+     `/<slug>#fares` (decisione del lead: il `#fare-full-search` letterale
+     farebbe atterrare un visitatore dell'hub su un €500 aperto col pagamento al
+     bordo). Nessun numero nasce nel browser: il solo numero in pagina è il
+     codice fascicolo del server (`#codeLine`), nessun N° sui biglietti.
+  3. **Le pieghe misurate** (Chromium DPR 1, martedì 10:00 UTC, barra 67px
+     quando accesa; fondi in px dal bordo alto; `…/v17/impl/final/NOTES.md`): i
+     pin DURI — tre prezzi CON le condizioni leggibili a 390×664, 375×812 e
+     390×844 su tutti e otto i desk, porta e chi-risponde sopra la piega a
+     375×812 e 390×844. Oggi: Londra 390×844 prezzi/cond. 343/357 · 543/556 ·
+     528/541, regola 440, porta 709, chi 779; 375×812 porta 700, chi 770 (la
+     regola della testata ≤ 389 guadagna 23px: senza, Milano a 375 falliva);
+     Madrid = Valencia = Barcellona 390×844 361/376 · 577/589 · 547/559, porta
+     742, chi 812 (la condizione dell'AP a 589 contro il limite 597 è la più
+     stretta di tutte), 375×812 733/804; Amsterdam = Milano 390×844 porta 724,
+     chi 794 (Milano 375×812 737/807); Parigi = Berlino 390×844 703/773, 375×812
+     694/765; Londra 1440×900 porta 316, chi 411, FS chiusa 112px (176 con la
+     riga 2). A 390×664 la BARRA porta la porta su ogni desk (porta 703–742 e
+     chi 773–812 stanno sotto per costruzione) e i tre prezzi restano leggibili.
+     Detto senza giri: a **360×780** chi-risponde sta 4–43px sotto la piega
+     (Londra 786, Parigi 780, Madrid/Valencia 819, Milano 823; la porta sopra su
+     tutti: guadagnarli costerebbe ~45px di copy su ogni desk) e a **320×568** i
+     prezzi della coppia stanno sotto la barra (AP 556/568, AV 624/649, regola
+     509 contro il limite 501; l'ammiraglia no; porta 839) — accettati dal lead,
+     che ha pinnato 664/812/844. Primo schermo 117–127 parole (tetto 150);
+     l'ammiraglia chiusa 95px sui desk che vendono, 106 sui waitlist (condizione
+     su due righe).
+  4. **La Horizon** sostituisce la mappa piatta sull'hub e nella Rete di ogni
+     desk: una camera sopra il Sahara che inquadra da sola ogni desk più Roma,
+     la costa vera in gradi, archi di cerchio massimo sollevati, etichette da un
+     collocatore, `hzViolations` che rifiuta il build; viva a vista
+     (`assets/boom-map.js`, `MAP_KB` 3,5 come riga a sé E contata nel totale)
+     col terminatore vero, il bagliore dei desk aperti, un aereo per arco;
+     mostrata anche sui telefoni. Tutto il dettaglio in «BOOM Desks → La mappa».
+  5. **L'onda** (`assets/boom-onda.js`, 3,6 KB gz su 4): sul telefono vive
+     DENTRO il pass (`place()` sposta `#onda` in `#pass` sotto i 940 e lo riporta
+     nel body sopra, dove la carta del pass ha la cima traslucida — 31 B di CSS);
+     il battito (`PERIOD` 8200 ms, evento `boom:beat` senza payload) parte dal
+     tabellone della città (`#placeBoard`) sul telefono e dal codice dello stub
+     (`.route-s .rb`) a desk, `calm: faresBox` tiene i biglietti quieti; **gira
+     SOLO col desk aperto** (`setOpen` ogni minuto dal calendario; chiuso = un
+     fotogramma fermo a opacità .36, aperto .6), dorme a scheda nascosta, fuori
+     schermo e quando il tabellone è sopra il viewport (il fix «guarda il
+     tabellone», ~60 B: prima l'ambiente girava con la sola coda del pass in
+     vista, ~8% di un thread strozzato per niente); **un impulso per fatto**:
+     tariffa aperta = UN `'s'` dal `.f-price`, OPEN = UN `'l'` dal timbro, PAID =
+     UN `'p'` dal timbro, messi in coda (`ondaQ`) se il motore arriva dopo la
+     conferma; una sola catena di rAF (la revisione v1.6 aveva trovato catene
+     che si moltiplicavano); reduced motion non mette mai il campo in moto.
+     Misurato (CPU strozzata 4×, 390×844 DPR 3, canvas 534×1206 nel pass, una
+     finestra di 8,2 s): per fotogramma disegnato p50 0,5 · p95 2,2 · max 5,8
+     ms, 34,5 fotogrammi/s, +11,6% del thread principale (secondo giro
+     0,6/2,0/5,9, +13,4%). **Esposizione WCAG 2.2.2, condivisa con la home** e
+     accettata dal fondatore: sul primo schermo del telefono un ciclo oltre i
+     5 s senza comando di pausa, fermato solo da `prefers-reduced-motion`
+     (l'alternativa stretta, ~30 B: battere qualche volta all'arrivo e poi
+     riposare fino a un fatto). Non verificato: un iPhone vero (canvas GPU di
+     Safari, rAF ProMotion), Safari < 16 (celle quadrate senza `roundRect`).
+  6. **Stage 0, da ricordare**: si modifica SOLO `assets/src/*` (`boom-city.css|js`,
+     `boom-onda.js`, `boom-desks.css|js`, `boom-map.js`); `node build-cities.mjs`
+     emette le copie servite senza commenti e `--check` deve uscire 0; pesi e
+     `?v=` sono dei file emessi. Mai una mano su `assets/boom-*.css|js`.
+  7. **Pesi e parole dal build** (nessun tetto alzato per farci stare qualcosa:
+     i byte vengono dallo Stage 0 e dall'artigianato): CSS 13,1 KB gz (15), JS
+     10,6 (14), onda 3,6 (4), mappa 2,9 (3,5); pagine CON la mappa contata:
+     Parigi 76,2 · Berlino 76,3 · Amsterdam 77,9 · Madrid 78,0 · Valencia 78,1 ·
+     Barcellona 78,2 · Londra 78,7 · Milano 79,1 (82); hub 71,7 (pagina 26,4 ·
+     css 3,7 · js 2,6 · mappa 2,9; 78). Parole al caricamento: Berlino 461 ·
+     Amsterdam 469 · Parigi 482 · Madrid 487 · Valencia 487 · Londra 491 ·
+     Barcellona 513 · Milano 538 (640; prosa ≤ 520: Milano 484); hub 975
+     (prosa 712 · strumenti 263; board 118 · map 65 · fares 223 · rules 153 ·
+     faq 43 · brief 239). Tariffe chiuse: Londra 57 · Spagna 61 · Milano 59 ·
+     Parigi/Berlino 48 (70).
+  Aperte, del fondatore e del legale: il parere valenciano sul RAICV; la data di
+  convalida del RDL 29/2026 (12/11 in questo file, ~6–7/11 dedotta, non
+  confermata: regge l'«Optional, chosen in writing» di TRE desk con la cassa);
+  le hojas de reclamaciones e i documenti in valenciano; il calendario `es-vlc`
+  del 2028 (non pubblicato, da ricontrollare in primavera);
+  `api/portal/_shared.js:93` dice ancora «The Rome market» a un cliente fuori
+  radar (Valencia, Londra, Milano), latente; iPhone/Safari non verificati in CI
+  (ancoraggio, bfcache, barra degli indirizzi, canvas GPU); il prossimo desk
+  costa all'hub ~31 parole contro 5 di margine (l'ottavo è una decisione
+  strutturale); la parola «First class» lasciata cadere (banda muta); il codice
+  BM NON stampato nello stub del biglietto aperto dopo OPEN (`#codeLine` lo
+  stampa già nel piede del pass; +~80 B di JS se lo si vuole); le porte dell'hub
+  restano su `#fares`; nessuno ha ancora letto un lead o un ordine dei desk —
+  «validato» non si può dire.
+  Test: `tests/cities/run.mjs` 978, `ui.mjs` 423, `checkout.mjs` 117,
+  `calendar.mjs` 97; più consentbanner, scroll, cielo, seo, crawl, llmstxt,
+  verita, whatsapp, testata; il `npm test` intero il 04/11 (2.291 s, `BOOM_PLAYWRIGHT` impostato): 288 suite
+  verdi, 4 rosse per ragioni estranee ai desk — `magicsigncustomui` e
+  `magicsigncustomsigner` scaricano pdf.js da cdn.jsdelivr.net e il sandbox non
+  lo raggiunge (CONNECT 403 dal proxy, nessun DNS; la seconda cade perché la
+  prima non ha riempito la cache in `/tmp`), `planciaui` conta un «Failed to
+  load resource: ERR_TUNNEL_CONNECTION_FAILED» di una risorsa esterna che il
+  proxy rifiuta, `portalnavigationui` pretende la prima azione di Oggi sopra la
+  tab bar a 390×844 (fondo 850 contro 784) su `portal.html`, che v1.7 non tocca:
+  da rivedere a parte, non qui.
 - **IL DESK AVIAZIONE COMPLETO (v1.6, 03/11/2026 — il fondatore: «questo stile è
   troppo sintetizzato… itera lo stile del biglietto… anche per una pagina
   completa»).** Il primo schermo resta UNA carta d'imbarco, rifatta come oggetto
@@ -2949,7 +3108,8 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
      `assets/src/`. Guadagno: CSS 14,8 → 11,5 e JS 13,7 → 10,0 KB gz per pagina desk
      (Milano 80,0 → 72,1; hub 72,0 → 66,5 KB).
   2. **L'onda** (`assets/boom-onda.js`, il campo a palette della home, solo oro,
-     ≥ 940): caricata dopo `load` quando il browser è libero; il battito parte
+     ≥ 940 — dal 04/11, v1.7, anche sul telefono DENTRO il pass: vedi «IL
+     BIGLIETTO v1.7»): caricata dopo `load` quando il browser è libero; il battito parte
      dal codice di destinazione dello stub; **gira SOLO mentre il desk è
      aperto** (`boom-city.js` lo dice ogni minuto dal calendario del desk),
      chiuso disegna un fotogramma fermo e attenuato, sotto reduced-motion mai un
@@ -2963,8 +3123,9 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
      forced-colors e stampa non spostano la griglia del biglietto quando la
      lamina sparisce; stampa in bianco e nero; lo stub e la porta restano in
      vista mentre una tariffa è aperta (blocco sticky); gli archi della rete non
-     passano mai sopra il pallino di un altro desk (`bowArcs` + `arcViolations`,
-     rifiuto del build); l'orologio porta il nome del suo fuso («London time»,
+     passano mai sopra il pallino di un altro desk (oggi `hzViolations` sulla
+     Horizon: ≥ 6px dal bordo di ogni pallino che l'arco non serve, anello
+     dell'hub compreso, rifiuto del build); l'orologio porta il nome del suo fuso («London time»,
      «Italian time»), mai «At the desk»; i desk in waitlist non scrivono mai
      «desk open» (REPLYING/OFFLINE, «replies until 19:00 CET»); «Reply today»
      non sopravvive alla chiusura né alla mezzanotte; sotto 940 il tabellone
@@ -2983,7 +3144,7 @@ desk è GENERATO da `build-cities.mjs` dagli stessi JSON dei desk (`buildHub`,
 pagine città).
 - **La pagina, in ordine**: H1 «A rental agent on your side, in» + il tabellone
   Solari **EUROPE** (fuori dall'H1, che si legge «…in Europe»); il **tabellone
-  delle partenze** (otto righe: i cinque desk live linkati con codice IATA,
+  delle partenze** (otto righe: i sei desk live — Valencia dal 04/11 — linkati con codice IATA,
   orari, ora del desk, OPEN/CLOSED e «from €149/£149»; Berlino e Parigi «NOT
   OPEN» senza link; ROM, l'hub, verso `/`). L'HTML statico porta solo gli orari:
   orologio, finestra e OPEN/CLOSED li scrive `assets/boom-desks.js` dal
@@ -2996,28 +3157,72 @@ pagine città).
   **«Renting rules, city by city»** dai `checks` dei JSON (l'etichetta `at`
   verbatim, una riga per tema, sotto 760 una scheda per tema), le FAQ, la scheda
   «in brief» APERTA, il piede.
-- **La mappa** (`viewBox 0 -40 640 520`, la stessa `mapXY` delle pagine desk):
-  la **costa vera** di Natural Earth 1:50m (dominio pubblico) scritta UNA volta
-  da `design/pages-deco/genera-europa.py` in `cities/_europe.json` (proiezione
-  `mapXY`, ritaglio al riquadro ±5, Douglas–Peucker 1,2, anelli sotto 10 u²
-  tolti, unità intere; due tracciati dalla stessa fonte: `path` per l'hub, `desk`
-  per la Rete delle pagine desk; il build non scarica niente e regge senza il
-  file). La terra è una matrice di puntini ritagliata sulla costa più un filo;
-  gli archi da Roma hanno lo STESSO `d` dell'arco d'oro di ogni pagina desk
-  (test di uguaglianza), sfumati oro → bianco; i desk live hanno pallino e anello
-  d'oro, Berlino e Parigi un pallino vuoto senza arco, Roma tre anelli. I pin
-  (≥ 44px) sono link veri: al passaggio o al fuoco una regola `:has()` generata
-  accende di oro il SUO arco, una cometa percorre l'arco UNA volta (0,9 s, solo
-  senza reduced-motion) e la scheda del pin mostra codice, ora del desk,
-  finestra, «from …» e «Go to the … desk →». Sotto 640 le etichette crescono.
-- **L'onda** dietro il tabellone (≥ 940), lo stesso `boom-onda.js` delle pagine
-  desk con hash nell'URL: il battito parte da ROM, gira solo mentre almeno un
-  desk è aperto (un fotogramma fermo quando sono tutti chiusi, mai sotto
-  reduced-motion). Cicli a riposo: la pillola «Desks open» e l'onda con un desk
-  aperto, zero con tutti chiusi.
+- **La mappa — la Horizon (v1.7, 04/11/2026; il fondatore su un iPhone vero:
+  «la mappa è bella; iterala molto di più: più mappa, rotte, animazioni, un
+  globo»)**: un fermo-immagine satellitare INCLINATO della Terra vera, costruito
+  nel build (`build-cities.mjs` «THE HORIZON») come SVG statico — la pagina senza
+  JS, la stampa e reduced motion ricevono tutto il disegno — con
+  `assets/boom-map.js` che aggiunge SOLO ciò che cambia col tempo. Una camera a
+  foro stenopeico sopra il Sahara (`HZ_CAM`: lon 5, lat 29, a 1,3 raggi
+  terrestri, guarda lon 5 / lat 51, nord in alto; `hzCamera`) **inquadra da sola**
+  ogni desk con coordinate più Roma — lo stesso insieme su ogni pagina, così
+  pallino, arco ed etichetta sono uguali ovunque; un desk nuovo ri-inquadra la
+  mappa, nessun rettangolo fisso rifiuta niente (`HZ_SCALE_MAX` 1000: con pochi
+  desk la camera non zooma oltre l'orizzonte); i margini sono disuguali apposta
+  (`pad` l .09 · r .06 · t .25 · b .08: a 0,1/0,1 AMS e LON stavano a 42,4px su
+  un telefono da 320) e il viewBox è ritagliato a ciò che si disegna (`0 55 640
+  437`). La curva del pianeta e il bordo illuminato attraversano la cima del
+  quadro (disco, tre tratti del lembo, graticola ogni 10°, tre nomi di mare solo
+  dove sono veri: `HZ_SEAS`). La **costa vera** di Natural Earth 1:50m sta in
+  GRADI in `cities/_europe.json` (83 KB, fuori dal peso del deploy), scritta una
+  volta da `design/pages-deco/genera-europa.mjs` (il `.py` non c'è più; il build
+  non scarica niente e regge senza il file); al build si proietta, si taglia
+  all'orizzonte e si semplifica in unità di schermo (Douglas–Peucker `HZ_COAST`:
+  eps 1,3, anelli sotto 16 u² tolti); la terra è una matrice di puntini
+  ritagliata sulla costa, il mare una trama più tenue. Gli **archi** da Roma
+  sono cerchi massimi SOLLEVATI (altezza proporzionale alla distanza angolare:
+  UN sollevamento per tutti cercato in `HZ_LIFT`, prima 0,22, inclinazione
+  `HZ_LEAN` dritta prima; poi ogni arco adattato a una cubica di Bézier,
+  tolleranza 0,5); sull'hub l'arco di ogni desk ha lo STESSO `d` dell'arco d'oro
+  della sua pagina (test di uguaglianza). **`hzViolations` rifiuta il build** se
+  un arco passa a meno di `ARC_CLEAR` 6px dal bordo di un pallino che non serve
+  (pallini vuoti e l'anello da 10px dell'hub compresi), se un arco passa dietro
+  l'orizzonte, o se due etichette si sovrappongono: le etichette le mette UN
+  collocatore a backtracking sull'UNIONE delle scatole del telefono
+  (`HZ_FONT.phone` 20/13) e del desktop (11/7,95), così il codice sta dallo
+  stesso lato su ogni pagina; i pin distano ≥ 44px a 358px (45,0 a 320, 55,9 a
+  390: `HUB_MAP_PX`, asserito dal build). Parigi e Berlino pallino vuoto col
+  codice attenuato e senza arco; Roma col suo anello (due sull'hub, «ROM · HUB»);
+  i pin e la lista Network sono link veri. **Viva a vista** (`assets/boom-map.js`,
+  2,9 KB gz servita; il SUO tetto `MAP_KB` 3,5 è una riga a sé E conta nel totale
+  della pagina — gli 82 KB reggono CON la mappa; iniettata da `boom-city.js` /
+  `boom-desks.js` quando la mappa è a 600px dallo schermo, `immutable` in
+  `vercel.json`): il **terminatore vero** a ogni minuto (almanacco a bassa
+  precisione per il sole, un raggio ogni 4 unità dalla camera del build, il velo
+  della notte come immagine data-URL più una linea tratteggiata; il gruppo
+  `.hz-nite` nasce vuoto: la pagina statica non dipende dall'ora); il bagliore
+  d'oro sui desk APERTI ora da `BOOM_DESK_CAL.deskWindow` (`g.dk.on`; la legenda
+  aggiunge «open now · night, now» solo col JS); gli **aerei**: una sola catena di
+  rAF, ogni arco vola UNA volta alla prima vista con 260 ms di scarto (se la
+  mappa non era sullo schermo al caricamento l'arco si disegna anche col
+  dashoffset), di nuovo al passaggio o al fuoco sul pin (hub) o sulla riga
+  Network (pagina desk); mai due aerei sullo stesso arco; reduced motion =
+  nessun aereo, nessun disegno. Sul **tocco** (niente hover, o sotto i 600px):
+  il primo tap aggancia la scheda del desk SOTTO la mappa (`.pc.dock`, e si
+  prende il suo spazio: legenda e schede scendono invece di essere coperte) e fa
+  volare il suo aereo; il secondo tap, o un tap sulla scheda, va al desk; Escape
+  o un tap altrove la chiude. La mappa si mostra ANCHE sui telefoni (il pin v1.6
+  «niente mappa sotto i 640» è girato); sotto i 640 le etichette crescono.
+- **L'onda** dietro il tabellone, lo stesso `boom-onda.js` delle pagine desk
+  con hash nell'URL: a ≥ 940 il battito parte da ROM, sotto i 940 (dal 04/11,
+  v1.7: anche il telefono dell'hub la carica, dopo `load`, quando è libero) dal
+  tabellone EUROPE (`#hubBoard`); gira solo mentre almeno un desk è aperto
+  (`setOpen` ogni minuto; un fotogramma fermo quando sono tutti chiusi, mai
+  sotto reduced-motion). Cicli a riposo: la pillola «Desks open» e l'onda con un
+  desk aperto, zero con tutti chiusi.
 - **JSON-LD**: l'organizzazione condivisa (identica alle pagine desk),
   CollectionPage con `speakable` (`.hub-lead`, `.enbref`), ItemList dei desk
-  live, i cinque `Service` IDENTICI a quelli delle pagine desk (stessa funzione
+  live, i sei `Service` IDENTICI a quelli delle pagine desk (stessa funzione
   `serviceNode`, test di uguaglianza), FAQPage = le domande visibili. Nessun desk
   non aperto in nessun nodo JSON-LD tranne la FAQ visibile. Nessuna cassa,
   nessun WhatsApp generico (una città sconosciuta finirebbe nella macchina di
@@ -3047,9 +3252,12 @@ pagine città).
   stare qualcosa): 78 KB gz in tutto (pagina 28, CSS 6, JS 6); parole al
   caricamento 980 (prosa 740, strumenti 280), primo schermo a 390 ≤ 120, lead 30,
   nodo 24, una risposta FAQ ≤ 42, una riga in brief ≤ 45; per sezione board 120 ·
-  map 90 · fares 230 · rules 160 · faq 70 · brief 240. Oggi: 957 parole, 71,7 KB
-  (pagina 26,8: la costa pesa 3 KB). Le pagine desk con la costa: 77,0–80,0 KB
-  su 82.
+  map 90 · fares 230 · rules 160 · faq 70 · brief 240. Oggi (v1.7, 04/11): 975
+  parole (prosa 712 · strumenti 263; board 118 · map 65 · fares 223 · rules 153 ·
+  faq 43 · brief 239), 71,7 KB (pagina 26,4 · css 3,7 · js 2,6, più la mappa a
+  vista 2,9 contata nel totale; `MAP_KB` 3,5 è la sua riga). Le pagine desk, mappa
+  compresa: 76,2–79,1 KB su 82. Un altro desk costa all'hub ~31 parole contro 5
+  di margine: l'ottavo è una decisione strutturale, non una riga di copy.
 - **Da confermare col legale (non bloccano)**: per Milano, un'unità locale con
   preposto (DM 26/10/2011) se una persona BOOM va alle visite; il Full Search
   pagato prima (art. 6 L. 39/1989, provvigione o mandato); moduli in CCIAA;
@@ -3058,11 +3266,13 @@ pagine città).
   Amsterdam solo dopo il legale; IVA UK (NETP) e redress scheme di Londra; la
   conferma del voto del 12/11 sul RDL 29/2026 per Madrid. **Del fondatore**: la
   foto, una voce «Desks» nel menu della home, Wikidata nei `Service`.
-- Test: `tests/cities/run.mjs` (THE HUB, la rete, Milano, la costa, la cometa,
+- Test: `tests/cities/run.mjs` (THE HUB, la rete, Milano, la costa in gradi,
+  la Horizon — `hzViolations`, le etichette, gli archi uguali, `MAP_KB` —,
   l'onda), `ui.mjs` (hub: primo schermo, orologi con Koningsdag e il bank
-  holiday, senza JS, 320px, pin e archi, cometa, tabellone a palette, onda
-  aperta/chiusa, reduced-motion), più seo, llmstxt, crawl, verita, consent,
-  scroll (`desks.html` in VENDONO), radici (`genera-europa.py`).
+  holiday, senza JS, 320px, pin e archi, gli aerei, la scheda agganciata al
+  tocco, tabellone a palette, onda aperta/chiusa, reduced-motion), più seo,
+  llmstxt, crawl, verita, consent, scroll (`desks.html` in VENDONO), radici
+  (`genera-europa.mjs` deriva la radice dal proprio file).
 
 ### BOOM Proprietari (`/owners` + `api/owner-lead.js`) — 30/09/2026
 Rifatta da zero su richiesta del fondatore («non è attraente, non converte,
