@@ -79,7 +79,7 @@ async function geometry(page,selectors=[]){
  for(const selector of selectors){const sizes=await page.locator(selector).evaluateAll(nodes=>nodes.filter(n=>n.getClientRects().length).map(n=>{const r=n.getBoundingClientRect();return {width:r.width,height:r.height};}));assert.ok(sizes.length,selector+' visible');assert.ok(sizes.every(r=>r.width>=44&&r.height>=44),selector+' has usable targets: '+JSON.stringify(sizes));}
 }
 async function oneMap(page){assert.equal(await page.locator('iframe.boom-next-map-frame').count(),1,'one real map adapter iframe per preview');}
-async function white(page,inputs=false){
+async function dark(page,inputs=false){
  const appearance=await page.evaluate(withInputs=>{
   function rgb(value){return (value.match(/[\d.]+/g)||[]).slice(0,3).map(Number);}
   function luminance(c){return c.map(v=>v/255).map(v=>v<=.04045?v/12.92:((v+.055)/1.055)**2.4).reduce((n,v,i)=>n+v*[.2126,.7152,.0722][i],0);}
@@ -92,9 +92,9 @@ async function white(page,inputs=false){
   }):[];
   return {background,contrast:contrast(rgb(body.color),background),fields,theme:window.BoomFlightNextMotion.state().theme};
  },inputs);
- assert.ok(appearance.background.length===3&&appearance.background.every(v=>v>=240)&&Math.max(...appearance.background)-Math.min(...appearance.background)<=10,'Club has a neutral white page, not a dark shell');
- assert.ok(appearance.contrast>=4.5,'main text remains legible on white');assert.equal(appearance.theme,'light');
- for(const field of appearance.fields){assert.ok(field.contrast>=4.5,field.id+' text contrast '+field.contrast);assert.ok(field.size>=16,field.id+' stays readable without mobile zoom');assert.ok(field.scheme.includes('light')&&!field.scheme.includes('dark'),field.id+' native control uses the light theme');}
+ assert.ok(appearance.background.length===3&&appearance.background.every(v=>v<=32)&&Math.max(...appearance.background)-Math.min(...appearance.background)<=10,'Club has a neutral black page');
+ assert.ok(appearance.contrast>=4.5,'main text remains legible on black');assert.equal(appearance.theme,'dark');
+ for(const field of appearance.fields){assert.ok(field.contrast>=4.5,field.id+' text contrast '+field.contrast);assert.ok(field.size>=16,field.id+' stays readable without mobile zoom');assert.ok(field.scheme.includes('dark')&&!field.scheme.includes('light'),field.id+' native control uses the dark theme');}
 }
 async function readable(page,selectors){
  // Check the rendered foreground against the composed ancestor backgrounds,
@@ -130,7 +130,7 @@ try{
  for(const edition of editions){
   for(const width of [320,390,1280])await check(edition+' '+width+': valid dates, filters, saves, history and the original Apply remain one journey',width,async({page})=>{
    await start(page,edition);await geometry(page,['#nextSearchForm button[type="submit"]']);
-   if(edition==='club')await white(page,true);
+   if(edition==='club')await dark(page,true);
    if(edition==='club'&&width===390){
     await readable(page,['.next-ticket .ticket-top span','.next-ticket .ticket-stub>span','.next-ticket .ticket-stub small','.next-ticket .ticket-stub>strong','.next-ticket .ticket-terms','.service-foot a']);
     const tickets=await page.locator('.next-ticket').evaluateAll(cards=>cards.map(card=>{const outer=card.getBoundingClientRect();return Array.from(card.querySelectorAll('.ticket-stub>span,.ticket-stub>strong')).map(node=>{const box=node.getBoundingClientRect();return {left:box.left-outer.left,right:outer.right-box.right};});}).flat());
@@ -166,7 +166,7 @@ try{
    await page.locator('#nextFilterType').selectOption('__entire');await readyMap(page);
    assert.deepEqual(await page.locator('#nextResults .next-card').evaluateAll(ns=>ns.map(n=>n.dataset.homeId)),['edition-courtyard'],'canonical type and budget actually filter homes');
    intent(new URL(page.url()),edition,true);await geometry(page,['#nextEditStay']);
-   if(edition==='club')await white(page);
+   if(edition==='club')await dark(page);
    if(edition==='club'&&width===390)await readable(page,['#nextBalance .balance-route']);
    if(edition==='perspective'){
     const row=await page.locator('#nextResults .next-card').first().evaluate(card=>{const image=card.querySelector('.next-card-image').getBoundingClientRect(),info=card.querySelector('.next-card-info').getBoundingClientRect(),photo=card.querySelector('img').getBoundingClientRect();return {image:{right:image.right,bottom:image.bottom,width:image.width},info:{left:info.left,top:info.top,width:info.width},photo:{right:photo.right,width:photo.width}};});
@@ -176,7 +176,7 @@ try{
    }
    const link=page.locator('#nextResults [data-home="edition-courtyard"]').first();intent(new URL(await link.getAttribute('href'),origin),edition,true);
    await link.click();await page.locator('#nextDetailTitle').waitFor();await oneMap(page);await geometry(page,['[data-next-apply]']);
-   if(edition==='club')await white(page);
+   if(edition==='club')await dark(page);
    if(edition==='club'&&width===390){
     await page.locator('.detail-everyday .everyday-note summary').click();
     await readable(page,['.detail-everyday .everyday-heading button','.detail-everyday .everyday-route>span','.detail-everyday .everyday-route strong','.detail-everyday .everyday-metrics>span','.detail-everyday .everyday-metrics a','.detail-everyday .everyday-note summary','.detail-everyday .everyday-note[open] p']);
@@ -233,8 +233,8 @@ try{
    }
   });
  }
- for(const width of [390,1280])await check('club white '+width+': globe buttons change the same city and preserve dates across EUR and GBP',width,async({page})=>{
-  await start(page,'club');await white(page,true);await page.waitForFunction(()=>window.BoomFlightGlobe?.state().ready);
+ for(const width of [390,1280])await check('club black '+width+': globe buttons change the same city and preserve dates across EUR and GBP',width,async({page})=>{
+  await start(page,'club');await dark(page,true);await page.waitForFunction(()=>window.BoomFlightGlobe?.state().ready);
   assert.equal(await page.locator('.boom-flight-globe-canvas').count(),1);assert.equal(await page.locator('#boomGlobeMount button[data-globe-city]').count(),6);
   await campus(page);await page.locator('#nextMoveIn').fill(arrival);await page.locator('#nextMoveOut').fill(departure);await page.locator('#nextBudget').selectOption('1500');await page.locator('#nextPeople').selectOption('couple');
   for(const slug of ['madrid','amsterdam','london']){
@@ -245,16 +245,20 @@ try{
    assert.equal(await page.locator('#europeMoveIn').inputValue(),arrival);assert.equal(await page.locator('#europeMoveOut').inputValue(),departure);assert.equal(await page.locator('#europePeople').inputValue(),'couple');
    assert.equal(await page.locator('#europeBudget').inputValue(),slug==='london'?'':'1500');
    for(const key of ['place','privatePlace','homes'])assert.equal(new URL(page.url()).searchParams.has(key),false,'foreign globe selection does not carry '+key);
-   await geometry(page,['#boomGlobeMount button[data-globe-city]']);await white(page);await oneMap(page);
+   await geometry(page,['#boomGlobeMount button[data-globe-city]']);await dark(page);await oneMap(page);
   }
   await fields(page);await page.locator('#europeBudget').selectOption('3000');
   const desk=new URL(await page.locator('[data-europe-desk-link]').first().getAttribute('href'),origin);assert.equal(desk.pathname,'/london');assert.equal(desk.searchParams.get('currency'),'GBP');assert.equal(desk.searchParams.get('budget'),'3000');assert.equal(desk.searchParams.get('moveOut'),departure);
   await page.goBack();await page.waitForFunction(()=>document.body.dataset.europeCity==='amsterdam'&&BoomFlightGlobe.state().city==='amsterdam');assert.equal(await page.locator('#europeBudget').inputValue(),'1500');
  });
- await check('club white: globe motion settles, pauses outside view and respects reduced motion',1280,async({page})=>{
+ await check('club black: globe motion settles, pauses outside view and respects reduced motion',1280,async({page})=>{
   await start(page,'club');await page.locator('#boomGlobeMount').scrollIntoViewIfNeeded();await page.waitForFunction(()=>window.BoomFlightGlobe?.state().ready&&BoomFlightGlobe.state().visible);
-  await page.locator('#boomGlobeMount [data-globe-city="madrid"]').click();await page.waitForFunction(()=>BoomFlightGlobe.state().city==='madrid'&&!BoomFlightGlobe.state().rafPending);
+  await page.locator('#boomGlobeMount [data-globe-city="madrid"]').click();await page.waitForFunction(()=>BoomFlightGlobe.state().city==='madrid'&&!BoomFlightGlobe.state().flying&&!BoomFlightGlobe.state().rafPending);
   let frames=await page.evaluate(()=>BoomFlightGlobe.state().frames);await page.waitForTimeout(180);assert.equal(await page.evaluate(()=>BoomFlightGlobe.state().frames),frames,'the globe does not spin forever');
+  // A globe click now lands in the service section. Bring the pause control and
+  // globe back into view before measuring pause, so its one re-entry paint is not
+  // mistaken for continuing motion.
+  await page.locator('#nextMotionToggle').scrollIntoViewIfNeeded();await page.waitForFunction(()=>BoomFlightGlobe.state().visible&&!BoomFlightGlobe.state().rafPending);
   await page.locator('#nextMotionToggle').click();await page.waitForFunction(()=>BoomFlightGlobe.state().paused&&!BoomFlightGlobe.state().rafPending);
   frames=await page.evaluate(()=>BoomFlightGlobe.state().frames);await page.waitForTimeout(180);assert.equal(await page.evaluate(()=>BoomFlightGlobe.state().frames),frames,'manual pause stops drawing');
   await page.locator('#nextMotionToggle').click();await page.locator('.next-footer').scrollIntoViewIfNeeded();await page.waitForFunction(()=>!BoomFlightGlobe.state().visible&&!BoomFlightGlobe.state().rafPending);
@@ -263,12 +267,12 @@ try{
   await page.locator('#boomGlobeMount [data-globe-city="amsterdam"]').click();await page.waitForFunction(()=>BoomFlightGlobe.state().city==='amsterdam'&&document.body.dataset.europeCity==='amsterdam');
   assert.equal(await page.evaluate(()=>BoomFlightGlobe.state().rafPending),false,'reduced motion still changes destination without an animated flight');await oneMap(page);
  },'no-preference');
- await check('club white: failed globe geography keeps every semantic city control usable',390,async({page,expectedAssetFailures})=>{
+ await check('club black: failed globe geography keeps every semantic city control usable',390,async({page,expectedAssetFailures})=>{
   const path='/assets/boom-globe-geography.json';expectedAssetFailures.add(path);await page.route('**'+path,r=>r.fulfill({status:503,body:'Unavailable'}));
   await start(page,'club');await page.waitForFunction(()=>window.BoomFlightGlobe?.state().error);
   assert.match(await page.locator('.boom-globe-status').innerText(),/unavailable/i);assert.equal(await page.locator('.boom-globe-status').isVisible(),true);
   await page.locator('#boomGlobeMount [data-globe-city="madrid"]').click();await page.waitForFunction(()=>document.body.dataset.europeCity==='madrid');assert.equal(await page.locator('#boomGlobeMount [data-globe-city="madrid"]').getAttribute('aria-pressed'),'true');
-  await geometry(page,['#boomGlobeMount button[data-globe-city]']);await white(page);
+  await geometry(page,['#boomGlobeMount button[data-globe-city]']);await dark(page);
  });
  await check('Duo links only the current page, keeps briefs independent, and rejects forged navigation',1280,async({page})=>{
   await openDuo(page);assert.equal(await page.locator('#duoSync').isChecked(),true);

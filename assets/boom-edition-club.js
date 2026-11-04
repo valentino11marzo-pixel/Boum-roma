@@ -1,15 +1,15 @@
-/* CLUB / white departure hall. Existing journey; a single connected composition. */
+/* CLUB / night departure. Existing journey; one geographic entry into the real service. */
 (function () {
   'use strict';
   if (new URLSearchParams(location.search).get('edition') !== 'club' || document.body.dataset.direction !== 'club') return;
   var directions=window.BoomFlightDirections, hero=document.getElementById('nextHero'), ticket=document.getElementById('directionClubTicket'), planner=document.querySelector('.europe-planner');
   if(!directions||!hero||!ticket||!planner)return;
   document.body.dataset.edition='club';
-  document.documentElement.classList.add('boom-club-light');
-  var theme=document.querySelector('meta[name="theme-color"]');if(theme)theme.content='#ffffff';
+  document.documentElement.classList.add('boom-club-night');
+  var theme=document.querySelector('meta[name="theme-color"]');if(theme)theme.content='#08090b';
   var byId=function(id){return document.getElementById(id);};
-  document.querySelectorAll('.europe-brand-lockup').forEach(function(img){img.src='/assets/boom-brand-lockup-ink.svg';});
-  if(window.BoomFlightNextMotion)window.BoomFlightNextMotion.setTheme('light');
+  document.querySelectorAll('.europe-brand-lockup').forEach(function(img){img.src='/assets/boom-brand-lockup.svg';});
+  if(window.BoomFlightNextMotion)window.BoomFlightNextMotion.setTheme('dark');
 
   // Keep the real forms and listeners intact; the destination now has a geographic counterpart.
   planner.classList.add('edition-club-runway');
@@ -22,11 +22,36 @@
   var globe=window.BoomFlightGlobe;if(globe)globe.mount(atlas);
   var bottom=hero.querySelector('.hero-bottom');bottom.querySelector('span').replaceWith(byId('europeCitySignature'));
   document.querySelector('.europe-switch-label').textContent='Your next city';
+  var flightVersion=0,flightTarget='';
+  function cancelArrival(){++flightVersion;flightTarget='';if(globe&&globe.cancelFlight)globe.cancelFlight();}
   window.addEventListener('boom-globe-city',function(event){
     var slug=event.detail&&event.detail.slug;
     if(!['rome','madrid','barcelona','amsterdam','london','milan'].includes(slug))return;
-    var choice=hero.querySelector('button[data-europe-city="'+slug+'"]');if(choice)choice.click();
+    var europe=window.BoomFlightEurope,next=window.BoomFlightNext;
+    if(!europe||!next||document.body.dataset.view!=='home')return;
+    // Invalid dates keep the person at the actual form, before any camera movement.
+    var wasRome=document.body.dataset.europeCity==='rome';
+    var prefix=wasRome?'next':'europe';
+    if(slug==='rome'&&window.BOOM_STAY.validate({moveIn:byId(prefix+'MoveIn').value,moveOut:byId(prefix+'MoveOut').value})){
+      cancelArrival();if(!wasRome)europe.selectCity('rome');next.enterRome();byId('nextSearch').scrollIntoView({block:'center',behavior:'instant'});return;
+    }
+    var version=++flightVersion,entered=false;flightTarget=slug;
+    function arrive(){
+      if(version!==flightVersion)return;
+      europe.selectCity(slug,{history:slug!=='rome'});
+      if(slug==='rome'){entered=next.enterRome({rememberHome:wasRome});if(!entered)europe.selectCity('rome');}
+      else {entered=true;byId('europeDeskStory').scrollIntoView({block:'start',behavior:'instant'});}
+    }
+    var transition=globe&&globe.flyTo?globe.flyTo(slug,{onCovered:arrive}):Promise.resolve().then(arrive);
+    Promise.resolve(transition).then(function(result){
+      if(version!==flightVersion)return;flightTarget='';
+      if(result&&['cancelled','superseded'].includes(result.status))return;
+      var target=entered?(slug==='rome'?byId('nextAptsTitle'):byId('europeStoryCity')):byId('nextSearchError');
+      if(target){target.setAttribute('tabindex','-1');target.focus({preventScroll:true});}
+    }).catch(function(){if(version===flightVersion){flightTarget='';if(!entered)arrive();}});
   });
+  window.addEventListener('popstate',cancelArrival);
+  window.addEventListener('pagehide',cancelArrival);
 
   var skyline=document.querySelector('.skyline-chapter');skyline.id='clubHomes';
   byId('nextSkyTitle').innerHTML='A home for<br>your everyday.';
@@ -48,7 +73,8 @@
     planLink.href=foreign?'#europeDeskPlanner':'#nextSearch';
     var homeStop=flightline.querySelector('[data-flight-stop="homes"]');homeStop.href=foreign?'#europeStoryCity':'#nextSkyTitle';homeStop.innerHTML='<span>02</span> '+(foreign?'Your service':'Homes & Skyline');
     flightline.querySelector('[data-flight-stop="support"]').hidden=foreign;flightline.querySelector('i:last-of-type').hidden=foreign;
-    if(window.BoomFlightNextMotion){window.BoomFlightNextMotion.setTheme('light');window.BoomFlightNextMotion.setCityPattern(city);}
+    if(flightTarget&&city!==flightTarget)cancelArrival();
+    if(window.BoomFlightNextMotion){window.BoomFlightNextMotion.setTheme('dark');window.BoomFlightNextMotion.setCityPattern(city);}
     if(globe)globe.selectCity(city);
     queueFit();queueScroll();
   }

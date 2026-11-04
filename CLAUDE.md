@@ -3354,6 +3354,12 @@ Flight Club bianco 04/11: `edition=club` sostituisce la cover fotografica con So
 Foto, salvataggi, catalogo, destinazioni e Apply riusano i controller canonici. Il dettaglio affianca costi e foto su desktop, li ordina sul telefono; controlli e dialog seguono il tema chiaro. Nessuna modifica a prezzi, handler o pagamenti.
 `flightclubmotion` verifica clock, colori e lifecycle anche per mutazione; `flighteditionsui` copre Club320/390/1280, contrasti, città/valute, fallback geografia, pausa e percorso completo. La preview resta noindex e isolata dal lavoro Horizon di Claude.
 
+Flight Club notte 04/11: la direzione confermata è nera; `edition=club` mantiene geometria e Helvetica300, logo chiaro, Solari originale e ticket giallo con testo scuro. Superfici, dialog, dati dinamici e controlli nativi seguono il tema scuro.
+I pulsanti del globo ora entrano nella destinazione: `flyTo` mostra un unico volo geografico finito (1220ms) e rivela la vista reale sotto; Roma apre Apartments/Skyline, gli altri desk il servizio cittadino esistente. Le tab superiori restano selezione della città.
+`BoomFlightNext.enterRome` riusa validazione, brief e navigazione canonici; `BoomFlightEurope.selectCity` può delegare il commit all'arrivo evitando history intermedie. Back conserva la bozza romana; date estere non valide per Roma mostrano il form romano con URL coerente, prima del volo.
+Escape/Skip completano subito; pausa e reduced-motion entrano senza zoom. Back/pagehide o una richiesta successiva annullano callback obsolete; dialog senza animazioni ereditate, un solo ciclo finito, pulizia anche su errore/timeout. Nessun nuovo catalogo, lead o pagamento.
+`flightclubflight` verifica atterraggio, singolo push/catalogo/iframe, bozza, Back/focus, ripetizioni, skip, pausa/ridotto e date estere; regressioni `flighteditionsui`, `flightclubmotion`, `flightclubui`, `flighteuropeui`, `flightnextui`, `flightdirectionsui`.
+
 Flight Lab 31/10: `/flight-lab` confronta Atlas, Residence e Club sulle stesse viste reali di `/flight-next?direction=…`, senza cambiare il sito pubblico.
 Le composizioni riusano catalogo, Solari, iframe Skyline, salvataggi e Apply; nessun secondo catalogo o nuovo handler di invio.
 Residence usa una foto realmente restituita dal catalogo pubblico (fallback a una casa pubblica non chiusa); Atlas sposta la stessa mappa nel primo schermo.

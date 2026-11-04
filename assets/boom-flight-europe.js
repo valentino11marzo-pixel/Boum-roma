@@ -165,7 +165,7 @@
     city=slug;
     if(currency(old)!==currency(city)) {brief.budget='';el('europeCurrencyNote').hidden=false;el('europeCurrencyNote').textContent='Choose your rent budget in '+currency(city)+'. We haven’t converted the previous amount.';}
     else el('europeCurrencyNote').hidden=true;
-    fill(city,brief);renderCity(true);writeURL(push);el('europeHomeStatus').textContent=places[city].name+' selected. '+(city==='rome'?'Explore homes in Rome.':'Choose the support you need.');
+    fill(city,brief);renderCity(true);if(push!==null)writeURL(push);el('europeHomeStatus').textContent=places[city].name+' selected. '+(city==='rome'?'Explore homes in Rome.':'Choose the support you need.');
   }
   function chooseNeed(value,push) {
     if(!needs[value])return;
@@ -278,7 +278,7 @@
     if(city!=='rome')fill(city,{moveIn:params.get('moveIn'),moveOut:params.get('moveOut'),budget:params.get('currency')===currency(city)||city!=='london'?params.get('budget'):'',people:params.get('people')});
     renderCity(false);chooseNeed(need,false);
   });
-  window.BoomFlightEurope={decorateURL:function(path,context){
+  window.BoomFlightEurope={selectCity:function(slug,options){if(!places[slug]||view!=='home')return false;chooseCity(slug,options&&options.history===false?null:true);return true;},decorateURL:function(path,context){
     var u=new URL(path,location.origin);var target=context.view==='home'?city:'rome';
     cleanQuery(u.searchParams);
     if(target!=='rome'){

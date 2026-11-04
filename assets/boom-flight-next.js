@@ -155,10 +155,10 @@
     if(window.BoomFlightDirections)window.BoomFlightDirections.render({state:state,catalogue:catalogue,url:url});
     if(focus){window.scrollTo({top:0,behavior:'instant'});var heading=state.view==='detail'?byId('nextDetailTitle'):state.view==='apartments'?byId('nextAptsTitle'):byId('nextHeroTitle');if(heading){heading.setAttribute('tabindex','-1');heading.focus({preventScroll:true});}}
   }
-  function navigate(view,home,afterRender) {
+  function navigate(view,home,afterRender,immediate) {
     var version=++navigationVersion;
     var update=function(){if(version!==navigationVersion)return;state.view=view;state.home=home||'';commit();showPage(true);if(afterRender)afterRender();};
-    if(document.startViewTransition&&!reduce()){var transition=document.startViewTransition(update);transition.ready.catch(function(){});transition.finished.catch(function(){});}else update();
+    if(document.startViewTransition&&!reduce()&&!immediate){var transition=document.startViewTransition(update);transition.ready.catch(function(){});transition.finished.catch(function(){});}else update();
   }
   function openDialog(dialog,opener){lastOpener=opener||document.activeElement;dialog.showModal();}
   function editStay(opener){byId('nextDialogIn').value=state.stay.moveIn||'';byId('nextDialogOut').value=state.stay.moveOut||'';byId('nextDialogPeople').value=state.people;byId('nextDialogError').hidden=true;openDialog(byId('nextStayDialog'),opener);}
@@ -201,6 +201,12 @@
     if(error){byId('nextSearchError').textContent=error.message;byId(error.field==='moveIn'?'nextMoveIn':'nextMoveOut').focus();return false;}
     state.stay=S.normalize(requested);state.budget=byId('nextBudget').value;state.people=byId('nextPeople').value;state.saved=false;state.homes=[];homeDirty=false;return true;
   }
+  // The globe lands through the same validation, state and history as the search form.
+  window.BoomFlightNext={enterRome:function(options){
+    if(state.view!=='home'||!readHome())return false;
+    if(options&&options.rememberHome)commit(true);
+    state.layout='skyline';navigate('apartments','',null,true);return true;
+  }};
   function resetFilters(){state.budget='';state.type='';state.saved=false;state.homes=[];updateFilters();}
   async function load(){
     if(loading)return;loading=true;loadError=false;refreshClub();

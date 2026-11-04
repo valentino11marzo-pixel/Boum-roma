@@ -283,6 +283,7 @@ const SUITES = [
   { name: 'flighteuropeui', file: 'tests/flight/europe-ui.mjs', what: 'Europe city/need navigation, currency boundaries, private URL cleanup, stale configs, desk handoff and mobile bounds' },
   { name: 'flighteditionsui', file: 'tests/flight/editions-ui.mjs', what: 'Club and Prospettiva complete journeys, truthful cost tickets, responsive layouts and simultaneous comparison' },
   { name: 'flightclubmotion', file: 'tests/flight/club-motion.mjs', what: 'Original Solari clock, light palette, six city geometries, pause and mutation checks' },
+  { name: 'flightclubflight', file: 'tests/flight/club-flight.mjs', what: 'Club globe arrival to real Rome Skyline or city service, draft/history/focus, skip, repeat and reduced motion' },
   { name: 'flightcityhandoff', file: 'tests/cities/handoff.mjs', what: 'Public Flight brief into original city forms and checkout, plan selection, currency and privacy boundaries' },
   { name: 'citiespublic', file: 'tests/cities/public-manifest.mjs', what: 'Generated live-desk public facts, exact source parity and exclusion of internal fields and unopened desks' },
   { name: 'flightnextdata', file: 'tests/flight/next-data.mjs', what: 'Flight Next: live catalogue shape, real facts, unknown fields, safe images and filters' },
