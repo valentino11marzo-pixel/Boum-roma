@@ -350,7 +350,7 @@ export async function fsCommit(writes) {
 // orderBy: { field, direction: 'ASCENDING'|'DESCENDING' }
 // afterId opts into stable document-name pagination (null = first page).
 // A cursor must never be combined with an unrelated field ordering.
-export async function fsList(collection, { filter, orderBy, limit = 50, afterId, signal } = {}) {
+export async function fsList(collection, { filter, orderBy, limit = 50, afterId, signal, strictResponse = false } = {}) {
   const paged = afterId !== undefined;
   if (paged && (typeof collection !== 'string' || !/^[\w.-]{1,180}$/.test(collection)
     || (afterId !== null && (typeof afterId !== 'string' || !/^[\w.-]{1,180}$/.test(afterId) || ['.', '..'].includes(afterId)))
@@ -373,6 +373,9 @@ export async function fsList(collection, { filter, orderBy, limit = 50, afterId,
   });
   if (!res.ok) throw new Error(`Firestore list failed (${res.status}): ${await res.text()}`);
   const arr = await res.json();
+  if (strictResponse && (!Array.isArray(arr) || arr.some(r => !r ||
+    (r.document ? typeof r.document.name !== 'string' : typeof r.readTime !== 'string'))))
+    throw new Error('Firestore list response invalid');
   return (Array.isArray(arr) ? arr : []).filter(r => r.document).map(r => fsDocToJs(r.document));
 }
 

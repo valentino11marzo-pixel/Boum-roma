@@ -141,6 +141,8 @@ self.addEventListener('fetch', (event) => {
             || url.pathname === '/js/portal-mobile.js'
             || url.pathname === '/css/portal-mobile.css'
             || url.pathname === '/js/portal-actions.js'
+            || url.pathname === '/js/smartlink-engine.js'
+            || url.pathname === '/js/smartlink-share-engine.js'
             || url.pathname === '/js/portal-search-engine.js'
             || url.pathname === '/js/portal-search-archive.js'
             || url.pathname === '/js/inbox-context-engine.js'

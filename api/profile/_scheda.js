@@ -60,7 +60,7 @@ export const schedaUrl = (contractId, role, coIndex) => `${SITE}/scheda?t=${sche
 // exactly what the Magic Sign audit forbids post-firma). A co-tenant is
 // frozen by HIS OWN signature only.
 export function schedaLocked(contract, role, coIndex) {
-  if (!contract) return true;
+  if (!contract || contract.externalSignedDocument) return true;
   if (role === 'cotenant') {
     const co = (Array.isArray(contract.coTenants) ? contract.coTenants : [])[Number(coIndex) || 0];
     return !co || !!co.signature;

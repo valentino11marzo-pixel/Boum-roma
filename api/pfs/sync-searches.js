@@ -9,12 +9,15 @@
 // command center (Firebase admin ID token). GET or POST.
 //
 // Manual knobs preserved on update: `enabled` and `urlOverride` are only
-// set on first creation — re-syncs never clobber what Valentino tuned.
+// set on first creation — re-syncs never clobber what Valentino tuned. The
+// one exception is our own switch-off: a search this file disabled because
+// the client changed city (disabledReason 'market_changed') is switched back
+// on when the client's city brings that portal back.
 
 import { fsGet, fsPatch, fsList, logActivity } from '../homie/_lib.js';
 import { requireCronOrAdmin } from './_guard.js';
 import { listActiveClients } from './_ingest.js';
-import { buildSearchUrls } from './_searchurls.js';
+import { buildSearchUrlsFor } from './_searchurls.js';
 import { reportHealth } from './_health.js';
 
 export default async function handler(req, res) {
@@ -28,6 +31,7 @@ export default async function handler(req, res) {
   const created = [];
   const updated = [];
   const disabled = [];
+  const reenabled = [];
   const errors = [];
 
   let clients;
@@ -35,9 +39,15 @@ export default async function handler(req, res) {
   catch (e) { return res.status(500).json({ ok: false, error: 'client_list_failed', detail: e.message }); }
 
   const activeIds = new Set(clients.map(c => c.id));
+  // I portali giusti per la città di ogni cliente (Roma: immobiliare +
+  // idealista.it; Madrid/Barcellona: idealista.com). Serve sotto, per
+  // spegnere le ricerche di un cliente che ha cambiato città.
+  const portalsByClient = new Map();
 
   for (const client of clients) {
-    for (const s of buildSearchUrls(client)) {
+    const wanted = buildSearchUrlsFor(client);
+    portalsByClient.set(client.id, new Set(wanted.map(w => w.portal)));
+    for (const s of wanted) {
       const docId = `pfs_${client.id}_${s.portal}`;
       try {
         const existing = await fsGet('radarSearches/' + docId);
@@ -49,6 +59,7 @@ export default async function handler(req, res) {
           // La zona PULITA della ricerca (mai la label): scan-market la
           // passa all'ingestione quando l'annuncio non dichiara la sua.
           zoneName: s.zone || null,
+          market: s.market || 'roma',
           clientId: client.id,
           clientName: client.name || null,
           auto: true,
@@ -57,6 +68,14 @@ export default async function handler(req, res) {
         if (!existing) {
           await fsPatch('radarSearches/' + docId, { ...base, enabled: true, createdAt: now });
           created.push(docId);
+        } else if (existing.enabled === false && existing.disabledReason === 'market_changed') {
+          // La spense QUESTO file quando il cliente cambiò città; ora la città
+          // è tornata quella del portale: la si riaccende (urlOverride e
+          // knownListings restano). Uno spegnimento A MANO (nessun motivo) o
+          // per cliente inattivo non si tocca: non è nostro da annullare.
+          await fsPatch('radarSearches/' + docId, { ...base, enabled: true, disabledAt: null, disabledReason: null, reenabledAt: now });
+          updated.push(docId);
+          reenabled.push(docId);
         } else {
           await fsPatch('radarSearches/' + docId, base);
           updated.push(docId);
@@ -74,6 +93,12 @@ export default async function handler(req, res) {
       if (s.auto === true && s.clientId && !activeIds.has(s.clientId) && s.enabled !== false) {
         await fsPatch('radarSearches/' + s.id, { enabled: false, disabledAt: now, disabledReason: 'client_inactive' });
         disabled.push(s.id);
+      } else if (s.auto === true && s.clientId && activeIds.has(s.clientId) && s.enabled !== false &&
+                 !(portalsByClient.get(s.clientId) || new Set()).has(s.portal)) {
+        // Il cliente è attivo ma in un'altra città: le ricerche del portale
+        // vecchio si spengono (mai cancellate: l'urlOverride resta).
+        await fsPatch('radarSearches/' + s.id, { enabled: false, disabledAt: now, disabledReason: 'market_changed' });
+        disabled.push(s.id);
       }
     }
   } catch (e) {
@@ -85,6 +110,7 @@ export default async function handler(req, res) {
     created: created.length,
     updated: updated.length,
     disabled: disabled.length,
+    reenabled: reenabled.length,
     errors: errors.length,
   }, actor);
 
@@ -94,12 +120,12 @@ export default async function handler(req, res) {
   await reportHealth('sync', {
     ok: errors.length === 0,
     error: errors.length ? `${errors.length} errori (primo: ${JSON.stringify(errors[0]).slice(0, 160)})` : null,
-    stats: { activeClients: clients.length, created: created.length, updated: updated.length, disabled: disabled.length },
+    stats: { activeClients: clients.length, created: created.length, updated: updated.length, disabled: disabled.length, reenabled: reenabled.length },
   });
 
   return res.status(200).json({
     ok: errors.length === 0,
     activeClients: clients.length,
-    created, updated, disabled, errors,
+    created, updated, disabled, reenabled, errors,
   });
 }

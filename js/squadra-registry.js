@@ -88,17 +88,23 @@
         'Ogni 10 minuti legge la casella e riconosce le richieste dei portali',
         'Estrae la persona con Claude — non inventa mai un dato che non c\'è',
         'Aggancia l\'annuncio giusto nel catalogo vero',
-        'Deduplica per messaggio E per persona (stessa email o telefono entro 7 giorni)'
+        'Deduplica per messaggio E per persona (stessa email o telefono entro 7 giorni)',
+        'Ogni 10 minuti legge anche i rimbalzi (DSN): un\'email a un cliente che non arriva diventa un avviso'
       ],
       autonomy: {
-        solo:  ['Crea il lead nel pipeline', 'Riconosce e scarta i doppioni di Homie'],
-        porta: ['Il lead nuovo arriva su Telegram entro un minuto, con "Apri WhatsApp" se c\'è il numero'],
-        mai:   ['Non risponde al prospect — quello è il Commerciale, e passa da te']
+        solo:  ['Crea il lead nel pipeline', 'Riconosce e scarta i doppioni di Homie', 'Segna il lead con l\'email rimbalzata'],
+        porta: ['Il lead nuovo arriva su Telegram entro un minuto, con "Apri WhatsApp" se c\'è il numero',
+                'Avviso Telegram: chi, cosa, perché, col WhatsApp per chiedere l\'indirizzo giusto'],
+        mai:   ['Non risponde al prospect — quello è il Commerciale, e passa da te',
+                'Non corregge l\'indirizzo e non rimanda nulla da solo']
       },
       reach: ['archivio', 'operatore', 'ai'],
       approval: 'mai',
       crons: ['/api/leads/scan-inbox'],
-      health: { col: 'pfsRadarHealth', doc: 'leads-inbox' },
+      // Due battiti, un agente: le richieste (leads-inbox) e i rimbalzi
+      // (?mode=bounces → leads-bounces). Il pallino è il PEGGIORE dei due:
+      // con uno solo, i rimbalzi potevano fallire sotto un Orecchio verde.
+      health: { col: 'pfsRadarHealth', doc: 'leads-inbox', also: ['leads-bounces'] },
       console: null, run: '/api/leads/scan-inbox'
     },
     {
@@ -673,6 +679,38 @@
     return out;
   }
 
+  /* I documenti di battito di un agente: `doc` più quelli in `also`. */
+  function healthDocs(a) {
+    var h = a && a.health;
+    if (!h || !h.doc) return [];
+    return [h.doc].concat(Array.isArray(h.also) ? h.also : []);
+  }
+  /* Di chi è questo battito (collection + id del documento)? */
+  function healthOwner(col, docId) {
+    for (var i = 0; i < TEAM.length; i++) {
+      var a = TEAM[i];
+      if (a.health && a.health.col === col && healthDocs(a).indexOf(docId) >= 0) return a;
+    }
+    return null;
+  }
+  function msOf(v) {
+    if (!v) return 0;
+    var d = v.toDate ? v.toDate() : new Date(v);
+    var t = d.getTime();
+    return isFinite(t) ? t : 0;
+  }
+  /* Il PEGGIORE di due battiti: un guasto batte un ok, più errori di fila
+   * battono meno, a parità il più vecchio (è quello che statusOf giudica
+   * stantio). Un battito assente non migliora niente. */
+  function worseHealth(a, b) {
+    if (!a) return b || null;
+    if (!b) return a;
+    if (!!a.ok !== !!b.ok) return a.ok ? b : a;
+    var ea = a.consecutiveErrors || 0, eb = b.consecutiveErrors || 0;
+    if (ea !== eb) return ea > eb ? a : b;
+    return msOf(a.lastRunAt) <= msOf(b.lastRunAt) ? a : b;
+  }
+
   function rollup(team, healthMap, now) {
     var t = team || TEAM, h = healthMap || {}, out = { ok: 0, warn: 0, err: 0, off: 0, total: t.length };
     t.forEach(function (a) { out[statusOf(h[a.key], now)]++; });
@@ -815,6 +853,7 @@
   var API = {
     TEAM: TEAM, REPARTI: REPARTI, REACH: REACH, KNOBS: KNOBS,
     get: get, statusOf: statusOf, attentionOf: attentionOf,
+    healthDocs: healthDocs, healthOwner: healthOwner, worseHealth: worseHealth,
     speaksToClients: speaksToClients, byReparto: byReparto,
     rollup: rollup, driftVsCrons: driftVsCrons,
     knobsFor: knobsFor, resolveKnobs: resolveKnobs,

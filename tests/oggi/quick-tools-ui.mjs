@@ -89,10 +89,10 @@ try {
       console.log('PASS ' + width + ' ' + name);
     };
 
-    await check('sixteen visible launchers precede the open desk; explicit creation opens blank native forms', async () => {
+    await check('sixteen visible launchers follow the open desk; explicit creation opens blank native forms', async () => {
       assert.deepEqual(await page.locator('#ogQuickTools [data-og-tool]').evaluateAll(nodes => nodes.map(node => node.dataset.ogTool)), ids.map(id => 'home:' + id));
       for (const id of ids) assert.equal(await tool(id).isVisible(), true);
-      assert.equal(await page.locator('#ogQuickTools').evaluate(el => !!(el.compareDocumentPosition(document.getElementById('ogDeskFold')) & Node.DOCUMENT_POSITION_FOLLOWING)), true);
+      assert.equal(await page.locator('#ogDeskFold').evaluate(el => !!(el.compareDocumentPosition(document.getElementById('ogQuickTools')) & Node.DOCUMENT_POSITION_FOLLOWING)), true);
       assert.equal(await page.locator('#ogQuickTools [data-og-tool] svg').count(), 16);
       assert(await page.locator('#ogQuickTools [data-og-tool] svg').evaluateAll(nodes => nodes.every(node => node.children.length > 0)), 'Every launcher has a drawn icon');
       const boxes = await page.locator('#ogQuickTools [data-og-tool]').evaluateAll(nodes => nodes.map(node => {

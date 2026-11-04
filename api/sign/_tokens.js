@@ -36,7 +36,7 @@ const BASE = 'https://www.boomrome.com';
 
 export const newSignToken = () => crypto.randomUUID();
 export const isSignToken = (v) => typeof v === 'string' && v.length >= 8;
-const signedOf = (c, role) => role === 'tenant' ? !!(c && c.tenantSignature) : !!(c && c.landlordSignature);
+const signedOf = (c, role) => c?.externalSignedDocument ? true : role === 'tenant' ? !!(c && c.tenantSignature) : !!(c && c.landlordSignature);
 
 export function signUrl(token, { delegate = false, base = BASE } = {}) {
   if (!isSignToken(token)) return null;

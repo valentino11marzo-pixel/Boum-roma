@@ -30,6 +30,11 @@ test('one approval plans only follow-up, the exact shown reply and recheck', () 
   assert.match(step(o, 'recheck').detail, /nuova approvazione/);
   assert.equal(JSON.stringify(o), before);
 });
+test('automatic budget pause cannot promise an active recheck', () => {
+  const o = options(); Object.assign(o.monitoring, { mode: 'continuous', status: 'unavailable', stoppedBy: 'automatic_budget' });
+  assert.equal(step(o, 'recheck').state, 'paused');
+  assert.match(step(o, 'recheck').detail, /limite.*contatore/);
+});
 test('free text never creates a call, portal job or collaborator assignment', () => {
   const o = options(); o.preparation.nextAction.text = 'Chiama il tecnico, prenota il lavoro sul portale e chiudi la pratica.';
   o.preparation.nextAction.waitingLabel = 'Tecnico sintetico';

@@ -106,7 +106,7 @@ Prova alternativa richiesta via SSH: browser dedicato con porta 9441 solo loopba
 
 Il rilascio del Portal segue AGENTS.md: merge su `main` da Valentino/regia, niente deploy manuali di produzione da questo ramo.
 
-1. Dopo CI e revisione, rilasciare PR #300 con flag assente/0: la UI conserva il percorso precedente. La CI attuale distribuisce rules/storage, **non gli indici**: distribuire anche l'indice di `firestore.indexes.json` e attenderne lo stato pronto.
+1. Dopo CI e revisione, rilasciare con flag assente/0: la UI conserva il percorso precedente. Dal 25/10 il job `deploy-rules` su main distribuisce rules/storage e poi esegue `tools/ensure-smartlink-index.mjs`: aggiunge soltanto l'indice SmartLink mancante e attende READY (massimo cinque minuti), usando la federazione già configurata. Verificare il successo di questo passo sul commit rilasciato; un verde della PR non lo esegue. Nessun indice viene eliminato e nessun permesso viene cambiato.
 2. Configurare il flag server nell'ambiente scelto e verificare la distribuzione che lo contiene. Una Preview usa lo stesso progetto Firebase: senza nuove rules/index il percorso resta bloccato; non è un database isolato.
 3. Su Homie il runtime è in `~/.boom/smartlink-runtime/tools/smartlink-worker/`, configurazione `~/.boom/smartlink-reader.json`. Il plist `~/Library/LaunchAgents/com.boom.smartlink-reader.plist` è predisposto, **non caricato**.
 4. Eseguire `node worker.mjs --check` dalla directory runtime: controlla browser installato e heartbeat autenticato. Il secret resta sul Mac. Una Preview protetta richiede la modalità di accesso Vercel autorizzata, senza disattivare la protezione.

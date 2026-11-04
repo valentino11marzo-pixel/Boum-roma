@@ -273,7 +273,7 @@ const pfs = trova('/pfs');
 check(pfs && pfs.destination === '/property-finding' && pfs.permanent === true, '/pfs → /property-finding, permanente');
 const apt = trova('/apartments/:id');
 check(apt && apt.destination === '/listing/:id' && apt.permanent === true, '/apartments/:id → /listing/:id, permanente');
-for (const src of ['/(la-reunion|reunion-island|974)', '/(executive-rentals|executive-stays|relocation-rome)']) {
+for (const src of ['/(la-reunion|reunion-island|974)', '/(executive-rentals|executive-stays|relocation-rome)', '/(tr|turkiye|turkey)']) {
   const r = trova(src);
   check(r && r.permanent === true, `alias ${src} → ${r ? r.destination : '?'} è permanente (308)`);
 }

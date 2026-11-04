@@ -61,11 +61,18 @@ async function run({ dry }) {
   // Backlog verifiche: vivi mai controllati o non controllati da 7+ giorni.
   // Se cresce, gli occhi di Homie non stanno girando — va DETTO, perché
   // senza morti l'assorbimento invecchia in silenzio.
+  // SOLO Roma: le righe di Madrid e Barcellona non vanno MAI agli occhi di
+  // Homie (api/homie/market.js le esclude: i marker di morte sono italiani),
+  // quindi non avranno mai lastCheckedAt — contarle sarebbe un allarme falso
+  // e perenne. Si contano a parte, dichiarate «non verificate per scelta».
   const staleMs = 7 * 86400e3;
+  const isRome = l => (l.market || 'roma') === 'roma';
   const backlog = actives.filter(l => {
+    if (!isRome(l)) return false;
     const t = +new Date(l.lastCheckedAt || 0);
     return !t || (nowMs - t) > staleMs;
   }).length;
+  const cityUnchecked = actives.filter(l => !isRome(l)).length;
 
   // ── Le statistiche, una zona alla volta ───────────────────────────────
   const zones = [...new Set(ledger.map(l => l.zoneSlug).filter(Boolean))];
@@ -76,7 +83,11 @@ async function run({ dry }) {
     statsBySlug[zone] = stats;
     if (stats.asked.ok || stats.absorption.ok) published++;
     if (!dry) {
-      await fsPatch('marketStats/' + zone, { ...stats, at: new Date(), minSample: k.minSample });
+      // La città della zona (radar per mercato): dalla prima riga del libro
+      // mastro di quella zona; le righe di prima sono Roma.
+      const first = ledger.find(l => l.zoneSlug === zone);
+      const market = (first && first.market) || 'roma';
+      await fsPatch('marketStats/' + zone, { ...stats, market, at: new Date(), minSample: k.minSample });
       written++;
     }
   }
@@ -88,7 +99,10 @@ async function run({ dry }) {
   // lo sancisce così: CARD nella console, mai contatto automatico (la D5
   // del Perito — niente rubrica dei privati — non si tocca: qui viaggiano
   // solo i fatti dell'annuncio e il suo URL pubblico).
+  // SOLO Roma: il desk di Madrid dichiara di non rappresentare i
+  // proprietari — una card "proponigli la gestione BOOM" lì lo smentirebbe.
   const mandati = ledger
+    .filter(l => (l.market || 'roma') === 'roma')
     .map(l => {
       const m = RADAR.mandatoCheck(l, l.zoneSlug ? statsBySlug[l.zoneSlug] : null, { nowMs });
       return m ? {
@@ -109,13 +123,14 @@ async function run({ dry }) {
   const counts = {
     ledger: ledger.length, actives: actives.length, gone: gone.length,
     zones: zones.length, zonesPublished: published, checkBacklog: backlog,
-    mandati: mandati.length,
+    cityUnchecked, mandati: mandati.length,
   };
   const summary = [
     `${ledger.length} annunci a libro (${actives.length} vivi · ${gone.length} morti provate) · `
       + `${zones.length} zone, ${published} con campione sufficiente`,
     mandati.length ? `🎯 ${mandati.length} candidati mandato (privati fermi oltre l'assorbimento) → /radar` : '',
     backlog > 50 ? `⚠️ ${backlog} verifiche di vita arretrate — gli occhi di Homie girano?` : '',
+    cityUnchecked ? `${cityUnchecked} annunci vivi di Madrid/Barcellona non verificati (per scelta: gli occhi di Homie leggono solo i portali romani)` : '',
     rejectedLine(rejected),
   ].filter(Boolean).join(' — ');
 

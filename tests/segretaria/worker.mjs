@@ -85,7 +85,8 @@ globalThis.fetch = async (rawURL, opts = {}) => {
       const path = operation.update.name.split('/documents/')[1];
       const data = Object.fromEntries(Object.entries(operation.update.fields || {}).map(([k, v]) => [k, dec(v)]));
       save(path, operation.updateMask ? { ...(DB.get(path) || {}), ...data } : data);
-      const write = { path, data: structuredClone(DB.get(path)) };
+      const write = { path, data: structuredClone(DB.get(path)), writtenFields: Object.keys(data),
+        checkedVersion: operation.currentDocument?.updateTime || null };
       writes.push(write); allWrites.push(write);
       results.push({ updateTime: versions.get(path) });
     }
@@ -357,14 +358,44 @@ try {
 
   reset(); save('heartbeat/segretaria-preparations-2026-09-15', { count: 500 });
   out = await tick();
-  ok('vecchio cap esaurito non ferma preparazioni continue né azzera il contatore',
-    out.prepared === 1 && out.checked === 1 && out.stoppedBy !== 'daily_cap'
-      && aiHits === 1 && count() >= 500 && DB.get('settings/segretaria').dailyCap === 5, out);
+  ok('storico automatico non attribuibile blocca prima del modello e non azzera il contatore',
+    out.prepared === 0 && out.checked === 1 && out.stoppedBy === 'automatic_budget'
+      && out.error === 'preparation_limit_history_unknown' && aiHits === 0 && count() === 500
+      && !task().preparation && !rows('heartbeat').some(([path]) => path.includes('/segretaria-preparing-'))
+      && DB.get('settings/segretaria').dailyCap === 5 && untouched(), out);
   reset(); addCase(1, NOW - 2000); addCase(2, NOW - 1000); addCase(3, NOW - 3000);
-  save('heartbeat/segretaria-preparations-2026-09-15', { count: 500 });
+  // The total includes manual work. A valid automatic ledger isolates the
+  // technical batch limit from legacy history and the old conversational cap.
+  save('heartbeat/segretaria-preparations-2026-09-15', { count: 500,
+    automaticBudget: { version: 1, count: 0, byCase: {} } });
   out = await tick();
-  ok('batch resta tre per durata tecnica, indipendentemente dal vecchio cap',
-    out.prepared === 3 && out.checked === 3 && out.stoppedBy === 'batch_limit' && out.remaining === 1, out);
+  ok('batch resta tre quando il budget automatico è verificato, indipendentemente dal cap conversazionale',
+    out.prepared === 3 && out.checked === 3 && out.stoppedBy === 'batch_limit' && out.remaining === 1
+      && aiHits === 3 && count() === 503
+      && DB.get('heartbeat/segretaria-preparations-2026-09-15').automaticBudget.count === 3, out);
+
+  reset();
+  const spentCases = Object.fromEntries(Array.from({ length: 20 }, (_, n) => ['sg_' + n.toString(16).padStart(32, '0'), 1]));
+  save('heartbeat/segretaria-preparations-2026-09-15', { count: 20,
+    automaticBudget: { version: 1, count: 20, byCase: spentCases } });
+  out = await tick();
+  ok('cap giornaliero automatico ferma il run senza nuova chiamata o prenotazione',
+    out.prepared === 0 && out.checked === 1 && out.error === 'preparation_daily_limit'
+      && out.stoppedBy === 'automatic_budget' && aiHits === 0 && count() === 20
+      && !rows('heartbeat').some(([path]) => path.includes('/segretaria-preparing-')) && untouched(), out);
+
+  reset(); const unspentCase = addCase(1, NOW - 20000);
+  save('heartbeat/segretaria-preparations-2026-09-15', { count: 2,
+    automaticBudget: { version: 1, count: 2, byCase: { [ID]: 2 } } });
+  out = await tick();
+  const afterCaseLimit = DB.get('heartbeat/segretaria-preparations-2026-09-15').automaticBudget;
+  ok('caso al cap non blocca il successivo con budget: una sola chiamata e nessun consumo sul bloccato',
+    out.checked === 2 && out.prepared === 1 && out.stoppedBy === null
+      && out.results[0].id === ID && out.results[0].error === 'preparation_case_daily_limit'
+      && out.results[1].id === unspentCase && out.results[1].code === 200
+      && aiHits === 1 && count() === 3 && afterCaseLimit.count === 3
+      && afterCaseLimit.byCase[ID] === 2 && afterCaseLimit.byCase[unspentCase] === 1
+      && !task().preparation && !!task(unspentCase).preparation && untouched(), out);
 
   reset(); addCase(1, NOW - 2000); listDelayMs = 30000;
   out = await tick();
@@ -394,7 +425,11 @@ try {
   ok('decisione umana cambiata riapre il retry anche sullo stesso messaggio',
     out.prepared === 1 && aiHits === 1 && task().preparationRetry === null, out);
 
-  reset(); aiHook = async () => { throw new Error('fixture_temporary_outage'); };
+  reset();
+  // Exercise the full retry schedule within an explicitly permitted quota;
+  // the default two-attempt limit has its own blocking tests above.
+  save('settings/segretaria', { ...DB.get('settings/segretaria'), prepareAutoCaseDailyCap: 10 });
+  aiHook = async () => { throw new Error('fixture_temporary_outage'); };
   const retryDelays = [];
   for (let attempt = 0; attempt < 7; attempt++) {
     out = await tick();
@@ -408,7 +443,7 @@ try {
         && out.queue.nextRetryAt === marker.after, out);
     clock = Date.parse(marker.after);
   }
-  ok('backoff transitorio scala1/5/15/60/360min e resta ripetibile a360, senza rinuncia definitiva',
+  ok('con budget esplicito sufficiente il backoff scala1/5/15/60/360min e resta ripetibile a360',
     JSON.stringify(retryDelays) === '[1,5,15,60,360,360,360]' && aiHits === 7, retryDelays);
 
   reset(); aiBuilder = () => ({}); out = await tick();
@@ -559,10 +594,12 @@ try {
   ok('cron non autenticato non accede ai dati', out.httpCode === 401 && !reads.length && !writes.length && !aiHits, out);
   out = await endpoint(workerEndpoint, { method: 'POST', token: 'fixture-cron' });
   ok('metodo diverso da GET rifiutato senza effetti', out.httpCode === 405 && !writes.length, out);
-  ok('tutte le prove scrivono solo casi e heartbeat, senza invii o altri effetti',
+  ok('tutte le prove scrivono casi e heartbeat e verificano configurazione senza cambiarla',
     // …più il contatore della Centrale AI (aiUsage/<giorno>), scritto da ogni
     // chiamata a un modello per costruzione (22/09/2026). Il recinto resta.
-    allWrites.every(w => /^(operatorTasks|heartbeat|aiUsage)\//.test(w.path)) && untouched(), allWrites.map(w => w.path));
+    allWrites.every(w => /^(operatorTasks|heartbeat|aiUsage)\//.test(w.path)
+      || (w.path === 'settings/segretaria' && w.writtenFields?.length === 0 && !!w.checkedVersion))
+      && untouched(), allWrites.map(w => w.path));
   const { readFileSync } = await import('node:fs');
   const vm = await import('node:vm');
   const priorityCode = readFileSync(new URL('../../js/segretaria-priority-engine.js', import.meta.url), 'utf8');

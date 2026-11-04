@@ -74,7 +74,10 @@
       furnished: typeof raw.furnished === 'boolean' ? raw.furnished
         : ((existing && typeof existing.furnished === 'boolean') ? existing.furnished : null),
       advertiser: (raw.advertiser === 'private' || raw.advertiser === 'agency') ? raw.advertiser
-        : ((existing && existing.advertiser) || 'unknown')
+        : ((existing && existing.advertiser) || 'unknown'),
+      // La città (radar per mercato). Assente = Roma per chi legge; qui si
+      // scrive solo ciò che la porta ha deciso, mai un default inventato.
+      market: raw.market || (existing && existing.market) || null
       /* contactEmail / contactPhone / images / description: MAI.
        * Il libro mastro è statistica, non rubrica. */
     };

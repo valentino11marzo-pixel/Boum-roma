@@ -1,0 +1,344 @@
+{
+  "slug": "barcelona",
+  "city": "Barcelona",
+  "country": "ES",
+  "iata": "BCN",
+  "geo": {
+    "lat": 41.3874,
+    "lon": 2.1686
+  },
+  "live": true,
+  "mode": "search",
+  "config": {},
+  "updated": "2026-11-03",
+  "meta": {
+    "title": "Tenant-side rental agent for expats in Barcelona — BOOM",
+    "description": "Apartment search for expats in Barcelona, tenant side only: rent-cap check, Spanish-format file, applications as listings appear, viewings attended, contract read.",
+    "ogTitle": "BOOM Barcelona — an agent on your side of the table",
+    "ogDescription": "Tenant-side rental search for expats and internationals moving to Barcelona. Rent-cap check, Spanish-format file within one working day of your papers, applications sent as listings appear, attended viewings, contract read. Flat fees, paid by you — never by landlords."
+  },
+  "service": {
+    "name": "BOOM Barcelona — tenant-side rental search",
+    "serviceType": "Tenant-side rental search agent",
+    "audience": "Expats and internationals relocating to Barcelona",
+    "description": "Rental search in Barcelona on the tenant's side only: rent checked against the previous rent and the índice de referencia, Spanish-format application file within one working day of the tenant's papers, applications sent as listings appear, attended viewings with live video and written report, contract and lease type checked before signing, empadronamiento supported. Optional services the tenant chooses in writing, flat fees paid by the tenant, nothing from landlords or platforms."
+  },
+  "hero": {
+    "h1Before": "Your home in",
+    "lead": "We search, apply, attend the viewings and check the lease.",
+    "leadStrong": "You hire us; we do not act for the landlord.",
+    "faresHead": {
+      "b": "Optional, chosen in writing",
+      "span": "No percentage of your rent"
+    }
+  },
+  "pricing": {
+    "plans": [
+      {
+        "id": "full-search",
+        "label": "Full Search",
+        "name": "We search. You choose.",
+        "price": 500,
+        "condition": "flat · incl. VAT",
+        "conditionLong": "VAT included. Invoice from Egidi Immobiliare S.r.l.",
+        "includes": [
+          "Every working day: Idealista, Fotocasa, Habitaclia, agencies",
+          "Presentation letter, applications as listings appear",
+          "One attended viewing (more: €149 each)",
+          "Negotiation, cap and contract checks",
+          "Until you sign, or you say stop"
+        ],
+        "offerDescription": "Search, Spanish-format application file and presentation letter, applications as listings appear, one attended viewing, negotiation, rent-cap and contract check, until the tenant signs or stops the search.",
+        "when": "Haven't started yet"
+      },
+      {
+        "id": "application-pack",
+        "label": "Application Pack",
+        "name": "You search. We make you win.",
+        "price": 199,
+        "condition": "flat · incl. VAT",
+        "conditionLong": "VAT included. Invoice from Egidi Immobiliare S.r.l.",
+        "includes": [
+          "Spanish-format file, one working day from your papers",
+          "Presentation letter in Spanish",
+          "Income, aval and guarantor strategy",
+          "Contract review before you sign"
+        ],
+        "offerDescription": "Spanish-format rental application file within one working day of your papers, presentation letter, income and guarantor strategy, contract review.",
+        "when": "Found one, or shortlisted and already in Barcelona"
+      },
+      {
+        "id": "attended-viewing",
+        "label": "Attended Viewing",
+        "unit": "per viewing",
+        "name": "Eyes on the ground.",
+        "price": 149,
+        "condition": "per viewing · incl. VAT",
+        "conditionLong": "VAT included. Invoice from Egidi Immobiliare S.r.l.",
+        "includes": [
+          "A BOOM person attends in your place",
+          "Live video walkthrough",
+          "Written report: light, noise, damp, neighbours, commute",
+          "A straight recommendation"
+        ],
+        "offerDescription": "A BOOM person attends the viewing in your place, with live video and a written report.",
+        "when": "Shortlisted, still abroad"
+      }
+    ],
+    "sub": "Optional, chosen in writing: only you pay, for the work."
+  },
+  "stub": {
+    "notSure": "Not sure which fare? On a free call we say which fits, or that none does."
+  },
+  "how": {
+    "h2": "From the first call",
+    "h2g": "to the keys.",
+    "steps": [
+      {
+        "k": "1 · Brief",
+        "h": "A free call",
+        "p": "Dates, budget, who's moving. We tell you what your budget buys today.",
+        "status": "FREE"
+      },
+      {
+        "k": "2 · Your file",
+        "h": "Spanish-format, one working day",
+        "p": "Your file and a presentation letter in Spanish. Applications as listings appear.",
+        "status": "1 WORK DAY"
+      },
+      {
+        "k": "3 · Viewing & lease",
+        "h": "A BOOM person in the room",
+        "p": "Live video and a written report. Rent cap, deposit and lease type checked before you sign.",
+        "status": "IN PERSON"
+      }
+    ]
+  },
+  "checks": {
+    "h2": "What we check",
+    "h2g": "before you sign.",
+    "items": [
+      {
+        "id": "fees",
+        "title": "Who pays the agent",
+        "at": "LAU art. 20",
+        "text": "The landlord pays their own agent and the lease's costs. You hire us, in writing, for an optional service."
+      },
+      {
+        "id": "rentcap",
+        "title": "The rent cap",
+        "at": "índice de referencia",
+        "text": "Tensioned zone: new rents can't top the previous one, nor the reference index for large owners or homes unlet for five years."
+      },
+      {
+        "id": "deposit",
+        "title": "The deposit",
+        "at": "fianza · INCASÒL",
+        "text": "Habitual lease: one month. The landlord lodges it with INCASÒL; we ask for the receipt."
+      },
+      {
+        "id": "contract",
+        "title": "Contract type",
+        "at": "LAU · Llei 11/2025",
+        "text": "A temporary lease for work or study must state and prove its reason, and is rent-capped. Otherwise it counts as habitual."
+      },
+      {
+        "id": "padron",
+        "title": "Registration",
+        "at": "padrón · NIE",
+        "text": "Your lease needs the full address, cadastral reference and both signatures, or the town hall refuses it."
+      }
+    ]
+  },
+  "papers": {
+    "summary": "The papers a Barcelona landlord asks for",
+    "at": "8 papers",
+    "items": [
+      "Passport or NIE",
+      "Employment contract (contrato)",
+      "Last three payslips (nóminas)",
+      "Employer letter or vida laboral",
+      "Three months of bank statements",
+      "Previous landlord reference",
+      "A guarantor or bank guarantee (aval)",
+      "Presentation letter in Spanish"
+    ],
+    "tail": "The rest we go through on the free call."
+  },
+  "faq": {
+    "h2": "Questions.",
+    "items": [
+      {
+        "q": "Isn't it the landlord who pays the agent in Spain?",
+        "a": "Yes. Spanish law puts the costs of the landlord's agent and of the lease on the landlord, and in Catalonia passing them to the tenant is sanctioned. BOOM Barcelona is a separate, optional service you hire in writing, price shown first; it works only for you and takes nothing from landlords."
+      },
+      {
+        "q": "What happens on the free call?",
+        "a": "A call with Valentino, by phone or WhatsApp, at a time that suits you both. We hear your dates, budget and who is moving, say which service fits, or that none does, and which papers you are missing. Nothing is charged for the call. Full Search is refunded in full if we decline the search in the first call."
+      },
+      {
+        "q": "How do I avoid a rental scam in Barcelona from abroad?",
+        "a": "Never pay a deposit or first rent for a home nobody on your side has seen. With Attended Viewing (€149) a BOOM person visits it in your place, with live video and a written report. With Full Search or Application Pack we also check the contract, and that you can register on the padrón with it, before you sign."
+      },
+      {
+        "q": "What if you don't find anything?",
+        "a": "We tell you in the first call if your budget and timeline don't fit the market; if BOOM declines the search then, the €500 Full Search fee is refunded in full. Once we take it on, the search runs until you sign or stop it, and the fee pays for the work, not for a result."
+      }
+    ]
+  },
+  "bref": {
+    "h2": "BOOM Barcelona — fact sheet",
+    "rows": [
+      {
+        "dt": "Who",
+        "ddHtml": "BOOM Barcelona, the tenant-side rental desk of BOOM — operated by <b>Egidi Immobiliare S.r.l.</b>, a registered Italian agency. You hire us; we do not act for the landlord. Paid by the tenant only."
+      },
+      {
+        "dt": "For whom",
+        "ddHtml": "Expats and internationals relocating to Barcelona — employees, researchers, couples and families — from abroad or already in the city."
+      },
+      {
+        "dt": "Language",
+        "ddHtml": "English; Spanish for landlords; Catalan or Spanish documents on request."
+      },
+      {
+        "dt": "Fees",
+        "fees": true,
+        "ddHtml": "No percentage of the rent, nothing from landlords or platforms."
+      },
+      {
+        "dt": "What we do",
+        "ddHtml": "Spanish-format file within <b>one working day</b> of your papers, applications <b>as listings appear</b>, attended viewings with live video and written report, rent cap, contract and lease type checked, padrón supported."
+      },
+      {
+        "dt": "What we don't do",
+        "ddHtml": "We don't list homes, represent landlords or draft their leases, and we don't promise a date."
+      },
+      {
+        "dt": "Reply time",
+        "ddHtml": "The same working day."
+      },
+      {
+        "dt": "Contact",
+        "contact": true,
+        "ddHtml": ""
+      }
+    ]
+  },
+  "footer": {
+    "statement": "You hire us; we do not act for the landlord. BOOM Barcelona acts solely as a tenant-side search agent: we do not list properties, represent landlords, draft their leases, or receive remuneration from landlords or their agents. Order, terms and invoice in Catalan or Spanish on request; official complaint forms (fulls oficials de reclamació) on request."
+  },
+  "desk": {
+    "person": "Valentino Egidi",
+    "role": "tenant-side agent",
+    "timeZone": "Europe/Rome",
+    "tzLabel": "CET/CEST",
+    "hours": {
+      "from": "09:00",
+      "to": "19:00"
+    },
+    "days": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ]
+  },
+  "door": {
+    "label": "Start with a free call"
+  },
+  "form": {
+    "name": {
+      "label": "Your name",
+      "placeholder": "Anna Keller"
+    },
+    "contact": {
+      "label": "Email or WhatsApp number",
+      "placeholder": "anna@company.com or +34 …"
+    },
+    "consentLead": "Used only to reply to you —",
+    "consentAlt": "Prefer WhatsApp or email?",
+    "errors": {
+      "name": "Your name, so we know who we're writing to.",
+      "contact": "An email or a number — otherwise we can't reply.",
+      "email": "That email looks incomplete — could you check it?",
+      "net": "The send failed on our side. Try again, or email us directly at hello@boom-rome.com."
+    },
+    "sending": "Opening your file…",
+    "sentNext": [
+      [
+        "{when}",
+        "Valentino writes to set your free call."
+      ],
+      [
+        "Nothing to prepare",
+        "On the call we say which papers matter."
+      ],
+      [
+        "Nothing by then?",
+        "Write to {email}."
+      ]
+    ],
+    "sentWhenDefault": "Same working day"
+  },
+  "checkout": true,
+  "checkoutCopy": {
+    "noteLabel": "A listing you already found, or anything we should know",
+    "notePlaceholder": "https://www.idealista.com/… · move-in 1 February",
+    "btnSubNow": "Starts in the desk’s first open hour · Stripe",
+    "btnSubWait": "Starts when your 14 days end · Stripe",
+    "altLead": "Prefer to talk first?",
+    "altLink": "Start with a free call, no card",
+    "startNow": "Start now: I ask BOOM to begin before my 14-day withdrawal period ends, and I understand that once the service is fully performed I can no longer withdraw.",
+    "withdrawal": "Withdrawal: 14 days from payment, by email to {email} or with the {form}. If you asked us to start and then withdraw, we refund the price minus the work already done. Without the tick, we start when the 14 days end.",
+    "fine": "Secure card payment by Stripe. Invoice from Egidi Immobiliare S.r.l., VAT included. Full Search is refunded in full if we decline the search in the first call. Order, terms and invoice in Catalan or Spanish on request.",
+    "errors": {
+      "name": "Your name, so we know who we're working for.",
+      "email": "A valid email — the invoice and your file go there.",
+      "net": "Checkout hiccuped on our side — try again, or start with a free call instead."
+    },
+    "paid": {
+      "before": "Paid — your file",
+      "em": "is open.",
+      "text": "The Barcelona desk writes by email, or on WhatsApp if you left a number. Questions? Write to",
+      "next": [
+        [
+          "First desk hour",
+          "an email from the desk with what we need"
+        ],
+        [
+          "Same working day",
+          "your brief: dates, budget, who's moving"
+        ],
+        [
+          "Then",
+          "the work as written on this page"
+        ]
+      ],
+      "nextWait": [
+        [
+          "First desk hour",
+          "an email with your order and start date"
+        ],
+        [
+          "When the 14 days end",
+          "your brief: dates, budget, who’s moving"
+        ],
+        [
+          "Then",
+          "the work as written on this page"
+        ]
+      ],
+      "wait": "You did not tick “Start now”: we start when your 14 days end. Sooner? Write to {email}.",
+      "pending": "Payment being confirmed. Your confirmation comes by email.",
+      "unconfirmed": "Not confirmed yet. If no email reaches you, write to the desk.",
+      "startsNow": "The desk’s first open hour",
+      "startsWait": "From {date}, after your 14-day withdrawal period"
+    }
+  },
+  "till": {
+    "label": "Pay and start",
+    "labelWait": "Pay and book"
+  }
+}

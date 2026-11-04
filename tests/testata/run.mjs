@@ -93,6 +93,7 @@ for (const u of pagine) {
   await pg.waitForTimeout(700);
 
   let peggio = null;
+  const strisce = [];
   for (const y of [700, 1400, 2400, 3600]) {
     const info = await pg.evaluate(async ({ S, y }) => {
       const n = document.querySelector(S);
@@ -110,17 +111,42 @@ for (const u of pagine) {
       { clip: { x: 120, y: Math.max(2, info.h - 18), width: 200, height: 14 } });
     const { data } = await sharp(buf).raw().toBuffer({ resolveWithObject: true });
     let mn = 255, mx = 0;
+    const lum = [];
     for (let i = 0; i < data.length; i += 3) {
       const l = data[i] * .299 + data[i + 1] * .587 + data[i + 2] * .114;
+      lum.push(l);
       if (l < mn) mn = l; if (l > mx) mx = l;
     }
     const d = +(mx - mn).toFixed(1);
+    strisce.push({ h: info.h, lum });
     if (!peggio || d > peggio.d) peggio = { d, y };
   }
   await pg.close();
   if (!peggio || peggio.senza) continue;
   viste++;
-  if (peggio.d > SOGLIA) rotte.push(`${u} (Δ${peggio.d} a y=${peggio.y})`);
+  if (peggio.d <= SOGLIA) continue;
+  /* Lo scarto c'e'. Ma la striscia lontana dal marchio non e' vuota su ogni
+     pagina: su /istanbul a 390px ci stanno «İSTANBUL → ROMA» e il selettore
+     TR/EN, contenuto della barra e non pagina che passa sotto (misurato:
+     184 di scarto gia' a y=0, su una barra opaca). Il contenuto della barra
+     e' FERMO, la pagina che le scorre sotto no: per ogni pixel si guarda
+     quanto cambia fra le posizioni di scorrimento. Barra opaca = zero;
+     la stessa barra al 55% d'opacita' = 84. Se le strisce non sono
+     confrontabili (una sola, o la barra cambia altezza scorrendo) vale lo
+     scarto e basta: nel dubbio, rossa. */
+  let mosso = null;
+  if (strisce.length >= 2 && strisce.every((s) => s.h === strisce[0].h)) {
+    mosso = 0;
+    for (let i = 0; i < strisce[0].lum.length; i++) {
+      let a = 255, b = 0;
+      for (const s of strisce) { if (s.lum[i] < a) a = s.lum[i]; if (s.lum[i] > b) b = s.lum[i]; }
+      if (b - a > mosso) mosso = b - a;
+    }
+    mosso = +mosso.toFixed(1);
+  }
+  if (mosso === null || mosso > SOGLIA) {
+    rotte.push(`${u} (Δ${peggio.d} a y=${peggio.y}` + (mosso === null ? ')' : `, scorrendo Δ${mosso})`));
+  }
 }
 
 check(viste >= 20,

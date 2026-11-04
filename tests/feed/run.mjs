@@ -106,10 +106,16 @@ check('dichiarazione UTF-8 + root + solo i 2 pubblicabili', xml.startsWith('<?xm
 
 // ═══ Endpoint: chiave derivata + gzip ═══
 const handler = (await import('../../api/feed/immobiliare.js')).default;
-globalThis.fetch = async (url) => {
+let portalRows = [], portalReadFails = false, portalMalformed = false;
+globalThis.fetch = async (url, options = {}) => {
   url = String(url);
   if (url.includes('identitytoolkit')) return new Response(JSON.stringify({ idToken: 't' }), { status: 200 });
   if (url.includes('firestore')) {
+    if (JSON.parse(options.body || '{}').structuredQuery?.from?.[0]?.collectionId === 'portalPubs') {
+      if (portalReadFails) return new Response('{}', {status:503});
+      if (portalMalformed) return new Response('{}', {status:200});
+      return new Response(JSON.stringify(portalRows.map((p,i)=>({document:{name:'p/documents/portalPubs/'+i,fields:Object.fromEntries(Object.entries(p).map(([k,v])=>[k,{stringValue:v}]))}}))),{status:200});
+    }
     // :runQuery → i due listing fixture
     const row = (l) => ({ document: { name: 'p/documents/listings/' + l.id, fields: { name: { stringValue: l.name }, price: { integerValue: String(l.price || 0) }, availabilityStatus: { stringValue: l.availabilityStatus || '' }, address: { stringValue: l.address || '' } } } });
     return new Response(JSON.stringify([row(EXACT), row(ZONE), row(RENTED)]), { status: 200 });
@@ -141,6 +147,33 @@ check('?id= sconosciuto → 404 esplicito', r.code === 404);
 r = mkRes();
 await handler({ method: 'GET', query: { k: feedKey(), id: 'lst_out' } }, r);
 check('?id= su un affittato → 409, mai un nodo vuoto', r.code === 409 && r.body.error === 'not_publishable');
+
+portalRows = [{portal:'immobiliare',listingId:'lst_pigneto',managementMode:'reference_only',remoteId:'123456'}];
+for (const query of [{},{gz:'1'},{id:'lst_pigneto'},{id:'lst_centro'}]) {
+  r = mkRes(); await handler({method:'GET',query:{k:feedKey(),...query}},r);
+  check('adozione ferma tutta la consegna '+JSON.stringify(query),r.code===409 && r.body.error==='reference_only_feed_blocked'
+    && r.headers['Cache-Control']==='private, no-store' && !r.headers['Content-Type']);
+}
+portalRows = Array.from({length:401},()=>({portal:'immobiliare'}));
+r=mkRes();await handler({method:'GET',query:{k:feedKey()}},r);
+check('lettura portali saturata ferma il feed',r.code===503 && r.body.error==='portal_reference_scan_incomplete');
+portalRows=[];portalReadFails=true;
+r=mkRes();await handler({method:'GET',query:{k:feedKey()}},r);
+check('errore lettura riferimenti non emette XML',r.code===500 && r.body.error==='feed_failed');
+portalReadFails=false;portalMalformed=true;
+r=mkRes();await handler({method:'GET',query:{k:feedKey()}},r);
+check('risposta illeggibile non diventa assenza di adozioni',r.code===500 && r.body.error==='feed_failed');
+portalMalformed=false;
+
+// Restore the dangerous behavior: publishing while a reference-only ad exists.
+const {readFileSync}=await import('node:fs');
+const sourceURL=new URL('../../api/feed/immobiliare.js',import.meta.url);
+let mutant=readFileSync(sourceURL,'utf8').replace('if (pubs.some(publicationBlocked))','if (false)')
+  .replace(/from '([^']+)'/g,(_,p)=>'from '+JSON.stringify(p.startsWith('.')?new URL(p,sourceURL).href:p));
+const mutated=(await import('data:text/javascript;base64,'+Buffer.from(mutant).toString('base64'))).default;
+portalRows=[{portal:'immobiliare',managementMode:'reference_only'}];r=mkRes();
+await mutated({method:'GET',query:{k:feedKey()}},r);
+check('mutazione: senza veto l’annuncio tornerebbe nel feed',r.code===200 && String(r.body).includes('<property '));
 
 console.log(`\nFeed Immobiliare: ${passed} passed, ${failed} failed`);
 if (failed) { console.log('FALLITI: ' + bad.join(' | ')); process.exit(1); }

@@ -15,6 +15,7 @@
 
 import crypto from 'node:crypto';
 import RADAR from '../../js/radar-engine.js';
+import RM from '../../js/radar-markets.js';
 import { fsPatch, fsGet, fsList, logActivity } from '../homie/_lib.js';
 import { recordObservation } from '../market/_ledger.js';
 import { radarTap } from '../radar/_tap.js';
@@ -24,6 +25,8 @@ import { tgNotify } from './_health.js';
 export const ACTIVE_STAGES = new Set([
   'payment_confirmed', 'searching', 'options', 'viewing', 'closing',
 ]);
+
+const MARKET_VIAS = new Set(['domain', 'alias', 'text', 'explicit', 'legacy']);
 
 export function stableIdFromUrl(url) {
   return 'h_' + crypto.createHash('sha1').update(url).digest('hex').slice(0, 16);
@@ -45,9 +48,25 @@ export async function listActiveClients() {
   });
 }
 
+// La zona di una città fuori Roma è SEMPRE il nome canonico del suo lessico
+// ('Madrid · Chamberí'): un 'Centro' nudo mandato da Homie diventerebbe lo
+// slug 'centro', lo stesso della zona romana. Già canonico → resta; altrimenti
+// si cerca nel lessico della città; niente → null (mai indovinare).
+export function canonicalZone(rawZone, market) {
+  if (!rawZone) return null;
+  const z = String(rawZone).trim();
+  if (!z) return null;
+  const zones = RADAR.MARKET_ZONES[market];
+  if (zones && Object.prototype.hasOwnProperty.call(zones, z)) return z;
+  const hit = RADAR.inferZone(z, market);
+  return hit ? hit.zone : null;
+}
+
 // raw: { sourceUrl*, source*, price*, title?, address?, zone?, bedrooms?,
 //        sqm?, bathrooms?, furnished?, images?, description?, contactEmail?,
-//        contactPhone?, scrapedAt?, advertiser? ('private'|'agency'|'unknown') }
+//        contactPhone?, scrapedAt?, advertiser? ('private'|'agency'|'unknown'),
+//        market? (città dichiarata dal chiamante), aliasMarket? (dall'alias
+//        della casella) }
 // opts: { threshold?, ingestedBy?, addedBy?, skipFreshHours? }
 //
 // Returns { ok, propertyId, skippedFresh?, droppedAgency?, pushedTo,
@@ -69,6 +88,19 @@ export async function ingestProperty(raw, opts = {}) {
   const advertiser = ['private', 'agency', 'unknown'].includes(raw.advertiser)
     ? raw.advertiser : 'unknown';
 
+  // ── 0. La città (radar per mercato) ──────────────────────
+  // Decisa UNA volta, qui, con la prova più forte (js/radar-markets.js). Per
+  // ogni fonte che esisteva prima (immobiliare, idealista.it, casafari,
+  // subito, whatsapp, manual) il risultato è Roma: niente cambia.
+  const mres = RM.resolveListingMarket({
+    sourceUrl, source: raw.source, explicit: raw.market, aliasMarket: raw.aliasMarket,
+    text: raw.title || raw.address,
+  });
+  const market = mres.market || null;
+  // Chi ha già deciso la città con una prova (scan-inbox: l'alias, il testo)
+  // la passa come esplicita insieme alla prova: si registra la prova vera.
+  const marketVia = mres.via === 'explicit' && MARKET_VIAS.has(raw.marketVia) ? raw.marketVia : (mres.via || null);
+
   // ── Freshness short-circuit ───────────────────────────────
   // Crons re-scan a sliding window; if we ingested this listing recently,
   // just bump lastSeenAt instead of re-scoring all clients on every run.
@@ -77,19 +109,37 @@ export async function ingestProperty(raw, opts = {}) {
     try {
       const existing = await fsGet('pfsProperties/' + stableId);
       const seen = existing && (existing.lastSeenAt || existing.scrapedAt);
-      if (seen && (now - new Date(seen)) < skipFreshHours * 3600 * 1000) {
+      // Un annuncio visto la prima volta SENZA città che ora ce l'ha (o un doc
+      // di prima dei mercati che risulta di un'altra città) non è un
+      // ri-avvistamento: è la sua prima consegna, e va fatta per intero.
+      const firstMarket = !!market && (existing && (existing.marketUnknown === true ||
+        (existing.market == null && market !== 'roma')));
+      if (seen && !firstMarket && (now - new Date(seen)) < skipFreshHours * 3600 * 1000) {
         // Un prezzo cambiato dentro la finestra di freschezza non è "niente
         // di nuovo": si aggiorna il doc (prima restava stantio) e, se è un
         // RIBASSO, il radar lo tratta come notizia (fiuto + vedette).
         const priceChanged = existing.price != null && price !== existing.price;
-        await fsPatch('pfsProperties/' + stableId, { lastSeenAt: now, ...(priceChanged ? { price } : {}) });
+        await fsPatch('pfsProperties/' + stableId, {
+          lastSeenAt: now, ...(priceChanged ? { price } : {}),
+          ...(market && existing.market == null ? { market } : {}),
+        });
         // Anche il corto-circuito è un RI-AVVISTAMENTO: per il libro mastro
         // di mercato vale (l'annuncio è vivo → la verifica di morte slitta).
-        try { await recordObservation(stableId, { sourceUrl, source: raw.source, price: raw.price, zone: raw.zone }); } catch { /* mai bloccante */ }
-        if (priceChanged && price < existing.price) {
-          try { await radarTap(stableId, { ...existing, price, sourceUrl }, { priceJustDropped: true }); } catch { /* mai bloccante */ }
+        // Fuori Roma la zona passa solo canonica (mai un 'Centro' nudo).
+        const obsZone = market && market !== 'roma' ? (canonicalZone(raw.zone, market) || existing.zone || null) : raw.zone;
+        if (market) {
+          try { await recordObservation(stableId, { sourceUrl, source: raw.source, price: raw.price, zone: obsZone, market }); } catch { /* mai bloccante */ }
+        }
+        if (market && priceChanged && price < existing.price) {
+          try { await radarTap(stableId, { ...existing, market: existing.market || market, price, sourceUrl }, { priceJustDropped: true }); } catch { /* mai bloccante */ }
         }
         return { ok: true, propertyId: stableId, skippedFresh: true, pushedTo: [], skipped: [], belowThreshold: [], errors: [] };
+      }
+      if (seen && firstMarket) {
+        // Si spegne il "città sconosciuta" PRIMA del giro pieno (che scrive
+        // solo i suoi campi): altrimenti al prossimo avvistamento questo doc
+        // risulterebbe ancora "prima consegna" e si ripunteggerebbe sempre.
+        try { await fsPatch('pfsProperties/' + stableId, { market, marketVia, marketUnknown: false, marketReason: null }); } catch { /* il giro pieno resta valido */ }
       }
     } catch { /* fall through to full ingest */ }
   }
@@ -99,16 +149,29 @@ export async function ingestProperty(raw, opts = {}) {
   // dell'annuncio stesso (radar-engine.inferZone — parole intere, ambiguo →
   // null, mai un indovinello). Era il difetto che affamava le statistiche:
   // la fonte portante (scan-inbox) non passa nessuna zona.
-  const inferredZone = !raw.zone && (raw.title || raw.address)
-    ? RADAR.inferZone(String(raw.title || '') + ' ' + String(raw.address || ''))
-    : null;
+  // Roma: la regola di sempre, identica. Fuori Roma: solo il lessico di
+  // QUELLA città, e la zona solo nella forma canonica ('Madrid · Centro').
+  // Città sconosciuta: nessuna zona (quale lessico? nessuno).
+  const cityMarket = !!market && market !== 'roma';
+  const text = String(raw.title || '') + ' ' + String(raw.address || '');
+  let zone = null, zoneInferred = false;
+  if (market === 'roma') {
+    const inferredZone = !raw.zone && (raw.title || raw.address) ? RADAR.inferZone(text) : null;
+    zone = raw.zone || (inferredZone ? inferredZone.zone : null);
+    zoneInferred = !raw.zone && !!inferredZone;
+  } else if (cityMarket) {
+    const fromRaw = canonicalZone(raw.zone, market);
+    const inferredZone = !fromRaw && (raw.title || raw.address) ? RADAR.inferZone(text, market) : null;
+    zone = fromRaw || (inferredZone ? inferredZone.zone : null);
+    zoneInferred = !fromRaw && !!inferredZone;
+  }
   const property = {
     sourceUrl,
     source: String(raw.source || 'manual').toLowerCase(),
     title: raw.title || null,
     address: raw.address || null,
-    zone: raw.zone || (inferredZone ? inferredZone.zone : null),
-    zoneInferred: !raw.zone && !!inferredZone,
+    zone,
+    zoneInferred,
     price,
     bedrooms: typeof raw.bedrooms === 'number' ? raw.bedrooms : (parseInt(raw.bedrooms, 10) || null),
     sqm: typeof raw.sqm === 'number' ? raw.sqm : (parseInt(raw.sqm, 10) || null),
@@ -122,12 +185,26 @@ export async function ingestProperty(raw, opts = {}) {
     scrapedAt: raw.scrapedAt || now.toISOString(),
     lastSeenAt: now,
     ingestedBy,
+    market,
+    marketVia,
   };
+  if (cityMarket && raw.zone) property.zoneRaw = String(raw.zone).slice(0, 80);
+  if (!market) {
+    property.marketUnknown = true;
+    property.marketReason = mres.reason || 'market_unknown';
+  }
 
   try { await fsPatch('pfsProperties/' + stableId, property); }
   catch (err) {
     console.error('[pfs/_ingest] master write failed:', err.message);
     // Continue — we can still push to clients even if the master write hiccupped
+  }
+
+  // Città sconosciuta → si archivia e basta: niente libro mastro (le
+  // statistiche di una città non si sporcano con un annuncio forse di
+  // un'altra), niente radar, niente mazzi. Lo dice chi chiama (needsAttention).
+  if (!market) {
+    return { ok: true, propertyId: stableId, marketUnknown: true, marketReason: property.marketReason, pushedTo: [], skipped: [], belowThreshold: [], errors: [], totalActiveClients: 0 };
   }
 
   // IL PERITO: ogni annuncio visto da QUALSIASI porta alimenta anche il
@@ -145,7 +222,9 @@ export async function ingestProperty(raw, opts = {}) {
   try { radar = await radarTap(stableId, property); } catch { /* mai bloccante */ }
 
   // ── 2. Agency policy ──────────────────────────────────────
-  if (advertiser === 'agency') {
+  // Roma: 'drop' (BOOM propone solo privati). Madrid/Barcellona: 'flag' — il
+  // Full Search pubblicato promette anche le agenzie; passano, segnalate.
+  if (advertiser === 'agency' && RM.agencyPolicy(market) === 'drop') {
     await logActivity('pfs_property_agency_dropped', 'pfs_radar',
       { sourceUrl, price, propertyId: stableId }, ingestedBy);
     return { ok: true, propertyId: stableId, droppedAgency: true, pushedTo: [], skipped: [], belowThreshold: [], errors: [] };
@@ -157,6 +236,9 @@ export async function ingestProperty(raw, opts = {}) {
   catch (err) {
     return { ok: false, error: 'client_list_failed', detail: err.message, propertyId: stableId };
   }
+  // Solo i clienti della STESSA città, prima di punteggiare (scoreMatch lo
+  // ricontrolla: due guardie, non una).
+  clients = clients.filter(c => RM.clientMarket(c) === market);
 
   const threshold = Number.isFinite(opts.threshold) ? opts.threshold : DEFAULT_THRESHOLD;
   const pushedTo = [];
@@ -198,6 +280,8 @@ export async function ingestProperty(raw, opts = {}) {
       addedAt: now.toISOString(),
       addedBy: opts.addedBy || 'homie',
       matchReasons: reasons,
+      market,
+      advertiser,
     };
 
     const existingActivity = Array.isArray(client.portalActivity) ? client.portalActivity : [];
@@ -247,11 +331,13 @@ export async function ingestProperty(raw, opts = {}) {
       property.sqm ? property.sqm + ' m²' : null,
     ].filter(Boolean).join(' · ');
     const who = pushedTo.map(p => `${esc(p.name || p.clientId)} (${p.score})`).join(', ');
-    const flag = advertiser === 'unknown' ? '\n⚠️ Inserzionista da verificare' : '';
+    const flag = advertiser === 'unknown' ? '\n⚠️ Inserzionista da verificare'
+      : (advertiser === 'agency' ? '\n🏢 agencia — verificar honorarios' : '');
     const fiutoLine = radar && radar.fiuto && radar.fiuto.verdict === 'occasione'
       ? `\n💎 Occasione ${radar.fiuto.score}/100 (${radar.fiuto.eurSqm} €/mq, ${radar.fiuto.vsMedianPct}% vs mediana di zona)` : '';
+    const city = market !== 'roma' ? `${RM.marketFlag(market)} ${esc(RM.marketLabel(market, 'it'))} · ` : '';
     await tgNotify(
-      `🏠 <b>Match pronto!</b>\n${what}\n${specs}${fiutoLine}\n→ <b>${who}</b>${flag}\n\n` +
+      `🏠 ${city}<b>Match pronto!</b>\n${what}\n${specs}${fiutoLine}\n→ <b>${who}</b>${flag}\n\n` +
       `<a href="${esc(sourceUrl)}">Apri annuncio</a> · ` +
       `<a href="https://boomrome.com/pfs-command">Command Center</a>`
     );
@@ -263,6 +349,7 @@ export async function ingestProperty(raw, opts = {}) {
     propertyId: stableId,
     source: property.source,
     advertiser,
+    market,
     pushedCount: pushedTo.length,
     skippedCount: skippedExisting.length,
     belowThresholdCount: belowThreshold.length,

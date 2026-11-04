@@ -58,6 +58,8 @@
     if (!Number.isFinite(checkAt)) checkDetail = 'La data del ricontrollo deve essere impostata.';
     else if (m?.enabled === false || m?.prepareCases === false || ['disabled', 'paused'].includes(m?.status)) {
       checkState = 'paused'; checkDetail = 'Ricontrollo automatico in pausa. La data mostrata resta una verifica interna.';
+    } else if (fresh && m?.stoppedBy === 'automatic_budget') {
+      checkState = 'paused'; checkDetail = 'Preparazione automatica ferma per un limite o un contatore da verificare. Il seguito resta aperto.';
     } else if (m?.mode !== 'continuous' && m?.status === 'daily_cap') {
       checkState = 'paused'; checkDetail = 'Il limite giornaliero impedisce altre preparazioni. La data di ricontrollo resta da seguire.';
     } else if (m?.enabled === true && m?.prepareCases === true && !m?.incomplete && fresh && ['working', 'idle'].includes(m.status)) {

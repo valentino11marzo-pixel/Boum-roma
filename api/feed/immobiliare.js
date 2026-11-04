@@ -31,6 +31,7 @@
 import crypto from 'node:crypto';
 import { gzipSync } from 'node:zlib';
 import { fsList } from '../homie/_lib.js';
+import { publicationBlocked } from '../publisher/_adoption.js';
 import GEO from '../../js/boom-geo.js';
 import DISPO from '../../js/dispo-engine.js';
 import FACTS from '../../js/listing-facts.js';
@@ -187,12 +188,19 @@ export function buildFeed(listings, opts = {}) {
 }
 
 export default async function handler(req, res) {
+  res.setHeader('Cache-Control', 'private, no-store');
   if (req.method !== 'GET') return res.status(405).json({ ok: false, error: 'method_not_allowed' });
   const k = String(req.query?.k || '');
   if (!k || !crypto.timingSafeEqual(Buffer.from(k.padEnd(32).slice(0, 32)), Buffer.from(feedKey()))) {
     return res.status(401).json({ ok: false, error: 'bad_key' });
   }
   try {
+    // An adopted ad has not authorized a feed write. Do not silently omit
+    // it from a batch: a consuming portal might interpret absence as removal.
+    // Stop the whole delivery (also gzip/single-node) until separately managed.
+    const pubs = await fsList('portalPubs', {filter:{field:'portal',op:'EQUAL',value:'immobiliare'},limit:401,strictResponse:true});
+    if (pubs.length > 400) return res.status(503).json({ok:false,error:'portal_reference_scan_incomplete'});
+    if (pubs.some(publicationBlocked)) return res.status(409).json({ok:false,error:'reference_only_feed_blocked'});
     const listings = (await fsList('listings', { limit: 400 })).map((l) => ({ ...l }));
     const opts = { extended: req.query?.core !== '1' };
     const wantId = String(req.query?.id || '');

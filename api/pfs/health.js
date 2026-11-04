@@ -9,7 +9,7 @@
 import { fsGet } from '../homie/_lib.js';
 import { requireCronOrAdmin } from './_guard.js';
 
-const SOURCES = ['inbox', 'market', 'sync'];
+const SOURCES = ['inbox', 'market', 'sync', 'inbox-madrid', 'inbox-barcelona'];
 
 export default async function handler(req, res) {
   if (req.method !== 'GET' && req.method !== 'POST') {

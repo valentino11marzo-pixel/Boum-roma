@@ -239,5 +239,39 @@ check('gli intervalli sono sensati e contengono il default', () => {
   }
 });
 
+// I battiti: ogni documento di salute che il server scrive per un agente
+// deve finire sul SUO pallino. L'Orecchio ne ha due (richieste e rimbalzi):
+// con uno solo dichiarato, i rimbalzi potevano fallire sotto un pallino verde
+// — o finire, peggio, nel pallino dello Scout.
+check('i battiti dei rimbalzi sono dell\'Orecchio (e non dello Scout)', () => {
+  const src = readFileSync(join(root, 'api', 'leads', '_rimbalzi.js'), 'utf8');
+  const m = /export const HEALTH_SOURCE = '([^']+)'/.exec(src);
+  assert.ok(m, 'HEALTH_SOURCE non trovato in api/leads/_rimbalzi.js');
+  const owner = S.healthOwner('pfsRadarHealth', m[1]);
+  assert.ok(owner && owner.key === 'orecchio', `pfsRadarHealth/${m[1]} non ha padrone nel registro (cadrebbe nel pallino dello Scout)`);
+  assert.equal(S.healthOwner('pfsRadarHealth', 'leads-inbox').key, 'orecchio');
+  assert.equal(S.healthOwner('teamHealth', 'lead-brain').key, 'lead-brain', 'un battito semplice resta del suo agente');
+  assert.equal(S.healthOwner('pfsRadarHealth', 'inbox'), null, 'le fonti PFS restano allo Scout (rollup)');
+});
+
+check('il pallino di un agente a più battiti è il PEGGIORE', () => {
+  const ok = { ok: true, consecutiveErrors: 0, lastRunAt: new Date().toISOString() };
+  const bad = { ok: false, consecutiveErrors: 4, lastRunAt: new Date().toISOString(), lastError: 'telegram_failed' };
+  assert.equal(S.worseHealth(ok, bad), bad);
+  assert.equal(S.worseHealth(bad, ok), bad);
+  assert.equal(S.worseHealth(undefined, ok), ok);
+  const old = { ok: true, consecutiveErrors: 0, lastRunAt: new Date(Date.now() - 40 * 3600e3).toISOString() };
+  assert.equal(S.statusOf(S.worseHealth(ok, old)), 'warn', 'a parità, conta il più vecchio (stantio)');
+  // il guasto dei rimbalzi sotto richieste verdi: rosso
+  assert.equal(S.statusOf(S.worseHealth(ok, bad)), 'err');
+});
+
+check('le due console leggono il padrone del battito dal registro', () => {
+  const team = readFileSync(join(root, 'team.html'), 'utf8');
+  const portal = readFileSync(join(root, 'js', 'portal-app.js'), 'utf8');
+  assert.ok(/SQ\.healthOwner\(col, docId\)/.test(team) && /SQ\.worseHealth\(own\[direct\.key\], h\)/.test(team), 'team.html: healthOwner + worseHealth');
+  assert.ok(/SQ\.healthOwner\('pfsRadarHealth', d\.id\)/.test(portal) && /SQ\.worseHealth\(own\[direct\.key\], h\)/.test(portal), 'portal-app.js: healthOwner + worseHealth');
+});
+
 console.log(`\n  ${pass} passati, ${fail} falliti\n`);
 process.exit(fail ? 1 : 0);

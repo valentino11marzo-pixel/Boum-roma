@@ -881,11 +881,14 @@
       consent.onchange=ready;
       document.getElementById('s-back').onclick=function(){ return S.phoneVerified ? renderIdentity() : renderPhone(); };
       var signBtn=document.getElementById('s-sign');
-      var documentReady=false;
-      function ready(){ signBtn.disabled = !(documentReady && pad.hasInk() && consent.checked); }
+      // Qui NON c'è un'anteprima PDF da verificare (quella è del flusso
+      // personalizzato, renderCustom): la versione letta la lega il server
+      // con contractVersion (409 version_changed). Un cancello
+      // documentReady qui non si apriva mai — bottone spento per sempre.
+      function ready(){ signBtn.disabled = !(pad.hasInk() && consent.checked); }
       pad.onChange=ready;
       signBtn.onclick=function(){
-        if(!documentReady||!pad.hasInk()||!consent.checked) return;
+        if(!pad.hasInk()||!consent.checked) return;
         signBtn.disabled=true; signBtn.innerHTML='<span class="spin"></span>';
         S.signature=pad.toDataURL();
         submit();

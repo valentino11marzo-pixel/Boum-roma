@@ -16,6 +16,7 @@ import { requireCronOrAdmin } from './_guard.js';
 import { ingestProperty } from './_ingest.js';
 import { fetchHtml, extractListingUrls, parseListing, detectAdvertiser } from './_fetch.js';
 import { reportHealth, reportNeedsAttention } from './_health.js';
+import { CITY_ONLY_PORTALS } from '../homie/searches.js';
 
 const MAX_SEARCHES_PER_RUN = 12;
 const MAX_DETAIL_FETCHES = 24;   // global per run, keeps us inside maxDuration
@@ -29,9 +30,18 @@ export default async function handler(req, res) {
   if (!actor) return;
 
   let searches = [];
+  let citySkipped = 0;
   try {
     const all = await fsList('radarSearches', { limit: 200 });
+    // Le ricerche idealista.com delle città (Madrid, Barcellona) NON si
+    // aprono dal server: il portale blocca gli IP dei datacenter come il .it,
+    // e parseListing è quello italiano («€ 1.200», mai «1.200 €/mes»). Restano
+    // modelli per gli alert email (la fonte vera delle città). Stessa regola
+    // degli occhi di Homie (api/homie/searches.js, CITY_ONLY_PORTALS) — e così
+    // non rubano posti al tetto di 12 ricerche / 24 schede di Roma.
+    citySkipped = all.filter(s => s.auto === true && s.enabled !== false && CITY_ONLY_PORTALS.has(s.portal)).length;
     searches = all
+      .filter(s => !CITY_ONLY_PORTALS.has(s.portal))
       .filter(s => s.auto === true && s.enabled !== false && (s.urlOverride || s.searchUrl))
       .sort((a, b) => String(a.lastScanAt || '').localeCompare(String(b.lastScanAt || '')))
       .slice(0, MAX_SEARCHES_PER_RUN);
@@ -41,8 +51,8 @@ export default async function handler(req, res) {
   }
 
   if (!searches.length) {
-    await reportHealth('market', { ok: true, stats: { searches: 0, note: 'no_enabled_searches' } });
-    return res.status(200).json({ ok: true, searches: 0, note: 'no_enabled_searches — run sync-searches first' });
+    await reportHealth('market', { ok: true, stats: { searches: 0, citySkipped, note: 'no_enabled_searches' } });
+    return res.status(200).json({ ok: true, searches: 0, citySkipped, note: 'no_enabled_searches — run sync-searches first' });
   }
 
   const now = new Date();
@@ -100,6 +110,9 @@ export default async function handler(req, res) {
         // marketStats. Senza zoneName si lascia null: ci pensa
         // l'inferenza dal titolo dentro _ingest.
         zone: search.zoneName || null,
+        // La città della ricerca (sync-searches la scrive): una ricerca
+        // idealista.com è di Madrid o Barcellona, mai di Roma.
+        market: search.market || 'roma',
         bedrooms: listing.bedrooms,
         sqm: listing.sqm,
         images: listing.images,
@@ -153,12 +166,12 @@ export default async function handler(req, res) {
     ok,
     blocked,
     error: ok ? null : `all ${pagesFailed} search pages unreachable (anti-bot?)`,
-    stats: { searches: searches.length, pagesOk, pagesFailed, ingested, droppedAgency, pushedTotal },
+    stats: { searches: searches.length, citySkipped, pagesOk, pagesFailed, ingested, droppedAgency, pushedTotal },
   });
 
   return res.status(200).json({
     ok, actor,
-    searches: searches.length, pagesOk, pagesFailed,
+    searches: searches.length, citySkipped, pagesOk, pagesFailed,
     ingested, droppedAgency, pushedTotal, results,
   });
 }

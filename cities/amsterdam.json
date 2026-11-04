@@ -1,0 +1,337 @@
+{
+  "slug": "amsterdam",
+  "city": "Amsterdam",
+  "country": "NL",
+  "iata": "AMS",
+  "geo": {
+    "lat": 52.3676,
+    "lon": 4.9041
+  },
+  "live": true,
+  "mode": "search",
+  "config": {},
+  "updated": "2026-11-03",
+  "meta": {
+    "title": "Tenant-side rental agent for expats in Amsterdam — BOOM",
+    "description": "Apartment search for expats in Amsterdam, tenant side only: a Dutch-format dossier, applications sent as listings appear, viewings attended, contract checked.",
+    "ogTitle": "BOOM Amsterdam — an agent on your side of the table",
+    "ogDescription": "Tenant-side rental search for expats and internationals moving to Amsterdam. Dossier within one working day of your papers, applications sent as listings appear, attended viewings, contract checked. Flat fees, paid by you — never by landlords."
+  },
+  "service": {
+    "name": "BOOM Amsterdam — tenant-side rental search (aanhuurmakelaar)",
+    "serviceType": "Tenant-side rental search agent",
+    "audience": "Expats and internationals relocating to Amsterdam",
+    "description": "Rental search in Amsterdam on the tenant's side only: Dutch-format application dossier within one working day of the tenant's papers, applications sent as listings appear, attended viewings with live video and written report, negotiation of rent, deposit and service costs, contract check against Dutch law, BRP registration confirmed in writing. Flat fees paid by the tenant, nothing from landlords or platforms."
+  },
+  "hero": {
+    "h1Before": "Your home in",
+    "lead": "We search, apply, attend the viewings and check the lease.",
+    "leadStrong": "We work exclusively for you; never paid by landlords.",
+    "faresHead": {
+      "b": "Flat fees",
+      "span": "No percentage of your rent"
+    }
+  },
+  "pricing": {
+    "plans": [
+      {
+        "id": "full-search",
+        "label": "Full Search",
+        "name": "We search. You choose.",
+        "price": 500,
+        "condition": "flat · incl. VAT",
+        "conditionLong": "VAT included. Invoice from Egidi Immobiliare S.r.l.",
+        "includes": [
+          "Every working day: Pararius, Funda, agencies",
+          "Motivation letter, applications as listings appear",
+          "One attended viewing (more: €149 each)",
+          "Rent negotiated, contract checked, BRP supported",
+          "Until you sign, or you say stop"
+        ],
+        "offerDescription": "Search, Dutch-format dossier and motivation letter, applications as listings appear, one attended viewing, negotiation and contract check, until the tenant signs or stops the search.",
+        "when": "Haven't started yet"
+      },
+      {
+        "id": "application-pack",
+        "label": "Application Pack",
+        "name": "You search. We make you win.",
+        "price": 199,
+        "condition": "flat · incl. VAT",
+        "conditionLong": "VAT included. Invoice from Egidi Immobiliare S.r.l.",
+        "includes": [
+          "Dutch-format dossier, one working day from your papers",
+          "Motivation letter, Dutch + English",
+          "Income and guarantor strategy",
+          "Contract review before you sign"
+        ],
+        "offerDescription": "Dutch-format rental dossier within one working day of your papers, motivation letter, income and guarantor strategy, contract review.",
+        "when": "Found one, or shortlisted and already in Amsterdam"
+      },
+      {
+        "id": "attended-viewing",
+        "label": "Attended Viewing",
+        "unit": "per viewing",
+        "name": "Eyes on the ground.",
+        "price": 149,
+        "condition": "per viewing · incl. VAT",
+        "conditionLong": "VAT included. Invoice from Egidi Immobiliare S.r.l.",
+        "includes": [
+          "A BOOM person attends in your place",
+          "Live video walkthrough",
+          "Written report: light, noise, damp, neighbours, commute",
+          "A straight recommendation"
+        ],
+        "offerDescription": "A BOOM person attends the viewing in your place, with live video and a written report.",
+        "when": "Shortlisted, still abroad"
+      }
+    ]
+  },
+  "stub": {
+    "notSure": "Not sure which fare? On a free call we say which fits, or that none does."
+  },
+  "how": {
+    "h2": "From the first call",
+    "h2g": "to the keys.",
+    "steps": [
+      {
+        "k": "1 · Brief",
+        "h": "A free call",
+        "p": "Dates, budget, who's moving. We tell you what your budget buys today.",
+        "status": "FREE"
+      },
+      {
+        "k": "2 · Your file",
+        "h": "Dutch-format, one working day",
+        "p": "Dossier and motivation letter from your papers. Applications as listings appear.",
+        "status": "1 WORK DAY"
+      },
+      {
+        "k": "3 · Viewing & lease",
+        "h": "A BOOM person in the room",
+        "p": "Live video and a written report. The contract checked against Dutch law before you sign.",
+        "status": "IN PERSON"
+      }
+    ]
+  },
+  "checks": {
+    "h2": "What we check",
+    "h2g": "before you sign.",
+    "items": [
+      {
+        "id": "deposit",
+        "title": "The deposit cap",
+        "at": "2× basic rent",
+        "text": "Dutch law caps the deposit at two months' basic rent, service costs excluded. Agents still ask for three. We don't let them."
+      },
+      {
+        "id": "brp",
+        "title": "Registration",
+        "at": "BRP · BSN",
+        "text": "A landlord cannot forbid registration at the address. Without BRP, a BSN and a bank account get hard. We confirm it in writing before you sign."
+      },
+      {
+        "id": "wws",
+        "title": "The points system",
+        "at": "WWS",
+        "text": "Many Amsterdam homes fall under the points system. An asking rent above the legal maximum is leverage. We run the check."
+      },
+      {
+        "id": "contract",
+        "title": "Contract type",
+        "at": "since 2024",
+        "text": "Since 2024 the default contract is indefinite. Fixed-term offers are the exception, with conditions. We check which one you are handed."
+      }
+    ]
+  },
+  "papers": {
+    "summary": "The papers a Dutch landlord asks for",
+    "at": "8 papers",
+    "items": [
+      "Passport or EU ID",
+      "Employment contract",
+      "Employer statement (werkgeversverklaring)",
+      "Last three payslips",
+      "Previous landlord reference",
+      "A guarantor, if your income falls short",
+      "Three months of bank statements",
+      "Motivation letter, Dutch and English"
+    ],
+    "tail": "The rest we go through on the free call."
+  },
+  "faq": {
+    "h2": "Questions.",
+    "items": [
+      {
+        "q": "Isn't it illegal for agents to charge tenants in the Netherlands?",
+        "a": "It is illegal for an agent to charge you when they also act for the landlord — what most \"free\" agencies do. An agent you hire, who works only for you, may charge you for the work. BOOM Amsterdam is that agent (aanhuurmakelaar): hired and paid by the tenant only."
+      },
+      {
+        "q": "What happens on the free call?",
+        "a": "A call with Valentino, by phone or WhatsApp, at a time that suits you both. We hear your dates, budget and who is moving, say which service fits, or that none does, and which papers you are missing. Nothing is charged for the call. Full Search is refunded in full if we decline the search in the first call."
+      },
+      {
+        "q": "How do I avoid a rental scam in Amsterdam from abroad?",
+        "a": "Never pay a deposit or first rent for a home nobody on your side has seen. With Attended Viewing (€149) a BOOM person visits it in your place, with live video and a written report. With Full Search or Application Pack we also check the contract, and confirm in writing that you can register (BRP) at the address, before you sign."
+      },
+      {
+        "q": "What if you don't find anything?",
+        "a": "We tell you in the first call if your budget and timeline don't fit the market; if BOOM declines the search then, the €500 Full Search fee is refunded in full. Once we take it on, the search runs until you sign or stop it, and the fee pays for the work, not for a result."
+      }
+    ]
+  },
+  "bref": {
+    "h2": "BOOM Amsterdam — fact sheet",
+    "rows": [
+      {
+        "dt": "Who",
+        "ddHtml": "BOOM Amsterdam, the tenant-side rental desk of BOOM — operated by <b>Egidi Immobiliare S.r.l.</b>, a registered Italian agency. In the Netherlands the role is called <b>aanhuurmakelaar</b>: hired by the tenant, paid by the tenant only."
+      },
+      {
+        "dt": "For whom",
+        "ddHtml": "Expats and internationals relocating to Amsterdam — employees, researchers, couples and families — from abroad or already in the city."
+      },
+      {
+        "dt": "Language",
+        "ddHtml": "English. The motivation letter goes in Dutch and English."
+      },
+      {
+        "dt": "Fees",
+        "fees": true,
+        "ddHtml": "No percentage of the rent, nothing from landlords or platforms."
+      },
+      {
+        "dt": "What we do",
+        "ddHtml": "Dutch-format dossier within <b>one working day</b> of your papers, applications <b>as listings appear</b>, attended viewings with live video and written report, negotiation, contract check against Dutch law, BRP confirmed in writing."
+      },
+      {
+        "dt": "What we don't do",
+        "ddHtml": "We don't list homes, we don't represent landlords, we don't promise a date."
+      },
+      {
+        "dt": "Reply time",
+        "ddHtml": "The same working day."
+      },
+      {
+        "dt": "Contact",
+        "contact": true,
+        "ddHtml": ""
+      }
+    ]
+  },
+  "footer": {
+    "statement": "BOOM Amsterdam acts solely as a tenant-side search agent (aanhuurmakelaar). We do not list properties, represent landlords, or receive remuneration from landlords or their agents."
+  },
+  "desk": {
+    "person": "Valentino Egidi",
+    "role": "tenant-side agent",
+    "timeZone": "Europe/Rome",
+    "tzLabel": "CET/CEST",
+    "hours": {
+      "from": "09:00",
+      "to": "19:00"
+    },
+    "days": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ]
+  },
+  "door": {
+    "label": "Start with a free call"
+  },
+  "form": {
+    "name": {
+      "label": "Your name",
+      "placeholder": "Anna Keller"
+    },
+    "contact": {
+      "label": "Email or WhatsApp number",
+      "placeholder": "anna@company.com or +31 …"
+    },
+    "consentLead": "Used only to reply to you —",
+    "consentAlt": "Prefer WhatsApp or email?",
+    "errors": {
+      "name": "Your name, so we know who we're writing to.",
+      "contact": "An email or a number — otherwise we can't reply.",
+      "email": "That email looks incomplete — could you check it?",
+      "net": "The send failed on our side. Try again, or email us directly at hello@boom-rome.com."
+    },
+    "sending": "Opening your file…",
+    "sentNext": [
+      [
+        "{when}",
+        "Valentino writes to set your free call."
+      ],
+      [
+        "Nothing to prepare",
+        "On the call we say which papers matter."
+      ],
+      [
+        "Nothing by then?",
+        "Write to {email}."
+      ]
+    ],
+    "sentWhenDefault": "Same working day"
+  },
+  "checkout": true,
+  "checkoutCopy": {
+    "noteLabel": "A listing you already found, or anything we should know",
+    "notePlaceholder": "https://www.pararius.com/… · move-in 1 February",
+    "btnSubNow": "Starts in the desk’s first open hour · Stripe",
+    "btnSubWait": "Starts when your 14 days end · Stripe",
+    "altLead": "Prefer to talk first?",
+    "altLink": "Start with a free call, no card",
+    "startNow": "Start now: I ask BOOM to begin before my 14-day withdrawal period ends, and I understand that once the service is fully performed I can no longer withdraw.",
+    "withdrawal": "Withdrawal: 14 days from payment, by email to {email} or with the {form}. If you asked us to start and then withdraw, we refund the price minus the work already done. Without the tick, we start when the 14 days end.",
+    "fine": "Secure card payment by Stripe. Invoice from Egidi Immobiliare S.r.l., VAT included. Full Search is refunded in full if we decline the search in the first call.",
+    "errors": {
+      "name": "Your name, so we know who we're working for.",
+      "email": "A valid email — the invoice and your file go there.",
+      "net": "Checkout hiccuped on our side — try again, or start with a free call instead."
+    },
+    "paid": {
+      "before": "Paid — your file",
+      "em": "is open.",
+      "text": "The Amsterdam desk writes by email, or on WhatsApp if you left a number. Questions? Write to",
+      "next": [
+        [
+          "First desk hour",
+          "an email from the desk with what we need"
+        ],
+        [
+          "Same working day",
+          "your brief: dates, budget, who's moving"
+        ],
+        [
+          "Then",
+          "the work as written on this page"
+        ]
+      ],
+      "nextWait": [
+        [
+          "First desk hour",
+          "an email with your order and start date"
+        ],
+        [
+          "When the 14 days end",
+          "your brief: dates, budget, who’s moving"
+        ],
+        [
+          "Then",
+          "the work as written on this page"
+        ]
+      ],
+      "wait": "You did not tick “Start now”: we start when your 14 days end. Sooner? Write to {email}.",
+      "pending": "Payment being confirmed. Your confirmation comes by email.",
+      "unconfirmed": "Not confirmed yet. If no email reaches you, write to the desk.",
+      "startsNow": "The desk’s first open hour",
+      "startsWait": "From {date}, after your 14-day withdrawal period"
+    }
+  },
+  "till": {
+    "label": "Pay and start",
+    "labelWait": "Pay and book"
+  }
+}

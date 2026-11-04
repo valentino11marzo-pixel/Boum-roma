@@ -344,8 +344,10 @@ const strip = h => h.replace(/<!--[\s\S]*?-->|<script[\s\S]*?<\/script>|<style[\
   ok('Pacchetto: il recesso è detto, e l\'inizio immediato è una spunta SUA, mai pre-selezionata',
     /Recesso: 14 giorni/.test(vp) && /<input type="checkbox" id="sStart">/.test(pack) && /startNow:startNow/.test(pack));
   const sc = read('api/service-checkout.js'), wh = read('api/stripe-webhook.js');
-  ok('...e la scelta arriva all\'operatore (metadata → messaggio del lead), solo per il Pacchetto',
-    /body\.kind === 'concordato-pack' \? \{ start_now/.test(sc) && /m\.start_now === '1'/.test(wh));
+  // The city desks' till (cityOffer, 20/10) carries the same tick; the Rome
+  // one-tap services (virtual viewing, deal assistance…) still do not.
+  ok('...e la scelta arriva all\'operatore (metadata → messaggio del lead), solo per il Pacchetto e per la cassa dei desk città',
+    /body\.kind === 'concordato-pack' \|\| offer \? \{ start_now/.test(sc) && /m\.start_now === '1'/.test(wh));
   ok('Pacchetto: identità legale completa nel piede (P.IVA e REA)', /P\.IVA 17322991005 · REA RM-1710623/.test(pack));
   const vc = strip(can);
   // L'esempio della risposta breve è RICALCOLATO dal motore: se cambiano le

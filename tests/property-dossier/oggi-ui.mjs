@@ -11,6 +11,9 @@ import { html as propertyHtml, extract } from './harness.mjs';
 const ROOT = fileURLToPath(new URL('../../', import.meta.url));
 const source = readFileSync(join(ROOT, 'js/portal-app.js'), 'utf8');
 const oggi = source.slice(source.indexOf('    function oggiDismissKey()'), source.indexOf('    function adminDashboard()'));
+const search = source.slice(source.indexOf('    function handleSearch('), source.indexOf('    // Close search on click outside'));
+const sourceChecks = source.slice(source.indexOf('    function portalMailState('), source.indexOf('    function inboxThreadPanel('));
+const sessionProof = source.slice(source.indexOf('    function portalSessionProof('), source.indexOf('    function portalSessionReset('));
 const inboxListeners = ['startInboxListener', 'stopInboxListener', 'stopOpenConvListener', 'inboxRefresh'].map(extract).join('\n');
 const toast = source.slice(source.indexOf('    function toast('), source.indexOf("    console.log('🚀 BOOM Portal"));
 assert(oggi.includes('oggiSegretariaRestorePropertyContext'), 'Exercise the actual integrated Oggi code');
@@ -29,11 +32,12 @@ const rows = Array.from({ length: 10 }, (_, i) => ({
 const boundary = `
 Object.assign(S, {_paLoaded:true, preAgreements:[], messages:[], pfsClients:[], viewingRequests:[]});
 const auth={currentUser:{uid:S.profile.id,getIdToken:async()=>{testIO.tokens++;return 'synthetic-token';}}};
-window.testIO={requests:[],subscriptions:0,unsubscriptions:0,dbReads:0,writes:0,coreRefreshes:0,tokens:0};
+window.testIO={requests:[],subscriptions:0,unsubscriptions:0,dbReads:0,closureReads:0,writes:0,coreRefreshes:0,tokens:0};
 window.apiRows=${JSON.stringify(rows)}; window.holdAPI=false; window.heldAPI=[];
 window.fetch=async(url,options={})=>{
   testIO.requests.push({url:String(url),method:options.method||'GET'});
   if(options.method && options.method!=='GET'){testIO.writes++;throw Error('Unexpected write: '+url);}
+  if(String(url)==='/api/segretaria/scan-replies?status=1')return {ok:true,json:async()=>({ok:true,email:{configured:false,lastScan:null},whatsapp:{bridgeFresh:false}})};
   if(String(url)!=='/api/segretaria/follow-up')throw Error('Unexpected API/AI read: '+url);
   if(holdAPI)await new Promise(resolve=>heldAPI.push(resolve));
   else await new Promise(resolve=>setTimeout(resolve,80));
@@ -43,11 +47,13 @@ window.releaseAPI=()=>{holdAPI=false;heldAPI.splice(0).forEach(resolve=>resolve(
 const db={collection(name){
   if(name==='conversations')return {orderBy(){return this;},limit(){return this;},onSnapshot(options,next){next({docs:[],metadata:{fromCache:false}});return()=>{};}};
   if(name!=='operatorTasks')throw Error('Unexpected collection: '+name);
+  let closure=false,cap=null;
   return {where(field,op,value){
-    if(field!=='followUp.open'||op!=='=='||value!==true)throw Error('Unexpected task query');
+    closure=field==='doneAt'&&op==='>='&&value instanceof Date&&Math.abs(Date.now()-value.getTime()-7*86400000)<2000;
+    if(!closure&&(field!=='followUp.open'||op!=='=='||value!==true))throw Error('Unexpected task query');
     return this;
-  },onSnapshot(next){testIO.subscriptions++;next({docs:[]});return()=>testIO.unsubscriptions++;},
-  get(){testIO.dbReads++;throw Error('Unexpected bulk read');},
+  },limit(value){cap=value;return this;},onSnapshot(next){testIO.subscriptions++;next({docs:[]});return()=>testIO.unsubscriptions++;},
+  get(options){testIO.dbReads++;if(!closure||cap!==201||options?.source!=='server')throw Error('Unexpected bulk read');testIO.closureReads++;return Promise.resolve({docs:[]});},
   doc(){testIO.writes++;throw Error('Unexpected Firestore access');}};
 }};
 `;
@@ -59,7 +65,7 @@ const html = propertyHtml
   .replace('</head>', '<link rel="stylesheet" href="/css/segretaria.css"></head>')
   .replace('<script src="/js/rent-engine.js">', engines + '<script src="/js/rent-engine.js">')
   .replace("async function loadDataFresh(){BOOM_PROPERTY_DOSSIER", "async function loadDataFresh(){testIO.coreRefreshes++;BOOM_PROPERTY_DOSSIER")
-  .replace(boot, boundary + oggi + inboxListeners + '\n' + toast + '\nwindow.testCases=oggiSegretaria;\n' + "startInboxListener();goTo(location.hash.slice(1)||'oggi');");
+  .replace(boot, boundary + '\nvar portalSessionGeneration=0;\n' + sessionProof + search + sourceChecks + oggi + inboxListeners + '\n' + toast + '\nwindow.testCases=oggiSegretaria;\n' + "startInboxListener();goTo(location.hash.slice(1)||'oggi');");
 
 const server = createServer(async (req, res) => {
   try {
@@ -94,6 +100,8 @@ try {
     let visit = 0;
     const fresh = async () => {
       await page.goto(base + '/portal?case=' + (++visit) + '#oggi'); await idle();
+      assert.equal(await page.evaluate(() => testCases.closedComplete), true, 'Closure query is fulfilled rather than swallowed as unavailable');
+      assert.match(await page.evaluate(() => testState.mailSources.summary), /Email: connessione non configurata/);
       await page.locator('#ogQueueArchive > summary').click();
       await page.waitForSelector('article[data-sg-id="' + TARGET + '"]');
       // Existing mobile transformations are debounced by 70ms.
@@ -230,7 +238,8 @@ try {
         await page.screenshot({ path: join(process.env.SCREENSHOT_DIR, width === 1440 ? 'oggi-desktop.png' : 'oggi-mobile.png') });
       }
     });
-    assert.equal(await page.evaluate(() => testIO.writes + testIO.dbReads + testIO.coreRefreshes), 0);
+    assert.equal(await page.evaluate(() => testIO.writes + testIO.coreRefreshes), 0);
+    assert.equal(await page.evaluate(() => testIO.dbReads === testIO.closureReads && testIO.closureReads > 0), true, 'Only the bounded server closure query is allowed');
     await context.close();
   }
   assert.deepEqual(errors, [], 'No actual browser exceptions');

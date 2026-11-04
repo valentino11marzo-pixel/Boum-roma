@@ -31,7 +31,7 @@
 //
 // Accetta accende SOLO la misura (Google Analytics + il cookie di
 // attribuzione di BOOM): i segnali ad_* restano negati, e il riquadro dice
-// in EN/IT/FR cosa accende. Una scelta scaduta toglie boom_attr.
+// in EN/IT/FR/TR cosa accende. Una scelta scaduta toglie boom_attr.
 //
 // E il RIPENSAMENTO (GDPR art. 7(3), Garante 10/06/2021: ritirare il
 // consenso dev'essere facile quanto darlo). Il riquadro non si riapriva da
@@ -42,11 +42,12 @@
 // cookie _ga/_gid e i contatti salvati. E nessuna pagina NUOVA può
 // chiamare gtag('config') senza un consent default «denied» prima.
 //
-// E le regole MORDONO: otto mutanti del vero js/boom-consent.js (il
+// E le regole MORDONO: nove mutanti del vero js/boom-consent.js (il
 // comportamento di prima, la misura della barra spenta, lo scorrimento
 // sordo, il timer dei 5s spento, .zz rimesso dentro la media query del
 // telefono, nessun ripensamento, il timer dal load, la misura solo per chi
-// parte da telefono) devono far cadere ciascuno la sua regola. Una guardia che non
+// parte da telefono, la Gate dei desk città fuori da «al lavoro») devono
+// far cadere ciascuno la sua regola. Una guardia che non
 // cade mai sul difetto che deve fermare non è una guardia.
 
 import fs from 'node:fs';
@@ -80,6 +81,13 @@ const sw = fs.readFileSync(path.join(R, 'sw.js'), 'utf8');
   if (/bottom:calc\(84px/.test(src)) guai.push('resta il vecchio bottom:84px a mano');
   if (!/boom-consent-granted/.test(src) || !/boom-consent-denied/.test(src)) guai.push('gli eventi del consenso sono cambiati');
   if (!/setTimeout\(open, 700\)/.test(src)) guai.push('il desktop non apre più a 700ms');
+  // i desk città (data-consent-late): la targa aspetta solo ciò che coprirebbe DAVVERO —
+  // in altezza E in larghezza (sul desktop sta a sinistra; il caso del browser è in tests/cities/ui.mjs)
+  if (!/r\.bottom > box\.top && r\.top < box\.bottom && r\.right > box\.left && r\.left < box\.right/.test(src)) guai.push('meets() non chiede più la sovrapposizione orizzontale');
+  // v1.6: la Gate dei desk (#desk, con la porta tracciata #deskGo) e il gemello
+  // d'oro dell'header (#topGo) sono il lettore al lavoro: un tap lì non arma
+  if (!/closest\('#checkin, #pass, #contact, #desk, #topGo, dialog'\)/.test(src)) guai.push('lateInside() non conta più #desk e #topGo come «al lavoro»');
+  if (!/var dg = document\.getElementById\('deskGo'\);\s*if \(dg && meets\(dg, box\)\) return true;/.test(src)) guai.push('atWork() non aspetta più la porta della Gate (#deskGo)');
   guai.length ? male('sorgente di boom-consent.js:' + elenco(guai)) : bene('boom-consent.js: telefono compatto con lift e .zz, desktop a 700ms, eventi invariati');
 }
 {
@@ -177,12 +185,14 @@ const sw = fs.readFileSync(path.join(R, 'sw.js'), 'utf8');
   if (adGranted) guai.push('grant() concede segnali pubblicitari: ' + adGranted.join(', '));
   for (const k of ['ad_storage', 'ad_user_data', 'ad_personalization'])
     if (!new RegExp(k + ":\\s*'denied'").test(grant)) guai.push(`grant() non dice «denied» per ${k} (una pagina senza default lo darebbe per concesso)`);
-  // le tre lingue del riquadro: dice cosa accende, non «un cookie»
+  // le quattro lingue del riquadro (EN/IT/FR e TR, dal 25/10 per /istanbul):
+  // dice cosa accende, non «un cookie». In turco il cookie di attribuzione
+  // è il «kaynak çerezi» (il cookie della fonte).
   const testi = [...src.matchAll(/\bp: '((?:[^'\\]|\\.)*)'/g)].map((m) => m[1]);
-  if (testi.length !== 3) guai.push(`testi del riquadro trovati: ${testi.length} invece di 3 (EN/IT/FR)`);
+  if (testi.length !== 4) guai.push(`testi del riquadro trovati: ${testi.length} invece di 4 (EN/IT/FR/TR)`);
   for (const t of testi) {
     if (!/Google Analytics/.test(t)) guai.push(`il riquadro non nomina Google Analytics: «${t.slice(0, 60)}…»`);
-    if (!/attribution|attribuzione/i.test(t)) guai.push(`il riquadro non nomina il cookie di attribuzione: «${t.slice(0, 60)}…»`);
+    if (!/attribution|attribuzione|kaynak çerez/i.test(t)) guai.push(`il riquadro non nomina il cookie di attribuzione: «${t.slice(0, 60)}…»`);
     if (/One analytics cookie|Un cookie di misurazione|Un cookie de mesure/i.test(t)) guai.push(`il riquadro promette ancora UN cookie: «${t.slice(0, 60)}…»`);
     if (t.replace(/<[^>]+>/g, '').length > 170) guai.push(`il riquadro è lungo ${t.replace(/<[^>]+>/g, '').length} caratteri (≤170): «${t.slice(0, 40)}…»`);
   }
@@ -196,7 +206,7 @@ const sw = fs.readFileSync(path.join(R, 'sw.js'), 'utf8');
   if (!/if \(delayed && !due && !wait5\) wait5 = setTimeout\(show, 5000\);/.test(corpo('arm'))) guai.push('arm() non fa partire i 5s');
   if (!/if \(!onPhone\(\)\) \{ el\.style\.removeProperty\('--boomcst-lift'\); return; \}/.test(corpo('lift'))) guai.push('lift() misura anche fuori dal telefono');
   guai.length ? male('boom-consent.js, cosa accende Accetta:' + elenco(guai))
-    : bene('boom-consent.js: Accetta concede solo analytics_storage (ad_* «denied»), il riquadro EN/IT/FR nomina Google Analytics e il cookie di attribuzione; diniego e scadenza tolgono boom_attr; i 5s partono dall\'arrivo');
+    : bene('boom-consent.js: Accetta concede solo analytics_storage (ad_* «denied»), il riquadro EN/IT/FR/TR nomina Google Analytics e il cookie di attribuzione; diniego e scadenza tolgono boom_attr; i 5s partono dall\'arrivo');
 }
 
 const chromium = await loadChromium();
@@ -591,7 +601,7 @@ async function arrivo(sorgente = null) {
 // interruttore di lingua) e su /pre-arrival, che NON carica boom-track.js.
 const RIPENSA = [['/', 'Cookie preferences'], ['/faq', 'Cookie preferences'], ['/owners', 'Preferenze cookie'],
   ['/reunion', 'Préférences cookies'], ['/blog-47-steps', 'Cookie preferences'], ['/privacy', 'Cookie preferences'],
-  ['/pre-arrival', 'Cookie preferences']];
+  ['/pre-arrival', 'Cookie preferences'], ['/istanbul', 'Çerez tercihleri']];
 async function apriCon(url, { consenso = null, cookie = [], sorgente = null, w = 1280, h = 900, mobile = false, init = null } = {}) {
   const ctx = await br.newContext({ viewport: { width: w, height: h }, isMobile: mobile, hasTouch: mobile });
   if (cookie.length) await ctx.addCookies(cookie.map(([name, value]) => ({ name, value, url: BASE })));
@@ -695,6 +705,38 @@ async function ripensa(sorgente = null) {
       + '«Essential only» su /pre-arrival toglie boom_attr, _ga, _gid e i contatti; senza scelta i _ga già scritti spariscono, col consenso restano; #cookie-preferences riapre');
 }
 
+// ── v1.6: un tap sulla porta della Gate (#deskGo) non arma la targa ───────
+// I desk città aspettano la prima mossa del lettore FUORI dal suo lavoro:
+// un tap dentro la diagnosi, il pass, la Gate o il gemello d'oro è lavoro.
+// Controprova: un tap sulla didascalia della Rete la arma.
+async function gate(sorgente = null) {
+  const guai = [];
+  const pg = await apri('/amsterdam', 390, 844, { sorgente });
+  const visibile = () => pg.evaluate(() => { const el = document.querySelector('.boomcst'); return !!el && !el.classList.contains('zz') && getComputedStyle(el).visibility !== 'hidden'; });
+  try {
+    await pg.waitForTimeout(900);
+    if (await visibile()) guai.push('/amsterdam: la targa compare prima di qualunque mossa');
+    await pg.$eval('#deskGo', (e) => e.scrollIntoView({ block: 'center', behavior: 'instant' }));
+    await pg.waitForTimeout(250);
+    await pg.tap('#deskGo');
+    await pg.waitForTimeout(1500);
+    if (!(await pg.evaluate(() => document.activeElement && document.activeElement.id === 'fName'))) guai.push('/amsterdam: il tap su #deskGo non porta alla porta (fName)');
+    if (await visibile()) guai.push('/amsterdam: un tap su #deskGo ha armato la targa (è lavoro, non una mossa oltre)');
+    await pg.$eval('#network', (e) => e.scrollIntoView({ block: 'start', behavior: 'instant' }));
+    await pg.waitForTimeout(250);
+    await pg.tap('.net-c');
+    await pg.waitForTimeout(1500);
+    if (!(await visibile())) guai.push('/amsterdam: un tap sulla Rete non arma la targa (la controprova non regge)');
+  } catch (e) { guai.push('/amsterdam → ' + String(e.message || e).split('\n')[0]); }
+  finally { await pg.close(); }
+  return guai;
+}
+{
+  const guai = await gate();
+  guai.length ? male('la Gate dei desk:' + elenco(guai))
+    : bene('/amsterdam 390: un tap sulla porta della Gate (#deskGo) apre la porta e non arma la targa; un tap sulla Rete sì');
+}
+
 // ── le regole mordono: cinque mutanti del sorgente vero ───────────────────
 function muta(trova, metti) {
   const out = [];
@@ -794,6 +836,15 @@ function muta(trova, metti) {
     const r = (await Promise.all(['/pacchetto-concordato', '/faq'].map((u) => stringi(u, m8)))).flat();
     r.some((t) => /sta sopra/.test(t)) ? bene(`mutante «misura solo dal telefono» preso dalla regola della finestra ristretta (${r.filter((t) => /sta sopra/.test(t)).length} pagine)`)
       : male('mutante «misura solo dal telefono»: la regola della finestra ristretta non lo prende — non morde');
+  }
+
+  // M9 — v1.6 com'era: la Gate e il gemello d'oro fuori da «al lavoro»
+  const m9 = muta(["closest('#checkin, #pass, #contact, #desk, #topGo, dialog')"], ["closest('#checkin, #pass, #contact, dialog')"]);
+  if (!m9) male('mutante «Gate sorda»: il sorgente è cambiato, il mutante non si costruisce più');
+  else {
+    const r = await gate(m9);
+    r.some((t) => /un tap su #deskGo ha armato/.test(t)) ? bene('mutante «Gate sorda» preso dalla regola della porta della Gate')
+      : male(`mutante «Gate sorda»: la regola non lo prende (${r.join('; ') || 'nessun guasto'}) — non morde`);
   }
 }
 

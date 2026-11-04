@@ -14,6 +14,8 @@
 //     budget (= max) + numeric minBudget, zone: "Trastevere, Monti",
 //     bedrooms: '' | '1' | '2' | '3' (where '3' is the "3+" option)
 
+import RM from '../../js/radar-markets.js';
+
 // ─── Budget parsing ──────────────────────────────────────────────────
 // "€800-€1,200" → { min: 800, max: 1200 }
 // "€3,000+"     → { min: 3000, max: Infinity }
@@ -100,6 +102,17 @@ export function normalizeForMatch(text) {
 // `reject` is set when a hard veto applies (e.g. budget way over) — the
 // caller can still see the score for debug but should skip the push.
 export function scoreMatch(property, client) {
+  // La città prima di tutto (radar per mercato, 25/10/2026). Era il difetto:
+  // un appartamento di Madrid prendeva 100/100 contro una cliente romana con
+  // zona 'centro' — budget giusto, camere giuste, 'centro' nel testo. Un
+  // annuncio senza mercato è di Roma (gli annunci di prima), un cliente senza
+  // mercato pure; un cliente con un mercato scritto male non riceve niente.
+  const pm = (property && property.market) || 'roma';
+  const cm = RM.clientMarket(client);
+  if (!cm || pm !== cm) {
+    return { score: 0, reasons: ['Mercato ✗ ' + pm + ' ≠ ' + (cm || '?')], reject: 'other_market' };
+  }
+
   const reasons = [];
   let score = 0;
   let reject = null;

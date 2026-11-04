@@ -23,6 +23,7 @@ import { postinoStatus } from '../telegram/_postino.js';
 import { readPreparationMonitor } from './_monitor.js';
 import { callClaude, extractJson } from '../agent/_claude.js';
 import { replyLang } from '../_lang.js';
+import { isCityMarket, isReunion, cityLabel } from '../_market.js';
 import { loadConfig, busyBlocks, buildSlots, listingCtx } from '../viewings/_avail.js';
 import { CATALOG } from '../_catalog.js';
 import FACTS from '../../js/listing-facts.js';
@@ -164,6 +165,13 @@ export async function segretariaTurn({ cid, conv, lead, text, messageId, opening
 
   const v = SEG.turnVerdict({ conv, text, cfg, turnsToday });
   if (v.act === 'skip') return { acted: false, why: v.why };
+  // The Segretaria speaks of Rome homes, Rome slots and Rome services: a
+  // city desk or Réunion lead goes back to the operator, never answered.
+  const away = outsideRome(lead);
+  if (away) {
+    await escalateSegretaria({ cid, conv, lead, why: away, text });
+    return { acted: true, escalated: true, why: away };
+  }
   // The operational obligation survives read flags, replies and escalation.
   try {
     const followUp = await captureFollowUp({ cid, conv, messageId: messageId || SEG.textHash(text), text, now });
@@ -307,9 +315,18 @@ export async function segretariaTurn({ cid, conv, lead, text, messageId, opening
 // ─── La consegna (il click) e il rientro ─────────────────────────────────
 // Handover and opening use the same verified persisted CID as inbound intake.
 // A historical alias is not moved or merged by granting conversation ownership.
+function outsideRome(lead) {
+  if (!lead) return null;
+  if (isCityMarket(lead)) return `mercato fuori Roma (${cityLabel(lead)}): la Segretaria parla solo di Roma`;
+  if (isReunion(lead)) return 'mercato fuori Roma (La Réunion): la Segretaria parla solo di Roma';
+  return null;
+}
+
 export async function handoverSegretaria(leadId) {
   const lead = await fsGet(`leads/${leadId}`).catch(() => null);
   if (!lead) return { ok: false, why: 'lead non trovato' };
+  const away = outsideRome(lead);
+  if (away) return { ok: false, why: away };
   if (!lead.phone && !lead.email) return { ok: false, why: 'nessun recapito: la Segretaria parla su WhatsApp o via email' };
   const resolution = await resolveLeadConversation({ leadId, create: true });
   if (!['bound', 'new'].includes(resolution.status)) return { ok: false, why: resolution.reason };
@@ -343,6 +360,8 @@ export async function segretariaOpen(leadId, now = Date.now()) {
   if (gate.blocked) return blockedReply(gate);
   const lead = await fsGet(`leads/${leadId}`).catch(() => null);
   if (!lead) return { acted: false, why: 'lead non trovato' };
+  const away = outsideRome(lead);
+  if (away) return { acted: false, why: away };
   const resolution = await resolveLeadConversation({ leadId });
   if (resolution.status !== 'bound') return { acted: false, why: resolution.reason };
   const cid = resolution.cid, conv = resolution.conversation;

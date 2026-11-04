@@ -59,7 +59,11 @@ async function handleGet(req, res) {
 
   // Tetto largo, niente orderBy server-side (doc legacy senza campo
   // sparirebbero): si ordina in memoria con la coda del motore.
-  const ledger = await fsList('marketListings', { limit: 3000 });
+  // Solo Roma, per ora: i marker di morte che il Mac riconosce sono italiani
+  // ("annuncio non più disponibile"); su idealista.com sarebbero tutti
+  // 'unknown' — lavoro senza risultato (radar per mercato, 25/10/2026).
+  const ledger = (await fsList('marketListings', { limit: 3000 }))
+    .filter(l => (l.market || 'roma') === 'roma');
 
   const checks = ME.checkQueue(ledger, {
     batch: k.deathcheckBatch, minIntervalHours: 20,

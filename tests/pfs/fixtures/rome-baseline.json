@@ -1,0 +1,244 @@
+{
+ "classify": [
+  {
+   "source": "idealista",
+   "isSearchAlert": true,
+   "advertiserHint": "private"
+  },
+  {
+   "source": "immobiliare",
+   "isSearchAlert": true,
+   "advertiserHint": null
+  },
+  {
+   "source": "casafari",
+   "isSearchAlert": true,
+   "advertiserHint": null
+  },
+  {
+   "source": "idealista",
+   "isSearchAlert": true,
+   "advertiserHint": null
+  },
+  {
+   "source": "immobiliare",
+   "isSearchAlert": false,
+   "advertiserHint": null
+  }
+ ],
+ "extract": [
+  [
+   {
+    "sourceUrl": "https://www.idealista.it/immobile/31000001/",
+    "source": "idealista",
+    "price": 1200,
+    "bedrooms": 2,
+    "sqm": 65,
+    "title": null
+   }
+  ],
+  [
+   {
+    "sourceUrl": "https://www.immobiliare.it/annunci/31000002/",
+    "source": "immobiliare",
+    "price": 1450,
+    "bedrooms": 3,
+    "sqm": 90,
+    "title": null
+   },
+   {
+    "sourceUrl": "https://www.immobiliare.it/annunci/31000003/",
+    "source": "immobiliare",
+    "price": 850,
+    "bedrooms": 1,
+    "sqm": 32,
+    "title": null
+   }
+  ],
+  [
+   {
+    "sourceUrl": "https://www.idealista.it/immobile/31000004/",
+    "source": "idealista",
+    "price": 1800,
+    "bedrooms": 2,
+    "sqm": 80,
+    "title": null
+   }
+  ],
+  [],
+  []
+ ],
+ "inferZone": [
+  {
+   "zone": "Pigneto",
+   "matched": "pigneto"
+  },
+  {
+   "zone": "Tiburtino",
+   "matched": "monti tiburtini"
+  },
+  null,
+  {
+   "zone": "Monteverde",
+   "matched": "monteverde"
+  },
+  null,
+  {
+   "zone": "Tuscolano",
+   "matched": "cinecitta"
+  },
+  {
+   "zone": "Prati",
+   "matched": "piazza mazzini"
+  },
+  {
+   "zone": "Parioli",
+   "matched": "parioli"
+  },
+  {
+   "zone": "San Lorenzo",
+   "matched": "san lorenzo"
+  },
+  {
+   "zone": "Centro Storico",
+   "matched": "centro storico"
+  },
+  {
+   "zone": "Garbatella",
+   "matched": "garbatella"
+  },
+  {
+   "zone": "EUR",
+   "matched": "torrino"
+  },
+  {
+   "zone": "Trieste",
+   "matched": "viale libia"
+  },
+  {
+   "zone": "Esquilino",
+   "matched": "piazza vittorio"
+  },
+  {
+   "zone": "Trieste",
+   "matched": "trieste"
+  },
+  null
+ ],
+ "urls": [
+  [
+   {
+    "portal": "immobiliare",
+    "url": "https://www.immobiliare.it/affitto-case/roma/prati/da-privati/?criterio=dataModifica&ordine=desc&prezzoMassimo=1500",
+    "label": "Immobiliare · Roma · prati · privati · ≤€1500",
+    "zone": "prati"
+   },
+   {
+    "portal": "idealista",
+    "url": "https://www.idealista.it/affitto-case/roma/prati-mazzini/prati/con-prezzo_1500/?ordine=da-privati-asc",
+    "label": "Idealista · Roma · prati · privati prima · ≤€1500",
+    "zone": "prati"
+   }
+  ],
+  [
+   {
+    "portal": "immobiliare",
+    "url": "https://www.immobiliare.it/affitto-case/roma/testaccio-trastevere/da-privati/?criterio=dataModifica&ordine=desc&prezzoMassimo=1500",
+    "label": "Immobiliare · Roma · trastevere · privati · ≤€1500",
+    "zone": "trastevere"
+   },
+   {
+    "portal": "idealista",
+    "url": "https://www.idealista.it/affitto-case/roma/trastevere-testaccio/trastevere/con-prezzo_1500/?ordine=da-privati-asc",
+    "label": "Idealista · Roma · trastevere · privati prima · ≤€1500",
+    "zone": "trastevere"
+   }
+  ],
+  [
+   {
+    "portal": "immobiliare",
+    "url": "https://www.immobiliare.it/affitto-case/roma/testaccio-trastevere/da-privati/?criterio=dataModifica&ordine=desc&prezzoMassimo=1200&prezzoMinimo=800",
+    "label": "Immobiliare · Roma · testaccio · privati · ≤€1200",
+    "zone": "testaccio"
+   },
+   {
+    "portal": "idealista",
+    "url": "https://www.idealista.it/affitto-case/roma/trastevere-testaccio/con-prezzo_1200,prezzo-min_800/?ordine=da-privati-asc",
+    "label": "Idealista · Roma · testaccio · privati prima · ≤€1200",
+    "zone": "testaccio"
+   }
+  ],
+  [
+   {
+    "portal": "immobiliare",
+    "url": "https://www.immobiliare.it/affitto-case/roma/da-privati/?criterio=dataModifica&ordine=desc&prezzoMassimo=2000&prezzoMinimo=900",
+    "label": "Immobiliare · Roma · privati · ≤€2000",
+    "zone": null
+   },
+   {
+    "portal": "idealista",
+    "url": "https://www.idealista.it/affitto-case/roma/centro/con-prezzo_2000,prezzo-min_900/?ordine=da-privati-asc",
+    "label": "Idealista · Roma · centro · privati prima · ≤€2000",
+    "zone": "centro"
+   }
+  ],
+  [
+   {
+    "portal": "immobiliare",
+    "url": "https://www.immobiliare.it/affitto-case/roma/da-privati/?criterio=dataModifica&ordine=desc&prezzoMassimo=1200",
+    "label": "Immobiliare · Roma · privati · ≤€1200",
+    "zone": null
+   },
+   {
+    "portal": "idealista",
+    "url": "https://www.idealista.it/affitto-case/roma-roma/con-prezzo_1200/?ordine=da-privati-asc",
+    "label": "Idealista · Roma · privati prima · ≤€1200",
+    "zone": null
+   }
+  ]
+ ],
+ "scores": [
+  {
+   "score": 100,
+   "reasons": [
+    "Budget ✓ €1200 in range",
+    "Beds ✓ 2",
+    "Area ✓ pigneto"
+   ],
+   "reject": null
+  },
+  {
+   "score": 75,
+   "reasons": [
+    "Budget ≈ €1600 near range",
+    "Beds ✓ 1",
+    "Area ✓ prati"
+   ],
+   "reject": null
+  },
+  {
+   "score": 20,
+   "reasons": [
+    "Budget ✗ €2500 over max",
+    "Area ✓ parioli"
+   ],
+   "reject": "over_budget"
+  },
+  {
+   "score": 60,
+   "reasons": [
+    "Budget ✓ €900 in range",
+    "Area · no preference"
+   ],
+   "reject": null
+  },
+  {
+   "score": 50,
+   "reasons": [
+    "Budget ✓ €1000 in range",
+    "Area ✗ none of [monti]"
+   ],
+   "reject": null
+  }
+ ]
+}

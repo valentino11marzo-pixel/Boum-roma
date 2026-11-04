@@ -1,0 +1,107 @@
+{
+  "updated": "2026-11-03",
+  "meta": {
+    "title": "Tenant-side rental agent in Europe for expats — BOOM Desks",
+    "description": "Rental agents hired by the tenant in {cities}: flat fees, VAT included, nothing from landlords. Local rules compared.",
+    "descriptionShort": "Rental agents hired by the tenant in {n} European cities: flat fees, VAT included, nothing from landlords. Local renting rules compared, city by city.",
+    "ogTitle": "BOOM Desks — one agent on your side, {n} European cities",
+    "ogDescription": "Tenant-side desks in {cities}. Three flat fares, paid by you, never by landlords. One Italian agency, answering from Rome."
+  },
+  "hero": {
+    "kicker": "BOOM Desks · tenant-side rental search",
+    "h1": "A rental agent on your side, in",
+    "word": "EUROPE",
+    "lead": "Tenant-side desks in {cities}. Three flat fares, paid by you, never by landlords. One Italian agency, answering from Rome."
+  },
+  "map": {
+    "eb": "Network",
+    "h2g": "one company.",
+    "caption": "Every desk answers from Rome.",
+    "rome": { "h": "BOOM Rome, the hub", "p": "Where the company lives: homes to rent, owners, leases. Every desk answers from here.", "link": "BOOM Rome" },
+    "home": { "h": "BOOM {homeCity}, Italian law", "p1": "{legalName} is an Italian real estate agency, registered in Rome.", "p2": "In {homeCity} it works under the same Italian law, as a desk: tenant side, flat fares, paid by you.", "link": "The {homeCity} desk" }
+  },
+  "fares": {
+    "eb": "Same at every desk",
+    "h2": "Three flat fares,",
+    "h2g": "paid by you.",
+    "spain": "In {esDesks} every fare is optional, chosen in writing (LAU art. 20).",
+    "plans": {
+      "full-search": { "who": "Haven't started yet", "lines": ["Local-format dossier and cover letter within one working day of your papers", "Applications sent as listings appear", "It runs until you sign or tell us to stop"] },
+      "application-pack": { "who": "Found one, or shortlisted and already there", "lines": ["Local format within one working day of your papers", "Cover letter, income and guarantor strategy", "Contract review before you sign"] },
+      "attended-viewing": { "who": "Shortlisted, still abroad", "lines": ["A BOOM person attends the viewing in your place", "Live video walkthrough", "Written report (light, noise, damp, neighbours, commute) and a straight recommendation"] }
+    },
+    "strip": [
+      { "k": "Paid by you", "v": "Never by landlords or their agents." },
+      { "k": "First call", "v": "Free, before anything is paid." },
+      { "k": "14 days", "v": "To withdraw after paying: the model form.", "href": "/withdrawal" },
+      { "k": "One company", "v": "{legalName}, registered in Rome." },
+      { "k": "Languages", "v": "English at every desk; in {homeCity}, Italian too." },
+      { "k": "One person", "v": "{person} answers at every desk." }
+    ],
+    "gates": "Choose at your desk"
+  },
+  "rules": {
+    "eb": "Pre-flight",
+    "h2": "Renting rules,",
+    "h2g": "city by city.",
+    "note": "BOOM is an agency, not a law firm: each line is what that desk checks, as written on its page.",
+    "caption": "What each desk checks before you sign, as on its page",
+    "heldNote": "A title alone: the check is on that desk's page.",
+    "rows": [
+      { "head": "Country", "country": true },
+      { "head": "Who may charge you", "ids": ["fees"] },
+      { "head": "Deposit", "ids": ["deposit"] },
+      { "head": "Lease type", "ids": ["contract", "tenancy"] },
+      { "head": "Rent", "ids": ["wws", "rentcap", "rent", "advance", "bidding", "charges"] },
+      { "head": "Registration", "ids": ["brp", "padron", "registration", "residence", "right-to-rent"] }
+    ],
+    "hold": {
+      "london:fees": "London sources read as likely, none read on gov.uk: a lawyer confirms first",
+      "london:advance": "London sources read as likely, none read on gov.uk: a lawyer confirms first",
+      "london:bidding": "London sources read as likely, none read on gov.uk: a lawyer confirms first",
+      "london:deposit": "London sources read as likely, none read on gov.uk: a lawyer confirms first",
+      "london:tenancy": "London sources read as likely, none read on gov.uk: a lawyer confirms first",
+      "london:right-to-rent": "London sources read as likely, none read on gov.uk: a lawyer confirms first",
+      "madrid:contract": "RDL 29/2026 convalidation vote 12/11/2026: a lawyer confirms the temporada sentence",
+      "barcelona:rentcap": "researched from summaries, BOE and DOGC unreachable: a lawyer confirms",
+      "barcelona:contract": "researched from summaries, BOE and DOGC unreachable: a lawyer confirms",
+      "milan:fees": "a market figure with no source",
+      "milan:registration": "\"Unregistered, it is void\" overstates the rule (Cass. SS.UU. 23601/2017): a lawyer softens it"
+    },
+    "cut": { "amsterdam:deposit": ["Agents still ask for three.", "We don't let them."] }
+  },
+  "faq": {
+    "eb": "Before you ask",
+    "h2": "Questions about BOOM Desks.",
+    "items": [
+      { "q": "What is a BOOM desk?", "a": "A tenant-side rental desk: an agent you hire to find and secure a home in a European city, paid by you only, never by the landlord or their agent. Each desk has its own page, its local checks and three flat fares." },
+      { "q": "Which cities have a BOOM desk?", "a": "{cities}. {drafts} are not open: we would open them only with a locally licensed partner, and nothing is sold there today. In Rome, BOOM is the agency itself, with its own homes to rent." },
+      { "q": "Do the fares change from city to city?", "a": "No. Full Search {price:full-search}, Application Pack {price:application-pack} and Attended Viewing {price:attended-viewing} per viewing, VAT included, at every desk; the {gbpDesks} desk charges the same figures in pounds. {refund}" },
+      { "q": "Who answers, and when?", "a": "{person}, on WhatsApp from each desk's page, or by email: {hours}. A reply comes the same working day." },
+      { "q": "Is BOOM {homeCity} a real estate agency?", "a": "Yes. BOOM {homeCity} is a desk of {legalName}, an Italian real estate agency registered in Rome (REA {rea}), under the same Italian law as BOOM Rome. It works for the tenant only: you hire and pay it, never the landlord.", "home": true },
+      { "q": "Can I pay on this page?", "a": "No. Each desk takes its fares on its own page, with the 14-day right of withdrawal and the model form. Every desk starts with a free call, and nothing is charged for it." }
+    ]
+  },
+  "brief": {
+    "eb": "Fact sheet",
+    "h2": "BOOM Desks",
+    "h2g": "in brief.",
+    "rows": [
+      { "dt": "What", "dd": "BOOM Desks are tenant-side rental desks: an agent hired and paid by the tenant only, never by the landlord or the landlord's agent." },
+      { "dt": "Open in", "derive": "open" },
+      { "dt": "Operated by", "dd": "{legalName}, the Italian real estate agency behind BOOM Rome, registered in Rome: VAT {vatID}, REA {rea}; offices at {address}." },
+      { "dt": "Spain", "dd": "In {esDesks} every fare is optional, chosen in writing (LAU art. 20)." },
+      { "dt": "Fees", "derive": "fees" },
+      { "dt": "Hours", "dd": "{hours}. A reply the same working day." },
+      { "dt": "Withdrawal", "derive": "withdrawal" },
+      { "dt": "{homeCity}", "dd": "BOOM {homeCity} works under Italian law, the same law as BOOM Rome; a 3+2 lease there follows the bands of {homeCity}'s own local agreement.", "home": true },
+      { "dt": "What we don't do", "dd": "List homes, represent landlords, or promise a move-in date." },
+      { "dt": "Rome", "derive": "rome" },
+      { "dt": "Contact", "derive": "contact" },
+      { "dt": "Updated", "derive": "updated" }
+    ]
+  },
+  "footer": {
+    "statement": "Every BOOM desk acts solely for the tenant: hired and paid by the tenant, a desk does not list properties, represent landlords, or receive remuneration from landlords or their agents. BOOM Rome, the agency behind the desks, also lists homes to rent in Rome."
+  }
+}

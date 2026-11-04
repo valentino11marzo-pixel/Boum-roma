@@ -169,6 +169,455 @@ export function b2bReplyText(lead = {}) {
        `Ti torno in giornata con opzioni reali e la forma contrattuale giusta per ogni soggiorno.\n${url}`);
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// IL TERZO MERCATO: LE CITTÀ (BOOM_CITIES_BRIEF.md — Amsterdam, Madrid,
+// Barcellona, Parigi, Berlino, e dal 02/11/2026 Londra e Milano: la lista
+// chiusa è CITY_MARKETS qui sotto). Stessa lezione della
+// Réunion, in un'altra lingua: un lead che arriva da /amsterdam cerca casa ad
+// AMSTERDAM, e il Commerciale — con il suo SYSTEM prompt sul mercato romano,
+// il catalogo `listings` che consulta e il follow-up «stai ancora cercando
+// casa a Roma?» — gli scriverebbe una prima risposta che parla di un'altra
+// città. La card Telegram, senza guardia, gli manderebbe il link
+// /apartments di Roma.
+//
+// La regola è la stessa: si riconosce il mercato dalla porta (`market` o
+// `sourceRef` scritti da api/city-lead.js), il Commerciale SI ASTIENE, e la
+// card porta il messaggio giusto già scritto — in inglese, firmato Valentino
+// perché il numero WhatsApp da cui parte è il suo.
+
+// `mode` is the desk's state (BOOM_CITIES_BRIEF.md §4), read by the lead
+// door: 'search' = the desk takes searches today; 'waitlist' = the desk opens
+// with a licensed partner (carte professionnelle in France, §34c in
+// Germany) and the lead is a FILE OPENED, not a search started. The city
+// JSON carries the same word; tests/cities keeps the two from drifting.
+// `holidays` names the withdrawal calendar when the desk's region differs
+// from its country's default (api/stripe-webhook.js HOLIDAYS: Barcelona is
+// 'es-bcn', Madrid the 'es' default, London 'gb-eng', Milan 'it-mi');
+// `country` stays the ISO code because it also reads the national phone
+// format (cityPhone below).
+// Barcelona went live with the till on 22/10/2026 by the founder's decision,
+// taken after he was told of the AICAT register (Llei 18/2007 art. 55) and
+// of LAU art. 20 as rewritten by RDL 29/2026 — see CLAUDE.md, «IL LIVE DI
+// BARCELLONA».
+// THE PRICE GRID OF THE CITY DESKS — the one copy the server trusts
+// (api/service-checkout.js charges from HERE, never from the browser; the
+// page JSON prints the same numbers and tests/cities pins the two together).
+// The founder's decision of 14/10 (BOOM_CITIES_BRIEF.md, v1.1): every desk
+// shows the same list prices, waitlist desks included — shown, not charged:
+// a waitlist city never opens a checkout (the build refuses it), the list
+// price is what the client will pay when the desk opens. Berlin's Full
+// Search is due only once a lease is signed (WoVermRG §2, §3: fee on a
+// concluded lease, cap two net cold months + VAT, no advances). The Full
+// Search refund rule in the product description is BOOM POLICY (the
+// founder, 15/10): refunded in full if BOOM declines the search in the
+// first call — the sheet, the FAQ and the build's guard say the same.
+// The field is called `eur` for history (every desk sold in euros until
+// London): it is the amount IN THE DESK'S CURRENCY (CITY_MARKETS.<slug>.
+// currency, 'eur' when absent) — 500 is €500 in Amsterdam and £500 in
+// London. ONE object for every desk (tests pin it): the currency lives on the
+// desk, never in a second price grid. Stripe takes it ×100 in both (cents,
+// pence).
+export const CITY_PLANS = {
+  'full-search':      { eur: 500, label: 'Full Search',      per: 'flat',
+    desc: 'Search on the tenant\'s side: local-format dossier and cover letter within one working day of your papers, applications sent as listings appear, one attended viewing with live video and written report, negotiation, contract checked before you sign; it runs until you sign or tell us to stop. Refunded in full if we decline the search in the first call.' },
+  'application-pack': { eur: 199, label: 'Application Pack', per: 'flat',
+    desc: 'The dossier that wins applications: local format within one working day of your papers, cover letter, income and guarantor strategy, contract review before you sign.' },
+  'attended-viewing': { eur: 149, label: 'Attended Viewing', per: 'per viewing',
+    desc: 'A BOOM person attends the viewing in your place: live video walkthrough, written report (light, noise, damp, neighbours, commute) and a straight recommendation.' },
+};
+
+// `checkout: true` = the page sells the plans with a Stripe Checkout (the
+// Rome Services 2.0 rail: api/service-checkout.js → the SERVICE webhook
+// branch, lead with market = the city). Only a 'search' desk may carry it;
+// cityOffer() refuses everything else, so a waitlist city cannot be charged
+// even by a hand-made POST.
+// London and Milan (02/11/2026, live with the till). Four optional fields the
+// first five desks do not need:
+// · `currency` — what Stripe charges in, lowercase ('gbp' for London); absent
+//   = 'eur'. cityOffer returns it, api/service-checkout.js sends it to
+//   Stripe, and every printout of a paid amount (webhook, abandoned checkout,
+//   bounce card) prints the symbol of the currency the session carries.
+// · `labelIt` — the city in Italian, for the operator's Italian strings
+//   (notRomeTenant, the Telegram card): «cerca casa a Milano, non a Roma».
+//   The English `label` stays what the page, Stripe and the client read, and
+//   it must equal the city JSON's "city" (the WhatsApp marker and the
+//   withdrawal form's ?desk= are built from both sides).
+// · `hoursEn` — the desk's office hours as the client reads them, when the
+//   desk does not answer on Rome hours (London answers on London time); the
+//   paid-order emails print it instead of the Rome line.
+// · `holidays` 'gb-eng' (England & Wales bank holidays, substitute days
+//   included) and 'it-mi' (Italy + 7 December, Sant'Ambrogio): js/desk-
+//   calendar.js. Milan must name 'it-mi' — 'it' alone is a valid key too,
+//   and 7 December would silently stop counting.
+export const CITY_MARKETS = {
+  amsterdam: { label: 'Amsterdam', flag: '🇳🇱', country: 'nl', url: 'https://www.boomrome.com/amsterdam', mode: 'search', checkout: true, plans: CITY_PLANS },
+  madrid:    { label: 'Madrid',    flag: '🇪🇸', country: 'es', url: 'https://www.boomrome.com/madrid',    mode: 'search', checkout: true, plans: CITY_PLANS },
+  barcelona: { label: 'Barcelona', flag: '🇪🇸', country: 'es', holidays: 'es-bcn', url: 'https://www.boomrome.com/barcelona', mode: 'search', checkout: true, plans: CITY_PLANS },
+  paris:     { label: 'Paris',     flag: '🇫🇷', country: 'fr', url: 'https://www.boomrome.com/paris',     mode: 'waitlist', partner: 'a licensed partner', plans: CITY_PLANS },
+  berlin:    { label: 'Berlin',    flag: '🇩🇪', country: 'de', url: 'https://www.boomrome.com/berlin',    mode: 'waitlist', partner: 'a licensed partner', plans: CITY_PLANS },
+  london:    { label: 'London', labelIt: 'Londra', flag: '🇬🇧', country: 'gb', holidays: 'gb-eng', currency: 'gbp', hoursEn: 'Mon–Fri 08:00–18:00, London time', url: 'https://www.boomrome.com/london', mode: 'search', checkout: true, plans: CITY_PLANS },
+  milan:     { label: 'Milan',  labelIt: 'Milano', flag: '🇮🇹', country: 'it', holidays: 'it-mi',  currency: 'eur', hoursEn: 'Mon–Fri 09:00–19:00, Italian time', url: 'https://www.boomrome.com/milan', mode: 'search', checkout: true, plans: CITY_PLANS },
+};
+
+/**
+ * The currency a desk charges in, lowercase ('eur' when the desk names none).
+ * @param {string} cityKey
+ * @returns {string}
+ */
+export function cityCurrency(cityKey) {
+  const c = CITY_MARKETS[String(cityKey || '').toLowerCase().trim()];
+  return String((c && c.currency) || 'eur').toLowerCase();
+}
+
+/**
+ * A paid amount as the operator and the client read it, in the currency it
+ * was charged in: '£500' for 'gbp', '€…' for everything else — so every
+ * printout that said `€${amount}` reads the same bytes for a euro session.
+ * The number is printed as given (the callers already divided the minor
+ * units by 100).
+ * @param {number|string} amount
+ * @param {string} [currency]
+ * @returns {string}
+ */
+export function moneyOf(amount, currency) {
+  return (String(currency || 'eur').toLowerCase() === 'gbp' ? '£' : '€') + amount;
+}
+
+/**
+ * What a city page may SELL right now, by plan id — or why not.
+ * Returns { ok:true, city, plan, eur, currency, label, name, desc, url } or
+ * { ok:false, error: 'unknown_city' | 'checkout_closed' | 'unknown_service' }.
+ * `eur` is the amount in `currency` (lowercase, 'eur' when the desk names
+ * none): London's 500 is £500.
+ * 'checkout_closed' covers a waitlist desk and a search desk that has not
+ * opened its checkout: in both cases the page shows the price and takes the
+ * file, and nobody is charged.
+ * @param {string} cityKey
+ * @param {string} planId
+ */
+export function cityOffer(cityKey, planId) {
+  const k = String(cityKey || '').toLowerCase().trim();
+  const c = CITY_MARKETS[k];
+  if (!c) return { ok: false, error: 'unknown_city' };
+  if (c.mode !== 'search' || c.checkout !== true) return { ok: false, error: 'checkout_closed' };
+  const id = String(planId || '').toLowerCase().trim();
+  const p = (c.plans || {})[id];
+  if (!p) return { ok: false, error: 'unknown_service' };
+  return { ok: true, city: k, plan: id, eur: p.eur, currency: cityCurrency(k), label: p.label, per: p.per, desc: p.desc, name: `BOOM ${c.label} — ${p.label}`, url: c.url };
+}
+
+/**
+ * The id of the lead the SERVICE webhook writes for a paid Stripe session:
+ * leads/svc_<session id, alphanumerics only, 30 characters>. One copy, read
+ * by the webhook (which writes it) and by /api/city-lead (whose GET ?paid=
+ * reads it back to confirm a payment the page cannot prove on its own).
+ * @param {string} sessionId
+ */
+export function serviceLeadId(sessionId) {
+  return 'svc_' + String(sessionId).replace(/[^a-zA-Z0-9]/g, '').substring(0, 30);
+}
+
+/**
+ * The desk a WhatsApp message names. Every WhatsApp link on a city page opens
+ * with a prefilled line ("Hi BOOM Amsterdam, I'm moving to Amsterdam.",
+ * build-cities.mjs waHref): it is the only trace a chat carries of the page
+ * it came from, consent or not. Returns the CITY_MARKETS key or null — a
+ * Rome message never names a desk, so it stays in the Rome machine.
+ * @param {string} text
+ * @returns {string|null}
+ */
+// The Italian name counts too ('BOOM Milano', 'BOOM Londra'): an Italian
+// writes the city in Italian, and with the \b after the label 'Milan' alone
+// never matched 'Milano' — that chat would have entered the Rome machine.
+// Longest name first, so 'Milano' is tried before 'Milan'.
+const CITY_NAMES = Object.keys(CITY_MARKETS)
+  .flatMap((k) => [CITY_MARKETS[k].label, CITY_MARKETS[k].labelIt].filter(Boolean).map((n) => [n.toLowerCase(), k]))
+  .sort((a, b) => b[0].length - a[0].length);
+const CITY_TEXT_RE = new RegExp(`\\bBOOM (${CITY_NAMES.map(([n]) => n).join('|')})\\b`, 'i');
+export function cityFromText(text) {
+  const m = CITY_TEXT_RE.exec(String(text || ''));
+  if (!m) return null;
+  const name = m[1].toLowerCase();
+  const hit = CITY_NAMES.find(([n]) => n === name);
+  return hit ? hit[1] : null;
+}
+
+/**
+ * A phone typed on a city page, as E.164, read with the DESK's country — or
+ * null when it cannot be read. WhatsApp delivers E.164 ('+31612345678'): a
+ * number stored as typed ('+31 6 12345678', '06 12345678', '612 345 678')
+ * never matched the client's reply, which then became a NEW Rome lead, and
+ * the Italian guess of the Rome machine turned '06…' into '+39…'.
+ * '+…' and '00…' are international as typed ('(0)' after the code dropped:
+ * '+31 (0)6 …' is how Dutch and German numbers are written); a national
+ * number takes the desk's country code ONLY when it has that country's
+ * national format. Anything else — an Italian '333 1234567' typed without
+ * +39 on /london, a British '07700…' on /amsterdam — is not a number of that
+ * country: null, and the caller keeps what was typed (the Rome guess then
+ * reads it as before). Italy is the one country whose E.164 KEEPS the trunk
+ * 0 (+39 02 …); the '+44 0…' typed after the code is cleaned.
+ * @param {string} raw
+ * @param {string} cityKey
+ * @returns {string|null}
+ */
+// 'tr' (25/10/2026): the /istanbul page (api/leads/web.js, form 'istanbul')
+// reads a Turkish number with phoneE164 below — Turkish mobiles are 5xx plus
+// seven digits, typed with or without the trunk 0. Before, '0532 123 45 67'
+// became '+39532…' at the Telegram card and the client's WhatsApp reply was
+// never matched to the lead. The city desks never name 'tr'.
+// 'gb' and 'it' (02/11/2026): the London and Milan desks. Without them a
+// number typed on those pages was stored as typed ('07700 900123',
+// '333 123 4567'), the client's WhatsApp reply (E.164) never found the lead,
+// and a new lead with no market entered the Rome machine.
+const DIAL = { nl: '31', es: '34', fr: '33', de: '49', tr: '90', gb: '44', it: '39' };
+// National significant number per desk country (trunk 0 dropped). NL and FR
+// have 9 digits; ES 9 digits starting 6-9, no trunk 0; DE varies in length,
+// so it is read only when typed WITH its trunk 0.
+const NSN = { nl: /^[1-9]\d{8}$/, fr: /^[1-9]\d{8}$/, es: /^[6789]\d{8}$/, de: /^[1-9]\d{5,10}$/, tr: /^5\d{9}$/ };
+function nationalOf(d, country) {
+  if (country === 'es') return NSN.es.test(d) ? d : null;
+  if (country === 'de') return d.startsWith('0') && NSN.de.test(d.slice(1)) ? d.slice(1) : null;
+  // GB: a national number is written with its trunk 0 and the 0 drops in
+  // E.164 — 11 digits ('07700 900123', '020 7946 0018'), 10 only for the
+  // 01 and 08 ranges. 04 and 06 do not exist in the UK, and an 02 is never
+  // 10 digits there: a Roman '06 1234 5678' or a Milanese '02 1234 5678'
+  // typed on /london is NOT British. Without the 0 only a mobile is accepted
+  // (7 + nine digits): an Italian '333 1234567' is not +44 333… (a wrong
+  // wa.me, and the reply a new lead) — null, and the Rome rule reads it.
+  if (country === 'gb') {
+    // 10 digits only for 01 + a second digit 2–9 and for 0800: an Italian
+    // 010/011/080/081 landline or an Irish 08x mobile is not British
+    if (/^0(?:1[2-9]\d{7}|800\d{6}|[1235789]\d{9})$/.test(d)) return d.slice(1);
+    return /^7\d{9}$/.test(d) ? d : null;
+  }
+  // IT: the trunk 0 STAYS — an Italian landline is +39 02 …, +39 06 … in
+  // E.164 (only Italy keeps it). A mobile is 3 + eight or nine digits.
+  if (country === 'it') return /^(3\d{8,9}|0\d{5,10})$/.test(d) ? d : null;
+  const n = d.replace(/^0/, '');
+  return NSN[country] && NSN[country].test(n) ? n : null;
+}
+export function cityPhone(raw, cityKey) {
+  // '(0)' after +39 is part of an Italian number ('+39 (0)2 …' = +39 02 …);
+  // after any other country code it is the trunk 0 dialled at home
+  const r0 = String(raw || '').trim();
+  let s = (/^(\+|00)\s*39/.test(r0) ? r0.replace(/\(\s*0\s*\)/g, '0') : r0.replace(/\(\s*0\s*\)/g, '')).replace(/[\s().\-\/]/g, '');
+  if (!s) return null;
+  if (s.startsWith('00')) s = '+' + s.slice(2);
+  if (s.startsWith('+')) {
+    let d = s.slice(1).replace(/\D/g, '');
+    // '+44 07700 …': the British trunk 0 typed after the country code ('+44
+    // (0)…' is already cleaned above) is never part of the number. Only
+    // +44 — never +39, where the 0 IS part of an Italian landline.
+    if (/^440/.test(d)) d = '44' + d.slice(3);
+    return d.length >= 8 && d.length <= 15 ? '+' + d : null;
+  }
+  const d = s.replace(/\D/g, '');
+  const c = CITY_MARKETS[String(cityKey || '').toLowerCase()];
+  const cc = c && DIAL[c.country];
+  if (!cc) return null;
+  // typed with the country code but without '+' (e.g. 31612345678)
+  if (d.startsWith(cc) && nationalOf(d.slice(cc.length), c.country)) return '+' + cc + nationalOf(d.slice(cc.length), c.country);
+  const n = nationalOf(d, c.country);
+  return n ? '+' + cc + n : null;
+}
+
+/**
+ * The same reading as cityPhone, keyed by COUNTRY instead of by desk — for a
+ * page that is not a city desk but knows its visitor's country (/istanbul:
+ * 'tr'). E.164, or null when the number has no shape of that country; the
+ * caller then keeps what was typed (an Italian '333 1234567' typed on the
+ * Turkish page still reads as Italian at the card, as before).
+ * cityPhone stays as it is (the city work is its own).
+ * @param {string} raw
+ * @param {string} country  a key of DIAL ('tr', 'nl', …)
+ * @returns {string|null}
+ */
+export function phoneE164(raw, country) {
+  let s = String(raw || '').trim().replace(/\(\s*0\s*\)/g, '').replace(/[\s().\-\/]/g, '');
+  if (!s) return null;
+  if (s.startsWith('00')) s = '+' + s.slice(2);
+  if (s.startsWith('+')) {
+    const d = s.slice(1).replace(/\D/g, '');
+    return d.length >= 8 && d.length <= 15 ? '+' + d : null;
+  }
+  const c = String(country || '').toLowerCase();
+  const cc = DIAL[c];
+  if (!cc) return null;
+  const d = s.replace(/\D/g, '');
+  if (d.startsWith(cc) && nationalOf(d.slice(cc.length), c)) return '+' + cc + nationalOf(d.slice(cc.length), c);
+  const n = nationalOf(d, c);
+  return n ? '+' + cc + n : null;
+}
+
+/**
+ * WHERE A ROME TENANT IS MOVING FROM — not a market. A lead from /istanbul
+ * is a Rome tenant like any other (the Rome machine works it in full: Brain,
+ * card, Commerciale, Segretaria — notRomeTenant stays null); `origin` only
+ * names the door, so the Telegram card can say «🇹🇷 İstanbul → Roma» even
+ * when the Lead Brain's brief replaces the message. Two witnesses: `origin`
+ * (the page's door, and the WhatsApp marker below) and sourceRef 'istanbul'.
+ * Never read from `intent`: the AI grader rewrites it.
+ */
+export const ORIGINS = {
+  istanbul: { flag: '🇹🇷', label: 'İstanbul → Roma', url: 'https://www.boomrome.com/istanbul' },
+};
+export function originOf(lead = {}) {
+  if (!lead || typeof lead !== 'object') return null;
+  const o = String(lead.origin || '').toLowerCase();
+  if (ORIGINS[o]) return ORIGINS[o];
+  if (String(lead.sourceRef || '').toLowerCase() === 'istanbul') return ORIGINS.istanbul;
+  return null;
+}
+
+/**
+ * The WhatsApp marker of /istanbul: the page pre-fills «Merhaba BOOM,
+ * İstanbul'dan Roma'ya taşınıyorum. (Moving from Istanbul to Rome.)» (or the
+ * English first). Both halves count; 'İ' is written out because a /i regex
+ * does not fold the dotted capital. The key of ORIGINS, or null.
+ * @param {string} text
+ * @returns {string|null}
+ */
+const ISTANBUL_TEXT_RE = /[İIi]stanbul['’]dan Roma['’]ya|from [İIi]stanbul to Rome/i;
+export function originFromText(text) {
+  return ISTANBUL_TEXT_RE.test(String(text || '')) ? 'istanbul' : null;
+}
+
+/**
+ * Why a lead is NOT a Rome tenant, or null. The Rome re-engagement tools
+ * (the reverse search after each publication, /richiama) and the Segretaria
+ * speak of Rome homes, Rome viewings and Rome services: an Amsterdam or
+ * Madrid client, a Réunion owner, an organisation or a Rome landlord must
+ * never receive them. One copy of the veto, read by every Rome-only tool.
+ * @param {object} lead
+ * @returns {string|null}
+ */
+export function notRomeTenant(lead = {}) {
+  if (isCityMarket(lead)) { const c = CITY_MARKETS[cityMarketOf(lead)]; return `cerca casa a ${c.labelIt || c.label}, non a Roma`; }
+  if (isReunion(lead)) return 'La Réunion, non Roma';
+  if (isB2B(lead)) return b2bSide(lead) === 'owner' ? 'è un proprietario, non un inquilino' : 'è un ente o un\'azienda, non un inquilino';
+  return null;
+}
+
+/** 'search' | 'waitlist' — the state of the city's desk; 'search' for a lead that is not a city's. */
+export function cityMode(lead = {}) {
+  const k = cityMarketOf(lead);
+  return k && CITY_MARKETS[k].mode === 'waitlist' ? 'waitlist' : 'search';
+}
+
+/**
+ * Da quale città (fuori Roma) viene questo lead — la chiave di CITY_MARKETS
+ * o null. Due indizi perché due campi lo portano: `market` (la porta) e
+ * `sourceRef` `city-<slug>` (ripresa manuale, import). Roma e la Réunion
+ * non sono città di questa lista: restano nelle loro macchine.
+ * @param {object} lead
+ * @returns {string|null}
+ */
+export function cityMarketOf(lead = {}) {
+  if (!lead || typeof lead !== 'object') return null;
+  const m = String(lead.market || '').toLowerCase();
+  if (CITY_MARKETS[m]) return m;
+  const ref = /^city-([a-z]+)$/.exec(String(lead.sourceRef || '').toLowerCase());
+  if (ref && CITY_MARKETS[ref[1]]) return ref[1];
+  return null;
+}
+
+/** Il lead cerca casa in una città BOOM fuori Roma? */
+export const isCityMarket = lead => cityMarketOf(lead) !== null;
+
+/**
+ * «🇳🇱 Amsterdam» per la card Telegram; stringa vuota se non è una città.
+ * La card è dell'operatore, in italiano: col nome italiano quando il desk lo
+ * porta («🇮🇹 Milano», «🇬🇧 Londra»).
+ */
+export function cityLabel(lead = {}) {
+  const k = cityMarketOf(lead);
+  return k ? `${CITY_MARKETS[k].flag} ${CITY_MARKETS[k].labelIt || CITY_MARKETS[k].label}` : '';
+}
+
+/**
+ * Il messaggio WhatsApp già scritto per un lead di città: in inglese (la
+ * pagina è in inglese e la persona si sta trasferendo da fuori), e il link
+ * della SUA pagina — mai /apartments di Roma. Sui desk che vendono propone
+ * la chiamata gratuita che la porta promette (col numero di fascicolo);
+ * sui desk in apertura chiede le SOLE cose che il modulo non ha già detto.
+ * @param {object} lead
+ * @returns {string}
+ */
+export function cityReplyText(lead = {}) {
+  const k = cityMarketOf(lead);
+  const c = k ? CITY_MARKETS[k] : { label: 'your city', url: 'https://www.boomrome.com' };
+  const first = String(lead.name || '').trim().split(/\s+/)[0] || '';
+  const asks = [];
+  if (!lead.moveIn) asks.push('when do you land');
+  if (!(lead.budgetBand || lead.budget)) asks.push("what's the monthly budget");
+  if (!(lead.city && lead.city.situation)) asks.push("who's moving");
+  // A PAID order (the page's checkout, written by the SERVICE webhook with
+  // market = the city): the money is in, the reply says so and names the next
+  // step — never a second "thanks for your message".
+  if (lead.paid === true) {
+    const plan = (lead.city && lead.city.serviceLabel) || 'your order';
+    // They did NOT tick “Start now”: the work starts when the 14-day
+    // withdrawal period ends (Dir. 2011/83/EU art. 7(3)/8(8)). The reply
+    // repeats the day they were promised by email — never “today”.
+    if (lead.city && lead.city.startNow === false && lead.city.workFromLabel) {
+      return `Hi${first ? ' ' + first : ''}, Valentino here from BOOM 👋 Payment received for ${plan} in ${c.label} — thank you. ` +
+        `As you chose at checkout, we start on ${lead.city.workFromLabel}, the day after your 14-day withdrawal period ends. ` +
+        `Want us to start sooner? Reply here asking us to start now: you can still withdraw within the 14 days, paying only for the work already done, and once the service is fully performed the right to withdraw ends.\n${c.url}`;
+    }
+    return `Hi${first ? ' ' + first : ''}, Valentino here from BOOM 👋 Payment received for ${plan} in ${c.label} — thank you. ` +
+      `I'm opening your file now and I'll come back today with the next step and what I need from you.\n${c.url}`;
+  }
+  // A checkout started and not finished (api/payments/recover-checkouts.js):
+  // they chose the plan and stopped at the card. The reply names the plan and
+  // asks what stopped them — never a second sales pitch, never a price.
+  if (lead.city && lead.city.abandoned === true) {
+    const plan = lead.city.serviceLabel || 'the service';
+    return `Hi${first ? ' ' + first : ''}, Valentino here from BOOM 👋 I saw you started ${plan} for ${c.label} and stopped at the payment. ` +
+      `Anything I can answer before you decide? Happy to do a quick call.\n${c.url}`;
+  }
+  // A desk that sells (v1.4, 22/10): the door reads "Start with a free call"
+  // and the OPEN card promises "Valentino writes to set your free call". The
+  // ready reply SETS the call — never a written questionnaire (the call
+  // covers dates, budget and who is moving, says the FAQ) and never "I'll
+  // come back today" (one more hop before the call). It names the file
+  // number the ticket printed, so the two match. A lead that came from
+  // elsewhere (a WhatsApp message carrying the desk marker) did not tap the
+  // door: it is thanked for its message and offered the same call.
+  if (cityMode(lead) !== 'waitlist') {
+    const file = lead.city && typeof lead.city.file === 'string' ? lead.city.file.trim() : '';
+    const opener = lead.intent === 'city_search'
+      ? `You asked for a free call about your move to ${c.label}`
+      : `Thanks for your message about your move to ${c.label}. The first step is a free call`;
+    // never "this week": the desk is Mon–Fri, and a reply sent on a Friday
+    // evening or a weekend would offer a week already spent (review 22/10)
+    return `Hi${first ? ' ' + first : ''}, Valentino here from BOOM 👋 ${opener}${file ? ` (your file ${file})` : ''}.\n` +
+      `By phone or WhatsApp — which day and time suit you?\n${c.url}`;
+  }
+  const q = asks.length
+    ? `To set up the search properly: ${asks.join(', ')}? `
+    : 'I have your dates, budget and situation. ';
+  // A waitlist desk never promises a search it cannot run yet (nor a call:
+  // its door is "Open my file"): the reply says where the desk stands and
+  // what can be done today. And its OPEN card promises "Our first reply says
+  // which papers matter" (review 22/10): this reply IS that first reply. The
+  // papers the Check-in found missing are named — only when the page's list
+  // reached us whole: the door records it (city.dossierClipped, measured on
+  // the posted value; the stored length is no witness, a cut on a space
+  // leaves 199 characters) and a paper cut in half is not a paper. A lead
+  // without the flag (filed before it) is never named. All in hand is said
+  // so; otherwise the reply says it will name them.
+  const doss = String((lead.city && lead.city.dossier) || '').trim();
+  const whole = !!lead.city && lead.city.dossierClipped === false;
+  const missing = whole ? ((/·\s*missing:\s*(.+)$/.exec(doss) || [])[1] || '').replace(/[\s.]+$/, '') : '';
+  const held = /^(\d+)\/(\d+)$/.exec(doss);
+  const papers = missing ? `From your check-in, the papers to start gathering: ${missing}. `
+    : held && held[1] === held[2] ? 'Your check-in says your papers are all in hand. ' : '';
+  const next = `The ${c.label} desk is opening with ${c.partner || 'a licensed partner'}, so I can't start a search there yet. ${papers}` +
+    `I'll come back today with where we stand${papers ? ' and what we can already do for you' : ', what we can already do for you and which papers to start gathering'}.`;
+  return `Hi${first ? ' ' + first : ''}, Valentino here from BOOM 👋 Thanks for your message about your move to ${c.label}.\n` +
+    `${q}${next}\n${c.url}`;
+}
+
 /**
  * Il messaggio WhatsApp già scritto per un PROPRIETARIO romano.
  *

@@ -6,6 +6,7 @@
 // write it directly anymore). All reads/writes here run under admin creds.
 
 import { fsList } from '../homie/_lib.js';
+import RM from '../../js/radar-markets.js';
 
 // Find the single PFS client whose portalAccessCode matches `code` AND whose
 // portal is enabled. Returns the full doc (with id) or null. Ambiguous → null.
@@ -70,6 +71,8 @@ export function sanitizeProperty(p) {
     viewingRequested: !!p.viewingRequested,
     viewingPreference: p.viewingPreference || '',
     addedAt: p.addedAt || null,
+    advertiser: ['private', 'agency', 'unknown'].includes(p.advertiser) ? p.advertiser : null,
+    market: p.market || null,
   };
 }
 
@@ -84,8 +87,14 @@ export function mapClientForPortal(c) {
   const matched = props.filter(p => p.match != null);
   const avgMatch = matched.length ? Math.round(matched.reduce((s, p) => s + p.match, 0) / matched.length) : 0;
 
+  // La città del cliente (radar per mercato): il portale dice "Madrid" a chi
+  // cerca casa a Madrid, mai "Rome". Un mercato scritto male ricade su Roma
+  // SOLO nelle parole del portale (il radar intanto non gli spinge niente).
+  const market = RM.clientMarket(c) || 'roma';
   return {
     name: c.name || 'Guest',
+    market,
+    city: { it: RM.marketLabel(market, 'it'), en: RM.marketLabel(market, 'en') },
     journey: journeyOf(c),
     stats: { days, options: props.length, liked, avgMatch },
     criteria: {

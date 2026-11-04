@@ -1,0 +1,269 @@
+{
+  "slug": "paris",
+  "city": "Paris",
+  "country": "FR",
+  "iata": "PAR",
+  "geo": {
+    "lat": 48.8566,
+    "lon": 2.3522
+  },
+  "live": false,
+  "mode": "waitlist",
+  "config": {},
+  "updated": "2026-11-03",
+  "meta": {
+    "title": "Tenant-side rental agent in Paris — BOOM",
+    "description": "BOOM Paris works only for the tenant and opens with a licensed partner. Open your file today: rent-cap check, lease read, French-format dossier, attended viewings.",
+    "ogTitle": "BOOM Paris — an agent on your side of the table",
+    "ogDescription": "Tenant-side desk for internationals moving to Paris, opening with a licensed partner. Rent-cap check, lease read, French-format dossier, attended viewings. Paid by you — never by landlords."
+  },
+  "service": {
+    "name": "BOOM Paris — tenant-side rental desk (chasseur immobilier)",
+    "serviceType": "Tenant-side rental search agent",
+    "audience": "Internationals relocating to Paris",
+    "description": "Tenant-side rental desk for Paris, opening with a licensed partner (carte professionnelle, loi Hoguet). On the tenant's side only: rent checked against the encadrement des loyers, lease read before signing, French-format dossier locatif, attended viewings with live video and written report, proof of address from day one. Flat fees set and shown, charged only when the desk opens; nothing from landlords or platforms, ever."
+  },
+  "hero": {
+    "h1Before": "Your home in",
+    "lead": "Opening with a licensed partner. Today: your file, opened and kept ready.",
+    "leadStrong": "Paid by you, never by landlords.",
+    "faresHead": {
+      "b": "List prices",
+      "span": "Nothing charged today"
+    }
+  },
+  "pricing": {
+    "plans": [
+      {
+        "id": "full-search",
+        "label": "Full Search",
+        "name": "We search. You choose.",
+        "price": 500,
+        "condition": "flat · incl. VAT · at opening",
+        "conditionLong": "List price. Charged only when the desk opens.",
+        "includes": [
+          "Search every working day: SeLoger, PAP, Leboncoin, agencies",
+          "One-page presentation, applications as listings appear",
+          "Attended viewing, live video + report",
+          "Rent cap and lease checked, charges read"
+        ],
+        "offerDescription": "Search every working day on SeLoger, PAP, Leboncoin and agencies, a one-page presentation, applications as listings appear, an attended viewing with live video and a report, rent cap and lease checked.",
+        "when": "Haven't started yet"
+      },
+      {
+        "id": "application-pack",
+        "label": "Application Pack",
+        "name": "You search. We make you win.",
+        "price": 199,
+        "condition": "flat · incl. VAT · at opening",
+        "conditionLong": "List price. Charged only when the desk opens.",
+        "includes": [
+          "French-format dossier locatif, one working day from your papers",
+          "Guarantor or Visale strategy",
+          "One-page presentation in French",
+          "Lease review before you sign"
+        ],
+        "offerDescription": "French-format rental dossier within one working day of your papers, a guarantor or Visale strategy, a one-page presentation in French, lease review before you sign.",
+        "when": "Found one, or shortlisted and already in Paris"
+      },
+      {
+        "id": "attended-viewing",
+        "label": "Attended Viewing",
+        "unit": "per viewing",
+        "name": "Eyes on the ground.",
+        "price": 149,
+        "condition": "per viewing · incl. VAT · at opening",
+        "conditionLong": "List price. Charged only when the desk opens.",
+        "includes": [
+          "A BOOM person attends in your place",
+          "Live video walkthrough",
+          "Written report: light, noise, damp, neighbours, commute",
+          "A straight recommendation"
+        ],
+        "offerDescription": "A BOOM person attends the viewing in your place, with live video and a written report.",
+        "when": "Shortlisted, still abroad"
+      }
+    ]
+  },
+  "stub": {
+    "notSure": "Not sure which fare? Opening your file is free."
+  },
+  "how": {
+    "h2": "From your file",
+    "h2g": "to the keys.",
+    "steps": [
+      {
+        "k": "1 · File",
+        "h": "Open it today",
+        "p": "Budget, move-in date, arrondissements, who's moving. We reply the same working day with what your budget buys.",
+        "status": "FREE"
+      },
+      {
+        "k": "2 · Opening",
+        "h": "A licensed partner",
+        "p": "A chasseur immobilier needs a carte professionnelle (loi Hoguet). The desk opens with a licensed partner, not around the rule.",
+        "status": "WITH PARTNER"
+      },
+      {
+        "k": "3 · The search",
+        "h": "Then as in every BOOM city",
+        "p": "French-format dossier, applications as listings appear, a BOOM person at the viewing, rent cap and lease checked before you sign.",
+        "status": "AT OPENING"
+      }
+    ]
+  },
+  "checks": {
+    "h2": "What we check",
+    "h2g": "before you sign.",
+    "items": [
+      {
+        "id": "fees",
+        "title": "Who may charge you",
+        "at": "loi Hoguet · ALUR",
+        "text": "A chasseur immobilier needs a carte professionnelle; agent fees to tenants are capped by law. We open with a licensed partner."
+      },
+      {
+        "id": "rentcap",
+        "title": "The rent cap",
+        "at": "encadrement des loyers",
+        "text": "The lease must state the reference rent and cannot exceed the increased reference without a justified complément. We run the check."
+      },
+      {
+        "id": "deposit",
+        "title": "The deposit",
+        "at": "dépôt de garantie",
+        "text": "One month's rent unfurnished, two furnished, by law. Agents still ask for more, or months in advance. We don't let them."
+      },
+      {
+        "id": "contract",
+        "title": "Lease type",
+        "at": "vide · meublé · mobilité",
+        "text": "Unfurnished, furnished or bail mobilité: each sets notice, deposit and rights. We check which you're handed, and which charges are yours."
+      }
+    ]
+  },
+  "papers": {
+    "summary": "The papers a French landlord asks for",
+    "at": "8 papers",
+    "items": [
+      "Passport or EU ID",
+      "Employment contract or employer attestation",
+      "Last three payslips (bulletins de salaire)",
+      "Last tax notice (avis d'imposition)",
+      "Proof of address (justificatif de domicile)",
+      "Last three rent receipts (quittances)",
+      "A guarantor, or Visale",
+      "A one-page presentation"
+    ],
+    "tail": "We tell you which ones to start gathering first."
+  },
+  "faq": {
+    "h2": "Questions.",
+    "items": [
+      {
+        "q": "Why isn't BOOM taking searches in Paris yet?",
+        "a": "Searching on a client's behalf is regulated in France: a chasseur immobilier needs a carte professionnelle (loi Hoguet). We open with a licensed partner rather than work around the rule. Your file waits, ready."
+      },
+      {
+        "q": "What can you do for me today?",
+        "a": "Open your file, answer your questions the same working day, and tell you honestly what your budget buys in Paris. The prices on this page are set; nothing is charged until the desk opens and the work starts."
+      },
+      {
+        "q": "What does an agent legally charge a tenant in France?",
+        "a": "The fees a letting agent may charge a tenant are capped by law, per square metre. An agent you hire, who works only for you, is a different, licensed service. That is why we open with a licensed partner, and never take landlord money."
+      }
+    ]
+  },
+  "bref": {
+    "h2": "BOOM Paris — fact sheet",
+    "rows": [
+      {
+        "dt": "Who",
+        "ddHtml": "BOOM Paris, the tenant-side desk of BOOM — operated by <b>Egidi Immobiliare S.r.l.</b>, a registered Italian agency, opening with a <b>licensed partner (carte professionnelle)</b>. Hired and paid by the tenant only."
+      },
+      {
+        "dt": "For whom",
+        "ddHtml": "Internationals relocating to Paris — employees, researchers, couples and families — from abroad or already in the city."
+      },
+      {
+        "dt": "Fees",
+        "ddHtml": "VAT included. No percentage of the rent, nothing from landlords or platforms.",
+        "fees": true
+      },
+      {
+        "dt": "What we do",
+        "ddHtml": "Today: your file, opened and kept ready. When the desk opens: French-format dossier within <b>one working day</b> of your papers, applications <b>as listings appear</b>, attended viewings, rent cap and lease checked, proof of address from day one."
+      },
+      {
+        "dt": "What we don't do",
+        "ddHtml": "We don't list homes, we don't represent landlords, we don't promise a date, and we don't search on your behalf in France before the desk opens."
+      },
+      {
+        "dt": "Reply time",
+        "ddHtml": "The same working day."
+      },
+      {
+        "dt": "Contact",
+        "contact": true,
+        "ddHtml": ""
+      }
+    ]
+  },
+  "footer": {
+    "statement": "Launching with a licensed partner. BOOM Paris acts solely as a tenant-side desk: we do not list properties, represent landlords, or receive remuneration from landlords or their agents, and we do not search on a client's behalf in France before the desk opens with its licensed partner."
+  },
+  "desk": {
+    "person": "Valentino Egidi",
+    "role": "tenant-side agent",
+    "timeZone": "Europe/Rome",
+    "tzLabel": "CET/CEST",
+    "hours": {
+      "from": "09:00",
+      "to": "19:00"
+    },
+    "days": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ]
+  },
+  "door": {
+    "label": "Open my file"
+  },
+  "form": {
+    "name": {
+      "label": "Your name",
+      "placeholder": "Anna Keller"
+    },
+    "contact": {
+      "label": "Email or WhatsApp number",
+      "placeholder": "anna@company.com or +33 …"
+    },
+    "consentLead": "Used only to reply to you —",
+    "consentAlt": "Prefer WhatsApp or email?",
+    "errors": {
+      "name": "Your name, so we know who we're writing to.",
+      "contact": "An email or a number — otherwise we can't reply.",
+      "email": "That email looks incomplete — could you check it?",
+      "net": "The send failed on our side. Try again, or email us directly at hello@boom-rome.com."
+    },
+    "sending": "Opening your file…",
+    "sentNext": [
+      [
+        "{when}",
+        "Valentino writes back by email, or WhatsApp if you left a number."
+      ],
+      [
+        "Nothing to prepare",
+        "We tell you which papers to start gathering."
+      ],
+      [
+        "Nothing by then?",
+        "Write to {email}."
+      ]
+    ],
+    "sentWhenDefault": "Same working day"
+  }
+}

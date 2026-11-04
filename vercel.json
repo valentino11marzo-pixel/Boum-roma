@@ -95,6 +95,26 @@
       "permanent": true
     },
     {
+      "source": "/(tr|turkiye|turkey)",
+      "destination": "/istanbul",
+      "permanent": true
+    },
+    {
+      "source": "/londra",
+      "destination": "/london",
+      "permanent": true
+    },
+    {
+      "source": "/milano",
+      "destination": "/milan",
+      "permanent": true
+    },
+    {
+      "source": "/(cities|boom-desks)",
+      "destination": "/desks",
+      "permanent": true
+    },
+    {
       "source": "/(owner|owner.html)",
       "destination": "/owner-dashboard",
       "permanent": false
@@ -542,6 +562,14 @@
   ],
   "headers": [
     {
+      "source": "/assets/tools/boom-smartlink-safari.shortcut",
+      "headers": [
+        { "key": "Content-Type", "value": "application/octet-stream" },
+        { "key": "Content-Disposition", "value": "attachment; filename=\"Crea SmartLink BOOM.shortcut\"" },
+        { "key": "Cache-Control", "value": "no-store" }
+      ]
+    },
+    {
       "source": "/(.*)",
       "headers": [
         {
@@ -598,6 +626,15 @@
     },
     {
       "source": "/(.*)\\.(png|jpg|jpeg|svg|webp|avif|ico|woff|woff2|ttf|otf)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "/assets/boom-(city\\.css|city\\.js|onda\\.js|desks\\.css|desks\\.js)",
       "headers": [
         {
           "key": "Cache-Control",
@@ -873,6 +910,10 @@
     {
       "path": "/api/leads/scan-inbox",
       "schedule": "*/10 * * * *"
+    },
+    {
+      "path": "/api/leads/scan-inbox?mode=bounces",
+      "schedule": "7-59/10 * * * *"
     },
     {
       "path": "/api/leads/brain",

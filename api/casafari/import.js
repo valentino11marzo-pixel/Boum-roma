@@ -22,6 +22,7 @@ import { readJson, fsGet, fsPatch, logActivity } from '../homie/_lib.js';
 import { scoreMatch, DEFAULT_THRESHOLD } from '../homie/_match.js';
 import { stableIdFromUrl, sanitizeImages } from '../pfs/_ingest.js';
 import { requireCronOrAdmin } from '../pfs/_guard.js';
+import RM from '../../js/radar-markets.js';
 
 export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(204).end();
@@ -61,6 +62,20 @@ export default async function handler(req, res) {
       continue;
     }
 
+    // La città: dichiarata dal chiamante o letta dal dominio; ciò che non
+    // dice niente (casafari, manuale) resta Roma come prima. Un annuncio di
+    // un'altra città non entra nel mazzo di questo cliente NEANCHE con force:
+    // la conferma "proporlo comunque" della plancia è per le agenzie, non per
+    // un appartamento a duemila chilometri.
+    const resolved = RM.resolveListingMarket({ sourceUrl, source: raw.source || 'casafari', explicit: raw.market, text: raw.title || raw.address });
+    const needsCity = RM.marketOfUrl(sourceUrl) === 'needs_city';
+    const listingMarket = resolved.market || (!needsCity && resolved.reason !== 'market_conflict' ? 'roma' : null);
+    const clientMkt = RM.clientMarket(client);
+    if (!listingMarket || listingMarket !== clientMkt) {
+      results.push({ ok: false, url: sourceUrl, error: 'market_mismatch', listingMarket: listingMarket || null, clientMarket: clientMkt || null });
+      continue;
+    }
+
     const stableId = stableIdFromUrl(sourceUrl);
     const now = new Date();
     const property = {
@@ -82,6 +97,7 @@ export default async function handler(req, res) {
       scrapedAt: raw.scrapedAt || now.toISOString(),
       lastSeenAt: now,
       ingestedBy: 'casafari-import:' + actor,
+      market: listingMarket,
     };
 
     // Master record — same collection/shape the radar writes (idempotent).
@@ -116,6 +132,8 @@ export default async function handler(req, res) {
       addedAt: now.toISOString(),
       addedBy: 'casafari',
       matchReasons: reasons,
+      market: listingMarket,
+      advertiser: property.advertiser,
     };
     const newProps = existing.concat([entry]);
     const activity = (Array.isArray(client.portalActivity) ? client.portalActivity : [])

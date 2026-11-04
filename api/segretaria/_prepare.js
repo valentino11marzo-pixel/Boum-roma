@@ -2,6 +2,7 @@
 // proposal is saved on the existing case. Only proven unclaimed expiry may retire
 // its old action; no new queued reply, client send or notification.
 import crypto from 'node:crypto';
+import { reserveAutomaticAttempt } from './_preparation-limits.js';
 import PROPOSTA from '../../js/segretaria-proposta-engine.js';
 import CALENDAR from '../../js/segretaria-calendar-engine.js';
 import VOCE from '../../js/voce-engine.js';
@@ -127,7 +128,8 @@ export async function prepareCase({ id, actor, now = Date.now(), background = fa
   strictPrepareOnly = false, expectedTarget = null }) {
   if (!caseId(id)) return { code: 400, error: 'invalid_case' };
   const time = budget || runBudget(60_000, 7_000);
-  const settings = await fsGet('settings/segretaria');
+  const settingsSnapshot = background ? await fsGetVersioned('settings/segretaria') : null;
+  const settings = background ? settingsSnapshot?.data : await fsGet('settings/segretaria');
   const { cfg } = SEG.mergeConfig(settings);
   if (!cfg.enabled || (background && settings?.prepareCases !== true)) return { code: 409, error: 'preparation_disabled' };
   const path = 'operatorTasks/' + id;
@@ -204,17 +206,23 @@ export async function prepareCase({ id, actor, now = Date.now(), background = fa
     : recheckFor ? 'recheck' : 'other';
   const counterPath = 'heartbeat/segretaria-preparations-' + day(now);
   const counter = await fsGetVersioned(counterPath);
-  // Preparation is continuous. dailyCap belongs to conversational replies;
-  // this counter is telemetry, never permission to consider another case.
+  // Reply dailyCap remains separate. Reserve automatic preparation capacity
+  // in the same CAS as its lease, before any paid model call. Manual requests
+  // and valid cached proposals remain available when automation reaches its cap.
   const attempts = counter ? counter.data.count : 0;
   if (!Number.isSafeInteger(attempts) || attempts < 0 || attempts === Number.MAX_SAFE_INTEGER)
     return { code: 503, error: 'preparation_counter_invalid' };
+  const reservation = background ? reserveAutomaticAttempt({ settings, counter: counter?.data || null, caseId: id }) : { ok: true, fields: {} };
+  if (!reservation.ok) return { code: 429, error: reservation.error };
   const leaseId = crypto.randomUUID();
   try {
     if (!time.afford(35_000)) return { code: 503, error: 'preparation_time_budget' };
     await fsCommit([
+      // A pause or lower limit during source loading invalidates this automatic
+      // reservation. Keep the settings proof with the lease and daily counter.
+      ...(background ? [{ docPath: 'settings/segretaria', fields: {}, precondition: guard(settingsSnapshot) }] : []),
       { docPath: leasePath, fields: { busy: true, leaseId, expiresAt: new Date(now + 120000).toISOString() }, precondition: guard(lease) },
-      { docPath: counterPath, fields: { count: attempts + 1, at: new Date(now), triggers: tallyTriggers(counter?.data.triggers, trigger) },
+      { docPath: counterPath, fields: { count: attempts + 1, at: new Date(now), triggers: tallyTriggers(counter?.data.triggers, trigger), ...reservation.fields },
         precondition: guard(counter) },
     ]);
   } catch (e) { if (e?.conflict) return { code: 409, error: 'preparation_in_progress' }; throw e; }

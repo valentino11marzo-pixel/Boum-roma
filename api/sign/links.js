@@ -82,14 +82,14 @@ export default async function handler(req, res) {
   }
   const out = {
     ok: true, scope: sc.scope,
-    tenant: sc.roles.includes('tenant') ? signUrl(toks.tenant) : null,
-    landlord: sc.roles.includes('landlord') ? signUrl(toks.landlord) : null,
-    tenantSigned: !!contract.tenantSignature,
-    landlordSigned: !!contract.landlordSignature,
+    tenant: sc.roles.includes('tenant') ? contract.externalSignedDocument ? null : signUrl(toks.tenant) : null,
+    landlord: sc.roles.includes('landlord') ? contract.externalSignedDocument ? null : signUrl(toks.landlord) : null,
+    tenantSigned: !!(contract.externalSignedDocument || contract.tenantSignature),
+    landlordSigned: !!(contract.externalSignedDocument || contract.landlordSignature),
   };
   if (sc.scope === 'admin') {
     const co = (Array.isArray(contract.coTenants) ? contract.coTenants : [])
-      .map((x, i) => (x && x.name ? { index: i, name: String(x.name).slice(0, 60), url: `${BASE}/sign?sign=${encodeURIComponent(cosignRef(contractId, i))}`, signed: !!x.signature } : null))
+      .map((x, i) => (x && x.name ? { index: i, name: String(x.name).slice(0, 60), url: contract.externalSignedDocument ? null : `${BASE}/sign?sign=${encodeURIComponent(cosignRef(contractId, i))}`, signed: !!(contract.externalSignedDocument || x.signature) } : null))
       .filter(Boolean);
     if (co.length) out.cosign = co;
   }

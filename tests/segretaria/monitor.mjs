@@ -28,7 +28,7 @@ heartbeat({ queue: { openCases: 93, pending: 88, scope: 'all' }, checked: 2, cac
 let r = await monitor();
 assert.equal(r.status, 'working'); assert.equal(r.usedToday, 0); assert.equal(r.counts.pending, 88);
 assert.equal(r.scope, 'preparation_only'); assert.ok(reads.includes('heartbeat/segretaria-preparations-2026-09-17'));
-assert.equal(r.mode, 'continuous'); assert.equal(r.dailyCap, null); assert.equal(r.remainingToday, null);
+assert.equal(r.automaticLimits, true); assert.equal(r.mode, 'continuous'); assert.equal(r.dailyCap, null); assert.equal(r.remainingToday, null);
 assert.equal(r.queueScope, 'all'); assert.equal(r.queueIncomplete, false);
 for (const used of [5, 50, 5000]) {
   DB.set('heartbeat/segretaria-preparations-2026-09-17', { count: used });
@@ -78,6 +78,8 @@ for (const unsafe of [
 }
 heartbeat({ readingDegraded: true });
 r = await monitor(); assert.equal(r.incomplete, true); assert.equal(r.status, 'unavailable');
+heartbeat({ stoppedBy: 'automatic_budget', error: 'preparation_daily_limit', code: 429 });
+r = await monitor(); assert.equal(r.status, 'unavailable'); assert.equal(r.stoppedBy, 'automatic_budget');
 heartbeat({ stoppedBy: 'daily_cap' });
 r = await monitor(); assert.equal(r.status, 'unavailable'); assert.equal(r.stoppedBy, null);
 heartbeat({});
@@ -106,4 +108,4 @@ for (const count of [-1, '5', 1.5, Number.MAX_SAFE_INTEGER + 1]) {
 }
 DB.delete('heartbeat/segretaria-preparations-2026-09-17'); DB.delete('heartbeat/segretaria-preparer');
 r = await monitor(); assert.equal(r.status, 'unknown'); assert.equal(r.lastRunAt, null);
-console.log('PASS monitor: continuous read-only processing, no daily ceiling, midnight Rome, pause, heartbeat freshness, persisted review vs system failure, retry/review visibility, partial-page scope and corrupted counters.');
+console.log('PASS monitor: read-only processing, automatic budget marker, midnight Rome, pause, heartbeat freshness, persisted review vs system failure, retry/review visibility, partial-page scope and corrupted counters.');

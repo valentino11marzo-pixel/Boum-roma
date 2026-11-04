@@ -37,6 +37,7 @@ import { FEATURE_LABELS } from '../wizard/describe.js';
 import GEO from '../../js/boom-geo.js';
 import DISPO from '../../js/dispo-engine.js';
 import FACTS from '../../js/listing-facts.js';
+import { publicationBlocked } from './_adoption.js';
 
 export { publishable }; // UNA regola di pubblicabilità: vetrina, feed e Pubblicista non possono divergere
 
@@ -183,15 +184,17 @@ export function payloadFor(l, portal) {
  */
 export function worklist(listings, pubs, { portal, limit = 20 } = {}) {
   const byListing = new Map();
+  const blockedListings = new Set();
   for (const p of pubs || []) {
     if (!p) continue;
     if (portal && p.portal && p.portal !== portal) continue;
     const lid = p.listingId || String(p.id || '').replace(new RegExp('^' + portal + '_'), '');
     if (lid) byListing.set(lid, p);
+    if (lid && publicationBlocked(p)) blockedListings.add(lid);
   }
 
   const actions = [];
-  const stats = { publishable: 0, live: 0, parked: 0, toCreate: 0, toUpdate: 0, toRemove: 0 };
+  const stats = { publishable: 0, live: 0, parked: 0, referenceOnly: 0, toCreate: 0, toUpdate: 0, toRemove: 0 };
 
   for (const l of listings || []) {
     if (!l || !l.id) continue;
@@ -200,6 +203,10 @@ export function worklist(listings, pubs, { portal, limit = 20 } = {}) {
     const isLive = !!(pub && pub.wasLive === true);
     if (wanted) stats.publishable++;
     if (isLive) stats.live++;
+
+    // Adoption records identify an existing ad; they authorize no operation,
+    // including removal. A changed price/hash must never unlock this veto.
+    if (blockedListings.has(l.id)) { stats.referenceOnly++; continue; }
 
     const h = publishHash(l);
     let op = null;

@@ -88,6 +88,16 @@ globalThis.fetch = async (url, opts = {}) => {
   }
   if (url.includes(FS)) {
     const path = url.split('/documents')[1] || '';
+    if (path.startsWith(':commit')) {
+      const writes=JSON.parse(opts.body).writes;
+      for (const w of writes) {
+        if (!w.updateMask || w.currentDocument?.updateTime !== '2026-01-01T00:00:00Z') throw Error('invalid conditional write');
+        const key=w.update.name.split('/documents/')[1], flat=store.get(key)||{};
+        for(const [k,v] of Object.entries(w.update.fields))flat[k]=fromFsV(v);
+        store.set(key,flat);
+      }
+      return okJson({writeResults:[]});
+    }
     if (path.startsWith(':runQuery')) {
       const q = JSON.parse(opts.body).structuredQuery;
       const coll = q.from[0].collectionId;
@@ -122,7 +132,7 @@ globalThis.fetch = async (url, opts = {}) => {
     }
     const doc = store.get(clean);
     if (!doc) return new Response('not found', { status: 404 });
-    return okJson({ name: 'projects/p/databases/(default)/documents/' + clean, fields: toFsFieldsShallow(doc) });
+    return okJson({ name: 'projects/p/databases/(default)/documents/' + clean, updateTime:'2026-01-01T00:00:00Z', fields: toFsFieldsShallow(doc) });
   }
   throw new Error('fetch non stubbata: ' + url);
 };

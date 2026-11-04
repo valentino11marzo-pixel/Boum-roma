@@ -28,6 +28,15 @@ export async function fetchHtml(url, { timeoutMs = 8000 } = {}) {
 export function extractListingUrls(html, portal) {
   const urls = new Set();
   if (!html) return [];
+  // idealista.com (Spagna): ramo a sé, gli altri portali come prima.
+  if (portal === 'idealista_es') {
+    let m;
+    const abs = /https?:\/\/www\.idealista\.com\/(?:(?:en|es|ca|it|pt|de|fr)\/)?inmueble\/(\d{5,12})\/?/gi;
+    while ((m = abs.exec(html)) && urls.size < 60) urls.add('https://www.idealista.com/inmueble/' + m[1] + '/');
+    const rel = /href="\/(?:(?:en|es|ca|it|pt|de|fr)\/)?inmueble\/(\d{5,12})\/?"/gi;
+    while ((m = rel.exec(html)) && urls.size < 60) urls.add('https://www.idealista.com/inmueble/' + m[1] + '/');
+    return [...urls];
+  }
   if (portal !== 'idealista') {
     let m;
     const abs = /https?:\/\/www\.immobiliare\.it\/annunci\/(\d+)\/?/gi;
@@ -50,16 +59,25 @@ export function extractListingUrls(html, portal) {
 export function parseListing(html, url) {
   const out = { sourceUrl: url, title: null, price: null, sqm: null, bedrooms: null, images: [], description: null };
   if (!html) return out;
-  const blocks = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g) || [];
-  for (const b of blocks) {
+  const blocks = html.matchAll(/<script\b((?:[^>"']|"[^"]*"|'[^']*')*)>([\s\S]*?)<\/script\s*>/gi);
+  for (const [, attrs, content] of blocks) {
+    // Legge il vero attributo type, non data-type o testo dentro un altro attributo.
+    const attributes = [...attrs.matchAll(/([^\s=/>]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/g)];
+    const type = attributes.find(attribute => attribute[1].toLowerCase() === 'type');
+    if (!type || (type[2] ?? type[3] ?? type[4] ?? '').trim().toLowerCase() !== 'application/ld+json') continue;
     try {
-      const ld = JSON.parse(b.replace(/<script[^>]*>/, '').replace(/<\/script>/, ''));
+      const ld = JSON.parse(content);
       const item = Array.isArray(ld['@graph'])
         ? ld['@graph'].find(x => /Apartment|House|RealEstateListing|Residence/.test(x['@type']))
         : ld;
       if (item) {
         out.title = out.title || item.name || null;
-        if (item.offers?.price) out.price = parseInt(String(item.offers.price).replace(/\D/g, ''), 10);
+        // Schema usa il punto decimale: togliere ogni non-cifra moltiplicava
+        // "1500.00" per cento. Formati ambigui restano al fallback visibile.
+        const rawPrice = item.offers?.price;
+        const price = typeof rawPrice === 'number' ? rawPrice :
+          typeof rawPrice === 'string' && /^\d+(?:\.\d+)?$/.test(rawPrice.trim()) ? Number(rawPrice) : NaN;
+        if (Number.isFinite(price) && price > 0) out.price = price;
         if (item.floorSize?.value) out.sqm = parseInt(item.floorSize.value, 10);
         if (item.numberOfRooms) out.bedrooms = parseInt(item.numberOfRooms, 10);
         if (item.image) out.images = Array.isArray(item.image) ? item.image.slice(0, 10) : [item.image];

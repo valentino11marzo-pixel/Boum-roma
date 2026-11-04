@@ -40,6 +40,14 @@
  * e il riquadro dice esattamente ciò che Accetta accende.
  * Il tracciamento parte SOLO dopo una scelta, come prima.
  *
+ * I desk città e /istanbul (<body data-consent-late>, le pagine dove la
+ * diagnosi o il modulo sono l'hero) aspettano di più: la prima mossa del
+ * lettore + 600 ms, poi finché il lettore è al lavoro (Check-in senza
+ * risposta, biglietto o porta dell'hero .hero-cta sotto la targa), 45 s al
+ * massimo — oltre, solo finché il cursore sta in un campo della porta —
+ * mai sopra un <dialog open>.
+ * Una pagina con l'interruttore di lingua chiama boomConsent.relabel().
+ *
  * Storage: localStorage 'boom:consent' = 'all:<ms>' | 'min:<ms>'.
  * The Meta pixel (js/boom-pixel.js) independently requires 'all'.
  */
@@ -195,7 +203,8 @@
     el.classList.remove('zz');
   }
   function onScroll() {
-    if (!due && scrolledEnough()) show();
+    // sui desk città lo scroll non è un segnale (la pagina scorre da sola)
+    if (!late) { if (!due && scrolledEnough()) show(); }
     nudge();
   }
   function arm() {
@@ -205,6 +214,8 @@
     window.addEventListener('resize', nudge, { passive: true });
     document.addEventListener('transitionend', nudge, true);
     document.addEventListener('animationend', nudge, true);
+    // i desk città armano la loro attesa (prima mossa, al lavoro, 45 s)
+    if (late) { armLate(); return; }
     // I 5 secondi contano dall'arrivo: lo script è defer, quindi gira
     // attorno al DOMContentLoaded. Dal load erano 9–10s su una rete vera.
     if (delayed && !due && !wait5) wait5 = setTimeout(show, 5000);
@@ -217,6 +228,7 @@
     window.removeEventListener('resize', nudge, { passive: true });
     document.removeEventListener('transitionend', nudge, true);
     document.removeEventListener('animationend', nudge, true);
+    LATE_EVS.forEach(function (t) { try { window.removeEventListener(t, lateArm, { passive: true }); } catch (e) {} });
     clearTimeout(wait5); clearTimeout(trail); wait5 = trail = 0;
     if (raf) {
       if (window.cancelAnimationFrame) window.cancelAnimationFrame(raf); else clearTimeout(raf);
@@ -270,30 +282,13 @@
         '@media(prefers-reduced-motion:reduce){.boomcst{transition:none}}';
       document.head.appendChild(st);
     }
-    // The banner speaks the page's language. It reads <html lang> rather than
-    // the browser's, because the page has already decided what language the
-    // reader is being served — an English cookie plate on the French /reunion
-    // page is the one element that gives away that it is a translation.
-    // L'italiano e' impersonale di proposito: le pagine italiane danno del
-    // "tu" (/canone) o del "Lei" (/owners), e il banner non deve scegliere.
-    var lang = String(document.documentElement.lang || 'en').toLowerCase().slice(0, 2);
-    var T = lang === 'fr'
-      ? { e: 'Confidentialité',
-          p: 'Accepter active Google Analytics et le cookie d\'attribution de BOOM. Aucune publicité, aucune revente de données — <a href="/privacy">comment nous traitons vos données</a>.',
-          no: 'Essentiels uniquement', ok: 'Accepter', aria: 'Préférences cookies' }
-      : lang === 'it'
-      ? { e: 'Privacy',
-          p: 'Accetta attiva Google Analytics e il cookie di attribuzione di BOOM. Nessuna pubblicità, nessuna vendita di dati — <a href="/privacy">come trattiamo i dati</a>.',
-          no: 'Solo essenziali', ok: 'Accetta', aria: 'Preferenze cookie' }
-      : { e: 'Privacy',
-          p: 'Accept turns on Google Analytics and BOOM\'s own attribution cookie. No ads, no data resale — <a href="/privacy">how we handle data</a>.',
-          no: 'Essential only', ok: 'Accept', aria: 'Cookie preferences' };
+    var T = texts();
 
     // Sul telefono nasce nascosto (.zz) se il momento non è ancora venuto;
     // se nel frattempo il lettore ha già scorso, nasce visibile.
-    if (delayed && !due && scrolledEnough()) due = true;
+    if (delayed && !due && !late && scrolledEnough()) due = true;
     el = document.createElement('div');
-    el.className = 'boomcst' + (delayed && !due ? ' zz' : '');
+    el.className = 'boomcst' + ((delayed || late) && !due ? ' zz' : '');
     el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', T.aria);
     el.innerHTML =
       '<div class="e">' + T.e + '</div>' +
@@ -310,6 +305,141 @@
     el.querySelector('.no').addEventListener('click', function () { save('min'); deny(); close(); });
   }
 
+  // The banner speaks the page's language. It reads <html lang> rather than
+  // the browser's, because the page has already decided what language the
+  // reader is being served — an English cookie plate on the French /reunion
+  // page is the one element that gives away that it is a translation.
+  // L'italiano e' impersonale di proposito: le pagine italiane danno del
+  // "tu" (/canone) o del "Lei" (/owners), e il banner non deve scegliere.
+  function texts() {
+    var lang = String(document.documentElement.lang || 'en').toLowerCase().slice(0, 2);
+    return lang === 'fr'
+      ? { e: 'Confidentialité',
+          p: 'Accepter active Google Analytics et le cookie d\'attribution de BOOM. Aucune publicité, aucune revente de données — <a href="/privacy">comment nous traitons vos données</a>.',
+          no: 'Essentiels uniquement', ok: 'Accepter', aria: 'Préférences cookies' }
+      // Il turco di /istanbul: la pagina dà del «sen», e il riquadro resta
+      // neutro come l'italiano (il pulsante è un'etichetta, non un ordine).
+      : lang === 'tr'
+      ? { e: 'Gizlilik',
+          p: '“Kabul et” ile Google Analytics ve BOOM\'un kaynak çerezi (bizi nereden bulduğunu kaydeder) açılır. Reklam yok, veri satışı yok — <a href="/privacy">verileri nasıl işliyoruz (İngilizce)</a>.',
+          no: 'Yalnızca zorunlu', ok: 'Kabul et', aria: 'Çerez tercihleri' }
+      : lang === 'it'
+      ? { e: 'Privacy',
+          p: 'Accetta attiva Google Analytics e il cookie di attribuzione di BOOM. Nessuna pubblicità, nessuna vendita di dati — <a href="/privacy">come trattiamo i dati</a>.',
+          no: 'Solo essenziali', ok: 'Accetta', aria: 'Preferenze cookie' }
+      : { e: 'Privacy',
+          p: 'Accept turns on Google Analytics and BOOM\'s own attribution cookie. No ads, no data resale — <a href="/privacy">how we handle data</a>.',
+          no: 'Essential only', ok: 'Accept', aria: 'Cookie preferences' };
+  }
+  // Una pagina con l'interruttore di lingua (/istanbul) cambia <html lang>
+  // dopo che il riquadro è nato: relabel() lo riscrive nella lingua nuova.
+  function relabel() {
+    try {
+      if (!el) return;
+      var T = texts(), e = el.querySelector('.e'), p = el.querySelector('p'), no = el.querySelector('.no'), ok = el.querySelector('.ok');
+      el.setAttribute('aria-label', T.aria);
+      if (e) e.textContent = T.e;
+      if (p) p.innerHTML = T.p;
+      if (no) no.textContent = T.no;
+      if (ok) ok.textContent = T.ok;
+    } catch (x) {}
+  }
+
+  // ── I desk città (<body data-consent-late>): la targa aspetta il lettore ──
+  // Sui desk città la diagnosi è l'hero (STUDIO_CITIES_ESPERIENZA.md §11):
+  // il riquadro compare dopo la PRIMA MOSSA del lettore — una rotella, un
+  // dito che scorre, un tap FUORI da diagnosi/pass/porta, un tasto — più
+  // 600 ms, e poi aspetta finché il lettore è AL LAVORO nell'hero: il
+  // Check-in senza risposta sullo schermo, o il biglietto sullo schermo (su
+  // un 375px si posava sulle opzioni, dopo il tap sulla porta del biglietto),
+  // o la porta dell'hero (.hero-cta) proprio dove la targa si poserebbe.
+  // Ricontrolla ogni 1,2 s, mostra al più tardi 45 s dopo l'armamento, mai
+  // sopra un <dialog open> (la cassa). Lo scroll EVENT non è un segnale: la
+  // pagina scorre da sola per far atterrare il pass. 8 s senza mosse armano
+  // comunque. Il riquadro nasce nascosto (.zz, come sul telefono) e show()
+  // lo rivela; nulla è salvato prima della scelta, quindi aspettare non
+  // costa nulla al lettore. Le pagine senza l'attributo non cambiano.
+  var late = false;
+  function isLate() { try { return !!(document.body && document.body.hasAttribute('data-consent-late')); } catch (e) { return false; } }
+  function modalOpen() { try { return !!document.querySelector('dialog[open]'); } catch (e) { return false; } }
+  function onScreen(n) {
+    try {
+      if (!n) return false;
+      var cs = getComputedStyle(n);
+      if (cs.display === 'none' || cs.visibility === 'hidden') return false;
+      var r = n.getBoundingClientRect();
+      return r.bottom > 0 && r.top < (window.innerHeight || document.documentElement.clientHeight);
+    } catch (e) { return false; }
+  }
+  // il riquadro nascosto (.zz è visibility:hidden) ha già la sua scatola:
+  // conta solo ciò che coprirebbe davvero, non tutto lo schermo — misurata
+  // DOPO lift(), cioè dove show() lo metterebbe (sopra la striscia in fondo)
+  function plateBox() {
+    try {
+      if (!el) return null;
+      lift();
+      var r = el.getBoundingClientRect();
+      return r.height ? r : null;
+    } catch (e) { return null; }
+  }
+  // in altezza E in larghezza (sul desktop la targa sta a sinistra)
+  function meets(n, box) {
+    if (!onScreen(n)) return false;
+    if (!box) return true;
+    try { var r = n.getBoundingClientRect(); return r.bottom > box.top && r.top < box.bottom && r.right > box.left && r.left < box.right; } catch (e) { return true; }
+  }
+  function atWork() {
+    try {
+      var ck = document.getElementById('checkin'), pass = document.getElementById('pass'), box = plateBox();
+      if (ck && meets(ck, box) && !ck.querySelector('input:checked')) return true;
+      if (pass && pass.getAttribute('data-state') !== 'blank' && meets(pass, box)) return true;
+      // the city desks' door (v1.5): one node, #act, in the stub or in the
+      // open ticket — the plate never lands on it while it is on screen
+      var act = document.getElementById('act');
+      if (act && meets(act, box)) return true;
+      // its outlined twin at the desks' Gate (v1.6): the same rule
+      var dg = document.getElementById('deskGo');
+      if (dg && meets(dg, box)) return true;
+      // la porta dell'hero: su un telefono basso «Accept» le si posava sopra
+      var hc = document.querySelector('.hero-cta');
+      if (hc && meets(hc, box)) return true;
+      return false;
+    } catch (e) { return false; }
+  }
+  var WAIT_MAX = 45000, lateArmed = false, armedAt = 0;
+  var LATE_EVS = ['wheel', 'touchmove', 'pointerdown', 'keydown'];
+  // chi sta scrivendo nella porta dell'hero (/istanbul: il cursore in un
+  // campo del modulo) non riceve la targa sopra il bottone, oltre i 45 s
+  function inDoor() {
+    try { var a = document.activeElement; return !!(a && a !== document.body && a.closest && a.closest('.hero-cta')); } catch (e) { return false; }
+  }
+  function lateGo() {
+    if (due) return;
+    // il tempo passato nella cassa non consuma l'attesa: si riparte da lì
+    if (modalOpen()) { armedAt = Date.now(); setTimeout(lateGo, 400); return; }
+    if (late && inDoor() && atWork()) { setTimeout(lateGo, 1200); return; }
+    if (late && atWork() && Date.now() - armedAt < WAIT_MAX) { setTimeout(lateGo, 1200); return; }
+    show();
+  }
+  // un tap DENTRO la diagnosi, il pass o la porta è il lettore al lavoro,
+  // non una mossa oltre: non arma (una rotella sì)
+  function lateInside(ev) {
+    try {
+      if (!ev || ev.type === 'wheel' || ev.type === 'touchmove') return false;
+      return !!(ev.target && ev.target.closest && ev.target.closest('#checkin, #pass, #contact, #desk, #topGo, dialog'));
+    } catch (e) { return false; }
+  }
+  function lateArm(ev) {
+    if (lateArmed || lateInside(ev)) return;
+    lateArmed = true; armedAt = Date.now();
+    LATE_EVS.forEach(function (t) { try { window.removeEventListener(t, lateArm, { passive: true }); } catch (e) {} });
+    setTimeout(lateGo, 600);
+  }
+  function armLate() {
+    LATE_EVS.forEach(function (t) { try { window.addEventListener(t, lateArm, { passive: true }); } catch (e) {} });
+    setTimeout(lateArm, 8000);
+  }
+
   // ── Cambiare idea: facile quanto dire sì ─────────────────────────────
   // La privacy promette che il consenso si ritira dal riquadro: serve un
   // modo per RIAPRIRLO su ogni pagina, non solo window.boomConsent.open()
@@ -318,7 +448,7 @@
   // pagina — o nelle sue lingue, se il piede ha già i <span class="l-xx">
   // dell'interruttore. Una pagina che ha già il suo link non ne riceve un
   // secondo.
-  var PREFS = { en: 'Cookie preferences', it: 'Preferenze cookie', fr: 'Préférences cookies' };
+  var PREFS = { en: 'Cookie preferences', it: 'Preferenze cookie', fr: 'Préférences cookies', tr: 'Çerez tercihleri' };
   var PREFS_SEL = '[data-cookie-prefs],a[href="#cookie-preferences"]';
   function pageLang() {
     var l = String(document.documentElement.lang || 'en').toLowerCase().slice(0, 2);
@@ -347,7 +477,7 @@
       // le lingue dell'interruttore della pagina (owners/executive/reunion)
       var box = priv.closest ? (priv.closest('ul,ol,nav,div,p') || priv.parentNode) : priv.parentNode, langs = [];
       [].forEach.call(box.querySelectorAll('[class]'), function (n) {
-        var m = /(?:^|\s)l-(en|it|fr)(?:\s|$)/.exec(n.className);
+        var m = /(?:^|\s)l-(en|it|fr|tr)(?:\s|$)/.exec(n.className);
         if (m && langs.indexOf(m[1]) < 0) langs.push(m[1]);
       });
       if (langs.length) {
@@ -395,6 +525,7 @@
   });
 
   if (!s) {
+    late = isLate();
     delayed = onPhone();
     arm();
     (document.readyState === 'loading')
@@ -414,7 +545,7 @@
   window.boomConsent = { open: function () {
     if (document.body) reopen();
     else document.addEventListener('DOMContentLoaded', reopen, { once: true });
-  } };
+  }, relabel: relabel };
   function ready() {
     footerLink();
     // …#cookie-preferences nell'indirizzo (un link dalla privacy, un'email)

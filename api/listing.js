@@ -320,7 +320,13 @@ function injectSeo(html, d, id) {
     '<a href="/apartments">all verified homes</a> · ' +
     '<a href="/llms-listings.txt">live inventory in markdown</a>.</p>' +
     '</section></noscript>';
-  html = html.replace('<body>', () => '<body>\n' + noscript);
+  // Il <body> VERO è quello dopo </head>: un replace sulla prima occorrenza
+  // cadrebbe dentro un commento della testa che nomina il tag (22/10/2026:
+  // il contratto di scorrimento inlinato lo nominava, e il racconto per i
+  // crawler finiva dentro un commento CSS).
+  const headEnd = html.indexOf('</head>');
+  const bodyAt = headEnd < 0 ? -1 : html.indexOf('<body>', headEnd);
+  if (bodyAt >= 0) html = html.slice(0, bodyAt + 6) + '\n' + noscript + html.slice(bodyAt + 6);
 
   // Gli slot del corpo, con le regole del client (casaDaListing in
   // apartment-detail.html): zona = prima parte prima di «/», dove = zona ·

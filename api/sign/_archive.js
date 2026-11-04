@@ -46,7 +46,9 @@ export function signedContractDocs(contract, property, { signedPdfUrl, certUrl, 
     signedAt: at, docDate: at.toISOString().slice(0, 10), fiscalYear: at.getFullYear(),
     contractVersion: Number(c.contractVersion) || 1,
     shared: false, uploadedBy: 'boom', source: 'finalize', needsFiling: false,
-    note: 'Copia firmata dal server alla firma completa (pagina delle firme in coda).',
+    note: c.externalSignedDocument ? 'Originale firmato esternamente, verificato dall’operatore; nessun certificato FES BOOM.' : 'Copia firmata dal server alla firma completa (pagina delle firme in coda).',
+    signedDocumentSource: c.externalSignedDocument ? 'external' : 'magic-sign',
+    signedDocumentHash: c.externalSignedDocument?.sha256 || '',
   };
   const out = [];
   const seen = new Set();
@@ -64,7 +66,7 @@ export function signedContractDocs(contract, property, { signedPdfUrl, certUrl, 
     });
   };
   add('tenant', c.tenantId, 'en');
-  add('landlord', p.ownerId || c.landlordId || c.ownerId, 'it');
+  add('landlord', c.externalSignedDocument?.landlordId || p.ownerId || c.landlordId || c.ownerId, 'it');
   (Array.isArray(c.coTenants) ? c.coTenants : []).forEach((x, i) => {
     if (x && x.userId) add('co' + i, x.userId, 'en', { coTenantIndex: i });
   });
@@ -118,7 +120,7 @@ export async function archiveSignedContract(contract, property, { signedPdfUrl, 
     let existing = [];
     try {
       existing = await fsList('documents', { filter: { field: 'contractId', op: 'EQUAL', value: contract.id }, limit: 60 });
-    } catch (e) { console.warn('[archive] list:', e.message); }
+    } catch (e) { if (contract.externalSignedDocument) return {ok:false,error:'archive_read_failed'}; console.warn('[archive] list:', e.message); }
     const updatedAt = now ? new Date(now) : new Date();
     const writes = planArchive(copies, existing, contract.id);
     const write = (w) => fsPatch(`documents/${w.id}`, { ...w.data, updatedAt });

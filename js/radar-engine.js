@@ -118,24 +118,121 @@
     'Montesacro': ['montesacro', 'monte sacro', 'talenti', 'conca d oro', 'prati fiscali', 'nuovo salario', 'sacco pastore', 'citta giardino']
   };
 
-  var ZONE_LEXICON = (function () {
+  /* ── LE ALTRE CITTÀ (radar per mercato, 25/10/2026) ─────────────────────
+   * Stessa disciplina del lessico romano, una lista per città. I nomi
+   * canonici portano la città davanti ('Madrid · Chamberí' → slug
+   * 'madrid-chamberi'): così le statistiche di zona (marketStats/<slug>) di
+   * Madrid non si mescolano mai con quelle di Roma — 'centro' esiste in
+   * entrambe. ATTENZIONE: il prefisso NON basta per i confronti a
+   * contenimento (zoneCompat('centro','madrid-centro') = 0.8), per questo
+   * twinScore e watcherMatch controllano il mercato esplicitamente.
+   *
+   * Provenienza: distretti e barrios ufficiali di Madrid e Barcellona
+   * (conoscenza curata, NON confrontata con email idealista vere); i nomi
+   * composti di idealista ('Malasaña-Universidad', 'Lavapiés-Embajadores')
+   * verificati nei risultati di ricerca del 25/10/2026. Esclusi apposta:
+   * parole comuni ('lista', 'sol', 'opera', 'universidad'), nomi che sono
+   * anche un altro distretto ('vallecas' da solo, 'latina' da sola) e vie
+   * che attraversano più distretti (quelle stanno nelle MASCHERE). */
+  var MADRID_ZONES = {
+    'Madrid · Centro': ['centro', 'distrito centro', 'malasana', 'malasana universidad', 'lavapies', 'lavapies embajadores', 'chueca', 'chueca justicia', 'huertas', 'huertas cortes', 'barrio de las letras', 'la latina', 'conde duque', 'puerta del sol', 'plaza mayor'],
+    'Madrid · Arganzuela': ['arganzuela', 'delicias', 'legazpi', 'chopera', 'acacias', 'palos de moguer', 'palos de la frontera'],
+    'Madrid · Retiro': ['retiro', 'ibiza', 'nino jesus', 'pacifico', 'adelfas', 'jeronimos'],
+    'Madrid · Salamanca': ['barrio de salamanca', 'salamanca', 'goya', 'recoletos', 'fuente del berro', 'guindalera'],
+    'Madrid · Chamartín': ['chamartin', 'el viso', 'prosperidad', 'ciudad jardin', 'hispanoamerica', 'nueva espana'],
+    'Madrid · Tetuán': ['tetuan', 'cuatro caminos', 'bellas vistas', 'berruguete', 'valdeacederas', 'almenara', 'castillejos', 'azca'],
+    'Madrid · Chamberí': ['chamberi', 'gaztambide', 'arapiles', 'trafalgar', 'almagro', 'rios rosas', 'vallehermoso'],
+    'Madrid · Fuencarral-El Pardo': ['fuencarral', 'el pardo', 'las tablas', 'montecarmelo', 'mirasierra', 'barrio del pilar', 'penagrande', 'pena grande', 'tres olivos', 'fuentelarreina'],
+    'Madrid · Moncloa-Aravaca': ['moncloa', 'aravaca', 'arguelles', 'ciudad universitaria', 'casa de campo', 'valdezarza', 'valdemarin', 'el plantio'],
+    'Madrid · Latina': ['distrito latina', 'aluche', 'campamento', 'lucero', 'puerta del angel', 'cuatro vientos', 'las aguilas', 'los carmenes'],
+    'Madrid · Carabanchel': ['carabanchel', 'opanel', 'vista alegre', 'puerta bonita', 'abrantes'],
+    'Madrid · Usera': ['usera', 'orcasitas', 'orcasur', 'moscardo', 'almendrales', 'pradolongo', 'zofio'],
+    'Madrid · Puente de Vallecas': ['puente de vallecas', 'entrevias', 'palomeras', 'portazgo', 'numancia'],
+    'Madrid · Moratalaz': ['moratalaz', 'pavones', 'vinateros', 'marroquina', 'fontarron', 'horcajo', 'media legua'],
+    'Madrid · Ciudad Lineal': ['ciudad lineal', 'pueblo nuevo', 'quintana', 'san pascual', 'costillares', 'san juan bautista'],
+    'Madrid · Hortaleza': ['hortaleza', 'sanchinarro', 'canillas', 'pinar del rey', 'apostol santiago', 'valdefuentes', 'virgen del cortijo', 'conde orgaz', 'piovera'],
+    'Madrid · Villaverde': ['villaverde', 'butarque'],
+    'Madrid · Villa de Vallecas': ['villa de vallecas', 'ensanche de vallecas', 'santa eugenia'],
+    'Madrid · Vicálvaro': ['vicalvaro', 'valdebernardo', 'valderrivas', 'el canaveral'],
+    'Madrid · San Blas-Canillejas': ['san blas', 'canillejas'],
+    'Madrid · Barajas': ['barajas', 'alameda de osuna', 'timon', 'corralejos']
+  };
+  var BARCELONA_ZONES = {
+    'Barcelona · Ciutat Vella': ['ciutat vella', 'el raval', 'raval', 'barri gotic', 'barrio gotico', 'gotic', 'el born', 'la ribera', 'sant pere', 'santa caterina', 'barceloneta'],
+    'Barcelona · Eixample': ['eixample', 'ensanche', 'dreta de l eixample', 'antiga esquerra de l eixample', 'nova esquerra de l eixample', 'esquerra de l eixample', 'sagrada familia', 'fort pienc', 'sant antoni', 'passeig de gracia', 'paseo de gracia', 'rambla de catalunya'],
+    'Barcelona · Sants-Montjuïc': ['sants montjuic', 'sants', 'hostafrancs', 'la bordeta', 'poble sec', 'font de la guatlla', 'montjuic'],
+    'Barcelona · Les Corts': ['les corts', 'las corts', 'pedralbes', 'la maternitat'],
+    'Barcelona · Sarrià-Sant Gervasi': ['sarria', 'sant gervasi', 'san gervasio', 'galvany', 'bonanova', 'tres torres', 'putxet', 'el farro', 'vallvidrera'],
+    'Barcelona · Gràcia': ['vila de gracia', 'gracia nova', 'gran de gracia', 'gracia', 'vallcarca', 'la salut', 'camp d en grassot'],
+    'Barcelona · Horta-Guinardó': ['horta guinardo', 'guinardo', 'el carmel', 'can baro', 'la teixonera', 'montbau', 'vall d hebron', 'la clota', 'font d en fargues'],
+    'Barcelona · Nou Barris': ['nou barris', 'prosperitat', 'verdun', 'trinitat nova', 'torre baro', 'roquetes', 'vilapicina', 'turo de la peira', 'canyelles', 'ciutat meridiana'],
+    'Barcelona · Sant Andreu': ['sant andreu', 'la sagrera', 'sagrera', 'bon pastor', 'baro de viver', 'trinitat vella'],
+    'Barcelona · Sant Martí': ['sant marti', 'poblenou', 'el clot', 'clot', 'diagonal mar', 'vila olimpica', 'la verneda', 'el besos', 'provencals', 'camp de l arpa', 'llacuna']
+  };
+  /* Le MASCHERE: vie che attraversano più distretti o che contengono il nome
+   * di un altro distretto ('Gran Via de Hortaleza', 'Travessera de Gràcia',
+   * 'Centro Comercial'). Si CANCELLANO dal testo prima di cercare le zone:
+   * vuol dire "questo non conta", non "allora null" — 'Calle de Alcalá, Goya'
+   * resta Salamanca. Aggiunte alla lista dello studio, stessa regola:
+   * 'calle de fuencarral' e 'calle de hortaleza' (vie del Centro col nome di
+   * un distretto del nord). */
+  var MARKET_MASKS = {
+    madrid: ['calle de alcala', 'calle alcala', 'alcala de henares', 'paseo de la castellana', 'la castellana', 'calle de bravo murillo', 'calle bravo murillo', 'calle de toledo', 'calle toledo', 'calle de la princesa', 'calle princesa', 'calle de embajadores', 'calle embajadores', 'madrid rio', 'gran via de hortaleza', 'centro comercial', 'centro de salud', 'calle de fuencarral', 'calle fuencarral', 'calle de hortaleza', 'calle hortaleza'],
+    barcelona: ['gran via de les corts catalanes', 'gran via de las cortes catalanas', 'gran via', 'avinguda diagonal', 'avenida diagonal', 'travessera de gracia', 'travesera de gracia', 'jardinets de gracia', 'passeig de sant joan', 'paseo de san juan', 'balmes', 'muntaner', 'arago', 'avinguda meridiana', 'avenida meridiana', 'sant antoni maria claret', 'avinguda de sarria', 'avenida de sarria', 'via augusta']
+  };
+  var MARKET_ZONES = { roma: ROME_ZONES, madrid: MADRID_ZONES, barcelona: BARCELONA_ZONES };
+
+  function phraseRe(alias) {
+    return new RegExp('(^|[^a-z0-9])' + alias.replace(/ /g, '[^a-z0-9]+') + '($|[^a-z0-9])');
+  }
+
+  function buildLexicon(zones) {
     var out = [];
-    Object.keys(ROME_ZONES).forEach(function (zone) {
-      ROME_ZONES[zone].forEach(function (alias) {
-        out.push({ zone: zone, alias: alias, re: new RegExp('(^|[^a-z0-9])' + alias.replace(/ /g, '[^a-z0-9]+') + '($|[^a-z0-9])') });
+    Object.keys(zones).forEach(function (zone) {
+      zones[zone].forEach(function (alias) {
+        out.push({ zone: zone, alias: alias, re: phraseRe(alias) });
       });
     });
     // Alias più lunghi provati per primi: il containment-pruning poi scarta
     // i corti contenuti nei lunghi già trovati.
     out.sort(function (a, b) { return b.alias.length - a.alias.length; });
     return out;
-  })();
+  }
 
-  function inferZone(text) {
+  var ZONE_LEXICON = buildLexicon(ROME_ZONES);
+  var LEXICONS = { roma: ZONE_LEXICON };
+  var MASK_RES = {};
+
+  function lexiconFor(market) {
+    if (!LEXICONS[market] && MARKET_ZONES[market]) LEXICONS[market] = buildLexicon(MARKET_ZONES[market]);
+    return LEXICONS[market] || null;
+  }
+
+  function eraseMasks(hay, market) {
+    var masks = MARKET_MASKS[market];
+    if (!masks) return hay;
+    if (!MASK_RES[market]) {
+      MASK_RES[market] = masks.slice().sort(function (a, b) { return b.length - a.length; })
+        .map(function (m) { return new RegExp('(^|[^a-z0-9])' + m.replace(/ /g, '[^a-z0-9]+') + '(?=$|[^a-z0-9])', 'g'); });
+    }
+    var out = hay;
+    MASK_RES[market].forEach(function (re) { out = out.replace(re, '$1 '); });
+    return out;
+  }
+
+  /* inferZone(text, market='roma'). Con market='roma' è ESATTAMENTE la
+   * funzione di prima (pinnato nei test). Per le altre città si usa SOLO il
+   * loro lessico: il lessico romano non legge mai un annuncio di Madrid
+   * ('Calle de Trieste' non diventa il quartiere Trieste). */
+  function inferZone(text, market) {
+    var mk = market == null ? 'roma' : String(market);
+    var lexicon = lexiconFor(mk);
+    if (!lexicon) return null;
     var hay = fold(text);
     if (!hay || hay.length < 3) return null;
+    hay = eraseMasks(hay, mk);
     var hits = [];
-    ZONE_LEXICON.forEach(function (e) {
+    lexicon.forEach(function (e) {
       if (e.re.test(hay)) hits.push(e);
     });
     if (!hits.length) return null;
@@ -173,10 +270,23 @@
       .normalize('NFD').replace(/[̀-ͯ]/g, '');
   }
 
-  function tokens(s) {
+  /* Le parole vuote degli annunci spagnoli/catalani (radar per mercato):
+   * usate SOLO per le città fuori Roma, così i titoli romani contano come
+   * prima. Senza, "Piso en Calle de X, Chamberí, Madrid" e "Piso en Calle de
+   * Y, Chamberí, Madrid" sembrerebbero titoli sovrapponibili (piso, chamberi,
+   * madrid) e due case diverse diventerebbero gemelle. */
+  var STOPWORDS_ES = {
+    piso: 1, pisos: 1, alquiler: 1, apartamento: 1, estudio: 1, atico: 1, duplex: 1, loft: 1, casa: 1, chalet: 1,
+    penthouse: 1, studio: 1, house: 1, home: 1, homes: 1, calle: 1, carrer: 1, avenida: 1, avinguda: 1,
+    paseo: 1, passeig: 1, plaza: 1, placa: 1, ronda: 1, rambla: 1, del: 1, dels: 1, las: 1, los: 1, con: 1,
+    madrid: 1, barcelona: 1, exterior: 1, interior: 1, planta: 1, ascensor: 1, amueblado: 1, luminoso: 1
+  };
+
+  function tokens(s, market) {
     var out = [], seen = {};
+    var extra = market && market !== 'roma' ? STOPWORDS_ES : null;
     fold(s).split(/[^a-z0-9]+/).forEach(function (w) {
-      if (w.length < 3 || STOPWORDS[w] || /^\d+$/.test(w)) return;
+      if (w.length < 3 || STOPWORDS[w] || (extra && extra[w]) || /^\d+$/.test(w)) return;
       if (!seen[w]) { seen[w] = 1; out.push(w); }
     });
     return out.slice(0, 24);
@@ -187,7 +297,24 @@
    * falso merge (dieci bilocali identici della stessa agenzia in zone
    * limitrofe hanno prezzo e mq uguali, ma vie diverse). */
   var STREET_RE = /\b(via|viale|piazza|piazzale|largo|vicolo|corso|lungotevere|circonvallazione)\s+(?:d[eiao][illa]*\s+|d')?([a-z0-9' ]{3,40}?)(?=\s*(?:,|\.|\d|$|-|–|\(|zona\b|roma\b|ad\b))/;
-  function streetOf(x) {
+  /* La via negli annunci di Madrid e Barcellona: "Calle de la Magdalena",
+   * "Carrer de Còrsega", "Avinguda Diagonal". Solo per le città fuori Roma:
+   * il lessico romano resta quello di sempre (e 'camino' a Roma è il camino). */
+  var STREET_RE_ES = /(^|[^a-z0-9])(calle|carrer|avenida|avinguda|paseo|passeig|plaza|placa|ronda|travesia|travessera|glorieta|rambla|camino|cami)\s+(?:de\s+(?:la\s+|las\s+|los\s+|l\s*'\s*)?|del\s+|dels\s+|d\s*'\s*)?([a-z0-9' ]{3,40}?)(?=\s*(?:,|\.|\d|$|-|–|\(|madrid\b|barcelona\b))/;
+  function streetOfEs(x) {
+    var hay = fold((x && (x.address || '')) + ' ' + (x && (x.title || '')));
+    var m = STREET_RE_ES.exec(hay);
+    if (!m) return null;
+    var name = m[3].replace(/\s+/g, ' ').trim();
+    if (!name || name.length < 3) return null;
+    var civic = null;
+    var after = hay.slice(m.index + m[0].length).match(/^\s*,?\s*(\d{1,4})\b/);
+    if (after) civic = after[1];
+    return { street: m[2] + ' ' + name, civic: civic };
+  }
+
+  function streetOf(x, market) {
+    if (market && market !== 'roma') return streetOfEs(x);
     var hay = fold((x && (x.address || '')) + ' ' + (x && (x.title || '')));
     var m = STREET_RE.exec(hay);
     if (!m) return null;
@@ -223,6 +350,9 @@
    * sono case diverse: azzera tutto, qualunque sia il resto. */
   function twinScore(a, b) {
     var why = [];
+    // Città diverse = case diverse, sempre. Il prefisso di zona non basta:
+    // zoneCompat('centro','madrid-centro') vale 0.8 per contenimento.
+    if ((a.market || 'roma') !== (b.market || 'roma')) return { score: 0, why: ['mercati diversi'], reject: true };
     var za = MK.normalizeZone(a.zone) || a.zoneSlug || null;
     var zb = MK.normalizeZone(b.zone) || b.zoneSlug || null;
     var zc = zoneCompat(za, zb);
@@ -233,7 +363,8 @@
     var pd = Math.abs(pa - pb) / Math.min(pa, pb);
     if (pd > 0.10) return { score: 0, why: ['prezzi troppo distanti (' + Math.round(pd * 100) + '%)'], reject: true };
 
-    var sa = streetOf(a), sb = streetOf(b);
+    var mk = a.market || 'roma';   // uguale per i due: il controllo sopra lo garantisce
+    var sa = streetOf(a, mk), sb = streetOf(b, mk);
     if (sa && sb && sa.street !== sb.street) {
       return { score: 0, why: ['vie diverse: "' + sa.street + '" vs "' + sb.street + '"'], reject: true };
     }
@@ -271,7 +402,7 @@
     // Il segnale dei titoli esige ALMENO 2 token significativi in comune:
     // su titoli corti un token solo ("eur") dà Jaccard alto per caso — ed è
     // proprio il caso delle unità gemelle della stessa agenzia.
-    var ov = overlap(tokens((a.title || '') + ' ' + (a.address || '')), tokens((b.title || '') + ' ' + (b.address || '')));
+    var ov = overlap(tokens((a.title || '') + ' ' + (a.address || ''), mk), tokens((b.title || '') + ' ' + (b.address || ''), mk));
     if (ov.inter >= 2 && ov.jac >= 0.5) { score += 0.15; why.push('titoli sovrapponibili'); }
     else if (ov.inter >= 2 && ov.jac >= 0.3) { score += 0.07; }
 
@@ -356,7 +487,8 @@
       title: (p.title || p.address || '').slice(0, 90),
       address: (p.address || '').slice(0, 90),
       t: p.firstSeenAt || p.scrapedAt || new Date().toISOString(),
-      clusterId: clusterId || id
+      clusterId: clusterId || id,
+      market: p.market || null
     };
   }
 
@@ -497,6 +629,8 @@
     if (!watcher || watcher.enabled === false) return { match: false, reason: 'vedetta spenta' };
     var cr = watcher.criteria || {};
     var why = [];
+    // Una vedetta guarda UNA città (default Roma, le vedette di prima).
+    if ((cr.market || 'roma') !== (listing.market || 'roma')) return { match: false, reason: 'altro mercato' };
 
     var born = T(listing.firstSeenAt || listing.scrapedAt) || (o.nowMs != null ? o.nowMs : Date.now());
     var created = T(watcher.createdAt);
@@ -647,7 +781,9 @@
 
   var API = {
     // zona
-    ROME_ZONES: ROME_ZONES, inferZone: inferZone, normalizeZone: MK.normalizeZone,
+    ROME_ZONES: ROME_ZONES, MADRID_ZONES: MADRID_ZONES, BARCELONA_ZONES: BARCELONA_ZONES,
+    MARKET_ZONES: MARKET_ZONES, MARKET_MASKS: MARKET_MASKS,
+    inferZone: inferZone, normalizeZone: MK.normalizeZone,
     // impronta
     tokens: tokens, streetOf: streetOf, jaccard: jaccard, zoneCompat: zoneCompat,
     twinScore: twinScore, findTwin: findTwin, clusterInfo: clusterInfo,

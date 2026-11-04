@@ -56,6 +56,7 @@ export default async function handler(req, res) {
     }
   }
 
+  if (contract.externalSignedDocument) return res.status(409).json({ok:false,error:'already_signed',signatureStatus:'complete'});
   const signed = role === 'tenant' ? !!contract.tenantSignature : !!contract.landlordSignature;
   if (signed) {
     // Il titolare ha firmato ma il lato conduttori NON è completo: il

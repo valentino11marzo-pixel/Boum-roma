@@ -21,7 +21,7 @@
 import { knobs, rejectedLine } from '../_squadra.js';
 import { callClaude, extractJson } from '../agent/_claude.js';
 import { replyLang } from '../_lang.js';
-import { isReunion, isB2B } from '../_market.js';
+import { isReunion, isB2B, isCityMarket } from '../_market.js';
 import { fsGet, fsList as fsListRaw } from '../homie/_lib.js';
 import { runBudget } from '../_budget.js';
 import FACTS from '../../js/listing-facts.js';
@@ -128,6 +128,12 @@ async function run({ dry }) {
     // che una bozza sbagliata: il lead esce comunque su Telegram entro un
     // minuto, con il messaggio francese già scritto (api/_market.js).
     if (isReunion(lead)) continue;
+    // Le città fuori Roma (/amsterdam e le prossime): stessa ragione, altra
+    // lingua. Chi scrive da /amsterdam cerca casa AD AMSTERDAM — il prompt
+    // romano, il catalogo `listings` e il «stai ancora cercando casa a
+    // Roma?» produrrebbero una prima risposta su un'altra città. La card
+    // Telegram porta già il messaggio inglese giusto (cityReplyText).
+    if (isCityMarket(lead)) continue;
     // Enti e aziende: il Commerciale TACE anche qui. La sua persona è
     // l'assistente di chi cerca casa per sé — a un ufficio housing, a un HR
     // o a un proprietario che si propone scriverebbe "ti andrebbe di fissare

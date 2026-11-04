@@ -33,6 +33,30 @@ assert.equal(publicationStatus(listing,'immobiliare',{...receipt,status:'error'}
 assert.equal(publicationStatus(listing,'immobiliare',{...receipt,wasLive:false,status:'removed'},{}).state,'removed');
 assert.equal(publicationStatus(listing,'immobiliare',{...receipt,listingId:'wrong'},{}).remoteUrl,null);
 for(const url of ['javascript:alert(1)','https://evil.test/','https://www.immobiliare.it.evil.test/','https://me:password@www.immobiliare.it/','http://www.immobiliare.it/'])assert.equal(safePortalURL(url,'immobiliare'),null);
+// Adoption carries identity evidence, never a receipt or permission to
+// publish. It stays independent from the global/channel enable switches.
+const adopted={portal:'immobiliare',listingId:listing.id,managementMode:'reference_only',
+  remoteId:'123456',remoteUrl:'https://www.immobiliare.it/annunci/123456/',adoptedAt:'2026-10-26T10:00:00Z'};
+for(const enabled of [true,false]){
+  const status=publicationStatus(listing,'immobiliare',adopted,{enabled,portals:{immobiliare:{enabled:true}}});
+  assert.equal(status.state,'reference_only');assert.equal(status.enabled,enabled);
+  assert.equal(status.remoteUrl,adopted.remoteUrl);assert.equal(status.recordedAt,adopted.adoptedAt);
+  assert.match(status.detail,/non è una ricevuta/);
+}
+assert.equal(publicationStatus(listing,'immobiliare',adopted,{enabled:true,portals:{immobiliare:{enabled:false}}}).enabled,false);
+assert.equal(publicationStatus(listing,'immobiliare',adopted,{}, {configError:true}).enabled,null);
+assert.equal(publicationStatus(listing,'immobiliare',{...adopted,remoteUrl:'https://evil.test/annunci/123456/'},{}).remoteUrl,null);
+assert.equal(publicationStatus(listing,'immobiliare',{...adopted,listingId:'wrong'},{}).state,'unknown');
+assert.equal(publicationStatus({...listing,status:'off_market'},'immobiliare',{...receipt,...adopted},{}).state,'reference_only');
+assert.equal(publicationStatus({...listing,price:1700},'immobiliare',{...receipt,...adopted},{}).state,'reference_only');
+assert.equal(publicationStatus(listing,'immobiliare',{...adopted,managementMode:'unknown'},{}).state,'reference_only');
+store.set('portalPubs/immobiliare_levico',adopted);
+r=await call();assert.equal(r.body.channels[0].state,'reference_only');
+assert.equal(r.body.channels[0].remoteUrl,adopted.remoteUrl);assert.equal(r.body.channels[0].recordedAt,adopted.adoptedAt);
+assert.equal(r.body.channels[0].enabled,false);
+failures.add('settings/publisher');
+r=await call();assert.equal(r.body.channels[0].state,'reference_only');assert.equal(r.body.channels[0].enabled,null);
+failures.clear();store.set('portalPubs/immobiliare_levico',receipt);
 failures.add('portalPubs/idealista_levico');failures.add('settings/publisher');
 r=await call();assert.equal(r.body.channels[0].state,'recorded');assert.equal(r.body.channels[0].enabled,null);assert.equal(r.body.channels[1].state,'unknown');assert.match(r.body.channels[1].label,/riprovare/);
 failures.add('listings/levico');assert.equal((await call()).code,503);failures.clear();
@@ -41,4 +65,4 @@ assert.equal(writes.length,0,'reading a house never writes or activates publicat
 // module and prove the same assertion rejects it. Repository files untouched.
 const mutant=await mutatedHandler("requireRole(req,res,['admin'])","requireRole(req,res,['admin','landlord'])");
 await assert.rejects(async()=>assert.equal((await call({role:'landlord',use:mutant})).code,403));
-console.log('PASS catalogocasa: exact links, role boundaries, actual HTTP handler, stale receipts, partial reads, URLs, no writes; authorization mutant killed.');
+console.log('PASS catalogocasa: exact links, role boundaries, actual HTTP handler, stale receipts, reference-only adoption, partial reads, URLs, no writes; authorization mutant killed.');

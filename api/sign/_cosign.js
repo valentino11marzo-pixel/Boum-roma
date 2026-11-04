@@ -40,9 +40,9 @@ export function coSigners(contractId, contract) {
       name: String(cv.name).trim(),
       email: String(cv.email || '').trim(),
       phone: String(cv.phone || '').trim(),
-      signed: !!cv.signature,
-      signedAt: cv.signedAt || null,
-      url: contractId ? `${BASE}/sign?sign=${encodeURIComponent(cosignRef(contractId, idx))}` : '',
+      signed: !!(contract.externalSignedDocument || cv.signature),
+      signedAt: cv.signedAt || (contract.externalSignedDocument ? contract.fullySignedAt : null),
+      url: contractId && !contract.externalSignedDocument ? `${BASE}/sign?sign=${encodeURIComponent(cosignRef(contractId, idx))}` : '',
     });
   });
   return out;

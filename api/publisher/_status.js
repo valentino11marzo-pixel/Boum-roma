@@ -1,5 +1,6 @@
 // Read model of the existing receipts, never another publication queue.
 import { publishHash, publishable } from './_state.js';
+import { publicationBlocked } from './_adoption.js';
 
 export function safePortalURL(value, portal) {
   try {
@@ -16,6 +17,9 @@ export function publicationStatus(listing, portal, receipt, config, {receiptErro
   if ((receipt.portal && receipt.portal !== portal) || (receipt.listingId && receipt.listingId !== listing.id))
     return {...out,label:'Collegamento da verificare',detail:'La ricevuta rimanda a un altro annuncio o portale.'};
   out.remoteUrl = safePortalURL(receipt.remoteUrl,portal);
+  if (publicationBlocked(receipt)) return {...out,state:'reference_only',label:'Riferimento collegato',
+    detail:'Il codice identifica questa casa. Creazione, aggiornamento e ritiro automatici non sono autorizzati; non è una ricevuta di pubblicazione.',
+    recordedAt:receipt.adoptedAt || null};
   out.recordedAt = receipt.lastRunAt || receipt.publishedAt || receipt.removedAt || null;
   if (receipt.status === 'error') return {...out,state:'error',label:'Ultimo tentativo non riuscito',detail:'Verifica l’annuncio e completa l’aggiornamento. I dati del catalogo restano salvati.'};
   if (receipt.wasLive === true) {

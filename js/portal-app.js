@@ -247,35 +247,10 @@ window.__portalAppLoaded = true; // sentinella per la via d'uscita anti-spinner-
         } catch (e) { /* nessun beacon è meglio di un boot rotto */ }
     })();
 
-    // Offline persistence — IndexedDB on Safari (especially iOS) is notoriously
-    // slow at cold-start and ITP wipes it every 7 days anyway, making the cost
-    // higher than the benefit. We:
-    //   1) Defer the call out of the critical boot path (idle callback / timeout).
-    //   2) Skip it on iOS Safari (the platform that suffers the most from it).
-    //   3) Drop synchronizeTabs on Safari (the BroadcastChannel/WebLocks dance
-    //      causes 1-2s stalls there).
-    function startFirestorePersistence() {
-        const ua = (navigator.userAgent || '').toLowerCase();
-        const isSafariUA = /^((?!chrome|android|crios|fxios).)*safari/.test(ua);
-        const isIOS      = /iphone|ipad|ipod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-        // Safari in navigazione privata / con i cookie bloccati fa LANCIARE
-        // localStorage, non lo restituisce vuoto. js/firebase-config.js lo
-        // avvolge già; qui no, e l'eccezione moriva dentro l'idle callback
-        // lasciando la persistenza spenta senza dirlo. Stesso trattamento.
-        try {
-            if (location.search.includes('nopersist=1')) return;
-            if (localStorage.getItem('boom_no_persist') === '1') return;
-        } catch (e) { return; } // storage negato → niente persistenza, mai un crash
-        if (isIOS) return; // iOS Safari + persistence = 3-5s stall, not worth it.
-        const opts = isSafariUA ? {} : { synchronizeTabs: true };
-        db.enablePersistence(opts).catch(err => {
-            if (err.code === 'failed-precondition') console.warn('Persistence: multiple tabs open');
-            else if (err.code === 'unimplemented') console.warn('Persistence: browser not supported');
-            else console.warn('Persistence init:', err.message || err);
-        });
-    }
-    if ('requestIdleCallback' in window) requestIdleCallback(startFirestorePersistence, { timeout: 2000 });
-    else setTimeout(startFirestorePersistence, 0);
+    // Firestore uses its default memory cache. Do not enable disk persistence:
+    // an IndexedDB open/lease can stall the SDK queue before the profile read,
+    // even when enablePersistence is deferred. Auth persistence is independent.
+    // Keep existing disk data untouched (it may contain unacknowledged writes).
 
     // ═══════════════════════════════════════════════════════════════════════════
     // COMPANY INFO - UPDATE THESE FOR YOUR BUSINESS
@@ -2359,6 +2334,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function portalSessionReset() {
         portalSessionGeneration++; portalLoadGeneration++;
         window.BOOM_MAILBOX?.reset();
+        if (typeof smartLinkResetSession === 'function') smartLinkResetSession();
         authProcessed = false; authRetryCount = 0;
         stopSessionCheck();
         for (const stop of [stopNotificationListener, stopContractsListener, stopActionQueueListener,
@@ -2366,7 +2342,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             stopMaintenanceListener, stopLeadsListener, stopAgentFeedListener]) stop();
         portalSourcesStop();
         oggiSegretariaStopLive(); oggiSegretaria.generation++;
-        Object.assign(oggiSegretaria, { userId: null, modal: null, rows: [], dossiers: {}, receipts: {}, loaded: false, loading: false });
+        Object.assign(oggiSegretaria, { userId: null, modal: null, rows: [], closedRows: [], closedComplete: false, dossiers: {}, receipts: {}, loaded: false, loading: false });
         window.portalSearchReset?.();
         if (typeof _inboxState !== 'undefined') _inboxState = { convId: null, filter: 'open', channel: 'all', search: '', composing: 'reply' };
         const lang = S.lang, isOnline = navigator.onLine;
@@ -5350,7 +5326,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // ═══ FINE OWNER COMMAND ═════════════════════════════════════════════
 
     // ═══ SEGRETERIA · SEGUITI IN OGGI — proposte, invio solo dopo conferma ═══
-    const oggiSegretaria = { rows: [], dossiers: {}, receipts: {}, loaded: false, loading: false, error: '', incomplete: false, deliveryIncomplete: false, userId: null, generation: 0, timer: null, modal: null, readAt: null, monitoring: null, liveListener: null, liveObserver: null, liveError: false, liveGeneration: 0, updateTimer: null, refreshPending: false, decisionsPending: false, preparingVisible: 12, decisionsVisible: 12 };
+    const oggiSegretaria = { rows: [], closedRows: [], closedComplete: false, dossiers: {}, receipts: {}, loaded: false, loading: false, error: '', incomplete: false, deliveryIncomplete: false, userId: null, generation: 0, timer: null, modal: null, readAt: null, monitoring: null, liveListener: null, liveObserver: null, liveError: false, liveGeneration: 0, updateTimer: null, refreshPending: false, decisionsPending: false, preparingVisible: 12, decisionsVisible: 12 };
     // Stato effimero della lettura nel browser: non certifica la ricezione
     // WhatsApp sul Mac né la preparazione delle proposte sul server.
     const portalFreshness = { page: null, user: null, observer: null, timer: null };
@@ -5541,11 +5517,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             disabled: 'Preparazione automatica disattivata. I seguiti restano disponibili.',
             paused: 'Preparazione automatica sospesa. I seguiti restano disponibili.',
             daily_cap: 'Il servizio precedente segnala un limite giornaliero raggiunto. I seguiti restano disponibili.',
+            automatic_budget: 'Preparazione automatica ferma: limite dei tentativi raggiunto o contatore da verificare. I seguiti restano aperti.',
             delayed: 'Il controllo della preparazione automatica è in ritardo.',
             working: 'Nuove proposte preparate nell’ultimo ciclo.',
             idle: 'Nessuna nuova proposta nell’ultimo ciclo. Le richieste ancora aperte restano da seguire.'
         };
-        const status = continuous && m.status === 'daily_cap' ? 'unknown' : m && Object.hasOwn(labels, m.status) ? m.status : 'unavailable';
+        const status = continuous && m.stoppedBy === 'automatic_budget' && !['paused', 'disabled'].includes(m.status) ? 'automatic_budget' : continuous && m.status === 'daily_cap' ? 'unknown' : m && Object.hasOwn(labels, m.status) ? m.status : 'unavailable';
         const dates = [], counts = [];
         const at = value => { const n = Date.parse(value || ''); return Number.isFinite(n) ? oggiSegretariaDate(n) : ''; };
         if (at(m?.checkedAt)) dates.push('Stato letto: ' + at(m.checkedAt));
@@ -5566,22 +5543,24 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             preparation_in_progress: 'Preparazione già in corso', previous_delivery_unresolved: 'Esito di un invio da verificare',
             preparation_needs_context: 'Informazioni da verificare', source_message_missing: 'Fonte non disponibile',
             context_unavailable: 'Contesto non disponibile', model_timeout: 'Preparazione non conclusa in tempo',
-            unavailable: 'Servizio non disponibile'
+            unavailable: 'Servizio non disponibile', preparation_daily_limit: 'Limite giornaliero dei tentativi',
+            preparation_case_daily_limit: 'Limite dei tentativi per questo caso', preparation_limit_history_unknown: 'Contatore da verificare',
+            preparation_limit_counter_invalid: 'Contatore da verificare', preparation_limit_config_invalid: 'Limite da verificare'
         };
         const retries = Object.entries(m?.retryReasons && typeof m.retryReasons === 'object' ? m.retryReasons : {})
             .filter(([, count]) => Number.isSafeInteger(count) && count > 0)
             .map(([code, count]) => (retryLabels[code] || (code.startsWith('calendar_') ? 'Orario da verificare' : 'Motivo da verificare')) + ': ' + count);
-        const warning = ['unavailable', 'unknown', 'disabled', 'paused', 'daily_cap', 'delayed'].includes(status);
+        const warning = ['unavailable', 'unknown', 'disabled', 'paused', 'daily_cap', 'delayed', 'automatic_budget'].includes(status);
         // L'interruttore (21/09/2026): prima `prepareCases` si poteva accendere
         // solo scrivendo a mano su Firestore, e la Segreteria restava «sospesa»
         // per costruzione. Il tap scrive settings/segretaria dal server (admin).
         const canSwitch = m && m.prepareCases !== null && m.enabled !== false;
         const switchHtml = !canSwitch ? '' : m.prepareCases === true
             ? `<p class="sg-footnote">I nuovi WhatsApp diventano casi da preparare. <button type="button" class="btn btn-sm btn-secondary" data-og-action="preparation-off" onclick="oggiSegretariaSwitchPreparation(false)">Sospendi la preparazione automatica</button></p>`
-            : `<p><button type="button" class="btn btn-sm" data-og-action="preparation-on" onclick="oggiSegretariaSwitchPreparation(true)">▶ Attiva la preparazione automatica</button> <span class="sg-footnote">Da questo momento ogni WhatsApp in entrata diventa un caso e la proposta arriva qui entro un paio di minuti. Niente parte da solo: ogni invio resta una tua conferma.</span></p>`;
+            : `<p><button type="button" class="btn btn-sm" data-og-action="preparation-on" onclick="oggiSegretariaSwitchPreparation(true)">▶ Attiva la preparazione automatica</button> <span class="sg-footnote">Prepara proposte dai messaggi acquisiti e dai seguiti aperti, entro i limiti automatici. Tempi e copertura dipendono dalle fonti disponibili. Ogni invio richiede la tua conferma.</span></p>`;
         const cycle = m?.stoppedBy === 'time_budget' ? 'Il ciclo ha raggiunto il tempo disponibile; le richieste residue restano in coda.'
             : m?.stoppedBy === 'batch_limit' ? 'Il lavoro prosegue per cicli; le richieste residue restano in coda.' : '';
-        return `<div id="sgPreparationStatus" class="sg-notice${warning ? ' sg-notice--warning' : ''}" role="status"><p>${labels[status]}</p>${switchHtml}<details class="sg-service-details" data-sg-detail="service" ${opened.has('service') ? 'open' : ''}><summary>Dettagli della preparazione${partialQueue ? ' · conteggi parziali' : ''}<span aria-hidden="true">+</span></summary>${continuous ? '<p>Preparazione continua · nessuna quota giornaliera di proposte.</p>' : ''}${counts.length ? `<p>${partialQueue ? 'Parte della coda, ultimo ciclo' : 'Ultimo ciclo'} · ${esc(counts.join(' · '))}</p>` : ''}${m?.counts?.retrying > 0 ? '<p>I casi non riusciti restano da ritentare; non sono proposte pronte.</p>' : ''}${retries.length ? `<p>Motivi dei casi da ritentare o verificare · ${esc(retries.join(' · '))}</p>` : ''}${at(m?.nextRetryAt) ? `<p>${Date.parse(m.nextRetryAt) <= Date.now() ? 'Nuovo tentativo atteso dal' : 'Prossimo tentativo previsto'}: ${esc(at(m.nextRetryAt))}</p>` : ''}${cycle ? `<p>${cycle}</p>` : ''}${dates.length ? `<p>${esc(dates.join(' · '))}</p>` : ''}${status === 'daily_cap' ? '<p>Puoi leggere le fonti e correggere i seguiti mentre lo stato del servizio viene aggiornato.</p>' : ''}${partialQueue ? '<p>La lettura della coda è parziale: potrebbero esserci altre richieste da valutare.</p>' : ''}${m?.incomplete ? '<p>Informazioni sulla preparazione parziali.</p>' : ''}</details></div>`;
+        return `<div id="sgPreparationStatus" class="sg-notice${warning ? ' sg-notice--warning' : ''}" role="status"><p>${labels[status]}</p>${switchHtml}<details class="sg-service-details" data-sg-detail="service" ${opened.has('service') ? 'open' : ''}><summary>Dettagli della preparazione${partialQueue ? ' · conteggi parziali' : ''}<span aria-hidden="true">+</span></summary>${continuous ? (m.automaticLimits ? '<p>Preparazione automatica con limiti preventivi ai tentativi. Questi limiti non sono un tetto monetario.</p>' : '<p>Preparazione continua · nessuna quota giornaliera di proposte.</p>') : ''}${counts.length ? `<p>${partialQueue ? 'Parte della coda, ultimo ciclo' : 'Ultimo ciclo'} · ${esc(counts.join(' · '))}</p>` : ''}${m?.counts?.retrying > 0 ? '<p>I casi non riusciti restano da ritentare; non sono proposte pronte.</p>' : ''}${retries.length ? `<p>Motivi dei casi da ritentare o verificare · ${esc(retries.join(' · '))}</p>` : ''}${at(m?.nextRetryAt) ? `<p>${Date.parse(m.nextRetryAt) <= Date.now() ? 'Nuovo tentativo atteso dal' : 'Prossimo tentativo previsto'}: ${esc(at(m.nextRetryAt))}</p>` : ''}${cycle ? `<p>${cycle}</p>` : ''}${dates.length ? `<p>${esc(dates.join(' · '))}</p>` : ''}${status === 'daily_cap' ? '<p>Puoi leggere le fonti e correggere i seguiti mentre lo stato del servizio viene aggiornato.</p>' : ''}${partialQueue ? '<p>La lettura della coda è parziale: potrebbero esserci altre richieste da valutare.</p>' : ''}${m?.incomplete ? '<p>Informazioni sulla preparazione parziali.</p>' : ''}</details></div>`;
     }
     const oggiSegretariaErrors = {
         unauthorized: 'Accedi di nuovo per leggere i seguiti.', forbidden: 'Questa vista richiede un accesso amministratore.',
@@ -5900,7 +5879,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (oggiSegretaria.userId !== uid) {
             oggiSegretariaStopLive();
             oggiSegretaria.generation++;
-            Object.assign(oggiSegretaria, { userId: uid, rows: [], dossiers: {}, receipts: {}, loaded: false, loading: false, error: '', incomplete: false, deliveryIncomplete: false, readAt: null, monitoring: null, liveError: false, preparingVisible: 12, decisionsVisible: 12, propertyReturn: null });
+            Object.assign(oggiSegretaria, { userId: uid, rows: [], closedRows: [], closedComplete: false, dossiers: {}, receipts: {}, loaded: false, loading: false, error: '', incomplete: false, deliveryIncomplete: false, readAt: null, monitoring: null, liveError: false, preparingVisible: 12, decisionsVisible: 12, propertyReturn: null });
         }
         oggiSegretariaStartLive();
         oggiSegretariaRender();
@@ -5908,8 +5887,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
     async function oggiSegretariaLoad(force) {
         if (!isAdmin() || !document.getElementById('sgFollowPanel') || (oggiSegretaria.loading && !force)) return;
+        // Read existing health only: opening Oggi never scans a mailbox or starts AI.
+        if (typeof window.portalMailCheckSources === 'function') window.portalMailCheckSources({ automatic: true });
         clearTimeout(oggiSegretaria.timer);
         const generation = ++oggiSegretaria.generation;
+        const user = auth.currentUser, closureSince = new Date(Date.now() - 7 * 86400000);
         oggiSegretaria.loading = true;
         oggiSegretariaRender();
         const rows = new Map();
@@ -5934,9 +5916,27 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 if (cursor !== null && (typeof cursor !== 'string' || seen.has(cursor))) throw { code: 'invalid_response' };
                 if (cursor) seen.add(cursor);
             } while (cursor);
+            // Read closures AFTER the open pages, so a case closed between the
+            // two reads cannot fall through both. No message/AI bodies needed.
+            let closedRows = [], closedComplete = false;
+            try {
+                let timeout;
+                const snap = await Promise.race([
+                    db.collection('operatorTasks').where('doneAt', '>=', closureSince).limit(201).get({ source: 'server' }),
+                    new Promise((_, reject) => { timeout = setTimeout(() => reject(new Error('closure_read_timeout')), 10000); })
+                ]).finally(() => clearTimeout(timeout));
+                closedComplete = snap.docs.length <= 200;
+                closedRows = snap.docs.map(doc => ({ ...doc.data(), id: doc.id })).filter(t => t.source === 'segretaria' && t.status === 'done' && t.followUp?.open === false)
+                    .map(t => ({ id: t.id, source: t.source, status: t.status, followUp: { open: false, conversationId: t.followUp.conversationId, lastInboundAt: t.followUp.lastInboundAt, lastMessageId: t.followUp.lastMessageId } }));
+            } catch { /* Never resurrect an old needsReply flag without closure coverage. */ }
+            if (generation !== oggiSegretaria.generation || auth.currentUser !== user || S.page !== 'oggi') return;
+            for (const closed of closedRows) rows.delete(closed.id);
+            oggiSegretaria.closedRows = closedRows;
+            oggiSegretaria.closedComplete = closedComplete && data.incomplete !== true;
             Object.assign(oggiSegretaria, { rows: [...rows.values()], incomplete: data.incomplete === true, deliveryIncomplete, loaded: true, error: '', readAt: Date.now(), monitoring: data.monitoring || null });
         } catch (e) {
             if (generation === oggiSegretaria.generation) {
+                oggiSegretaria.closedComplete = false;
                 if (!oggiSegretaria.loaded && rows.size) Object.assign(oggiSegretaria, { rows: [...rows.values()], loaded: true, incomplete: true, deliveryIncomplete, monitoring: latestMonitor });
                 oggiSegretaria.error = oggiSegretariaError(e);
             }
@@ -6480,11 +6480,43 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
     // A deterministic work surface over existing records, never another task store.
     function oggiDeskModel() {
-        return window.BOOM_OGGI_DESK?.build({ state: S, signals: window.BOOM_OGGI?.build(S, new Date().toISOString()).decisions || [], rows: oggiSegretaria.rows, pendingProposalIds: oggiSegretaria.rows.filter(t => { const proposal = oggiSegretariaPreparation(t); return proposal && !proposal.approval; }).map(t => t.id), nowISO: new Date().toISOString() });
+        return window.BOOM_OGGI_DESK?.build({ state: S, conversations: S.conversations || [], allowNewRequests: oggiSegretaria.closedComplete === true, signals: window.BOOM_OGGI?.build(S, new Date().toISOString()).decisions || [], rows: [...oggiSegretaria.rows, ...(oggiSegretaria.closedRows || [])], pendingProposalIds: oggiSegretaria.rows.filter(t => { const proposal = oggiSegretariaPreparation(t); return proposal && !proposal.approval; }).map(t => t.id), nowISO: new Date().toISOString() });
     }
     function oggiDeskItems(model) {
-        return [...(model?.areas || []).flatMap(a => a.items), ...(model?.history || []), ...(model?.waiting || [])];
+        return [...(model?.areas || []).flatMap(a => a.items), ...(model?.history || []), ...(model?.waiting || []), ...(model?.summaryItems || [])];
     }
+    function oggiDeskReading(item) {
+        // A summary belongs to the exact action being opened, never another
+        // case grouped under the same house/contract. The existing validator
+        // owns message/context revisions; new headers invalidate old readings.
+        if (item.hasNewInbound || item.action?.fn !== 'oggiSegretariaOpen') return null;
+        const id = item.action.args?.[0];
+        const matches = oggiSegretaria.rows.filter(t => t.id === id && item.caseIds.includes(id));
+        if (matches.length !== 1) return null;
+        const task = matches[0], p = oggiSegretariaPreparation(task);
+        if (!p || p.approval || oggiSegretariaApprovalTimeIssue(p)) return null;
+        return { task, p };
+    }
+    function oggiDeskCoverage() {
+        const m = oggiSegretaria.monitoring, state = portalMailState();
+        const labels = { paused: 'Preparazione AI sospesa.', disabled: 'Preparazione AI disattivata.',
+            delayed: 'Preparazione AI in ritardo.', unavailable: 'Stato della preparazione AI non disponibile.',
+            unknown: 'Stato della preparazione AI da verificare.',
+            working: 'La Segreteria ha preparato nuove proposte nell’ultimo ciclo.',
+            idle: 'Nessuna nuova proposta AI nell’ultimo ciclo.' };
+        const label = oggiSegretaria.error ? 'Preparazione AI: aggiornamento non riuscito.'
+            : m?.stoppedBy === 'automatic_budget' && !['paused', 'disabled'].includes(m?.status) ? 'Preparazione AI ferma: limite dei tentativi o contatore da verificare.'
+            : labels[m?.status] || 'Preparazione AI: stato da verificare.';
+        const last = Date.parse(m?.lastRunAt || '');
+        const stamp = Number.isFinite(last) ? ' Ultimo ciclo: ' + new Date(last).toLocaleString('it-IT', { timeZone: 'Europe/Rome', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) + ' (Roma).' : '';
+        return `<div class="od-coverage"><p>${esc(label)}${m?.incomplete || m?.queueIncomplete ? ' Lettura della preparazione parziale.' : ''}</p><details data-desk-coverage><summary>Fonti e aggiornamento · copertura parziale</summary><p>${esc(stamp.trim())}</p><p>${esc(state?.summary || 'Email e WhatsApp: stato ancora da verificare.')}</p><p>Il riepilogo usa le conversazioni e le pratiche caricate nel Portal. La lettura delle conversazioni è limitata alle più recenti; non certifica tutta la casella o WhatsApp.</p><p>Portali immobiliari: sono inclusi i dati già acquisiti in BOOM. L’allineamento con i portali esterni non è verificato da questo riepilogo.</p></details></div>`;
+    }
+    window.oggiDeskConversation = function(cid) {
+        if (!isAdmin() || !auth.currentUser || document.body.classList.contains('modal-open')) return;
+        const matches = (S.conversations || []).filter(c => c.id === cid);
+        if (matches.length !== 1 || typeof window.inboxSelect !== 'function') return;
+        goTo('inbox'); window.inboxSelect(cid);
+    };
     function oggiDeskTiming(item) {
         const value = item.timing?.value;
         if (!value) return 'Da impostare';
@@ -6494,12 +6526,33 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             ...(dateOnly ? {} : { hour: '2-digit', minute: '2-digit' })
         });
     }
+    function oggiDeskCard(item) {
+        const reading = oggiDeskReading(item), p = reading?.p;
+        const status = item.hasNewInbound ? 'Nuovo messaggio · contesto da aggiornare'
+            : p ? 'Sintesi AI · da verificare' : item.urgent ? 'Da controllare con priorità' : 'Prossimo passo';
+        const next = p ? p.nextAction.text : item.nextAction;
+        const reason = p ? p.nextAction.reason : item.reason;
+        const timing = p ? { timing: { label: 'Ricontrollo proposto', value: p.nextAction.checkAt } } : item;
+        const evidence = `${p ? oggiSegretariaQuestions(p) : ''}
+            ${p && item.reason === 'Ricontrollo dovuto' ? '<p class="sg-context-notice">Il ricontrollo del seguito è già dovuto.</p>' : ''}
+            ${p ? `<small>Fonte ricevuta: ${oggiSegretariaSourceDate(reading.task)} · ${oggiSegretariaPreparedDate(p)}</small>` : ''}
+            <dl class="od-case-meta"><div><dt>Prossimo attore</dt><dd>${esc(p ? 'Valentino · rivedere la proposta' : item.ownership || 'Da confermare')}</dd></div><div><dt>${esc(timing.timing?.label || 'Ricontrollo')} · Roma</dt><dd>${esc(oggiDeskTiming(timing))}</dd></div></dl>`;
+        return `<article class="od-case" data-desk-item="${esc(item.id)}"><div class="od-case-copy"><p class="od-case-status">${esc(status)}${item.signals.length + item.caseIds.length > 1 ? ' · ' + (item.signals.length + item.caseIds.length) + ' passaggi collegati' : ''}</p><h3>${esc(item.title)}</h3>
+            ${p ? `<p class="od-ai-summary">${esc(p.summary)}</p>` : item.preview ? `<p class="od-source-preview"><strong>Messaggio ricevuto:</strong> ${esc(item.preview)}</p>` : ''}
+            ${p && (p.identityBlocked || p.status !== 'ready') ? '<p class="sg-context-notice">Servono informazioni verificate prima di confermare.</p>' : ''}
+            <p class="od-next"><strong>${p ? 'Passo proposto' : 'Prossimo passo'}:</strong> <span>${esc(next)}</span></p>${reason ? `<small><strong>Perché:</strong> ${esc(reason)}</small>` : ''}
+            ${p ? '' : evidence}</div>
+            <div class="od-case-actions"><button type="button" class="btn btn-sm" data-desk-key="act-${esc(item.id)}" data-desk-act="${esc(item.id)}">${esc(p ? 'Rivedi proposta' : item.action?.label || 'Apri il prossimo passo')} ↗</button>${item.signalIds.length + item.caseIds.length ? `<button class="ow-link" type="button" data-desk-key="details-${esc(item.id)}" data-desk-details="${esc(item.id)}">Fonte e passaggi · ${esc(p ? 'Proposta AI' : item.sourceLabel || 'Portale')}</button>` : ''}</div>
+            ${p ? `<details class="od-case-evidence" data-desk-evidence="${esc(item.id)}"><summary data-desk-key="evidence-${esc(item.id)}">${p.uncertainties?.length || p.coverage?.incomplete || p.identityBlocked || p.status !== 'ready' ? 'Da chiarire prima di decidere' : 'Fonti e ricontrollo'}</summary>${evidence}</details>` : ''}</article>`;
+    }
     function oggiDeskRender() {
         const panel = document.getElementById('ogDeskPanel');
         if (!panel || !isAdmin()) return;
         const model = oggiDeskModel();
         if (!model) { panel.innerHTML = '<p role="alert">Il quadro del lavoro non è disponibile. La coda completa resta consultabile sotto.</p>'; return; }
         const focused = panel.contains(document.activeElement) ? document.activeElement?.dataset.deskKey : null;
+        const coverageOpen = panel.querySelector('[data-desk-coverage]')?.open === true;
+        const evidenceOpen = new Set([...panel.querySelectorAll('[data-desk-evidence][open]')].map(el => el.dataset.deskEvidence));
         const all = model.areas.flatMap(a => a.items), urgent = all.filter(i => i.urgent);
         if (oggiWorkspace.deskArea !== 'all' && !model.areas.some(a => a.id === oggiWorkspace.deskArea)) oggiWorkspace.deskArea = 'all';
         const area = model.areas.find(a => a.id === oggiWorkspace.deskArea);
@@ -6509,24 +6562,30 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const issues = [
             S._paError ? 'Proposte non aggiornate.' : !S._paLoaded ? 'Proposte in caricamento.' : S._paPartial ? 'Proposte: lettura parziale.' : '',
             !oggiSegretaria.loaded ? 'Seguiti in caricamento.' : '',
+            oggiSegretaria.loaded && !oggiSegretaria.closedComplete ? 'Verifica delle richieste concluse incompleta: i messaggi senza seguito restano consultabili in Inbox.' : '',
             oggiSegretaria.error, oggiSegretaria.incomplete ? 'Seguiti: lettura parziale.' : '',
             window.BOOM_SEGRETARIA_CASI.workGroups(oggiSegretaria.rows, Date.now(), oggiSegretariaPreparation).invalid ? 'Alcuni seguiti hanno dati incompleti.' : '',
             (model.coverage.unknownDeliveryCount || oggiSegretaria.deliveryIncomplete) ? 'Non tutti gli esiti degli invii sono verificabili: apri il caso per controllarli.' : '',
             typeof portalFreshnessWarning === 'function' ? portalFreshnessWarning() : ''
         ].filter(Boolean);
         const summary = document.getElementById('ogDeskSummary');
-        if (summary) summary.textContent = [urgent.length ? urgent.length + ' con priorità' : 'Scadenze e richieste', issues.length ? 'Aggiornamento da verificare' : 'Dati caricati'].join(' · ');
+        if (summary) summary.textContent = [urgent.length ? urgent.length + ' con priorità' : 'Richieste e prossimi passi', 'Fonti parziali'].join(' · ');
         panel.innerHTML = `
+            ${oggiDeskCoverage()}
             ${issues.length ? `<p class="ow-source-note" role="status">${issues.map(esc).join(' ')} <button type="button" class="ow-link" data-desk-key="refresh" data-desk-refresh>Riprova aggiornamento</button></p>` : ''}
             ${urgent.length ? `<div class="od-alert" role="status"><strong>${urgent.length} ${urgent.length === 1 ? 'caso' : 'casi'} con incassi, scadenze o interventi urgenti</strong><button class="ow-link" data-desk-key="urgent" data-desk-archive="urgent" type="button">Apri le priorità ↗</button></div>` : ''}
-            ${model.coverage.newUnlinkedCount ? `<div class="od-alert" role="status"><strong>${model.coverage.newUnlinkedCount} richieste recenti da collegare alla pratica</strong><button class="ow-link" data-desk-key="unlinked" data-desk-archive="unlinked" type="button">Controlla le richieste ↗</button></div>` : ''}
-            ${model.coverage.recordVerificationCount ? `<div class="od-alert" role="status"><strong>${model.coverage.recordVerificationCount} verifiche contrattuali o amministrative: dati incompleti o discordanti</strong><button class="ow-link" data-desk-key="verification" data-desk-archive="verification" type="button">Verifica i riferimenti ↗</button></div>` : ''}
-            <div class="od-areas" role="group" aria-label="Scegli il lavoro">${[{ id: 'all', label: 'Prima le priorità', count: model.currentItems.length }, ...model.areas].map(a => `<button type="button" data-desk-area="${esc(a.id)}" data-desk-key="area-${esc(a.id)}" aria-pressed="${a.id === oggiWorkspace.deskArea}"><span>${esc(a.label)}</span><strong>${a.count}</strong></button>`).join('')}</div>
-            <div class="od-cases" aria-label="Pratiche del percorso">${shown.length ? shown.map(item => `<article class="od-case" data-desk-item="${esc(item.id)}"><div class="od-case-copy"><p class="od-case-status">${item.urgent ? 'Da controllare con priorità' : 'Prossimo passo'}${item.signals.length + item.caseIds.length > 1 ? ' · ' + (item.signals.length + item.caseIds.length) + ' passaggi collegati' : ''}</p><h3>${esc(item.title)}</h3><p>${esc(item.nextAction)}</p>${item.reason ? `<small>${esc(item.reason)}</small>` : ''}<dl class="od-case-meta"><div><dt>Prossimo attore</dt><dd>${esc(item.ownership || 'Da confermare')}</dd></div><div><dt>${esc(item.timing?.label || 'Ricontrollo')} · Roma</dt><dd>${esc(oggiDeskTiming(item))}</dd></div></dl></div><div class="od-case-actions"><button type="button" class="btn btn-sm" data-desk-key="act-${esc(item.id)}" data-desk-act="${esc(item.id)}">${esc(item.action?.label || 'Apri il prossimo passo')} ↗</button>${item.signalIds.length + item.caseIds.length ? `<button class="ow-link" type="button" data-desk-key="details-${esc(item.id)}" data-desk-details="${esc(item.id)}">Fonte e passaggi · ${esc(item.sourceLabel || 'Portale')}</button>` : ''}</div></article>`).join('') : `<p class="ow-empty">Nessun blocco corrente rilevato in questo percorso nei dati caricati. Le verifiche precedenti restano sotto.</p>`}</div>
+
+            <div class="od-cases" aria-label="Pratiche del percorso">${shown.length ? shown.map(oggiDeskCard).join('') : '<p class="ow-empty">Nessuna priorità emersa dai dati caricati. Le fonti parziali non permettono di concludere che sia tutto gestito.</p>'}</div>
             ${pages > 1 ? `<nav class="od-pagination" aria-label="Pagine delle pratiche"><button class="ow-link" type="button" data-desk-key="prev" data-desk-page="-1" ${start ? '' : 'disabled'}>← Precedenti</button><span>${start + 1}–${start + shown.length} di ${items.length} pratiche</span><button class="ow-link" type="button" data-desk-key="next" data-desk-page="1" ${oggiWorkspace.deskPage + 1 < pages ? '' : 'disabled'}>Successive →</button></nav>` : ''}
+            <div class="od-areas" role="group" aria-label="Scegli il lavoro">${[{ id: 'all', label: 'Prima le priorità', count: model.currentItems.length }, ...model.areas].map(a => `<button type="button" data-desk-area="${esc(a.id)}" data-desk-key="area-${esc(a.id)}" aria-pressed="${a.id === oggiWorkspace.deskArea}"><span>${esc(a.label)}</span><strong>${a.count}</strong></button>`).join('')}</div>
+            <div class="od-secondary-signals">
+            ${model.coverage.newUnlinkedCount ? `<div class="od-alert" role="status"><strong>${model.coverage.newUnlinkedCount} ${model.coverage.newUnlinkedCount === 1 ? 'richiesta recente' : 'richieste recenti'} da esaminare</strong><button class="ow-link" data-desk-key="unlinked" data-desk-archive="unlinked" type="button">Controlla le richieste ↗</button></div>` : ''}
+            ${model.coverage.recordVerificationCount ? `<div class="od-alert" role="status"><strong>${model.coverage.recordVerificationCount} ${model.coverage.recordVerificationCount === 1 ? 'verifica contrattuale o amministrativa' : 'verifiche contrattuali o amministrative'}: dati incompleti o discordanti</strong><button class="ow-link" data-desk-key="verification" data-desk-archive="verification" type="button">Verifica i riferimenti ↗</button></div>` : ''}
+
+            </div>
             <div class="od-later"><button type="button" data-desk-key="history" data-desk-archive="history"><strong>Da riallineare <span>${model.history.length}</span></strong><small>Richieste precedenti, date e collegamenti da verificare. Restano aperti.</small></button><button type="button" data-desk-key="waiting" data-desk-archive="waiting"><strong>In attesa <span>${model.waiting.length}</span></strong><small>Risposte di clienti o collaboratori, con ricontrollo futuro.</small></button></div>
             <nav class="od-heading" aria-label="Altre attività"><button class="ow-link" data-desk-key="all" data-desk-archive="all" type="button">Tutta la coda ↗</button></nav>
-            <p class="ow-hint">Quadro dei dati caricati. La consultazione non usa crediti AI. ${['paused', 'disabled'].includes(oggiSegretaria.monitoring?.status) ? 'Preparazione automatica sospesa.' : 'Automazioni: verifica lo stato nella coda completa.'}</p>`;
+            <p class="ow-hint od-reading-note">Sintesi delle fonti disponibili · Nessun invio all’apertura.</p>`;
         panel.onclick = event => {
             const button = event.target.closest('button');
             if (!button || !panel.contains(button)) return;
@@ -6537,22 +6596,24 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             else if (button.dataset.deskArchive) oggiDeskArchive(button.dataset.deskArchive);
             else if (button.hasAttribute('data-desk-refresh')) { portalFreshnessRecover(); oggiSegretariaLoad(true); oggiLoadProposals(true); }
         };
+        for (const el of panel.querySelectorAll('[data-desk-evidence]')) el.open = evidenceOpen.has(el.dataset.deskEvidence);
+        if (coverageOpen && panel.querySelector('[data-desk-coverage]')) panel.querySelector('[data-desk-coverage]').open = true;
         if (focused) [...panel.querySelectorAll('[data-desk-key]')].find(el => el.dataset.deskKey === focused)?.focus({ preventScroll: true });
     }
     window.oggiDeskAct = function(id) {
         if (!isAdmin() || document.body.classList.contains('modal-open') || document.querySelector('.modal-overlay.active')) return;
         const item = oggiDeskItems(oggiDeskModel()).find(i => i.id === id), action = item?.action;
         // The desk only opens existing workflows. It cannot approve, send, mark paid or sign.
-        const safe = ['viewContract', 'viewContractSignatures', 'viewMaintenance', 'viewLead', 'oggiOpenPa', 'goTo', 'oggiSegretariaOpen'];
+        const safe = ['viewContract', 'viewContractSignatures', 'viewMaintenance', 'viewLead', 'oggiOpenPa', 'goTo', 'oggiSegretariaOpen', 'oggiDeskConversation'];
         if (!action || !safe.includes(action.fn) || typeof window[action.fn] !== 'function') return oggiDeskArchive('item', id);
         if (action.fn === 'goTo' && !['payments', 'contracts', 'maintenance', 'leads', 'inbox', 'viewings', 'agent-actions'].includes(action.args?.[0])) return oggiDeskArchive('item', id);
-        if (action.fn === 'oggiSegretariaOpen') return oggiSegretariaOpen(item.caseIds[0], '', 'review');
+        if (action.fn === 'oggiSegretariaOpen') return item.caseIds.includes(action.args?.[0]) ? oggiSegretariaOpen(action.args[0], '', 'review') : undefined;
         window[action.fn](...(action.args || []));
     };
     window.oggiDeskArchive = function(mode = 'all', id = null) {
         if (!isAdmin()) return;
         const model = oggiDeskModel(), all = oggiDeskItems(model);
-        const items = mode === 'unlinked' ? model?.history.filter(i => i.caseIds.some(key => model.coverage.newUnlinkedCaseIds?.includes(key))) : mode === 'verification' ? model?.history.filter(i => i.signalIds.some(key => model.coverage.recordVerificationSignalIds?.includes(key))) : mode === 'history' ? model?.history : mode === 'waiting' ? model?.waiting : mode === 'urgent' ? model?.areas.flatMap(a => a.items).filter(i => i.urgent) : mode === 'item' ? all.filter(i => i.id === id) : null;
+        const items = mode === 'unlinked' ? all.filter(i => i.caseIds.some(key => model.coverage.newUnlinkedCaseIds?.includes(key))) : mode === 'verification' ? model?.history.filter(i => i.signalIds.some(key => model.coverage.recordVerificationSignalIds?.includes(key))) : mode === 'history' ? model?.history : mode === 'waiting' ? model?.waiting : mode === 'urgent' ? model?.areas.flatMap(a => a.items).filter(i => i.urgent) : mode === 'item' ? all.filter(i => i.id === id) : null;
         oggiWorkspace.deskFilter = items ? { signalIds: items.flatMap(i => i.signalIds), caseIds: items.flatMap(i => i.caseIds) } : null;
         const archive = document.getElementById('ogQueueArchive');
         if (archive) { archive.open = true; oggiWorkspace.archiveOpen = true; }
@@ -6803,11 +6864,14 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         return{label:record?.label||'Contatto non più disponibile',ids:record?(S.conversations||[]).filter(c=>c.contactId===scope.id&&types.includes(c.contactType)).map(c=>c.id):[]};
     }
     window.oggiClearInboxScope = function() { if(!portalSearchAuthorized())return; S.inboxContext=null;_inboxState.homeContext=null;_inboxState.convId=null;inboxRefresh(); };
-    function oggiWorkspacePanel() {
+    function oggiWorkspacePanel(withTools = true) {
         return `<section class="ow-workbench" aria-label="Trova e collega"><div class="ow-search"><label class="sr-only" for="ogWorkKind">Cerca tra</label><select id="ogWorkKind" onchange="oggiWorkspaceSearch(document.getElementById('ogWorkQuery').value)">${[['all','Tutto'], ...Object.entries(window.BOOM_PORTAL_SEARCH?.KINDS || {}).map(([kind, meta]) => [kind, meta.plural])].map(([key,label]) => `<option value="${key}" ${oggiWorkspace.kind === key ? 'selected' : ''}>${label}</option>`).join('')}</select><label class="sr-only" for="ogWorkQuery">Nome, indirizzo o riferimento</label><input id="ogWorkQuery" value="${esc(oggiWorkspace.query)}" autocomplete="off" maxlength="120" placeholder="Cerca casa, persona o documento…" oninput="oggiWorkspaceSearch(this.value)" onfocus="if(!oggiWorkspace.selected)oggiWorkspaceSearch(this.value,true)"><span aria-hidden="true">⌕</span></div>
             <div class="portal-mailbox-entry"><details class="ow-search-sources" ontoggle="if(this.open)portalSearchSourcesRender()"><summary>Fonti e archivio</summary><div id="ogSearchSources"></div></details><button type="button" class="btn btn-sm btn-secondary" onclick="portalOpenMailbox()">Cerca nelle email ↗</button></div>
             <div id="ogWorkResults" aria-live="polite"></div>
-        </section><section class="ow-toolbox portal-home-tools" aria-labelledby="ogToolsTitle"><div id="ogQuickContext" class="ow-active-context">${oggiQuickContextLabel()}</div><h2 class="sr-only" id="ogToolsTitle">Strumenti BOOM</h2><div class="ow-tools-grid" id="ogQuickTools">${oggiQuickTools()}</div>
+        </section>${withTools ? oggiQuickToolsPanel() : ''}`;
+    }
+    function oggiQuickToolsPanel() {
+        return `<section class="ow-toolbox portal-home-tools" aria-labelledby="ogToolsTitle"><header class="ow-tools-head"><h2 id="ogToolsTitle">I tuoi strumenti</h2><span>16 accessi rapidi</span></header><div id="ogQuickContext" class="ow-active-context">${oggiQuickContextLabel()}</div><div class="ow-tools-grid" id="ogQuickTools">${oggiQuickTools()}</div>
             <nav class="ow-shortcuts" aria-label="Scorciatoie quotidiane"><button type="button" data-og-tool="home:new-client" onclick="oggiQuickTool(this.dataset.ogTool)">＋ Nuovo cliente</button><button type="button" onclick="oggiOpenSection('ogOwnerTools')">Prepara una risposta</button><button type="button" onclick="goTo('boom-tools')">Tutti gli strumenti ↗</button></nav>
         </section>`;
     }
@@ -6881,10 +6945,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if ((S._paUser && S._paUser !== auth.currentUser) || (!S._paLoaded && !S._paLoading && !S._paError)) oggiLoadProposals();
         const name = (S.profile?.name || 'Valentino').split(' ')[0];
         return `<div class="ow-home portal-home">
-            <header class="ow-header"><div><p class="ow-eyebrow">${esc(new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Europe/Rome' }))}</p><h1>Oggi, ${esc(name)}.</h1></div><div class="page-actions"><button class="btn btn-secondary btn-sm" onclick="goTo('dashboard')">Riepilogo azienda</button><button class="btn btn-secondary btn-sm" onclick="forceRefreshData()" aria-label="Aggiorna i dati">↻</button></div></header>
-            ${oggiWorkspacePanel()}
+            <header class="ow-header"><div><p class="ow-eyebrow">${esc(new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Europe/Rome' }))}</p><h1>Oggi, ${esc(name)}.</h1></div><div class="page-actions"><a class="ow-tools-jump" href="#ogToolsTitle" onclick="event.preventDefault();document.getElementById('ogToolsTitle').scrollIntoView({block:'start'});document.querySelector('#ogQuickTools button')?.focus({preventScroll:true})">Strumenti ↓</a><button class="btn btn-secondary btn-sm" onclick="goTo('dashboard')">Riepilogo azienda</button><button class="btn btn-secondary btn-sm" onclick="forceRefreshData()" aria-label="Aggiorna i dati">↻</button></div></header>
+            ${oggiWorkspacePanel(false)}
+            <div class="ow-daily-layout">
+            <details class="ow-fold portal-home-work" id="ogDeskFold" ${oggiWorkspace.deskOpen ? 'open' : ''} ontoggle="oggiWorkspace.deskOpen=this.open"><summary><span>Il punto di oggi</span><small id="ogDeskSummary">Richieste, sintesi AI e prossimi passi</small></summary><section id="ogDeskPanel" class="od-panel" aria-label="Il lavoro per risultato"></section></details>
+            ${oggiQuickToolsPanel()}</div>
             <details class="ow-fold" id="ogOwnerTools"><summary><span>Prepara una risposta</span><small>Persona, istruzione e revisione</small></summary>${oggiOwnerCommandPanel()}</details>
-            <details class="ow-fold portal-home-work" id="ogDeskFold" ${oggiWorkspace.deskOpen ? 'open' : ''} ontoggle="oggiWorkspace.deskOpen=this.open"><summary><span>Da seguire</span><small id="ogDeskSummary">Scadenze, richieste e verifiche</small></summary><section id="ogDeskPanel" class="od-panel" aria-label="Il lavoro per risultato"></section></details>
             <div class="ow-columns"><details id="ogQueueArchive" class="ow-fold od-archive" ${oggiWorkspace.archiveOpen ? 'open' : ''} ontoggle="oggiWorkspace.archiveOpen=this.open"><summary><span>Coda completa e verifiche</span><small id="ogArchiveScope">${esc(oggiWorkspace.deskScope)}</small></summary><button class="ow-link od-show-all" type="button" onclick="oggiDeskArchive('all')">Mostra tutta la coda</button><section id="ogWorkQueue" class="ow-work-queue" aria-label="Il tuo lavoro">
                 <header class="ow-section-head"><h2 id="ogQueueTitle" tabindex="-1">Serve una tua decisione</h2><button class="ow-link" type="button" data-sg-action="refresh" onclick="portalFreshnessRecover();oggiSegretariaLoad(true)" aria-label="Aggiorna i seguiti">Aggiorna seguiti</button></header>
                 <div class="ow-filters" role="group" aria-label="Filtra il lavoro">${[['decisions','Da decidere'],['preparing','Da preparare'],['following','In corso']].map(([key,label]) => `<button type="button" data-ow-view="${key}" aria-pressed="${oggiWorkspace.view === key}" onclick="oggiWorkView('${key}')">${label} <span>…</span></button>`).join('')}</div>
@@ -7536,7 +7602,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             </div>
             ${newLeads.length > 0 ? `<div class="dash-list" style="margin-top:14px">
                 ${newLeads.slice(0, 3).map(l => {
-                    const lang = l.language === 'en' ? '🇬🇧' : '🇮🇹';
+                    const lang = l.language === 'en' ? '🇬🇧' : l.language === 'tr' ? '🇹🇷' : '🇮🇹';
                     const when = l.createdAt ? _humanAgo(l.createdAt) : '';
                     return `<div class="dash-row" data-tone="gold">
                         <span class="dash-row-icon">${lang}</span>
@@ -9030,7 +9096,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     const isDiscarded = l.status === 'discarded';
                     const isResponded = l.status === 'responded';
                     const timeAgo = l.createdAt ? getTimeAgo(l.createdAt) : '';
-                    const lang = l.language === 'en' ? '🇬🇧' : '🇮🇹';
+                    const lang = l.language === 'en' ? '🇬🇧' : l.language === 'tr' ? '🇹🇷' : '🇮🇹';
                     
                     return `<div class="list-item" style="padding:16px;cursor:pointer;${isNew ? 'border-left:3px solid var(--gold);' : ''}${isDiscarded ? 'opacity:0.5;' : ''}" onclick="viewLead('${l.id}')">
                         <div class="list-icon" style="background:${isNew ? 'var(--gold-light)' : isConverted ? 'var(--green-light)' : isResponded ? 'var(--blue-light)' : 'var(--bg-elevated)'}">
@@ -9276,7 +9342,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         let prefill = { name: '', email: '', phone: '', language: 'it', zone: '', budget: 0, propertyId: '', propertyTitle: '', codiceFiscale: '', address: '' };
         if (sourceKind === 'lead' && sourceId) {
             const l = (S.leads || []).find(x => x.id === sourceId) || {};
-            Object.assign(prefill, { name: l.name || '', email: l.email || '', phone: l.phone || '', language: (l.language || 'it').toLowerCase(), zone: l.zone || '', budget: l.budget || 0, propertyTitle: l.propertyTitle || '' });
+            Object.assign(prefill, { name: l.name || '', email: l.email || '', phone: l.phone || '', language: ((l.language || 'it').toLowerCase() === 'tr' ? 'en' : (l.language || 'it').toLowerCase()), zone: l.zone || '', budget: l.budget || 0, propertyTitle: l.propertyTitle || '' });
         } else if (sourceKind === 'pfsClient' && sourceId) {
             const c = (S.pfsClients || []).find(x => x.id === sourceId) || {};
             Object.assign(prefill, { name: c.name || '', email: c.email || '', phone: c.phone || '', zone: c.zone || '', budget: c.budget || 0 });
@@ -9946,7 +10012,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
         const timelineBody = events.length ? `<div style="padding:0 16px">${events.slice(0, 30).map(ev => `<div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px"><span style="flex-shrink:0">${ev.icon}</span><div style="flex:1"><div>${esc(ev.text)}</div><div style="font-size:11px;color:var(--text-muted)">${fmtDate(ev.ts)}</div></div>${ev.link ? `<a class="btn btn-xs btn-secondary" onclick="event.stopPropagation()">apri</a>` : ''}</div>`).join('')}</div>` : null;
 
-        const personLanguageFlag = language === 'en' || language === 'EN' ? '🇬🇧' : '🇮🇹';
+        const personLanguageFlag = language === 'en' || language === 'EN' ? '🇬🇧' : String(language).toLowerCase() === 'tr' ? '🇹🇷' : '🇮🇹';
 
         return `<div class="page-header">
             <div>
@@ -13023,13 +13089,16 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             return data;
         } finally { clearTimeout(timer); }
     }
-    window.portalMailCheckSources = async function() {
+    window.portalMailCheckSources = async function({ automatic = false } = {}) {
         const state = portalMailState();
         if (!state || state.checking) return;
+        if (automatic && state.lastCheckStarted && Date.now() - state.lastCheckStarted < 60000) return;
+        state.lastCheckStarted = Date.now();
         state.checking = true; state.summary = 'Verifico lo stato registrato sul server…'; portalSearchSourcesRender();
         try {
             const data = await portalMailRequest(state, null, () => S.mailSources === state);
             if (!data) return;
+            state.observation = data; state.observedAt = Date.now();
             const e = data.email, w = data.whatsapp, last = e.lastScan;
             const stamp = value => value ? new Date(value).toLocaleString('it-IT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
             const email = !e.configured ? 'Email: connessione non configurata.' : e.healthy
@@ -13041,7 +13110,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 + (w.bridgeFresh ? 'HOMIE: battito recente, ricezione WhatsApp non verificata.'
                     : 'HOMIE: nessun battito recente. Ricezione WhatsApp non verificata.') + ' Nessuna automazione è stata attivata.';
         } catch (error) { if (portalSessionCurrent(state.proof) && S.mailSources === state) state.summary = portalMailError(error.code); }
-        finally { state.checking = false; if (portalSessionCurrent(state.proof) && S.mailSources === state) portalSearchSourcesRender(); }
+        finally {
+            state.checking = false;
+            if (portalSessionCurrent(state.proof) && S.mailSources === state) {
+                portalSearchSourcesRender();
+                if (S.page === 'oggi') oggiDeskRender();
+            }
+        }
     };
     window.inboxImportEmail = async function(cid) {
         const state = portalMailState(), conv = (S.conversations || []).find(c => c.id === cid);
@@ -15608,13 +15683,17 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         // dietro tre sorelle verdi.
         db.collection('pfsRadarHealth').get().then(snap => {
             let worst = null;
+            // Un agente può avere più battiti (l'Orecchio: richieste e
+            // rimbalzi): conta il PEGGIORE, letto in questo giro.
+            const own = {};
             snap.docs.forEach(d => {
                 if (d.id === 'needsAttention') return;
                 const h = d.data();
-                const direct = SQ.TEAM.find(x => x.health && x.health.col === 'pfsRadarHealth' && x.health.doc === d.id);
-                if (direct) { H[direct.key] = h; return; }
+                const direct = SQ.healthOwner('pfsRadarHealth', d.id);
+                if (direct) { own[direct.key] = SQ.worseHealth(own[direct.key], h); return; }
                 if (!worst || (!h.ok && worst.ok) || (h.consecutiveErrors || 0) > (worst.consecutiveErrors || 0)) worst = h;
             });
+            Object.assign(H, own);
             if (worst) H.scout = worst;
             sqRefresh();
         }).catch(() => {});
@@ -25561,7 +25640,101 @@ ${esc(data.description || '')}</textarea></div>
     }
     window.sendAspiBill = sendAspiBill;
     window._aspiRenderKind = _aspiRenderKind;
+    // External signed original → registration → archives, in the existing panel.
+    function _externalPanel(st) {
+        const x = st.external; if (!x) return '';
+        const who = v => v === 'tenant' ? 'inquilino' : v === 'landlord' ? 'proprietario' : 'co-conduttore ' + (Number(v.slice(2)) + 1);
+        const links = [[x.signedPdfUrl,'Contratto firmato'],[x.sheetUrl,'Dati per RLI'],[x.packUrl,'Scarica fascicolo ZIP']]
+            .filter(v => /^https:\/\//.test(v[0] || '')).map(v => `<a class="btn btn-secondary" href="${esc(v[0])}" target="_blank" rel="noopener">${v[1]}</a>`).join(' ');
+        if (x.document) {
+            const prep = x.preparation || {}, steps = prep.steps || {}, pg = x.progress || {};
+            const labels = {preagreement:'Console pre-agreement',archive:'Contratto nei portali',deadline:'Scadenza registrazione',dossier:'Scheda e fascicolo',sheet:'Dati per RLI',pack:'Pacchetto documenti'};
+            const problems = (steps.pack?.missing || []).map(v=>typeof v === 'string' ? v : v.label || v.name || '').filter(Boolean);
+            return `<section aria-label="Percorso registrazione" style="padding:14px;border:1px solid var(--border);border-radius:10px;margin-bottom:14px">
+                <strong>Contratto firmato esternamente · stessa pratica</strong>
+                <p style="font-size:12px">Originale di ${esc(x.document.pages)} pagine · stipula ${esc(x.document.signedDate)} · controllo dell’operatore registrato.</p>
+                ${!x.termsValid ? '<p role="alert" style="color:var(--red)">I dati sono cambiati dopo la verifica del firmato. Ripristina i dati coerenti con il documento prima di procedere.</p>' : ''}
+                <div style="display:flex;gap:6px;flex-wrap:wrap">${links}</div>
+                <p style="font-size:12px">${Object.entries(labels).filter(([k])=>!steps[k]?.skipped).map(([k,l]) => `${steps[k]?.ok ? '✓' : '⚠'} ${l}`).join(' · ')}</p>
+                ${x.missingProfiles.length ? `<p role="alert">Documenti non consegnabili: collega il profilo di ${x.missingProfiles.map(who).map(esc).join(', ')} alla pratica.</p>` : ''}
+                ${problems.length ? `<p style="font-size:12px">Allegati da completare: ${problems.map(esc).join(', ')}.</p>` : ''}
+                ${x.receiptArchive && !x.receiptArchive.ok ? '<p role="alert">La ricevuta è salvata, ma manca ancora la pubblicazione in uno o più portali. Riprendi il completamento.</p>' : ''}
+                <button class="btn btn-secondary" onclick="prepareExternalPractice()">${prep.status === 'pending' ? 'Prepara registrazione e documenti' : 'Aggiorna / riprendi completamento'}</button>
+                ${['sending','uncertain'].includes(st.state.cafDelivery?.status) ? `<div role="alert"><p>Invio al referente da verificare. Controlla la posta o chiedi al referente prima di riprovare.</p><label><input type="checkbox" id="cafVerified"> Ho verificato l’esito dell’invio.</label><input class="form-input" id="cafEvidence" placeholder="Come hai verificato l’esito"><button class="btn btn-secondary" onclick="resolveExternalCaf('sent')">Confermo ricevuto</button> <button class="btn btn-secondary" onclick="resolveExternalCaf('not_sent')">Confermo non inviato · sblocca nuovo invio</button></div>` : ''}
+                <p style="font-size:12px">Invio al referente: contratto firmato e scheda canone. Per RLI usa i dati e il pacchetto qui sopra; salva sotto il punto raggiunto. L’accesso SPID si esegue sul portale AdE.</p>
+                <div class="form-group"><label class="form-label" for="extChannel">Canale</label><select id="extChannel" class="form-select"><option value="rli" ${pg.channel !== 'caf' ? 'selected' : ''}>RLI diretto</option><option value="caf" ${pg.channel === 'caf' ? 'selected' : ''}>CAF / referente</option></select></div>
+                <div class="form-group"><label class="form-label" for="extStage">Punto raggiunto</label><select id="extStage" class="form-select">${[['prepared','Documenti preparati'],['draft','Bozza salvata'],['awaiting_spid','Attesa accesso SPID'],['submitted','Trasmessa · attesa ricevuta'],['rejected','Scartata · da correggere']].map(([v,l])=>`<option value="${v}" ${pg.stage===v?'selected':''}>${l}</option>`).join('')}</select></div>
+                <div class="form-group"><label class="form-label" for="extReference">Riferimento bozza / protocollo / pratica</label><input class="form-input" id="extReference" maxlength="180" value="${esc(pg.reference||'')}"></div>
+                <div class="form-group"><label class="form-label" for="extProgressNote">Prossimo passo o motivo dello scarto</label><textarea class="form-textarea" id="extProgressNote" maxlength="1000">${esc(pg.note||'')}</textarea></div>
+                <button class="btn btn-secondary" onclick="saveExternalProgress()" ${st.state.registrationStatus==='registered'?'disabled':''}>Salva avanzamento</button>
+                <p style="font-size:12px">La pratica si chiude con «Registrato: carica ricevuta», dopo l’esito positivo.</p><p id="externalStatus" role="status"></p>
+            </section>`;
+        }
+        if (!x.canAdopt) return '';
+        const t=x.terms, p=t.property||{}, money=v=>v&&typeof v==='object' ? v.amount ?? v.monthly ?? '' : v ?? '';
+        return `<details style="padding:14px;border:1px solid var(--border);border-radius:10px;margin-bottom:14px"><summary style="cursor:pointer;font-weight:600">Hai firmato fuori da Magic Sign? Carica il definitivo</summary>
+            <p>${x.missingProfiles.length ? 'Prima collega alla pratica i profili delle parti mancanti: '+x.missingProfiles.map(who).map(esc).join(', ')+'. ' : ''}Confronta tutte le pagine del PDF firmato con questi dati. Se differiscono, correggi prima i dati della pratica.</p>
+            ${x.missingProfiles.map(party=>`<div class="form-group"><label class="form-label" for="extProfile-${party}">Collega profilo ${esc(who(party))}</label><select class="form-select" id="extProfile-${party}"><option value="">Scegli la persona nell’archivio Utenti</option>${(S.users||[]).filter(u=>u.role===(party==='landlord'?'landlord':'tenant')).map(u=>`<option value="${esc(u.id)}">${esc(u.name||'')} · ${esc(u.email||'')} · ${esc(u.cf||u.codiceFiscale||'')}</option>`).join('')}</select><label><input type="checkbox" id="extProfileConfirm-${party}"> Ho verificato che il profilo è della parte indicata nel contratto.</label><button class="btn btn-secondary" onclick="linkExternalProfile('${party}')">Collega e rileggi la pratica</button></div>`).join('')}
+            <dl style="font-size:13px"><dt>Immobile / unità</dt><dd>${esc(p.address||p.name||t.propertyId)} · ${esc(t.roomName||t.roomId||t.unit||p.unit||'')} · piano ${esc(t.floor||p.floor||'—')} · interno ${esc(t.internal||p.internal||'—')}</dd><dt>Parti</dt><dd>${esc(t.tenantName||'—')} (${esc(t.tenantCF||'CF mancante')}) · ${esc(t.landlordName||'—')} (${esc(t.landlordCF||'CF mancante')})${t.coTenants.map(c=>' · '+esc(c.name)+' ('+esc(c.cf||'CF mancante')+')').join('')}</dd><dt>Durata / importi</dt><dd>${esc(t.startDate||'—')} → ${esc(t.endDate||'—')} · canone €${esc(money(t.canone)||money(t.rent))} · deposito €${esc(money(t.deposit))}</dd></dl>
+            <div class="form-group"><label class="form-label" for="extSignedFile">PDF completo con tutte le firme · massimo 15 MB</label><input class="form-input" id="extSignedFile" type="file" accept="application/pdf,.pdf" onchange="previewExternalFile()"><span id="extPreview"></span></div>
+            <div class="form-group"><label class="form-label" for="extSignedDate">Data di stipula riportata nel contratto</label><input class="form-input" id="extSignedDate" type="date" max="${new Date().toISOString().slice(0,10)}"></div>
+            <label style="display:block;margin:10px 0"><input type="checkbox" id="extComplete"> Ho controllato tutte le pagine e le firme di tutte le parti.</label>
+            <label style="display:block;margin:10px 0"><input type="checkbox" id="extTerms"> Ho verificato che parti, immobile, condizioni e importi coincidono con la pratica.</label>
+            ${x.signed.length ? `<label style="display:block;margin:10px 0"><input type="checkbox" id="extArchive"> Archivia le firme precedenti di ${x.signed.map(v=>esc(v.name||v.role)).join(', ')}: valgono sulla precedente versione, non sul nuovo PDF.</label>` : ''}
+            <button class="btn" onclick="adoptExternalPractice()">Acquisisci firmato e continua</button><p id="externalStatus" role="status"></p>
+        </details>`;
+    }
+    let _extPreviewUrl = null, _aspiOpenRun = 0;
+    function previewExternalFile() {
+        if (_extPreviewUrl) URL.revokeObjectURL(_extPreviewUrl);
+        const f=document.getElementById('extSignedFile')?.files?.[0], el=document.getElementById('extPreview');
+        _extPreviewUrl=f?URL.createObjectURL(f):null;
+        if(el) el.innerHTML=f?`<a href="${esc(_extPreviewUrl)}" target="_blank" rel="noopener">Apri e controlla ${esc(f.name)}</a>`:'';
+    }
+    async function _externalCall(st, body) {
+        if (!auth.currentUser || auth.currentUser.uid !== st.actorUid) throw Error('Sessione cambiata: riapri la pratica.');
+        const token=await auth.currentUser.getIdToken();
+        if(auth.currentUser?.uid!==st.actorUid) throw Error('Sessione cambiata.');
+        const r=await fetch('/api/fiscal/registra',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({contractId:st.contractId,...body})});
+        const j=await r.json();
+        if(auth.currentUser?.uid!==st.actorUid || window._aspiStatus!==st) throw Error('La pratica aperta è cambiata. Riaprila per verificare l’esito.');
+        if(!j.ok) throw Error(({review_changed:'La pratica è cambiata: riaprila e ricontrolla i dati.',pdf_unreadable:'PDF protetto o illeggibile: esporta un PDF leggibile.',signed_terms_changed:'Dati cambiati dopo la firma: verifica la pratica.',registration_evidence_required:'Servono codice, ricevuta e conferma dell’esito positivo.',party_profiles_required:'Collega prima i profili di inquilino, proprietario e co-conduttori alla pratica, poi riaprila.',reference_required:'Indica il riferimento per poter riprendere la pratica.',rejection_reason_required:'Indica il motivo dello scarto.',delivery_still_running:'Invio ancora in corso: attendi almeno 90 secondi prima di verificarlo.',caf_delivery_uncertain:'Esito dell’invio incerto: verifica e risolvi dal pannello della pratica.',preparation_running:'Completamento già in corso. Riapri la pratica tra poco.'})[j.error]||j.error||'Operazione non confermata.');
+        return j;
+    }
+    async function _externalAction(work) {
+        const st=window._aspiStatus; if(!st || st.externalBusy) return;
+        st.externalBusy=true;
+        const el=document.getElementById('externalStatus'); if(el)el.textContent='Salvo e verifico il completamento…';
+        try { await work(st); if(el?.isConnected && window._aspiStatus===st && auth.currentUser?.uid===st.actorUid) await openAspi(st.contractId); }
+        catch(e){if(window._aspiStatus===st && auth.currentUser?.uid===st.actorUid && el?.isConnected)el.textContent=e.message;}
+        finally {st.externalBusy=false;}
+    }
+    function adoptExternalPractice() {return _externalAction(async st=>{
+        const f=document.getElementById('extSignedFile')?.files?.[0];
+        if(!f || f.size>15*1024*1024)throw Error('Scegli un PDF entro 15 MB.');
+        const body={op:'external-adopt',version:st.external.version,termsHash:st.external.termsHash,fileName:f.name,
+            signedDate:document.getElementById('extSignedDate').value,confirmComplete:document.getElementById('extComplete').checked,
+            confirmTerms:document.getElementById('extTerms').checked,archivePreviousSignatures:!!document.getElementById('extArchive')?.checked};
+        if(!body.confirmComplete||!body.confirmTerms||!body.signedDate||(st.external.signed.length&&!body.archivePreviousSignatures))throw Error('Completa data e verifiche del documento.');
+        if(f.size>3*1024*1024){
+            const ref=storage.ref('contracts/'+st.contractId+'/external-incoming/'+crypto.randomUUID()+'.pdf');
+            await ref.put(f,{contentType:'application/pdf'});body.fileUrl=await ref.getDownloadURL();
+        }else body.pdfBase64=await new Promise((ok,ko)=>{const r=new FileReader();r.onload=()=>ok(String(r.result));r.onerror=()=>ko(Error('Lettura file fallita.'));r.readAsDataURL(f);});
+        await _externalCall(st,body);
+        const el=document.getElementById('externalStatus');if(el)el.textContent='Firmato salvato. Preparo registrazione e documenti…';
+        try {await _externalCall(st,{op:'external-prepare'});}
+        catch(e){toast('warning','Firmato salvato. Usa «Riprendi completamento» nella pratica: '+e.message);}
+    });}
+    function prepareExternalPractice(){return _externalAction(st=>_externalCall(st,{op:'external-prepare'}));}
+    function saveExternalProgress(){return _externalAction(st=>_externalCall(st,{op:'progress',version:st.external.version,
+        channel:document.getElementById('extChannel').value,stage:document.getElementById('extStage').value,
+        reference:document.getElementById('extReference').value,note:document.getElementById('extProgressNote').value}));}
+    function linkExternalProfile(party){return _externalAction(st=>_externalCall(st,{op:'external-party',version:st.external.version,party,userId:document.getElementById('extProfile-'+party)?.value,confirm:!!document.getElementById('extProfileConfirm-'+party)?.checked}));}
+    function resolveExternalCaf(outcome){return _externalAction(st=>_externalCall(st,{op:'caf-resolve',version:st.external.version,outcome,confirm:!!document.getElementById('cafVerified')?.checked,note:document.getElementById('cafEvidence')?.value}));}
+    Object.assign(window,{previewExternalFile,adoptExternalPractice,prepareExternalPractice,saveExternalProgress,resolveExternalCaf,linkExternalProfile});
+
     async function openAspi(contractId) {
+        const openingUid = auth.currentUser?.uid, openingRun = ++_aspiOpenRun;
         toast('info', '🏛 Leggo lo stato della pratica…');
         let st = null;
         try {
@@ -25574,7 +25747,9 @@ ${esc(data.description || '')}</textarea></div>
             st = await r.json().catch(() => null);
         } catch (e) { console.warn('[aspi]', e); }
         if (!st || !st.ok) return toast('error', 'ASPI: ' + ((st && st.error) || 'stato non disponibile'));
-        st.contractId = contractId;
+        if (!openingUid || auth.currentUser?.uid !== openingUid || openingRun !== _aspiOpenRun) return;
+        if (_extPreviewUrl) { URL.revokeObjectURL(_extPreviewUrl); _extPreviewUrl = null; }
+        st.contractId = contractId; st.actorUid = openingUid;
         window._aspiStatus = st;
         const s = st.settings;
         const sent = st.state.aspiRequestedAt;
@@ -25598,9 +25773,10 @@ ${esc(data.description || '')}</textarea></div>
                     <button class="btn btn-xs btn-secondary" onclick="editAspiSettings()" title="Cambia destinatario (settings/registrazione)">✎</button>
                 </div>
                 ${st.state.registrationStatus === 'registered' ? `<div style="font-size:12px;background:rgba(52,199,89,.08);border-radius:8px;padding:8px 12px;margin-bottom:12px">✓ Registrato${st.state.rliRegisteredAt ? ' il ' + esc(String(st.state.rliRegisteredAt).slice(0, 10)) : ''}${st.state.registrationCode ? ' · codice ' + esc(st.state.registrationCode) : ''}${st.state.registrationReceiptUrl ? ` · <a href="${esc(st.state.registrationReceiptUrl)}" target="_blank" rel="noopener">ricevuta</a>` : ' · ricevuta non ancora caricata'}${st.state.registrationReceiptSentAt ? ' · invii registrati (dettagli sotto)' : ''}</div>` : ''}
+                ${_externalPanel(st)}
                 ${_aspiDeliveryNotes(st.state)}
                 ${_aspiBankForm(contractId, st.bank)}
-                ${sent ? `<div style="font-size:12px;color:var(--text-muted);background:rgba(52,199,89,.08);border-radius:8px;padding:8px 12px;margin-bottom:12px">✓ Già inviato il ${esc(String(sent).slice(0, 10))} (${esc(st.state.aspiRequestKind || '')}) a ${esc(st.state.aspiRequestTo || '')} — ripremere Invia = re-invio aggiornato, la fattura NON si duplica.</div>` : ''}
+                ${sent ? `<div style="font-size:12px;color:var(--text-muted);background:rgba(52,199,89,.08);border-radius:8px;padding:8px 12px;margin-bottom:12px">✓ Già inviato il ${esc(String(sent).slice(0, 10))} (${esc(st.state.aspiRequestKind || '')}) a ${esc(st.state.aspiRequestTo || '')} — ${st.external?.document ? 'invio del definitivo registrato; un retry non rimanda la stessa email.' : 'ripremere Invia = re-invio aggiornato, la fattura NON si duplica.'}</div>` : ''}
                 <div class="form-group" style="margin-bottom:10px">
                     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;padding:4px 0"><input type="radio" name="aspiKind" value="completo" ${st.kind === 'completo' ? 'checked' : ''} onchange="_aspiRenderKind()"> Registrazione RLI <strong>+ attestazione canone concordato</strong> · fattura €${s.prezzi.completo}</label>
                     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;padding:4px 0"><input type="radio" name="aspiKind" value="registrazione" ${st.kind === 'registrazione' ? 'checked' : ''} onchange="_aspiRenderKind()"> Solo registrazione RLI · fattura €${s.prezzi.registrazione}</label>
@@ -25618,7 +25794,7 @@ ${esc(data.description || '')}</textarea></div>
                 <button class="btn btn-secondary" onclick="closeModal()">Annulla</button>
                 <button class="btn btn-secondary" onclick="openRegistered('${contractId}')">✓ Registrato: carica ricevuta</button>
                 <button class="btn btn-secondary" id="aspiBillBtn" onclick="sendAspiBill('${contractId}')" title="Crea la fattura senza rimandare l'email ad ASPI">🧾 Solo la fattura</button>
-                <button class="btn" id="aspiSendBtn" onclick="sendAspi('${contractId}')">✉ Invia a ${esc(s.referente || 'referente')}</button>
+                <button class="btn" id="aspiSendBtn" onclick="sendAspi('${contractId}')" ${st.external?.document && st.state.registrationStatus==='registered' ? 'disabled' : ''}>${st.external?.document && st.state.registrationStatus==='registered' ? 'Registrazione completata' : '✉ Invia a ' + esc(s.referente || 'referente')}</button>
             </div>
         </div></div>`;
         _aspiRenderKind();
@@ -25663,6 +25839,7 @@ ${esc(data.description || '')}</textarea></div>
             const j = await r.json().catch(() => null);
             if (!r.ok || !j || !j.ok) throw new Error(j && j.error === 'iban_invalid' ? 'IBAN non valido: controlla tutte le cifre.' : 'Dati non salvati. Riprova.');
             st.bank = j.bank;
+            if (st.external && j.version) st.external.version = j.version;
             const summary = document.getElementById('aspiBankSummary');
             if (summary) summary.textContent = 'Conto per registrazione · ' + (j.bank.ready ? 'compilato' : 'da completare');
             ibanEl.value = j.bank.rliDebitIban; holderEl.value = j.bank.rliDebitHolder;
@@ -25716,7 +25893,7 @@ ${esc(data.description || '')}</textarea></div>
             if (!j || !j.ok) {
                 if (btnEl) { btnEl.disabled = false; btnEl.textContent = '✉ Invia'; }
                 return toast('error', j && j.error === 'contratto_pdf_mancante'
-                    ? 'Manca il PDF del contratto: 🔄 Rigenera PDF, poi riprova'
+                    ? 'Manca il definitivo firmato: completa Magic Sign oppure acquisisci il firmato esterno'
                     : 'ASPI: ' + ((j && j.error) || 'invio fallito'));
             }
             closeModal();
@@ -25724,7 +25901,7 @@ ${esc(data.description || '')}</textarea></div>
             // parziale, già emessa da un invio precedente, coperta da un'altra,
             // o non creata perché le fatture non si leggevano
             const m = _aspiInvoiceMsg(j.invoice);
-            toast(m.level, `✉ Inviato a ${j.to} — ${(j.attachments || []).length} allegati${m.txt}`);
+            toast(m.level, `✉ ${j.duplicate ? 'Già inviato' : 'Inviato'} a ${j.to} — ${(j.attachments || []).length} allegati${m.txt}`);
             if (Array.isArray(j.missing) && j.missing.length) {
                 toast('error', '⚠ Dichiarati mancanti nell\'email: ' + j.missing.slice(0, 3).join(', ') + (j.missing.length > 3 ? '…' : ''));
             }
@@ -25812,15 +25989,19 @@ ${esc(data.description || '')}</textarea></div>
     // bottoni (✓ RLI e 🏛️ Registrazione AdE) che scrivevano campi diversi.
     function markRliRegistered(contractId) { return openRegistered(contractId); }
     function openRegistered(contractId) {
-        const c = (S.contracts || []).find(x => x.id === contractId) || {};
+        const local = (S.contracts || []).find(x => x.id === contractId) || {};
         const today = new Date().toISOString().slice(0, 10);
-        const has = !!c.registrationReceiptUrl;
+        const st = window._aspiStatus?.contractId === contractId ? window._aspiStatus : null;
+        const c = {...local,...(st?.state||{})};
+        const external = st?.external?.document || c.externalSignedDocument;
+        const has = !!(st?.state?.registrationReceiptUrl || c.registrationReceiptUrl);
         document.getElementById('modals').innerHTML = `<div class="modal-overlay active" onclick="if(event.target===this)closeModal()"><div class="modal">
             <div class="modal-header"><h3 class="modal-title">✓ Contratto registrato</h3><button class="modal-close" onclick="closeModal()">×</button></div>
             <div class="modal-body">
                 <div class="form-group"><label class="form-label">Data di registrazione</label><input class="form-input" type="date" id="regDate" max="${today}" value="${esc(String(c.rliRegisteredAt || today).slice(0, 10))}"></div>
                 <div class="form-group"><label class="form-label">Codice identificativo del contratto</label><input class="form-input" id="regCode" value="${esc(c.registrationCode || '')}" placeholder="es. TXX26T012345000AB"></div>
-                <div class="form-group"><label class="form-label">Ricevuta (PDF o foto)${has ? ' — già caricata, scegline un\'altra per sostituirla' : ''}</label><input class="form-input" type="file" id="regFile" accept="application/pdf,image/jpeg,image/png"></div>
+                <div class="form-group"><label class="form-label">Ricevuta (PDF o foto)${has ? (external ? ' — già acquisita: puoi riprendere archivio e consegna' : ' — già caricata, scegline un\'altra per sostituirla') : ''}</label><input class="form-input" type="file" id="regFile" accept="application/pdf,image/jpeg,image/png"></div>
+                ${external ? `<input type="hidden" id="regSignedHash" value="${esc(external.sha256)}"><label style="display:block;margin:12px 0"><input type="checkbox" id="regEvidence"> Ho verificato che la ricevuta conferma la registrazione di questo contratto: non è la sola trasmissione né uno scarto.</label>` : ''}
                 <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12.5px"><input type="checkbox" id="regNotify" checked> Manda la ricevuta a inquilino, co-conduttori e proprietario</label>
                 <div style="font-size:11.5px;color:var(--text-muted);margin-top:8px">Una volta per file: risalvare con la stessa ricevuta non la rimanda.</div>
             </div>
@@ -25841,7 +26022,7 @@ ${esc(data.description || '')}</textarea></div>
         const btnEl = document.getElementById('regSaveBtn');
         if (btnEl) { btnEl.disabled = true; btnEl.textContent = '⏳ Salvo…'; }
         try {
-            const body = { op: 'registered', contractId, date, code, notify };
+            const body = { op: 'registered', contractId, date, code, notify, confirmReceipt:!!document.getElementById('regEvidence')?.checked, signedHash:document.getElementById('regSignedHash')?.value };
             if (f) {
                 body.base64 = await new Promise((ok, ko) => { const r = new FileReader(); r.onload = () => ok(String(r.result)); r.onerror = () => ko(new Error('lettura file')); r.readAsDataURL(f); });
                 body.contentType = f.type; body.name = f.name;
@@ -25851,7 +26032,7 @@ ${esc(data.description || '')}</textarea></div>
             const j = await r.json().catch(() => null);
             if (!j || !j.ok) {
                 if (btnEl) { btnEl.disabled = false; btnEl.textContent = 'Salva'; }
-                const why = { bad_date: 'data non valida', future_date: 'data nel futuro', bad_code: 'codice non valido', bad_type: 'serve un PDF, JPG o PNG', bad_file: 'il file non è leggibile', file_too_large: 'file oltre 3 MB' }[j && j.error];
+                const why = { registration_evidence_required:'servono codice, ricevuta e conferma dell’esito positivo', signed_document_changed:'il documento è cambiato: riapri la pratica', receipt_already_recorded:'ricevuta definitiva già acquisita: il recupero conserva file, codice e data registrati', registration_before_signature:'data precedente alla stipula', signed_terms_changed:'i dati non coincidono più con il firmato', bad_date: 'data non valida', future_date: 'data nel futuro', bad_code: 'codice non valido', bad_type: 'serve un PDF, JPG o PNG', bad_file: 'il file non è leggibile', file_too_large: 'file oltre 3 MB' }[j && j.error];
                 return toast('error', 'Registrazione: ' + (why || (j && j.error) || 'non salvata'));
             }
             closeModal();
@@ -25865,6 +26046,7 @@ ${esc(data.description || '')}</textarea></div>
             else if (j.skipped === 'already_sent') parts.push('ricevuta già inviata a tutti');
             const whoIt = (w) => w === 'tenant' ? 'inquilino' : w === 'landlord' ? 'proprietario' : /^co\d+$/.test(w) ? 'co-conduttore ' + (Number(w.slice(2)) + 1) : w;
             const bad = [];
+            if (j.archive && !j.archive.ok) bad.push('ricevuta salvata; pubblicazione nei portali da completare dal pannello registrazione');
             if (j.failed && j.failed.length) bad.push('NON inviata a ' + j.failed.map(whoIt).join(', ') + ' (risalva per riprovare solo a loro)');
             if (j.uncertain && j.uncertain.length) bad.push('esito incerto per ' + j.uncertain.map(whoIt).join(', ') + ' — verifica prima di rimandare');
             toast(bad.length ? 'warning' : 'success', parts.concat(bad).join(' · '));
@@ -28301,6 +28483,7 @@ IBAN: ${l.iban || '-'}`;
 
         return `<section class="portal-catalog">
             <header class="page-header"><div><h1 class="page-title">Strumenti</h1><p class="page-subtitle">Gli stessi strumenti della Home, con la loro funzione.</p></div><button type="button" class="btn btn-secondary" onclick="goTo('oggi')">← Home</button></header>
+            ${new URLSearchParams(location.search).get('smartlink-share')==='1' && smartLinkTool ? '<div class="sl-share-entry"><div><strong>Importa la casa condivisa da Safari</strong><p>Apri lo Studio e tocca «Importa da Safari». Il Portal leggerà gli appunti solo al tuo tocco.</p></div><button type="button" class="btn" onclick="openExternalSmartLink()">Apri SmartLink Studio ↗</button></div>' : ''}
             ${smartLinkTool ? `<button type="button" class="portal-catalog-tool sl-catalog-feature" onclick="${esc('window[' + JSON.stringify(smartLinkTool.fn) + ']()')}"><span class="portal-catalog-icon" aria-hidden="true">↗</span><span><strong>SmartLink Studio</strong><small>Incolla un annuncio. Importa le foto, scegli la copertina e crea una scheda BOOM da condividere.</small></span><span aria-hidden="true">→</span></button>` : ''}
             <div class="portal-catalog-context"><span>${selected ? 'Contesto: <strong>' + esc(selected.label) + '</strong>' : 'Nessuna casa o persona selezionata'}</span><button type="button" class="btn btn-secondary btn-sm" onclick="goTo('oggi')">${selected ? 'Cambia contesto' : 'Scegli casa o persona'}</button></div>
             <div class="portal-catalog-grid">${tools.map(tool => `<button type="button" class="portal-catalog-tool" data-catalog-tool="${esc(tool.id)}" onclick="oggiQuickTool(this.dataset.catalogTool)" ${tool.disabled ? 'disabled' : ''}><span class="portal-catalog-icon" aria-hidden="true">${oggiToolIcon(tool.id.replace('home:', ''))}</span><span><strong>${esc(tool.label)}</strong><small>${esc(tool.disabled ? tool.reason : tool.description)}</small></span><span aria-hidden="true">→</span></button>`).join('')}</div>
@@ -28328,16 +28511,24 @@ IBAN: ${l.iban || '-'}`;
     }
     function openExternalSmartLink() {
         if (!isAdmin()) return;
+        const draftKey=window.crypto.randomUUID();
         smartLinkBusy=false;
         smartLinkStopPolling(); smartLinkJob=null;
         smartLinkArea?.destroy();
-        smartLinkClearPhotos();
+        smartLinkClearPhotos(); smartLinkResetFieldState();
         document.getElementById('modals').innerHTML = `
         <div class="modal-overlay active sl-studio-overlay" onclick="if(event.target===this)smartLinkClose()">
           <div class="modal sl-studio" role="dialog" aria-modal="true" aria-labelledby="sl_studio_title">
             <div class="modal-header sl-studio-header"><div><div class="sl-kicker">BOOM TOOLS / NUOVA CASA</div><h2 id="sl_studio_title">SmartLink Studio<span>.</span></h2><p>Prepara una scheda BOOM da condividere con il cliente.</p></div><button class="modal-close" type="button" aria-label="Chiudi SmartLink Studio" onclick="smartLinkClose()">×</button></div>
             <div class="modal-body sl-studio-body">
               <section class="sl-section"><div class="sl-step">01 <span>Annuncio</span></div><label class="form-label" for="sl_source">Incolla il link dell’annuncio</label><div class="sl-inline"><input id="sl_source" type="url" class="form-input" placeholder="https://www.immobiliare.it/annunci/…" oninput="smartLinkSourceChanged()" onkeydown="if(event.key==='Enter'){event.preventDefault();smartLinkExtract()}"><button type="button" class="btn btn-secondary" id="sl_import" onclick="smartLinkExtract()">Importa annuncio e foto</button></div><p id="sl_status" role="status" class="sl-hint">Incolla il link per recuperare dati e foto disponibili. Controllali prima di creare la scheda. Il cliente non vedrà la fonte.</p></section>
+              <section class="sl-share" aria-labelledby="sl_share_title">
+                <div class="sl-share-heading"><div><span class="sl-kicker">DA IPHONE · ANTEPRIMA</span><h3 id="sl_share_title">Porta qui la casa da Safari.</h3><p>Apri l’annuncio, scegli Condividi → Crea SmartLink BOOM. Poi importa qui dati e foto.</p></div><button type="button" class="btn btn-secondary" id="sl_share_import" onclick="smartLinkPasteShare()">Importa da Safari ↗</button></div>
+                <p id="sl_share_status" class="sl-hint" role="status">Per annunci Immobiliare.it e Idealista già aperti in Safari. Nessuna estensione.</p>
+                <details id="sl_share_manual" class="sl-share-help"><summary>Gli appunti non si aprono?</summary><label class="form-label" for="sl_share_payload">Incolla il contenuto preparato dal comando</label><textarea id="sl_share_payload" class="form-textarea" rows="3" maxlength="131072" autocapitalize="off" autocomplete="off" spellcheck="false" placeholder="Tieni premuto qui e scegli Incolla"></textarea><button type="button" class="btn btn-secondary btn-sm" onclick="smartLinkPasteShare(document.getElementById('sl_share_payload').value)">Importa contenuto</button></details>
+                <details class="sl-share-help"><summary>Prima volta? Configura il comando</summary><ol><li>Apri questa pagina sul tuo iPhone e aggiungi <a href="/assets/tools/boom-smartlink-safari.shortcut">Crea SmartLink BOOM</a> all’app Comandi Rapidi.</li><li>In Impostazioni → App → Comandi Rapidi → Avanzate, abilita l’esecuzione di script. I nomi possono variare con iOS.</li><li>In Safari apri un annuncio e la sua galleria, poi Condividi → Crea SmartLink BOOM. Accetta i permessi richiesti da Apple.</li><li>Al ritorno qui, tocca «Importa da Safari», controlla foto e dati e crea la scheda.</li></ol><p class="sl-hint">Il comando legge i contenuti già caricati della pagina. Il collaudo su iPhone è in corso: alcune gallerie possono risultare incomplete o impedire il download delle foto.</p></details>
+                <label id="sl_share_review" class="sl-share-review" hidden><input id="sl_share_checked" type="checkbox" onchange="smartLinkShareReview(this.checked)"><span>Ho confrontato la galleria con l’annuncio e controllato i dati.</span></label>
+              </section>
               <details class="sl-connection" id="sl_connection" hidden>
                 <summary>Importazione alternativa <span class="sl-connection-caption">Da un browser già collegato</span></summary>
                 <div class="sl-connection-guide"><p>Se questa casa non è nell’archivio BOOM, puoi usare il collegamento già presente su questo computer. L’importazione principale non richiede installazioni.</p><button type="button" class="btn btn-secondary btn-sm" onclick="smartLinkExtract(true)">Usa il browser già collegato</button></div>
@@ -28345,31 +28536,146 @@ IBAN: ${l.iban || '-'}`;
               <details class="sl-connection"><summary>Le tue importazioni recenti <span class="sl-connection-caption">Riprendi anche da un altro dispositivo</span></summary><div id="sl_recent" class="sl-connection-guide" aria-live="polite">Carico le richieste…</div></details>
               <div class="sl-studio-grid">
                 <section class="sl-section"><div class="sl-step">02 <span>Dettagli</span></div><div class="form-group"><label class="form-label" for="sl_title">Titolo della casa</label><input id="sl_title" class="form-input" maxlength="130" placeholder="Es. Bilocale luminoso a Cipro"></div><div class="form-row"><div class="form-group"><label class="form-label" for="sl_price">Canone €/mese</label><input id="sl_price" class="form-input" type="number" min="1" placeholder="Se indicato"></div><div class="form-group"><label class="form-label" for="sl_zone">Zona</label><input id="sl_zone" class="form-input" maxlength="90" placeholder="Es. Roma · Cipro"></div></div><div class="form-row"><div class="form-group"><label class="form-label" for="sl_sqm">m²</label><input id="sl_sqm" class="form-input" type="number" min="1" placeholder="Se indicati"></div><div class="form-group"><label class="form-label" for="sl_rooms">Locali</label><input id="sl_rooms" class="form-input" type="number" min="1" placeholder="Se indicati"></div></div><div class="form-group"><label class="form-label" for="sl_note">Nota BOOM</label><textarea id="sl_note" class="form-textarea" rows="3" maxlength="400" placeholder="Una nota utile scritta da te"></textarea></div></section>
-                <section class="sl-section sl-photo-section"><div class="sl-step">03 <span>Fotografie</span></div><p class="sl-hint">Le foto dell’annuncio arrivano qui automaticamente. Trascinale per cambiare ordine; la prima diventa copertina. BOOM le ottimizza e le ospita nella scheda.</p><p id="sl_photo_status" role="status" class="sl-hint">Incolla il link per importare le foto.</p><div id="sl_photo_preview" class="sl-photo-grid" aria-label="Foto importate, trascina per riordinare"></div><div class="sl-drop" role="button" tabindex="0" aria-label="Aggiungi altre fotografie" onclick="document.getElementById('sl_photos').click()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" ondragover="event.preventDefault();this.classList.add('dragging')" ondragleave="this.classList.remove('dragging')" ondrop="smartLinkPhotoDrop(event)"><span class="sl-drop-icon">＋</span><strong>Aggiungi altre foto</strong><small>Solo se vuoi integrare quelle importate · fino a 12</small></div><input id="sl_photos" class="sl-file-input" type="file" multiple accept="image/*" aria-label="Aggiungi altre fotografie" onchange="smartLinkPhotosChanged()"></section>
+                <section class="sl-section sl-photo-section"><div class="sl-step">03 <span>Fotografie</span></div><p class="sl-hint">Le foto dell’annuncio arrivano qui automaticamente. Trascinale per cambiare ordine; la prima diventa copertina. BOOM le ottimizza e le ospita nella scheda.</p><p id="sl_photo_status" role="status" class="sl-hint">Incolla il link per importare le foto.</p><div id="sl_photo_preview" class="sl-photo-grid" aria-label="Foto importate, trascina per riordinare"></div><div class="sl-drop" role="button" tabindex="0" aria-label="Aggiungi altre fotografie" onclick="document.getElementById('sl_photos').click()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" ondragover="event.preventDefault();this.classList.add('dragging')" ondragleave="this.classList.remove('dragging')" ondrop="smartLinkPhotoDrop(event)"><span class="sl-drop-icon">＋</span><strong>Aggiungi altre foto</strong><small>Solo se vuoi integrare quelle importate · fino a ${window.BOOM_SMARTLINK.MAX_PHOTOS}</small></div><input id="sl_photos" class="sl-file-input" type="file" multiple accept="image/*" aria-label="Aggiungi altre fotografie" onchange="smartLinkPhotosChanged()"></section>
               </div>
               <section class="sl-section"><div class="sl-step">04 <span>Quartiere</span></div><div id="sl_area_picker"></div></section>
-              <div class="sl-publish-note">Controlla i dati prima di creare. Prezzo e disponibilità sono indicativi; il cliente contatta direttamente BOOM.</div><div id="sl_result" class="sl-result" role="status"></div><input id="sl_key" type="hidden" value="${window.crypto.randomUUID()}">
+              <div class="sl-publish-note">Controlla i dati prima di creare. Prezzo e disponibilità sono indicativi; il cliente contatta direttamente BOOM.</div><div id="sl_result" class="sl-result" role="status"></div><input id="sl_key" type="hidden" value="${draftKey}"><input id="sl_draft_key" type="hidden" value="${draftKey}">
             </div>
             <div class="modal-footer sl-studio-footer"><button class="btn btn-secondary" onclick="smartLinkClose()">Chiudi</button><button id="sl_create" class="btn" onclick="smartLinkCreate()">Crea SmartLink BOOM ↗</button></div>
           </div>
         </div>`;
         smartLinkArea = window.BOOM_SMARTLINK_MAP.mount(document.getElementById('sl_area_picker'), ZONE_COORDINATES);
         document.getElementById('sl_zone').addEventListener('change', () => { smartLinkArea.reset(); smartLinkArea.suggest(document.getElementById('sl_zone').value); });
-        document.getElementById('sl_source')?.focus();
+        const fromSafari=new URLSearchParams(location.search).get('smartlink-share')==='1';
+        document.getElementById(fromSafari?'sl_share_import':'sl_source')?.focus();
         smartLinkRecent();
     }
 
-    let smartLinkArea, smartLinkJob=null, smartLinkArchive=null, smartLinkPollTimer, smartLinkPollVersion=0;
+    let smartLinkArea, smartLinkJob=null, smartLinkArchive=null, smartLinkRadar=null, smartLinkPollTimer, smartLinkPollVersion=0;
+    let smartLinkShare=null, smartLinkShareRead=0;
+    const smartLinkFields=['title','price','zone','sqm','rooms'];
+    let smartLinkFieldSnapshots={};
+    function smartLinkResetFieldState() { smartLinkFieldSnapshots={}; }
+    // Un nuovo campione sostituisce gli autofill invariati; le modifiche dell'operatore restano.
+    function smartLinkPrepareFields() {
+        const retained={};
+        smartLinkFields.forEach(key=>{
+            const el=document.getElementById('sl_'+key), prior=smartLinkFieldSnapshots[key];
+            if(!el) return;
+            if(prior && !prior.manual && el.value===prior.value) {
+                el.value='';
+                if(key==='zone' || key==='title') smartLinkArea?.reset();
+            } else if(prior || el.value) retained[key]={value:el.value,historical:prior?.historical===true,manual:true};
+        });
+        smartLinkFieldSnapshots=retained;
+    }
+    function smartLinkApplyFields(data,historical=false) {
+        smartLinkFields.forEach(key=>{
+            const el=document.getElementById('sl_'+key);
+            if(el && !el.value && !smartLinkFieldSnapshots[key]?.manual && data?.[key]) {
+                el.value=data[key]; smartLinkFieldSnapshots[key]={value:el.value,historical};
+            }
+        });
+    }
+    function smartLinkHasHistoricalData() {
+        return smartLinkFields.some(key=>{
+            const value=document.getElementById('sl_'+key)?.value || '', prior=smartLinkFieldSnapshots[key];
+            return !!value.trim() && prior?.historical===true && (prior.manual===true || value!==prior.value);
+        });
+    }
+    function smartLinkHistoryNotice() {
+        return smartLinkHasHistoricalData()?' Hai conservato modifiche a dati di una precedente importazione. La scheda non li indicherà come rilevati oggi.':'';
+    }
     function smartLinkStopPolling() { clearTimeout(smartLinkPollTimer); smartLinkPollVersion++; }
     let smartLinkPhotoItems = [], smartLinkPhotoGeneration = 0, smartLinkPhotoPending = Promise.resolve(), smartLinkPhotoPreparing = false, smartLinkBusy = false;
     function smartLinkClearPhotos() {
-        smartLinkPhotoGeneration++; smartLinkArchive=null;
+        smartLinkPhotoGeneration++; smartLinkArchive=null; smartLinkRadar=null;
+        smartLinkShare=null; smartLinkShareRead++;
+        const review=document.getElementById('sl_share_review'); if(review) review.hidden=true;
+        const checked=document.getElementById('sl_share_checked'); if(checked) checked.checked=false;
         smartLinkPhotoItems.forEach(item => URL.revokeObjectURL(item.url));
         smartLinkPhotoItems = [];
         smartLinkPhotoPending = Promise.resolve();
         smartLinkPhotoPreparing = false;
     }
-    function smartLinkClose() { if (smartLinkBusy) { toast('info','Attendi il caricamento delle foto'); return; } smartLinkStopPolling(); smartLinkJob=null; document.getElementById('sl_lightbox')?.remove(); smartLinkClearPhotos(); smartLinkArea?.destroy(); smartLinkArea=null; closeModal(); }
+    function smartLinkClose() { if (smartLinkBusy) { toast('info','Attendi il caricamento delle foto'); return; } smartLinkStopPolling(); smartLinkJob=null; document.getElementById('sl_lightbox')?.remove(); smartLinkClearPhotos(); smartLinkResetFieldState(); smartLinkArea?.destroy(); smartLinkArea=null; closeModal(); }
+    function smartLinkResetSession() {
+        smartLinkStopPolling(); smartLinkJob=null; smartLinkBusy=false;
+        smartLinkClearPhotos(); smartLinkResetFieldState(); smartLinkArea?.destroy(); smartLinkArea=null;
+    }
+    function smartLinkShareReview(checked) { if(smartLinkShare) smartLinkShare.checked=checked===true; }
+    async function smartLinkPasteShare(raw) {
+        if(!isAdmin() || !auth.currentUser || smartLinkBusy || smartLinkPhotoPreparing) return;
+        const status=document.getElementById('sl_share_status'), sourceInput=document.getElementById('sl_source');
+        if(!status || !sourceInput) return;
+        const proof=portalSessionProof(), read=++smartLinkShareRead, version=smartLinkPollVersion;
+        const current=()=>read===smartLinkShareRead && version===smartLinkPollVersion && portalSessionCurrent(proof) && sourceInput===document.getElementById('sl_source') && sourceInput.isConnected;
+        try {
+            // Must run in the tap's user gesture, before token or network awaits.
+            const pending=typeof raw==='string'?Promise.resolve(raw):navigator.clipboard.readText();
+            status.textContent='Leggo la casa condivisa da Safari…';
+            const text=await pending;
+            if(!current()) return;
+            const shared=window.BOOM_SMARTLINK_SHARE.validate(text);
+            if(!shared.ok) {
+                const reasons={photos_not_found:'Non sono state trovate foto. Apri la galleria completa in Safari e condividi di nuovo.',source_mismatch:'La pagina e i dati indicano annunci diversi. Riapri la casa corretta in Safari.',unsupported_listing_url:'Per ora il comando supporta le pagine annuncio di Immobiliare.it e Idealista.',too_many_photos:'Questa galleria supera il limite di 60 foto.',payload_too_large:'La pagina contiene troppi dati per questo comando.',invalid_photo_url:'La pagina contiene indirizzi foto non riconosciuti.',invalid_capture_date:'La data della condivisione non è valida. Esegui di nuovo il comando.'};
+                status.textContent=reasons[shared.error] || 'Contenuto non riconosciuto. Apri l’annuncio in Safari e avvia «Crea SmartLink BOOM» dal menu Condividi.';
+                return;
+            }
+            document.getElementById('sl_share_payload').value='';
+            await smartLinkImportShare(shared,proof);
+        } catch {
+            if(!current()) return;
+            document.getElementById('sl_share_manual').open=true;
+            status.textContent='Safari non ha consentito la lettura degli appunti. Usa il campo qui sotto: tieni premuto e scegli Incolla.';
+            document.getElementById('sl_share_payload').focus();
+        }
+    }
+    async function smartLinkImportShare(shared,proof) {
+        smartLinkStopPolling(); smartLinkJob=null; smartLinkClearPhotos(); smartLinkResetFieldState(); smartLinkArea?.reset();
+        const sourceInput=document.getElementById('sl_source');
+        sourceInput.value=shared.source.url; sourceInput.dataset.draftSource=shared.source.url;
+        ['title','price','zone','sqm','rooms','note'].forEach(key=>{document.getElementById('sl_'+key).value='';});
+        smartLinkApplyFields(shared.data,true); smartLinkArea?.suggest(shared.data.zone || shared.data.title || '');
+        const key=window.crypto.randomUUID(); document.getElementById('sl_key').value=key; document.getElementById('sl_draft_key').value=key;
+        const create=document.getElementById('sl_create'); create.disabled=false; delete create.dataset.created; create.textContent='Crea SmartLink BOOM ↗';
+        document.getElementById('sl_result').replaceChildren();
+        const state=smartLinkShare={...shared.gallery,failed:0,checked:false,capturedAt:shared.capturedAt};
+        const version=smartLinkPollVersion;
+        const current=()=>version===smartLinkPollVersion && smartLinkShare===state && portalSessionCurrent(proof) && sourceInput===document.getElementById('sl_source') && sourceInput.isConnected;
+        const status=document.getElementById('sl_share_status');
+        smartLinkPhotoPreparing=true; document.getElementById('sl_import').disabled=true;
+        document.getElementById('sl_status').textContent='Dati ricevuti dalla pagina Safari. Prezzo e disponibilità vanno riconfermati; non sono verificati automaticamente.';
+        try {
+            const token=await auth.currentUser.getIdToken();
+            if(!current()) return;
+            for(let i=0;i<shared.images.length;i++) {
+                if(!current()) return;
+                status.textContent=`Preparo foto ${i+1} di ${shared.images.length}… Tieni aperto il Portal.`;
+                smartLinkRenderPhotos(`Importo foto ${i+1} di ${shared.images.length}…`);
+                try {
+                    const response=await fetch('/api/smartlink/import-photo',{method:'POST',signal:AbortSignal.timeout(35000),headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({sourceUrl:shared.source.url,imageUrl:shared.images[i]})});
+                    if(!current()) return;
+                    if(!response.ok) throw new Error('photo_unavailable');
+                    const bytes=await response.blob(); if(!current()) return;
+                    const blob=await window.BOOM_SMARTLINK_PHOTO.prepare(bytes); if(!current()) return;
+                    smartLinkPhotoItems.push({blob,url:URL.createObjectURL(blob),name:'Foto Safari '+(i+1)});
+                } catch { if(!current()) return; state.failed++; }
+            }
+            if(!current()) return;
+            const incomplete=state.expected!==null && state.found<state.expected;
+            const missing=state.failed || incomplete;
+            status.textContent=missing
+                ? `${smartLinkPhotoItems.length} foto pronte su ${state.expected || state.found}. Importazione incompleta: la pubblicazione è ferma. Apri tutta la galleria in Safari e condividi di nuovo; se il download resta negato, questa fonte non è importabile con il comando.`
+                : `${smartLinkPhotoItems.length} foto pronte.${state.expected===null?' Safari non indica il totale: confronta la galleria con l’annuncio.':' Totale della galleria corrispondente.'} Controlla i dati e conferma qui sotto.`;
+            document.getElementById('sl_share_review').hidden=!!missing;
+            smartLinkRenderPhotos(`${smartLinkPhotoItems.length} foto importate da Safari.${missing?' Importazione incompleta.':' Scegli ordine e copertina.'}`);
+        } catch {
+            if(current()) {state.failed=shared.images.length;status.textContent='Importazione interrotta. Nessuna scheda creata. Riprova con «Importa da Safari».';}
+        } finally {
+            if(current()) {smartLinkPhotoPreparing=false;document.getElementById('sl_import').disabled=false;}
+        }
+    }
 
     function smartLinkSourceChanged() {
         const source = document.getElementById('sl_source');
@@ -28379,9 +28685,11 @@ IBAN: ${l.iban || '-'}`;
         smartLinkStopPolling(); smartLinkJob=null;
         const importButton=document.getElementById('sl_import'); if(importButton) importButton.disabled=false;
         ['title','price','zone','sqm','rooms','note'].forEach(k => { const el=document.getElementById('sl_'+k); if (el) el.value=''; });
+        smartLinkResetFieldState();
         document.getElementById('sl_photos').value=''; smartLinkClearPhotos(); smartLinkRenderPhotos();
         smartLinkArea?.reset();
         document.getElementById('sl_key').value=window.crypto.randomUUID();
+        document.getElementById('sl_draft_key').value=document.getElementById('sl_key').value;
         document.getElementById('sl_result').replaceChildren();
         const create=document.getElementById('sl_create');
         create.disabled=false; delete create.dataset.created; create.textContent='Crea SmartLink BOOM ↗';
@@ -28426,8 +28734,9 @@ IBAN: ${l.iban || '-'}`;
     function smartLinkResume(job) {
         if(smartLinkBusy) return;
         const source=document.getElementById('sl_source'); source.value=job.sourceUrl;
-        smartLinkSourceChanged(); smartLinkStopPolling(); smartLinkClearPhotos();
+        smartLinkSourceChanged(); smartLinkPrepareFields(); smartLinkStopPolling(); smartLinkClearPhotos();
         document.getElementById('sl_key').value=job.draftKey;
+        document.getElementById('sl_draft_key').value=job.draftKey;
         const create=document.getElementById('sl_create');create.disabled=false;delete create.dataset.created;create.textContent='Crea SmartLink BOOM ↗';
         document.getElementById('sl_result').replaceChildren();
         smartLinkJob=job; smartLinkApplyJob(job);
@@ -28450,9 +28759,10 @@ IBAN: ${l.iban || '-'}`;
         };
         status.textContent=descriptions[job.status] || 'Importazione da verificare.';
         if(job.status==='ready') {
-            const key=document.getElementById('sl_key').value;
+            const key=document.getElementById('sl_draft_key').value;
             smartLinkPhotoItems=(job.images || []).filter(url=>window.BOOM_SMARTLINK.validImageUrl(url,key)).map((url,i)=>({remoteUrl:url,url,name:'Foto annuncio '+(i+1)}));
-            ['title','price','zone','sqm','rooms'].forEach(k=>{const el=document.getElementById('sl_'+k);if(el && !el.value && job.data?.[k]) el.value=job.data[k];});
+            smartLinkApplyFields(job.data);
+            status.textContent+=smartLinkHistoryNotice();
             smartLinkArea?.suggest(job.data?.zone || job.data?.title || '');
             smartLinkRenderPhotos(`${smartLinkPhotoItems.length} foto pronte. La prima è la copertina.${job.missingPhotos?' '+job.missingPhotos+' foto non sono state recuperate.':''}`);
         } else smartLinkRenderPhotos(active?'Recupero automatico in corso…':'Nessuna foto importata.');
@@ -28477,9 +28787,11 @@ IBAN: ${l.iban || '-'}`;
         const source=window.BOOM_SMARTLINK.normalizeUrl(document.getElementById('sl_source')?.value);
         const status=document.getElementById('sl_status');
         if(!source) {status.textContent='Incolla il link completo di un annuncio supportato.';return;}
+        smartLinkPrepareFields();
         smartLinkStopPolling();
         const version=smartLinkPollVersion;
-        if(smartLinkJob) document.getElementById('sl_key').value=window.crypto.randomUUID();
+        if(smartLinkJob || document.getElementById('sl_create')?.dataset.created==='1') document.getElementById('sl_key').value=window.crypto.randomUUID();
+        document.getElementById('sl_draft_key').value=document.getElementById('sl_key').value;
         smartLinkJob=null;smartLinkClearPhotos();smartLinkRenderPhotos('Preparo l’importazione…');
         const create=document.getElementById('sl_create');create.disabled=false;delete create.dataset.created;create.textContent='Crea SmartLink BOOM ↗';
         document.getElementById('sl_result').replaceChildren();
@@ -28492,6 +28804,16 @@ IBAN: ${l.iban || '-'}`;
             document.getElementById('sl_connection').hidden=capabilities.enabled!==false || document.documentElement.dataset.boomSmartlinkExtension!=='1';
             if(capabilities.enabled===false) {await smartLinkExtractDirect(source,version,useConnectedBrowser===true);return;}
             if(capabilities.enabled!==true) throw new Error('queue_unavailable');
+            // Il controllo dell'archivio non apre la fonte né richiede il lettore.
+            const token=await auth.currentUser.getIdToken();
+            const archiveResponse=await fetch('/api/smartlink/extract',{method:'POST',signal:AbortSignal.timeout(25000),headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({url:source.url,archiveOnly:true})});
+            if(version!==smartLinkPollVersion) return;
+            const archived=await archiveResponse.json();
+            if(version!==smartLinkPollVersion) return;
+            if(!archiveResponse.ok || !archived.ok) throw new Error('archive_unavailable');
+            if(archived.photoOrigin==='boom_archive' && archived.images?.length) {
+                await smartLinkExtractDirect(source,version,false,archived);return;
+            }
             status.textContent='Salvo la richiesta di importazione…';
             const result=await smartLinkJobRequest('',{url:source.url,draftKey:document.getElementById('sl_key').value});
             if(version!==smartLinkPollVersion) return;
@@ -28500,7 +28822,7 @@ IBAN: ${l.iban || '-'}`;
             if(['queued','reading'].includes(result.job.status)) smartLinkPoll(result.job.id,version);
         } catch(error) {
             if(version!==smartLinkPollVersion) return;
-            const messages={reader_not_enabled:'Il lettore centrale BOOM deve ancora essere attivato. Questa richiesta non è partita.',too_many_pending:'Hai già cinque importazioni in attesa. Riprendile dalle importazioni recenti.'};
+            const messages={reader_not_enabled:'Il lettore centrale BOOM deve ancora essere attivato. Questa richiesta non è partita.',too_many_pending:'Hai già cinque importazioni in attesa. Riprendile dalle importazioni recenti.',archive_unavailable:'L’archivio BOOM non è raggiungibile. Nessuna nuova richiesta è partita: riprova tra poco.'};
             status.textContent=messages[error.message] || 'Non ho conferma del salvataggio. Premi di nuovo Importa: la stessa richiesta non verrà duplicata.';
             document.getElementById('sl_import').disabled=false;smartLinkRenderPhotos('Foto non ancora importate.');
             smartLinkPhotoPreparing=false;
@@ -28521,14 +28843,14 @@ IBAN: ${l.iban || '-'}`;
         });
     }
 
-    async function smartLinkExtractDirect(source,version,useConnectedBrowser=false) {
+    async function smartLinkExtractDirect(source,version,useConnectedBrowser=false,archivedResult=null) {
         const status=document.getElementById('sl_status');
         const current=()=>version===smartLinkPollVersion;
         status.textContent='Cerco la casa nell’archivio BOOM e nella fonte. Tieni aperta questa pagina…';
         try {
             const token=await auth.currentUser.getIdToken();
-            let data={images:[],data:{}};
-            try {
+            let data=archivedResult || {images:[],data:{}};
+            if(!archivedResult) try {
                 const response=await fetch('/api/smartlink/extract',{method:'POST',signal:AbortSignal.timeout(35000),headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({url:source.url})});
                 const result=await response.json();
                 if(response.ok && result.ok) data=result;
@@ -28540,19 +28862,20 @@ IBAN: ${l.iban || '-'}`;
                 if(browserResult?.images?.length) {
                     const fields={...(browserResult.data || {})};
                     Object.entries(data.data || {}).forEach(([k,v])=>{if(v) fields[k]=v;});
-                    data={images:browserResult.images,data:fields};
+                    data={images:browserResult.images,data:fields,...(data.radar?{radar:data.radar}:{})};
                 }
             }
-            ['title','price','zone','sqm','rooms'].forEach(k=>{const el=document.getElementById('sl_'+k);if(el && !el.value && data.data?.[k]) el.value=data.data[k];});
+            smartLinkRadar=/^h_[a-f0-9]{16}$/.test(data.radar?.id || '') ? {id:data.radar.id} : null;
+            smartLinkApplyFields(data.data,!!smartLinkRadar || data.photoOrigin==='boom_archive');
             smartLinkArea?.suggest(data.data?.zone || data.data?.title || '');
             if(data.photoOrigin==='boom_archive' && /^[A-Za-z0-9_-]{20}$/.test(data.archive?.id || '')) {
-                const images=(Array.isArray(data.images)?data.images:[]).filter(window.BOOM_SMARTLINK.validPublicImageUrl).slice(0,12);
+                const images=(Array.isArray(data.images)?data.images:[]).filter(window.BOOM_SMARTLINK.validPublicImageUrl).slice(0,window.BOOM_SMARTLINK.MAX_PHOTOS);
                 if(images.length) {
                     smartLinkArchive={id:data.archive.id,images};
                     smartLinkPhotoItems=images.map((url,i)=>({url,remoteUrl:url,name:'Foto archivio '+(i+1)}));
                     const date=Date.parse(data.archive.observedAt);
                     const when=Number.isFinite(date)?' del '+new Intl.DateTimeFormat('it-IT',{day:'numeric',month:'long',year:'numeric'}).format(new Date(date)):'';
-                    status.textContent='Foto recuperate dall’archivio BOOM'+when+'. Prezzo e disponibilità vanno riconfermati: la fonte non è stata riletta.';
+                    status.textContent='Foto recuperate dall’archivio BOOM'+when+'. Prezzo e disponibilità vanno riconfermati: la fonte non è stata riletta.'+smartLinkHistoryNotice();
                     smartLinkRenderPhotos(images.length+' foto già archiviate, pronte senza caricamenti. Scegli ordine e copertina.');
                     return;
                 }
@@ -28576,7 +28899,7 @@ IBAN: ${l.iban || '-'}`;
             }
             if(!current()) return;
             smartLinkRenderPhotos(smartLinkPhotoItems.length?`${smartLinkPhotoItems.length} foto importate. La prima è la copertina.${failed?' '+failed+' non disponibili.':''}`:'Le foto sono state trovate, ma il download è bloccato dalla fonte.');
-            status.textContent=smartLinkPhotoItems.length?'Controlla dati, foto, copertina e zona prima di creare.':'Nessuna foto pronta. La scheda non può essere pubblicata senza foto.';
+            status.textContent=smartLinkPhotoItems.length?(smartLinkRadar?'Sono presenti dati già archiviati dal Radar BOOM. Canone e disponibilità vanno riconfermati; la scheda non li indicherà come verificati oggi.':'Controlla dati, foto, copertina e zona prima di creare.')+smartLinkHistoryNotice():'Nessuna foto pronta. La scheda non può essere pubblicata senza foto.';
         } catch {
             if(current()) {status.textContent='Lettura non riuscita. Riprova.';smartLinkRenderPhotos('Foto non disponibili.');}
         } finally {
@@ -28638,7 +28961,7 @@ IBAN: ${l.iban || '-'}`;
         const picker=document.getElementById('sl_photos'); if (picker) picker.value='';
         if (!files.length) return;
         if (smartLinkPhotoPreparing) { smartLinkRenderPhotos('Attendi che le foto selezionate siano pronte.'); return; }
-        if (smartLinkPhotoItems.length+files.length>12) { smartLinkRenderPhotos('Puoi inserire al massimo 12 foto.'); return; }
+        if (smartLinkPhotoItems.length+files.length>window.BOOM_SMARTLINK.MAX_PHOTOS) { smartLinkRenderPhotos('Puoi inserire al massimo '+window.BOOM_SMARTLINK.MAX_PHOTOS+' foto.'); return; }
         const generation=smartLinkPhotoGeneration;
         const priorCount=smartLinkPhotoItems.length;
         smartLinkPhotoPreparing=true;
@@ -28657,9 +28980,14 @@ IBAN: ${l.iban || '-'}`;
     }
 
     async function smartLinkCreate() {
+        const proof=portalSessionProof(), version=smartLinkPollVersion, draft=document.getElementById('sl_key');
+        const current=()=>portalSessionCurrent(proof) && version===smartLinkPollVersion && draft===document.getElementById('sl_key') && draft?.isConnected;
+        if(!current()) return;
         const value = k => document.getElementById('sl_' + k)?.value.trim() || '';
         const source = window.BOOM_SMARTLINK.normalizeUrl(value('source'));
         if (smartLinkPhotoPreparing) { toast('info','Attendi che l’importazione delle foto sia completata.'); return; }
+        if (smartLinkShare && (smartLinkShare.failed || smartLinkShare.expected!==null && smartLinkShare.found<smartLinkShare.expected)) { toast('error','Galleria incompleta','Condividi di nuovo la galleria da Safari: mancano delle foto.'); return; }
+        if (smartLinkShare && !smartLinkShare.checked) { toast('info','Controlla la galleria e i dati, poi conferma nella sezione Safari.'); return; }
         if (!source) { toast('error', 'Link non valido', 'Usa un annuncio di Immobiliare.it, Idealista, Subito, Casafari o Casa.it.'); return; }
         if (!smartLinkArea?.ready()) { toast('info','Conferma la zona sulla mappa oppure scegli Continua senza mappa.'); smartLinkArea?.focus(); return; }
         const btn = document.getElementById('sl_create');
@@ -28667,37 +28995,54 @@ IBAN: ${l.iban || '-'}`;
         smartLinkBusy=true;
         document.querySelector('.sl-studio-body').inert=true;
         btn.disabled = true; btn.textContent = 'Preparo la scheda…';
-        let created = false;
+        let created = false, publicationConflict = false;
         try {
             await smartLinkPhotoPending;
+            if(!current()) return;
             const files=[...smartLinkPhotoItems];
             if (!files.length) throw new Error('Nessuna foto pronta. Importa l’annuncio prima di creare lo SmartLink.');
-            const key=value('key'), images=[];
+            const key=value('key'), draftKey=value('draft_key') || key, images=[];
             for (let i=0;i<files.length;i++) {
                 if(files[i].remoteUrl) {
-                    if(!window.BOOM_SMARTLINK.validImageUrl(files[i].remoteUrl,key) && !smartLinkArchive?.images.includes(files[i].remoteUrl)) throw new Error('Foto non valida per questa scheda. Importa di nuovo.');
+                    if(!window.BOOM_SMARTLINK.validImageUrl(files[i].remoteUrl,draftKey) && !smartLinkArchive?.images.includes(files[i].remoteUrl)) throw new Error('Foto non valida per questa scheda. Importa di nuovo.');
                     images.push(files[i].remoteUrl);continue;
                 }
                 btn.textContent='Carico foto '+(i+1)+'/'+files.length+'…';
                 const ext=files[i].blob.type === 'image/jpeg' ? 'jpg' : 'webp';
-                const ref=storage.ref().child('smartlinks/'+key+'/'+window.crypto.randomUUID()+'.'+ext);
-                await ref.put(files[i].blob, {contentType:files[i].blob.type,cacheControl:'public,max-age=31536000,immutable'});
+                const ref=files[i].uploadRef || storage.ref().child('smartlinks/'+draftKey+'/'+window.crypto.randomUUID()+'.'+ext);
+                files[i].uploadRef=ref;
+                if(!files[i].uploaded) {
+                    await ref.put(files[i].blob, {contentType:files[i].blob.type,cacheControl:'public,max-age=31536000,immutable'});
+                    if(!current()) return;
+                    files[i].uploaded=true;
+                }
                 const url=await ref.getDownloadURL();
-                if (!window.BOOM_SMARTLINK.validImageUrl(url,key)) throw new Error('La foto caricata non ha un indirizzo valido. Riprova.');
+                if(!current()) return;
+                if (!window.BOOM_SMARTLINK.validImageUrl(url,draftKey)) throw new Error('La foto caricata non ha un indirizzo valido. Riprova.');
+                files[i].remoteUrl=url;
                 images.push(url);
             }
             const map=smartLinkArea.value();
+            const historicalData=!!smartLinkShare || smartLinkHasHistoricalData();
+            if(historicalData && !smartLinkShare) document.getElementById('sl_status').textContent=smartLinkHistoryNotice().trim();
             const token = await auth.currentUser.getIdToken();
-            const r = await fetch('/api/smartlink/create', { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + token }, body:JSON.stringify({ idempotencyKey:key, ...(smartLinkArchive?{archiveId:smartLinkArchive.id}:{}), sourceUrl:source.url, title:value('title'), price:value('price'), zone:value('zone'), sqm:value('sqm'), rooms:value('rooms'), note:value('note'), images, map }) });
+            if(!current()) return;
+            const r = await fetch('/api/smartlink/create', { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + token }, body:JSON.stringify({ idempotencyKey:key, draftKey, ...(smartLinkArchive?{archiveId:smartLinkArchive.id}:{}), ...(smartLinkRadar?{radarId:smartLinkRadar.id}:{}), ...(historicalData?{historicalData:true}:{}), sourceUrl:source.url, title:value('title'), price:value('price'), zone:value('zone'), sqm:value('sqm'), rooms:value('rooms'), note:value('note'), images, map }) });
             const d = await r.json();
+            if(!current()) return;
+            if(r.status===409 && d.error==='publication_conflict') {
+                publicationConflict=true;
+                document.getElementById('sl_key').value=window.crypto.randomUUID();
+                throw new Error('Questa importazione ha già una scheda pubblicata con dati diversi. Non è stata modificata. Premi «Crea nuova versione» per pubblicare i dati che hai ora, con un nuovo link.');
+            }
             if (!r.ok || !d.ok) throw new Error(d.error || 'salvataggio non riuscito');
             created = true;
             const msg = 'Ti mando la scheda BOOM della casa che abbiamo visto. Foto, dettagli e dintorni sono qui: ' + d.url;
             document.getElementById('sl_result').classList.remove('is-error');
             document.getElementById('sl_result').innerHTML = `<div style="padding:18px;border:1px solid var(--gold);border-radius:12px;background:var(--bg-elevated)"><strong>SmartLink creato</strong><div style="font-size:12px;word-break:break-all;margin:10px 0;color:var(--gold)">${esc(d.url)}</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-sm" onclick="copyToClipboard(document.getElementById('sl_link').value,'Link copiato')">📋 Copia link</button><a class="btn btn-sm btn-secondary" href="https://wa.me/?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener" style="text-decoration:none">💬 WhatsApp</a><button class="btn btn-sm btn-secondary" onclick="copyToClipboard(document.getElementById('sl_message').value,'Messaggio copiato')">✍️ Copia messaggio</button><a class="btn btn-sm btn-secondary" href="${esc(d.url)}" target="_blank" rel="noopener" style="text-decoration:none">👁 Apri scheda</a></div><input id="sl_link" type="hidden" value="${esc(d.url)}"><input id="sl_message" type="hidden" value="${esc(msg)}"></div>`;
             toast('success', 'SmartLink BOOM creato');
-        } catch (e) { const box=document.getElementById('sl_result'); if (box) { box.textContent=e.message; box.classList.add('is-error'); } toast('error', 'SmartLink non creato', e.message); }
-        finally { smartLinkBusy=false; document.querySelector('.sl-studio-body')?.removeAttribute('inert'); btn.disabled = created; btn.dataset.created = created ? '1' : '0'; btn.textContent = created ? 'SmartLink creato' : 'Crea SmartLink BOOM ↗'; }
+        } catch (e) { if(current()) {const box=document.getElementById('sl_result'); if (box) { box.textContent=e.message; box.classList.add('is-error'); } toast('error', 'SmartLink non creato', e.message);} }
+        finally { if(current()) {smartLinkBusy=false; document.querySelector('.sl-studio-body')?.removeAttribute('inert'); btn.disabled = created; btn.dataset.created = created ? '1' : '0'; btn.textContent = created ? 'SmartLink creato' : publicationConflict ? 'Crea nuova versione ↗' : 'Crea SmartLink BOOM ↗';} }
     }
     // ═══════════════════════════════════════════════════════════════════════════
     // LISTING URL PARSERS — preserved for the upcoming Property Finder / Comparator.

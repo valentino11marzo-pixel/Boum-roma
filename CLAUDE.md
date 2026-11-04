@@ -83,6 +83,11 @@ Premium rental management platform for Rome's apartment market. Serves tenants, 
   ../api/_ai.js           La porta UNICA verso qualunque modello: instrada
                           (cloud · ombra · locale sul Mac), mette il tetto,
                           ricade sul cloud, conta in aiUsage/aiShadow.
+  desk-calendar.js        Il calendario dei desk città, una copia: festivi
+                          (Italia + nl/es/es-bcn), la finestra del desk in
+                          parole col fuso dell'apertura. Lo importa il
+                          webhook (recesso), il build lo inlina nelle pagine.
+                          window.BOOM_DESK_CAL. Vedi «Il biglietto v1.5».
   listing-facts.js        Le regole UNICHE dei fatti di un annuncio: camere
                           (bedroomsOf: `bedrooms` prima, il testo `beds` solo
                           se manca), arredo (furnishedOf), bollette, compenso.
@@ -113,6 +118,7 @@ firebase.json             Firebase deploy config (firestore + storage rules)
 | `pass-delivery.html` | La CARTA D'IMBARCO (STUDIO_AVIATION_2026-08.md, S2): la pagina STAMPA il biglietto (emissione in puro CSS), rotta ROM→codice zona dal lessico curato (mai inventato), e dice la verità — visita annullata (`meta.voided`) o non confermata (`when` assente) = Wallet spento e detto. Palette scalo #FFD700. Test: `node tests/scalo/run.mjs`. |
 | `index.html` | Landing page / homepage. |
 | `owners.html` | La pagina dei proprietari (`/owners`): IT col Lei + EN, una porta (Valutazione gratuita → `api/owner-lead.js`), quattro gesti suoi / dodici nostri. Vedi «BOOM Proprietari». Test: `node tests/owners/run.mjs`. |
+| `istanbul.html` | `/istanbul`, in turco (EN con `?lang=en`): chi si trasferisce a Roma da İstanbul. Una porta (`/api/leads/web`, modulo `istanbul`), ogni fatto con la sua fonte, la lingua delle risposte in `scripts/istanbul-replies.mjs`. Vedi «BOOM İstanbul → Roma». Test: `node tests/istanbul/run.mjs`. |
 | `apartments.html` | Property listings page (discovery). La griglia è una FOTOGRAFIA di build (`design/pages-deco/costruisci-ad.py` su snapshot locali); in pagina l'**idrante** rilegge Firestore e aggiorna stato/prezzo/data delle card di build, e l'**innesto** COSTRUISCE la card per gli annunci nati dopo la build (es. wizard Telegram di sera) — stessa grammatica del builder, registrata nel setaccio via `window.__muroInnesta`: filtri e conto la vedono. Senza innesto un annuncio era "pubblicato e invisibile" (`/listing/:id` vivo, vetrina muta). **Il Solari del prezzo è UN montatore** (`window.__solariPrezzo`, 28/08): il tabellone split-flap del badge prezzo era montato solo sulle card di build — le carte innestate restavano col testo piatto e l'idrante, aggiornando un prezzo, DISTRUGGEVA il tabellone riscrivendolo come stringa; ora build, innesto e idrante montano lo stesso Solari (test: celle presenti anche sull'innestata). Test: `node tests/vetrina/run.mjs`. |
 | `apartment-detail.html` | Dynamic single-property page (loads from Firestore). |
 | `boom_doc_parser.html` | AI document parser UI (uses Claude API). |
@@ -134,6 +140,36 @@ firebase.json             Firebase deploy config (firestore + storage rules)
 | `sw.js` | Service worker (network-first HTML, cache-first static). |
 
 ### SmartLink annunci esterni (BOOM Tools)
+La lettura Safari riconosce ora il wrapper Idealista `.image-gallery-slide-wrapper`, osservato il 3/11 sull'annuncio 37221750: il vecchio `#main-multimedia` era presente ma vuoto.
+La prova DOM conteneva soltanto due foto e il contatore `1/15`, senza JSON-LD: il payload resta incompleto 2/15, non inventa i dati mancanti e non autorizza la pubblicazione della galleria incompleta.
+La fixture in `tests/smartlink/share.mjs` conserva questa evidenza, esclude avatar/raccomandazioni e verifica per mutazione selettore e ambito della galleria; acquisire tutte le foto resta un collaudo separato.
+Dal 3/11 il bundle Safari consegna il risultato con `completion` esterno e incorpora soltanto commenti `/* ... */`: il confronto nativo Mac ha isolato il fallimento della chiamata annidata e dei commenti `//`.
+Il generatore rifiuta commenti di riga nei motori; la regressione esegue lo stesso payload anche senza separatori di riga. Il modello protegge il formato osservato, senza attribuirlo a una regola Apple documentata.
+Il motore completo ha restituito la diagnostica prevista su una pagina BOOM; il collaudo annuncio/galleria e la pubblicazione autenticata restano verifiche separate.
+Dal 2/11 il percorso Safari riconosce anche la galleria Idealista osservata `/immobile/{id}/foto/{numero}/`: conserva la pagina visitata, ma pubblica l'URL base; canonical e dati strutturati devono appartenere allo stesso ID.
+Il pacchetto Comandi Rapidi collega esplicitamente risultato JavaScript → appunti e URL costante → apertura tramite UUID/`WFInput`; i campi impliciti lasciavano il trasporto non verificato nel comando nativo.
+Le regressioni in `tests/smartlink/share.mjs` e `tools/smartlink-shortcut/test.mjs` ripristinano per mutazione route, identità e collegamenti mancanti/scambiati. I due motori restano incorporati e il comando va rifirmato a ogni build.
+Permessi Safari, installazione del file firmato e importazione effettiva delle fotografie sono prove distinte: un comando installato e test automatici verdi non certificano il collaudo completo sul dispositivo.
+Dal 31/10 è disponibile un percorso Safari in anteprima: il comando «Crea SmartLink BOOM» legge soltanto la pagina già aperta e copia un payload minimo negli appunti locali; il Portal lo importa dopo un tocco esplicito e con la sessione admin esistente.
+`smartlink-share-engine.js` è il motore comune incorporato nel comando: identità Immobiliare/Idealista, galleria circoscritta, 128 KiB e 60 foto. Nessun fetch della pagina, cookie, storage, API nascosta o codice remoto; il download delle foto usa l'ordinario `import-photo`, che può essere negato dalla fonte.
+Galleria dichiarata incompleta o download falliti fermano la pubblicazione; il totale ignoto richiede confronto dell'operatore. I dati ricevuti da Safari conservano `historicalData:true`, senza attribuire loro una verifica automatica odierna.
+Appunti/risposte tardivi vengono scartati su cambio fonte, chiusura o cambio sessione; anche la pubblicazione controlla la sessione dopo upload e token. Il cliente continua a vedere solo immagini BOOM, senza fonte privata.
+Il limite 60 è condiviso da scheda pubblica, pubblicazione e riuso archivio; il lettore legacy conserva il suo limite 12. Motori e Portal vengono aggiornati insieme tramite la strategia network-first del service worker.
+Prove nei controller e handler reali in `tests/smartlink/{share,studio,archive,run}.mjs`; generazione riproducibile e mutazioni del comando in `tools/smartlink-shortcut`. Firma Apple, installazione iPhone, galleria reale e prova autenticata restano verifiche distinte: la sola CI non certifica l'importazione di un nuovo annuncio bloccato.
+Dal 28/10 il lettore HTTP verifica l'identità dell'annuncio prima di seguire un redirect: un altro ID, portale o sottodominio non riceve una seconda richiesta e non può prestare dati/foto al link iniziale.
+Restano ammessi il percorso invariato e gli alias bare/www della stessa fonte; lo slash finale è equivalente soltanto sulle route con ID numerico riconosciute. Il controllo vale sui redirect ricevuti, senza tentare URL alternativi dopo un blocco.
+Il parser JSON-LD condiviso con PFS legge il vero attributo `type` anche con altri attributi o virgolette singole. I prezzi decimali standard, per esempio `1500.00`, conservano il valore: prima la rimozione della punteggiatura produceva `150000`.
+Regressioni in `tests/smartlink/run.mjs` sul parser e sull'extractor reali con rete simulata: dati strutturati, prezzi, redirect e una sola richiesta in caso di fonte negata. Queste correzioni non sbloccano l'accesso ai nuovi annunci Immobiliare.
+Dal 26/10 l'archivio riconosce lo stesso ID Immobiliare nelle quattro forme HTTPS con/senza `www` e slash finale; l'equivalenza vale solo per confronti/letture dei record BOOM, senza cambiare `normalizeUrl` o provare altre destinazioni della fonte.
+`_reuse` cerca le varianti in parallelo, deduplica e sceglie la pubblicazione BOOM più recente (`createdAt`, ripiego su `observedAt`), conservando la data originale dell'osservazione. Una query fallita o satura a 50 risultati non certifica un'ultima versione.
+`extract` con `archiveOnly:true` legge esclusivamente `smartlinks`: il Portal lo usa prima di accodare al lettore centrale. Foto già su Storage restano disponibili senza un lettore online o nuovi caricamenti dal telefono; risposte tardive sono scartate.
+Il recupero Radar integra soltanto campi mancanti, senza confondere `bedrooms` con locali; porta un riferimento privato fino alla pubblicazione. `create` rilegge quel record e verifica l'identità, conserva `observedAt:null` e separa `createdAt`: dati archiviati non diventano verificati oggi.
+Reimportare/riprendere lo stesso URL sostituisce i campi autoimportati rimasti invariati; gli edit manuali si conservano. Se derivano da dati storici, `historicalData:true` può soltanto togliere la data di osservazione, non autorizzare foto; cambia il contenuto confrontato nel retry.
+Prove con handler/controller reali in `tests/smartlink/{identity,archive,run,studio}.mjs`: canone della nuova versione, alias, dati mancanti, provenienza, isolamento fonte/foto, errori e corse. Il collaudo di un annuncio nuovo bloccato resta separato: queste correzioni non ne autorizzano l'importazione.
+Dal 25/10 un retry di pubblicazione conferma solo lo stesso contenuto normalizzato: canone, testo, area, provenienza e ordine foto diversi restituiscono `publication_conflict` (409), mai una falsa riuscita con i vecchi dati.
+Lo Studio propone «Crea nuova versione» dopo un conflitto; la scheda esistente resta invariata e la conferma crea un nuovo ID. Reimportare dopo una pubblicazione avvia già una nuova chiave.
+`draftKey` tiene le foto nella propria cartella anche quando cambia la chiave della pubblicazione; senza il campo resta valido il contratto storico. Foto di altre cartelle restano rifiutate, salvo riuso esplicito verificato tramite `archiveId`.
+Gli upload riusciti e i loro riferimenti vengono riutilizzati quando si perde la risposta: retry senza nuovi oggetti o URL foto diversi. Test handler e UI reali in `tests/smartlink/{run,studio}.mjs`, inclusi ordine foto, conflitto, nuova versione e interruzione dopo upload.
 Collaudo del 21/10: Photon pubblico rifiuta `lang=it` con HTTP 400. Studio e ricerca cliente ora chiedono `lang=default`, mantenendo i nomi locali e l'interfaccia italiana. Nessun nuovo servizio o segreto.
 `tests/smartlink/map.mjs` esegue entrambi i controller reali con la risposta osservata: ricerca Piramide, scelta/conferma dell'area e risultati per il cliente. La correzione riguarda le ricerche remote; le zone note continuano a usare il dizionario esistente.
 PR #302 pubblicata su main `abce13f8`: importazione reale dal Portal Subito `665034710`, sei foto caricate e tutti i dettagli principali corretti. La mappa personalizzata ha fermato il collaudo finale e viene corretta prima della consegna.
@@ -144,7 +180,14 @@ Il lettore HTTP Subito riconosce il CDN `images.sbito.it` esclusivamente nel per
 `import-photo` accetta AVIF verificato e lo converte con Sharp in WebP (massimo 40 megapixel in ingresso, 2400 px in uscita) per i browser. Prove reali del 21/10 su due annunci Subito: 1 e 6 foto scaricate/decodificate; collaudo cloud/Portal da registrare separatamente.
 Test in `tests/smartlink/{run,studio}.mjs`: stesso link senza contatti alla fonte, ordine foto senza upload, data non aggiornata artificialmente, annuncio diverso/inattivo/foto estranee rifiutati, nessuna chiamata automatica al ponte Chrome. Il lettore centrale resta spento: SSH della sessione precedente scaduto, nessuna chiave disponibile nell'agente locale.
 Il percorso centrale passa da `api/smartlink/jobs.js` e `worker.js`: richiesta privata e duratura, lettura su Homie, foto archiviate prima dello stato pronto. L'adattatore API immobiliare è stato rimosso; nessuna credenziale o API commerciale della fonte.
-`smartlinkImports`/`smartlinkWorkers` sono admin-only; l'indice `createdBy + createdAt DESC` va distribuito insieme al rilascio (la CI rules non distribuisce gli indici). `SMARTLINK_REMOTE_ENABLED=1` abilita richieste/claim; senza flag resta spento. Il secret Homie esistente rimane solo sul Mac e server.
+`smartlinkImports`/`smartlinkWorkers` sono admin-only. `SMARTLINK_REMOTE_ENABLED=1` abilita richieste/claim; senza flag resta spento. Il secret Homie esistente rimane solo sul Mac e server.
+Dal 25/10 `deploy-rules`, solo su main, verifica l'indice `smartlinkImports: createdBy ASC + createdAt DESC` dopo rules/storage con `tools/ensure-smartlink-index.mjs`.
+Usa il token temporaneo del passo WIF esistente, senza nuovi secret salvati; legge la specifica versionata ed esegue solo GET/POST dei metadati dell'indice sul progetto e database fissi. Nessuna cancellazione, modifica IAM o scrittura di dati applicativi.
+Un indice esistente READY non viene ricreato; una creazione o un conflitto concorrente devono arrivare a READY entro cinque minuti. Errori di accesso, NEEDS_REPAIR e scadenza fanno fallire il controllo senza dichiarare l'indice pronto.
+Le prove in `tests/smartlink/index.mjs` simulano questi esiti e verificano che il token non finisca nei log. Il risultato reale resta quello del job main: un verde PR non prova il deploy dell'indice né l'importazione dalla fonte.
+Il probe WIF del 25/10/2026 (run 40147768071) ha misurato HTTP 400 INVALID_ARGUMENT con `pageSize=100` sia sul percorso scoped sia wildcard; wildcard senza parametro ha risposto 200, indice assente.
+LIST usa quindi `collectionGroups/-/indexes` senza `pageSize`, come il CLI Firebase; filtra rigorosamente il solo indice SmartLink. POST resta limitato a `smartlinkImports` e la riuscita richiede ancora una rilettura READY.
+La regressione riproduce il 400 se si reintroduce `pageSize`; `--inspect` resta una diagnosi GET senza scritture. Input/job CI temporanei del probe sono rimossi: i gate ordinari restano tutti attivi.
 `js/smartlink-import-engine.js` governa claim atomico, lease cinque minuti, massimo due tentativi e scadenza un'ora; `tools/smartlink-worker` usa Playwright 1.64.1 in un profilo dedicato. Dipendenza solo Mac, necessaria per il browser; nessuna estensione per l'operatore.
 Lo Studio riprende le importazioni del proprio account, scarta risposte di un URL precedente e riusa le foto archiviate senza upload dal telefono. Test handler/Sharp, concorrenza e interfaccia in `tests/smartlink/{remote,studio}.mjs`; permessi in `tests/rules/runner.mjs`.
 Il worker ha un limite Vercel di 180 secondi per le foto. Per restare nelle 50 regole functions, `geocode-all`/`geocode-bake` condividono un pattern finito con timeout 60 invariato; `tests/vercel-functions` verifica tutti gli handler e le mutazioni.
@@ -267,6 +310,10 @@ PASS_KEY_PASSPHRASE
 # Email (Nodemailer)
 GMAIL_USER
 GMAIL_APP_PASS
+EMAILJS_PRIVATE_KEY          # server-side EmailJS REST (api/stripe-webhook.js:
+                             # PFS, SERVICE/city orders, RESERVE). Without it the
+                             # paid client's confirmation fails — recorded on the
+                             # lead + agentNotifications svc-mail-<session>
 LEADS_NOTIFY_EMAIL           # optional — dove arriva l'avviso di ogni candidatura
                              # dal sito (/api/apply-lead); default
                              # ADMIN_NOTIFY_EMAIL → valentino@boom-rome.com
@@ -629,6 +676,49 @@ brand-new leads instantly — context card + one-tap "Apri WhatsApp" (wa.me)
 when there's a phone — while the Commerciale's AI reply draft follows via
 the usual approval card.
 
+**L'arretrato che non scendeva (30/10/2026, letto nei log).** Ogni giro
+diceva «soft deadline: restano 40–80 email», per settimane. Il budget
+addebitava 45s (download + modello) a OGNI email prima di aprirla, anche ad
+alert, newsletter e già lette, scartate solo dopo il download: con 53s utili
+si cominciavano email solo nei primi ~8s, sempre le stesse più vecchie, in
+ordine di dominio (immobiliare prima, idealista dopo). In tre giorni la casella
+aveva ~77 email dai portali, ~38 richieste idealista: arrivavano al server con
+uno o due giorni di ritardo. Ora UN `fetchAll` delle intestazioni per la
+finestra; `triage()` (esportata, pura) scarta alert e già lette sull'oggetto e
+sul Message-ID (`memIdFor` lo rende fra `< >` come mailparser: la memoria
+vecchia vale ancora) e mette le più RECENTI per prime; il tempo si chiede a
+pezzi: download 25s, poi modello + scrittura 26s. Se non basta, l'email resta
+non letta e la prende il giro dopo. Il lead porta `receivedAt` (quando la
+persona ha scritto). Anche «Nuova offerta di <nome> sul tuo immobile»
+(idealista) è una richiesta. Al primo giro dopo il rilascio arriva
+l'arretrato degli ultimi tre giorni: richieste vere, alcune già gestite a mano
+dal portale.
+La revisione avversaria (31/10) ha chiuso sullo stesso giro anche i difetti
+che c'erano già e che l'arretrato avrebbe moltiplicato:
+- `client.on('error')`: uno stallo del socket dopo il connect uccideva il
+  processo senza battito; ora è un errore contato.
+- Il fetch in blocco che cade (un NO di Gmail) ricade su una email alla volta;
+  se non legge niente, l'errore risale.
+- Il tetto del modello (`aiCapFor`) copre i due tentativi della modalità
+  locale (Mac, poi cloud) più la telemetria.
+- Un'estrazione fallita si ricorda (`extract_failed`, tentativi) e si riprova
+  DOPO le mai provate. Dopo 3 fallimenti certi (JSON tagliato, 4xx) smette di
+  costare (`gaveUp`); `maxTokens` sale a 900.
+- Una memoria illeggibile ferma il giro (503), invece di valere vuota e poi
+  cancellare quella vera.
+- La memoria si salva anche quando il giro cade a metà.
+- Una scrittura fallita non ferma il giro.
+- Il lead ha id `inbox_<memId>`: una memoria persa dà 409, non un doppione.
+- Il telefono si confronta in tutte le forme (`recentLeadByPhone`).
+Test: `node tests/leadsinbox/run.mjs` (orologio finto, 17 mutazioni).
+
+### I rimbalzi (`/api/leads/scan-inbox?mode=bounces`, cron 7-59/10) — 25/10/2026
+Nato dal primo ordine pagato di Madrid: il cliente aveva sbagliato l'email alla cassa, EmailJS ha risposto «inviata», Gmail ha rimbalzato tre secondi dopo e nessuno lo ha saputo. La conferma è il supporto durevole del recesso: un rimbalzo è un'informazione da dare all'operatore subito.
+Ogni 10 minuti (7-59/10) il server legge i rimbalzi dalla casella che SPEDISCE (`GMAIL_USER`, cartella Tutti i messaggi in sola lettura, ultimi 3 giorni), non dalla casella degli alert PFS. La parte macchina del DSN (RFC 3464) fa fede; `X-Failed-Recipients` e il testo umano solo se manca (e del testo umano contano solo gli indirizzi scritti come destinatari, mai quelli citati nell'originale). Action failed = definitivo, delayed = ritardo: il ritardo segna `emailDelayedAt` e non avvisa nessuno.
+L'indirizzo si cerca in lead e clienti PFS (scritti, `emailBounce` con una scrittura condizionata: mai un fantasma; email, stato, voto restano intatti) e in proposte, visite, contratti, conversazioni, ricerche, proprietari e utenti (nominati nella card). Un PFS è «pagato» solo con la prova del pagamento. `emailBouncedAfterConfirmationAt` si timbra solo se il rimbalzo non è più vecchio della conferma.
+Poi UNA card Telegram: chi, cosa, perché, col WhatsApp pronto per chiedere l'indirizzo giusto (stessa regola del numero della card dei lead). Non corregge e non rimanda nulla da solo. Un rimbalzo senza alcun record dà una riga, massimo 5 al giorno (backscatter). Idempotenza: `agentNotifications/bounce-<dsnId>` (fsCreate, 409); Telegram giù → claim `failed`, il giro dopo riprova la card intera. Memoria `heartbeat/leads-bounces-memory`, battito `pfsRadarHealth/leads-bounces` (L'Orecchio in /team mostra il peggiore dei due battiti). Nessuna collection o regola nuova. Log: solo codici.
+Da verificare dal vivo: che `GMAIL_USER` sia la stessa casella di EmailJS (`service_74n80th`), le frasi italiane del ritardo di Gmail, che il piano Vercel ammetta 32 cron. Test: `node tests/rimbalzi/run.mjs`.
+
 ### Lingua delle risposte (`api/_lang.js`)
 `replyLang(src)` decides IT vs EN from what the person ACTUALLY wrote
 (Italian function words + accents vs English markers), falling back to an
@@ -687,6 +777,12 @@ L’API ora restituisce una proiezione minima della stessa casa usata nel confro
 `catalogocasaui` riproduce la modifica dello stesso ID da un altro tab (fallisce prima della correzione), una risposta precedente sorpassata, errore e retry, campi rimossi e nome reso come testo; `catalogocasa` verifica la proiezione limitata ai cinque campi visualizzati.
 
 ### Il Pubblicista (`api/publisher/*` + `bot/PUBBLICISTA.md`)
+**Adozione riferimenti agenzia (26/10):** `scripts/catalogo-adopt-portals.mjs` collega codici verificati ai `listings` esistenti in `portalPubs`, con anteprima predefinita e conferma dell’impronta del piano; non crea case né riscrive prezzo/disponibilità/contratti.
+`managementMode:'reference_only'` permette al catalogo voce di risolvere i codici, ma vieta create/update/remove e rapporti tardivi: nessun hash, stato live, ricevuta o notifica viene inventato. La scheda casa distingue il riferimento dall’invio.
+Adozione e rapporti usano `fsCommit`, versioni lette e incremento atomico di `settings/catalogPortalAdoption.revision`: due scritture concorrenti, anche su case diverse, non passano entrambe. Il piano rifiuta codici già assegnati, letture incomplete, versioni cambiate e Pubblicista abilitato; un retry identico non scrive.
+Il feed Immobiliare si ferma interamente con `reference_only_feed_blocked` se esistono riferimenti Immobiliare senza permesso di gestione, anche per nodo singolo/gzip: omettere una casa dal batch potrebbe essere interpretato come ritiro dal destinatario.
+Prima dell’adozione vanno rilasciate queste guardie; non revocano file o azioni già esportati. Scritture manuali che ignorano la revisione comune restano fuori dal protocollo e non devono correre durante il riallineamento. Nessuna impostazione del Pubblicista viene attivata.
+Prove: `portaladoption`, `publisher`, `catalogocasa`, `feed` e `phoneresolver`; servizi simulati, conflitti atomici, risposta persa, veto completo, voce con URL/codice e mutazioni della revisione e delle guardie.
 Dal 17/10 viene integrata la correzione preparata il 12/10: configurazione assente o illeggibile = coda spenta.
 L'esecuzione richiede `settings/publisher.enabled:true` e `portals.<portale>.enabled:true`.
 Il catalogo salvato non prova un aggiornamento su Idealista/Immobiliare: resta necessaria la ricevuta in `portalPubs`.
@@ -1202,6 +1298,1712 @@ non promettere — sta in `STUDIO_EXECUTIVE_ROMA.md`.
   sull'ORDINE nel sorgente, invarianti SEO/GEO della pagina, reciprocità dei
   link).
 
+### BOOM İstanbul → Roma (`/istanbul` + `api/leads/web.js` modulo `istanbul`) — 25/10/2026
+La pagina per chi si trasferisce a Roma da İstanbul e dalla Turchia. **Turco prima**, inglese a
+scelta (`?lang=en`, mai dedotto dal browser; nessun hreflang: è lo stesso file). Direzione del
+fondatore: «un copy alla Apple» — il nostro unico cliente pagante delle città non aveva nemmeno
+riconosciuto il quiz: qui **niente quiz, niente passi**, un'idea per blocco, il beneficio prima
+della funzione, poche parole (≤ 450 in turco all'apertura). Registro: **sen**, calmo.
+- **Sei blocchi**: hero + porta (nome · WhatsApp o email · mese d'arrivo · nota; honeypot
+  `company`; `requestId` per caricamento; il bottone nasce spento senza JS, `<noscript>` dà
+  WhatsApp/email); 01 «Vize bir adres ister. Otel de olur.» (il fatto chiave: per il visto di
+  iscrizione universitaria il consolato accetta otel delle prime settimane, contratto GIÀ firmato e
+  registrato, konaklama taahhütnamesi con la carta d'identità di chi ospita, o yurt — quindi non si
+  affitta alla cieca; permesso entro 8 giorni lavorativi dall'ingresso; «vize işlemlerini biz
+  yapmayız»); 02 video live (gratis sulle nostre case, «toplam 89 €» Virtual Viewing SOLO per un
+  annuncio trovato altrove — ovunque: pagina, Kısaca, nome dell'Offer); 03 il contratto (modello
+  ufficiale italiano, registrato in 30 giorni, spiegato in inglese, minimo 3 mesi, deposito ≤ 3
+  mensilità, modello studenti); 04 il prezzo (10% di un anno + KDV/IVA 22%, una volta, esempio
+  §4.1; PFS 350 € IVA inclusa §4.2; Remote Move Pack 299 €); 05 FAQ (8, `<details>`; il FAQPage
+  lo genera `scripts/owner-faq.mjs` dalla parte TURCA — `FILES` ora è file → lingua) + «Kısaca»
+  per i motori + l'ultima porta.
+- **Ogni fatto ha la sua fonte, linkata in pagina** (consolato di İstanbul e ambasciata di Ankara
+  2026/27, D.Lgs. 286/1998 art. 5, Sapienza, AdE RLI, L. 392/1978 art. 11, Foro Italico, Polizia di
+  Stato, DiSCo, il modello studenti in `reference/`, Condizioni, catalogo). **Le date DiSCo
+  (29/11 firma, 27/12 registrazione) sono del bando 2026/27**: vivono in UNA risposta della FAQ e si
+  aggiornano ogni anno, o si tolgono. **Mai stampato**: un numero di clienti (il fondatore dice
+  «centinaia» dalla Turchia ma non c'è un conteggio: niente «yüzlerce»), la crisi dei visti 2024,
+  canoni di mercato, «IVA inclusa» su 89/299 (il catalogo non lo dice), la caparra €300, lire, un
+  ufficio a İstanbul, «İngilizce sözleşme», un visto promesso.
+- **La lingua delle risposte in UN posto**: `scripts/istanbul-replies.mjs`
+  (`TURKISH_REPLIES = false`). Oggi risponde Valentino in inglese o italiano; il partner di
+  İstanbul esiste ma non è confermato chi risponderebbe in turco. Lo script riscrive i punti
+  marcati `<!--R:tr-->…<!--/R-->` (sotto la porta, prima FAQ, riga «Dil»; «Yazışma dili …»),
+  `availableLanguage` del SOLO `ServiceChannel` del Service (non è una proprietà di
+  RealEstateAgent né di Service; il `contactPoint` dell'azienda — il numero di Valentino, uguale
+  su ogni pagina — resta en/it anche ad interruttore acceso), il FAQPage e la riga `- Replies:`
+  di llms.txt; `--check` esce 1 se divergono.
+  Accenderlo NON fa scrivere turco alla macchina (`api/_lang.js` e i prompt non hanno un ramo
+  `tr`): da accendere solo con chi risponde davvero.
+- **La porta** (`api/leads/web.js`, nessun endpoint nuovo, nessuna regola in vercel.json): un
+  modulo può ora dichiarare `phoneCountry` (numero E.164 con `phoneE164` di `api/_market.js` —
+  «0532 123 45 67» → +905321234567; prima la card faceva +39532…; il digitato in `raw.phone`),
+  `closed` (liste chiuse: fuori lista si scarta), `language` (dalla pagina letta, campo chiuso),
+  `market`/`origin`/`leadType`, `head` (il riassunto apre «İSTANBUL → ROMA — move-in: settembre
+  2027 · pagina: turca · …», mesi da tabella fissa). Per TUTTI i moduli: `requestId` →
+  `web_<form>_<id>` (409 = `duplicate`, un lead solo) e l'attività ATTESA prima della risposta
+  (tetto 4 s). Gli altri moduli: schema invariato (language null, nessun campo nuovo).
+- **Il lead è un inquilino di ROMA**: `market:'roma'`, `sourceRef`/`origin:'istanbul'`,
+  `leadType:'tenant'`, `language:'tr'`. La macchina intera lo lavora: Brain (`tr` = segnale
+  expat), notify-pending (card «🇹🇷 İstanbul → Roma» via `originOf`, WhatsApp +90 col messaggio di
+  Roma in INGLESE perché `replyLang` non ricade mai sull'italiano per `tr`), Commerciale e
+  Segretaria (🤖 presente). `notRomeTenant` resta null. `ai.reply` passa da `replyLang` per una
+  lingua che non scriviamo (null/it/en invariati). Portale: 🇹🇷 nelle liste lead e nella scheda
+  persona, il wizard cliente parte in inglese.
+- **WhatsApp**: il link precompila «Merhaba BOOM, İstanbul'dan Roma'ya taşınıyorum. (Moving from
+  Istanbul to Rome.)»; `originFromText` lo riconosce e `deskPatch` (homie/_lead) scrive `origin`
+  sul lead WhatsApp (mai un `market`).
+- Il resto: `og-istanbul.png` dal repo (`genera-og-servizi.py og-istanbul`, `<html lang="tr">` per
+  il maiuscolo i→İ, «%10 + KDV»), sitemap (2026-10-25), sezione in llms.txt, redirect
+  `/(tr|turkiye|turkey)` → `/istanbul`, `manualHead` in seo-config, piede «Company & Markets» delle
+  sei pagine e dei builder (`pt.html`, `patch-lotto2.py`), ramo turco del banner cookie
+  (`js/boom-consent.js`, riletto dal madrelingua il 25/10: «“Kabul et” ile … kaynak çerezi (bizi
+  nereden bulduğunu kaydeder) açılır», «Yalnızca zorunlu»; `tests/consent` conta quattro lingue e
+  ha /istanbul fra i piedi col link «Çerez tercihleri»). **Trappola del maiuscolo**: sotto
+  `lang="tr"` il CSS fa i→İ; i nomi italiani/inglesi maiuscoli vanno in uno span `lang="it|en"`.
+- **La revisione del 25/10** (madrelingua turco, verità, UX — vince il madrelingua sulle parole,
+  la verità sul copy): niente calchi («ev sahibi» era il locatore → «Seni evinde ağırlayacak
+  kişinin konaklama taahhütnamesi»; «görüntüleme», «ücretli sözleşme», «resmî model», «seninle
+  İngilizce okuruz», «bir kez» → «tek seferlik», «Kayıtlı merkez» → «Şirket merkezi», KDV numarası
+  → «vergi no.»); le istituzioni sono dette ITALIANE (consolato, ambasciata, polizia); DSU: entro
+  il 27/12 registrazione E comunicazione a DiSCo (altrimenti «pendolare calcolato»); 89 € e 299 €
+  portano «toplam / in total» (Stripe incassa esattamente quella cifra; «KDV dahil» solo quando
+  il commercialista lo conferma — M3b lo vieta finché c'è). UX: `<body data-consent-late>` e la
+  porta `.door.hero-cta` (il riquadro dei cookie non si posa più su «Bize yaz» a 390/320px), e in
+  `boom-consent.js` la targa aspetta anche oltre i 45 s finché il cursore sta in un campo della
+  porta (`inDoor()`, riga a sé: la riga dei 45 s che tests/cities legge resta identica);
+  `boomConsent.relabel()` riscrive il riquadro quando l'interruttore cambia lingua; il link del
+  piede ora riconosce `l-tr`; `--t4` a .5 sulla pagina (5,3:1); bersagli 44px; l'errore SOTTO il
+  campo (aria-invalid + aria-describedby, bordo rosso), il 400 `contact_required` detto sul
+  recapito, la regola email uguale al server, «Gönderiliyor…» + `aria-busy` mentre il POST viaggia.
+- **Aperte, del fondatore**: un contratto firmato a distanza e registrato PRIMA dell'appuntamento
+  del visto è erogabile? e la commissione se il visto è rifiutato (nessuna regola inventata);
+  chi fa la comunicazione di ospitalità/cessione di fabbricato (art. 7 TU, 48 ore) per un
+  inquilino extra-UE (la finalize la mette in scadenza, la pagina non la promette); il documento
+  d'alloggio che chiede la Questura di Roma per il primo permesso (non confermato); il codice
+  fiscale dal consolato di İstanbul per un cittadino turco (non confermato); le ore d'ufficio
+  stampate; chi risponde in turco (l'interruttore); una frase qualitativa sull'esperienza coi
+  clienti turchi (mai un numero); 89 € e 299 € «KDV dahil» (il commercialista, poi
+  `valueAddedTaxIncluded` sulle due Offer e M3b allentato); il nome turco che l'ambasciata usa per
+  la «residenza elettiva» (il PDF non è leggibile dal sandbox: oggi «Seçimli ikamet (residenza
+  elettiva)»).
+- Test: `node tests/istanbul/run.mjs` (handler veri su Firestore in memoria, Brain e card veri;
+  pagina: porta, quiz, tetti, FAQPage, prezzi, frasi vietate anche in turco, numeri di persone,
+  fatti con la fonte, interruttore delle risposte; Chromium a 390px; mutazioni M1–M6).
+- **La barra a 390px e `tests/testata`** (26/10): la striscia che il test misura (x 120–320,
+  dove sulle altre pagine non c'è niente) qui contiene «İSTANBUL → ROMA» e TR/EN, quindi lo
+  scarto era 184 su una barra OPACA. Ora, quando lo scarto supera la soglia, il test guarda
+  quanto ogni pixel cambia scorrendo: il contenuto della barra è fermo (0), la pagina sotto no
+  (la stessa barra al 55% d'opacità fa 84 ed è rossa). Strisce non confrontabili = rossa.
+
+### BOOM Cities (`/amsterdam` + `cities/*` + `build-cities.mjs` + `api/city-lead.js` + `BOOM_CITIES_BRIEF.md`) — 14/10/2026
+Le pagine città (Amsterdam, poi Madrid, Barcellona, Parigi, Berlino), lato inquilino,
+in inglese. Il contratto è `BOOM_CITIES_BRIEF.md` (fuori dal deploy: budget e
+zone grigie legali sono interni). **La Fase 1 (13/10) era un'estrazione
+pixel-identica della pagina scritta a mano — e il fondatore l'ha bocciata**:
+«non è nelle nostre vene, non rispetta il minimo di qualità che abbiamo
+raggiunto, con tutto il motion design Solari». Giusto: era una landing a
+parte (Inter da Google Fonts, oro `#D4AF37` del portal, spirale disegnata a
+mano al posto del marchio, «founding cohort · 10 posti · deposito €99
+rimborsabile», Web3Forms + Stripe + pixel Meta). **Il 14/10 la pagina è
+stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
+- **Sistema**: `css/boom-2026.css` + il layer città `assets/boom-city.css`
+  (la grammatica Executive v4 — `STUDIO_EXECUTIVE_UIX.md`,
+  `STUDIO_EXECUTIVE_CONVERSIONE.md`: oro `#FFD700`, lockup
+  `BOOM │ AMSTERDAM · TENANT SIDE` unico elemento di marca nuovo, layer tech
+  quieto, **il form È l'hero** — `.filecard`, 4 campi visibili + i **chip
+  del servizio** + «More details», ~50 parole prima della porta — poi 01
+  come funziona (`.steps` + `.tline`), 02 servizi e prezzi (tre `.sib` con
+  il **prezzo sul tabellone Solari** e le ✓ di cosa compra la tariffa), 03
+  sei controlli prima della firma (`.flows`), banda `.truth`, FAQ visibile =
+  FAQPage, scheda `.enbref` citabile (GEO) DOPO la FAQ, banda finale, footer
+  con l'entità e la dichiarazione tenant-side, `.paybar` mobile).
+- **Il Solari**: il nome della città nel titolo È un tabellone a palette
+  (`#flapCity`, una cella per lettera, `show` a 600ms, `giro` ogni 19s a
+  scheda visibile, fermo con reduced-motion), e i tre prezzi sono tabelloni
+  che si compongono entrando in vista — lo STESSO montatore di
+  `apartments.html`. Il motore è INLINATO dal build dalla sua sorgente unica
+  (`design/pages-deco/solari-engine.html`, byte per byte, fra i marcatori
+  `BOOM_SOLARI`), come il contratto di scorrimento (`css/boom-scroll.css` +
+  `js/boom-scroll.js`). **Lo spazio si riserva prima** (la lezione DAYS di
+  index): `CELL_EM = 0.90` em dell'host per cella — la cella del motore è
+  0.84em (il `--cw` dichiarato sulla cella vince su quello calibrato
+  sull'host) + .06em di margine — pinnato in Chromium: riservato 210px, celle
+  208px a 390px. Il titolo a `.72em` tiene AMSTERDAM e BARCELONA (9 lettere)
+  in una colonna da 390px; un nome oltre 12 lettere è rifiutato (override
+  `"word"`), gli accenti cadono (il rullo non li ha).
+- **La voce**: attività avviata, nessun «founding», nessun contatore di
+  posti, nessun deposito, nessun punto esclamativo (test sui dati). Promesse
+  dichiarabili e basta: dossier olandese in 24h, candidature entro l'ora,
+  visita presenziata con video in diretta e rapporto scritto, contratto
+  controllato sulla legge olandese, BRP confermata per iscritto; mai una
+  data, mai una statistica senza fonte (la sezione «problema» con le tre
+  cifre non sorgenti è sparita).
+- **La porta**: `POST /api/city-lead` (pattern di `executive-lead`:
+  honeypot `company`, nome + email|telefono, clip, rate limit per IP; città
+  da LISTA CHIUSA → 400 `unknown_city`; servizio da lista chiusa, «service
+  to decide» mai un'etichetta inventata; la fascia di budget resta verbatim
+  e il numero è il suo tetto). Scrive nello schema `leads` come TENANT
+  (`market:'amsterdam'`, `intent:'city_search'`, `sourceRef:'city-amsterdam'`,
+  riassunto «AMSTERDAM — tenant-side search · Full Search · €1,500 –
+  €2,000/month · move-in … · chi si trasferisce · zone. parole sue»). **Il
+  terzo mercato in `api/_market.js`** (`CITY_MARKETS`, `isCityMarket`,
+  `cityLabel`, `cityReplyText`): il Commerciale SI ASTIENE (guardia PRIMA di
+  `proposeFirstReply`, come Réunion e B2B) e la card Telegram porta il
+  messaggio inglese già scritto — firmato Valentino perché il numero è il
+  suo — col link di `/amsterdam` (dal 22/10, v1.4: sui desk che vendono
+  propone la chiamata gratuita che la porta promette, «which day and time
+  suit you?», e non fa più domande scritte; sui waitlist dice quali
+  documenti preparare); mai `/apartments` di Roma. Nessuna chiave nel browser, nessun
+  servizio terzo: la pagina paga solo gtag (consent default negato) +
+  `boom-consent.js` + `boom-track.js` come Executive.
+- `cities/_template.html` (`{{a.b}}` = escapato, `{{{a.b}}}` = HTML; nel
+  JSON un campo che finisce in `Html` è markup fidato) ·
+  `cities/_shared.json` (**l'unico posto del dominio**, entità legale,
+  contatti VERI `393313251961`/`hello@boom-rome.com`, organizzazione,
+  famiglia) · `cities/<città>.json` · `assets/boom-city.css|js` con
+  `?v=<hash>` del contenuto. `npm run build:cities` scrive `/<slug>.html`
+  (committata); `--check` esce 1 se stantia. **Il build rifiuta invece di
+  stampare il falso**: token senza valore, `live:true` con segnaposto
+  (testo tra parentesi quadre, config `REPLACE_ME`/`39XXXXXXXXXX`) o **senza
+  `og-<slug>.png` su disco**, `mode:"waitlist"` finché la Fase 3 non la
+  costruisce (stampa prezzi), `#D4AF37` ovunque (anche nell'HTML fidato),
+  piani senza label/prezzo o con id doppio, un file che non è il motore
+  Solari al posto del motore, sovrascrivere una pagina alla radice senza il
+  marchio GENERATED. `live:false` → `noindex` nei primi 4000 caratteri
+  (regola 8 di `tests/seo`); per andare live servono anche la riga in
+  `sitemap.xml` e il link dalla home.
+- **La dieta (14/10, sera — «il cliente atterra qui e riceve troppe
+  informazioni»)**, misurata sulle parole visibili della pagina costruita,
+  non a sensazione: colonna hero **71 → 51** parole (sottotitolo a una
+  frase, due prove invece di tre, la riga «searching daily on» nascosta
+  sotto i 640px: lo stesso fatto è la prima ✓ di Full Search), corpo senza
+  le risposte FAQ **988 → 897**, controlli 178 → 153, risposte FAQ ≤ 42
+  parole. Tre mosse di forma oltre al taglio: (1) **il servizio è una
+  griglia 2×2 di chip radio col prezzo in vista** (`R.serviceChips`,
+  `fieldset.chips` — una tendina nascondeva le tre porte e il loro costo
+  dietro un tap; nessun chip pre-spuntato: il server legge «service to
+  decide», il bottone del piatto spunta il SUO chip; il radio resta
+  nell'albero per tastiera e screen reader (senza JS il modulo NON si invia: dal 21/10 il bottone nasce spento e la pagina indica WhatsApp ed email); la regola
+  `.chips .chip` deve battere `.fld label` di boom-2026, altrimenti le
+  micro-maiuscole con 1,8px di tracking fanno andare a capo il nome a
+  390px); (2) **i piatti dicono cosa compra la tariffa in ✓ righe**
+  (`includes[]`, 2–5 per piano, il build rifiuta fuori da quel range), una
+  riga di testo e basta; (3) **il contenuto macchina dopo quello umano**:
+  la scheda `.enbref` sta sotto la FAQ, la striscia di famiglia è
+  «Amsterdam · BOOM Rome» e il menu mobile porta alla home, non al
+  catalogo di Roma. **Il budget è nel test** (`tests/cities/run.mjs`, per
+  ogni pagina costruita: hero ≤ 60 parole, porta ≤ 110, ogni piatto ≤ 50,
+  controlli ≤ 170, corpo senza FAQ ≤ 950): la pagina non può ingrassare di
+  nuovo senza che una suite lo dica.
+- **La card social** si genera dal repo: `python3
+  design/pages-deco/genera-og-cities.py` (card HTML dai DATI della città —
+  il tabellone fermo, il «from €149» = il servizio meno caro — → Chromium
+  1200×630 → Pillow a palette: 97 KB, sotto i 120 del budget «card social»;
+  dal 14/10 notte, v1.1, anche la card di un desk waitlist porta il prezzo
+  più basso, con l'etichetta «opening · from»: la card non ha spazio per la
+  frase che la pagina dice, quindi dice almeno che il desk sta aprendo).
+- **Madrid e Barcellona (14/10, sera)** — due sorelle, due modalità, dal
+  brief §4: **Madrid in `mode:"search"`** ai prezzi fissati dal brief (gli
+  stessi di Amsterdam: 500/199/149 IVA inclusa), **Barcellona in
+  `mode:"waitlist"`** perché in Catalogna l'intermediazione esige
+  l'iscrizione AICAT: «Launching with a registered local partner» (la frase
+  del brief, verbatim, nel footer; nell'hero «Opening with a registered local
+  partner (AICAT)»), il rent-cap check descritto come servizio SENZA prezzo.
+  **La Fase 3 del build era questa modalità** (SUPERATA la sera stessa dalla
+  v1.1 del brief — vedi «La cassa e i prezzi su ogni desk» qui sotto; resta
+  scritta perché spiega i test di quel pomeriggio): in waitlist i piatti
+  avevano le ✓ e il bottone ma nessun tabellone né riga prezzo, i chip il
+  solo nome, la riga «Fees» della scheda testo del JSON (mai derivata), il
+  `Service` nel JSON-LD senza `offers`; e il build RIFIUTAVA una città
+  waitlist con un prezzo nei piani (`price/per/offerDescription` dovevano
+  mancare), un «€N» nel testo visibile (i `<select>` del budget del cliente
+  esclusi: quei soldi sono suoi), un tabellone, un `"price"` nello
+  schema, un link Stripe — e rifiutava allo stesso modo una città search
+  senza prezzi: le due modalità non si confondevano, e «passare Barcellona a
+  search» esige i prezzi, mai un «€undefined». Le frasi obbligate del brief
+  sono asserite verbatim (Madrid: «You hire us; we do not act for the
+  landlord.»). **La striscia di famiglia si deriva dalle città costruite**
+  (`familyFor`: sorelle in ordine alfabetico, poi BOOM Rome; una pagina
+  LIVE linka SOLO sorelle live — un cliente non atterra mai su una bozza che
+  nessuno ha approvato — una bozza le linka tutte, perché la revisione deve
+  vedere la suite). Il registro del server (`CITY_MARKETS.<slug>.mode`) e
+  il JSON portano la stessa parola, e il test li confronta: un lead
+  Barcellona nasce `intent:'city_waitlist'`, riassunto «BARCELONA — waitlist
+  (desk opening with a registered partner) · …», card Telegram «🇪🇸
+  BARCELONA · waitlist · …», e `cityReplyText` dice che il desk sta aprendo
+  invece di promettere una ricerca. **Da verificare col legale prima del
+  live, oltre al brief** (il brief §4 copre: costi d'agenzia sul locatore
+  ex Ley 12/2023, fianza 1 mese + max 2 di garanzie aggiuntive, nessun tetto
+  regionale a Madrid, zona tesa e índice de referencia a Barcellona, AICAT):
+  le frasi sul contratto «de temporada» che non tutela come la vivienda
+  habitual, il padrón da cui dipendono tessera sanitaria e posto a scuola,
+  le consuetudini su nómina/aval/garante, Habitaclia fra i portali. Budget
+  di parole rispettato dopo la dieta (Madrid: hero 51 · controlli 169 ·
+  corpo 910; Barcellona: hero 55 · controlli 166 · corpo 932). Entrambe
+  `live:false`: per il live servono la revisione sul telefono, la riga in
+  `sitemap.xml`, il link dalla home e — per Barcellona — il partner AICAT
+  prima di qualunque passaggio a `search`.
+- **Parigi (14/10, notte)** — la terza sorella, in `mode:"waitlist"` dal
+  brief §4: in Francia cercare casa per conto dell'inquilino è
+  *transaction* (loi Hoguet) e il chasseur immobilier esige la **carte
+  professionnelle**, quindi «Launching with a licensed partner.» (la frase
+  del brief, verbatim, nel footer; nell'hero «Opening with a licensed
+  partner (carte professionnelle)») e nessun prezzo da nessuna parte — le
+  STESSE guardie di Barcellona. I sei controlli sono i fatti francesi:
+  l'**encadrement des loyers** (loyer de référence e majoré, complément
+  giustificato), chi può farsi pagare (loi Hoguet · ALUR: gli onorari
+  all'inquilino sono capati per legge), il **dépôt de garantie** (un mese
+  vuoto, due ammobiliato), i tre bail (vide · meublé · mobilité), il
+  **justificatif de domicile** dal primo giorno, garant · **Visale**. Il
+  registro del server (`CITY_MARKETS`) porta `partner` sui desk waitlist
+  («a licensed partner» per Parigi, «a registered local partner» per
+  Barcellona) e `cityReplyText` lo nomina: un lead Parigi nasce
+  `intent:'city_waitlist'`, card «🇫🇷 PARIS · waitlist · …», e la risposta
+  precompilata dice che il desk sta aprendo invece di promettere una
+  ricerca. Budget rispettato dopo il taglio dei controlli (178 → 167):
+  hero 55 · controlli 167 · corpo 943. `og-paris.png` dal repo (92 KB, il
+  tabellone fermo su PARIS, nessun «from €»). **Da verificare col legale
+  prima del live**: il partner con carte professionnelle *transaction* e
+  garanzia finanziaria; dove vale l'encadrement (Paris intra-muros, i
+  comuni limitrofi a parte) e il complément de loyer; il bail mobilité
+  (1–10 mesi, senza deposito, solo per certe situazioni — mai per un
+  soggiorno lungo, la pagina lo segnala come bandiera rossa); l'eleggibilità
+  Visale (under 30 e nuove assunzioni: non prometterla a chi non rientra);
+  il bail come justificatif de domicile presso banca e préfecture.
+  `live:false`: per il live servono la revisione sul telefono, la riga in
+  `sitemap.xml`, il link dalla home e il partner licenziato prima di
+  qualunque passaggio a `search` (che esige i prezzi, come per Barcellona).
+- **Berlino (14/10, notte)** — la quinta città, FUORI dal brief (§0 ne elenca
+  quattro; §1 prevede «una quinta città è un JSON + copy», ma §4 non ha un
+  blocco legale per Berlino: ogni fatto in pagina è quindi da verificare col
+  legale, nessuno viene dal brief). `mode:"waitlist"`, e non per prudenza
+  generica: in Germania chi intermedia locazioni abitative ha bisogno del
+  permesso del **§34c GewO**, e il **WoVermRG** (legge sulla mediazione di
+  alloggi) fissa COME si paga un agente lato inquilino — il **Bestellerprinzip**
+  (paga chi incarica), compenso dovuto SOLO a contratto firmato (§2 c. 1),
+  tetto di **due mensilità nette fredde + IVA** (§3 c. 2), divieto di
+  anticipi. Un «Full Search €500 quando il lavoro parte» sarebbe illecito così
+  com'è anche col permesso in mano: Berlino non può aprire in `search` con la
+  griglia prezzi di Amsterdam, e il passaggio a `search` esige un listino
+  ridisegnato su quella legge, non solo il partner. In pagina: «Launching with
+  a licensed partner.» (la frase di Parigi), nessun prezzo, i sei controlli
+  sono i fatti tedeschi — la **Mietpreisbremse** (al massimo +10% sul canone
+  comparativo locale, eccezioni dichiarate, il supplemento arredo come
+  nascondiglio), chi può farsi pagare (Bestellerprinzip · §34c GewO), la
+  **Kaution** (tre mensilità fredde in tre rate, separata dal patrimonio del
+  locatore, §551 BGB), Kaltmiete · Warmmiete e il conguaglio Nebenkosten,
+  l'**Anmeldung** entro due settimane con la Wohnungsgeberbestätigung (§19
+  BMG), il dossier **SCHUFA** · Selbstauskunft. Portali: ImmoScout24 ·
+  Immowelt · Kleinanzeigen · WG-Gesucht; budget «warm». Registro
+  `CITY_MARKETS.berlin` (🇩🇪, `partner: 'a licensed partner'`): lead
+  `intent:'city_waitlist'`, card «🇩🇪 BERLIN · waitlist · …», risposta che
+  dice che il desk sta aprendo. Budget rispettato dopo il taglio (corpo
+  979 → 946): hero 55 · controlli 165 · corpo 946. `og-berlin.png` dal repo
+  (92 KB). **Da verificare col legale prima del live**: il permesso §34c
+  (partner o Egidi stessa — è un permesso dell'ufficio commercio, non un
+  esame), la MaBV e l'obbligo di formazione; se Application Pack e Attended
+  Viewing sono «Vermittlung» (allora niente anticipo e solo a firma) o
+  servizi a sé; la Mietpreisbremse (proroga e eccezioni: nuova costruzione,
+  modernizzazione, canone precedente più alto; il supplemento arredo); la
+  Kaution e le tre rate; l'Anmeldung e i tempi reali degli uffici; la
+  legalità del contratto a termine (§575 BGB). `live:false`: revisione sul
+  telefono, riga in `sitemap.xml`, link dalla home, partner con permesso E
+  listino conforme al WoVermRG prima di qualunque `search`.
+- **La cassa e i prezzi su ogni desk (14/10, notte — v1.1 del brief, la
+  decisione del fondatore)**: «voglio tutte le città pronte col pricing
+  adatto, come le altre cose di Roma, con motion e un upgrade di design, così
+  che ogni pagina sia una landing a sé che converte e ci fa confermare
+  l'interesse e che il prodotto funziona». Letta contro il brief: §4/§10
+  dicevano «waitlist = nessun prezzo»; il fondatore ha deciso altrimenti, e
+  la decisione è scritta in testa al brief (v1.1), non sottintesa. Quattro
+  pezzi, tutti con la stessa regola in mezzo — **mostrato ≠ incassato**:
+  1. **I prezzi di listino su OGNI desk** (500/199/149 IVA inclusa, la griglia
+     del brief, mai un prezzo per città inventato): su Barcellona, Parigi e
+     Berlino sono prezzi di listino «charged only when the desk opens» — la
+     riga sotto i chip (`form.service.priceNote`), «at opening» sulla riga
+     prezzo di ogni piatto (Berlino: Full Search «on signing», la regola del
+     WoVermRG §2–§3: compenso solo a contratto firmato, tetto due mensilità
+     nette fredde + IVA, mai anticipi — scritta in pagina, nella nota e nella
+     riga Fees), la riga «Fees» della scheda DERIVATA dai piani come sugli
+     altri desk, le `Offer` nello schema con `availability: PreOrder` e la
+     frase «charged only when the desk opens» nella description. Il build
+     esige ora `price` e `per` su ogni piano in ENTRAMBE le modalità, e
+     controlla che ogni prezzo stia su un tabellone E nel suo chip.
+  2. **La cassa** (`checkout: true`, oggi Amsterdam e Madrid — SOLO su un desk
+     `search`: il build rifiuta `checkout:true` su un waitlist, una parola
+     «Stripe», un foglio `id="ov"`, un `data-pay`, e pretende `"CHECKOUT":
+     false` nel config; il server rifiuta lo stesso POST con 400
+     `checkout_closed` — `cityOffer` in `api/_market.js`). È il binario
+     Services 2.0 di Roma: i bottoni dei piatti («Start my search · €500»),
+     la pay bar del telefono (il piano `featured`) e **l'offerta dopo il
+     lead** (la card «Your file is open» propone di pagare il servizio
+     scelto, nome ed email già nel foglio; «Not sure yet» non riceve
+     offerte) aprono UN foglio (`checkoutCopy` nel JSON: tre righe-piano col
+     prezzo, nome, email, telefono e nota facoltativi, honeypot, la via
+     gratuita a un tap) che posta `{ city, kind }` a `/api/service-checkout`
+     → Stripe al prezzo di `CITY_PLANS` (la copia che il server si fida, mai
+     il browser: un prezzo nel body è ignorato; `phone_number_collection`
+     quando il foglio lo lascia vuoto) → `success_url` = la pagina della
+     città `?paid=<piano>&start=<0|1>&session_id=…`, senza frammento dal
+     22/10 (mai il thank-you di Roma),
+     dove il JS mostra lo stato PAGATO (piano e importo, tre righe «cosa
+     succede ora», il tabellone che scrive PAID), conta UN `purchase` per
+     session id (localStorage) e ripiega la query. Il webhook SERVICE scrive
+     il lead PAGATO con `market = città`, `sourceRef city-<città>`,
+     `leadType tenant`, `intent city_order` (riassunto «AMSTERDAM — paid
+     order · Full Search · €500 paid», il telefono raccolto da Stripe se il
+     foglio non l'aveva): `isCityMarket` → il Commerciale si astiene, la card
+     Telegram porta `cityReplyText` che su `paid:true` dice «Payment
+     received for Full Search in Amsterdam», le email (operatore e cliente)
+     portano i passi del desk (`CITY_SERVICE_META`) e il link alla pagina
+     della città. Full Search è «refunded in full if we decline the search in
+     the first call» — la regola che la FAQ già diceva, ora promessa nel
+     foglio, nel prodotto Stripe e nella FAQ. I servizi di Roma invariati
+     (telefono obbligatorio, thank-you page).
+  3. **Il motion** (tutto fermo con `prefers-reduced-motion`, tutto visibile
+     senza JS via `<noscript>`): l'aereo che attraversa la rotta «ROM ✈ AMS»
+     sotto la porta (la riga `.machine` è ora rotta + promesse su due righe:
+     prima finiva a capo su una parola orfana sotto la card), i figli di un
+     blocco che arrivano un battito dopo l'altro (step, piatti, controlli,
+     righe FAQ, le ✓ del piatto in evidenza), la luce che spazza la timeline
+     una volta, il ✓ che compare sul chip scelto, l'aereo che scivola sul
+     bottone mentre l'invio è in volo (`form.sending`), il tick che si
+     disegna e il **piccolo tabellone Solari che scrive OPEN** (file aperto) o
+     **PAID** — la grammatica del tabellone delle partenze di index.html.
+  4. **GEO**: `Offer` su ogni desk con `UnitPriceSpecification`
+     `valueAddedTaxIncluded: true` (il fatto che un motore di risposta cita),
+     `url` del piatto, `InStock`/`PreOrder` per modalità; la
+     `BreadcrumbList` ha un `@id` e la `WebPage` la referenzia;
+     `Organization.areaServed` è DERIVATA (Roma + i soli desk `live:true`): una
+     bozza non mette mai la sua città lì.
+  Il budget di parole regge con una definizione più onesta: la porta è il
+  SOLO modulo (gli stati finali — file aperto, pagato — sono nascosti finché
+  non sono veri, e hanno il loro tetto, ≤ 70); il corpo esclude anche quelli.
+  Dopo i prezzi i waitlist sforavano (Parigi 961, Berlino 985): tagliata la
+  copy delle fee, non il tetto — Barcellona 935 · Parigi 946 · Berlino 949.
+  **La promessa di rimborso è POLICY** (confermata dal fondatore il 15/10:
+  «keep the refund promise, it's our policy»): Full Search è rimborsato per
+  intero se BOOM declina la ricerca nella prima chiamata. Sta nel prodotto
+  Stripe (`CITY_PLANS`), nel foglio (`checkoutCopy.fine`) e nella FAQ dei
+  desk che vendono, e il build RIFIUTA un desk con la cassa aperta il cui
+  foglio non la dichiari: un desk nuovo non può aprire la cassa senza.
+  **Da verificare prima del live, oltre a quanto già aperto**: l'IVA sul
+  venduto da pagina (luogo della prestazione) e su Berlino se Application
+  Pack e Attended Viewing siano «Vermittlung» (allora anche loro solo a
+  contratto firmato).
+- **Aperto, non deciso qui**: l'IVA (prezzi «incl. VAT» su un servizio reso
+  in NL da una S.r.l. italiana a consumatori: luogo della prestazione da
+  confermare col commercialista PRIMA del live), il pagamento (carta o
+  bonifico «quando il lavoro parte», fatturato da Egidi — nessun link Stripe
+  in pagina finché non c'è il prodotto nel catalogo), `★4.9 · 47 reviews` e
+  `500+` sono i numeri BOOM già pubblicati su /executive.
+- **IL CHECK-IN e la profondità (15/10 — v1.2 del brief: «augment the
+  design, UX, UI animation, motion, 3D animation… create a product that is
+  really viral… under the right section, with the right GEO»)**. Il pezzo
+  virale è il **modulo B del §6** (Dossier Readiness Check, mai costruito),
+  vestito da carta d'imbarco: **tre tap** (dove sei · quando entri · dove
+  sei ora) → il piano che danno le REGOLE del JSON (`checkin.rules`, vince la
+  prima che combacia; il build RIFIUTA regole che lasciano uno stage × where
+  senza piano, un piano che la pagina non vende, una condizione che non
+  esiste) su un **biglietto** col prezzo su un tabellone Solari SUO
+  (`flap-tk`: i tre dei piatti restano tre), le ✓ del piano e due note; gli
+  **otto documenti** che il locatore di QUELLA città chiede
+  (werkgeversverklaring · NIE · Visale · SCHUFA — il build pretende
+  esattamente 8) → «n of 8 in hand», i mancanti per nome, cosa BOOM
+  sistemerebbe per prima; la **carta d'imbarco** (nome e origine
+  facoltativi) da salvare come PNG 1080×1920 (il marchio VERO via `Path2D`
+  dal simbolo in pagina) o condividere (Web Share coi file → url → download);
+  le risposte nel link (`#checkin=stage.when.where.<maschera esadecimale dei
+  documenti | ->`: chi lo riceve atterra sullo stesso biglietto); WhatsApp e
+  Copia link. **Scrive NELLA porta e mai oltre**: spunta il chip del piano,
+  precompila il move-in, riempie due campi nascosti (`checkin`, `dossier`)
+  che `/api/city-lead` clippa (80/200) e stampa sulla riga di riepilogo
+  («· check-in: … · papers 3/8 · missing: …») e su `city{}`/`raw{}` — il file
+  e la cassa restano le due porte; sui desk che vendono il biglietto ha il
+  bottone della cassa puntato sul SUO piano, sui waitlist UNA porta, il file
+  («at opening», «charged only when the desk opens», Berlino «Due only once
+  you sign»). Sta DENTRO la sezione 02 prima dei piatti: i blocchi restano
+  otto. **Una copia, tre lettori**: le stesse regole derivano la FAQ «Which
+  service is mine?» (visibile e nel FAQPage — una risposta scritta a mano su
+  quella voce è rifiutata; 49–57 parole, sopra la dieta delle altre perché
+  ogni clausola È una regola) e l'`audience` di ogni Offer nello schema. **I
+  moduli A e C del §6 NON sono costruiti, di proposito**: il budget reality
+  check vuole dati di canone per zona che BOOM non ha per queste città e la
+  legalità vuole aritmetica legale non confermata — costruirli a stima
+  sarebbe il contenuto inventato che il brief vieta (scritto nel brief,
+  v1.2). **La profondità è solo CSS** (il «3D» del fondatore senza WebGL,
+  librerie o scroll-jacking — §0/§3 del brief allentati a questo e basta):
+  card del modulo e carta che si inclinano verso il puntatore fine (niente su
+  touch: il pollice non ha hover; var `--rx/--ry/--mx/--my`), sfondo tecnico
+  in parallasse, piatti e controlli che entrano con `animation-timeline:
+  view()` dietro `@supports` (trasformazioni individuali `rotate`/`translate`,
+  così l'hover non viene combattuto), il biglietto che si ribalta, la carta
+  che fluttua, il **rail** di cinque punti sopra i 1260px col punto acceso
+  che segue la sezione (IO, fascia −35%/−55%). **Tutto spento sotto
+  `prefers-reduced-motion`**; senza JS Check-in e rail sono nascosti
+  (`<noscript>`: sono comportamento) e la pagina si legge intera. **Il
+  budget di parole regge**: il Check-in si misura su un tetto SUO (≤ 230,
+  oggi 210–220 — si legge un passo alla volta, mai come blocco) e sta fuori
+  dal corpo come gli stati finali; la domanda FAQ che aggiunge resta nel
+  corpo, e Parigi e Berlino hanno perso sei parole di copy per restare sotto
+  i 950 (il precedente del 14/10: si taglia la copy, non il tetto). Misurato
+  in Chromium: al 390 il primo piatto sta sotto la piega della sezione (il
+  Check-in lo precede), quindi il suo tabellone gira quando il LETTORE lo
+  raggiunge, non quando arriva il titolo — il test scorre al piatto. Il PNG
+  della carta è stato guardato, non supposto: titolo e «tenant side» si
+  sovrapponevano, il codice file e il posto uscivano troncati, la card
+  lasciava vuoto un terzo della storia — ora la card è alta quanto il suo
+  contenuto e centrata, i valori lunghi si rimpiccioliscono prima di essere
+  tagliati, il lato sta sulla lamina e sulla riga di stato. Il pay bar del
+  telefono vende ancora il piano `featured`, non quello del biglietto: regola
+  precedente, lasciata — il biglietto ha il suo bottone.
+- Test: `node tests/cities/run.mjs` (355 — build, sistema, voce, budget di
+  parole con la porta = il solo modulo e gli stati finali a parte, chip e ✓
+  dai piani, scheda dopo la FAQ, JSON-LD = pagina con Offer InStock/PreOrder
+  e IVA dichiarata, rifiuti — fra cui `checkout:true` su un waitlist e
+  Amsterdam ribaltata a waitlist che cade sulla parola «Stripe» della sua
+  FAQ — i prezzi del brief su ogni desk e uguali a `CITY_PLANS`, la cassa
+  sui due desk search, i waitlist senza cassa, la striscia di famiglia,
+  handler VERO di `/api/city-lead` su Firestore in memoria per i cinque desk,
+  la risposta a un ordine pagato, guardie in ordine nel sorgente; il
+  Check-in: passi e documenti = dati coi codici del pass, il biglietto con
+  la cassa SOLO sui desk che vendono, FAQ derivata = pagina = FAQPage,
+  audience delle Offer, config VERBATIM, rail e noscript, i due campi
+  nascosti fino al riepilogo dell'operatore, il tetto suo nel budget, tredici
+  rifiuti per mutazione, la profondità in CSS spenta sotto reduced-motion) +
+  `node tests/cities/checkout.mjs` (39, i handler VERI di
+  `/api/service-checkout` e del webhook con lo stripe finto del loader di
+  money: cityOffer, 400 `checkout_closed` sui waitlist senza sessione, il
+  prezzo dal listino e mai dal body, successo sulla pagina della città, il
+  lead pagato col market e le due email, retry = duplicate, Roma invariata) +
+  `node tests/cities/ui.mjs` (126, Chromium — dal 15/10 anche il Check-in:
+  i passi uno dopo l'altro, tre tap → il biglietto giusto col prezzo girato
+  sul suo tabellone, «3 of 8» coi mancanti per nome e il metro al 38%, chip
+  e move-in scritti nella porta, il lead che posta le risposte, Copy link e
+  WhatsApp col `#checkin=`, il deep link che atterra sul biglietto e uno
+  rotto sul primo passo, la cassa dal biglietto su Amsterdam e la porta
+  gratuita su Barcellona, la carta che segue nome e origine, `passBlob()` =
+  PNG 1080×1920; il tilt solo con puntatore fine e motion ammesso, l'ingresso
+  scroll-driven dei piatti, il rail a 1440 col punto che segue, senza JS né
+  Check-in né rail: leggibile senza JS coi prezzi
+  dei chip e dei bottoni come testo, il tabellone che scrive AMSTERDAM nello
+  spazio riservato, prezzi che si compongono, 390px senza scroll laterale,
+  il foglio aperto dal piatto sul SUO piano con errori sul posto, il POST
+  `{ city, kind }` seguito fino a `?paid=` con PAID sul tabellone e UN
+  purchase, il ritorno sul ?paid= che non conta due volte, il modulo che
+  posta una volta e poi OPEN sul tabellone e l'offerta di pagare
+  precompilata, «Not sure yet» senza offerta, il checkout fallito detto nel
+  foglio, reduced motion fermo aereo compreso, lo stagger dei passi, 1440 a
+  due colonne; Madrid col foglio, Barcellona, Parigi e Berlino a 390px senza
+  foglio e col piatto che spunta il suo chip).
+
+- **IL REDESIGN (16/10/2026 — v1.3 del brief, «un'esperienza più alta,
+  immersiva, diretta, senza spreco»; lo studio è `STUDIO_CITIES_ESPERIENZA.md`,
+  la specifica il suo §11, decisa da un panel di giudici su quattro
+  architetture).** Il frame «addiction» del fondatore è stato RIFIUTATO e
+  tradotto in ripresa e possesso: niente urgenza finta, niente contatori,
+  niente scarsità; la pagina è memorabile perché risponde, non perché
+  trattiene. Cosa cambia, in una copia (template, build, CSS, JS, cinque JSON):
+  1. **La diagnosi È l'hero.** Titolo + UNA riga di lead (≤ 20 parole), poi
+     il Check-in (passi **stage → where → when**: ogni percorso risolve entro il
+     SECONDO tap — `resolvesAt` lo pretende al build — quindi il biglietto è
+     vivo dal primo tap e mai un'ipotesi), il link «Rather write first?», i
+     **cinque fatti** che un visitatore scottato legge prima di toccare (tre
+     scritti: paid by · from abroad · if we find nothing, ≤ 20 parole; due
+     DERIVATI: chi risponde dal blocco `desk` con l'orologio vivo «it is 11:17
+     at the desk, 09:17 for you», e l'azienda con il rating «4.9 on Google **in
+     Rome**» — una volta, detto Roma, linkato solo quando `rome.profileUrl`
+     esiste, obbligatorio per andare live su un desk che vende). A destra, a
+     ≥ 920 px sticky (`.tall` lo libera se più alta dello schermo): il pass e la
+     porta. UN DOM, riordinato sul telefono con `display:contents` + `order`.
+  2. **Il biglietto È la carta d'imbarco** (`#pass`, stati `blank · pending ·
+     resolved · complete` sull'attributo `data-state`, i quattro corpi con
+     `hidden` come verità — la prima regola del CSS è
+     `[hidden]{display:none!important}`, la lezione della sconfitta trovata in
+     v1.2). Sul telefono NON c'è prima del primo tap (una carta vuota è una
+     domanda che nessuno ha fatto); a 1440 è in pagina da subito, bianca. Al
+     tap: piano, prezzo su UN tabellone suo (gira una volta per piano), la
+     condizione del piano, il «perché» della regola, la regola del rimborso
+     SOLO su Full Search dove si incassa, la nota del «when» o il rifiuto
+     («Four weeks is tight») dopo il terzo tap, gli otto documenti con metro
+     («3 of 8», i mancanti per nome), le due porte (file gratuito · cassa sul
+     SUO piano), la riga condivisione, la griglia passenger/boarding/file/
+     papers, nome e origine, Save image / Share. Il pass **atterra sullo
+     schermo** con geometria di layout (offsetTop), non col rect in volo
+     durante l'entrata: 12 px sotto la piega erano il difetto misurato.
+  3. **La porta** è scritta dal pass (chip spuntato, riga piano «… · from your
+     check-in», mese precompilato, i due campi nascosti in parole) e
+     SVUOTATA se il pass torna pending; un chip scelto a mano resta del
+     lettore. Cinque campi visibili (nome, email, telefono, **mese come
+     `<select>` nativa** — 20 mesi dall'ancora `_shared.json.moveInFrom`,
+     etichette da tabella fissa mai Intl, i mesi passati potati dal JS, avviso
+     del build oltre due mesi — budget), i chip del servizio con prezzo E
+     condizione del piano, il resto piegato. `/api/city-lead` legge «2027-02»
+     come «February 2027» (`moveInLabel`; il testo libero resta verbatim, il
+     grezzo su `raw.moveIn`).
+  4. **UNA etichetta**: nav, menu, footer, bottone della porta, strip, i tre
+     piatti e il pass leggono `door.label` («Open my file»); OGNI controllo di
+     pagamento legge `till.label` col prezzo («Pay and start · €500»); le
+     etichette v1.2 sono rifiutate dal build. La strip del telefono non porta
+     prezzi e nomina il piano quando c'è.
+  5. **La regola del rimborso accanto a ogni €500** sui desk che vendono: sotto
+     i chip, nella nota dei piatti (DERIVATA dal build nel `feenote`), sul
+     pass, nel dialog, nella riga Fees — il build rifiuta il blocco che la
+     perde. Sui waitlist niente regola e niente Stripe.
+  6. **I tabelloni solo dove un fatto cambia**: la città nel titolo (un solo
+     assestamento), il prezzo sul pass, OPEN/PAID. I piatti portano il prezzo
+     come TESTO con la condizione del piano (`data-plan-price`); sei
+     tabelloni a riposo leggevano come una slot machine.
+  7. **Ogni piano ha le SUE due stringhe** (`condition` corta con «VAT»,
+     `conditionLong` una frase): chip, piatto, pass, riga Fees, Offer e config
+     le leggono — Berlino Full Search «on signing» su ogni lettore (il build
+     lo pretende), gli altri waitlist «at opening», i desk che vendono mai
+     «opening». La FAQ derivata chiude con la verità per desk.
+  8. **La cassa è un `<dialog>` nativo** (showModal, Escape, focus restituito),
+     fuori da `<main>`; la chiave dell'acquisto in **sessionStorage** per la
+     vita della scheda, mai localStorage (ePrivacy 5(3)); l'offerta dopo il
+     file mostra la regola del rimborso SOLO su Full Search.
+  9. **Il consenso aspetta** (`<body data-consent-late>` + guardiano in
+     `js/boom-consent.js`): la targa arriva dopo la PRIMA MOSSA del lettore —
+     rotella, scorrimento col dito, tap, tasto — più 600 ms, mai su un tap
+     dentro diagnosi/pass/porta, mai mentre un `dialog[open]` è in scena
+     (riprova 400 ms dopo), tetto 8 s. L'evento `scroll` NON è un segnale: la
+     pagina scorre da sola per far atterrare il pass.
+  10. **L'URL è la memoria**: `#checkin=stage.where.when.docs[.via]` con via
+      `l` (il proprio Copy link, con i documenti), `w`/`c`/`d`/`p` (ricevuto:
+      i documenti NON si leggono — le carte di un amico non sono le mie);
+      completo → biglietto, da un amico → banner, parziale → passo
+      successivo, rotto → primo passo e barra pulita. Il pass si esporta
+      1080×1920 (webp dove c'è, png altrove) da UNA funzione pura
+      `drawPass`, in un Worker da blob con OffscreenCanvas dove c'è.
+  11. **Via dalla pagina**: striscia di famiglia fissa (ora colonna del footer +
+      menu, derivate), rail, barra di progresso, glow, riga di rotta, timeline,
+      banda truth, banda finale, pay bar col prezzo, «500+ housed», la FAQ
+      «moving from Rome», tilt/parallasse/float; restano gli ingressi
+      scroll-driven e la prospettiva del pass; tutto fermo sotto
+      reduced-motion; la scheda GEO è `<details>` sotto la FAQ (intera nel DOM).
+  12. **I budget sono fatti**: parole per blocco (hero ≤ 30, Check-in + pass
+      ≤ 230, fatti ≤ 85, porta ≤ 110 senza la lista dei mesi, stati ≤ 70,
+      piatti ≤ 50, controlli ≤ 170, corpo ≤ 950) e PESO (≤ 90 KB gzip
+      first-party, JS ≤ 30; oggi ~60 / 15.4) — il build rifiuta. Gli avanzi
+      v1.2 nei JSON sono rifiutati per nome (`machine`, `paybar`, `hero.sub`,
+      `nav.cta`, `per`/`cta`, `form.submit`, `checkoutCopy.btn`, `notes.where`,
+      gate/seat, «Show my plan»).
+  13. **La revisione avversaria (17/10)** — 49 agenti su build, template,
+      CSS, JS, dati, API e consenso; 14 rilievi confermati in Chromium e 28
+      non confutati (i confutatori sono caduti sul tetto settimanale dei
+      subagenti), letti uno per uno e quasi tutti chiusi nello stesso giro.
+      **Stato del JS**: ogni ri-render (un documento spuntato) riscriveva
+      il chip scelto a mano e la tendina del servizio non diceva mai «chip»
+      — ora la porta ricorda chi ha scritto il chip (`data-plan-from`
+      checkin · chip · plate) e il Check-in scrive solo dove nessuno o lui
+      stesso aveva scritto, e solo a piano cambiato; l'invio non aveva
+      guardia in volo (tre Invio = tre lead veri, il bottone dell'offerta
+      legato N volte) — ora UN invio per tap, flag rilasciato solo al
+      fallimento, offerta legata una volta; `before` letto DOPO il cambio
+      del radio invertiva `resolved` e il pass non atterrava al tap che
+      risolveva uno stato pending — ora il tipo PRIMA del tap è
+      `lastKind`; la striscia perdeva la copy del build su un atterraggio
+      sincrono (riga tolta); il mese precompilato non seguiva la risposta
+      cambiata (`data-auto`: segue e se ne va, un mese del lettore non si
+      tocca); il tabellone del pass non montava allargando un telefono
+      (matchMedia); un reload proprio diceva «dal link che hai ricevuto»
+      (senza `via` è una ripresa, in silenzio, evento `checkin_resume`;
+      il banner conta i tap AL PIANO); «change» e la stessa risposta
+      lasciavano il passo aperto (click su radio già spuntato = chiude);
+      `?paid=constructor` passava per un piano (`hasOwnProperty`); il worker
+      riassegnava `onmessage` a ogni chiamata (ora id per richiesta, un solo
+      encode in volo, `.pass.busy` vero). **Accessibilità**: il tabellone del
+      prezzo esponeva «Price» e i glifi doppi (`aria-hidden` + importo in
+      testo `#ckPriceSr`, stesso trattamento al titolo con `<span class="sr">`
+      della città); `aria-live` sull'INTERO box del piano (sedici controlli,
+      dieci frammenti ri-annunciati a ogni spunta) → UNA piccola live region
+      `#ckLive` (il piano una volta per piano) + `role="status"` sulla riga
+      dei documenti, e `setText` non riscrive un testo uguale; il menu
+      mobile fuori schermo era dieci tab stop invisibili (ora `inert` +
+      `aria-hidden` + `visibility`, Escape chiude, il focus entra ed esce);
+      dopo l'invio il focus cadeva su `<body>` (`tabindex="-1"` + focus sul
+      file aperto, e sul campo nominato da un errore); **il pass stava DOPO i
+      fatti nel DOM** mentre sul telefono si vede sotto il Check-in — ora il
+      build stampa il pass subito dopo il Check-in (ordine di lettura =
+      ordine del focus) e il JS lo sposta in cima alla colonna destra a
+      ≥920 (un nodo spostato conserva stato e listener); target ≥ 44px
+      ovunque; riga di pagamento scelta con glifo e outline in forced-colors;
+      foglio di stampa. **Il consenso**: oltre alla prima mossa, la targa
+      aspetta finché il lettore è AL LAVORO nell'hero (Check-in senza
+      risposta sullo schermo, o il biglietto sullo schermo — su un 375px
+      il tetto degli 8 s la posava sulle opzioni), ricontrolla ogni 1,2 s,
+      tetto 45 s dall'armamento; nascosta sotto il menu aperto; il fuso del
+      visitatore NON parte più verso GA (`visitor_tz` tolto) e `page_location`
+      è impostato SENZA frammento (la maschera dei documenti vive in
+      `#checkin=`); l'overlay della view transition lasciava cadere i tap
+      per ~370 ms (`::view-transition{pointer-events:none}` + spunta dei
+      documenti senza transizione: quattro spunte a 120 ms sono quattro).
+      **Le promesse della pagina**: i giorni del desk ora si stampano
+      («desk Mon–Fri 09:00 to 19:00», `daysLabel`, il build rifiuta una
+      `deskLine` senza `{days}`); la sigla del fuso segue l'orologio
+      (`<span data-tz>`: CEST sette mesi l'anno, «By 19:00 CEST today»);
+      «free · same-day reply» diventa la finestra («free · Monday from 09:00
+      CEST») su porta, pass e striscia quando il desk è chiuso; «Nothing by
+      tomorrow?» → «Nothing by then?»; la copy del PAGATO prometteva «entro
+      l'ora» anche sabato alle 23 → «within its first open hour» / «same
+      working day»; Berlino diceva «solo alla firma» con due piani «at
+      opening» → una sola voce (fatto, FAQ, titolo, nota tariffe; la domanda
+      WoVermRG resta nella checklist del live); «a Amsterdam landlord» e
+      «asks for all eight» corretti; i testi di condivisione dei waitlist
+      dicono che il desk sta aprendo (il build lo pretende). **Il build**:
+      `resolvesAt` certificava «tap 1» anche con una regola `where` più
+      specifica PRIMA della regola di stadio (il ticket avrebbe cambiato
+      piano al tap 2) — ora tap 1 solo se ogni `where` atterra sulla stessa
+      regola; l'anno del footer veniva dall'orologio (`--check` rosso ogni
+      1° gennaio) → `_shared.json copyrightYear`, avviso se indietro;
+      `findPlaceholders` legge anche gli attributi (`placeholder="[NAME]"`,
+      `content="[CITY]"`); `share.papers`, `pass.sub`, `till.sub` erano
+      stringhe che nessuno stampava → tolte e rifiutate per nome. **Non
+      fatto, dichiarato**: la colonna sticky non si «libera» più in statico
+      ma si attacca dal basso (top negativo) quando è più alta dello schermo
+      — su ogni laptop lo era, quindi lo sticky non esisteva; il sampling
+      della «vista del piano» osserva la riga del piano (`#ckPlan`, soglia 1)
+      invece del pass intero. Test: `tests/cities/run.mjs` 478 (le regole
+      del giro per mutazione sulla sorgente, i tre rifiuti nuovi, l'ombra di
+      `resolvesAt`, l'anno dai dati, gli attributi dei segnaposto) e
+      `tests/cities/ui.mjs` 174 (il chip a mano che sopravvive a spunta,
+      pending e nuovo piano; tre Invio = un POST; focus sul file aperto;
+      l'offerta legata una volta; l'atterraggio al secondo tap; la
+      ri-scelta che chiude; il mese che segue e se ne va; quattro spunte;
+      regione live e testi sr; ordine del focus nel pass; menu inert/Escape;
+      il tabellone a 1024 dopo l'allargamento; `?paid=constructor`; sabato
+      11:00 con l'orologio finto: finestra su porta/pass/striscia, CEST,
+      Mon–Fri, «Nothing by then?»; la targa che aspetta sul biglietto e sul
+      Check-in non risposto a 375px; la striscia che torna alla chiusura del
+      dialog; la colonna sticky dal basso).
+      **Il secondo giro (18/10)**, dopo il merge di main (che nel frattempo
+      aveva riscritto `js/boom-consent.js`: targa nascosta `.zz` sul
+      telefono, 5 s, `lift()` sopra la barra in fondo — il ramo «late» dei
+      desk città vive DENTRO quella riscrittura, e la suite di main
+      `tests/consent` resta verde con le sue 8 mutazioni): quattordici
+      candidati di una seconda verifica, i confutatori fermi sul tetto
+      settimanale, letti e chiusi a mano. **La colonna sticky non c'è più**:
+      misurata a 1440 la colonna destra (pass + porta) è più alta della
+      sinistra (1021 contro 719 px), quindi lo sticky non aveva spazio per
+      muoversi, e dove poteva nascondeva il piede della porta — via il CSS,
+      via il JS del `top` negativo, e il test lo misura. **La regione live
+      sta nel Check-in**, non nel pass: sul telefono il pass è
+      `display:none` fino al primo tap e una regione che nasce col testo
+      perde il primo annuncio; al terzo tap annuncia anche la nota. **La
+      targa aspetta solo ciò che COPRIREBBE**: la sua scatola, misurata dove
+      `show()` la metterebbe (dopo `lift()`), contro Check-in e biglietto —
+      sotto un biglietto intero viene; il tempo nella cassa non consuma i
+      45 s. **Un POST appeso non blocca il bottone** (porta e cassa passano
+      da `postJson`, 20 s e poi errore sul posto); la promessa «free ·
+      same-day reply» si ricontrolla ogni minuto (una pagina lasciata aperta
+      oltre le 19 cambia promessa) e sulla striscia tocca solo il proprio
+      testo; l'errore di contatto mette il focus sul campo riempito; il pass
+      entra una volta (spostarlo non riaccende l'animazione e tiene il
+      focus); un worker che non risponde si ritira; il menu che si chiude
+      sta fermo sotto reduced-motion; la stampa forza nero su bianco.
+      Test: `tests/cities/run.mjs` 482, `tests/cities/ui.mjs` 175,
+      `tests/cities/checkout.mjs` 39, `tests/consent/run.mjs` 25.
+  **Non deciso qui, come prima** (superato il 20/10 per Amsterdam e Madrid:
+  vedi «Il live» qui sotto): tutti e cinque i desk restano `live:false`;
+  il link recensione di Roma, le ore reali del desk, la foto o il solo nome,
+  l'IVA transfrontaliera, i partner AICAT/carte/§34c e la domanda Berlino su
+  Application Pack e Attended Viewing come «Vermittlung» sono del fondatore e
+  del legale. Test (al 16/10; i conteggi del 17/10 sono al punto 13): `node tests/cities/run.mjs` (432 — tutto quanto sopra per
+  mutazione: ordine dei passi, `resolvesAt`, una etichetta, rimborso per
+  blocco, condizioni per piano e Berlino «sign», fatti e rating, select del
+  mese e ancora, consenso, peso, avanzi, `moveInLabel`) + `node
+  tests/cities/ui.mjs` (139, Chromium — il biglietto vivo nei quattro stati,
+  il pass nascosto sul telefono e bianco a 1440, l'atterraggio sullo schermo,
+  i documenti, la porta scritta e svuotata, i link con via, il dialog, il
+  consenso che aspetta, le sorelle) + `node tests/cities/checkout.mjs` (39).
+
+- **IL LIVE (20/10/2026 — «voglio andare live con le città europee»).**
+  Decisione del fondatore: **Amsterdam e Madrid** `live:true` (i due desk
+  `search`, gli unici con la cassa), la carta come costruita (€500 · €199 ·
+  €149 IVA inclusa via `/api/service-checkout`), le visite presenziate da una
+  persona sul posto («ho qualcuno»: la copia resta com'è). Barcellona, Parigi
+  e Berlino restano bozze `noindex` finché non esistono i partner (AICAT,
+  carte professionnelle, §34c) e il listino di Berlino sotto il WoVermRG.
+  Cosa è cambiato: `_shared.json rome.profileUrl` =
+  `https://maps.google.com/?cid=15671179095441549815` (senza, il build
+  rifiuta `live:true` su un desk che vende) e il rating «4.9 on Google in
+  Rome» ora lo linka; le due pagine
+  passano a `index, follow`, entrano in `Organization.areaServed` (derivata:
+  Rome + i soli live) e linkano SOLO la sorella live (Amsterdam ⇄ Madrid, mai
+  una bozza); due `<url>` in `sitemap.xml` (a mano, lastmod 2026-10-20), il
+  link nel footer della home (colonna «Company & Markets», sotto La Réunion),
+  la sezione «BOOM Cities» in `llms.txt` (prezzi IVA inclusa, la regola del
+  rimborso, cosa i desk non fanno, le tre città NON aperte). Ore stampate:
+  lun–ven 09:00–19:00 ora di Roma (`desk` nei due JSON). **In produzione col
+  merge su `main`** (la porta unica): fino ad allora vivono nella Preview.
+  Resta del commercialista: il luogo della prestazione per un servizio legato
+  a un immobile (NL/ES — OSS o partita IVA locale) prima del primo incasso.
+  Test: `tests/cities/run.mjs` 483 (il set live pinnato: due live e tre bozze;
+  robots per città dal SUO `live`; `areaServed` letta dai JSON, mai a mano;
+  il rating linkato; la guardia sulla sovrascrittura costruita con la card
+  social, che una pagina live pretende), `ui` 175, `checkout` 39, `consent`
+  25; `seo`, `crawl`, `llmstxt`, `hometruth`, `verita`, `scroll`, `seogen`,
+  `consentbanner`, `answers`, `faqtruth`, `attribution` verdi.
+- **LA REVISIONE DEL LIVE (20/10, sera)** — una verifica avversaria sul
+  commit del live, rilievi letti a mano e chiusi nello stesso giro:
+  1. **Il link della prova apre il PROFILO, non la scatola delle stelle.**
+     `g.page/r/<token>/review` è il link per SCRIVERE una recensione: chi
+     tocca «4.9 on Google in Rome» per controllare atterrava su un modulo, non
+     sulle 47 recensioni. Il token è un protobuf base64 il cui campo 1 è il
+     CID della scheda: decodificato, `https://maps.google.com/?cid=15671179095441549815`.
+     La chiave si chiama ora `rome.profileUrl`; il build rifiuta un URL
+     `/review`/`writereview` e la vecchia chiave `rome.reviewUrl` per nome.
+     Il link per le EMAIL (`REVIEW_URL`, `api/reviews/_lib.js`) resta la
+     scatola delle stelle: lì si chiede di scriverne una.
+  2. **Il recesso di 14 giorni sulla cassa città** (Direttiva 2011/83/UE,
+     artt. 7(3), 8(7), 16(a) — lo schema del Pacchetto concordato): nel
+     `<dialog>`, prima del bottone, la spunta «Start now» MAI pre-selezionata
+     (`checkoutCopy.startNow`: è la richiesta del pagante, e dice che il
+     diritto finisce a servizio interamente eseguito) e la riga del recesso
+     (`checkoutCopy.withdrawal`: 14 giorni, per email). `startNow:true`
+     (solo un booleano vero) → metadata Stripe `start_now` '1'/'0' e
+     `&start=` nel ritorno; con `start=0` la card PAGATO aggiunge
+     `#paidWait` (`checkoutCopy.paid.wait`). Il webhook lo scrive sul lead
+     («Did NOT ask to start now: … 3 November 2026», `withdrawalEnds()` =
+     creazione + 14 giorni, ora di Roma), all'operatore (aspetta fino a
+     quella data, emetti la fattura Egidi IVA inclusa) e al cliente
+     («is booked» invece di «starts now», i passi «once your 14-day
+     withdrawal period ends», come recedere, il rimborso meno il lavoro già
+     fatto se aveva chiesto di iniziare, la fattura) — sul supporto
+     durevole. Il build rifiuta una cassa senza queste tre stringhe e una
+     `note` che prometta «same working day» senza la spunta.
+  3. **Il checkout abbandonato di un desk resta del suo desk**
+     (`api/payments/recover-checkouts.js`): una sessione SERVICE scaduta con
+     `city` nel registro diventa un lead `market: <città>`, `sourceRef
+     city-<città>`, `leadType tenant`, `language en`, `intent city_search`,
+     `city.abandoned: true` e il riassunto «AMSTERDAM — checkout NOT
+     completed · Full Search · €500». Prima nasceva lead romano: il
+     Commerciale gli scriveva in italiano proponendo case a Roma.
+     `cityReplyText` ha la sua voce per l'abbandono: nomina il piano, chiede
+     cosa l'ha fermato, propone una chiamata — mai «Payment received», mai un
+     prezzo.
+  4. Copia: il fatto «If we find nothing» diventa «If we say no» (la regola
+     è il rifiuto nella prima chiamata, non il risultato della ricerca); il
+     controllo II di Madrid dice chi paga l'agente del locatore; la riga
+     della visita nel Full Search di Amsterdam dice quante (una inclusa, le
+     altre €149); l'email all'operatore riporta la promessa vera (primo
+     orario aperto del desk, lun–ven 09:00–19:00 ora di Roma); `llms.txt`
+     mette i due desk in Coverage, Language e nella risposta «does BOOM
+     operate outside Rome», col recesso.
+  Test: `tests/cities/run.mjs` 497 (la spunta non spuntata prima del
+  bottone, la riga del recesso, `data-wait`, quattro rifiuti nuovi, il
+  profilo al posto della scatola), `ui.mjs` 180 (la spunta che viaggia come
+  `startNow:true`, `start=0` che mostra l'attesa, `start=1` che non la
+  mostra), `checkout.mjs` 47 (metadata e ritorno, la stringa "true" che non
+  vale, lead/operatore/cliente col 3 novembre, nessuna risposta «within the
+  hour»), `tests/recovery` (il caso città, mutazione presa).
+- **IL SECONDO GIRO DEL LIVE (20/10, notte)** — una seconda verifica
+  avversaria sul recesso. La regola unica: tutto ciò che il pagante vede deve
+  concordare con la scelta fatta sulla spunta. Chiuso:
+  1. **Il bottone segue la spunta.** «Pay and start» su una spunta che di
+     default è SPENTA era una contraddizione. Ora `#sGo` legge
+     `till.labelWait` («Pay and book») + `checkoutCopy.btnSubWait` («Starts
+     when your 14 days end») finché la spunta è spenta, e `till.label` +
+     `btnSubNow` («Starts in the desk's first open hour») quando è accesa
+     (`data-label-now/-wait`, `data-sub-now/-wait`, il JS li scambia). I
+     comandi d'ingresso (piatti, biglietto, offerta) restano «Pay and start
+     · €N». Il build rifiuta `labelWait` assente, uguale a `label` o che dica
+     «start», `btnSubWait` senza «14 days», `btnSubNow` con «today»/«same
+     working day», e l'avanzo `btnSub`. Invio sulla casella non paga più
+     (il keydown esclude le checkbox).
+  2. **La card PAGATO di chi aspetta ha i SUOI tre passi**
+     (`checkoutCopy.paid.nextWait` → config `PAID_WAIT_NEXT`, scambiati in
+     `#paidNext` con `start=0`): prima diceva «Same working day» sotto
+     «aspettiamo i 14 giorni». Il build rifiuta un `nextWait` con «same
+     working day»/«today».
+  3. **Le date vengono dall'EVENTO Stripe** (`withdrawalWindow` in
+     `api/stripe-webhook.js`, esportata): giorno di Roma della conclusione,
+     il giorno stesso non conta (Reg. 1182/71), ultimo giorno = +14, lavoro
+     dal giorno dopo — giorni di calendario, mai 14×24h (DST). Pagato il
+     20/10 → periodo fino al 3/11, lavoro dal 4/11 (prima l'email diceva «i
+     passi cominciano il 3 novembre»: il giorno in cui il diritto ancora
+     vale). La riga di partenza sta IN TESTA al riassunto del lead e i fatti
+     stanno in campi: `city.startNow`, `workFrom`, `workFromLabel`,
+     `withdrawalEndsOn`.
+  4. **La risposta pronta dell'operatore** (`cityReplyText`, ordine pagato):
+     con `startNow === false` ripete il giorno di partenza («we start on 4
+     November 2026») e dice come chiedere di anticipare — mai «I'll come
+     back today».
+  5. **Il modulo di recesso tipo** (Allegato I(B), art. 6(1)(h)):
+     `withdrawal.html` (`/withdrawal`, noindex, nessun tracciamento) col
+     testo del modulo EN e IT e i dati di Egidi, più un aiuto che compone
+     l'email (mailto: niente parte senza il tasto Invia del cliente). La riga
+     del recesso nella cassa lo linka (`{form}`, obbligatorio), l'email al
+     cliente lo cita (`WITHDRAWAL_FORM_URL`), e il build rifiuta un desk che
+     vende senza `withdrawal.html` su disco.
+  6. **Un difetto vecchio trovato per strada**: `toFirestoreFields` del
+     webhook scriveva ogni mappa annidata come `String(v)`, cioè «[object
+     Object]». Dal 14/10 il blocco `city` di ogni lead città PAGATO era quella
+     stringa: la card Telegram diceva «Payment received for your order» senza
+     il piano, e la voce del punto 4 non poteva scattare. Ora mappe e liste
+     passano da `toFsValue` (homie/_lib); le date restano stringhe come prima.
+     Gli ordini già scritti NON sono stati riscritti.
+  Test: `run.mjs` 512 (il bottone di default, il link al modulo, il config,
+  nove rifiuti, il modulo mancante su disco), `ui.mjs` 185 (Invio sulla
+  casella, il bottone nei due sensi, i passi di `start=0`/`start=1`; due
+  mutazioni JS prese), `checkout.mjs` 52 (pagamento alle 00:30 di Roma del
+  16/03 col cambio d'ora dentro il periodo, i campi del lead, la risposta
+  pronta, il modulo nelle due email, `withdrawalWindow` su mezzanotte, DST,
+  fine anno, bisestile; la mappa scritta come mappa).
+- **IL TERZO GIRO (20/10, notte)** — i rilievi confermati della stessa
+  verifica, chiusi a mano (i subagenti erano fermi sul tetto settimanale):
+  1. **Sabato, domenica e festivi** (Reg. 1182/71 art. 3(4)): un periodo che
+     finisce di sabato, domenica o festivo arriva alla fine del giorno
+     lavorativo dopo, e il lavoro comincia il giorno lavorativo successivo.
+     Pagato sabato 17/10 → fine il lunedì 2/11 (non sabato 31/10), lavoro dal
+     3/11. Festivi = l'UNIONE di Italia (nazionali, 29 giugno di Roma, 4
+     ottobre dal 2026) e del paese del desk (`CITY_MARKETS.<slug>.country`:
+     `nl` Koningsdag, Bevrijdingsdag, Goede Vrijdag, Paasmaandag, Hemelvaart,
+     Pinkstermaandag; `es` nazionali + Comunidad e città di Madrid, Jueves e
+     Viernes Santo). Un giorno in più allunga il diritto del pagante e ritarda
+     la nostra partenza; uno in meno lo accorcerebbe. Pasqua calcolata
+     (Meeus). `withdrawalWindow(epoch, country)`, `isDeskHoliday` esportate.
+  2. **La risposta pronta a chi aspetta** non dice più «until the work is
+     complete you can still withdraw» (il diritto finisce ai 14 giorni o a
+     servizio interamente eseguito): ora «you can still withdraw within the
+     14 days, paying only for the work already done, and once the service is
+     fully performed the right to withdraw ends».
+  3. **Il modulo DENTRO l'email** (art. 8(7): la conferma è il supporto
+     durevole, e il modulo fa parte dell'informazione dell'art. 6(1)(h)):
+     `WITHDRAWAL_FORM_TEXT` in coda alla chiusura dell'email città, su una
+     riga (il template non tiene gli a capo), e il link porta
+     `?desk=<Città>&service=<piano>`. Lo stesso per il **Pacchetto di Roma**,
+     in italiano (`WITHDRAWAL_FORM_TEXT_IT`, Codice del consumo art. 49(1)(h)),
+     che prima non aveva il modulo affatto.
+  4. **La pagina del modulo non indovina**: servizio e desk partono su
+     «Choose…»; il link della cassa porta `?desk=`, quello dell'email
+     `?desk=&service=`; un valore sconosciuto non sceglie niente; l'email
+     composta scrive «…» dove manca. La pagina dice anche la regola del
+     weekend e copre il Pacchetto.
+  5. **La card PAGATO in 70 parole, misurata come la VEDE il lettore**: il
+     blocco statico ne contava 60, lo schermo ne mostrava 96 a chi aspetta e
+     77 a chi parte subito (riga del piano con `conditionLong`, la nota
+     generica E quella dell'attesa). Ora la riga del piano usa `condition`
+     («flat · incl. VAT»), la nota dell'attesa PRENDE IL POSTO di quella
+     generica (`#paidText` nascosto con `start=0`), copia più corta: 65 e 65.
+     Il test ricompone la card dal config (piano, nota, passi di chi aspetta)
+     e la vecchia copia cade (74).
+  Test: `run.mjs` 514 (la card ricomposta nei due casi, il link al modulo
+  col desk), `ui.mjs` 191 (parole sullo schermo nei due casi, `#paidText`
+  nascosto solo per chi aspetta, la pagina del modulo vuota / col desk e il
+  servizio / con valori sconosciuti), `checkout.mjs` 60 (dieci date con
+  weekend, Ognissanti, Natale, Pasquetta; Hemelvaart e Pinkstermaandag su
+  `nl`, 12 ottobre su `es`, 4 ottobre su `it`; il webhook che passa il paese
+  del desk; il modulo nell'email città e nel Pacchetto; la risposta senza
+  «until the work is complete»).
+- **L'AUDIT PRE-LIVE (21/10/2026 — «un giro di controllo per la miglior resa
+  GEO, SEO, motori AI, poi andiamo live»)**. Un workflow di 67 agenti su
+  /amsterdam e /madrid: 60 rilievi, 45 confermati da una verifica avversaria,
+  15 confutati; più un critico di completezza che ha trovato 9 buchi A VALLE
+  della pagina, nella macchina che lavora i lead. Il commercialista ha
+  approvato l'IVA; il profilo Google è confermato; il recesso NON si tocca
+  (decisione del fondatore). Chiuso, in ordine di peso:
+  1. **La macchina di Roma non parla più a un cliente delle città.**
+     `api/_market.js notRomeTenant(lead)` (una copia): desk città, Réunion,
+     enti e proprietari non sono inquilini di Roma. Lo leggono la ricerca
+     rovesciata (`_reverse.js vetoFor`: dopo ogni pubblicazione proponeva
+     «Cappellari Flat, €2.000» a un cliente di Amsterdam) e `/richiama`
+     (`vetoRichiamo`: «still looking for a home in Rome?», anche a chi aveva
+     appena pagato €500 — veto `paid` in più). La Segretaria rifiuta un lead
+     città o Réunion alla consegna, all'apertura e dentro il turno (scala
+     all'operatore): parla di case, slot e servizi di ROMA. La card Telegram
+     di un lead città non ha più il 🤖 e non finisce mai nel riepilogo dei C
+     (il Commerciale si astiene: il riepilogo mentiva). Il **Lead Brain** vota
+     i lead città/Réunion a regola (A con telefono o pagato, B senza): prima il
+     prompt «BOOM Roma» poteva giudicarli «dead» e archiviarli senza card.
+     `BUDGET_RE` legge «€1,500».
+  2. **Il telefono col paese del desk** (`cityPhone(raw, city)`, E.164): la
+     porta salvava «+31 6 1234 5678» com'era scritto, la risposta WhatsApp del
+     cliente (E.164) non lo trovava e nasceva un lead NUOVO di Roma; «612 345
+     678» apriva wa.me verso l'Australia. `city-lead.js` salva E.164 (il
+     digitato in `raw.phone`), la card legge col paese del desk.
+  3. **Ogni link WhatsApp nomina il desk** (`build-cities.mjs waHref`, testo
+     da `_shared.json contact.waText`: «Hi BOOM Amsterdam, I'm moving to
+     Amsterdam.»): senza consenso la chat partiva vuota e il lead entrava a
+     Roma. Il server lo rilegge (`cityFromText`) e `homie/_lead.js deskPatch`
+     mette `market` sul lead nuovo o su quello senza mercato.
+  4. **La porta `/api/city-lead`**: `requestId` per caricamento di pagina →
+     `leads/city_<id>`, un invio ritentato dopo un timeout non fa un secondo
+     lead (409 → ok, nessun ping); `attribution` dal cookie come le altre
+     porte; notifica e attività ATTESE prima della risposta (tetto 5s).
+  5. **L'email di conferma del pagante** (supporto durevole del recesso) passa
+     ancora da EmailJS, ma l'esito si REGISTRA (`clientEmailSentAt` /
+     `clientEmailError` sul lead) e un fallimento crea l'avviso
+     `agentNotifications/svc-mail-<sessione>` («mandala a mano»): prima un
+     retry di Stripe rispondeva `duplicate` e l'email persa restava persa.
+     `EMAILJS_PRIVATE_KEY` va nella lista env (non verificabile da qui: la
+     connessione Vercel non legge le env).
+  6. **Termini e privacy**: `terms.html §12 City desks` (tariffe = CITY_PLANS,
+     rimborso, recesso rinviato a /withdrawal, il diritto e i giudici del
+     paese del consumatore); §2 e §4 dicono che sono di Roma; footer e cassa
+     linkano `/terms#city-desks`. `privacy.html` nomina i fornitori VERI
+     (Firebase, Vercel, Stripe, Gmail/EmailJS, Telegram, Anthropic,
+     Twilio/ElevenLabs/OpenAI, GA col consenso) — AWS e SendGrid non sono mai
+     stati usati — e l'uso di una richiesta città.
+  7. **La verità della copia**: niente «applications within the hour» né
+     «dossier in 24 hours» contro un desk lun–ven 09–19 → «sent as listings
+     appear», «within one working day of your papers» (pagine, JSON-LD,
+     CITY_PLANS, email del webhook); «off-market» tolto (nessuna fonte
+     dimostrabile); il piano Full Search si chiama «We search. You choose.»
+     (non promette un risultato) e la FAQ «What if you don't find anything?»
+     risponde: rimborso se declinata nella prima chiamata, poi «the fee pays
+     for the work, not for a result». Amsterdam: cauzione = due mesi di
+     canone BASE (servicekosten escluse), «Without BRP, a BSN and a bank
+     account get hard». Madrid: «Habitual lease: one month, extra guarantees
+     two months at most. Other lease types differ» — vero sia prima sia dopo
+     il **RDL 29/2026** (in vigore dall'8/10, temporanee nel regime abitativo,
+     garanzia aggiuntiva max un mese), che va **convalidato il 12/11/2026**:
+     ricontrollare col legale dopo quel voto. Fuso «CET/CEST» (CET da solo era
+     falso sette mesi l'anno nell'HTML statico).
+  8. **GEO/SEO**: «expats» in title, audience e «For whom»; la riga Language;
+     una FAQ anti-truffa per desk; FAQ che nominano BOOM (si citano da sole);
+     LAU sciolta (Spain's tenancy law, Ley de Arrendamientos Urbanos); H1
+     servito vuoto con `data-word` (CSS disegna la parola: il crawler legge
+     «Your home in Amsterdam», non «AMSTERDAMAmsterdam»); spazio nel titolo
+     della scheda; riga Fees con «VAT included» UNA volta (`feesRowOf`).
+     JSON-LD: `#organization` = `RealEstateAgent` «BOOM Rome» come le altre 58
+     pagine (alternateName BOOM, sameAs il profilo Google, descrizione vera
+     dell'azienda); WebPage con mainEntity, description, `dateModified` =
+     `updated` del JSON, legato dal build al `<lastmod>` della sitemap (un
+     desk live li ha uguali o il build rifiuta), author; Service con
+     `hoursAvailable`; l'audience delle Offer sotto `itemOffered` (Offer non
+     ha `audience` in schema.org); unitText «viewing»; FAQPage con @id. Link
+     dal footer di apartments, scheda, your-money, how-it-works, try.
+     `llms.txt` allineato (riassunto, bonifico, orari, §12, niente off-market).
+  9. **UX/a11y/perf**: etichette di sezione e dichiarazione a 6,5:1 (erano
+     2,2:1); hamburger 44px; il piede sotto la striscia del telefono; margini
+     sul notch; il pass a ≥920 spostato da uno script inline PRIMA del primo
+     disegno (prima saltava di colonna); asset città `immutable` (hanno
+     `?v=`); GA senza `session_id` del ritorno pagato; il modulo senza JS non
+     manda un GET coi dati (bottone spento, `<noscript>` con WhatsApp/email);
+     «Shortlisted, and still abroad? We go.»; la card OPEN non promette più
+     «keep this link».
+  **Non fatto, dichiarato**: i festivi nel calendario della PAGINA (la promessa
+  «same-day reply» non salta i festivi che il webhook conosce — G7, basso);
+  l'invio dell'email del pagante via Nodemailer invece di EmailJS; la regola
+  di Full Search a ricerca avviata che non trova (il fondatore la decide; la
+  FAQ non la inventa). Test: `run.mjs` 548 (veti, voto, telefono, marcatore,
+  porta con requestId/attribuzione, termini, privacy, schema, H1, mutazioni:
+  nove protezioni rotte per prova, tutte prese), `checkout.mjs` 62 (email del
+  pagante fallita → lead + avviso), `ui.mjs` 194 (H1 senza JS, bottone spento,
+  Invio che non scrive nell'URL, WhatsApp col desk), `whatsapp` (marcatore →
+  market, risposta del cliente di Madrid sul SUO lead), `owners` 137.
+- **LA REVISIONE DELL'AUDIT (21/10, sera)** — una verifica avversaria sul commit
+  dell'audit: 19 rilievi, 17 confermati e chiusi, 2 confutati (il «+» di Roma
+  e la card dei contratti di Madrid). La regola: ogni testo dice ciò che il
+  sistema fa, e nessun numero di un cliente prende il prefisso sbagliato.
+  1. **Il telefono**: `cityPhone` metteva il prefisso del desk su QUALSIASI
+     numero nazionale — un italiano che scrive «333 1234567» su /amsterdam
+     diventava +31…, il WhatsApp della card apriva un numero inesistente e la
+     sua risposta nasceva lead nuovo. Ora il prefisso si mette solo se il
+     numero ha il formato nazionale di quel paese (NL/FR 9 cifre dopo lo 0,
+     ES 9 cifre 6–9, DE solo con lo 0 iniziale); altrimenti `null` e torna la
+     regola italiana di Roma. Il «(0)» dopo il prefisso («+31 (0)6 …») cade.
+  2. **I testi legali**: Termini §12.4 e llms.txt dicevano che il lavoro parte
+     nei 14 giorni «solo con la spunta alla cassa», mentre la card PAGATO,
+     l'email e la risposta pronta invitano a chiederlo dopo per iscritto —
+     ora «con la spunta o poi per iscritto» (anche in /withdrawal). Il
+     bonifico è sparito dai desk (Termini §12.2, nota prezzi, FAQ, llms.txt):
+     nessuna strada manda a chi paga con bonifico il recesso e il modulo, e la
+     cassa è l'unica via pagata costruita. Privacy: l'assistente AI può
+     rispondere da solo sulle chat consegnate (prima «una persona rivede
+     tutto»), un pagamento lasciato a metà riceve UN messaggio, nessun cookie
+     pubblicitario, la cancellazione salvo ciò che la legge conserva; la FAQ
+     dei desk dice lo stesso.
+  3. **L'email del pagante**: `sendEmailJS` ha un tetto di 10 s (un invio
+     appeso teneva la funzione fino al kill dei 60 s, prima di registrare
+     l'esito), e il ramo «duplicate» di un retry Stripe avvisa l'operatore se
+     l'esito non risulta registrato dopo 90 s (avviso idempotente).
+  4. **La pagina**: il bottone della porta, servito spento, ora SEMBRA spento
+     finché lo script non lo apre, e se lo script non arriva una riga dà
+     WhatsApp ed email; `main` rispetta la safe-area in orizzontale; GA riceve
+     un hash del session id, mai l'id; via `availableLanguage` da
+     RealEstateAgent e Service (resta su contactPoint, sul Service va in un
+     ServiceChannel); `<lastmod>` di /terms e /privacy = la loro «Last
+     Updated» (il test lo pretende); bozze senza «24 hours» (il build lo
+     rifiuta su ogni desk) e Barcellona con la cauzione di Madrid.
+  Test: `run.mjs` 558, `ui.mjs` 198 (script del desk che non carica → riga
+  di ripiego; transaction_id opaco), `checkout.mjs` 65 (retry dopo un primo
+  giro morto → avviso; mutazioni prese).
+- **IL LIVE DI BARCELLONA (22/10/2026 — «manda live anche Barcellona, con
+  possibilità di pagamento vero»).** Superato il punto «Barcellona resta bozza
+  finché non c'è il partner AICAT». **La decisione è del fondatore, presa
+  DOPO essere stato informato** (ricerca del 21/10 letta da riassunti di
+  ricerca, perché il proxy blocca BOE/DOGC — da confermare con un avvocato):
+  (1) in Catalogna chi presta in modo abituale e retribuito servizi di
+  mediazione, CONSULENZA o gestione negli affitti è agente immobiliare (Llei
+  18/2007 art. 55, Decret 12/2010) e va iscritto all'AICAT anche se opera da
+  un altro Stato UE; il numero va nella pubblicità — «apriremo Boom Srl,
+  società di servizi» non cambia l'attività, e oggi chi incassa è Egidi; (2)
+  la LAU art. 20 (Ley 12/2023, poi RDL 29/2026 in vigore dall'8/10, convalida
+  il 12/11) mette costi di gestione e formalizzazione sul locatore «ni directa
+  ni indirectamente»; in Catalogna il DL 1/2025 ne fa un'infrazione (per la
+  maggior parte delle analisi molto grave, €90.001–900.000); Consumo ha
+  multato Alquiler Seguro €3,6M. Tocca anche MADRID, già live. Il fondatore
+  ha scelto «Live con cassa ora». Cosa fa quindi la pagina: NESSUNA
+  affermazione d'iscrizione AICAT (non c'è un numero da stampare: il test lo
+  pretende); il servizio è detto **opzionale e scelto per iscritto** (la sola
+  via difendibile del testo RDL 29/2026) su pricing, Termini §12.1, la
+  domanda «Isn't it the landlord who pays…» (che dice la regola e
+  l'infrazione catalana invece di minimizzarle) e il controllo «Who pays the
+  agent · LAU art. 20»; **documenti in catalano o spagnolo su richiesta** e
+  **fulls oficials de reclamació su richiesta** (Codi de consum art. 128-1,
+  STC 88/2017; Decret 121/2013) su fact sheet, piede, nota prezzi, Termini
+  §12.6. **Da procurare**: i fulls oficials (Agència Catalana del Consum) e
+  una versione catalana di ordine, termini §12, modulo di recesso e fattura
+  pronta su richiesta; il parere scritto di un avvocato (Spagna, Catalogna).
+  - **I fatti della pagina** (stessa ricerca): tetto dell'affitto = l'ultimo
+    canone dei cinque anni e, per grandi proprietari o case non affittate da
+    cinque anni, l'índice de referencia (prima diceva entrambi per tutti);
+    contratti temporanei per lavoro o studio con causa scritta e provata e
+    tetto, altrimenti abituali (Llei 11/2025, art. 66 bis Llei 18/2007 —
+    prima «temporada leases do not protect you»: falso dal 1/1/2026); fianza
+    depositata dal locatore all'INCASÒL (Llei 13/1996), si chiede la
+    ricevuta; padrón: contratto con indirizzo completo, riferimento catastale
+    e due firme. Le stesse frasi in `llms.txt`.
+  - **I festivi del recesso** (`api/stripe-webhook.js` HOLIDAYS `es-bcn`,
+    `CITY_MARKETS.barcelona.holidays`; `country` resta `es` perché legge
+    anche il +34 del telefono): calendario catalano del DOGC (Ordre
+    EMT/66/2025 per il 2026, EMT/52/2026 per il 2027 — Sant Joan, Diada,
+    Sant Esteve, Venerdì Santo, Pasquetta, NIENTE Giovedì Santo) più i due
+    festivi di Barcellona (Pasqua Granada = Pasqua+50, La Mercè 24/9); il
+    25/9 SOLO quando il 24 cade di domenica (`merceMonday`, come Koningsdag:
+    2023, 2028 — contarlo ogni anno spostava di un giorno lavorativo la
+    partenza del pagante nel 2026 e 2027). I due
+    festivi locali li decide il sindaco a giugno: si ricontrollano ogni anno.
+    Il webhook passa `cityDesk.holidays || cityDesk.country`.
+  - **Le decisioni del fondatore sulle tre città che vendono**: la prima
+    chiamata è gratuita, senza durata promessa («A free call» al posto di «A
+    20-minute call» sulla pagina; nell'email di chi ha appena pagato €500
+    la chiamata non si chiama «free»); il Full Search dura
+    «finché firmi o lo fermi» («Until you sign, or you say stop» sul piatto,
+    `CITY_PLANS` desc, Termini §12.2, FAQ «What if you don't find
+    anything?», llms.txt).
+  - **Le card social erano false** (trovato rigenerando Barcellona): il
+    generatore `design/pages-deco/genera-og-cities.py` leggeva chiavi v1.2
+    sparite (`machine`, `hero.h1Em`) e non girava più, quindi
+    `og-amsterdam.png` e `og-madrid.png` in produzione dicevano ancora
+    «dossier 24h · apply <1h», promesse tolte dalle pagine il 21/10. Ora la
+    riga di prova è fissa e vera, la frase gialla è la prima frase del lead
+    della pagina; rigenerate tutte e cinque.
+  - Barcellona entra in sitemap (lastmod 2026-10-22, = `updated`), nel piede
+    «Company & Markets» di sei pagine, nella colonna desk di Amsterdam e
+    Madrid, in `Organization.areaServed`, Termini §12 (titolo, 12.1, 12.5
+    «Paris and Berlin are not open»), privacy, `/withdrawal` (opzione
+    Barcelona), llms.txt. Parigi e Berlino restano bozze `noindex` e sono ora
+    le città dei test «waitlist». `tests/tenant-fee` non fissa più la data
+    dei Termini: pretende che non preceda il 15/10 (la regola §4.1).
+  - **La revisione del go-live** (stesso giorno, 43 agenti su 055d8fad: 38
+    rilievi, 26 confermati, chiusi a mano): **le card social cambiano URL**
+    (`og-<slug>.png?v=<sha256[:10]>` in og:image, twitter:image e
+    primaryImageOfPage — i PNG sono `immutable` per un anno in vercel.json, e
+    una card corretta sotto lo stesso URL poteva restare «AICAT partner ·
+    OPENING» nelle anteprime già in cache; `tests/seo` legge il file senza la
+    query); la riga di prova delle card SEGUE IL MODO (sui waitlist niente
+    «viewing attended · contract checked»); **il telefono del pagante e del
+    checkout abbandonato in E.164 col paese del desk** (`cityPhone`, come la
+    porta: prima la risposta WhatsApp di un pagante di Barcellona apriva un
+    lead romano); la negoziazione torna sul piatto di Barcellona (Stripe e
+    llms la promettevano, la pagina l'aveva tolta); il controllo e la FAQ di
+    MADRID dicono LAU art. 20 e «optional, in writing» come Barcellona;
+    piatti «Every working day: …» (il «Working-day search» si leggeva come
+    una ricerca di un giorno) senza «included» per restare in 50 parole;
+    all'operatore di un ordine di Barcellona il webhook ricorda documenti in
+    catalano/spagnolo e fulls oficials su richiesta; i fulls oficials stanno
+    nel piede e nei Termini §12.6, i documenti in catalano/spagnolo anche su
+    fact sheet e nota prezzi; il piede di `design/pages-deco/pt.html` e
+    `patch-lotto2.py` (sorgente dei sei builder) porta Barcellona; il
+    boarding pass salvato non sovrappone più l'URL e «TENANT SIDE» (il piede
+    si rimpicciolisce, poi «tenant side» scende di riga); la data dei Termini
+    deve essere un giorno vero e mai futura. **Test più severi** (le
+    mutazioni dei revisori passavano in verde): la frase «optional, chosen in
+    writing» ancorata a nota prezzi, controllo LAU art. 20 e FAQ (pagina E
+    FAQPage) per Madrid e Barcellona — non più «optional» ovunque, che le
+    etichette «(optional)» soddisfacevano; AICAT e frasi da waitlist cercate
+    nel SORGENTE (meta e JSON-LD compresi); le frasi superate cercate per
+    AFFERMAZIONE (tetto legato all'índice senza «grandi proprietari / cinque
+    anni», «temporary lease does not protect»); i Termini §12 e llms.txt
+    DERIVATI dai desk (ogni desk che vende nominato, «not open» = esattamente
+    gli altri); le due decisioni del fondatore su ogni desk che vende; i
+    piedi delle sei pagine e del template; `HOLIDAY_KEYS` (ogni desk con la
+    cassa nomina un calendario che il webhook conosce, altrimenti ricadrebbe
+    sull'Italia in silenzio); 12/10 e 6-8/12 catalani; i lead del webhook
+    letti col loro id vero (`svcLead`). **Non fatto, dichiarato**: Madrid
+    tiene «A habitual-residence lease protects you in ways a 'temporada'
+    lease does not» e «extra guarantees two months at most» — da far
+    confermare all'avvocato dopo il voto del 12/11 sul RDL 29/2026 (che
+    porterebbe la garanzia aggiuntiva a un mese).
+  Test: `run.mjs` 588, `checkout.mjs` 76 (es-bcn: Sant Joan, Diada, La
+  Mercè e il suo lunedì, Pasqua Granada, 12/10, 6 e 8/12, niente Giovedì
+  Santo; un ordine pagato a Barcellona attraverso il webhook vero; il
+  telefono in E.164), `ui.mjs` 199.
+- **IL BIGLIETTO (v1.4, 22/10/2026 — «The Itinerary»)**. Lo studio sulla
+  conversione dei desk ha messo a confronto quattro architetture davanti a
+  tre giudici; ha vinto quella editoriale, con innesti dalle altre e tre
+  correzioni dopo la lettura del repo. Decisioni del fondatore, prese il
+  22/10: hero editoriale col tabellone delle tariffe; «Start with a free
+  call» come porta su Amsterdam, Madrid e Barcellona («Open my file» resta
+  su Parigi e Berlino); Full Search scrive ANCHE la lettera; i nuovi tetti di
+  parole. Cosa cambia:
+  1. **L'hero è editoriale**: H1, una riga di lead (≤ 20 parole) e il
+     **tabellone delle tariffe** (`R.glance`, `<!-- GLANCE -->`): i tre
+     prezzi come TESTO, ognuno con la sua condizione (il build pretende che
+     prezzo e condizione di ogni piano stiano anche sul suo piatto e sul suo
+     chip), `hero.faresNote` (su Madrid e Barcellona apre «Optional, chosen
+     in writing», sui waitlist contiene «charged»), la regola del rimborso
+     parola per parola sotto i €500 (solo dove si incassa), UN bottone d'oro
+     `a.paybtn.hero-go` con `door.label`, il link alle tre domande e
+     WhatsApp col marcatore del desk. A destra i fatti: `paid`, `abroad` sui
+     desk che vendono (il fatto «If we say no» è sparito perché la stessa
+     frase sta nel tabellone), `paid`, `abroad`, `nothing` sui waitlist.
+     Nessun nodo spostato dal JS: l'ordine del DOM è l'ordine di lettura a
+     ogni larghezza, e niente sticky.
+  2. **01 Your plan** (`<section id="plan">`, subito sotto l'hero e prima di
+     How it works): Check-in → biglietto → porta, ognuno una volta. Sul
+     telefono la porta è a metà della distanza di v1.3. A ≥ 1100 px c'è una
+     griglia 4/6 (Check-in e porta a sinistra, biglietto a destra); sotto i
+     1100 px una colonna sola.
+  3. **Il biglietto** (`#pass`, `data-state` blank → standby → confirming →
+     open → paid): lo stampa la prima risposta che risolve, e lo «stampa» una
+     stampante (`@keyframes emissione`, una volta per caricamento). Mostra il
+     piano del chip SPUNTATO, l'unica fonte. Un chip scelto a mano non si
+     sovrascrive: compare «Your answers suggest X · use it». Un piatto stampa
+     il SUO piano e sale al biglietto. Ha un solo tabellone di stato
+     (`#ckStatus` STANDBY · OPEN · PAID), il prezzo su `#ckPrice`, l'aereo SVG
+     che avanza di una tappa per risposta (`--leg`) e nessun U+2708 in tutta
+     la pagina. Il resto è la finitura di Roma: perforazione, stub col codice
+     a barre, luci di pista solo su hover/focus, timbro d'oro, tutto fermo
+     sotto reduced-motion. «Not sure yet» stampa «Your first call · Free»
+     senza cassa.
+  4. **OPEN e PAID li dà il server, mai l'URL.** Il numero di fascicolo è
+     `fileCode(id)` in `js/scalo-codes.js`: FNV-1a sull'id intero, «BM » + 5
+     caratteri di un alfabeto senza ambiguità. È un soprannome stampato
+     accanto all'id vero, mai una chiave. La pagina non carica quel file e il
+     browser non calcola niente. `POST /api/city-lead` risponde
+     `{ok, id, file}`, anche al 409 dello stesso `requestId`, e scrive
+     `city.file` e «· file BM XXXXX» in coda al riassunto. Senza `requestId`
+     il server conia `city_srv_<12 hex>`. La cassa porta `fileRef`
+     (`/^city_[a-z0-9_]{8,48}$/`, solo sulle offerte città, come
+     `metadata.file_ref`). Il webhook riusa quel numero SOLO se il lead
+     esiste, è dello stesso mercato e il numero ha la forma giusta (una
+     persona, un numero); altrimenti usa `fileCode(svc_…)`. L'id del lead
+     pagato è `serviceLeadId()` (`api/_market.js`, una copia). Al ritorno da
+     Stripe la pagina dice «Payment being confirmed» e interroga `GET
+     /api/city-lead?paid=<sessione>&city=<slug>` a 0, 1,5, 3, 6 e 12 s
+     (no-store, 400 su sessione o desk non validi, 30 richieste ogni 10′ per
+     IP, 503 se Firestore non risponde). La risposta paid porta SOLO piano,
+     numero, `startNow` e `workFromLabel`, mai un dato personale. Solo
+     `onVerified(v)`, dopo `v.paid === true`, stampa PAID e manda l'UNICO
+     `purchase`. `?paid=` da solo non timbra e non conta niente.
+  5. **La verità dei documenti**: ogni piano ha il suo `prepares`, ed è
+     uguale su ogni desk: Full Search e Application Pack preparano la
+     lettera, Attended Viewing niente. La riga dei documenti è `some` (o
+     `all`) + `ours` + `rest`: `ours` = «{plan} prepares: {ours}.» compare
+     solo se il piano scelto prepara qualcosa che manca, e `rest` rinvia alla
+     chiamata gratuita (sui waitlist alla prima risposta). Le chiavi v1.3
+     `fixable/resultAll/resultSome/skipped` e le righe che non nominano il
+     piano sono rifiutate dal build.
+  6. **WhatsApp col piano**: hero, stub e strip (ora con l'icona) mandano
+     `waText` + `contact.waPlan` («My plan: {plan}{answers}.»), mai un prezzo.
+     La cassa si precompila dalla porta a ogni apertura. La FAQ «What happens
+     on the free call?» dà un senso a «the first call» della regola del
+     rimborso. Eventi nuovi (col consenso): `hero_cta`, `fare_click`,
+     `plan_print`, `pass_issued`, `wa_open`.
+  7. **I tetti**: hero ≤ 30, tabellone ≤ 75 (nuovo), fatti ≤ 85, Check-in +
+     biglietto ≤ 230, porta ≤ 110, stati ≤ 70 (la card PAGATO misurata sia in
+     conferma sia verificata), piatti ≤ 50, controlli ≤ 170, scheda dei fatti
+     misurata a sé ≤ 210 (nuovo), corpo visibile **≤ 850** (era 950). Oggi il
+     corpo è fra 827 e 839, la scheda fra 184 e 195; il peso fra 85,7 e
+     87,6 KB gz, col JS a 24,0.
+  **Rovesciato da v1.3, e perché**: la diagnosi non è più l'hero (la gente
+  deve leggere prima prezzi, regola e porta: le domande stanno subito sotto);
+  il biglietto bianco nella colonna destra a ≥ 920 e il mover JS sono spariti
+  (DOM = lettura, niente geometria a rischio); l'offerta di pagare dopo il
+  fascicolo (`#payOffer`, `checkoutCopy.offer`) è ora la cassa dello stub; i
+  mini tabelloni OPEN/PAID della porta sono sostituiti dall'unico stato sul
+  biglietto; spariti anche nome e origine sul biglietto (`pass.name/from`) e
+  lo `door.skip`. Tutte queste chiavi sono rifiutate per nome. La card social
+  dei tre desk che vendono è rigenerata (la riga è la prima frase del lead;
+  un lead oltre 40 caratteri prende la classe `lunga` nel generatore).
+  **Non verificato qui**: l'ancoraggio manuale dello scorrimento all'invio,
+  l'emissione con clip-path e la container query su un iPhone vero (in CI
+  solo Chromium, con l'ancoraggio nativo spento per imitare Safari); forced-colors
+  e stampa non sono misurati in un browser. Il biglietto impilato è alto
+  ~750 px sul telefono. **Aperte, del fondatore**: chiamate su slot veri, la
+  foto, un controllo reddito/canone (servono norme con fonte e una lettura
+  legale per la Spagna).
+  Test: `run.mjs` 708, `checkout.mjs` 100 (`serviceLeadId`, `fileRef`, il
+  giro city-lead → cassa → webhook → GET paid, cross-city e fantasma non
+  riusati), `ui.mjs` 219, `scalo` 98 (`fileCode`: vettori FNV, 1.000 id con
+  prefisso comune senza collisioni).
+- **LA REVISIONE DEL BIGLIETTO (22–23/10)**: verifica avversaria su v1.4, 46
+  rilievi confermati in Chromium. Due giri di correzioni, ognuno chiuso da
+  verificatori indipendenti e da prove per mutazione. Le regole nuove:
+  1. **Il ritorno da Stripe atterra sul biglietto.** Il `success_url` dei
+     desk non ha più `#contact`. Il browser riapplica lo scorrimento al
+     frammento al `load`, e in produzione gtag.js ritarda il `load`: misurato
+     con gtag trattenuto 500 ms, 15 casi su 18 finivano lontano dal biglietto.
+     Una sessione Stripe aperta prima del deploy torna ancora con il
+     frammento: la pagina lo toglie (`replaceState`) e rifà l'atterraggio una
+     volta al `load`, se il lettore non si è mosso (wheel, touchstart,
+     keydown, mai l'evento scroll). Dopo la verifica l'URL si ripiega sul solo
+     percorso.
+  2. **Un solo bersaglio per il focus: `#pass`** (`role="region"`,
+     `aria-labelledby="ckTitle"`, `tabindex="-1"`, anello d'oro). Ci portano
+     il link dei piatti (a fascicolo aperto e durante la conferma), «use it»,
+     la cassa rifiutata e il ritorno pagato; la cima del biglietto atterra
+     sotto la nav. Solo l'invio della porta usa il primo passo della card come
+     limite inferiore, così la conferma resta sullo schermo.
+  3. **Dopo OPEN o PAID il Check-in si ferma.** Il focus passa a `#pass`, poi
+     `#ckSteps`, `#ckSuggest` e `#ckPapersBox` diventano `inert`; `#ckSent`
+     resta leggibile (`checkin.sentLine`, obbligatoria su ogni desk, senza €
+     né cifre). Lo stesso succede durante «Payment being confirmed». Una
+     risposta data dopo non va più da nessuna parte.
+  4. **Mai una seconda cassa.** Durante la conferma e dopo PAID ogni
+     `[data-pay]` si nasconde (`payOff`). Un clic forzato porta al biglietto,
+     senza POST. Il piano stampato su PAID è quello confermato dal server
+     (`confirmPaid` sempre prima di `issue('paid')`). Il ritorno dal bfcache
+     (`pageshow` persisted) riapre la cassa. Un `?paid=` senza una sessione
+     `cs_test_`/`cs_live_` ben formata non tocca la pagina. La spunta si
+     disegna solo dopo la verifica (`.ok`). Dopo cinque domande senza
+     risposta la card dice `checkoutCopy.paid.unconfirmed`.
+  5. **La barra del telefono ha un'altezza sola**: 67 px misurati da 320 a
+     390 px, desk aperto o chiuso, testo su una riga con i puntini. Il JS
+     scrive l'altezza vera in `--strip-h`, letta da `scroll-padding-bottom`
+     e dallo spazio del piede: un giro di Tab dall'alto non lascia nessun
+     controllo sotto la barra (WCAG 2.4.11). L'atterraggio sulle porte non
+     sottrae più la barra.
+  6. **Il riquadro del consenso** aspetta finché il bottone dell'hero gli sta
+     sotto (`atWork`). `meets()` chiede ora anche la sovrapposizione
+     orizzontale: a 1920 px il riquadro accanto alla porta compare.
+  7. **Il rilievo 4 è respinto, di proposito.** Fianco a fianco (≥ 1100 px)
+     lo spostamento quando il modulo diventa la card OPEN resta. Tenere lo
+     spazio con un margine peggiorava il desktop, e lo spostamento arriva
+     solo dopo l'invio del lettore. `run.mjs` vieta di rimettere margine,
+     `unhold` e `scrollend`. Sul telefono dal terzo giro non c'è più
+     spostamento (vedi sotto).
+  8. **Il biglietto disegnato**: le lettere di STANDBY/OPEN/PAID usano lo
+     stile del motore Solari (`.phead>b`, non `.phead b`). A ≥ 580 px di
+     biglietto il timbro sta in fondo alla colonna del corpo e non copre più
+     «Or write on WhatsApp». La rotta si misura sul biglietto (28 px, 22 px
+     sotto i 300). La nav da 1024 a 1199 px resta su una riga. Gli anelli di
+     focus sono d'oro su `.sent` e sulle domande FAQ. Telefono e mese di
+     ingresso stanno sulla stessa riga di base.
+  9. **Il server dice quello che la porta promette.** Sui desk che vendono,
+     la risposta pronta (`cityReplyText`) propone la chiamata gratuita col
+     numero di fascicolo: «By phone or WhatsApp — which day and time suit
+     you?». Il desk lavora lun–ven, quindi mai «this week». Niente più domande
+     scritte. Un lead arrivato da WhatsApp col marcatore riceve «Thanks for
+     your message… The first step is a free call.». Sui waitlist la risposta
+     nomina i documenti mancanti dal Check-in, se l'elenco è arrivato intero.
+     La porta lo taglia a 200 caratteri e un elenco di otto ne fa 258–291;
+     quando è tagliato, la risposta promette l'elenco. Dal terzo giro lo dice
+     la porta: `city.dossierClipped`, misurato sul valore spedito (la
+     lunghezza salvata non basta: un taglio su uno spazio lascia 199
+     caratteri e nominava un documento a metà). La risposta nomina l'elenco
+     solo con il flag esattamente `false`; un lead nato prima del flag riceve
+     sempre la promessa. La testa del lead dice
+     «free call requested». Il riassunto pagato porta il numero di fascicolo
+     in testa, prima delle note. Se la lettura di `file_ref` fallisce, il
+     webhook la ritenta una volta; se fallisce ancora, l'ordine tiene il suo
+     numero e scrive `city.fileRefUnverified`.
+  10. **I dati**:
+     - Full Search nomina sul piatto e nell'`offerDescription` ciò che il
+       biglietto promette: la lettera di presentazione (Amsterdam, Madrid,
+       Barcellona), la «one-page presentation» (Parigi), la Selbstauskunft,
+       «self-disclosure» (Berlino). Lo stesso vale per l'Application Pack di
+       Parigi e Berlino, e per `CITY_PLANS`.
+     - Il build rifiuta un `prepares` che il piano non vende.
+     - `checkoutCopy.altLink` comincia con `door.label`, e la cassa non dice
+       mai «open a file».
+     - Sui waitlist niente «call», né nei fatti (Parigi e Berlino:
+       «Until it opens · Nothing is charged…») né in `form.sentNext` («Our
+       first reply says which papers matter.»).
+     - Senza JS sparisce anche il link «Three questions» dell'hero.
+     - Il testo WhatsApp mette in minuscolo solo la prima lettera.
+     - Il numero di fascicolo arriva solo dal server: `run.mjs` vieta ogni
+       scrittura di `.file` nel JS.
+  **Peso**: dopo il terzo giro Barcellona 89,3 KB su 90, Amsterdam 89,2,
+  Madrid 89,1, Parigi 87,4, Berlino 87,7, JS 24,7 KB (liberati accorciando i
+  commenti serviti di `assets/boom-city.js`). Ogni aggiunta ai desk che
+  vendono deve prima liberare byte.
+  **Da confermare col fondatore**: le nuove righe di Full Search e
+  dell'Application Pack a Parigi e Berlino; su Barcellona «Negotiation, cap
+  and contract checks».
+  **Non verificato qui**: iPhone vero. Chromium non ha l'ancoraggio di
+  scorrimento di Safari, il bfcache di iOS né la barra degli indirizzi che
+  cambia altezza.
+  **Il terzo giro (23/10)**: i rilievi dei verificatori del secondo giro,
+  ciascuno controllato da un verificatore indipendente in Chromium, con
+  mutazioni che fanno cadere i test nuovi.
+  - **Il timbro si stampa sempre.** L'`IntersectionObserver` del timbro
+    leggeva `es[0]`; sotto carico Chromium consegna un lotto con una voce
+    vecchia (fuori schermo) e quella attuale, e il timbro restava spento (15
+    ritorni pagati su 192 al commit precedente). Ora decide sull'ultima voce
+    del lotto: 288/288 ritorni pagati e 448/448 fascicoli aperti timbrati.
+  - **Le opzioni del Check-in non finiscono sotto la barra.** I radio e le
+    spunte nascoste erano 1×1 px in cima alla pillola: `scroll-padding-bottom`
+    proteggeva il pixel, non la pillola (24–38 px coperti). Ora l'input copre
+    tutta la pillola (resta trasparente e senza eventi). Un giro di Tab
+    completo su quattro desk, tre larghezze, con e senza la tacca dell'iPhone:
+    0 px sotto la barra.
+  - **La barra porta solo la città** (`#stripTitle`): «BOOM · Amster…» si
+    tagliava a 375 e 320. Sotto i 340 px gli spazi della barra si stringono
+    perché «Amsterdam» stia intera. La riga sotto (la finestra di risposta)
+    può ancora finire coi puntini, soprattutto a desk chiuso: la finestra
+    intera si legge sulla porta e sul biglietto.
+  - **Sul telefono l'invio non fa più saltare la pagina.** Il modulo si
+    chiudeva nello stesso frame del biglietto e l'ancoraggio di scorrimento
+    faceva salire «How it works» nello schermo prima della planata verso la
+    conferma (CLS fino a 0,9). Ora il biglietto si stampa per primo con
+    l'ancoraggio fatto a mano (`still()`), il modulo diventa card due frame
+    dopo e la pagina atterra nello stesso frame, senza planata. CLS ≤ 0,004
+    su sette misure da 320×568 a 414×896, con e senza ancoraggio (Safari).
+    Il rilievo 36 tiene: il primo passo della conferma è sullo schermo.
+  - **La riga «Your file is open…»** resta su una riga a 320 px (11,5 px
+    sotto i 340).
+  - **Lo spazio fisso del timbro su desktop è respinto**: sui desk che
+    vendono non cambiava niente, sui waitlist lasciava una banda vuota di
+    78 px nel biglietto in attesa.
+  - **Sui waitlist mai «call», da nessuna parte**: il build legge il testo
+    visibile, ogni stringa del config, ogni blocco JSON-LD e gli attributi
+    (meta, aria, data-*); rifiuta una FAQ, il rifiuto del Check-in, una riga
+    dei piatti, un meta, un'`offerDescription`, un messaggio d'errore.
+  - **Non verificato qui**: la riga a 11,5 px su un iPhone SE vero (in
+    Chromium sta in 262 px su 250 disponibili a 12,5; con Helvetica Neue il
+    margine è stretto).
+  Test: `run.mjs` 772, `checkout.mjs` 104, `ui.mjs` 363, `consent` 25.
+- **IL BIGLIETTO v1.5 (26/10/2026 — «un copy alla Apple»; il fondatore:
+  «Ti do il sì, procedi»).** Il primo cliente pagante delle città non aveva
+  nemmeno riconosciuto il quiz: Amsterdam mostrava 1.065 parole al
+  caricamento. Il primo schermo del telefono è ora UNA carta d'imbarco
+  (`cities/_template.html`, `<article class="pass">`), e il resto della
+  pagina sta sotto.
+  1. **La carta**: la città su UN tabellone Solari (`p.board-row`
+     `aria-hidden`, FUORI dall'H1: l'H1 dice «Your home in» + la città in
+     `.sr`, e il suo testo resta quello anche dopo che il tabellone si
+     monta), UNA frase con l'obbligo del desk in
+     grassetto (`hero.lead` + `hero.leadStrong`: Amsterdam «We work
+     exclusively for you; never paid by landlords.», Spagna «You hire us; we
+     do not act for the landlord.», i waitlist aprono «Opening with»), le tre
+     tariffe, la porta d'oro, chi risponde e quando (`Valentino Egidi` ·
+     `Mon–Fri 09:00–19:00, Rome time`, testo statico vero in ogni stagione).
+  2. **Le tariffe**: ogni riga è un `<details name="fare">` (per chi è, il
+     prezzo con la condizione) che apre il SUO biglietto sul posto: cosa
+     compra la tariffa, la regola del rimborso sotto il €500 dove si vende
+     (sotto la riga chiusa e dentro il biglietto aperto, mai due volte a
+     schermo), un bottone di pagamento discreto. L'ancoraggio dello
+     scorrimento è fatto a mano: la riga toccata non si muove sotto il dito
+     (Safari non ha l'ancoraggio nativo).
+  3. **Una porta**: un solo nodo `#act` (porta, due campi, stati) che sul
+     telefono (< 940 px) si sposta nello slot del biglietto aperto e sul
+     desktop resta nello stub. «Start with a free call» dove si vende, «Open
+     my file» su Parigi e Berlino. Il modulo chiede un nome e UN contatto
+     («Email or WhatsApp number»: il browser lo divide in `email` o `phone`,
+     il server è lo stesso; il numero viaggia COME SCRITTO e lo legge il server
+     col paese del desk — «+31 (0)6 1234 5678» diventa +31612345678). Mentre
+     invia la porta è `aria-disabled`, mai `disabled` (il focus resta lì), e
+     un invio fallito lo dice nel suo avviso `#fNetErr`. Il piano della tariffa aperta viaggia nel lead
+     (`service`); nessuna tariffa aperta = «service to decide». OPEN solo
+     dopo il 200 col numero di fascicolo del SERVER, PAID solo dopo `GET
+     /api/city-lead?paid=` → `paid:true` (0/1,5/3/6/12 s, poi «not confirmed
+     yet»), UN `purchase` per sessione con un id opaco (FNV-1a), mai due su un
+     ricaricamento. Durante la conferma e dopo PAID nessun bottone di
+     pagamento.
+  4. **La cassa** resta nell'ordine della CRD: il piano col prezzo, la
+     spunta «Start now» MAI pre-spuntata, la riga del recesso col modulo
+     (`/withdrawal?desk=`), il bottone che segue la spunta («Pay and book»
+     → «Pay and start»), il fine, la via di ritorno alla porta gratuita. Si
+     apre SOLO da un bottone di un biglietto, sul SUO piano; Invio sulla
+     spunta non paga. Madrid e Barcellona: «Optional, chosen in writing» in
+     testa alle tariffe e nella cassa (LAU art. 20).
+  5. **Il calendario del desk è UNO** (`js/desk-calendar.js`, UMD
+     `BOOM_DESK_CAL`): il webhook lo importa (fine del recesso, inizio del
+     lavoro) e il build lo inlina fra i marcatori `BOOM_CALENDAR`. Sotto la
+     porta la finestra vera: «desk open until 19:00 CET», «Tomorrow / Monday
+     from 09:00 CEST» — Koningsdag, la Diada, Natale e i ponti compresi, con
+     la sigla del fuso dell'ISTANTE di apertura (domenica 25/10/2026:
+     «Tomorrow from 09:00 CET»). Parigi e Berlino (`fr`, `de`) non hanno un
+     calendario proprio: leggono l'Italia, dove siede il desk.
+  6. **Tolti** (e rifiutati per nome dal build, `LEFTOVERS`): il Check-in,
+     il misuratore degli otto documenti, il biglietto condivisibile e i link
+     `#checkin=`, la tendina del mese, il secondo campo contatto, la scheda
+     dei fatti dell'hero, l'hero v1.4, la barra coi prezzi,
+     `_shared.json moveInFrom/desksLabel/contact.waPlan`. **Restano** How it
+     works (tre passi), i controlli piegati con la loro etichetta legale, gli
+     otto documenti che chiedono i locatori della città (lista piegata), la
+     FAQ (4 sui desk che vendono, 3 sui waitlist), la scheda dei fatti
+     piegata e intera nel DOM. Madrid e Barcellona non dicono più «extra
+     guarantees two months at most» (aspetta il legale dopo il voto del
+     12/11 sul RDL 29/2026).
+  7. **I tetti**: 460 parole visibili al caricamento (Amsterdam 350, Madrid
+     367, Barcellona 393, Parigi 365, Berlino 354), frase ≤ 30, tariffe ≤ 70,
+     ogni biglietto ≤ 60, peso ≤ 60 KB gz (JS ≤ 12): un tetto non si alza mai
+     per farci stare il testo. Un solo foglio di stile (`boom-city.css`
+     autosufficiente, niente `boom-2026.css`).
+  8. **Un difetto vecchio trovato per strada**: la riga Contatti della
+     scheda dei fatti linkava sempre il WhatsApp condiviso anche quando un
+     desk dichiara un numero suo (`config.WHATSAPP`); ora legge il contatto
+     del desk come ogni altro link.
+  9. **La revisione avversaria (26/10)**: 35 rilievi, 29 confermati in
+     Chromium e chiusi nello stesso giro, 6 confutati. I confermati:
+     il telefono ripulito nel browser rompeva l'E.164 del server (ora passa
+     com'è scritto); la card PAGATO diceva «{date}, when your 14 days end»
+     dove il lavoro comincia il giorno DOPO (`startsWait` = «From {date},
+     after your 14-day withdrawal period», e il build lo pretende); la
+     privacy descriveva ancora il Check-in; il promemoria catalano
+     all'operatore leggeva `meta.city.slug`, che non esiste (ora `cityKey`);
+     a 390×664 la barra in basso copriva la porta (ora la porta conta solo
+     se il bottone d'oro è visibile per metà); la carta OPEN riservava lo
+     spazio del timbro anche senza timbro; `.reveal{overflow:hidden}` tagliava
+     il timbro; la finestra della barra finiva coi puntini; Parigi e Berlino
+     a 390×844 mettevano «chi risponde» sotto la piega (ora «Nothing charged
+     today» in testa alle tariffe e righe impilate più strette: il «at
+     opening / on signing» resta su ogni riga); un bottone di pagamento
+     apriva la cassa mentre la porta gratuita stava inviando, ed Escape non
+     fermava il viaggio verso Stripe (gettone `payTok`); la riga toccata
+     saltava di un frame prima dell'ancoraggio (ora lo scorrimento si
+     corregge nello stesso tocco, e se la riga sopra si chiuderebbe senza
+     spazio per compensare la porta resta nel biglietto sopra); la porta
+     spenta toglieva il focus; a 195 px le condizioni uscivano dalla riga;
+     in forced-colors il + delle tariffe spariva; allargando la finestra il
+     campo che si stava scrivendo usciva dallo schermo; il bagliore dei campi
+     tagliato; la riga «senza JS» di ripiego compariva su una pagina solo
+     lenta (ora aspetta che lo script del desk non ci sia davvero). Nel build: il prezzo dell'Attended Viewing scritto a mano nel
+     controllo del Full Search (ora `(more: €N each)` dal piano), nessun
+     divieto su «24h», «within an hour», «phone you», stelle e voti senza
+     fonte, prezzi € che nessun piano vende, un €500 senza la sua regola nel
+     suo contenitore; chiavi morte nei JSON (ora una lista bianca rifiuta
+     ogni chiave sconosciuta); le Offer di Parigi e Berlino promettevano
+     ciò che la pagina non vende; l'H1 si riempiva delle lettere del
+     tabellone; i segnaposto di questo paragrafo. Confutati: la risposta
+     pronta di un waitlist che rinvia l'elenco dei documenti (è il ripiego
+     documentato), nessun numero di fascicolo raggiungibile dopo OPEN sui
+     desk che vendono (nessuna cassa dopo una porta gratuita, di proposito),
+     l'àncora morta del `cancel_url` (nessun guasto osservabile; portata
+     comunque su `#fares`), due a capo di testo, e il riquadro dei cookie
+     sopra la porta dopo uno scorrimento (codice condiviso del consenso, non
+     un difetto del desk). `fileRef` non viene mandato dalla v1.5: il
+     webhook conia il numero dell'ordine da sé.
+  Card social rigenerate (la frase gialla è la prima frase del lead; il
+  generatore non legge più `nav.desk`), `updated` e `<lastmod>` delle tre
+  pagine live al 26/10, `llms.txt` coi controlli che le pagine nominano
+  davvero. **Non verificato qui**: un iPhone vero (Chromium non ha
+  l'ancoraggio di Safari né la barra degli indirizzi che cambia altezza).
+  **Aperte, del fondatore**: l'IVA sugli €89/€299 di Roma, chi risponde in
+  turco, gli annunci d'agenzia a Madrid e Barcellona, il conteggio dei
+  clienti turchi, Termini §4.3 («We do not charge: Viewing fees») contro il
+  Virtual Viewing a €89.
+  Test: `run.mjs` 377 (ogni divieto del build provato rompendo i dati o il
+  template; le parti server 9/9b invariate), `ui.mjs` 131 (Chromium: la
+  carta a 390×844 e 390×664 su ogni desk, la riga che non si muove con
+  l'ancoraggio nativo spento a 320/390/430, la porta che entra nel biglietto,
+  la cassa, il ritorno pagato, l'orologio del desk su sei date, 195 e 320
+  px, forced-colors, senza JS), `calendar.mjs` 35 (festivi, finestra, fuso
+  dell'apertura, la stessa copia per webhook e pagina), `checkout.mjs` 105.
+  Le mutazioni del JS della pagina NON stanno in `ui.mjs`: sette difetti
+  reintrodotti a mano con uno script a parte (cassa aperta durante l'invio,
+  gettone di Stripe, ancoraggio, porta tenuta sopra, porta spenta, focus
+  rubato, numero ripulito), tutti presi da `ui.mjs`.
+
+- **LONDRA E MILANO (02/11/2026 — «lancia subito London, e Milano»).** Due desk
+  LIVE con la cassa, decisione del fondatore: si valida la domanda e la legge si
+  adegua dopo (come Madrid). Stessa griglia 500 · 199 · 149: **Londra in
+  sterline** (£500 · £199 · £149, Stripe in GBP), Milano in euro.
+  1. **La valuta è del desk**: `CITY_MARKETS.<slug>.currency` (default eur) la
+     legge `cityOffer` → `service-checkout` (`price_data.currency`), il webhook
+     (`moneyOf`: riepilogo, email, notifiche, rimborsi e contestazioni con la
+     valuta dell'oggetto Stripe), recover-checkouts e la card dei rimbalzi. La
+     build la legge con `currencyOf(slug)`: `money(n, cur)`, JSON-LD
+     `priceCurrency`, config `CURRENCY`/`SYMBOL` (la pagina formatta e manda a
+     GA4 la valuta vera) e tutte le guardie dei prezzi ora vedono € e £ (un € sulla
+     pagina di Londra è un prezzo estraneo; un £500 senza la regola del rimborso
+     è rifiutato). Un desk non in euro dichiara `"currency"` anche nel JSON (lo
+     legge il generatore della card social). `CITY_PLANS` resta UN oggetto:
+     `eur` è l'importo nella valuta del desk.
+  2. **Calendari**: `gb-eng` (bank holiday di Inghilterra e Galles, con i giorni
+     sostitutivi: regole `mondays` e `weekdays`) e `it-mi` (Italia + 7 dicembre).
+     L'Italia resta sempre in unione (il desk risponde da Roma).
+     **Orari:** Londra lun–ven 08:00–18:00 London time (`Europe/London`, BST/GMT),
+     cioè le stesse ore del desk di Roma. Milano lun–ven 09:00–19:00 «Italian
+     time»: `desk.zoneName`, perché `Europe/Milan` non esiste. Le email al
+     cliente usano `hoursEn` del desk.
+  3. **Telefoni**: `DIAL` gb/it; nel Regno Unito lo 0 di prefisso cade, mentre
+     un cellulare italiano scritto su /london NON diventa +44. A Milano lo 0 dei
+     fissi resta (+39 02 …). `cityFromText` legge anche Milano e Londra; le
+     stringhe italiane per l'operatore usano `labelIt`.
+  4. **Testi**: tre bozze per città (rischio, conoscenza del posto, autorità
+     essenziale), tre giudici (conversione, verità, mestiere), un editor. Londra:
+     Tenant Fees Act, Renters' Rights Act 2025 (dal 1/5/2026: niente affitto prima
+     della firma e al massimo un mese fino all'ingresso, un solo affitto
+     pubblicato e niente aste, contratti periodici), deposito di cinque
+     settimane in uno schema governativo entro 30 giorni, Right to Rent. Milano:
+     chi paga l'agenzia, quale contratto (4+4, 3+2, transitorio, studenti),
+     deposito di tre mensilità, registrazione entro 30 giorni, Anagrafe e codice
+     fiscale. Le fonti sono in `r_london.json`/`r_milan.json` della sessione:
+     tutte «likely», nessuna letta su gov.uk (dominio bloccato al sandbox).
+  5. **Superfici**: sitemap, llms.txt, Termini §12 (le tariffe in £ per Londra;
+     recesso UK = Consumer Contracts Regulations 2013), privacy, `/withdrawal`,
+     piè di pagina «Company & Markets», rimandi `/londra` e `/milano`. La ricetta
+     per la prossima città è la skill `.claude/skills/city-desk/SKILL.md`.
+  **Aperte, del fondatore (non bloccano la validazione)**:
+  - Londra:
+    - iscrizione IVA UK (NETP, nessuna soglia) prima di incassare «VAT included»;
+    - un redress scheme per la letting agency work fatta per l'inquilino (multa
+      fino a £5.000), da nominare in pagina;
+    - Application Pack e Attended Viewing su una casa trovata dal cliente:
+      l'esclusione del Tenant Fees Act è da far leggere a un legale inglese;
+    - il modulo di recesso UK.
+  - Milano:
+    - la persona che va alle visite può richiedere un'unità locale con preposto
+      (DM 26/10/2011);
+    - il Full Search pagato in anticipo e l'art. 6 L. 39/89.
+  - Il radar PFS non copre Londra né Milano: si cerca a mano.
+  Test: `tests/cities/run.mjs` 415, `checkout.mjs` 113, `calendar.mjs` 80, `ui.mjs` 144.
+- **IL DESK AVIAZIONE COMPLETO (v1.6, 03/11/2026 — il fondatore: «questo stile è
+  troppo sintetizzato… itera lo stile del biglietto… anche per una pagina
+  completa»).** Il primo schermo resta UNA carta d'imbarco, rifatta come oggetto
+  di qualità della home (lamina d'oro coi toni scuri, stampa di sicurezza,
+  filetto interno, perforazione che porta la rotta YOU → LON con l'aereo SVG
+  fermo sullo stato che dice il server, il sigillo, lo stub pieno su desktop).
+  Sotto, la pagina è una camminata da terminal: **Departures** (come funziona),
+  **Pre-flight** (i controlli), **Baggage** (gli otto documenti, ora visibili),
+  **Gate** (chi risponde, la settimana del desk, la porta), **Questions**,
+  **Network** (vedi BOOM Desks: tutti i desk sulla mappa), la scheda dei fatti e
+  il piede. Ogni blocco è uno strumento che mostra un fatto che la pagina ha già
+  (JSON, calendario del desk, stato del server).
+  1. **I tetti, alzati UNA volta dal fondatore il 03/11** (`WEIGHT_KB`, `BUDGET`
+     in `build-cities.mjs`): 82 KB gz in tutto (JS 14, CSS 15, onda 4 contata nel
+     totale); 640 parole al caricamento divise in **prosa** 520 e **strumenti**
+     120 (il testo dentro `[data-instr]`: codici, intestazioni, stati, etichette
+     — la ricchezza viene dagli strumenti, non dai paragrafi); un nodo di testo ≤
+     24 parole (eccetto `.stmt`); primo schermo a 390 ≤ 150; per sezione
+     departures 100 · pre-flight 60 · baggage 70 · gate 40 · network 40. Da qui
+     non si alzano più per farci stare una modifica: si taglia copia o
+     artigianato.
+  2. **L'onda** (`assets/boom-onda.js`, il campo a palette della home, solo oro,
+     ≥ 940): caricata dopo `load` quando il browser è libero; il battito parte
+     dal codice di destinazione dello stub; **gira SOLO mentre il desk è
+     aperto** (`boom-city.js` lo dice ogni minuto dal calendario del desk),
+     chiuso disegna un fotogramma fermo e attenuato, sotto reduced-motion mai un
+     ciclo, fuori schermo o a scheda nascosta dorme. Una sola catena di
+     `requestAnimationFrame` (la revisione ha trovato catene che si
+     moltiplicavano a ogni nascondi/mostra). Servita `immutable` come gli altri
+     asset con hash.
+  3. **Le correzioni della revisione**: un link profondo (`/<slug>#fares`, il
+     `cancel_url` di Stripe) atterra sotto la testata sticky (≥ 760:
+     `scroll-padding-top` 82px, e `land()`/`openForm()` usano lo stesso limite);
+     forced-colors e stampa non spostano la griglia del biglietto quando la
+     lamina sparisce; stampa in bianco e nero; lo stub e la porta restano in
+     vista mentre una tariffa è aperta (blocco sticky); gli archi della rete non
+     passano mai sopra il pallino di un altro desk (`bowArcs` + `arcViolations`,
+     rifiuto del build); l'orologio porta il nome del suo fuso («London time»,
+     «Italian time»), mai «At the desk»; i desk in waitlist non scrivono mai
+     «desk open» (REPLYING/OFFLINE, «replies until 19:00 CET»); «Reply today»
+     non sopravvive alla chiusura né alla mezzanotte; sotto 940 il tabellone
+     dell'orologio si monta solo in vista.
+  Non fatti, dichiarati: il fuoco dopo un ridimensionamento (v1.5), la targa dei
+  cookie sopra la porta del Gate, la misura a inizio pagina di
+  `js/boom-scroll.js` per tutto il sito (lavoro a parte).
+  Test: `tests/cities/run.mjs`, `ui.mjs`, `checkout.mjs`, `calendar.mjs`, più
+  consent, scroll, cielo, seo, crawl.
+
+### BOOM Desks (`/desks` + `cities/_hub.json` + `cities/_hub.html` + `assets/boom-desks.*`) — 03/11/2026
+Il fondatore (03/11): «un artefatto geniale per la SEO/GEO, per i crawler AI… la
+mappa con tutti i nostri desk… un sito monumentale… andiamo in Europa». L'hub dei
+desk è GENERATO da `build-cities.mjs` dagli stessi JSON dei desk (`buildHub`,
+`desks.html` col marchio GENERATED, `--check` lo copre; `buildAll` resta le sette
+pagine città).
+- **La pagina, in ordine**: H1 «A rental agent on your side, in» + il tabellone
+  Solari **EUROPE** (fuori dall'H1, che si legge «…in Europe»); il **tabellone
+  delle partenze** (otto righe: i cinque desk live linkati con codice IATA,
+  orari, ora del desk, OPEN/CLOSED e «from €149/£149»; Berlino e Parigi «NOT
+  OPEN» senza link; ROM, l'hub, verso `/`). L'HTML statico porta solo gli orari:
+  orologio, finestra e OPEN/CLOSED li scrive `assets/boom-desks.js` dal
+  calendario del desk (`js/desk-calendar.js`, festivi compresi), dentro span
+  `data-nosnippet`; a ≥ 760 la colonna NOW è un tabellone a palette di sei
+  celle (verde se aperto) che gira SOLO quando il desk apre o chiude. Poi la
+  **mappa d'Europa** (vedi sotto), **le tre tariffe** uguali a ogni desk (la
+  regola del rimborso sotto ogni €500/£500, la nota LAU art. 20 prima del primo
+  prezzo, nessun pagamento qui: le porte portano a `/<slug>#fares`), la tabella
+  **«Renting rules, city by city»** dai `checks` dei JSON (l'etichetta `at`
+  verbatim, una riga per tema, sotto 760 una scheda per tema), le FAQ, la scheda
+  «in brief» APERTA, il piede.
+- **La mappa** (`viewBox 0 -40 640 520`, la stessa `mapXY` delle pagine desk):
+  la **costa vera** di Natural Earth 1:50m (dominio pubblico) scritta UNA volta
+  da `design/pages-deco/genera-europa.py` in `cities/_europe.json` (proiezione
+  `mapXY`, ritaglio al riquadro ±5, Douglas–Peucker 1,2, anelli sotto 10 u²
+  tolti, unità intere; due tracciati dalla stessa fonte: `path` per l'hub, `desk`
+  per la Rete delle pagine desk; il build non scarica niente e regge senza il
+  file). La terra è una matrice di puntini ritagliata sulla costa più un filo;
+  gli archi da Roma hanno lo STESSO `d` dell'arco d'oro di ogni pagina desk
+  (test di uguaglianza), sfumati oro → bianco; i desk live hanno pallino e anello
+  d'oro, Berlino e Parigi un pallino vuoto senza arco, Roma tre anelli. I pin
+  (≥ 44px) sono link veri: al passaggio o al fuoco una regola `:has()` generata
+  accende di oro il SUO arco, una cometa percorre l'arco UNA volta (0,9 s, solo
+  senza reduced-motion) e la scheda del pin mostra codice, ora del desk,
+  finestra, «from …» e «Go to the … desk →». Sotto 640 le etichette crescono.
+- **L'onda** dietro il tabellone (≥ 940), lo stesso `boom-onda.js` delle pagine
+  desk con hash nell'URL: il battito parte da ROM, gira solo mentre almeno un
+  desk è aperto (un fotogramma fermo quando sono tutti chiusi, mai sotto
+  reduced-motion). Cicli a riposo: la pillola «Desks open» e l'onda con un desk
+  aperto, zero con tutti chiusi.
+- **JSON-LD**: l'organizzazione condivisa (identica alle pagine desk),
+  CollectionPage con `speakable` (`.hub-lead`, `.enbref`), ItemList dei desk
+  live, i cinque `Service` IDENTICI a quelli delle pagine desk (stessa funzione
+  `serviceNode`, test di uguaglianza), FAQPage = le domande visibili. Nessun desk
+  non aperto in nessun nodo JSON-LD tranne la FAQ visibile. Nessuna cassa,
+  nessun WhatsApp generico (una città sconosciuta finirebbe nella macchina di
+  Roma), il rating una volta sola («on Google in Rome»).
+- **Decisioni**:
+  1. Parigi e Berlino «NOT OPEN» (non «Opening»): mai un link, un prezzo, un
+     orario, un arco o un nodo JSON-LD su una pagina live.
+  2. **Milano (decisione del fondatore, 03/11)**: Egidi Immobiliare S.r.l. è
+     un'agenzia immobiliare italiana (REA RM-1710623), e a Milano valgono le
+     stesse regole italiane di Roma. Milano però resta un desk: tariffe fisse,
+     lato inquilino, pagato solo dall'inquilino, mai la provvigione del 10% di
+     Roma, mai «ufficio/sede/registrata a Milano». Il desk del paese di casa si
+     DERIVA (`country` = paese dell'organizzazione, nessuna chiave nuova): riga
+     «ITALIAN LAW · AS ROME» sul tabellone, la scheda Milano accanto alla mappa,
+     una FAQ, una riga in brief, e su `/milan` la riga Who, la dichiarazione del
+     piede, la FAQ 6 e la riga di prova «an Italian real estate agency, under the
+     same Italian law as in Rome».
+  3. La tabella non ripete fatti ancora da confermare: `rules.hold` (Londra
+     tutta, Madrid contract, Barcellona rentcap/contract, Milano
+     fees/registration) mostra solo il titolo col link; `rules.cut` toglie da
+     Amsterdam «Agents still ask for three. We don't let them.». Sbloccare =
+     togliere la chiave dopo il parere del legale.
+  4. Ogni pagina desk mostra tutti i desk nella Rete (pallino pieno live, vuoto
+     «not open», ROM con l'anello, la costa sotto) e linka «Every BOOM desk» →
+     `/desks`; il breadcrumb è Home → BOOM Desks → città.
+- **I tetti dell'hub** (`HUB_WEIGHT_KB`, `HUB_BUDGET`, mai alzati per farci
+  stare qualcosa): 78 KB gz in tutto (pagina 28, CSS 6, JS 6); parole al
+  caricamento 980 (prosa 740, strumenti 280), primo schermo a 390 ≤ 120, lead 30,
+  nodo 24, una risposta FAQ ≤ 42, una riga in brief ≤ 45; per sezione board 120 ·
+  map 90 · fares 230 · rules 160 · faq 70 · brief 240. Oggi: 957 parole, 71,7 KB
+  (pagina 26,8: la costa pesa 3 KB). Le pagine desk con la costa: 77,0–80,0 KB
+  su 82.
+- **Da confermare col legale (non bloccano)**: per Milano, un'unità locale con
+  preposto (DM 26/10/2011) se una persona BOOM va alle visite; il Full Search
+  pagato prima (art. 6 L. 39/1989, provvigione o mandato); moduli in CCIAA;
+  capitale sociale nel blocco Company (art. 2250 c.c.); polizza RC; ammorbidire
+  «Unregistered, it is void» (Cass. SS.UU. 23601/2017); un check `fees` per
+  Amsterdam solo dopo il legale; IVA UK (NETP) e redress scheme di Londra; la
+  conferma del voto del 12/11 sul RDL 29/2026 per Madrid. **Del fondatore**: la
+  foto, una voce «Desks» nel menu della home, Wikidata nei `Service`.
+- Test: `tests/cities/run.mjs` (THE HUB, la rete, Milano, la costa, la cometa,
+  l'onda), `ui.mjs` (hub: primo schermo, orologi con Koningsdag e il bank
+  holiday, senza JS, 320px, pin e archi, cometa, tabellone a palette, onda
+  aperta/chiusa, reduced-motion), più seo, llmstxt, crawl, verita, consent,
+  scroll (`desks.html` in VENDONO), radici (`genera-europa.py`).
+
 ### BOOM Proprietari (`/owners` + `api/owner-lead.js`) — 30/09/2026
 Rifatta da zero su richiesta del fondatore («non è attraente, non converte,
 non rispecchia il nostro modo di lavorare»). Stessa dottrina di /executive
@@ -1454,6 +3256,12 @@ legale sopra 4,5:1. Striscia di famiglia: «Pacchetto concordato» come menu e
 piede, voce attiva centrata. Test: `tests/conto` 114 check (mutazioni prese).
 
 ### POST `/api/service-checkout`
+**Dal 14/10 vende anche i piani dei desk città**: `{ city, kind }` →
+`cityOffer(city, kind)` (`api/_market.js`) decide prezzo e nome del prodotto
+da `CITY_PLANS`; un desk waitlist o senza `checkout:true` è 400
+`checkout_closed` senza sessione; il telefono è facoltativo (Stripe lo
+raccoglie), `success_url` è la pagina della città con `?paid=<kind>`. Vedi
+«BOOM Cities → La cassa e i prezzi su ogni desk».
 Public one-tap Stripe Checkout for the productised services (Services 2.0
 pages). Server-side catalog decides price/copy — the client only names the
 kind: `virtual-viewing` (€89), `deal-assistance` (€249),
@@ -2530,6 +4338,22 @@ one-tap), `?demo=landlord` (locatore IT): walkthrough senza API né
 contratti veri, come `/sign?demo=1`.
 
 ### Portal 2.0 — l'esecuzione dell'audit (2026-08, vedi `PORTAL_AUDIT_2026-08.md`)
+**22/10 — Il punto di oggi:** la stessa area iniziale espone sintesi AI già preparate,
+prossimo passo e motivo usando il validatore delle revisioni; messaggi nuovi, scadenza,
+approvazioni o contesto obsoleto impediscono di riproporre la vecchia sintesi.
+I messaggi recenti già acquisiti emergono anche senza pratica/seguito; collegamenti
+solo per ID e stato verificati; i conclusi recenti sono riletti dal server dopo gli aperti.
+Se la lettura è incompleta non si ripropongono header senza seguito; il totale arretrati resta in coda.
+Lo stato email/WhatsApp viene letto automaticamente, senza scansioni o nuove AI;
+Copertura e pausa restano esplicite. Prove: `oggidesk`, `oggibriefingui`, `oggiclosuresui`.
+
+**22/10 — Esperienza Oggi:** il briefing precede gli strumenti; su desktop sono
+in due colonne, sul telefono il comando Strumenti porta ai sedici ingressi invariati.
+Situazione, azione e motivo precedono filtri e verifiche amministrative; dubbi e fonti
+si espandono nella scheda, restando aperti durante i refresh. La conferma conserva
+la review completa. La prima azione resta sopra la barra del telefono, senza scroll.
+Prove: `portalnavigationui`, `oggihomeui`, `oggiquicktoolsui`, `oggibriefingui`.
+
 **16/10 — Oggi, priorità trasversali:** la prima categoria poteva coprire urgenze
 altrove; ora si parte dalla graduatoria esistente, tre pratiche per pagina e tutte
 raggiungibili. Attore, ricontrollo e fonte seguono la stessa azione della scheda.
@@ -3325,6 +5149,17 @@ presente sul profilo usciva «MANCANTE».
   (`landlordIban`) e conto addebito tributi (`rliDebitIban/Holder`, campo
   dell'operatore) sono due righe distinte: nessuno si deduce dall'altro.
   Test: `tests/notify` §1c-bis, `tests/registrazione` §3b–3d.
+- **Firmato fuori da Magic Sign, stessa pratica (27/10/2026, Codex)**.
+  `registra external-adopt` acquisisce byte originali e SHA-256 dopo verifica
+  esplicita e CAS; firme precedenti in storia, nessun FES ricostruito. Il pannello
+  collega profili esistenti e riprende console PA, archivio, scadenza, scheda e pack.
+  CAF: solo firmato + scheda, claim durevole; esito incerto risolto dall’operatore.
+  RLI conserva bozza, attesa SPID, trasmissione/scarto; registrato esterno richiede
+  ricevuta, codice ed esito positivo verificato. Errori di archivio restano recuperabili.
+  Prove: `externalcontract`, `externalcontractmutations`, `externalcontractui`.
+  Il test browser trasferisce il PDF grande come corpo binario HTTP, come
+  Storage, senza serializzare milioni di numeri nel ponte Playwright. Le
+  schermate usano `os.tmpdir()` e un errore diagnostico non nasconde il guasto.
 - **Le righe rosse del link pubblico** (dal riesame avversario, stessa
   release): un link /scheda viaggia su WhatsApp ed è intercettabile, quindi
   ciò che decide DOVE arriva la firma o i soldi è **fill-only** — email di
@@ -3539,6 +5374,14 @@ con lease e recupero senza rifirmare. Legacy parziali senza impronta richiedono
 revisione; PDF ruotati/ritagliati fuori standard vengono rifiutati esplicitamente.
 Test `magicsigncustom`, `magicsigncustommutations`, `magicsigncustomui` e
 `magicsigncustomsigner` (pagina+handler reali, IO sintetico; dopo ui per cache PDF.js).
+**25/10 — il bottone del contratto BOOM non si accendeva.** Lo stesso commit
+(8dd4ec4, in produzione dal 17/10 con #297) ha copiato in `renderSign` il cancello
+`documentReady` del flusso personalizzato; lì nessuna anteprima PDF lo apre, quindi
+firma + spunta lasciavano «Sign contract» spento per sempre (segnalato da una
+cliente). Tolto dal solo flusso standard: la versione letta la lega già il server
+(`contractVersion` → 409 `version_changed`). Il flusso personalizzato resta legato
+alla verifica dell'impronta. Test `signbutton` (Chromium, inquilino e locatore;
+senza la correzione cade).
 
 ### Il mandato a firmare del conduttore (9/09/2026 — «devo poter firmare io per il cliente»)
 Il caso vero: il cliente ha accettato e firmato la proposta, pensa sia
@@ -4181,6 +6024,52 @@ Test: `node tests/mandato/casa.mjs` (51 check, handler veri; 19 mutazioni
 prese su motore, conversione, mandato dato dopo, sign-for e console) e
 `tests/firma/console.mjs` (la seconda console: stessa casa, preflight, ripiego
 senza motore).
+
+### 📎 Il firmato fuori da Magic Sign dalla console + 💶 la provvigione con un tap (2/11/2026)
+«Voglio caricare direttamente i contratti che ho firmato senza Magic Sign e continuare tutta la journey;
+poi con un tap il link Stripe della provvigione, che si paga sempre all'ingresso.» Il recupero del firmato
+esterno (`api/contracts/_external.js`) esisteva, ma solo nel pannello Registrazione del portal, solo a
+contratto già nato, e bloccato da `party_profiles_required` finché OGNI parte non aveva un profilo — un
+proprietario nato dalla proposta non ce l'ha mai. La provvigione viaggiava sul contratto (`agencyFee`) senza
+nessun documento pagabile.
+- **📎 Carica firmato** (riga della proposta, accettata/pagata, firme non complete): un pannello in quattro
+  passi. 1) le parti nel portal: `profilePlan` riconosce un profilo da un dato ESATTO (email, CF, o per un
+  co-conduttore la scheda che la conversione ha creato per QUESTA proposta — mai un nome simile), poi crea
+  (con accesso se c'è l'email, scheda senza accesso altrimenti) o collega; il collegamento passa SEMPRE da
+  `linkExternalParty` (ruolo e CF controllati lì); un'email di un profilo con altro ruolo è un conflitto
+  detto. 2) i dati che il PDF deve riportare. 3) PDF + data + le due conferme (`adoptExternal`, invariato:
+  stessi byte, nessun certificato FES inventato). 4) dopo: benvenuto e calendario canoni, spunte esplicite.
+  Senza contratto, nasce dalla proposta con la conferma di sempre (`confirmContractBirth`, immobile
+  compreso). Il link al portal resta solo a firme complete («🏛 Registrazione e documenti»).
+- **Il recupero ora completa la vita del contratto**: `prepareExternal` aggiunge `occupancy` (immobile
+  affittato + `currentContractId`, annuncio `rented` con `availableFrom = endDate + 1`, lead chiuso) e
+  `obligations` (lo scadenzario di Magic Sign: consegna chiavi + verbale, APE/deposito, cedolare o registro,
+  TARI, utenze, cessione di fabbricato se extra-UE). Restano deterministici e senza email: i test di Codex
+  (niente rate, niente email nel recupero) valgono ancora. Le tre copie sono state ESTRATTE, non duplicate:
+  `api/sign/_obligations.js` (da `_finalize`), `api/contracts/_occupancy.js` e `api/payments/_schedule.js`
+  (da `magic-sign/submit`) — Magic Sign e firmato esterno scrivono le stesse cose.
+- **`onboardExternal`** (solo se chiesto): calendario canoni (`pay_<contratto>_<mese>`, mai raddoppiato) e
+  benvenuto alle parti con la copia firmata in allegato e il magic link del portale, UNA volta
+  (`welcomeEmailSent`, claim `externalWelcome` con precondizione). L'email non promette un certificato che
+  non c'è (`sendWelcomeEmails` lo nomina solo se esiste). Condizioni cambiate dopo il caricamento → 409.
+  Il journey riparte da solo: contratto `active` + `signatureStatus:'complete'` = `journeyEligible`.
+- **💶 Link provvigione**: `invoices/prov_<proposta>` (id deterministico, 409 = già emessa: una fattura
+  emessa non si riscrive mai, una cifra cambiata si DICE) con la cifra firmata sulla proposta (`feeTotal`),
+  `netAmount`/`vatAmount`/`vatPct` dichiarati, `dueDate` = decorrenza; il link è quello stabile di
+  `/api/payments/link` (si manda oggi, si paga all'ingresso, nessuna commissione carta sulla fattura). Mai
+  un secondo link se la provvigione era nel dovuto alla firma (`fee_paid_at_signing`/`fee_in_due_at_signing`).
+  Il webhook INVOICE timbra anche la proposta (`feePaidAt`, precondizione `exists`): la riga si aggiorna da
+  sola. Nata prima del contratto, la fattura si collega all'inquilino appena il contratto c'è (importo
+  intatto). Contabile e scadenzario usano `netAmount` quando la fattura lo dichiara: prima l'IVA stimata
+  contava l'IVA della fattura come imponibile.
+- Le operazioni stanno in `api/preagreement/_external.js`, instradate da `sign-for.js` (admin, 60 s, nessuna
+  regola nuova in vercel.json): `ext-status`, `ext-contract`, `ext-profiles`, `ext-adopt`, `ext-prepare`,
+  `ext-onboard`, `fee-link`.
+- **Da sapere**: la fattura `prov_` è il documento INTERNO che rende pagabile la provvigione, non la fattura
+  elettronica SDI. Le carte extra-SEE costano ~3,25% a BOOM (nessun sovrapprezzo sulle fatture): il bonifico
+  resta gratuito. Il caricamento di un PDF non lo legge: la verifica dei termini è dell'operatore (due spunte).
+Test: `node tests/pa-external/run.mjs` (16 scenari, handler veri), `mutate.mjs` (10 mutazioni prese),
+`ui.mjs` (Chromium 390/1280, 38 controlli).
 
 ### Le regole IN VIGORE ≠ le regole nel file (31/08/2026)
 Il difetto più caro trovato in questa tornata, e nessuna suite poteva
@@ -5554,6 +7443,14 @@ auto-ingested (e.g. no price recoverable) land in
 `pfsRadarHealth.needsAttention` — surfaced in `pfs-command.html`, never
 silently dropped.
 
+### Il radar per mercato (Madrid, Barcellona) — 25/10/2026
+Il primo cliente pagante di Full Search è a Madrid, e il radar PFS leggeva solo Roma. `js/radar-markets.js` è il registro unico: città accese, policy agenzie (Roma scarta; Madrid e Barcellona le lasciano passare SEGNALATE, perché in Spagna la provvigione dell'agenzia è del locatore — decisione da confermare col fondatore), risoluzione della città di un annuncio (dichiarata → dominio → alias `+radar-<città>` e testo prima delle fonti storiche romane; ignota o in conflitto = mai ingerita, «da verificare»). Un cliente senza `market` è romano; un mercato scritto male non riceve niente.
+Gli alert istantanei di idealista.com arrivano nella stessa casella di `pfs/scan-inbox`: Roma letta e processata per prima col suo tetto (40), le città dopo e solo se resta tempo (25), mai un detail fetch verso idealista.com; `scan-market` salta i portali solo-città.
+Due cinture: il mazzo filtra per mercato e `scoreMatch` rifiuta un mercato diverso; anche `match-test` e «Aggiungi annuncio» (con la tendina Mercato) rifiutano un cliente di un'altra città. Zone canoniche `Madrid · Chamberí`, gemelli e vedette mai fra città; marketStats, /meteo, mandati, Valutatore e backlog del Perito restano romani; anche il recupero di SmartLink dal Radar (`api/smartlink/_radar.js`) prende solo record romani: dopo il merge con #321 la zona «Madrid · Centro» faceva proporre allo Studio il cerchio «Centro, Roma». Il brief AI conta le agenzie delle città a parte; il messaggio al proprietario (italiano) solo sugli annunci romani.
+Battito `pfsRadarHealth/inbox-<città>`: l'ora è quella dell'email, conta solo un alert con un annuncio della città, e 48h senza alert con clienti attivi è un guasto che dice perché.
+I formati delle email spagnole sono SINTETICI (`tests/pfs/fixtures/idealista-es.mjs`): la prima email vera li sostituisce. Istruzioni per l'operatore (alias `valentino+radar-madrid@`, account idealista.com per città, ricerca salvata con avviso istantaneo, `urlOverride`) nella PR. Fotocasa e Amsterdam rimandati (Amsterdam nel registro, spenta).
+Test: `markets`, `marketsingest` (mutazioni), `marketsui`.
+
 ## Il Perito (market intelligence — js/market-engine.js + api/market/*)
 
 Il "nostro Casafari" col dato che Casafari non ha (i canoni FIRMATI). Nato
@@ -5845,6 +7742,10 @@ bottiglia) possono partire da sole — ma solo il PROVATO, e sotto controllo.
 
 ### LA SEGRETARIA (`js/segretaria-engine.js` + `api/segretaria/_core.js` + 🤖 sulla card)
 
+- **Fixture del cambio d’ora (25/10/2026)**: il caso 9f di `tests/segretaria/run.mjs` sceglieva «adesso + un’ora», entrando nell’ora ripetuta di Roma; fallimento riprodotto anche su main `7e2cdf58`.
+  La prova della pausa ora usa mezzogiorno UTC del giorno successivo, sempre futuro e non ambiguo. Le asserzioni su preparazione, conferma esplicita e assenza di invii automatici restano intatte.
+  Il motore calendario continua a rifiutare le ore ripetute. Il fixture viene verificato anche sugli istanti che rompevano la CI, con mutazione della scelta dell’orario; nessuna modifica al comportamento della Segretaria.
+
 - **IL 409 CHE FERMAVA WHATSAPP (21/09/2026, sera — letto nei log di Vercel,
   non dedotto)**. Nelle 24 ore: `/api/homie/message` **946 × 409** contro
   430 × 200, tutti da quando il ramo del 21/09 è andato in produzione (13:04
@@ -5910,6 +7811,14 @@ bottiglia) possono partire da sole — ma solo il PROVATO, e sotto controllo.
   creato dalla console e assente dal file). Senza indice la cronologia
   lunga degrada al fallback, non si ferma.
 
+- **Limite preventivo preparazioni (22/10):** recuperata la guardia del 6/10,
+  prima non pubblicata: default20 tentativi automatici/giorno e2/caso, incluso errore.
+  `_preparation-limits` valida la configurazione e lo storico senza azzerare contatori
+  ambigui; `_prepare` prenota con lease+contatore+versione settings nello stesso CAS.
+  Pausa o cap ridotto durante la lettura bloccano la chiamata; cache e manuale restano.
+  Il monitor distingue lo stop; cap tentativi diverso dal budget monetario centrale.
+  Nessuna attivazione implicita. Prove `segretariapreparationlimits`, `segretariaprepara`,
+  `segretariaworker`, `segretariamonitor`, `segretarialiveui` con mutazioni e concorrenza.
 - **Oggi, azioni ed effetti espliciti (21/09 sera)**: le schede distinguono messaggio da rivedere e seguito interno senza bozza; «Da rivedere» non chiama decisioni tutte le richieste. Sintesi breve, contesto consultabile e avviso di fonti parziali restano separati; prima della conferma sono esposti destinatario, testo e dubbi completi.
   `BOOM_PROPOSTA.approvalExpired` governa la scadenza; render e click bloccano nuove conferme scadute, con rielaborazione esplicita e gestione del 409 `preparation_expired`. Ricevute e ripresa della stessa approvazione restano valide; il modulo condiviso assente blocca la conferma.
   Il feedback `approveAgentAction` distingue prova email e WhatsApp da verificare: `executed` o un link non attestano invio. Nessuna lettura della Home genera o invia; una nota testuale non esegue telefonate o lavori.
@@ -6069,6 +7978,13 @@ bottiglia) possono partire da sole — ma solo il PROVATO, e sotto controllo.
   `phone/agent-tools` conserva ora il tipo dichiarato; assente, vuoto o non testuale resta `null`. Non lo ricava dal titolo o dal numero di camere.
   La nota del catalogo distingue stanza e appartamento intero e richiede verifica quando il tipo è sconosciuto; `bedrooms` non prova il numero totale di locali.
   Prova `phone`: stanza e appartamento con stessi dati numerici, tipo mancante/invalido e mutazione che rimuove il campo. Nessun prompt live o trasferimento modificato; il collaudo conversazionale va ripetuto dopo la pubblicazione.
+
+- **Catalogo voce, conflitti delle fonti (26/10)**: `catalogReview.price/availability = conflict` fa tacere prezzo/data contesi e descrizioni commerciali nel tool, conservando identità e `requiresConfirmation` anche nella risposta compatta. Nessuna proposta automatica riscrive il prezzo; affittato resta un veto. Il confronto del catalogo può così registrare le differenze senza consegnare alla voce una certezza falsa. `phoneresolver` prova lookup, filtri, catalogo compatto e veto; mutazioni delle due guardie respinte.
+- **Catalogo voce, assenza non è indisponibilità (26/10)**: nella chiamata reale su Petronio Arbitro il tool restituiva `none + verified` e la voce negava la disponibilità. I 27 record erano letti correttamente: mancava l’annuncio nella fonte BOOM.
+  `phone/agent-tools` rende `none` da confermare, con richiesta del riferimento distinta dalla ricerca senza identità; nessun risultato vuoto prova una casa affittata. Nessuna importazione o cambio commerciale automatico.
+  Il generico conserva indirizzo e stato disponibilità; `DISPO.catalogState` marca date assenti, scadute in waitlist o con anno dedotto da verificare. Il veto rented/reserved resta invariato.
+  Risposte `private,no-store`; letture ripetute vedono le modifiche della fonte. Non è provato che una cache causasse l’incidente.
+  Prove `phone` e `phoneresolver`: 52 controlli resolver, casi assenti Petronio/Val d’Ossola, due Tor di Quinto ambigui, data sconosciuta e quattro mutazioni. Mandato ElevenLabs e completezza dei dati reali sono verifiche separate dal codice.
 
 - **Risolutore Immobile Unico v1 (27/09)**: `phone/agent-tools` conserva il catalogo senza input e accetta riferimenti BOOM/portale mappati, nome o indirizzo e filtri dichiarati.
   Legge soltanto `listings` e `portalPubs`, riusa `DISPO`, espone fonte, istante e copertura e restituisce al massimo due risultati; pareggi e coperture parziali diventano `needs_confirmation`, mentre un id BOOM noto viene controllato sul documento esatto.
@@ -6807,6 +8723,65 @@ grida al lupo si smette di ascoltarla. Soglia CLS 0,02, dieci volte sotto
 il «buono» di Google. Il test blocca ogni richiesta non locale: un test di
 layout non deve dipendere dalla rete.
 
+## La striscia dell'orologio su iPhone (css/boom-scroll.css + tests/cielo, 22/10/2026)
+
+«L'header resta bloccato e il sito scorre sopra di lei», su iPhone/Safari, a
+partire dalla home. Non era la testata: era la **tinta della barra di stato**
+di Safari 26. WebKit (`LocalFrameView::fixedContainerEdges`) decide il colore
+della striscia sotto l'orologio con UN punto, al centro e 4px dall'alto,
+ignorando `pointer-events`; un hit su uno pseudo-elemento conta come il suo
+`<body>`; da lì risale al primo box fixed/sticky largo ≥90% e alto >10px. Su
+16 pagine (home compresa) la **grana del fondo** è un `body::before` fisso a
+schermo intero con `z-index: 9999`, SOPRA la testata: il campione cadeva sul
+body e la striscia prendeva il colore del contenuto che scorre, come se la
+pagina passasse sopra la barra. Il vetro smerigliato della testata NON è la
+causa (con `backdrop-filter` WebKit dà `Multiple` e riempie comunque col
+colore della testata) — la prima ipotesi era quella, e i revisori l'hanno
+smontata leggendo il sorgente di WebKit.
+- **La regola** sta nel contratto di scorrimento, l'unico CSS inline su
+  tutte le pagine pubbliche: `body::before, body::after { z-index: 1
+  !important; }`. La grana resta visibile (è a opacità ≤0,05 e non riceve
+  eventi) ma sta sotto la testata.
+- **Una sorgente, 68 copie**: `scripts/scroll-sync.mjs` riscrive il blocco
+  fra i marcatori `BOOM_SCROLL` in ogni `.html` da `css/boom-scroll.css` e
+  `js/boom-scroll.js` (`--check` esce 1 e nomina le pagine stantie); il
+  generatore dei quartieri (`scripts/neighborhoods-build.js`) legge gli
+  stessi due file invece di una copia sua. `build-cities.mjs` lo inlina già
+  dalla sorgente.
+- **`tests/cielo/run.mjs`**: le copie uguali alla sorgente e al generatore;
+  in Chromium a 390×844, scorso a 900px, `elementFromPoint(W/2, 4)` con
+  pointer-events forzati risale alla testata su ogni pagina col contratto
+  (board, deals e skyline non hanno una barra in alto e si saltano); gli
+  pseudo-elementi del body sono fissi, quasi trasparenti e inerti; senza la
+  regola la home ricade sul body (mutazione presa).
+- **Verificata sul telefono vero** dal fondatore il 22/10, dopo il merge di
+  #306: su iPhone/Safari la striscia accanto all'orologio resta della testata.
+  Chromium non ha il campione di WebKit: per una regressione futura la prova
+  vera resta l'iPhone. **Buco dichiarato**: i builder di `design/pages-deco/`
+  scrivono ancora la grana a 9999 e non emettono il blocco di scorrimento —
+  la regola arriva perché le pagine pubblicate portano il blocco
+  (`scroll-sync`): dopo una ricostruzione da builder va rilanciato
+  `node scripts/scroll-sync.mjs`, e `tests/cielo` lo pretende.
+- **Il commento che rompeva la scheda** (presa dalla CI prima del merge): la
+  prima versione del commento in `css/boom-scroll.css` nominava il tag del
+  body fra parentesi angolari, e quel blocco sta nella `<head>` di 68 pagine.
+  `api/listing.js` inseriva il racconto per i crawler sul PRIMO `<body>` del
+  testo: sulla scheda `/listing/<id>` sarebbe finito dentro il commento CSS.
+  Ora le due sorgenti del contratto non portano testo a forma di tag
+  (`tests/cielo`) e `api/listing.js` inserisce dopo il `<body>` che segue
+  `</head>` (`tests/listing` ne controlla la posizione; mutazioni prese).
+- **La promessa dei documenti** (22/10, trovata dallo studio sul design): la
+  riga della verifica documenti diceva a OGNI biglietto «The letter and the
+  format are ours» e «we apply as listings appear» — anche ad Attended
+  Viewing (€149), che non comprende né l'una né l'altro, e Amsterdam e Madrid
+  erano già live. Ora ogni promessa nomina il piano dalle descrizioni delle
+  offerte: la lettera è dell'Application Pack, il formato del dossier di
+  Application Pack e Full Search, le candidature agli annunci solo di Full
+  Search. Il build rifiuta un `checkin.dossier.resultAll/resultSome` senza il
+  nome di un piano o con «are ours» / «We format» / «we apply» (due rifiuti in
+  `tests/cities`). Se anche Full Search scriva la lettera resta una domanda per
+  il fondatore.
+
 ## Il catalogo dichiara i suoi prezzi (scripts/catalogo-schema.mjs)
 
 Su `/apartments` il canone e' un tabellone a palette: bello, e leggibile da
@@ -7011,6 +8986,7 @@ Test: `tests/catalogo/{letture,descrizioni,vetrina,strumento,portale}.mjs`,
   | `tests/inventario/ui.mjs` | l'inventario in un browser vero a 390px: il video registrato al volo diventa fotogrammi (immagine vera, non quadrati neri), il filmato NON viene mai caricato, l'operatore corregge una riga e quella diventa 'human', il cancello della conferma tiene |
   | `tests/contractpdf/run.mjs` | il PDF del contratto in UNA copia (jsPDF REALE): l'impaginato condiviso produce Allegato B/C con le ancore firma, la conversione PA lo scrive da sola (e con Storage giù il contratto nasce comunque), send-sign sana i pre-fix PRIMA dell'email (ordine asserito sulla sorgente), la prima apertura di /sign è l'ultima rete, e MAI una rigenerazione sotto una firma viva (mutazione) |
   | `tests/sign/lang.mjs` | /sign bilingue guidata in un browser vero (demo mode): default per ruolo (locatore IT, inquilino EN), toggle che ridisegna lo step corrente in entrambe le direzioni, percorso intero tradotto, Skip OTP che non blocca, link WhatsApp presenti. Si auto-skippa senza playwright |
+  | `tests/sign/button.mjs` | il bottone «Firma» di /sign si accende con firma + spunta, si spegne togliendone una, porta alla conferma — inquilino e locatore, Chromium vero in demo mode |
   | `tests/scalo/run.mjs` | LO SCALO lotti 1-4: la carta d'imbarco dice la verità (visita annullata/standby = Wallet spento e DETTO, codici di rotta solo dal lessico — mai inventati, pass viewing per navigazione vera mai blob:), il lessico `js/scalo-codes.js` in UNA copia (alias lungo batte il corto, parole intere, ambiguo → null, bmCode derivato), il flight status di /viewing (countdown SOLO sui momenti veri di _moments, stato temporale mai "già spedito"), il check-in di /book (la carta SOLO sulla confermata — mai sulla pending — con applyApprovalCopy unico posto delle parole), l'idrante di /board (corsie SOLO da BOOM_DISPO.marketLane — closed fuori, illeggibile = ASK mai NOW, ETA dall'iso del motore, fail-open sulla fotografia di build), la rotta di /casa (tappe = FATTI del contratto: signatureStatus, depbal, startDate, endDate−90 — l'aereo sulla prima non compiuta, niente rotta senza contratto) e il timbro di apartment-detail (visibile sempre, batte una volta, fermo con reduced-motion). Lotto 4: il handler VERO di /api/meteo su Firestore in memoria (whitelist che non lascia passare un campo non dichiarato, sotto campione SOLO il nome, cache CDN, solo GET), meteo.html che non tocca mai Firestore, lo sweep della plancia (blip = gli stessi item della strip, angolo dichiarato disposizione), e le og carte PNG verificate nei byte (IHDR 1200×630) |
   | `tests/mandato/run.mjs` | il mandato a firmare: spunta a parte sulla proposta (mai dedotta, solo se offerta ESPLICITAMENTE — assente = non offerto), la foto delle condizioni approvate presa all'accettazione (v2: immobile, parti, modello, date, soldi, oneri, clausole) è la base che conversione e firma verificano (409 con `changed`; il contratto non fa mai da base; v1 ancora valutato con la sua regola), la strada automatica non perde consenso e mandato, al posto del conduttore SOLO col mandato (403), chi ha firmato resta stampato su pagina firme/certificato/scheda ARPE/pack; il consenso della proposta firma anche la scheda 2/B (pagina == server, hash); la Valutazione BOOM esce dall'immobile con la scheda di calcolo brandizzata a pagina 2 e i buchi dichiarati |
   | `tests/ai/run.mjs` | La Centrale AI: coi default TUTTO in cloud, `localOk:false` mai in locale, PDF → cloud, immagine → solo con modello visivo, locale giù → cloud dichiarato, ombra che misura senza toccare la risposta (e non salva un cloud giù), contatori atomici col costo dal listino, nei log mai contenuto, porta HTTP (401/403/400 senza scritture), STT locale-prima, anti-deriva chiamanti⇄registro |
@@ -7062,13 +9038,14 @@ const { user, profile } = await BoomPortal.requireAuth(
 
 **Safari desktop hardening** (a wedged WebKit used to leave the logged-in
 pages on their loader with no signal at all):
-- `js/firebase-config.js` — the 12 pages that load it used to call
-  `enablePersistence({synchronizeTabs:true})` **synchronously on the boot
-  path**. On WebKit that IndexedDB + WebLocks handshake stalls for seconds
-  and the auth guard's first read looks hung. Now deferred to an idle
-  callback, skipped on iOS, no `synchronizeTabs` on Safari, escape hatch
-  `?nopersist=1` / `localStorage.boom_no_persist='1'` — the same treatment
-  `js/portal-app.js` already applied to portal.html.
+- **Avvio senza cache disco (27/10/2026):** `firebase-config.js` e
+  `portal-app.js` usano la cache Firestore in memoria predefinita. La vecchia
+  `enablePersistence` differita poteva bloccare IndexedDB prima della lettura
+  del profilo anche in Chrome; riprovare la stessa coda non la sbloccava.
+  Nessun flag o recupero richiesto; Auth conserva la propria persistenza.
+  Nessuna cancellazione automatica dei database o scritture pendenti; la coda
+  Firestore offline non sopravvive più alla chiusura della pagina. Test `safari`:
+  cache bloccata, reload, seconda scheda e due mutazioni che ripristinano il guasto.
 - `BoomPortal.withTimeout(promise, ms)` — a Firestore read that never
   settles is a loader that never leaves. `requireAuth` reads the profile
   under a 7s watchdog, retries `{source:'server'}`, then gives up loudly.

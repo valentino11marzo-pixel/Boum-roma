@@ -82,7 +82,9 @@ async function run({ dry, forceMonthly, yearOverride }) {
     if (inv.status !== 'paid') continue;
     const d = new Date(inv.paidDate || inv.date || 0);
     if (d.getFullYear() !== fiscalYear) continue;
-    revenueByQuarter[Math.floor(d.getMonth() / 3) + 1] += Number(inv.amount) || 0;
+    // l'imponibile quando la fattura lo dichiara (provvigione: amount è IVA
+      // inclusa, netAmount no) — altrimenti l'IVA stimata contava l'IVA due volte
+      revenueByQuarter[Math.floor(d.getMonth() / 3) + 1] += Number(inv.netAmount != null ? inv.netAmount : inv.amount) || 0;
   }
   const companyObl = FISCAL.companyObligations(fiscalYear, revenueByQuarter);
   const roll = FISCAL.rollup(landlordObl.concat(companyObl), now);
