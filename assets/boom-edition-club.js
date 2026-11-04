@@ -21,6 +21,15 @@
   hero.querySelector('.hero-promise').insertAdjacentElement('afterend',planLink);
   var globe=window.BoomFlightGlobe;if(globe)globe.mount(atlas);
   var bottom=hero.querySelector('.hero-bottom');bottom.querySelector('span').replaceWith(byId('europeCitySignature'));
+  var compactHome=matchMedia('(max-width: 650px)');
+  function arrangeHome(){
+    var localFirst=compactHome.matches&&document.body.dataset.europeCity==='rome';
+    var focused=planner.contains(document.activeElement)?document.activeElement:null,moved=false;
+    if(localFirst&&planner.parentElement!==ticket){ticket.insertBefore(planner,atlas);moved=true;}
+    else if(!localFirst&&planner.parentElement!==hero){hero.insertBefore(planner,bottom);moved=true;}
+    if(moved&&focused)focused.focus({preventScroll:true});
+  }
+  compactHome.addEventListener('change',function(){arrangeHome();queueFit();});
   document.querySelector('.europe-switch-label').textContent='Your next city';
   // Arrive where the decision happens. Moving the original nodes preserves validation and handoff.
   var deskStory=byId('europeDeskStory'),deskPlanner=byId('europeDeskPlanner'),deskForm=byId('europeDeskForm');
@@ -81,9 +90,10 @@
 
   function syncCity(){
     var city=document.body.dataset.europeCity||'rome',foreign=city!=='rome';
+    arrangeHome();
     hero.querySelector('.hero-pretitle').textContent='Your next chapter in';
-    hero.querySelector('.hero-centre .eyebrow').textContent='BOOM. A modern real estate agency.';
-    hero.querySelector('.hero-promise').textContent=foreign?'A new city. A dedicated team to help you find your place.':'Real homes. The right neighbourhood. A team to help you settle in.';
+    hero.querySelector('.hero-centre .eyebrow').textContent=foreign?'BOOM Desks · Your agent, on your side.':'BOOM Rome · Homes & Skyline';
+    hero.querySelector('.hero-promise').textContent=foreign?'Rental search, applications and viewings. Clear scope, clear fees, a person to guide your move.':'Explore the homes. Compare your everyday journey. Find the place that fits your life.';
     planLink.href=foreign?'#europeDeskStory':'#nextSearch';
     byId('europeStoryCity').textContent='Your '+city.charAt(0).toUpperCase()+city.slice(1)+' move.';
     if(window.BoomFlightEurope)window.BoomFlightEurope.refreshBrief();
@@ -107,13 +117,19 @@
   function motionAllowed(){return !reduce.matches&&pause.getAttribute('aria-pressed')!=='true'&&!document.hidden;}
   function renderScroll(){
     scrollFrame=0;
+    var allowed=motionAllowed(),motionState=allowed?'active':'still';
+    if(document.body.dataset.view!=='home'){
+      if(document.body.dataset.editionMotion!==motionState)document.body.dataset.editionMotion=motionState;
+      return;
+    }
     var foreign=document.body.dataset.europeCity!=='rome',stops=[hero,foreign?byId('europeDeskStory'):skyline,document.getElementById('services')],active=0;
     var positions=stops.map(function(el){return el.getBoundingClientRect().top;});
+    var steps=document.querySelector('.next-journey'),box=foreign?null:steps.getBoundingClientRect();
+    var progress=box?Math.max(0,Math.min(1,(innerHeight*.8-box.top)/Math.max(1,box.height))):1;
     positions.forEach(function(top,index){if(top<innerHeight*.4&&(!foreign||index<2))active=index;});
-    flightline.querySelectorAll('[data-flight-stop]').forEach(function(link,index){if(index===active)link.setAttribute('aria-current','location');else link.removeAttribute('aria-current');});
-    var steps=document.querySelector('.next-journey'),box=steps.getBoundingClientRect(),progress=Math.max(0,Math.min(1,(innerHeight*.8-box.top)/(Math.max(1,box.height))));
-    steps.style.setProperty('--journey-progress',motionAllowed()?progress:1);
-    document.body.dataset.editionMotion=motionAllowed()?'active':'still';
+    flightline.querySelectorAll('[data-flight-stop]').forEach(function(link,index){if(index===active){if(!link.hasAttribute('aria-current'))link.setAttribute('aria-current','location');}else if(link.hasAttribute('aria-current'))link.removeAttribute('aria-current');});
+    var nextProgress=String(allowed?progress:1);if(steps.style.getPropertyValue('--journey-progress')!==nextProgress)steps.style.setProperty('--journey-progress',nextProgress);
+    if(document.body.dataset.editionMotion!==motionState)document.body.dataset.editionMotion=motionState;
   }
   function queueScroll(){if(!scrollFrame)scrollFrame=requestAnimationFrame(renderScroll);}
   window.addEventListener('scroll',queueScroll,{passive:true});window.addEventListener('resize',queueScroll,{passive:true});

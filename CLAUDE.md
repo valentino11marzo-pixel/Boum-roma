@@ -3365,6 +3365,11 @@ Il riepilogo di date, budget nella valuta corrente e persone segue i campi esist
 Roma aggiunge `nextBalanceEntry` prima dei risultati: stesso risultato `G.balance`, conteggio delle alternative evidenziate, tipo e date richieste espliciti; luogo privato resta nel browser. Il pulsante riusa la guida canonica, senza nuove stime o stato.
 `flighteuropeui` prova tutte le inclusioni; `flighteditionsui` prova Amsterdam390/1280, brief modificato/svuotato, date invalide e handoff, più entry Roma320/390/1280 e privacy. `flightclubflight` conserva il percorso globo→servizio/Skyline.
 
+Flight Club composizione 04/11: Roma dichiara case/Skyline, i Desks ricerca/assistenza; su mobile romano il planner originale precede il globo anche nel DOM, mentre sui Desks resta dopo la scelta città. Cambio città/breakpoint sposta gli stessi nodi, conservando campi e listener.
+Apartments riduce altezza di titolo, filtri e brief; un solo ingresso in guida, date esatte senza durata ripetuta, Skyline/Gallery con stato selezionato evidente e controlli da44–48px. La superficie principale torna alle fotografie.
+Grain SVG statico solo al bordo dei pass; hover su puntatore fine, pressioni brevi, pausa/riduzione rispettate. Lo scroll misura prima di scrivere e non calcola sezioni nascoste fuori Home; nessun nuovo clock o dipendenza.
+Verifica: `flighteditionsui` Club320/390/1280, `flightclubmotion`, `flightclubflight`; misure prima/dopo e controllo mobile del passaggio Roma↔Desks. Solo preview Flight, nessuna modifica agli ingressi pubblici `/` o `/desks`.
+
 Flight Lab 31/10: `/flight-lab` confronta Atlas, Residence e Club sulle stesse viste reali di `/flight-next?direction=…`, senza cambiare il sito pubblico.
 Le composizioni riusano catalogo, Solari, iframe Skyline, salvataggi e Apply; nessun secondo catalogo o nuovo handler di invio.
 Residence usa una foto realmente restituita dal catalogo pubblico (fallback a una casa pubblica non chiusa); Atlas sposta la stessa mappa nel primo schermo.

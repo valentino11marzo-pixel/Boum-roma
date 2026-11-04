@@ -1,7 +1,7 @@
 /* CLUB / night departure. Original Solari, geographic entry, one connected journey. */
 html.boom-club-night{background:#08090b;color-scheme:dark;scroll-padding-top:0}
 body[data-direction="club"][data-edition="club"].europe-ready{
- --edition-gutter:clamp(22px,4vw,70px);--edition-paper:#08090b;--edition-ink:#f3f2ec;--ink:#08090b;--surface:#141619;--line:#33363a;--muted:#bbbcb6;--club-paper:#141619;--club-paper-ink:#f3f2ec;--club-paper-muted:#bbbcb6;--europe-hairline:#33363a;--europe-nav-h:76px;
+ --edition-gutter:clamp(22px,4vw,70px);--edition-paper:#08090b;--edition-ink:#f3f2ec;--ink:#08090b;--surface:#141619;--line:#33363a;--muted:#bbbcb6;--club-paper:#141619;--club-paper-ink:#f3f2ec;--club-paper-muted:#bbbcb6;--europe-hairline:#33363a;--europe-nav-h:76px;--edition-ease:cubic-bezier(.23,1,.32,1);
  background:#08090b;color:#f3f2ec;color-scheme:dark;font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;
  & em{color:inherit;font-style:normal}
  & :is(h1,h2,h3){font-weight:300;text-wrap:balance;letter-spacing:-.045em}
@@ -181,21 +181,21 @@ body[data-direction="club"][data-edition="club"].europe-ready{
  & .next-footer .next-brand{color:#f3f2ec}
  & .next-footer small{color:#bbbcb6;font-size:10px}
  /* The catalogue is a working surface. */
- & .next-discovery-heading{padding:35px var(--edition-gutter) 29px;align-items:flex-end;color:#f3f2ec}
+ & .next-discovery-heading{padding:26px var(--edition-gutter) 22px;align-items:flex-end;color:#f3f2ec}
  & .next-discovery-heading>.eyebrow,& .next-discovery-heading>div>.eyebrow{display:none}
- & .next-discovery-heading h1{font-size:clamp(38px,4.6vw,62px);line-height:1.03}
+ & .next-discovery-heading h1{font-size:clamp(35px,4vw,54px);line-height:1.03}
  & .next-view-switch{background:#141619;border:1px solid #33363a;border-radius:5px;padding:4px}
  & .next-view-switch button{font-size:13px;min-height:44px;color:#bbbcb6;border-radius:3px}
- & .next-view-switch button[aria-pressed=true]{background:#08090b;color:#bbbcb6;box-shadow:0 1px 4px #0001}
- & .next-filter-bar{padding:10px var(--edition-gutter);background:#141619;color:#f3f2ec;border-top:1px solid #33363a;border-bottom:1px solid #33363a;gap:0}
+ & .next-view-switch button[aria-pressed=true]{background:#25271f;color:#fffdf2;box-shadow:inset 0 -2px #e8ce75}
+ & .next-filter-bar{padding:5px var(--edition-gutter);background:#141619;color:#f3f2ec;border-top:1px solid #33363a;border-bottom:1px solid #33363a;gap:0}
  & .next-filter-bar :is(select,button){color:#f3f2ec;font-size:14px;background:transparent}
  & .next-filter-bar :is(label,button){border-color:#33363a;min-height:44px}
  & .next-discovery{grid-template-columns:minmax(360px,.85fr) minmax(0,1.15fr)}
- & .next-results-panel{padding:24px 28px 32px var(--edition-gutter);height:calc(100svh - 76px);scrollbar-width:thin;scrollbar-color:#c2c2b2 #fff;background:#08090b}
+ & .next-results-panel{padding:17px 28px 32px var(--edition-gutter);height:calc(100svh - 76px);scrollbar-width:thin;scrollbar-color:#c2c2b2 #fff;background:#08090b}
  & .next-discovery>.next-map-slot{height:calc(100svh - 76px);top:76px}
  & .results-caption{color:#bbbcb6;font:400 12px/1.5 "Helvetica Neue",Helvetica,Arial,sans-serif}
  & .results-note{color:#bbbcb6;font-size:12px}
- & .next-discovery .next-results .next-card{display:block;padding:22px 0 26px;border-color:#33363a}
+ & .next-discovery .next-results .next-card{display:block;padding:10px 0 26px;border-color:#33363a}
  & .next-discovery .next-results .next-card-image{height:auto;aspect-ratio:1.7;min-width:0;border-radius:5px}
  & .next-results .next-card-info{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:0 16px;padding-top:16px}
  & .next-results .card-location{grid-column:1;margin-bottom:6px}
@@ -205,7 +205,7 @@ body[data-direction="club"][data-edition="club"].europe-ready{
  & .next-results .card-price strong{font-size:29px;line-height:1.1}
  & .next-results .card-price small{font-size:11px}
  & .next-results .card-price>button{grid-column:2;min-width:44px;min-height:44px;justify-self:end}
- & .next-discovery[data-layout=gallery]>.next-results-panel{height:auto;padding-inline:var(--edition-gutter)}
+ & .next-discovery[data-layout=gallery]>.next-results-panel{height:auto;padding:17px var(--edition-gutter) 55px}
  & .next-discovery[data-layout=gallery] .next-results{grid-template-columns:repeat(2,minmax(0,1fr));gap:0 32px;max-width:1600px}
  & #nextBalance{background:#141619;border-top:1px solid #33363a;padding:65px var(--edition-gutter);color:#f3f2ec}
  & .balance-heading h2{font-size:clamp(35px,4vw,54px)}
@@ -481,20 +481,20 @@ body[data-direction="club"][data-edition="club"].europe-ready{
  & .next-signoff h2{font-size:44px}
  & .next-footer{padding:26px 20px;font-size:11px}
  & .next-footer>div{gap:18px}
- & .next-discovery-heading{padding:29px 20px 23px;gap:21px;display:block}
- & .next-discovery-heading h1{font-size:38px;line-height:1.05;max-width:290px}
- & .next-view-switch{display:flex;margin-top:23px;width:max-content}
- & .next-filter-bar{display:grid;grid-template-columns:1fr 1fr;gap:0;padding:7px 20px}
- & .next-filter-bar>button,& .next-filter-bar>label{width:100%;padding:8px 0;min-height:48px;border:0;font-size:12px}
+ & .next-discovery-heading{padding:23px 20px 16px;gap:14px;display:block}
+ & .next-discovery-heading h1{font-size:34px;line-height:1.08;max-width:310px}
+ & .next-view-switch{display:flex;margin-top:16px;width:max-content}
+ & .next-filter-bar{display:grid;grid-template-columns:1fr 1fr;gap:0;padding:3px 20px}
+ & .next-filter-bar>button,& .next-filter-bar>label{width:100%;padding:4px 0;min-height:48px;border:0;font-size:12px}
  & .next-filter-bar>label:first-of-type{justify-content:flex-end}
  & .next-filter-bar .balance-button{justify-content:flex-end;gap:7px;font-size:12px}
  & .next-filter-bar :is(select,button){font-size:13px}
  & .next-filter-bar .filter-budget>span{font-size:10px;margin-right:6px}
  & .next-discovery{display:flex;flex-direction:column;padding:0}
- & .next-results-panel{order:1;width:100%;height:auto;max-height:none;overflow:visible;padding:23px 20px 26px}
+ & .next-results-panel{order:1;width:100%;height:auto;max-height:none;overflow:visible;padding:13px 20px 26px}
  & .next-discovery>.next-map-slot{order:2;width:100%;height:370px;min-height:370px;position:relative;top:auto}
  & .next-discovery .next-results{display:grid;grid-template-columns:1fr;gap:0}
- & .next-discovery .next-results .next-card{padding:19px 0 25px}
+ & .next-discovery .next-results .next-card{padding:10px 0 25px}
  & .next-discovery .next-results .next-card-image{aspect-ratio:1.35;min-width:0}
  & .next-results .next-card-info{display:block;padding-top:16px}
  & .next-results .next-card-info h3{font-size:28px}
@@ -645,4 +645,53 @@ body[data-direction="club"][data-edition="club"].europe-ready{
  & #europeDeskStory #europeDeskForm{position:relative;top:auto;padding:24px 22px;scroll-margin-top:120px}
  & #europeDeskStory .europe-fields{grid-template-columns:1fr 1fr;gap:12px}
  & #europeDeskStory .europe-next-step{font-size:12px}
+}}
+
+/* A quiet material at the ticket edge; the reading surface and photographs stay clear. */
+body[data-direction="club"][data-edition="club"].europe-ready{
+ & :is(.next-ticket,.detail-decision,#europeDeskForm){box-shadow:inset 0 1px 0 #fff2,inset 0 -1px 0 #0006,0 8px 24px #0002}
+ & :is(.next-ticket,.detail-decision,#europeDeskForm)::after{content:"";position:absolute;inset:0;padding:18px;border-radius:inherit;background:url('/assets/boom-pass-grain.svg') repeat;background-size:128px 128px;opacity:.17;pointer-events:none;mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);mask-composite:exclude}
+ & .next-ticket:before{height:2px;background:linear-gradient(90deg,transparent,#e8ce7577,transparent)}
+ & .next-ticket{transition:transform 220ms var(--edition-ease);transform-origin:center}
+ & .next-ticket:hover{transform:none;box-shadow:inset 0 1px 0 #fff2,inset 0 -1px 0 #0006,0 8px 24px #0002}
+ & .next-card-image img{transition:transform 240ms var(--edition-ease)}
+ & .next-card:hover .next-card-image img{transform:none}
+ & .route-line>span{transition:transform 220ms var(--edition-ease)}
+ & .next-ticket:hover .route-line>span{transform:none}
+ & :is(.button,.search-submit,.card-save,.next-view-switch button,.photo-controls button,.europe-home-controls button){transition:transform 160ms var(--edition-ease),background-color 160ms ease}
+ & .button:hover{transform:none}
+ &:not([data-edition-motion=still]) :is(.button,.search-submit,.card-save,.next-view-switch button,.photo-controls button,.europe-home-controls button):active:not(:focus-visible){transform:scale(.97)}
+ & .next-view-switch button{font-weight:400;min-width:92px}
+ & .results-caption{margin-bottom:10px}
+ & .next-results-panel{scrollbar-color:#54574d #141619}
+ & .next-photo-rail{overscroll-behavior-x:contain}
+ & .next-filter-bar .balance-button{display:none}
+ & .next-filter-bar>label:last-of-type{border-right:0}
+ & .next-filter-bar>button:first-child{padding-left:0}
+ & #nextBalanceEntry .balance-entry-action{box-shadow:inset 0 1px 0 #ffffff40}
+}
+@media(hover:hover) and (pointer:fine) and (prefers-reduced-motion:no-preference){body[data-direction="club"][data-edition="club"].europe-ready:not([data-edition-motion=still]){
+ & .next-card:hover .next-card-image img{transform:scale(1.015)}
+ & .next-ticket:hover{transform:translateY(-2px)}
+ & .next-ticket:hover .route-line>span{transform:translateX(6px)}
+}}
+@media(min-width:651px){body[data-direction="club"][data-edition="club"].europe-ready{
+ & .next-discovery[data-layout=gallery] .next-card-image{aspect-ratio:1.5}
+}}
+@media(max-width:650px){body[data-direction="club"][data-edition="club"].europe-ready{
+ & #directionClubTicket>.edition-club-runway{margin:0 auto 15px}
+ & #directionClubTicket>.edition-club-runway #nextSearch{padding-inline:17px}
+ & .hero-centre>.eyebrow{font-size:12px;margin-bottom:20px}
+ & .next-filter-bar>#nextEditStay{grid-column:1/-1;justify-content:space-between;padding:4px 0;border-bottom:1px solid #33363a}
+ & .next-filter-bar>label{border-top:0}
+ & .next-filter-bar>label:first-of-type{justify-content:flex-start;padding-right:14px;border-right:1px solid #33363a}
+ & .next-filter-bar>label:last-of-type{padding-left:14px;border:0;min-width:0}
+ & .next-filter-bar select{font-size:16px}
+ & .next-filter-bar .filter-budget>span{display:none}
+ & .next-discovery[data-layout=gallery]>.next-results-panel{padding:13px 20px 45px}
+ & .next-view-switch{width:100%}
+ & .next-view-switch button{flex:1;min-height:44px}
+}}
+@media(prefers-reduced-motion:reduce){body[data-direction="club"][data-edition="club"].europe-ready{
+ & :is(.next-ticket,.next-card-image img,.route-line>span,.button,.search-submit,.card-save,.next-view-switch button,.photo-controls button,.europe-home-controls button){transform:none!important;transition:none}
 }}

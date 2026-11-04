@@ -140,6 +140,23 @@ try{
     await page.waitForFunction(()=>{const form=document.getElementById('nextSearch').getBoundingClientRect(),nav=document.querySelector('.next-nav').getBoundingClientRect();return form.top>=nav.bottom-1&&form.top<innerHeight/2;});
     assert.ok(await page.evaluate(()=>scrollY)>before,'Plan your move brings the form into view');
     assert.equal(new URL(page.url()).hash,'#nextSearch');assert.equal(new URL(page.url()).searchParams.get('edition'),'club');await geometry(page);
+    await page.locator('#nextMoveIn').fill(arrival);await page.locator('#nextMoveOut').fill(departure);await page.locator('#nextBudget').selectOption('1500');await page.locator('#nextPeople').selectOption('couple');
+    await page.evaluate(()=>{window.__originalPlannerForm=document.getElementById('nextSearchForm');});
+    await page.locator('#nextMoveOut').focus();
+    for(const viewport of [1280,390]){
+     await page.setViewportSize({width:viewport,height:900});
+     await page.waitForFunction(width=>document.querySelector('.edition-club-runway').parentElement.id===(width<=650?'directionClubTicket':'nextHero'),viewport);
+     assert.equal(await page.evaluate(()=>document.getElementById('nextSearchForm')===window.__originalPlannerForm),true,'a breakpoint moves the original form with its listeners intact');
+     assert.equal(await page.evaluate(()=>document.activeElement.id),'nextMoveOut','responsive reordering preserves keyboard focus in the edited field');
+     assert.deepEqual(await page.locator('#nextMoveIn,#nextMoveOut,#nextBudget,#nextPeople').evaluateAll(inputs=>inputs.map(input=>input.value)),[arrival,departure,'1500','couple'],'responsive reordering preserves the unsubmitted draft');
+     await geometry(page,['#nextSearchForm button[type="submit"]']);
+    }
+    assert.equal(await page.evaluate(()=>!!(document.getElementById('nextSearchForm').compareDocumentPosition(document.getElementById('boomGlobeMount'))&Node.DOCUMENT_POSITION_FOLLOWING)),true,'mobile keyboard order reaches the real form before the globe');
+    await city(page,'madrid');await page.waitForFunction(()=>document.querySelector('.edition-club-runway').parentElement.id==='nextHero');
+    assert.deepEqual(await page.locator('#europeMoveIn,#europeMoveOut,#europeBudget,#europePeople').evaluateAll(inputs=>inputs.map(input=>input.value)),[arrival,departure,'1500','couple'],'the same EUR draft reaches the desk after the mobile reparent');
+    await city(page,'rome');await page.waitForFunction(()=>document.querySelector('.edition-club-runway').parentElement.id==='directionClubTicket');
+    assert.equal(await page.evaluate(()=>document.getElementById('nextSearchForm')===window.__originalPlannerForm),true);
+    assert.deepEqual(await page.locator('#nextMoveIn,#nextMoveOut,#nextBudget,#nextPeople').evaluateAll(inputs=>inputs.map(input=>input.value)),[arrival,departure,'1500','couple'],'returning to Rome restores the complete draft');
    }
    if(edition==='perspective'){
     await city(page,'amsterdam');await geometry(page);
