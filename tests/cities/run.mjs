@@ -64,7 +64,7 @@ import {
   orgNode, serviceNode, numberWord, listJoin, dateLong, homeCountryOf, isHomeDesk,
   renderHub, buildHub, HUB_WEIGHT_KB, HUB_BUDGET, HUB_FILE, HUB_PATH, COUNTRY_NAME, hoursSentence, hubText, CALL_RE, RATING_RE,
   reviewSentences, claimProblems, claimGuard, lintClaims, loadClaims, CLAIM_VOCAB_RE, CLAIM_KINDS, CLAIMS_FILE,
-  hasClaimVocab, claimHits, sellHit, closeUp, cleanText, normSentence, PLACE_RE, htmlFieldGuard
+  hasClaimVocab, claimHits, sellHit, closeUp, cleanText, normSentence, PLACE_RE, htmlFieldGuard, neutralValue
 } from '../../build-cities.mjs';
 import SCALO from '../../js/scalo-codes.js';
 import CAL from '../../js/desk-calendar.js';
@@ -1159,11 +1159,11 @@ tplRefuses('<p class="proof">', '<p class="proof">Pay by bank transfer · ', /no
       const nb4 = BAN4.filter((t) => !claimProblems(page(t), { claims, sell: true }).some((p) => p.why === 'banned'));
       check(!nb4.length && !sellHit('Within 30 days the landlord lodges it in a government-approved scheme (DPS, TDS or mydeposits) and sends you its details') && closeUp('R.A.I.C.V. and K.v.K.') === 'RAICV and KvK',
         'fourth round: the registers by name and initials (closed up: R.A.I.C.V., K.v.K., T.P.O.; KvK12345678; §34 c; Paragraph 34c) are banned on a desk that sells; the deposit schemes DPS, TDS, mydeposits are not', nb4.join(' | '));
-      // (h5) the context rules: the Rome line is not continued elsewhere; a reviewed heading is not followed by an unreviewed place
+      // (h5) the context rules: the Rome line is not continued elsewhere; a reviewed label is not followed by an unreviewed place (the label rule, fifth round)
       const CTX4 = [['<dl><dt>Who</dt><dd>Egidi Immobiliare S.r.l. is an Italian real estate agency, registered in Rome. Also in Valencia, since 2026.</dd></dl>', 'place'],
         ['<dl><dt>Who</dt><dd>Egidi Immobiliare S.r.l. is an Italian real estate agency, registered in Rome; also in Valencia.</dd></dl>', 'place'],
         ['<dl><dt>Who</dt><dd>Egidi Immobiliare S.r.l. is an Italian real estate agency, registered in Rome. And with the Comunitat, in València.</dd></dl>', 'place'],
-        ['<dl><dt>Registration</dt><dd>In Valencia, with the Generalitat.</dd></dl>', 'heading'], ['<dl><dt>Registration</dt><dd>In Valencia, since 2026.</dd></dl>', 'heading']];
+        ['<dl><dt>Registration</dt><dd>In Valencia, with the Generalitat.</dd></dl>', 'label'], ['<dl><dt>Registration</dt><dd>In Valencia, since 2026.</dd></dl>', 'label']];
       const ctxMiss = CTX4.filter(([h, w]) => !claimProblems(pg(h), { claims, sell: true }).some((p) => p.why === w)).map(([h]) => h);
       const ctxOk = [['<dl><dt>Who</dt><dd>Egidi Immobiliare S.r.l. is an Italian real estate agency, registered in Rome. Hired by the tenant, paid by the tenant only.</dd></dl>'],
         ['<dl><dt>Registration</dt><dd>padrón · NIE</dd><dd>Registered at the town hall with your lease: the SIP health card and a school place hang on it.</dd></dl>']].filter(([h]) => claimProblems(pg(h), { claims, sell: true }).length).map(([h]) => h);
@@ -1199,10 +1199,10 @@ tplRefuses('<p class="proof">', '<p class="proof">Pay by bank transfer · ', /no
       // the build: an entity or a zero-width character inside the word is refused through render()
       refuses((c) => { c.bref.rows[2].ddHtml += ' R&#101;gistered with the Generalitat Valenciana.'; }, /cities\/valencia\.json: 1 sentence\(s\) about registration or licences not reviewed.*"Registered with the Generalitat Valenciana" \(text\)/, 'build: "R&#101;gistered with the Generalitat Valenciana." in a fact-sheet row is refused (the entity no longer cuts the word)', 'valencia');
       refuses((c) => { c.faq.items[1].a += ' Regis\u200Btered with the Generalitat Valenciana.'; }, /cities\/valencia\.json: 1 sentence\(s\) about registration or licences not reviewed.*"Registered with the Generalitat Valenciana" \(text, ld\)/, 'build: a zero-width space inside "Registered" in the FAQ is refused', 'valencia');
-      refuses((c) => { c.bref.rows.splice(1, 0, { dt: 'Registration', ddHtml: 'In Valencia, since 2026.' }); }, /after the reviewed heading \("Registration"\), a sentence names a desk place or an authority and is not reviewed: "In Valencia, since 2026"/, 'build: a fact-sheet row "Registration" followed by "In Valencia, since 2026." is refused (the heading rule)', 'valencia');
+      refuses((c) => { c.bref.rows.splice(1, 0, { dt: 'Registration', ddHtml: 'In Valencia, since 2026.' }); }, /next to the reviewed label \("Registration"\), a sentence is not reviewed and reads as its value \(it names a desk place, an authority, a number or a code, speaks for us, or says yes, since, number, file, list, active, valid, done, ✓…\): "In Valencia, since 2026"/, 'build: a fact-sheet row "Registration" followed by "In Valencia, since 2026." is refused (the label rule)', 'valencia');
       // verifier A's surfaces: "approved" with no other trigger word, in the JSON-LD only, in a check, in a meta description
       refuses((c) => { c.service.description += ' Approved by the Generalitat Valenciana as an agent.'; }, /not reviewed in cities\/_claims\.json: "Approved by the Generalitat Valenciana as an agent" \(ld\)/, 'build: "Approved by the Generalitat Valenciana as an agent." in the Service (JSON-LD only) is refused', 'valencia');
-      refuses((c) => { c.checks.items[1].text += ' We are on the Generalitat list of agents.'; }, /not reviewed in cities\/_claims\.json: "We are on the Generalitat list of agents"/, 'build: "We are on the Generalitat list of agents." in a check is refused (the authority is in the vocabulary)', 'valencia');
+      refuses((c) => { c.checks.items[0].text += ' We are on the Generalitat list of agents.'; }, /not reviewed in cities\/_claims\.json: "We are on the Generalitat list of agents"/, 'build: "We are on the Generalitat list of agents." in a check with no reviewed label is refused (the authority is in the vocabulary)', 'valencia');
       refuses((c) => { c.meta.description = 'Apartment search for expats in Valencia, an approved agent: a Spanish-format file, applications as listings appear, viewings attended.'; }, /not reviewed in cities\/_claims\.json: "Apartment search for expats in Valencia, an approved agent: a Spanish-format file, applications as listings appear, viewings attended" \(meta/, 'build: "an approved agent" in the meta description is refused', 'valencia');
       // (h8) the served assets: no string of assets/boom-*.js and no CSS content string carries the vocabulary
       for (const f of fs.readdirSync(path.join(R, 'assets')).filter((x) => /^boom-[\w-]+\.(?:js|css)$/.test(x))) {
@@ -1212,12 +1212,123 @@ tplRefuses('<p class="proof">', '<p class="proof">Pay by bank transfer · ', /no
         check(strs.length > 0 && !hit.length, `assets/${f}: none of its ${strs.length} ${f.endsWith('.js') ? 'string literals' : 'content strings'} carries registration, licence or authority vocabulary`, hit.join(' | '));
       }
     }
+    // ── fifth round (04/11/2026): the number shapes read whole, the splitter's belt, the value next to a reviewed label,
+    //    the local words for a licence, a certificate or a membership ──
+    {
+      const desk = (slug, mut) => { const c = clone(CITY[slug]); mut(c); try { render(c); return 'built clean'; } catch (e) { return e instanceof BuildError ? e.message : `threw ${e.name}: ${e.message}`; } };
+      const reEsc = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const pg5 = (b) => `<!DOCTYPE html><html><head><title>t</title></head><body><main>${b}</main></body></html>`;
+      const why5 = (h, sell = true) => claimProblems(pg5(h), { claims, sell }).map((p) => p.why);
+      // (F1a) the splitter never cuts after the abbreviation of a number; it still splits a sentence, and "S.r.l. is" stays one
+      const at5 = (h) => reviewSentences(pg5(`<p>${h}</p>`)).filter((x) => x.where === 'text' && !x.cut).map((x) => x.text);
+      const runOn = 'n. 1234. Lic. no. 4471. Regd. 1234. Agent ref. CV-1234. Núm. 1234. Nr. 1234. REG. NO. 1234.';
+      check(JSON.stringify(at5('Agent no. CV-1234.')) === '["Agent no. CV-1234"]' && JSON.stringify(at5('Reg. No. 12345.')) === '["Reg. No. 12345"]'
+        && JSON.stringify(at5(runOn)) === '["n. 1234","Lic. no. 4471","Regd. 1234","Agent ref. CV-1234","Núm. 1234","Nr. 1234","REG. NO. 1234"]'
+        && JSON.stringify(at5('We act as an agent. What we check is the lease.')) === '["We act as an agent","What we check is the lease"]'
+        && JSON.stringify(at5('Egidi Immobiliare S.r.l. is an Italian real estate agency. Rome is its seat.')) === '["Egidi Immobiliare S.r.l. is an Italian real estate agency","Rome is its seat"]',
+        'fifth round: the splitter keeps "Agent no. CV-1234", "Reg. No. 12345" and no./nr./n./núm./reg./regd./lic./ref. whole, still splits "as an agent. What…", and keeps "S.r.l. is…" in one sentence', `${JSON.stringify(at5('Agent no. CV-1234.'))} ${JSON.stringify(at5(runOn))}`);
+      // (F1b) the number shapes, read whole, are unreviewed sentences: refused on a desk that sells in a FAQ answer, a check text and a fact-sheet row
+      const F1 = ['Agent no. CV-1234.', 'Our agent no. CV-1234 is on every invoice.', 'Agent no. 4471 in Valencia.', 'Reg. No. 12345.', 'Reg. no. 123456.', 'Reg. 123456.', 'Regd. 1234.', 'Lic. No. 4567.', 'Lic. no. 4471.',
+        'Agent ref. CV-1234.', 'Reg. no. CV-1234.', 'Reg. no. NL-88123.', 'Agent number CV 1234.', 'Número de agente 1234.'];
+      for (const [where, mut] of [['a FAQ answer', (c, t) => { c.faq.items[1].a += ` ${t}`; }], ['a check text', (c, t) => { c.checks.items[0].text += ` ${t}`; }], ['a fact-sheet row (ddHtml, &nbsp; as an entity)', (c, t) => { c.bref.rows[2].ddHtml += ` ${t.replace(/ /g, '&nbsp;')}`; }]]) {
+        const miss = F1.filter((t) => !new RegExp(`not reviewed in cities/_claims\\.json: "${reEsc(normSentence(t))}" \\(`).test(desk('valencia', (c) => mut(c, t))));
+        check(!miss.length, `fifth round: the ${F1.length} number shapes ("Agent no. CV-1234", "Reg. No. 12345", "Regd. 1234", "Lic. no. 4471", "Agent ref. CV-1234", "Reg. no." with &nbsp;, "Agent number CV 1234", "Número de agente 1234") in ${where} on valencia are refused, each read whole as one unreviewed sentence`,
+          miss.map((t) => `${t} → ${desk('valencia', (c) => mut(c, t)).slice(0, 180)}`).join(' | '));
+      }
+      {
+        const F1x = ['Agency number CV-1234.', 'Agency ref. CV-1234.', 'Ref. 1234.', 'Registration ID: CV-1234.', 'Agent code CV-1234.', 'License #1234.', 'Agent N.º 1234.', 'Agent nr 1234.', 'Iscrizione n. 1234.', 'Numero di iscrizione 1234.'];
+        const miss = F1x.filter((t) => !new RegExp(`not reviewed in cities/_claims\\.json: "${reEsc(normSentence(t))}" \\(`).test(desk('valencia', (c) => { c.faq.items[1].a += ` ${t}`; })));
+        check(!miss.length, `fifth round: ${F1x.length} more number shapes (agency, ref., ID, code, #, N.º, nr, "Iscrizione n.", "Numero di iscrizione") in a FAQ answer on valencia are refused, each read whole`, miss.join(' | '));
+      }
+      check(['REA RM-1710623', 'L. 311/2004', 'DPR 131/86', 'RDL 29/2026', 'LAU art. 20', 'Llei 11/2025', '€500, £199 and €149', '1 Nov 2026', 'Nov 2026', 'Egidi Immobiliare S.r.l.', 'e.g. Funda and Pararius',
+        'No. Full Search €500, Application Pack €199 and Attended Viewing €149 per viewing', 'no fee before 2026', 'within 30 days of signing', 'No more than 3 months', 'the agency fee €500', 'the agency fee is €149 per viewing', 'agency fee 10%'].every((t) => !hasClaimVocab(t)),
+        'fifth round: the true copy stays clean: law references (L. 311/2004, DPR 131/86, RDL 29/2026, LAU art. 20), prices, dates ("Nov 2026" is not "no 2026"), REA RM-1710623, S.r.l., e.g., and "No. Full Search €500…" carry no number shape');
+      // (F1c) the belt: a hit the splitter cuts (a dot the lookbehind does not know, a newline) refuses the whole string
+      check(why5('<p>Agent. CV-1234 in Valencia.</p>').includes('cut') && claimProblems(pg5('<script type="application/ld+json">{"d":"Our agent\\n4471 in Valencia."}</script>'), { claims, sell: true }).some((p) => p.why === 'cut' && p.where === 'ld')
+        && !why5('<p>Egidi Immobiliare S.r.l., registered in Rome. Hired by the tenant, paid by the tenant only.</p>').includes('cut'),
+        'fifth round: the belt refuses a string whose whole text has a hit its sentences lost ("Agent. CV-1234", "agent\\n4471" in a JSON-LD string), and not a company line with S.r.l. (closed-up copies counted apart)');
+      refuses((c) => { c.faq.items[1].a += ' Agent. CV-1234 in Valencia.'; }, /a registration or licence word, a register's initials or a number shape is split by the sentence splitter \(on the page it reads as one claim\): ".*Agent\. CV-1234 in Valencia" \(text/,
+        'build: "Agent. CV-1234 in Valencia." in a FAQ answer is refused by the belt, naming the whole answer', 'valencia');
+      // (F2) the value next to a reviewed label: reviewed, or neutral (no vocabulary, place, three digits or code, first person, yes/since/number/file/list…)
+      const F2 = [
+        ['valencia', 'a fact-sheet row "Registration" / "Yes, since 2026."', (c) => c.bref.rows.splice(1, 0, { dt: 'Registration', ddHtml: 'Yes, since 2026.' }), 'Registration', 'Yes, since 2026'],
+        ['valencia', 'a fact-sheet row "Registration" / "CV-1234"', (c) => c.bref.rows.splice(1, 0, { dt: 'Registration', ddHtml: 'CV-1234' }), 'Registration', 'CV-1234'],
+        ['valencia', 'a fact-sheet row "Generalitat" / "On its list of agents since 2026."', (c) => c.bref.rows.splice(1, 0, { dt: 'Generalitat', ddHtml: 'On its list of agents since 2026.' }), 'Generalitat', 'On its list of agents since 2026'],
+        ['barcelona', 'a fact-sheet row "INCASÒL" / "Yes, our number is on file."', (c) => c.bref.rows.splice(1, 0, { dt: 'INCASÒL', ddHtml: 'Yes, our number is on file.' }), 'INCASÒL', 'Yes, our number is on file'],
+        ['valencia', 'a check "Registration", at "Generalitat", "Our file number is CV-1234; ask us for it."', (c) => { Object.assign(c.checks.items[4], { title: 'Registration', at: 'Generalitat', text: 'Our file number is CV-1234; ask us for it.' }); }, 'Generalitat', 'Our file number is CV-1234'],
+        ['valencia', 'a fact-sheet row "Registration" / "CV 1234 since 2025"', (c) => c.bref.rows.splice(1, 0, { dt: 'Registration', ddHtml: 'CV 1234 since 2025' }), 'Registration', 'CV 1234 since 2025'],
+        ['barcelona', 'a check "Registration", at "INCASÒL", "Our agency file is number B-5521; we show it on request."', (c) => { Object.assign(c.checks.items[4], { title: 'Registration', at: 'INCASÒL', text: 'Our agency file is number B-5521; we show it on request.' }); }, 'INCASÒL', 'Our agency file is number B-5521'],
+        ['madrid', 'a check "Registration" whose legal label (before the title) is "agency file 4471"', (c) => { Object.assign(c.checks.items[4], { title: 'Registration', at: 'agency file 4471' }); }, 'Registration', 'agency file 4471'],
+        ['valencia', 'the deposit check (label "fianza · Generalitat") with "Our agency number there is V-5521."', (c) => { c.checks.items[1].text = 'Habitual lease: one month. Our agency number there is V-5521.'; }, 'Generalitat', 'Our agency number there is V-5521'],
+        ['barcelona', 'a fact-sheet row "fianza · INCASÒL" / "Yes, our number is on file."', (c) => c.bref.rows.splice(1, 0, { dt: 'fianza · INCASÒL', ddHtml: 'Yes, our number is on file.' }), 'INCASÒL', 'Yes, our number is on file'],
+        ['valencia', 'a fact-sheet row "Registration" / "At the town hall.<br>CV-1234" (a <br> is the same value)', (c) => c.bref.rows.splice(1, 0, { dt: 'Registration', ddHtml: 'At the town hall.<br>CV-1234' }), 'Registration', 'CV-1234'],
+        ['valencia', 'a fact-sheet row "Registration" / "✓"', (c) => c.bref.rows.splice(1, 0, { dt: 'Registration', ddHtml: '✓' }), 'Registration', '✓'],
+        ['valencia', 'a fact-sheet row "Registration" / "Active."', (c) => c.bref.rows.splice(1, 0, { dt: 'Registration', ddHtml: 'Active.' }), 'Registration', 'Active'],
+        ['valencia', 'a fact-sheet row "Registration · CV-1234" (the value inside the label)', (c) => c.bref.rows.splice(1, 0, { dt: 'Registration · CV-1234', ddHtml: 'On request.' }), 'Registration', 'CV-1234'],
+        ['valencia', 'a FAQ answer with "Registration. Yes, since 2026." inside prose', (c) => { c.faq.items[1].a += ' Registration. Yes, since 2026.'; }, 'Registration', 'Yes, since 2026']];
+      const f2miss = F2.filter(([s, , mut, label, value]) => !new RegExp(`next to the reviewed label \\([^)]*"${reEsc(label)}"[^)]*\\), a sentence is not reviewed and reads as its value .*"${reEsc(value)}" \\([^)]*text`).test(desk(s, mut)));
+      check(!f2miss.length, `fifth round: the ${F2.length} values next to a reviewed label ("Registration", "Generalitat", "INCASÒL", "fianza · INCASÒL"; after it, before it as a check's legal label, after a <br>) are refused on their desk, naming the label and the value`,
+        f2miss.map(([s, t, mut]) => `${s}: ${t} → ${desk(s, mut).slice(0, 200)}`).join(' | '));
+      {
+        const m1 = desk('valencia', (c) => { c.faq.items[1].a += ' Registration. No. CV-1234.'; });
+        check(hasClaimVocab('No. CV-1234') && /: "No\. CV-1234" \((?:ld, text|text, ld)\)/.test(m1) && !/"How do I avoid/.test(m1),
+          'fifth round: "Registration. No. CV-1234." in a FAQ answer is refused, "No. CV-1234" read whole (a number shape, and the value of the key); the next question is not read as a value', m1.slice(0, 300));
+        const m2 = desk('valencia', (c) => { c.service.description += ' Registration. Yes, since 2026.'; });
+        check(/next to the reviewed label \("Registration"\), a sentence is not reviewed and reads as its value .*"Yes, since 2026" \(ld\)/.test(m2),
+          'fifth round: "Registration. Yes, since 2026." in the Service description (JSON-LD only) is refused: inside a string the sentence after a key is its value', m2.slice(0, 300));
+        const m3 = desk('valencia', (c) => { c.service.description += ' Registration. CV-1234.'; });
+        check(/split by the sentence splitter .*Registration\. CV-1234\. .*" \(ld\)/.test(m3), 'fifth round: "Registration. CV-1234." in the Service description is refused by the belt ("registration" + a code read across the dot)', m3.slice(0, 300));
+      }
+      // the label rule's scope: inside a table only a <th> is a label; the build's codes (span.tn) are skipped; the block before is read only when it is a label
+      check(!why5('<table><tr><th>Deposit</th><td>fianza · INCASÒL</td><td>since 2024</td><td>art. 11 L. 392/1978</td></tr></table>').length
+        && why5('<table><tr><th>Registration</th><td>CV-1234</td></tr></table>').includes('label')
+        && !why5('<ol><li><span class="tn">MIL 08</span> <span class="tt">University enrolment, for students</span></li><li><span class="tn">MIL 09</span> <span class="tt">Payslips</span></li></ol>').length
+        && why5('<details><summary><span class="ln">05</span> <span class="at">agency file 4471</span> <span class="t">Registration</span></summary><p>Your lease needs the full address.</p></details>').includes('label')
+        && !why5('<p>We check the lease and the address with the town hall before you sign it, every time.</p><dl><dt>Registration</dt><dd>padrón · NIE</dd></dl>').length,
+        'fifth round: the label rule\'s scope — a table cell is the value of its row head (never a label of its own), a <th> is a label, the paper codes (MIL 08) are skipped, the block before a label is read when it is a label too ("agency file 4471"), not when it is prose');
+      check(['padrón', 'NIE', 'BRP', 'Right to Rent', 'The deposit', 'Your lease needs the full address, cadastral reference and both signatures, or the town hall refuses it', '05', 'Opening', 'Agenzia delle Entrate'].every(neutralValue)
+        && !['Yes, since 2026', 'CV-1234', 'CV 1234 since 2025', 'B 5521', 'agency file 4471', 'On its list of agents since 2026', 'Yes, our number is on file', 'In Valencia', 'In Wales', 'We hold one', 'Our file',
+          'Active', 'Valid until March', '✓', 'Sí', 'Ja', 'Desde 2024', 'Dal 2024', 'Seit 2024', 'Depuis 2024', 'Nummer 12', 'Número 12', 'Lista', 'On its listing', 'On record', 'In the directory', 'On the roster'].some(neutralValue),
+        'fifth round: a value is neutral with no vocabulary, desk place, three digits or code, first person, nor yes/since/number/file/list/listing/record/directory/roster/active/valid/✓ in the desk languages');
+      // kind follower: the true values next to a label, each needed by a built page, linted
+      const followers = claims.allowed.filter((e) => e.kind === 'follower');
+      const notNeeded = followers.filter((f) => { const less = { ...claims, allowed: claims.allowed.filter((e) => e !== f) }; return ![...SLUGS.map((x) => [x, PAGE[x]]), ['desks', hubHtml]].some(([x, h]) => claimProblems(h, { claims: less, sell: SELLERS.includes(x) }).some((p) => p.why === 'label' && p.text === f.text)); });
+      check(followers.length === 6 && !notNeeded.length, `fifth round: the ${followers.length} followers of ${CLAIMS_FILE} ("We confirm it before you sign", "we ask for the receipt", "The rest we go through on the free call"…) are each the value of a reviewed label on a built page (remove one and that page is refused)`, notNeeded.map((e) => e.text).join(' | '));
+      check([['Yes, since 2026', /kind follower/], ['In Valencia', /kind follower names a desk place/], ['CV-1234', /kind follower carries a number of three digits or a code/], ['We hold one', /never says that we hold/], ['We are on it', /never says that we hold/],
+        ['On its list of agents', /kind follower says "list"/], ['Registered with us', /kind follower carries a registration/], ['Done', /kind follower says "Done"/]].every(([text, re]) => lintRefuses({ text, kind: 'follower' }, re))
+        && !lintRefuses({ text: 'We read it with you before you sign', kind: 'follower' }, /./),
+        'fifth round lint: a follower may speak for us ("We read it with you before you sign"), nothing else of a value: no vocabulary, desk place, number or code, yes/since/file/list/done, nor "we hold / we are on"');
+      // (F3) the vocabulary: the local words for a licence, a certificate, a sworn or affiliated agent, and the approval synonyms
+      const F3 = [['amsterdam', 'Makelaar met vergunning.'], ['amsterdam', 'Gecertificeerd makelaar in Amsterdam.'], ['amsterdam', 'SCVM-gecertificeerd.'], ['amsterdam', 'Aangesloten bij de vereniging van makelaars.'], ['amsterdam', 'Beëdigd makelaar.'],
+        ['valencia', 'Somos una agencia homologada en Valencia.'], ['valencia', 'Agencia afiliada a la asociación de agentes de Valencia.'], ['madrid', 'Agencia asociada al colegio de agentes.'], ['valencia', 'Con permiso municipal para operar.'],
+        ['barcelona', 'Agència associada al Col·legi d’Agents de Barcelona.'], ['milan', 'Agenzia certificata a Milano.'], ['milan', "Agenzia associata all'associazione agenti immobiliari di Milano."], ['milan', 'Agente con patentino a Milano.'],
+        ['milan', 'Socio Fimaa Milano.'], ['milan', 'With Fimaa Milano since 2024.'], ['valencia', 'BOOM is permitted to broker leases in Valencia.'], ['valencia', 'BOOM is entitled to work as an agent in Spain.'],
+        ['valencia', 'Endorsed by the Valencia city council.'], ['valencia', 'Vetted by the Valencian consumer office.'], ['london', 'Endorsed by the London Assembly.'], ['london', 'TrustMark letting agent.'],
+        ['london', 'We are signed up to an independent complaints scheme for letting agents.'], ['london', 'Our agents are qualified under English law.'], ['paris', 'Agence certifiée à Paris.'], ['paris', 'Affiliée à la FNAIM.'], ['paris', 'Adhérent FNAIM.'],
+        ['berlin', 'Zertifizierter Makler in Berlin.'], ['berlin', 'IHK-geprüfter Makler.']];
+      const f3miss = F3.filter(([s, t]) => !/not reviewed in cities\/_claims\.json|names a register or a licence it does not hold/.test(desk(s, (c) => { c.faq.items[1].a += ` ${t}`; })));
+      check(!f3miss.length, `fifth round: the ${F3.length} local-language and synonym claims (vergunning, gecertificeerd, aangesloten, beëdigd; homologada, afiliada, asociada, associada, permiso; certificata, associata, patentino, Fimaa; permitted, entitled, endorsed, vetted, TrustMark, complaints scheme, qualified under; certifiée, affiliée, adhérent, FNAIM; zertifiziert, IHK) are refused on their desk (the six that sell, the Paris and Berlin drafts)`,
+        f3miss.map(([s, t]) => `${s}: ${t}`).join(' | '));
+      check(/names a register or a licence it does not hold \(Fimaa\)/.test(desk('milan', (c) => { c.faq.items[1].a += ' Socio Fimaa Milano.'; })) && ['IHK', 'FNAIM', 'IVD', 'Fimaa', 'fiaip', 'Aicat', 'raicv'].every((t) => sellHit(`${t} member`)),
+        'fifth round: on a desk that sells, "Fimaa" (any case, as a word), IHK, FNAIM and IVD are names it cannot ship, reviewed or not');
+      {
+        const hub = JSON.parse(read('cities/_hub.json')); hub.rules.note += ' Our desks are homologated.';
+        const r = throws(() => renderHub({ template: read('cities/_hub.html'), shared, hub, cities: SLUGS.map((s) => clone(CITY[s])), assetVersion: { css: 'testcss000', desksCss: 'testdcss00', desksJs: 'testdjs000' }, frags, root: R, weigh: false }), /cities\/_hub\.json: 1 sentence\(s\) about registration or licences not reviewed.*"Our desks are homologated"/);
+        check(r === true, 'fifth round: "Our desks are homologated." in the hub\'s rules note is refused on /desks', r);
+      }
+      check(['erkenning', 'toelating', 'Zulassung', 'Genehmigung', 'convenzionata', 'permís', 'omologata', 'qualified as an agent', 'endorsement', 'gecertificeerde', 'certifié', 'IVD-Makler', 'FIAIP-affiliated', 'iscritta all\'albo', 'Iscrizione al REA', 'Eintragung', 'inschrijving', 'immatriculée'].every(hasClaimVocab)
+        && !['associated', 'associate', 'agreement', 'energy certificate', 'allowed', 'qualified', 'qualify', 'Nov 2026', 'permission', 'Our association'].some(hasClaimVocab),
+        'fifth round: erkenning, toelating, Zulassung, Genehmigung, convenzionata, permís, omologata, "qualified as", albo, iscrizione, Eintragung, inschrijving, immatriculée are vocabulary; "associated", "associate", "agreement", "energy certificate", "allowed", a bare "qualified" are not');
+      check(['Wales', 'Welsh', 'Scotland', 'Scottish'].every((t) => PLACE_RE.test(t)) && why5('<dl><dt>Who</dt><dd>Egidi Immobiliare S.r.l. is an Italian real estate agency, registered in Rome. Also in Wales.</dd></dl>').includes('place')
+        && ['PRS', 'FNAIM', 'IVD', 'IHK'].every((n) => lintRefuses({ text: `The tenant checks the ${n} register`, kind: 'law' }, new RegExp(`names a register or a scheme no desk holds \\(${n}\\)`))),
+        'fifth round: Wales, Welsh, Scotland, Scottish are desk places (the place rule); an entry naming PRS, FNAIM, IVD or IHK is refused by the lint');
+    }
     // (g) the page-level mirror, a literal copy independent of the build: no selling desk names a register it does not hold
-    const HELD = /\bRAICV\b|Registro de Agentes|\bAICAT\b|Registre d['’]Agents|carte professionnelle|\bcarte T\b|§\s*34\s*c|Paragraph\s*34\s*c|Property Ombudsman|Property Redress|redress scheme|Propertymark|\bARLA\b|\bNAEA\b|\bKvK|Kamer van Koophandel|\bTPO\b|\bCMP\b|client money protection|\bRICS\b|\bNVM\b|\bVBO\b|Agente de la Propiedad|colegiad/i;
+    const HELD = /\bRAICV\b|Registro de Agentes|\bAICAT\b|Registre d['’]Agents|carte professionnelle|\bcarte T\b|§\s*34\s*c|Paragraph\s*34\s*c|Property Ombudsman|Property Redress|redress scheme|Propertymark|\bARLA\b|\bNAEA\b|\bKvK|Kamer van Koophandel|\bTPO\b|\bCMP\b|client money protection|\bRICS\b|\bNVM\b|\bVBO\b|Agente de la Propiedad|colegiad|\bFIMAA\b|\bFIAIP\b|\bPRS\b|\bFNAIM\b|\bIVD\b|\bIHK\b/i;
     for (const s of SELLERS) {
       const said = reviewSentences(PAGE[s]).map((x) => x.text).join(' \n ');
       const m = said.match(HELD);
-      check(!m, `${s}: no register or licence it does not hold (RAICV, AICAT, carte professionnelle, carte T, §34c, redress scheme, Property Ombudsman, Propertymark, ARLA, NAEA, KvK, TPO, CMP, RICS, NVM, VBO, Agente de la Propiedad, colegiado)`, m ? m[0] : '');
+      check(!m, `${s}: no register or licence it does not hold (RAICV, AICAT, carte professionnelle, carte T, §34c, redress scheme, Property Ombudsman, Propertymark, ARLA, NAEA, KvK, TPO, CMP, RICS, NVM, VBO, Agente de la Propiedad, colegiado, FIMAA, FIAIP, PRS, FNAIM, IVD, IHK)`, m ? m[0] : '');
     }
     // the hub runs the same guard
     {

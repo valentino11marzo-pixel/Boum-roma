@@ -2289,6 +2289,20 @@ const CLAIM_STEMS = [
   String.raw`enrol${LET}*`, String.raw`inscri${LET}*`, String.raw`colegiad${LET}*`, String.raw`col·?legia[dt]${LET}*`, String.raw`habilit${LET}*`, String.raw`iscritt${LET}*`, String.raw`abilitat${LET}*`, 'ruolo',
   'ingeschreven', String.raw`erkend${LET}*`, String.raw`eingetragen${LET}*`, String.raw`zugelassen${LET}*`, String.raw`agr[ée]é${LET}*`, 'miembros?', 'membres?', String.raw`mitglied${LET}*`, 'lid van',
   'redress', 'ombudsman', 'propertymark',
+  // fifth round: the synonyms of approval and the local words for a licence, a certificate, a sworn or affiliated agent
+  // (permitted, entitled, endorsed, vetted, homologated; vergunning, gecertificeerd, aangesloten, beëdigd, erkenning,
+  // toelating; Zulassung, Genehmigung, zertifiziert; certifiée, affiliée, adhérent; afiliada, asociada, associada,
+  // permiso, permís; certificata, associata, patentino, convenzionata). Not "allowed" (too common), and "associated",
+  // "associate", "agreement", "certificate" do not match (only the Italian/Spanish endings). "qualified" only as
+  // "qualified as/under/by".
+  'permitted', 'entitled', String.raw`endors${LET}*`, 'vetted', String.raw`homolog${LET}*`, String.raw`omologat${LET}*`, 'trustmark', 'complaints? schemes?', String.raw`qualified\s+(?:as|under|by)`,
+  String.raw`vergunning${LET}*`, String.raw`(?:${LET}*)gecertific${LET}*`, 'aangesloten', String.raw`be[eë]digd${LET}*`, String.raw`erkenning${LET}*`, String.raw`toelating${LET}*`,
+  String.raw`zulassung${LET}*`, String.raw`genehmigung${LET}*`, String.raw`zertifiz${LET}*`, String.raw`certifi[ée]${LET}*`, String.raw`affili[ée]${LET}*`, String.raw`adh[ée]rent${LET}*`,
+  String.raw`afiliad${LET}*`, 'asociad[ao]s?', 'associad[ao]s?', 'permisos?', 'perm[íi]s', 'certificat[ao]', 'associat[ao]', 'patentin[oi]', String.raw`convenzionat${LET}*`,
+  // and the nouns of registration the stems above miss: iscrizione, Eintragung, inschrijving, immatriculation, albo
+  String.raw`iscrizion${LET}*`, String.raw`eintragung${LET}*`, String.raw`inschrijving${LET}*`, String.raw`immatricul${LET}*`, 'albo',
+  // the registers' initials that are no English word, in any case ("Socio Fimaa Milano")
+  'fimaa', 'fiaip', 'aicat', 'raicv', 'fnaim',
   // the authorities and the registers, by name
   'generalitat', 'comunitat valenciana', 'comunidad de madrid', 'ayuntamiento', 'ajuntament', 'junta', 'consell', 'gemeente', 'municipality',
   'chamber of commerce', 'camera di commercio', String.raw`gewerbeamt${LET}*`, 'kamer van koophandel', String.raw`pr[ée]fecture`, String.raw`incas[òo]l`,
@@ -2296,8 +2310,19 @@ const CLAIM_STEMS = [
 ];
 const CLAIM_WORDS_RE = new RegExp(String.raw`(?<!${LET})(?:un|non-?|de|pre)?(?:${CLAIM_STEMS.join('|')})(?!${LET})`, 'giu');
 // the registers' initials: upper case, on the text and on a copy where "R.A.I.C.V." / "K.v.K." / "T P O" are closed up
-const CLAIM_ABBR_RE = /(?<![\p{L}\p{N}])(?:RAICV|AICAT|TPO|PRS|CMP|ARLA|NAEA|RICS|NVM|VBO|API|FIAIP|FIMAA|CCIAA|CCI|INCASÒL|INCASOL)(?!\p{Ll})|(?<!\p{L})[Kk][Vv][Kk](?!\p{L})/gu;
-const CLAIM_NUM_RE = /(?<!\p{L})(?:agent|reg|regd|lic|licen[cs]e|registration|n\.?[ºo°]|no)\.?\s*(?:no\.?|n\.?[ºo°]|number|#)?[:\s]*[A-Z]{0,3}-?\d{3,}|§\s*34\s*c|(?<!\p{L})paragraph\s*34\s*c|(?<![\p{L}\p{N}])34\s*c\s*GewO/giu;
+const CLAIM_ABBR_RE = /(?<![\p{L}\p{N}])(?:RAICV|AICAT|TPO|PRS|CMP|ARLA|NAEA|RICS|NVM|VBO|API|FIAIP|FIMAA|CCIAA|CCI|INCASÒL|INCASOL|IHK|FNAIM|IVD)(?!\p{Ll})|(?<!\p{L})[Kk][Vv][Kk](?!\p{L})/gu;
+// the number shapes (fifth round): a keyword (agent, agency, reg., regd., lic., licence, registration, ref., no., nr., n.,
+// núm., n.º) as a word, an optional "no." / "nr." / "n.º" / "núm." / "ref." / "ID" / "code" / "number" / "número" / "#", then a code
+// of up to three letters and three or more digits, joined, hyphenated or spaced ("Agent no. CV-1234", "Reg. 123456",
+// "Agent ref. CV-1234", "Agent ID CV-1234", "Agency number CV 1234", "Iscrizione n. 1234"); the Spanish and Italian order
+// ("Número de agente 1234", "numero di iscrizione 1234"); §34c in every spelling. The keyword is a whole word: "Nov 2026"
+// is not "no 2026"; "n." needs its dot.
+const NUM_CODE = String.raw`[:\s]*[A-Z]{0,3}[\s-]?\d{3,}`;
+const CLAIM_NUM_RE = new RegExp([
+  String.raw`(?<!\p{L})(?:(?:agent|agency|reg|regd|lic|licen[cs]e|registration|ref|n\.?[ºo°]|no|nr|n[úu]m)(?!\p{L})\.?|n\.)\s*(?:(?:no|nr|n\.?[ºo°]|n[úu]m|ref)(?!\p{L})\.?\s*|(?:n[úu]mero|number|id|code|#)(?!\p{L})\s*)?${NUM_CODE}`,
+  String.raw`(?<!\p{L})n[úu]mero\s+(?:de|di|del|della)\s+(?:agente|registro|inscripci[óo]n|iscrizione|licencia|licenza|llic[eè]ncia)${NUM_CODE}`,
+  String.raw`§\s*34\s*c`, String.raw`(?<!\p{L})paragraph\s*34\s*c`, String.raw`(?<![\p{L}\p{N}])34\s*c\s*GewO`
+].join('|'), 'giu');
 // "R.A.I.C.V." → "RAICV", "K.v.K." → "KvK", "T P O" → "TPO" (single letters closed up; only for matching)
 export const closeUp = (t) => String(t).replace(/(?<!\p{L})\p{L}(?:\.\p{L}(?!\p{L})){1,}\.?/gu, (m) => m.replace(/[.\s]/g, '')).replace(/(?<!\p{L})\p{Lu}(?:\s\p{Lu}(?!\p{L})){2,}/gu, (m) => m.replace(/\s/g, ''));
 // every vocabulary hit of one text (on the text and on its closed-up copy)
@@ -2309,20 +2334,22 @@ export function claimHits(t) {
 export const hasClaimVocab = (t) => claimHits(t).length > 0;
 // kept for the callers that read a regex: .test() is hasClaimVocab
 export const CLAIM_VOCAB_RE = { test: hasClaimVocab, toString: () => 'hasClaimVocab' };
-export const CLAIM_KINDS = ['company-rome', 'trade-mark', 'lease', 'tenant', 'deposit', 'listing', 'law', 'partner', 'heading', 'context'];
+export const CLAIM_KINDS = ['company-rome', 'trade-mark', 'lease', 'tenant', 'deposit', 'listing', 'law', 'partner', 'heading', 'context', 'follower'];
 // the registers and licences no desk that sells holds: never on a selling page, allowlisted or not
 // (tested on the text and on its closed-up copy, so "R.A.I.C.V." and "K.v.K. 12345678" are the names)
 const SELL_REGISTRY_WORDS_RE = /Registro de Agentes|Registre d['’]Agents|carte professionnelle|\bcarte T\b|§\s*34\s*c|\bParagraph\s*34\s*c|\b34\s*c\s*GewO|Property Ombudsman|Property Redress|redress scheme|Propertymark|client money protection|Agente de la Propiedad|colegiad|\bkvk|Kamer van Koophandel/i;
-const SELL_REGISTRY_ABBR_RE = /(?<![\p{L}\p{N}])(?:RAICV|AICAT|ARLA|NAEA|TPO|CMP|RICS|NVM|VBO|PRS|FIAIP|FIMAA)(?!\p{Ll})|(?<![\p{L}\p{N}])API\s+n|(?<!\p{L})[Kk][Vv][Kk](?!\p{L})/u;
+const SELL_REGISTRY_ABBR_RE = /(?<![\p{L}\p{N}])(?:RAICV|AICAT|ARLA|NAEA|TPO|CMP|RICS|NVM|VBO|PRS|FIAIP|FIMAA|FNAIM|IVD|IHK)(?!\p{Ll})|(?<![\p{L}\p{N}])API\s+n|(?<!\p{L})[Kk][Vv][Kk](?!\p{L})/u;
+// the initials that are no English word, in any case as a word ("Socio Fimaa Milano")
+const SELL_REGISTRY_CI_RE = /(?<![\p{L}\p{N}])(?:fimaa|fiaip|aicat|raicv|fnaim)(?![\p{L}\p{N}])/iu;
 export const SELL_REGISTRY_RE = { test: (t) => !!sellHit(t), toString: () => 'sellHit' };
 export function sellHit(t) {
   const s = cleanText(t);
-  for (const x of [s, closeUp(s)]) { const m = x.match(SELL_REGISTRY_WORDS_RE) || x.match(SELL_REGISTRY_ABBR_RE); if (m) return m[0]; }
+  for (const x of [s, closeUp(s)]) { const m = x.match(SELL_REGISTRY_WORDS_RE) || x.match(SELL_REGISTRY_ABBR_RE) || x.match(SELL_REGISTRY_CI_RE); if (m) return m[0]; }
   return null;
 }
 // in the allowlist itself: the registers no entry may name; the drafts' carte professionnelle and §34c
 // only in a statement of the law or of the partner's licence (kinds law, partner)
-const LINT_NEVER_RE = /\bRAICV\b|Registro de Agentes|\bAICAT\b|Registre d['’]Agents|Property Ombudsman|Property Redress|redress scheme|Propertymark|\bARLA\b|\bNAEA\b|\bkvk|Kamer van Koophandel|ombudsman|\bTPO\b|\bCMP\b|client money protection|\bRICS\b|\bNVM\b|\bVBO\b|Vastgoedpro|\bFIAIP\b|\bFIMAA\b|Agente de la Propiedad|\bAPI\b|colegiad|col·?legia[dt]|\bcarte T\b/i;
+const LINT_NEVER_RE = /\bRAICV\b|Registro de Agentes|\bAICAT\b|Registre d['’]Agents|Property Ombudsman|Property Redress|redress scheme|Propertymark|\bARLA\b|\bNAEA\b|\bkvk|Kamer van Koophandel|ombudsman|\bTPO\b|\bCMP\b|client money protection|\bRICS\b|\bNVM\b|\bVBO\b|Vastgoedpro|\bFIAIP\b|\bFIMAA\b|Agente de la Propiedad|\bAPI\b|colegiad|col·?legia[dt]|\bcarte T\b|\bPRS\b|\bFNAIM\b|\bIVD\b|\bIHK\b/i;
 const lintNever = (t) => { const s = cleanText(t); for (const x of [s, closeUp(s)]) { const m = x.match(LINT_NEVER_RE); if (m) return m[0]; } return null; };
 const LINT_DRAFT_RE = /carte professionnelle|§\s*34\s*c/i;
 // the round-2 company-subject rule, now the allowlist's lint: the company (we, BOOM …, Egidi …, the/our
@@ -2342,9 +2369,21 @@ const LINT_FIRST_RE = /\b(?:we|we're|we've|us|our|ours|BOOM|Egidi)\b/i;
 // nothing after Rome that names another place or adds one ("as well as", "and in", "also")
 const ROME_SEAT_RE = /^\s*(?:office:\s+)?(?:(?:in|with|the|at|of)\s+){0,3}(?:Rome|Roma|REA RM-1710623|Viale Liegi)\b|^\s*under\s+REA RM-1710623\b/i;
 // the desk places other than Rome and Italy (the place rule, and what follows Rome in a company line)
-export const PLACE_RE = /(?<!\p{L})(?:Amsterdam|Netherlands|Dutch|Holland|Barcelona|Catalonia|Catalunya|Catalan|Madrid|Valencia|València|Valencian|Comunitat|Spain|Spanish|London|England|UK|U\.K|British|Britain|Milan|Milano|Lombardy|Lombardia|Paris|France|French|Berlin|Germany|German)(?!\p{L})/u;
+export const PLACE_RE = /(?<!\p{L})(?:Amsterdam|Netherlands|Dutch|Holland|Barcelona|Catalonia|Catalunya|Catalan|Madrid|Valencia|València|Valencian|Comunitat|Spain|Spanish|London|England|UK|U\.K|British|Britain|Wales|Welsh|Scotland|Scottish|Milan|Milano|Lombardy|Lombardia|Paris|France|French|Berlin|Germany|German)(?!\p{L})/u;
 const ROME_AFTER_RE = /\b(?:as well as|and in|also|plus)\b/i;
 const CONTEXT_ADD_RE = /^(?:and|also|plus|too|as well)\b|\b(?:also|too|as well|since|offices?|branch(?:es)?|based|seat|headquarter\w*)\b/i;
+// fifth round: a reviewed short label is a key, and what stands next to it reads as its value. A value is NEUTRAL when it
+// has no vocabulary, no desk place, no run of three digits or code ("CV-1234", "B 5521"), no first person (we, our, us,
+// BOOM, Egidi) and none of the words that turn a label into a claim (yes, since, number, file, list, listing, record,
+// directory, roster in the desk languages, and the states and marks of a checklist: active, valid, done, granted, held,
+// current, confirmed, in place, ok, ✓):
+// "Registration — Yes, since 2026", "Generalitat — On its list of agents", "INCASÒL — our number is on file", "Registration ✓"
+export const VALUE_CODE_RE = /(?<![\p{L}\p{N}])[A-Z]{1,4}[\s-]?\d{2,}|\d{3,}/u;
+export const VALUE_WORDS_RE = /(?<!\p{L})(?:yes|sí|si|oui|ja|since|desde|dal|seit|depuis|numbers?|números?|numer[oi]|nummers?|files?|lists?|listas?|liste|listings?|records?|director(?:y|ies)|rosters?|active|valid|done|granted|held|current|confirmed|in place|ok)(?!\p{L})|[✓✔☑✅]/iu;
+export const neutralValue = (t) => !hasClaimVocab(t) && !PLACE_RE.test(t) && !VALUE_CODE_RE.test(t) && !LINT_FIRST_RE.test(t) && !VALUE_WORDS_RE.test(t);
+// a reviewed follower (kind follower) may speak for us ("We confirm it before you sign") but never says that we hold,
+// have or are on something
+const LINT_HOLD_RE = /\b(?:holds?|has|have|had|got|obtained|owns?|granted|issued|carr(?:y|ies))\b|\b(?:is|are|am|we're)\s+(?:on|in|with|under|part\s+of)\b/i;
 // the participle with no subject is the tenant's own only when its object is a tenant place
 const TENANT_PLACE_RE = /^(?:Registered|Enrolled)\s+(?:at|with|on|in)\s+(?:the\s+)?(?:town hall|municipality|gemeente|padrón|Anagrafe|university)\b/i;
 // the claim SHAPES the round-2 regexes knew, now a lint on the kinds that describe the lease, the tenant, the
@@ -2381,8 +2420,21 @@ export const normSentence = (s) => {
   const u = t.replace(/(?:\s*[.;·,])+$/, '').trim();
   return ABBR_END_RE.test(u) && t.slice(u.length).startsWith('.') ? `${u}.` : u;
 };
-// sentences: decoded and cleaned FIRST (so "&#101;" or "&shy;" is not split at its ";"), then . ! ? ; and a spaced ·
-const splitSentences = (t) => cleanText(t).split(/(?<=[.!?])\s+(?=[A-Z0-9"“‘'(«¿¡])|[;\n]|\s+·\s*|\s*·\s+/).map(normSentence).filter(Boolean);
+// sentences: decoded and cleaned FIRST (so "&#101;" or "&shy;" is not split at its ";"), then . ! ? ; and a spaced ·.
+// Never after the abbreviation of a number (fifth round): "Agent no. CV-1234", "Reg. 123456", "Lic. No. 4471", "n. 12",
+// "Agent ref. CV-1234" stay one sentence — no., nr., n., núm., num., reg., regd., lic., ref., n.º — so the number shapes of
+// the vocabulary see them whole. No i flag: "S.r.l. is" is not a split, and "as an agent. What" still is.
+const NUM_ABBR_DOT = String.raw`(?<!\p{L})(?:[Nn][Oo]|[Nn][Rr]|n|[Nn][ÚúUu][Mm]|[Rr][Ee][Gg][Dd]?|[Ll][Ii][Cc]|[Rr][Ee][Ff]|[Nn]\.?[ºo°])\.`;
+const SPLIT_RE = new RegExp(String.raw`(?<=[.!?])(?<!${NUM_ABBR_DOT})\s+(?=[A-Z0-9"“‘'(«¿¡])|[;\n]|\s+·\s*|\s*·\s+`, 'u');
+const splitSentences = (t) => cleanText(t).split(SPLIT_RE).map(normSentence).filter(Boolean);
+// the belt: a hit the sentences lost (a number shape or a name cut by the splitter). Hits are counted on the plain text
+// and on its closed-up copy APART: the closed-up copy of a whole string differs from its sentences' when one holds "S.r.l."
+const hitCount = (x) => [CLAIM_WORDS_RE, CLAIM_ABBR_RE, CLAIM_NUM_RE].reduce((n, re) => n + [...x.matchAll(re)].length, 0);
+const lostHits = (t, parts) => {
+  if (parts.length < 2) return false;
+  const w = cleanText(t).replace(/\s+/g, ' '), plain = hitCount(w), closed = hitCount(closeUp(w));
+  return (plain > 0 || closed > 0) && (plain > parts.reduce((n, p) => n + hitCount(p), 0) || closed > parts.reduce((n, p) => n + hitCount(closeUp(p)), 0));
+};
 // block boundaries, plus the start of an instrument field (data-instr) or of a row's description (.dp); the END of
 // an instrument field and the span.tn / span.tt labels are boundaries too (markInstr)
 const BLOCK_RE = /<\/?(?:address|article|aside|blockquote|br|button|caption|cite|dd|details|dialog|div|dl|dt|fieldset|figcaption|figure|footer|form|h[1-6]|header|hr|label|legend|li|main|nav|noscript|ol|option|optgroup|p|section|select|summary|svg|table|tbody|td|text|textarea|tfoot|th|thead|title|tr|ul)\b[^>]*>|<[a-z][\w-]*\b[^>]*(?:\sdata-instr\b|\sclass="(?:dp|at|rc-at|ln|n|s|t|rc-t|tn|tt)")[^>]*>/gi;
@@ -2416,7 +2468,12 @@ const ATTR_RE = /\s([^\s"'=<>\/`]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]
 export function reviewSentences(html) {
   const out = [], late = [];
   let block = 0;
-  const add = (t, where, b = block++) => { for (const s of splitSentences(t)) (/^(?:ld|json|script)$/.test(where) ? late : out).push({ text: s, where, block: b }); };
+  const add = (t, where, b = block++, flags = {}) => {
+    const dest = /^(?:ld|json|script)$/.test(where) ? late : out, parts = splitSentences(t);
+    for (const s of parts) dest.push({ text: s, where, block: b, ...flags });
+    // the belt: the whole string has a hit its sentences lost → the whole string is refused (claimGuard: "cut")
+    if (lostHits(t, parts)) dest.push({ text: normSentence(t), where, block: b, cut: true });
+  };
   // comments become a marker: a space in the spaced copy, nothing in the squashed copy
   const src = String(html).replace(/<!--[\s\S]*?-->/g, '\u0001');
   for (const m of src.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)) {
@@ -2439,10 +2496,19 @@ export function reviewSentences(html) {
     }
   }
   const body = markInstr(noScript.replace(/<head\b[\s\S]*?<\/head>/i, ' '));
-  for (const line of body.replace(BLOCK_RE, '\n').split('\n')) {
+  // the lines are the text between block boundaries (as body.replace(BLOCK_RE, '\n').split('\n')), each with what opened it:
+  // inside a <table> a line is a cell (only a <th> is a label there: a cell is the value of its row head, the hub's rules
+  // table), and a span.tn is a code the build generates ("MIL 08", a paper's number), never a value of the copy
+  const tables = [...body.matchAll(/<table\b[\s\S]*?<\/table>/gi)].map((m) => [m.index, m.index + m[0].length]);
+  const cuts = [...body.matchAll(new RegExp(`${BLOCK_RE.source}|\\n`, 'gi')), { index: body.length, 0: '' }];
+  let from = 0, opener = '';
+  for (const c of cuts) {
+    const line = body.slice(from, c.index), at = from, tag = opener;
+    from = c.index + c[0].length; opener = c[0];
+    const flags = { ...(tables.some(([s, e]) => at > s && at < e) && { cell: true }), ...(/^<th\b/i.test(tag) && { th: true }), ...(/\sclass="tn"/i.test(tag) && { code: true }), ...(/^<br\b/i.test(tag) && { br: true }) };
     const spaced = line.replace(/\u0001/g, ' ').replace(/<[^>]+>/g, ' ');
     const b = block++;
-    add(spaced, 'text', b);
+    add(spaced, 'text', b, flags);
     // the squashed copy: inline tags and comments removed with no space ("Regis<span>tered</span>")
     const squashed = line.replace(/\u0001/g, '').replace(INLINE_TAG_RE, '').replace(/<[^>]+>/g, ' ');
     if (squashed !== spaced && claimHits(squashed).length > claimHits(spaced).length) for (const s of splitSentences(squashed)) if (hasClaimVocab(s)) out.push({ text: s, where: 'text', block: b, split: true });
@@ -2466,7 +2532,15 @@ export function lintClaims(claims, where = claimWhere) {
     if (e.kind === 'context') {
       need(!hasClaimVocab(t), at, `kind context carries a registration, licence or authority word ("${claimHits(t)[0]}"): review it under its own kind`);
       need(PLACE_RE.test(t), at, 'kind context names a desk place: it is only for a sentence next to the company\'s Rome line (the place rule)');
-      need(!CONTEXT_ADD_RE.test(t), at, `kind context: "${(t.match(CONTEXT_ADD_RE) || [])[0]}" adds to the Rome line (also, and, too, as well, since, office, branch, based): it cannot be reviewed`);
+      need(!CONTEXT_ADD_RE.test(t), at, `kind context: "${(t.match(CONTEXT_ADD_RE) || [])[0]}" adds to the Rome line (and, plus at the start; also, too, as well, since, office, branch, based, seat, headquarters anywhere): it cannot be reviewed`);
+    } else if (e.kind === 'follower') {
+      // kind follower: a plain sentence that stands next to a reviewed label (the label rule), reviewed so the label is
+      // never continued by a claim; it may speak for us, nothing else of a value
+      need(!hasClaimVocab(t), at, `kind follower carries a registration, licence or authority word ("${claimHits(t)[0]}"): review it under its own kind`);
+      need(!PLACE_RE.test(t), at, `kind follower names a desk place ("${(t.match(PLACE_RE) || [])[0]}"): next to a label a place reads as where the label applies`);
+      need(!VALUE_CODE_RE.test(t), at, `kind follower carries a number of three digits or a code ("${(t.match(VALUE_CODE_RE) || [])[0]}"): next to a label it reads as a registration number`);
+      need(!VALUE_WORDS_RE.test(t), at, `kind follower says "${(t.match(VALUE_WORDS_RE) || [])[0]}": next to a label it reads as a yes, a date, a number, a file or a list`);
+      need(!LINT_HOLD_RE.test(t), at, `kind follower: "${(t.match(LINT_HOLD_RE) || [])[0]}" — a follower never says that we hold, have or are on something`);
     } else need(hasClaimVocab(t), at, 'carries no registration or licence word: an entry only for the sentences the build reviews (remove it)');
     need(CLAIM_KINDS.includes(e.kind), at, `kind must be one of ${CLAIM_KINDS.join(', ')}`);
     need(typeof e.note === 'string' && e.note.trim().length >= 12, at, 'a note says why the sentence is not a claim that BOOM holds a registration, licence or membership outside Rome');
@@ -2536,32 +2610,64 @@ export function claimProblems(html, { claims, sell = false } = {}) {
   const out = [], seen = new Set();
   const all = reviewSentences(html);
   for (const s of all) {
-    const key = `${s.where}|${s.text}|${s.split ? 1 : 0}`;
+    const key = `${s.where}|${s.text}|${s.split ? 1 : 0}|${s.cut ? 1 : 0}`;
     if (seen.has(key)) continue;
     seen.add(key);
     const ban = sell ? sellHit(s.text) : null;
     if (ban) { out.push({ ...s, why: 'banned', hit: ban }); continue; }
     if (s.split) { out.push({ ...s, why: 'split' }); continue; }
+    if (s.cut) { out.push({ ...s, why: 'cut' }); continue; }
     if (!hasClaimVocab(s.text)) continue;
     if (!kind.has(s.text)) out.push({ ...s, why: 'unreviewed' });
     else if (sell && kind.get(s.text) === 'partner') out.push({ ...s, why: 'partner' });
   }
   // the context rules
   const byBlock = new Map();
-  for (const s of all) if (!s.split) byBlock.set(s.block, [...(byBlock.get(s.block) || []), s]);
+  for (const s of all) if (!s.split && !s.cut) byBlock.set(s.block, [...(byBlock.get(s.block) || []), s]);
   const blocks = [...byBlock.keys()].sort((a, b) => a - b);
-  for (const [i, b] of blocks.entries()) {
+  for (const b of blocks) {
     const list = byBlock.get(b);
     if (list.some((s) => ['company-rome', 'trade-mark'].includes(kind.get(s.text)))) {
       for (const s of list) if (!kind.has(s.text) && PLACE_RE.test(s.text)) out.push({ ...s, why: 'place', hit: s.text.match(PLACE_RE)[0] });
     }
-    // a reviewed heading (a block of its own, four words at most: a dt, a summary, a table head) is followed by
-    // reviewed sentences or by ones with no desk place and no authority; short labels (two words) are read through
-    if (list.length === 1 && list[0].where === 'text' && kind.get(list[0].text) === 'heading' && list[0].text.split(' ').length <= 4) {
-      for (const nb of blocks.slice(i + 1).map((x) => byBlock.get(x)).filter((l) => l[0].where === 'text')) {
-        for (const nx of nb) if (!kind.has(nx.text) && (PLACE_RE.test(nx.text) || hasClaimVocab(nx.text))) out.push({ ...nx, why: 'heading', hit: list[0].text });
-        if (nb.some((x) => x.text.split(' ').length > 2)) break;
-      }
+  }
+  // the label rule (fifth round): a reviewed sentence of four words at most ('Registration', 'Generalitat', 'INCASÒL',
+  // '§34c GewO', of whatever kind) is a KEY, and what stands next to it reads as its value; each value must be reviewed or
+  // neutral (neutralValue). In a block of short sentences (a dt, a check's legal label or title, a paper, a table's row
+  // head, 'fianza · INCASÒL') the values are the block's other sentences, the blocks after it (labels of two words or
+  // fewer are read through, a line after a <br> is the same value, the build's codes are skipped) and, outside a table,
+  // the block right before it when that is a label too (a check's legal label stands before its title). Inside prose
+  // ("… Registration. Yes, since 2026."), or in a meta, JSON-LD or attribute string, the values are the sentences after the
+  // key, to the first of more than two words (a key that ends a text block reads on into the next blocks). Inside a table
+  // only a <th> holds keys: a cell is the value of its row head.
+  const words = (t) => t.split(' ').length;
+  const short = (l) => l.every((s) => words(s.text) <= 4);
+  const text = blocks.filter((b) => byBlock.get(b)[0].where === 'text').map((b) => byBlock.get(b));
+  const after = (i, value) => {
+    for (const [j, nx] of text.slice(i + 1).entries()) {
+      if (nx[0].code) continue;
+      value(nx);
+      const next = text[i + 2 + j];
+      if (nx.some((s) => words(s.text) > 2) && !(next && next[0].br)) break;
+    }
+  };
+  for (const b of blocks) {
+    const list = byBlock.get(b), isText = list[0].where === 'text', i = isText ? text.indexOf(list) : -1;
+    if (list[0].code || (list[0].cell && !list[0].th)) continue;
+    const keys = list.flatMap((s, k) => (kind.has(s.text) && words(s.text) <= 4 ? [k] : []));
+    if (!keys.length) continue;
+    const hit = keys.map((k) => list[k].text).join(' · ');
+    const value = (l) => { for (const s of l) if (!kind.has(s.text) && !neutralValue(s.text)) out.push({ ...s, why: 'label', hit }); };
+    if (short(list)) {
+      value(list);
+      if (!isText) continue;
+      const prev = text[i - 1];
+      if (prev && !list[0].cell && !prev[0].code && short(prev)) value(prev);
+      after(i, value);
+    } else for (const k of keys) {
+      // in prose: the sentences after the key, to the first of more than two words; a key that ends its block reads on
+      for (let m = k + 1; m < list.length; m++) { value([list[m]]); if (words(list[m].text) > 2) break; }
+      if (k === list.length - 1 && isText) after(i, value);
     }
   }
   return out;
@@ -2572,12 +2678,13 @@ export function claimGuard(html, { claims, sell = false }, where) {
   const group = (list) => [...list.reduce((m, p) => m.set(p.text, [...(m.get(p.text) || []), p.where]), new Map())].map(([text, w]) => ({ text, where: [...new Set(w)].join(', '), hit: (list.find((p) => p.text === text) || {}).hit }));
   const say = (p) => `"${p.text}" (${p.where})`;
   const of = (why) => group(bad.filter((p) => p.why === why));
-  const ban = of('banned'), part = of('partner'), split = of('split'), place = of('place'), head = of('heading'), unrev = of('unreviewed');
+  const ban = of('banned'), part = of('partner'), split = of('split'), cut = of('cut'), place = of('place'), label = of('label'), unrev = of('unreviewed');
   need(!ban.length, where, `a desk that sells names a register or a licence it does not hold (${ban.map((p) => p.hit).join(', ')}): ${ban.map(say).join(' | ')} — it cannot ship`);
   need(!part.length, where, `"a licensed partner" is the wording of a desk that is not open (kind partner): a desk that sells cannot say it: ${part.map(say).join(' | ')}`);
   need(!split.length, where, `a registration or licence word is split by inline tags or comments (it reads as one word on the page): ${split.map(say).join(' | ')} — write the word whole, and review the sentence`);
+  need(!cut.length, where, `a registration or licence word, a register's initials or a number shape is split by the sentence splitter (on the page it reads as one claim): ${cut.map(say).join(' | ')} — write it as one sentence, and review it`);
   need(!place.length, where, `next to the company's Rome line, a sentence names another desk place (${place.map((p) => p.hit).join(', ')}) and is not reviewed: ${place.map(say).join(' | ')} — the Rome registration cannot be continued elsewhere; if it is not about the company, add it to ${CLAIMS_FILE}`);
-  need(!head.length, where, `after the reviewed heading (${head.map((p) => `"${p.hit}"`).join(', ')}), a sentence names a desk place or an authority and is not reviewed: ${head.map(say).join(' | ')} — add it to ${CLAIMS_FILE} with its kind and a note, or it cannot ship`);
+  need(!label.length, where, `next to the reviewed label (${[...new Set(label.map((p) => `"${p.hit}"`))].join(', ')}), a sentence is not reviewed and reads as its value (it names a desk place, an authority, a number or a code, speaks for us, or says yes, since, number, file, list, active, valid, done, ✓…): ${label.map(say).join(' | ')} — if it does not complete a claim that BOOM or the company holds a registration, licence or membership outside Rome, add it to ${CLAIMS_FILE} with its kind (follower for a plain sentence) and a note; if it does, it cannot ship`);
   need(!unrev.length, where, `${unrev.length} sentence(s) about registration or licences not reviewed in ${CLAIMS_FILE}: ${unrev.map(say).join(' | ')} — if it does not say that BOOM or the company holds a registration, licence or membership outside Rome, add it to ${CLAIMS_FILE} with its kind and a note; if it does, it cannot ship`);
 }
 

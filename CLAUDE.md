@@ -2927,7 +2927,7 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
   reclamaciones, il calendario 2028; nessuno ha ancora letto un lead o un
   ordine dei desk: «validato» non si può dire. Test: i conteggi del lancio
   (Stage 1) sono superati; quelli in vigore stanno in «IL BIGLIETTO v1.7»
-  (dopo il secondo giro della revisione: `run.mjs` 998, `ui.mjs` 475, `checkout.mjs` 117,
+  (dopo il quinto giro della revisione: `run.mjs` 1085, `ui.mjs` 477, `checkout.mjs` 117,
   `calendar.mjs` 97).
 - **IL BIGLIETTO v1.7 (04/11/2026 — «iteriamo la prima card verso i biglietti
   della home, la mappa, l'onda, e Valencia live»).** Quattro prototipi della prima
@@ -3076,7 +3076,7 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
        del prezzo di Full Search a 390×844 e 1440×900).
      - **Nessuna iscrizione che non sia quella di Roma: la LISTA delle frasi
        riviste** (`cities/_claims.json`, terzo giro del 04/11, irrobustita dal
-       quarto — sostituisce le regex dei primi due giri). Ogni frase di una
+       quarto e dal quinto — sostituisce le regex dei primi due giri). Ogni frase di una
        pagina desk (tutti e otto, live e bozze) e di /desks che usa il lessico
        di iscrizioni, licenze, autorità o appartenenze (`hasClaimVocab`, ex
        `CLAIM_VOCAB_RE`) deve stare, parola per parola dopo la normalizzazione,
@@ -3096,17 +3096,39 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
        habilit…, iscritt…, abilitat…, ruolo, ingeschreven, erkend…,
        eingetragen…, zugelassen…, agréé… (solo accentato: «agreement» no),
        miembro, membre, Mitglied, «lid van», redress, ombudsman, Propertymark;
+       dal quinto giro i sinonimi dell'approvazione e le parole locali della
+       licenza, del certificato, dell'agente giurato o affiliato: permitted,
+       entitled, endors…, vetted, homolog…/omologat…, TrustMark, «complaints
+       scheme», «qualified as/under/by», vergunning…, gecertific… (anche dentro
+       un composto: «SCVM-gecertificeerd»), aangesloten, beëdigd…, erkenning…,
+       toelating…, Zulassung…, Genehmigung…, zertifiz…, certifié(e)…,
+       affilié(e)…, adhérent…, afiliad…, asociada/o(s), associada/o(s),
+       permiso(s), permís, certificata/o, associata/o, patentino,
+       convenzionat…, e i nomi della registrazione che le radici non
+       prendevano (iscrizion…, Eintragung…, inschrijving…, immatricul…, albo) — mai
+       «allowed», un «qualified» da solo, «associated», «associate»,
+       «agreement», «certificate» (solo le desinenze italiane e spagnole);
        le autorità e i registri per nome (Generalitat, Comunitat Valenciana,
        Comunidad de Madrid, Ayuntamiento, Ajuntament, Junta, Consell, gemeente,
        municipality, Chamber of Commerce, Camera di Commercio, Gewerbeamt,
        Kamer van Koophandel, préfecture, INCASÒL, client money protection,
        Vastgoedpro, Agente de la Propiedad Inmobiliaria, carte professionnelle,
        carte T); le sigle in maiuscolo (RAICV, AICAT, TPO, PRS, CMP, ARLA, NAEA,
-       RICS, NVM, VBO, API, FIAIP, FIMAA, CCIAA, CCI, KvK in ogni grafia anche
-       «KvK12345678»), cercate anche su una copia dove le iniziali sono chiuse
-       («R.A.I.C.V.», «K.v.K.», «T P O» → RAICV, KvK, TPO); le forme di numero
-       («agent no. CV-1234», «Reg. no.», «Regd.», «Lic. no.», «n.º 1234») e lo
-       statuto (§34c, «§34 c», «Paragraph 34c», «34c GewO»).
+       RICS, NVM, VBO, API, FIAIP, FIMAA, CCIAA, CCI, IHK, FNAIM, IVD, KvK in
+       ogni grafia anche «KvK12345678»; FIMAA, FIAIP, AICAT, RAICV e FNAIM
+       anche in minuscolo come parola: «Socio Fimaa Milano»), cercate anche su
+       una copia dove le iniziali sono chiuse («R.A.I.C.V.», «K.v.K.», «T P O»
+       → RAICV, KvK, TPO); le forme di numero (quinto giro: una parola chiave
+       intera — agent, agency, reg., regd., lic., licence, registration, ref.,
+       no., nr., n., núm., n.º —, un «no.», «nr.», «n.º», «núm.», «ref.», «ID», «code»,
+       «number», «número» o «#» facoltativo, poi un codice di al più tre
+       lettere e tre o più cifre, unito, col trattino o con lo spazio: «Agent
+       no. CV-1234», «Reg. 123456», «Regd. 1234», «Lic. no. 4471», «Agent ref.
+       CV-1234», «Agent number CV 1234», «Iscrizione n. 1234»; e l'ordine
+       spagnolo e italiano, «Número de agente 1234», «numero di iscrizione
+       1234»; «Nov 2026» non è «no 2026», e una citazione italiana con «n.»,
+       «L. n. 392/1978», è letta come forma di numero: si mette in lista come
+       law) e lo statuto (§34c, «§34 c», «Paragraph 34c», «34c GewO»).
        **L'estrazione** (`reviewSentences(html)`, esportata, la usano i test):
        le entità si decodificano sul testo intero PRIMA di spezzarlo (prima
        «R&#101;gistered» e «Regis&shy;tered» si tagliavano al loro «;»), poi
@@ -3115,7 +3137,11 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
        U+2028/2029; testo visibile spezzato sui blocchi, sulla FINE di un
        elemento `data-instr` e su `span.tn`/`span.tt` (le etichette di
        strumento non entrano più in una voce: «MIL 08», «One company»), poi su
-       . ! ? ; e sul · spaziato (mai dentro una parola: «col·legiada»); OGNI
+       . ! ? ; e sul · spaziato (mai dentro una parola: «col·legiada»), MAI
+       dopo il punto di un'abbreviazione di numero (quinto giro: no., nr., n.,
+       núm., num., reg., regd., lic., ref., n.º, in ogni maiuscola: «Agent no.
+       CV-1234» resta una frase; senza flag i, così «S.r.l. is» resta una frase
+       e «as an agent. What» si spezza ancora); OGNI
        meta e OGNI stringa JSON-LD per conto suo (mai concatenate); OGNI
        attributo con lettere, fra virgolette doppie, singole o senza (title,
        aria-*, value, label, data-*, alt…) tranne quelli che non sono testo
@@ -3133,12 +3159,22 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
        spaziata, la frase è rifiutata («a registration or licence word is
        split by inline tags or comments»: «Regis<span>tered</span>»). `cite`
        resta un confine (l'hub lo usa come etichetta). La normalizzazione
-       tiene il punto che chiude S.r.l., S.p.A., S.L., B.V., Ltd.
+       tiene il punto che chiude S.r.l., S.p.A., S.L., B.V., Ltd. **La cintura
+       del divisore** (quinto giro): se una stringa intera (un blocco di testo,
+       una meta, una stringa JSON-LD, un attributo) ha più occorrenze del
+       lessico — parole, sigle, forme di numero, contate sul testo e sulla
+       copia con le iniziali chiuse SEPARATAMENTE (la copia chiusa di un
+       blocco cambia con «S.r.l.») — della somma delle sue frasi, il divisore
+       ha tagliato una pretesa: la stringa è rifiutata intera («a registration
+       or licence word, a register's initials or a number shape is split by
+       the sentence splitter»: «Agent. CV-1234», «Registration. CV-1234»,
+       «agent» e «4471» separati da un a capo).
        **I campi di markup fidato** (le chiavi che finiscono in `Html`, oggi
        solo `bref.rows[].ddHtml`, e quelli dell'hub e di `_shared.json`)
        portano SOLO `<b>`, `<strong>`, `<em>`, `<i>`, `<br>` e `<a href="…">`
-       fra virgolette doppie, nessun altro attributo, nessun commento
-       (`htmlFieldGuard`): oggi i JSON usano solo `<b>`.
+       (facoltativi `target="_blank" rel="noopener"`) fra virgolette doppie,
+       nessun altro attributo, nessun commento (`htmlFieldGuard`): oggi i JSON
+       usano solo `<b>`.
        **Le voci** sono `{text, kind, note}`; i tipi: `company-rome` (la
        società iscritta a Roma: REA RM-1710623, Viale Liegi 42),
        `trade-mark` (il marchio UE), `lease` (la registrazione del
@@ -3150,30 +3186,73 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
        licensed partner», SOLO su Parigi, Berlino e /desks: su un desk che
        vende è rifiutata), `heading` (il nome di una sezione), `context` (una
        frase SENZA lessico accanto alla riga di Roma della società che nomina
-       un luogo di un desk: la regola dei luoghi qui sotto). Oggi 68 voci,
-       ordinate e uniche (partner 20, company-rome 14, tenant 9, law 7, lease
-       7, deposit 5, heading 2, context 2, trade-mark 1, listing 1).
+       un luogo di un desk: la regola dei luoghi qui sotto), `follower`
+       (quinto giro: una frase SENZA lessico che sta accanto a una chiave in
+       lista ed è letta come il suo valore: la regola delle chiavi qui sotto;
+       oggi le sei frasi vere in prima persona, «We confirm it before you
+       sign», «We confirm it in writing before you sign», «We ask for the
+       receipt», «we ask for the receipt», «we ask for the deposit receipt»,
+       «The rest we go through on the free call»). Oggi 74 voci, ordinate e
+       uniche (partner 20, company-rome 14, tenant 9, law 7, lease 7, follower
+       6, deposit 5, heading 2, context 2, trade-mark 1, listing 1).
        **Le regole di contesto** (in `claimProblems`): nello stesso blocco di
        una frase `company-rome` o `trade-mark`, ogni altra frase che nomina un
        luogo di un desk diverso da Roma/Italia (Amsterdam, Netherlands, Dutch,
        Barcelona, Catalonia/Catalunya/Catalan, Madrid, Valencia/València/
-       Valencian/Comunitat, Spain/Spanish, London, England/UK/British, Milan/
-       Milano/Lombardy, Paris/France/French, Berlin/Germany/German) è rifiutata
-       se non è in lista («registered in Rome. Also in Valencia, since
-       2026.»); e un `heading` in lista che sta da solo nel suo blocco (al più
-       quattro parole: un dt, un summary) dev'essere seguito da frasi in lista
-       o senza luogo né autorità (le etichette di due parole si leggono
-       attraverso): {dt «Registration», dd «In Valencia, since 2026.»} è
-       rifiutato.
+       Valencian/Comunitat, Spain/Spanish, London, England/UK/British/Britain,
+       Wales/Welsh, Scotland/Scottish, Milan/Milano/Lombardy, Paris/France/
+       French, Berlin/Germany/German) è rifiutata se non è in lista
+       («registered in Rome. Also in Valencia, since 2026.»). **La regola delle
+       chiavi** (quinto giro, sostituisce la regola del titolo del quarto, che
+       valeva solo per il tipo `heading` e solo per i luoghi e il lessico):
+       ogni frase in lista di al più quattro parole, di QUALSIASI tipo
+       («Registration», «Generalitat», «INCASÒL», «§34c GewO», «A licensed
+       partner»…), è una CHIAVE, e ciò che le sta accanto si legge come il suo
+       valore. In un blocco di frasi brevi (un dt, l'etichetta legale o il
+       titolo di un controllo, un documento, la testata di riga di una tabella,
+       «fianza · INCASÒL») i valori sono le altre frasi del blocco, i blocchi
+       dopo (le etichette di due parole o meno si leggono attraverso; una riga
+       dopo un `<br>` è lo stesso valore; i codici generati dal build,
+       `span.tn` «MIL 08», si saltano) e, fuori da una tabella, il blocco
+       subito prima se è anch'esso un'etichetta (sulla pagina del desk
+       l'etichetta legale di un controllo sta PRIMA del titolo: «agency file
+       4471» prima di «Registration»); dentro la prosa («… Registration. Yes,
+       since 2026.») e in una meta, una stringa JSON-LD o un attributo, i
+       valori sono le frasi dopo la chiave fino alla prima di più di due
+       parole (una chiave che chiude un blocco di testo legge nei blocchi
+       dopo). Dentro una tabella solo un `<th>` porta chiavi: una cella è il
+       valore della testata della sua riga (sull'hub la cella «fianza ·
+       INCASÒL» non legge le celle degli altri desk, «392/1978», «since
+       2024»). Ogni valore dev'essere in lista o NEUTRO (`neutralValue`):
+       niente lessico, niente luogo di un desk, niente tre cifre di fila né
+       codice (`[A-Z]{1,4}` + spazio o trattino facoltativo + due cifre:
+       «CV-1234», «B 5521»), niente prima persona (we, our, us, BOOM, Egidi) e
+       nessuna delle parole che fanno di un'etichetta una pretesa (yes, sí, si,
+       oui, ja, since, desde, dal, seit, depuis, number/número/numero/nummer,
+       file, list/lista/liste, listing, record, directory, roster, e gli
+       stati e i segni di una lista di controllo: active, valid, done,
+       granted, held, current, confirmed, in place, ok, ✓). Rifiutati: {dt «Registration», dd «Yes, since 2026.» /
+       «CV-1234» / «✓»}, {dt «Generalitat», dd «On its list of agents since
+       2026.»}, {dt «INCASÒL», dd «Yes, our number is on file.»}, un controllo
+       «Registration» con l'etichetta «agency file 4471», il controllo della
+       cauzione («fianza · Generalitat») con «Our agency number there is
+       V-5521.». Le sei frasi vere in prima persona accanto alle chiavi sono in
+       lista come `follower`.
        **Il lint del file** (`lintClaims`, nel build): nessuna voce nomina
        RAICV, AICAT, Registro de Agentes, Registre d'Agents, Property
        Ombudsman, Property Redress, redress scheme, Propertymark, ARLA, NAEA,
        KvK, Kamer van Koophandel, ombudsman, TPO, CMP, client money
        protection, RICS, NVM, VBO, Vastgoedpro, FIAIP, FIMAA, Agente de la
        Propiedad, API, colegiado, col·legiat, carte T (carte professionnelle e
-       §34c solo nei tipi law e partner); ogni voce porta il lessico tranne
-       `context`, che NON lo porta, nomina un luogo e non aggiunge nulla
-       (also, and, too, as well, since, office, branch, based → rifiutata);
+       §34c solo nei tipi law e partner; dal quinto giro anche PRS, FNAIM, IVD,
+       IHK); ogni voce porta il lessico tranne `context` e `follower`;
+       `context` NON lo porta, nomina un luogo e non aggiunge nulla (and, plus
+       all'inizio; also, too, as well, since, office, branch, based, seat,
+       headquarters ovunque → rifiutata); `follower` NON lo porta, non nomina
+       un luogo, non ha tre cifre né codice, nessuna delle parole del valore
+       (yes, since, number, file, list, done…), e può parlare per noi ma mai
+       per dire che teniamo, abbiamo o siamo su qualcosa (hold, have, got,
+       obtained, own, granted, issued, carry; «we are on/in/with/under»);
        `company-rome` nomina Rome/REA/Viale Liegi e ogni «regist…» ci atterra
        con in mezzo solo in/with/the/at/of (o «office:», o «under REA
        RM-1710623», o «Rome-registered»), e dopo Roma nessun altro luogo né
@@ -3212,10 +3291,17 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
        carte T, §34c (ogni grafia, «Paragraph 34c», «34c GewO»), Property
        Ombudsman, Property Redress, redress scheme, Propertymark, ARLA, NAEA,
        KvK in ogni forma, Kamer van Koophandel, TPO, CMP, PRS, RICS, NVM, VBO,
-       FIAIP, FIMAA, client money protection, Agente de la Propiedad, «API n…»,
-       colegiad… (nessuna compare oggi; DPS, TDS e mydeposits, gli schemi
-       della cauzione del locatore a Londra, restano ammessi). Su /desks gli
-       stessi nomi cadono per default deny più il lint (`LINT_NEVER_RE`), e
+       FIAIP, FIMAA, FNAIM, IVD, IHK, client money protection, Agente de la
+       Propiedad, «API n…», colegiad…, e FIMAA, FIAIP, AICAT, RAICV, FNAIM in
+       ogni maiuscola come parola («Fimaa») — nessuna compare oggi; DPS, TDS e
+       mydeposits, gli schemi della cauzione del locatore a Londra, restano
+       ammessi. È una scelta di progetto: su un desk che vende il nome di un
+       registro è rifiutato anche in un consiglio vero all'inquilino («Check
+       the landlord's agent on the KvK register», «Ask the agent which redress
+       scheme they belong to»): il fondatore può chiedere più avanti
+       un'eccezione di tipo law per l'agente del LOCATORE, mai in prima
+       persona. Su /desks gli stessi nomi cadono per default deny più il lint
+       (`LINT_NEVER_RE`), e
        `HUB_BANNED` aggiunge AICAT, RAICV, Registro de Agentes, carte
        professionnelle, §34c e «licensed agent». Le stringhe di
        `assets/boom-*.js` e le stringhe `content:` di `assets/boom-*.css` non
@@ -3239,7 +3325,9 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
        di iscrizione/approvazione/appartenenza, senza nome di autorità o di
        registro, senza la forma «agent/reg/lic no.» e senza un luogo di un desk
        accanto a una frase della società («We are on the official list.») NON
-       è presa da una guardia di lessico.
+       è presa da una guardia di lessico; né un valore accanto a una chiave in
+       lista che non porta nessuno dei segni del valore («Registration — On
+       request»).
        La riga Who dei desk e `llms.txt` dicono «an Italian real estate agency
        registered in Rome».
      - **Forced colors**: lo strappo orizzontale delle economy vale solo nella
@@ -3341,10 +3429,11 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
      registrazione tardiva sana la nullità con effetto retroattivo) ma «Until
      it is registered, the lease is void under Italian law: a weak title for
      your residence.» (in lista come `lease`, la riga resta `hold` sull'hub
-     finché il legale non conferma); Amsterdam non dice più «BRP
-     (registration) confirmed in writing» (la registra la gemeente) ma «the
-     right to register (BRP) at the address confirmed in writing» (Offer di
-     Full Search e riga «What we do» della scheda). Provato su copie: con lo
+     finché il legale non conferma); Amsterdam non dice più «BRP registration
+     confirmed in writing» (Offer di Full Search) né «BRP confirmed in
+     writing» (riga «What we do» della scheda) — la registra la gemeente —
+     ma, in entrambe, «the right to register (BRP) at the address confirmed
+     in writing». Provato su copie: con lo
      split prima della decodifica (il difetto del terzo giro) «Licen&#99;ed in
      Spain.» in una riga della scheda di Valencia fa passare build e --check;
      col codice nuovo il build lo rifiuta; nove mutazioni del codice
@@ -3352,6 +3441,46 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
      regola dei luoghi spenta, regola del titolo spenta, whitelist HTML spenta,
      esenzione del participio rimessa su «your», relativa tolta, sede di Roma
      di nuovo larga), tutte prese da `run.mjs`.
+     **Il quinto giro (04/11, notte, commit «registration guard fifth
+     round»)**, sui rilievi dei due verificatori del quarto. (1) Le forme di
+     numero non arrivavano mai al lessico: il divisore spezzava dopo il punto
+     dell'abbreviazione («Agent no. CV-1234.» diventava «Agent no» +
+     «CV-1234»), e 14 forme passavano pulite in una FAQ, un controllo e una
+     riga della scheda di Valencia; ora il divisore non spezza dopo
+     no./nr./n./núm./num./reg./regd./lic./ref./n.º, la forma accetta lo spazio
+     o il trattino prima delle cifre, «agency», «ref.», «ID», «code», «number»,
+     «n.» e l'ordine spagnolo e italiano (altre 10 forme provate: «Agency
+     number CV-1234», «Registration ID: CV-1234», «License #1234», «Iscrizione
+     n. 1234»…), e la cintura rifiuta una stringa il cui testo intero ha più
+     occorrenze del lessico delle sue frasi. (2) Le etichette in lista erano
+     jolly: un valore senza lessico né luogo dopo «Registration», «Generalitat»
+     o «INCASÒL» passava; ora la regola delle chiavi (sopra) vale per ogni voce
+     breve, prima e dopo, dentro il blocco e nella prosa, e i valori veri in
+     prima persona sono in lista come `follower`. (3) Il lessico: i sinonimi
+     dell'approvazione e le parole locali (le 27 pretese dei verificatori che
+     passavano pulite, più «Agència associada al Col·legi d'Agents» e
+     «qualified under», ora rifiutate sul loro desk o su /desks),
+     Wales/Welsh/Scotland/Scottish fra i luoghi, PRS/FNAIM/IVD/IHK nel lint,
+     FNAIM/IVD/IHK e «Fimaa» nel bando dei desk che vendono. Misurato sulle
+     nove pagine costruite: nessuna parola nuova del lessico e nessuna forma di
+     numero ha tirato in revisione una frase vera (zero frasi nuove); il
+     divisore ha cambiato solo due frasi dell'hub («No. Full Search €500…»,
+     «No. Each desk takes its fares…», senza lessico); la regola delle chiavi
+     ha letto come valori sei frasi vere in prima persona, ora `follower`
+     (Amsterdam, Madrid, Valencia, Milano, Barcellona e le schede dell'hub). Le
+     pagine costruite non cambiano di un byte. Provato su copie: con il
+     lookbehind tolto le 14 forme sono ancora rifiutate, dalla cintura (6 prove
+     di `run.mjs` cadono: il divisore e le ragioni); con lookbehind e cintura
+     tolti 12 forme su 14 passano pulite in FAQ, controllo e scheda (9 prove
+     cadono); con la cintura sola tolta 3 prove cadono; con le chiavi riportate
+     al solo tipo `heading` quattro valori su «Generalitat», «INCASÒL» e
+     «fianza · …» passano puliti (2 prove cadono); con «vergunning» tolto dal
+     lessico «Makelaar met vergunning.» passa (1 prova cade); e otto mutazioni
+     in più: niente blocco prima (2 prove), una cella di tabella come chiave
+     (il build dell'hub rifiuta «392/1978» e «since 2024»), i codici letti (il
+     build di Milano rifiuta «MIL 08»), niente `<br>` (1), niente prosa (2),
+     niente spazio nella forma di numero (3), il lint del follower (1), le
+     sigle in minuscolo (2).
   Aperte, del fondatore e del legale: il parere valenciano sul RAICV; la data di
   convalida del RDL 29/2026 (12/11 in questo file, ~6–7/11 dedotta, non
   confermata: regge l'«Optional, chosen in writing» di TRE desk con la cassa);
@@ -3366,9 +3495,10 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
   stampa già nel piede del pass; +~80 B di JS se lo si vuole); le porte dell'hub
   restano su `#fares`; nessuno ha ancora letto un lead o un ordine dei desk —
   «validato» non si può dire.
-  Test (dopo il quarto giro del 04/11): `tests/cities/run.mjs` 1064, `ui.mjs`
-  477, `checkout.mjs` 117, `calendar.mjs` 97, `tests/pfs/markets-ui.mjs` 25
-  (dopo il terzo giro 1027 e 477; dopo il secondo giro 998 e 475; dopo il primo 993 e 444; prima della revisione 978 e 423); più consentbanner, scroll, cielo, seo, crawl, llmstxt,
+  Test (dopo il quinto giro del 04/11): `tests/cities/run.mjs` 1085, `ui.mjs`
+  477 (le pagine costruite non sono cambiate dal quarto giro), `checkout.mjs`
+  117, `calendar.mjs` 97, `tests/pfs/markets-ui.mjs` 25 (dopo il quarto giro
+  1064 e 477; dopo il terzo giro 1027 e 477; dopo il secondo giro 998 e 475; dopo il primo 993 e 444; prima della revisione 978 e 423); più consentbanner, scroll, cielo, seo, crawl, llmstxt,
   verita, whatsapp, testata; il `npm test` intero il 04/11 (2.291 s, `BOOM_PLAYWRIGHT` impostato): 288 suite
   verdi, 4 rosse per ragioni estranee ai desk — `magicsigncustomui` e
   `magicsigncustomsigner` scaricano pdf.js da cdn.jsdelivr.net e il sandbox non
@@ -3575,8 +3705,10 @@ pagine città).
 - **Da confermare col legale (non bloccano)**: per Milano, un'unità locale con
   preposto (DM 26/10/2011) se una persona BOOM va alle visite; il Full Search
   pagato prima (art. 6 L. 39/1989, provvigione o mandato); moduli in CCIAA;
-  capitale sociale nel blocco Company (art. 2250 c.c.); polizza RC; ammorbidire
-  «Unregistered, it is void» (Cass. SS.UU. 23601/2017); un check `fees` per
+  capitale sociale nel blocco Company (art. 2250 c.c.); polizza RC; far
+  confermare «Until it is registered, the lease is void under Italian law»
+  (Cass. SS.UU. 23601/2017; nullità ex L. 311/2004 art. 1 c. 346; la riga resta
+  `hold` sull'hub); un check `fees` per
   Amsterdam solo dopo il legale; IVA UK (NETP) e redress scheme di Londra; la
   conferma del voto del 12/11 sul RDL 29/2026 per Madrid. **Del fondatore**: la
   foto, una voce «Desks» nel menu della home, Wikidata nei `Service`.
