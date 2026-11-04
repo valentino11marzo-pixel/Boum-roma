@@ -4366,6 +4366,13 @@ generica dopo aver scelto una casa o un contratto. `homeTools` ora passa il
 riferimento tipizzato anche per questi due record, riusando Inbox e i suoi
 collegamenti confermati; nessun destinatario dedotto, invio, scrittura o AI.
 Il ritorno conserva la selezione. Prove `actions`, `oggiquicktoolsui`, `inboxconnected`.
+**04/11 — alias BOOM nel lettore:** importazione e nuova richiesta accettano
+anche i sei alias verificati in Google Admin, in A/Cc, esclusivamente quando
+la casella configurata è `valentino@boom-rome.com`. La mappa esatta vive in
+`js/mailbox-aliases-engine.js`; nessun wildcard di dominio o alias presunto.
+Le email da/verso sé stessi restano escluse; A/Cc originali rimangono nella fonte.
+Stesso Message-ID = stesso messaggio anche su più alias, senza nuovi invii,
+lead o notifiche. Ccn senza destinatario visibile non ammesso. Test: `mailboxaliases`.
 **15/10 — posta nel Portal:** Home → «Cerca nelle email» legge la casella configurata
 con `api/mailbox/query`, solo admin: ricerca esplicita, pagine da 20 e testo nel lettore
 mobile. Gmail usa Tutti i messaggi (anche inviati/archiviati, esclusi Spam/Cestino);

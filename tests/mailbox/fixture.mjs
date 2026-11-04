@@ -14,6 +14,10 @@ const transport = `export class ImapFlow {
 }`;
 const transportURL='data:text/javascript,'+encodeURIComponent(transport);
 const changes={
+ alias_scope:["MAILBOX_ALIASES.ownedAddresses(account)","MAILBOX_ALIASES.ownedAddresses('valentino@boom-rome.com')"],
+ alias_recipient:["!recipients.some(address => own.includes(address))","false"],
+ alias_self_from:["own.includes(from[0])","false"],
+ alias_self_reply:["own.includes(candidate)","false"],
  admin:["profile?.role !== 'admin'","false"],
  signature:["actual.length !== expected.length || !crypto.timingSafeEqual(actual, expected)","false"],
  actor:["data.actor !== actor","false"],

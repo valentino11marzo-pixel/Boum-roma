@@ -6,6 +6,7 @@ import { simpleParser } from 'mailparser';
 import { bearerFrom, verifyIdToken } from '../_auth.js';
 import { fsGet, readJson } from '../homie/_lib.js';
 import SEG from '../../js/segretaria-engine.js';
+import MAILBOX_ALIASES from '../../js/mailbox-aliases-engine.js';
 import { MailImportError, emailKey, emailBinding, canonicalEmailConversation, importScopedMessage } from '../segretaria/_mail-import.js';
 import { admitMailboxMessage, matchingEmailConversations } from './_admission.js';
 
@@ -59,7 +60,7 @@ function metadata(row, messageRef) {
 }
 
 function importSource(row, text, account) {
-  const envelope = row.envelope || {}, own = emailKey(account);
+  const envelope = row.envelope || {}, own = MAILBOX_ALIASES.ownedAddresses(account);
   const from = (envelope.from || []).map(a => emailKey(a.address));
   const replyTo = (envelope.replyTo || []).map(a => emailKey(a.address));
   const recipients = [...(envelope.to || []), ...(envelope.cc || [])].map(a => emailKey(a.address));
@@ -67,7 +68,7 @@ function importSource(row, text, account) {
   if (from.length !== 1 || !addressOK(from[0]) || replyTo.length > 1 || replyTo.some(a => !addressOK(a)))
     return block('email_sender_ambiguous');
   const candidate = replyTo[0] || from[0];
-  if (from[0] === own || candidate === own || !recipients.includes(own)) return block('email_not_inbound');
+  if (own.includes(from[0]) || own.includes(candidate) || !recipients.some(address => own.includes(address))) return block('email_not_inbound');
   const mid = typeof envelope.messageId === 'string' ? envelope.messageId.trim() : '';
   if (!mid || mid.length > 998 || /[\u0000-\u0020\u007f]/.test(mid)) return block('email_message_id_missing');
   if (text.truncated || text.bodyUnavailable || !text.text?.trim()) return block('email_body_incomplete');
@@ -89,6 +90,7 @@ async function importMessage({ row, text, source, proof, cfg, actor, conversatio
     subject: String(row.envelope?.subject || '').slice(0, 2000),
     mailboxSource: { mode: 'manual', account: source.account, folder: source.folder,
       uidValidity: proof.validity, uid: proof.uid, from: addresses(row.envelope?.from),
+      to: addresses(row.envelope?.to), cc: addresses(row.envelope?.cc),
       replyTo: addresses(row.envelope?.replyTo), subject: String(row.envelope?.subject || '').slice(0, 2000),
       text: text.text, importedBy: actor,
       importedAt: new Date().toISOString() },
