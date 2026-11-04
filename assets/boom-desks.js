@@ -1,12 +1,3 @@
-/* assets/boom-desks.js — BOOM Desks, the hub (/desks). Reads
-   window.BOOM_DESKS (the build's config: the live desks' hours and holiday
-   calendars) and window.BOOM_DESK_CAL (the desk calendar, inlined). Never
-   fetches. The static HTML carries the hours only: the clock, the window
-   and OPEN/CLOSED are written here, from the calendar, and change only when
-   a fact changes (the DESK NOW flaps flip only when a desk opens or
-   closes). At ≥940 it loads the onda (assets/boom-onda.js) after load; it
-   loops only while a desk is open. Without JS, or without the calendar,
-   the page stays as served. */
 (function () {
   'use strict';
   var D = window.BOOM_DESKS || {};
@@ -18,7 +9,6 @@
   var wide = mq('(min-width: 760px)');
   var root = document.documentElement, IO = 'IntersectionObserver' in window;
 
-  /* the curtain: a section gets .in once it comes into view */
   if (IO) {
     var secIO = new IntersectionObserver(function (es) {
       es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('in'); secIO.unobserve(e.target); } });
@@ -27,13 +17,11 @@
     root.setAttribute('data-armed', '');
   }
 
-  /* the filament: where you are on the page */
   var filo = $('filo'), fq = 0;
   function fil() { fq = 0; var h = document.documentElement.scrollHeight - innerHeight; if (filo) filo.style.setProperty('--p', h > 0 ? Math.min(1, scrollY / h).toFixed(4) : '0'); }
   addEventListener('scroll', function () { if (!fq) fq = requestAnimationFrame(fil); }, { passive: true });
   fil();
 
-  /* the boards: EUROPE settles once; at ≥760 each row's code flips in, 90 ms apart */
   var DRUM = ' ABCDEFGHIJKLMNOPQRSTUVWXYZ';
   function mount(host, word, spin) {
     if (!host || !window.BoomSolari) return null;
@@ -61,9 +49,6 @@
   codes();
   if (wide.addEventListener) wide.addEventListener('change', codes); else if (wide.addListener) wide.addListener(codes);
 
-  /* DESK NOW at ≥760: a 6-cell flap board beside the text the script keeps
-     (the text is what a reader without the board, and a test, reads). It
-     flips only when the desk opens or closes; green glyphs while open. */
   var flaps = {};
   function flapOf(nb, slug) {
     if (flaps[slug] || !wide.matches || !window.BoomSolari) return flaps[slug] || null;
@@ -88,8 +73,6 @@
     else f.b.update(pad6);
   }
 
-  /* the tick: the desk clock, the window and OPEN/CLOSED for every live desk.
-     At load, then on the minute, only while the tab is visible. */
   var pad = function (n) { return (n < 10 ? '0' : '') + n; };
   var set = function (n, v) { if (n && n.textContent !== v) n.textContent = v; };
   var cap = function (s) { return s.charAt(0).toUpperCase() + s.slice(1); };
@@ -124,12 +107,9 @@
   tick();
   plan();
   document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') tick(); plan(); });
-  /* a phone turned to a desktop width mounts the flaps it skipped */
   var reflap = function () { if (wide.matches) tick(); };
   if (wide.addEventListener) wide.addEventListener('change', reflap); else if (wide.addListener) wide.addListener(reflap);
 
-  /* the onda behind the board (≥940): after load, when idle. Its heartbeat
-     rises from ROM, the hub's row; it loops only while a desk is open. */
   var ondaIn = false, big = mq('(min-width: 940px)');
   function onda() {
     var cv = $('onda');

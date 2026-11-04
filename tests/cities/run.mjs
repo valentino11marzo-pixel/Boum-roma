@@ -53,9 +53,12 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import zlib from 'node:zlib';
+import { spawnSync } from 'node:child_process';
 import {
   buildAll, renderCity, writeAll, fill, findPlaceholders, fragments, familyFor, BuildError, esc, eur, money, currencyOf, GENERATED_MARK, WEIGHT_KB, BUDGET,
   daysLabel, deskHoursText, feesRowOf, holidayKeyOf, visibleAtLoad, visibleText, sliceOf, words, waHref, WITHDRAWAL_PATH, TERMS_PATH,
+  stripComments, emittedAssets, emitAssets, SERVED_ASSETS,
   atLoadParts, longNodes, weightOf, mapXY, validGeo, sealText, sealPhrase, STATUS_RE, STATUS_BANNED_RE, AVIATION_BAN_RE,
   arcViolations, bowArcs, arcCtrl, ARC_CLEAR, ARC_DOT_R, ARC_ME_R,
   orgNode, serviceNode, numberWord, listJoin, dateLong, homeCountryOf, isHomeDesk,
@@ -925,11 +928,80 @@ tplRefuses('<p class="proof">', '<p class="proof">Pay by bank transfer · ', /no
   }
 }
 
+// ── 8b · Stage 0 (04/11/2026): the served assets are the sources without their comments ──
+// The commented sources live in assets/src/ (never deployed); the build EMITS
+// assets/<name> from them. The served copy must be the source minus its
+// comments (the scanner and an independent line-based oracle agree), it must
+// parse (node --check), the pages must link it by ITS hash, the weights must
+// be measured on it, and nothing served may reference the sources.
+{
+  const gz = (s) => zlib.gzipSync(Buffer.from(s), { level: 9 }).length;
+  // the oracle: whole-line comments only, no knowledge of strings — it agrees with the
+  // scanner on these files because none of them has a comment inside a literal
+  const naive = (src, kind) => {
+    const keep = []; let inB = false;
+    for (const l of src.split('\n')) {
+      if (inB) { if (l.includes('*/')) { inB = false; const rest = l.slice(l.indexOf('*/') + 2); if (rest.trim()) keep.push(rest.trimStart()); } continue; }
+      if (/^\s*\/\*/.test(l)) { if (l.includes('*/')) { const rest = l.slice(l.indexOf('*/') + 2); if (rest.trim()) keep.push(l.match(/^\s*/)[0] + rest.trimStart()); } else inB = true; continue; }
+      if (kind === 'js' && /^\s*\/\//.test(l)) continue;
+      keep.push(l);
+    }
+    return keep.join('\n').replace(/\n{4,}/g, '\n\n');
+  };
+  check(SERVED_ASSETS.map((a) => a.name).join() === 'boom-city.css,boom-city.js,boom-onda.js,boom-desks.css,boom-desks.js' && SERVED_ASSETS.every((a) => a.kind === path.extname(a.name).slice(1)),
+    'SERVED_ASSETS: the five files of the desks and the hub, each with its kind');
+  for (const a of SERVED_ASSETS) {
+    const src = path.join(R, 'assets/src', a.name), out = path.join(R, 'assets', a.name);
+    check(fs.existsSync(src) && fs.existsSync(out), `assets/src/${a.name} (the source) and assets/${a.name} (served) both exist`);
+    const source = fs.readFileSync(src, 'utf8'), served = fs.readFileSync(out, 'utf8');
+    check(served === stripComments(source, a.kind), `assets/${a.name} is assets/src/${a.name} minus its comments, byte for byte`);
+    check(served === naive(source, a.kind), `assets/${a.name}: an independent line-based oracle agrees with the scanner`);
+    check(/^\/\*/.test(source) && !/^[ \t]*\/\*/m.test(served) && !(a.kind === 'js' && /^[ \t]*\/\//m.test(served)) && gz(served) < gz(source),
+      `assets/${a.name}: the banner and every whole-line comment stay in the source, none is served (${(gz(source) / 1024).toFixed(1)} → ${(gz(served) / 1024).toFixed(1)} KB gz)`);
+    if (a.kind === 'js') {
+      const r = spawnSync(process.execPath, ['--check', out], { encoding: 'utf8' });
+      check(r.status === 0, `node --check assets/${a.name}: the served script parses`, r.stderr);
+      check(/^\(function \(\) \{\n  'use strict';\n/.test(served), `assets/${a.name} opens with its IIFE and 'use strict' first: only comments went`);
+    }
+  }
+  const em = emittedAssets(R);
+  check(em.length === 5 && em.every((a) => !a.stale && a.gzKb < a.sourceGzKb), 'emittedAssets(R): no served copy is stale against its source (the committed assets are the build\'s)');
+  const sha = (f) => crypto.createHash('sha256').update(fs.readFileSync(path.join(R, f))).digest('hex').slice(0, 10);
+  check(SLUGS.every((s) => PAGE[s].includes(`/assets/boom-city.css?v=${sha('assets/boom-city.css')}`) && PAGE[s].includes(`/assets/boom-city.js?v=${sha('assets/boom-city.js')}`)) && sha('assets/boom-city.css') !== sha('assets/src/boom-city.css'),
+    'every desk page links the CSS and the JS by the hash of the SERVED file, never the source\'s');
+  check(Math.abs(pages[0].weight.cssKb * 1024 - gz(fs.readFileSync(path.join(R, 'assets/boom-city.css')))) < 1 && Math.abs(pages[0].weight.jsKb * 1024 - gz(fs.readFileSync(path.join(R, 'assets/boom-city.js')))) < 1,
+    'the weights are measured on the served files');
+  const servedHtml = fs.readdirSync(R).filter((f) => f.endsWith('.html')).map((f) => read(f)).join('\n') + read('cities/_template.html') + read('cities/_hub.html') + read('vercel.json');
+  check(!/assets\/src\//.test(servedHtml), 'no page, template or header rule references assets/src/');
+  check(read('.vercelignore').split(/\r?\n/).map((l) => l.trim()).includes('/assets/src/'), '.vercelignore keeps /assets/src/ off the site');
+
+  // the stripper, case by case
+  const S = (x, k) => stripComments(x, k);
+  check(S('a{content:"/* not */"}/* yes */\nb{}\n', 'css') === 'a{content:"/* not */"}\nb{}\n', 'CSS: a /* inside a string stays, the block after it goes');
+  check(S('a{background:url(data:image/svg+xml,/*x*/)}\n', 'css') === 'a{background:url(data:image/svg+xml,/*x*/)}\n', 'CSS: an unquoted url(…) is one token, nothing in it is a comment');
+  check(S("/* don't */\na{}\n", 'css') === 'a{}\n' && S('x{} /* tail */\ny{}\n', 'css') === 'x{}\ny{}\n' && S('  /* lead */ a{}\n', 'css') === '  a{}\n' && S('a{}\n/* one\n   two */\nb{}\n', 'css') === 'a{}\nb{}\n',
+    'CSS: whole-line blocks go with their line, a trailing block goes with the blanks before it, a leading one keeps the indent, an apostrophe in a comment opens no string');
+  check(S("var u = 'https://x'; // tail\n", 'js') === "var u = 'https://x'; // tail\n" && S('foo(1, /* arg */ 2);\n', 'js') === 'foo(1, /* arg */ 2);\n' && S("var r = /\\/\\*/; /* keep mid */\n", 'js') === "var r = /\\/\\*/; /* keep mid */\n",
+    'JS: a // mid-line (https:// included) and a block mid-line are never touched, nor a /* in a regex literal');
+  check(S('  // only\nvar a = 1;\n', 'js') === 'var a = 1;\n' && S('/* block */\nvar a = 1;\n', 'js') === 'var a = 1;\n' && S('/* a */ var b = 2;\n', 'js') === 'var b = 2;\n' && S('a();\n// c\nb();\n', 'js') === 'a();\nb();\n',
+    'JS: a line that is only a // comment and a block that begins a line go, leaving no blank line');
+  check(S('var t = `\n/* css */\n// not a comment\n`;\n', 'js') === 'var t = `\n/* css */\n// not a comment\n`;\n' && S("var s = '\\n'; var q = \"/* no */\";\n", 'js') === "var s = '\\n'; var q = \"/* no */\";\n",
+    'JS: nothing inside a template literal or a string is a comment, even at the start of a line');
+  check(S('var t = `a${\n/* c */\n1}b`;\n', 'js') === 'var t = `a${\n1}b`;\n', 'JS: a comment inside a ${…} expression is code, and goes');
+  check(S("/* banner */\n(function () {\n  'use strict';\n})();\n", 'js') === "(function () {\n  'use strict';\n})();\n", "JS: the banner goes and 'use strict' stays first");
+  check(S('var x = a / b / c; // c\n', 'js') === 'var x = a / b / c; // c\n' && S("var re = /https?:\\/\\//; // scheme\n", 'js') === "var re = /https?:\\/\\//; // scheme\n" && S('var y = s.replace(/\\/\\//g, "");\n', 'js') === 'var y = s.replace(/\\/\\//g, "");\n',
+    'JS: a division is not a regex and a regex is not a comment');
+  check(S('var y = 1;\n\n\n\n\nvar z = 2;\n', 'js') === 'var y = 1;\n\nvar z = 2;\n' && S('a{}\n\n\nb{}\n', 'css') === 'a{}\n\n\nb{}\n', 'three or more blank lines fold to one; fewer stay as written');
+  check(throws(() => S('a{} /* oops\n', 'css'), /unterminated comment/) === true && throws(() => S("var s = 'oops\n", 'js'), /unterminated string/) === true && throws(() => S('x', 'txt'), /kind must be/) === true,
+    'the stripper refuses what it cannot follow (an unterminated comment or string, an unknown kind) instead of guessing');
+}
+
 // ── 9 · the build never overwrites a page it did not make ────────────────
 {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'boom-cities-'));
-  for (const d of ['cities', 'assets', 'css', 'js', 'design/pages-deco']) fs.mkdirSync(path.join(tmp, d), { recursive: true });
-  for (const f of ['cities/_template.html', 'cities/_shared.json', 'cities/paris.json', 'assets/boom-city.css', 'assets/boom-city.js', 'assets/boom-onda.js',
+  for (const d of ['cities', 'assets/src', 'css', 'js', 'design/pages-deco']) fs.mkdirSync(path.join(tmp, d), { recursive: true });
+  // the SOURCES only: the build emits the served assets/boom-*.{css,js} from them (Stage 0)
+  for (const f of ['cities/_template.html', 'cities/_shared.json', 'cities/paris.json', 'assets/src/boom-city.css', 'assets/src/boom-city.js', 'assets/src/boom-onda.js',
     'css/boom-scroll.css', 'js/boom-scroll.js', 'js/boom-consent.js', 'js/boom-track.js', 'js/desk-calendar.js', 'design/pages-deco/solari-engine.html', 'og-paris.png']) fs.copyFileSync(path.join(R, f), path.join(tmp, f));
   fs.writeFileSync(path.join(tmp, 'paris.html'), '<!doctype html><title>hand-made</title>');
   check(throws(() => writeAll({ root: tmp }), /not generated by this script — refusing/) === true && fs.readFileSync(path.join(tmp, 'paris.html'), 'utf8').includes('hand-made'),
@@ -938,8 +1010,25 @@ tplRefuses('<p class="proof">', '<p class="proof">Pay by bank transfer · ', /no
   const first = writeAll({ root: tmp });
   const again = writeAll({ root: tmp, check: true });
   check(first[0].stale === true && again[0].stale === false, 'write then --check: the build is deterministic');
-  fs.appendFileSync(path.join(tmp, 'assets', 'boom-city.css'), '\n/* changed */\n');
-  check(writeAll({ root: tmp, check: true })[0].stale === true, 'changing the shared CSS makes the page stale (hash in the URL)');
+  const tCss = path.join(tmp, 'assets', 'boom-city.css'), tSrc = path.join(tmp, 'assets/src', 'boom-city.css');
+  check(['boom-city.css', 'boom-city.js', 'boom-onda.js'].every((f) => fs.readFileSync(path.join(tmp, 'assets', f), 'utf8') === stripComments(fs.readFileSync(path.join(tmp, 'assets/src', f), 'utf8'), path.extname(f).slice(1))),
+    'the build emitted the three served assets from assets/src/, comments stripped (Stage 0)');
+  fs.appendFileSync(tSrc, '/* a note in the source */\n');   // the source ends with a newline: a whole comment line
+  check(writeAll({ root: tmp, check: true })[0].stale === false && emittedAssets(tmp).every((a) => !a.stale), 'a comment added to the SOURCE changes no served byte: neither the asset nor the page goes stale');
+  fs.appendFileSync(tSrc, '\n.changed{color:red}\n');
+  const chk = emitAssets({ root: tmp, check: true });
+  check(writeAll({ root: tmp, check: true })[0].stale === true && chk.find((a) => a.name === 'boom-city.css').stale === true && chk.filter((a) => a.stale).length === 1,
+    'a rule added to the source makes the served CSS stale and the page stale (the hash in the URL is the emitted file\'s)');
+  writeAll({ root: tmp });
+  check(fs.readFileSync(tCss, 'utf8').includes('.changed{color:red}') && !fs.readFileSync(tCss, 'utf8').includes('a note in the source'), 'the build re-emits the served CSS: the rule is served, the comment is not');
+  fs.appendFileSync(tCss, '\n/* by hand */\n');
+  check(emitAssets({ root: tmp, check: true }).find((a) => a.name === 'boom-city.css').stale === true && writeAll({ root: tmp, check: true })[0].stale === false,
+    'a served copy edited by hand is reported stale by --check, while the page (hashed on the emitted text) is not');
+  writeAll({ root: tmp });
+  check(fs.readFileSync(tCss, 'utf8') === stripComments(fs.readFileSync(tSrc, 'utf8'), 'css'), 'the next build restores the served copy from the source');
+  fs.renameSync(path.join(tmp, 'assets/src', 'boom-onda.js'), path.join(tmp, 'onda.bak'));
+  check(throws(() => writeAll({ root: tmp }), /assets\/src\/boom-onda\.js: is missing/) === true, 'a missing source is a refusal that names it, never a page built on a stale served copy');
+  fs.renameSync(path.join(tmp, 'onda.bak'), path.join(tmp, 'assets/src', 'boom-onda.js'));
   fs.writeFileSync(path.join(tmp, 'js/desk-calendar.js'), 'var x = 1;');
   check(throws(() => writeAll({ root: tmp }), /is not the desk calendar/) === true, 'a file that is not the calendar cannot be inlined as the calendar');
   fs.copyFileSync(path.join(R, 'js/desk-calendar.js'), path.join(tmp, 'js/desk-calendar.js'));

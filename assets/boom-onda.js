@@ -1,11 +1,3 @@
-/* assets/boom-onda.js — the onda behind a city desk's pass (v1.6, ≥940px):
-   the home's flap field (index.html cartaRoma), gold only. The heartbeat
-   rises from the stub's destination code (.route-s .rb). It LOOPS only
-   while the desk is open — boom-city.js says so each minute, from the desk
-   calendar; closed, it draws one dim still frame and stops. Reduced motion:
-   one frame, never a loop. Off screen or in a hidden tab it sleeps. No tap
-   ripple, no scroll front, no green. Loaded by assets/boom-city.js after
-   load, only at ≥940px. window.BOOM_ONDA = { start, setOpen, stop, running } */
 (function () {
   'use strict';
   var GOLD = '255,215,0', MILK = '250,248,240';
@@ -14,15 +6,12 @@
   var W = 0, H = 0, DPR = 1, MIN = 1, cw, ch, gap, cols, rows, E, AU, base, ox, oy;
   var px = -1e4, py = -1e4, rush = -1e4, last = 0, prev = 0, beat = 700, flip = 2200, waves = [], cas = [], wait, raf = 0;
 
-  /* the vertical veil, baked into the alpha (no mask-image on the compositor) */
   function veil(y) { var q = y / H; return q < .72 ? 1 : Math.max(0, (.98 - q) / .26); }
   function cell(g, x, y) {
     g.beginPath();
     if (g.roundRect) g.roundRect(x, y, cw, ch, 3 * DPR); else g.rect(x, y, cw, ch);
     g.fill();
   }
-  /* the heartbeat's origin: the centre of the stub's destination code,
-     read again at each beat (the stub is sticky) and on resize */
   function origin() {
     var r = tela.getBoundingClientRect(), o = src && src.getBoundingClientRect();
     if (o && o.width) { ox = (o.left + o.width / 2 - r.left) * DPR; oy = (o.top + o.height / 2 - r.top) * DPR; }
@@ -30,7 +19,6 @@
   }
   function measure() {
     var r = tela.getBoundingClientRect();
-    /* an area cap: sharp where it shows, never a monster canvas */
     DPR = Math.min(window.devicePixelRatio || 1, 2, Math.max(1, Math.sqrt(2.3e6 / Math.max(1, r.width * r.height))));
     W = tela.width = Math.round(r.width * DPR); H = tela.height = Math.round(r.height * DPR);
     MIN = Math.max(1, Math.min(W, H));
@@ -39,7 +27,6 @@
     E = new Float32Array(cols * rows); AU = new Float32Array(cols * rows);
     base = null;
     if (W && H) {
-      /* the quiet layer is drawn once, under; each frame paints only the lit cells */
       base = document.createElement('canvas'); base.width = W; base.height = H;
       var g = base.getContext('2d');
       for (var y = 0; y < rows; y++) for (var x = 0; x < cols; x++) {
@@ -51,8 +38,6 @@
     }
     origin();
   }
-  /* one frame. live: the tides move, the heartbeat and the cascades come;
-     still: one band, at alpha k (the closed desk dims it to .6) */
   function frame(t, live, k) {
     ctx.clearRect(0, 0, W, H);
     if (!base) return;
@@ -63,7 +48,6 @@
       if (waves.length > 3) waves.shift();
       beat = t + 8200;
     }
-    /* a column cascade: one row of the board updating, top to bottom — gold */
     if (live && t > flip) {
       cas.push({ c: Math.floor(Math.random() * cols), via: t });
       if (cas.length > 3) cas.shift();
@@ -91,7 +75,6 @@
       for (var w = 0; w < waves.length; w++) {
         var od = waves[w], age = (t - od.via) / 3000;
         if (age > 1.4) continue;
-        /* the beat: a narrow crest leads, the band behind holds the gold */
         var da = Math.abs(Math.hypot(x - od.x, y - od.y) - age * MIN * 1.05);
         var vo = Math.max(0, 1 - da / (MIN * .12)), vc = Math.max(0, 1 - da / (MIN * .035));
         E[i] = Math.max(E[i], vo * (1.2 - age), vc * 1.15 * (1 - age * .3));
@@ -118,18 +101,14 @@
     }
     ctx.globalAlpha = 1;
   }
-  /* ONE chain: the frame id is kept, so a callback a hidden tab parked can
-     never start a second loop next to the one wake() queues */
   function loop(t) {
     raf = 0;
     if (!on) return;
     raf = requestAnimationFrame(loop);
-    /* at rest the field breathes at 30 fps; under the pointer, 60 */
     if (t - rush > 500 && t - last < 28) return;
     last = t; frame(t, true, 1);
   }
   function sleep() { on = false; O.running = false; if (raf) { cancelAnimationFrame(raf); raf = 0; } }
-  /* the still frame: from a clean field */
   function rest() {
     sleep();
     if (!tela) return;
@@ -168,7 +147,6 @@
     if (open && !still) wake(); else rest();
     return O;
   }
-  /* the desk opens or closes: the loop follows (closed → one dim frame) */
   function setOpen(b) {
     b = !!b;
     if (!tela) { open = b; return; }

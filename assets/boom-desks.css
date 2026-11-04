@@ -1,15 +1,8 @@
-/* ═══ assets/boom-desks.css — BOOM Desks, the hub (/desks). Loaded after
-   assets/boom-city.css (tokens, header, sections, eyebrows, quadro ticks,
-   folds, the fact sheet, the footer, the Solari cells). Here: the departures
-   board, the map lit from Rome, the three fare tickets, the rules table.
-   Static by default: the clock, the window and OPEN/CLOSED come from the
-   script; nothing loops while every desk is closed. ═══ */
 .hub-hero{position:relative;padding:28px 0 4px}
 .kicker{display:inline-block;padding:3px 9px;border-radius:6px;background:var(--leaf);color:#141005;font-size:10.5px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;
   box-shadow:inset 0 1px 0 rgba(255,250,214,.6),inset 0 -1px 0 rgba(80,60,10,.35),0 2px 10px -4px rgba(255,215,0,.35)}
 .hub-hero .board{font-size:clamp(40px,calc((100vw - 48px) / 6.3),100px)}
 .hub-lead{margin-top:16px;max-width:54ch;color:var(--t2);font-size:clamp(15px,2vw,19px);line-height:1.5}
-/* ≥1100: the word and the lead side by side, the board a full-width slab under them */
 @media (min-width:1100px){
   .hub-hero{display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:64px;align-items:end;padding-top:44px}
   .hub-hero>.kicker,.hub-hero>h1{grid-column:1/-1;justify-self:start}
@@ -18,7 +11,6 @@
   .hub-hero>.dboard-w{grid-column:1/-1;margin-top:44px}
 }
 
-/* §1 the departures board: a table read as rows (grid), each live row one stretched link */
 .dboard-w{margin-top:24px;border:1px solid var(--line-soft);background:linear-gradient(180deg,#0B0B0D,var(--void))}
 .db-h{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 12px;min-height:50px;padding:10px 16px;border-bottom:1px solid var(--line-soft);
   font:400 10.5px var(--mono);letter-spacing:.2em;text-transform:uppercase;color:var(--t3)}
@@ -66,7 +58,6 @@
   .dboard thead th{font:400 10px var(--mono);letter-spacing:.18em;text-transform:uppercase;color:var(--t3);text-align:left}
   .dboard thead tr{border-bottom:1px solid var(--line-soft)}
   .c-w{display:block}
-  /* DESK NOW as a flap board (the script mounts it; the text stays for whoever reads it) */
   .db-nf{display:inline-block;font-size:14px;font-weight:500;--oro-flap:rgba(255,255,255,.5)}
   .db-nf.on{--oro-flap:var(--open)}
   .flapped .db-nb{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
@@ -75,11 +66,9 @@
   .db-r,.dboard thead tr{grid-template-columns:64px minmax(0,1fr) 96px 116px 92px 112px 176px}
   .db-pill{font:500 10.5px var(--mono);letter-spacing:.16em;text-transform:uppercase;padding:9px 13px;border:1px solid var(--gold-line);border-radius:999px;color:var(--gold);transition:background .2s,box-shadow .2s}
   .db-pill i{font-size:13px}
-  /* runway lights: only on hover and focus, never at rest */
   .db-r:hover .db-pill,.db-r:focus-within .db-pill{background:var(--gold-faint);box-shadow:0 0 0 3px rgba(255,215,0,.08),0 0 18px -4px rgba(255,215,0,.6)}
 }
 
-/* §2 the map: the same arcs as every desk page; a pin lights its own (the generated :has rules) */
 .hmap-g{display:grid;gap:22px;margin-top:26px}
 .hmap{margin:0;min-width:0}
 .hmap-box{position:relative;width:100%;aspect-ratio:640/520;border:1px solid var(--line-soft);background:radial-gradient(55% 45% at 60% 66%,rgba(255,215,0,.05),transparent),#08080A}
@@ -110,8 +99,6 @@ html.vivo .hmap .arc{transition:stroke-dashoffset .9s var(--ease) calc(var(--i,0
 .pc-go{margin-top:4px;color:var(--gold)}
 .pin:focus-visible .pc{display:block}
 @media (hover:hover){.pin:hover .pc{display:block}}
-/* under 600px a card fits on neither side of a central pin: the pin is a plain
-   link there (its aria-label names the desk), a tap goes straight to it */
 @media (max-width:599px){.pin:focus-visible .pc,.pin:hover .pc{display:none}}
 .m-legend{display:flex;flex-wrap:wrap;align-items:center;row-gap:6px;margin-top:12px;font:400 11px var(--mono);letter-spacing:.1em;color:var(--t3)}
 .m-legend i{width:7px;height:7px;margin:0 6px 0 16px;border-radius:50%;background:rgba(255,255,255,.8)}.m-legend i:first-child{margin-left:0}
@@ -125,7 +112,6 @@ html.vivo .hmap .arc{transition:stroke-dashoffset .9s var(--ease) calc(var(--i,0
 .m-card .lnk{display:inline-flex;align-items:center;min-height:44px;font-size:14px}
 @media (min-width:940px){.hmap-g{grid-template-columns:minmax(0,8fr) minmax(0,4fr);gap:32px;align-items:start}}
 
-/* §3 three fare tickets: a foil band, the security print, a punched perforation over the stub with the price */
 .hnote{margin-top:14px;max-width:66ch;padding-left:12px;border-left:2px solid var(--gold-line);font-size:14.5px;color:var(--t2)}
 .hfares{list-style:none;display:grid;gap:18px;margin-top:24px}
 .hft{position:relative;display:flex;flex-direction:column;overflow:hidden;padding-bottom:18px;border:1px solid var(--gold-line);border-radius:18px;
@@ -157,7 +143,6 @@ html.vivo .hmap .arc{transition:stroke-dashoffset .9s var(--ease) calc(var(--i,0
 @media (min-width:760px){.hfares{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media (min-width:940px){.hrules{grid-template-columns:repeat(3,minmax(0,1fr))}}
 
-/* §4 the rules: a table at ≥760, one card per row below (each cell prefixed by its desk's code) */
 .r-note{margin-top:14px;font-size:15px;color:var(--t2)}
 .rtab{width:100%;margin-top:24px;border-collapse:collapse;font-size:14px}
 .rtab caption{padding-bottom:10px;text-align:left;font:400 11px var(--mono);letter-spacing:.06em;color:var(--t3)}
@@ -193,7 +178,6 @@ a.rc:hover>span{color:var(--ink)}
   .rtab td::before{content:attr(data-k);position:absolute;left:0;top:11px}
 }
 
-/* §6 the fact sheet, open */
 .hub .brief .enbref{margin-top:22px;padding:6px 18px 14px;border:1px solid var(--line-soft);border-top-color:var(--gold-line);background:#0E0E11}
 @media (min-width:760px){
   .hub .brief .enbref{gap:0;padding:4px 22px 6px;grid-template-columns:170px minmax(0,1fr)}
@@ -204,7 +188,6 @@ a.rc:hover>span{color:var(--ink)}
   .hft-who{min-height:3.9em}
 }
 @media (min-width:760px) and (max-width:819px){.hft-who{min-height:5.1em}}
-/* under 380: the kicker on one line, the legend dots beside their words, the phone number whole */
 @media (max-width:379px){.kicker{font-size:10px;letter-spacing:.08em}.m-legend{letter-spacing:.04em}.m-legend i{margin-left:12px}}
 .hub .enbref a[href^="tel:"]{white-space:nowrap}
 

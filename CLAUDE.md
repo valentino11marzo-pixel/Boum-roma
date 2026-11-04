@@ -2887,7 +2887,14 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
      24 parole (eccetto `.stmt`); primo schermo a 390 ≤ 150; per sezione
      departures 100 · pre-flight 60 · baggage 70 · gate 40 · network 40. Da qui
      non si alzano più per farci stare una modifica: si taglia copia o
-     artigianato.
+     artigianato. **Stage 0 (04/11/2026)**: le sorgenti COMMENTATE dei cinque file
+     (`boom-city.css|js`, `boom-onda.js`, `boom-desks.css|js`) stanno in `assets/src/`
+     (fuori dal deploy); `build-cities.mjs` EMETTE le copie servite in `assets/` senza
+     commenti (`stripComments`: uno scanner che conosce stringhe, template, regex e
+     `url()`, rifiuta se perde il filo; `vm.Script` = `node --check`), `?v=` e pesi sono
+     dei file emessi e `--check` nomina una copia servita stantia. Si modifica SOLO
+     `assets/src/`. Guadagno: CSS 14,8 → 11,5 e JS 13,7 → 10,0 KB gz per pagina desk
+     (Milano 80,0 → 72,1; hub 72,0 → 66,5 KB).
   2. **L'onda** (`assets/boom-onda.js`, il campo a palette della home, solo oro,
      ≥ 940): caricata dopo `load` quando il browser è libero; il battito parte
      dal codice di destinazione dello stub; **gira SOLO mentre il desk è

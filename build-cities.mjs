@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 // build-cities.mjs — the BOOM city pages, built from data. Zero dependencies.
 //
-//   node build-cities.mjs           regenerate /<slug>.html from cities/<slug>.json
-//   node build-cities.mjs --check   exit 1 when a committed page is not what the build makes
+//   node build-cities.mjs           emit assets/boom-*.{css,js} from assets/src/ (comments
+//                                   stripped), then regenerate /<slug>.html from cities/<slug>.json
+//   node build-cities.mjs --check   exit 1 when a committed page, or a served asset, is not what the build makes
 //
 // Contract: BOOM_CITIES_BRIEF.md (v1.5, 26/10 — «Il biglietto»: the study
 // in STUDIO_CITIES_ESPERIENZA.md §12). One template (cities/_template.html),
@@ -85,6 +86,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import zlib from 'node:zlib';
+import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
 import { CITY_MARKETS } from './api/_market.js';
 
@@ -919,15 +921,162 @@ export function fragments(root = ROOT) {
   };
 }
 
+// ══ STAGE 0 (04/11/2026) — THE SERVED ASSETS ARE EMITTED WITHOUT THEIR COMMENTS ══
+// The commented sources of the five page files live in assets/src/ (never
+// deployed: .vercelignore). This build EMITS assets/<name> from each one
+// with the comments stripped by stripComments(), a scanner that knows
+// strings, template literals, regex literals and url(): CSS loses its
+// /* … */ blocks outside quotes; JS loses the /* … */ blocks that BEGIN a
+// line and the lines that are only a // comment — a // mid-line
+// ('https://' included) and a block mid-line are never touched, nor is
+// anything inside a literal. Then four or more newlines between tokens
+// (three blank lines) fold to two. Everything else is byte-identical, and
+// the stripper REFUSES (a BuildError) when it loses sync — an unterminated
+// string, comment, url( or ${ — or when it dropped anything that is not
+// comment-shaped; a stripped JS that does not compile is refused too
+// (vm.Script is node --check in process). The ?v= hashes are those of the
+// EMITTED files, the weights are measured on the served files; a served
+// copy that is not its source minus the comments is stale and --check
+// names it. The bytes saved (≈2.7 KB of CSS and 3.8 KB of JS gzipped on a
+// desk page) are the room v1.7 builds in: the caps do not move. Edit
+// assets/src/, never assets/.
+export const SERVED_ASSETS = [
+  { name: 'boom-city.css', kind: 'css', of: 'desk' },
+  { name: 'boom-city.js', kind: 'js', of: 'desk' },
+  { name: 'boom-onda.js', kind: 'js', of: 'desk' },
+  { name: 'boom-desks.css', kind: 'css', of: 'hub' },
+  { name: 'boom-desks.js', kind: 'js', of: 'hub' }
+];
+// after these words a / opens a regex literal, not a division
+const REGEX_AFTER = new Set(['return', 'typeof', 'instanceof', 'in', 'of', 'new', 'delete', 'void', 'throw', 'case', 'do', 'else', 'yield', 'await']);
+// One pass over src. strip=true drops the comments (whole lines go with their
+// newline); strip=false drops nothing but folds runs of ≥4 newlines between
+// tokens to two. Returns the text and what was dropped, for the structural
+// check in stripComments (only whitespace and comment-shaped text may go).
+function scanSource(src, kind, strip) {
+  const n = src.length, out = [], removed = [];
+  let from = 0;
+  const lineOf = (at) => src.slice(0, at).split('\n').length;
+  const fail = (what, at) => { throw new BuildError(`stripComments(${kind}): ${what} at line ${lineOf(at)} — the stripper is not safe on this file; shorten its comments by hand instead`); };
+  const ws = (c) => c === ' ' || c === '\t' || c === '\r';
+  const word = (c) => /[A-Za-z0-9_$]/.test(c);
+  // the start of i's line when only blanks precede i on it, else -1
+  const bol = (i) => { let j = i; while (j > 0 && ws(src[j - 1])) j--; return j === 0 || src[j - 1] === '\n' ? j : -1; };
+  // the index after the newline when only blanks follow i on its line (n at the end of the file), else -1
+  const eol = (i) => { let j = i; while (j < n && ws(src[j])) j++; return j >= n ? n : src[j] === '\n' ? j + 1 : -1; };
+  const drop = (a, b, put = '') => { const s = Math.max(from, a); out.push(src.slice(from, s), put); removed.push(src.slice(s, b)); from = b; };
+  const str = (i, q) => { for (let j = i + 1; j < n; j++) { if (src[j] === '\\') { j++; continue; } if (src[j] === q) return j + 1; if (src[j] === '\n') break; } return fail('unterminated string', i); };
+  const block = (i) => {
+    const e = src.indexOf('*/', i + 2); if (e < 0) fail('unterminated comment', i);
+    const end = e + 2, a = bol(i), b = eol(end);
+    if (!strip || (kind === 'js' && a < 0)) return end;                               // kept (a JS block mid-line always is)
+    if (a >= 0 && b >= 0) drop(a, b);                                                 // whole line(s): gone with their newline
+    else if (a >= 0) { let k = end; while (k < n && ws(src[k])) k++; drop(i, k); }     // code follows on the line: it keeps the indent
+    else { let k = i; if (b >= 0) while (k > 0 && ws(src[k - 1])) k--; drop(k, end); } // CSS mid-line: gone, with the blanks before it when it ended the line
+    return end;
+  };
+  const line = (i) => { let e = src.indexOf('\n', i); if (e < 0) e = n; const a = bol(i); if (strip && a >= 0) drop(a, e < n ? e + 1 : n); return e; };
+  const rex = (i) => { let cls = false; for (let j = i + 1; j < n; j++) { const c = src[j]; if (c === '\\') { j++; continue; } if (c === '\n') return -1; if (cls) { if (c === ']') cls = false; } else if (c === '[') cls = true; else if (c === '/') { j++; while (j < n && /[a-z]/i.test(src[j])) j++; return j; } } return -1; };
+  const tpl = (i) => { for (let j = i + 1; j < n; j++) { if (src[j] === '\\') { j++; continue; } if (src[j] === '`') return j + 1; if (src[j] === '$' && src[j + 1] === '{') j = code(j + 2, true) - 1; } return fail('unterminated template literal', i); };
+  // last: null at the start, a word (identifier, number, keyword), one punctuator, or 'v' after a literal value
+  const regexOk = (t) => t === null || REGEX_AFTER.has(t) || (!word(t[0]) && t !== ')' && t !== ']');
+  const code = (start, inExpr) => {
+    let i = start, depth = 0, last = null;
+    while (i < n) {
+      const c = src[i], d = src[i + 1];
+      if (c === '/' && d === '*') { i = block(i); continue; }
+      if (kind === 'js' && c === '/' && d === '/') { i = line(i); continue; }
+      if (c === '\n') {
+        let j = i, nl = 0, lastNl = i;
+        while (j < n && (ws(src[j]) || src[j] === '\n')) { if (src[j] === '\n') { nl++; lastNl = j; } j++; }
+        if (!strip && nl >= 4) drop(i, lastNl + 1, '\n\n');
+        i = j; continue;
+      }
+      if (ws(c)) { i++; continue; }
+      if (c === '"' || c === "'") { i = str(i, c); last = 'v'; continue; }
+      if (kind === 'css') {
+        if (/^url\(/i.test(src.substr(i, 4))) {                                       // an unquoted url(…) is one token: nothing in it is a comment
+          let j = i + 4; while (j < n && ws(src[j])) j++;
+          if (src[j] === '"' || src[j] === "'") { i = j; continue; }
+          const e = src.indexOf(')', j); if (e < 0) fail('unterminated url(', i);
+          i = e + 1; continue;
+        }
+        i++; continue;
+      }
+      if (c === '`') { i = tpl(i); last = 'v'; continue; }
+      if (c === '/') { if (regexOk(last)) { const e = rex(i); if (e > 0) { i = e; last = 'v'; continue; } } last = '/'; i++; continue; }
+      if (c === '{') { depth++; last = '{'; i++; continue; }
+      if (c === '}') { if (inExpr && depth === 0) return i + 1; depth--; last = '}'; i++; continue; }
+      if (word(c)) { let j = i + 1; while (j < n && word(src[j])) j++; last = src.slice(i, j); i = j; continue; }
+      last = c; i++;
+    }
+    if (inExpr) fail('unterminated ${', start);
+    return i;
+  };
+  code(0, false);
+  out.push(src.slice(from));
+  return { text: out.join(''), removed, fail };
+}
+export function stripComments(src, kind) {
+  if (kind !== 'css' && kind !== 'js') throw new BuildError(`stripComments: kind must be "css" or "js", not "${kind}"`);
+  const one = scanSource(String(src), kind, true);
+  for (const r of one.removed) {
+    if (!/^\s*$/.test(r) && !/^\s*\/\*[\s\S]*\*\/\s*$/.test(r) && !(kind === 'js' && /^\s*\/\/[^\n]*\n?$/.test(r))) one.fail('dropped text that is not a comment', src.indexOf(r));
+  }
+  const two = scanSource(one.text, kind, false);
+  for (const r of two.removed) if (!/^\s*$/.test(r)) two.fail('folded text that is not blank', one.text.indexOf(r));
+  return two.text;
+}
+const gzLen = (s) => zlib.gzipSync(Buffer.from(s), { level: 9 }).length;
+const hashOf = (s) => crypto.createHash('sha256').update(s).digest('hex').slice(0, 10);
+// Every served asset whose source exists: its emitted text, hash and whether
+// the served copy on disk is that text. Nothing is written here.
+export function emittedAssets(root = ROOT) {
+  return SERVED_ASSETS.filter((a) => fs.existsSync(path.join(root, 'assets/src', a.name))).map((a) => {
+    const src = `assets/src/${a.name}`, file = `assets/${a.name}`;
+    const source = fs.readFileSync(path.join(root, src), 'utf8');
+    const content = stripComments(source, a.kind);
+    if (a.kind === 'js') {
+      try { new vm.Script(content, { filename: file }); }
+      catch (e) { throw new BuildError(`${src}: the stripped copy does not compile (${e.message}) — the stripper is not safe on this file; shorten its comments by hand instead`); }
+    }
+    const out = path.join(root, file);
+    const cur = fs.existsSync(out) ? fs.readFileSync(out, 'utf8') : null;
+    return { ...a, src, file, out, content, hash: hashOf(content), stale: cur !== content, written: false, gzKb: gzLen(content) / 1024, sourceGzKb: gzLen(source) / 1024 };
+  });
+}
+// Writes the stale served copies (unless check) and reads each one back.
+export function emitAssets({ root = ROOT, check = false } = {}) {
+  const list = emittedAssets(root);
+  if (!check) for (const a of list) if (a.stale) {
+    fs.mkdirSync(path.dirname(a.out), { recursive: true });
+    fs.writeFileSync(a.out, a.content);
+    need(fs.readFileSync(a.out, 'utf8') === a.content, a.file, 'was not written as emitted');
+    a.stale = false; a.written = true;
+  }
+  return list;
+}
+// The ?v= versions the pages link: hashes of the EMITTED text (never of the
+// source, never of a served copy edited by hand). The desk pages need their
+// three files; the hub (hub:true) needs its two as well.
+function assetVersionOf(root, { hub = false } = {}) {
+  const em = Object.fromEntries(emittedAssets(root).map((a) => [a.name, a]));
+  for (const a of SERVED_ASSETS) if (a.of === 'desk' || hub) need(em[a.name], `assets/src/${a.name}`, `is missing: the served assets/${a.name} is emitted from it${a.name === 'boom-onda.js' ? ' — every page weighs it and boom-city.js loads it at ≥940px (v1.6 §D)' : a.of === 'hub' ? ' and the hub links it' : ''}`);
+  const h = (k) => (em[k] ? em[k].hash : undefined);
+  return { css: h('boom-city.css'), js: h('boom-city.js'), onda: h('boom-onda.js'), ...(em['boom-desks.css'] ? { desksCss: h('boom-desks.css') } : {}), ...(em['boom-desks.js'] ? { desksJs: h('boom-desks.js') } : {}) };
+}
+// the gzipped bytes of a served file, which must exist (the build emits it)
+const servedGz = (root, f) => { need(fs.existsSync(path.join(root, f)), f, 'is missing: the build emits it from assets/src/ — run: npm run build:cities'); return gzLen(fs.readFileSync(path.join(root, f))); };
+
 // The first-party bytes of a page, gzipped: the page itself and the files
 // it links that every visitor downloads. The budget is a build refusal.
 // v1.6: the onda canvas script (assets/boom-onda.js) is counted in the
 // total, and the CSS and the onda have caps of their own.
+// Stage 0: the weights are those of the SERVED files in assets/ (emitted, no comments).
 export function weightOf(html, root = ROOT) {
-  const gz = (buf) => zlib.gzipSync(buf, { level: 9 }).length;
-  const file = (f) => gz(fs.readFileSync(path.join(root, f)));
+  const file = (f) => servedGz(root, f);
   const js = file('assets/boom-city.js'), css = file('assets/boom-city.css'), onda = file('assets/boom-onda.js');
-  const total = gz(Buffer.from(html)) + css + js + onda + file('js/boom-consent.js') + file('js/boom-track.js');
+  const total = gzLen(html) + css + js + onda + file('js/boom-consent.js') + file('js/boom-track.js');
   return { totalKb: total / 1024, jsKb: js / 1024, cssKb: css / 1024, ondaKb: onda / 1024 };
 }
 
@@ -2378,9 +2527,8 @@ export function renderHub({ template, shared, hub, cities, assetVersion, frags, 
   }
   let weight = null;
   if (weigh) {
-    const gz = (buf) => zlib.gzipSync(buf, { level: 9 }).length;
-    const file = (f) => gz(fs.readFileSync(path.join(root, f)));
-    const page = gz(Buffer.from(html)), css = file('assets/boom-desks.css'), js = file('assets/boom-desks.js');
+    const file = (f) => servedGz(root, f);
+    const page = gzLen(html), css = file('assets/boom-desks.css'), js = file('assets/boom-desks.js');
     const total = page + css + js + file('assets/boom-city.css') + file('assets/boom-onda.js') + file('js/boom-consent.js') + file('js/boom-track.js');
     weight = { totalKb: total / 1024, pageKb: page / 1024, cssKb: css / 1024, jsKb: js / 1024 };
     need(weight.totalKb <= HUB_WEIGHT_KB.total, where, `first-party weight ${weight.totalKb.toFixed(1)} KB gzipped, over ${HUB_WEIGHT_KB.total}`);
@@ -2402,13 +2550,8 @@ export function buildHub({ root = ROOT, pages = null } = {}) {
   const cities = desks.map((p) => readJson(path.join(dir, `${p.slug}.json`)));
   const ef = path.join(dir, '_europe.json');
   const europe = fs.existsSync(ef) ? readJson(ef) : null;
-  for (const f of ['assets/boom-desks.css', 'assets/boom-desks.js']) need(fs.existsSync(path.join(root, f)), f, 'is missing: the hub links it');
-  const assetVersion = {
-    css: hash(path.join(root, 'assets/boom-city.css')),
-    onda: hash(path.join(root, 'assets/boom-onda.js')),
-    desksCss: hash(path.join(root, 'assets/boom-desks.css')),
-    desksJs: hash(path.join(root, 'assets/boom-desks.js'))
-  };
+  // Stage 0: the ?v= versions are the hashes of the EMITTED assets (sources in assets/src/)
+  const assetVersion = assetVersionOf(root, { hub: true });
   return renderHub({ template, shared, hub, cities, assetVersion, frags: fragments(root), root, europe });
 }
 
@@ -2422,16 +2565,11 @@ export function buildAll({ root = ROOT } = {}) {
   const dir = path.join(root, 'cities');
   const template = fs.readFileSync(path.join(dir, '_template.html'), 'utf8');
   const shared = readJson(path.join(dir, '_shared.json'));
-  // the onda canvas script is weighed in every page and versioned in its URL
-  need(fs.existsSync(path.join(root, 'assets/boom-onda.js')), 'assets/boom-onda.js', 'is missing: every page weighs it and boom-city.js loads it at ≥940px (v1.6 §D)');
-  const assetVersion = {
-    css: hash(path.join(root, 'assets/boom-city.css')),
-    js: hash(path.join(root, 'assets/boom-city.js')),
-    onda: hash(path.join(root, 'assets/boom-onda.js')),
-    // the hub's own files (BOOM Desks): the desk pages do not read them
-    ...(fs.existsSync(path.join(root, 'assets/boom-desks.css')) ? { desksCss: hash(path.join(root, 'assets/boom-desks.css')) } : {}),
-    ...(fs.existsSync(path.join(root, 'assets/boom-desks.js')) ? { desksJs: hash(path.join(root, 'assets/boom-desks.js')) } : {})
-  };
+  // Stage 0: the ?v= versions are the hashes of the EMITTED assets (sources in
+  // assets/src/); the onda is weighed in every page and versioned in its URL;
+  // the hub's own files (BOOM Desks) are hashed when they exist — the desk
+  // pages do not read them
+  const assetVersion = assetVersionOf(root);
   const frags = fragments(root);
   // Every city is read before any is rendered: the family of one page is
   // made of the others.
@@ -2455,6 +2593,7 @@ export function buildAll({ root = ROOT } = {}) {
 // exists; a committed desks.html whose copy is gone is an error, never a
 // page left behind unchecked.
 export function writeAll({ root = ROOT, check = false } = {}) {
+  emitAssets({ root, check });   // Stage 0: the served assets first — the pages hash and weigh them
   const desks = buildAll({ root });
   const hasHub = fs.existsSync(path.join(root, 'cities', '_hub.json'));
   need(hasHub || !fs.existsSync(path.join(root, HUB_FILE)), HUB_FILE, 'exists but cities/_hub.json is missing: restore the hub\'s copy or remove the page');
@@ -2476,6 +2615,10 @@ if (isMain) {
   const check = process.argv.includes('--check');
   try {
     let stale = 0;
+    for (const a of emitAssets({ check })) {
+      if (check && a.stale) { stale++; console.error(`✗ ${a.file} is stale — it is not ${a.src} without its comments; run: npm run build:cities`); continue; }
+      console.log(`${check ? '✓ up to date' : a.written ? '✓ emitted  ' : '✓ unchanged'}  ${a.file}  ·  ${a.gzKb.toFixed(1)} KB gz served (${a.sourceGzKb.toFixed(1)} KB with its comments in ${a.src})`);
+    }
     for (const p of writeAll({ check })) {
       if (check && p.stale) { stale++; console.error(`✗ ${p.file} is stale — run: npm run build:cities`); continue; }
       if (p.mode === 'hub') console.log(`${check ? '✓ up to date' : '✓ built'}  ${p.file}  ·  HUB  ·  ${p.words} words at load (prose ${p.prose} · instr ${p.instr}; ${Object.entries(p.sections).map(([k, v]) => `${k} ${v}`).join(' · ')})  ·  ${p.weight.totalKb.toFixed(1)} KB gz (page ${p.weight.pageKb.toFixed(1)} · css ${p.weight.cssKb.toFixed(1)} · js ${p.weight.jsKb.toFixed(1)})`);

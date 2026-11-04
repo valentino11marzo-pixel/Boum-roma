@@ -1,14 +1,3 @@
-/* ═══ assets/boom-city.css — THE COMPLETE AVIATION DESK (v1.6).
-   The first phone screen is one boarding pass, now a crafted object: a foil
-   chip (and, on a desk, a foil band), security print, an inner hairline, a
-   punched perforation that IS the route (YOU → the desk, the plane parked
-   where the server's state puts it), an issuer seal, a stub full to the
-   bottom with a barcode that encodes nothing. Below: a terminal walk —
-   Departures, Pre-flight, Baggage, Gate, Questions, Network, the fact sheet
-   on the back of the ticket. Motion only when a fact changes, the desk is
-   open, or the reader moves; nothing loops while the desk is closed.
-   Self-contained: gold #FFD700 (never the portal's); the foil uses the
-   darker leaf stops (#b8942b–#fdf0a8), so the door stays the ONE flat gold. ═══ */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
   --void:#060607;--ink:#FFFFFF;
@@ -20,20 +9,14 @@
   --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
   --ease:cubic-bezier(.16,1,.3,1);
   --strip-h:0px;
-  /* the punched hole: the page showing through, a light lip under it */
   --hole:radial-gradient(circle 2.6px at 50% 50%,var(--void) 95%,transparent),radial-gradient(circle 3px at 50% calc(50% + 1px),rgba(255,255,255,.13) 95%,transparent);
-  /* gold leaf, the darker stops only (#141005 on it ≥ 6.6:1) + its knurl */
   --leaf:repeating-linear-gradient(90deg,rgba(0,0,0,.07) 0 1px,transparent 1px 3px),linear-gradient(180deg,#f6e27a,#fdf0a8 34%,#d9b84a 66%,#b8942b)
 }
-/* the page anchors the tapped row by hand (boom-city.js): the browser's own
-   scroll anchoring would correct the same shift a second time. The top
-   padding is the scroll contract's (inlined after this file). */
 html{background:var(--void);color-scheme:dark;-webkit-text-size-adjust:100%;overflow-anchor:none;
   scroll-padding-bottom:calc(var(--strip-h) + 12px)}
 @media (prefers-reduced-motion:no-preference){html{scroll-behavior:smooth}}
 body{position:relative;min-height:100vh;color:var(--ink);font:300 16px/1.55 var(--sans);-webkit-font-smoothing:antialiased;
   background:radial-gradient(80% 46% at 50% -6%,rgba(255,215,0,.075),transparent 62%),var(--void);overflow-x:clip}
-/* §D the grain (the home's): fixed, ≤ .05, no pointer; the scroll contract keeps it under the header */
 body::before{content:'';position:fixed;inset:0;opacity:.014;pointer-events:none;
   background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
 main{position:relative;z-index:1}
@@ -51,19 +34,15 @@ input{font:inherit}
 .lnk:hover{color:var(--ink);text-decoration-color:var(--gold)}
 a.lnk[href^=mailto]{white-space:nowrap}
 button.lnk{display:inline;font-size:inherit}
-/* the dots: t3 at rest, green only while the desk is open (html[data-desk], set by the clock) */
 .dot{flex:none;display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--t3)}
 [data-desk=open] .dot{background:var(--open);box-shadow:0 0 8px rgba(92,255,174,.5)}
 
-/* §D the filament (where you are) and the onda (≥940, behind the pass) */
 .filo{position:fixed;top:0;left:0;right:0;height:2px;z-index:70;pointer-events:none;transform-origin:0 50%;transform:scaleX(var(--p,0));
   background:linear-gradient(90deg,var(--gold),var(--gold-hi));box-shadow:0 0 8px rgba(255,215,0,.45)}
 .onda{display:none;position:absolute;top:0;left:0;width:100%;height:min(100vh,1000px);z-index:0;pointer-events:none;
   -webkit-mask:linear-gradient(#000 55%,transparent);mask:linear-gradient(#000 55%,transparent)}
 @media (min-width:940px){.onda{display:block}}
 
-/* ── §B.2 THE HEADER: below 760 the mark and one way to talk, not sticky;
-   from 760 sticky, 64px, the lockup, the wayfinding (≥1180), the twin slot ── */
 .top-in{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:60px}
 .brand{display:inline-flex;align-items:center;gap:11px;min-height:44px;text-decoration:none}
 .brand svg{width:30px;height:30px;flex:none}
@@ -77,8 +56,6 @@ button.lnk{display:inline;font-size:inherit}
 .pill svg{width:16px;height:16px;fill:currentColor;flex:none}
 @media (max-width:359px){.pill .pl{display:none}.pill{padding:0}}
 @media (min-width:760px){
-  /* A1: the header is sticky and 64px from here; a fresh deep link (Stripe's cancel_url /<slug>#fares)
-     is resolved before the scroll contract can measure it, so the offset is stated (beats the inline html rule) */
   html[lang]{scroll-padding-top:82px}
   .top{position:sticky;top:0;z-index:50;height:64px;background:rgba(6,6,7,.74);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);border-bottom:1px solid var(--line-soft)}
   .top-in{height:100%;min-height:0;gap:16px}
@@ -89,7 +66,6 @@ button.lnk{display:inline;font-size:inherit}
   .b-city{display:block;font-size:11.5px;letter-spacing:.26em;text-transform:uppercase;color:var(--t2)}
   .navr{gap:10px}
   .pill{padding:0;width:44px}.pill .pl{display:none}
-  /* one cell, two items taking turns (visibility only: the header never moves) */
   .twin{display:grid;width:256px;justify-items:end;align-items:center}
   .twin>*{grid-area:1/1;transition:opacity .3s var(--ease),visibility .3s}
   .twin>.off{visibility:hidden;opacity:0}
@@ -110,24 +86,18 @@ button.lnk{display:inline;font-size:inherit}
   .wayf a[aria-current]::after{transform:none}
 }
 
-/* ── THE PASS ── */
 .pass{position:relative;--at:0;border-radius:24px;border:1px solid var(--gold-line);
   background:radial-gradient(90% 60% at 100% 0%,rgba(255,215,0,.07),transparent 60%),linear-gradient(180deg,#141417 0%,#0D0D10 62%,#0B0B0D 100%);
   box-shadow:0 44px 90px -44px rgba(0,0,0,.95),inset 0 1px 0 rgba(255,255,255,.06)}
-/* the security print (two crossing guilloche lines, masked to the top-left) */
 .pass::before{content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:.5;
   background:repeating-linear-gradient(115deg,rgba(255,215,0,.12) 0 1px,transparent 1px 9px),repeating-linear-gradient(63deg,rgba(255,215,0,.12) 0 1px,transparent 1px 14px);
   -webkit-mask:radial-gradient(120% 130% at 0% 0%,#000 20%,transparent 62%);mask:radial-gradient(120% 130% at 0% 0%,#000 20%,transparent 62%)}
-/* the inner hairline at 6px */
 .pass::after{content:'';position:absolute;inset:6px;border:1px solid rgba(255,215,0,.13);border-radius:18px;pointer-events:none}
-/* the plane: parked at YOU; on tick 1 once the server opened the file or took the
-   payment; before tick 1 when the payer did not ask to start now */
 .pass[data-state=open],.pass[data-state=paid]{--at:.25}
 .pass[data-state=paid][data-hold]{--at:.125}
 .lamina,.seal,.route-s,.sside{display:none}
 .p-main{position:relative;padding:14px 20px 2px;container-type:inline-size}
 .p-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 12px;min-height:30px}
-/* the foil chip: knurled gold leaf, dark letters; it flashes once on OPEN and on PAID */
 .p-desk{position:relative;overflow:hidden;padding:3px 9px;border-radius:6px;background:var(--leaf);color:#141005;
   font-size:10.5px;font-weight:700;letter-spacing:.24em;text-transform:uppercase;white-space:nowrap;
   box-shadow:inset 0 1px 0 rgba(255,250,214,.6),inset 0 -1px 0 rgba(80,60,10,.35),0 2px 10px -4px rgba(255,215,0,.35)}
@@ -141,10 +111,6 @@ button.lnk{display:inline;font-size:inherit}
 
 h1{margin-top:14px;font-weight:300;line-height:1.06;letter-spacing:-.012em}
 h1 .h1a{display:block;color:var(--t2);font-size:clamp(26px,7vw,50px);text-wrap:balance}
-/* the city board: served empty, the word drawn from data-word until the
-   cells land (the H1 reads the city once, in the .sr span); the space is
-   reserved for the cells so nothing jumps when they come. Sized also by the
-   ticket's own width (cqi): a 9-letter city never spills at 940–1100 */
 .board-row{margin:0;line-height:0}
 .board{display:inline-block;margin-top:6px;font-weight:300;color:var(--gold);white-space:nowrap;
   font-size:clamp(25px,calc((100vw - 84px) / 8.6),62px);height:1.26em;line-height:1.26em;min-width:calc(var(--n) * .91em);letter-spacing:.27em}
@@ -154,7 +120,6 @@ h1 .h1a{display:block;color:var(--t2);font-size:clamp(26px,7vw,50px);text-wrap:b
 .lead{margin-top:12px;max-width:46ch;color:var(--t2);font-size:clamp(15px,2.1vw,18px);line-height:1.48}
 .lead b{color:var(--ink);font-weight:400}
 
-/* ── the fares: each row is a <details>; its ticket opens in place ── */
 .fares{margin-top:14px;border-top:1px solid var(--line)}
 .fares-h{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:4px 12px;padding:10px 0 2px;
   font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--t3)}
@@ -179,7 +144,6 @@ h1 .h1a{display:block;color:var(--t2);font-size:clamp(26px,7vw,50px);text-wrap:b
 .fare[open] .f-tog::before,.fare[open] .f-tog::after{background:var(--gold)}
 .fare[open] .f-tog::after{transform:rotate(0)}
 .refund{margin:0 0 8px;padding:2px 0 2px 12px;border-left:2px solid var(--gold);font-size:13.5px;line-height:1.45;color:var(--t2)}
-/* the rule beside the €500 lives in the open ticket while it is open */
 .fares:has(>details[data-fs][open])>.refund.fs,.fares.fs-open>.refund.fs{display:none}
 @media (min-width:430px){.f-cond br{display:none}}
 @media (max-width:374px){
@@ -196,7 +160,6 @@ h1 .h1a{display:block;color:var(--t2);font-size:clamp(26px,7vw,50px);text-wrap:b
   .fares.long .f-cond{margin:0}.fares.long .f-cond br{display:none}
   .fares.long .f-price{font-size:26px}
 }
-/* the ticket, under its row: torn along a punched line */
 .tk{position:relative;margin:0 10px;padding:18px 0 14px}
 .tk::before{content:'';position:absolute;left:-4px;right:-4px;top:0;height:10px;background:var(--hole);background-size:11px 10px;background-repeat:repeat-x;background-position:center}
 .tk-tag{font-size:17px;font-weight:300;line-height:1.3;color:var(--ink)}
@@ -216,9 +179,6 @@ h1 .h1a{display:block;color:var(--t2);font-size:clamp(26px,7vw,50px);text-wrap:b
   @keyframes tk{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
 }
 
-/* ── §B.1 #5–6 the perforation IS the route: YOU on the punched track,
-   three ticks (one per Departures row), the desk's code; the plane and its
-   trail move by TRANSFORM only (--at, from #pass[data-state]) — no layout ── */
 .perf{position:relative;height:24px}
 .notch{position:absolute;top:50%;width:26px;height:26px;margin-top:-13px;border-radius:50%;background:var(--void);border:1px solid var(--gold-line)}
 .notch.a{left:-14px;clip-path:inset(0 0 0 50%)}
@@ -240,7 +200,6 @@ h1 .h1a{display:block;color:var(--t2);font-size:clamp(26px,7vw,50px);text-wrap:b
 .r-hold{display:none;position:absolute;left:11px;top:50%;width:1px;height:9px;margin-top:-4.5px;background:var(--gold)}
 .pass[data-hold] .r-hold{display:block}
 
-/* the stub: one door, the desk's real fields, the barcode at its foot */
 .stub{position:relative;padding:0 20px 18px}
 .s-h{font-size:15px;line-height:1.45;color:var(--t2);max-width:42ch}
 .plan-ln{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px;font-size:14px;color:var(--t2)}
@@ -251,8 +210,6 @@ h1 .h1a{display:block;color:var(--t2);font-size:clamp(26px,7vw,50px);text-wrap:b
   background:linear-gradient(180deg,var(--gold-hi) 0%,var(--gold) 55%,#F1C800 100%);
   box-shadow:0 16px 40px -18px rgba(255,215,0,.6),inset 0 1px 0 rgba(255,255,255,.55);
   transition:transform .2s var(--ease),box-shadow .2s,filter .2s}
-/* the door's runway lights: one pass of light along its foot on hover or focus,
-   never at rest (its own overflow never clips its own outline) */
 .door{overflow:hidden}
 .door::before{content:'';position:absolute;left:-30%;bottom:0;width:30%;height:2px;background:linear-gradient(90deg,transparent,#fff,transparent);opacity:0;pointer-events:none}
 .door b,.pay b{display:block;font-size:17px;font-weight:600;letter-spacing:-.005em;line-height:1.25}
@@ -266,7 +223,6 @@ h1 .h1a{display:block;color:var(--t2);font-size:clamp(26px,7vw,50px);text-wrap:b
 @media (prefers-reduced-motion:no-preference){
   .door:hover::before,.door:focus-visible::before{animation:runway .9s var(--ease) 1}
   @keyframes runway{0%{left:-30%;opacity:1}100%{left:100%;opacity:0}}
-  /* the request in flight (≤ 20 s): the arrow glides */
   .door[aria-disabled=true] .ar,.pay[aria-disabled=true] .ar{animation:glide 1.2s var(--ease) infinite}
   @keyframes glide{0%{transform:translateX(-3px);opacity:.4}60%{transform:translateX(4px);opacity:1}100%{transform:translateX(-3px);opacity:.4}}
 }
@@ -274,7 +230,6 @@ h1 .h1a{display:block;color:var(--t2);font-size:clamp(26px,7vw,50px);text-wrap:b
 .fields dt{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--t3)}
 .fields dd{margin-top:3px;font-size:14px;line-height:1.35;color:var(--ink)}
 .fields .wide{grid-column:1/-1}
-/* the stub foot: a barcode that encodes nothing, the issuer's code line (the server's file code after OPEN / PAID) */
 .stub-foot{margin-top:18px}
 .bars{display:block;max-width:420px;height:30px;opacity:.5;border-radius:2px;background:
   repeating-linear-gradient(90deg,rgba(250,250,250,.78) 0 2px,transparent 2px 4px),
@@ -285,7 +240,6 @@ h1 .h1a{display:block;color:var(--t2);font-size:clamp(26px,7vw,50px);text-wrap:b
   @keyframes print{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0)}}
 }
 
-/* the door's form, printed where the door is */
 .fld{margin-top:12px}
 .fld label{display:block;margin-bottom:6px;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--t3)}
 .fld label i{font-style:normal;letter-spacing:.04em;text-transform:none;color:var(--t3)}
@@ -303,7 +257,6 @@ h1 .h1a{display:block;color:var(--t2);font-size:clamp(26px,7vw,50px);text-wrap:b
   @keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 }
 
-/* states printed where the door was: OPEN · confirming · PAID */
 .card{position:relative;padding-top:4px}
 .card:focus{outline:none}
 .card h2{margin-top:6px;font-weight:300;font-size:24px;line-height:1.2}
@@ -314,7 +267,6 @@ h1 .h1a{display:block;color:var(--t2);font-size:clamp(26px,7vw,50px);text-wrap:b
 .card .next{list-style:none;margin-top:12px;border-top:1px solid var(--line-soft)}
 .card .next li{padding:7px 0;border-bottom:1px solid var(--line-soft);font-size:13.5px;color:var(--t2)}
 .card .next b{color:var(--ink);font-weight:400}
-/* the ink stamp (an SVG ring with the words on the arc), struck once */
 .stamp{position:absolute;right:0;top:-2px;width:84px;height:84px;transform:rotate(-12deg);opacity:.9;pointer-events:none;mix-blend-mode:screen}
 .stamp svg{display:block;width:84px;height:84px}
 .stamp circle{fill:none}
@@ -328,19 +280,15 @@ h1 .h1a{display:block;color:var(--t2);font-size:clamp(26px,7vw,50px);text-wrap:b
   @keyframes stamp{0%{transform:rotate(-12deg) scale(1.6);opacity:0}100%{transform:rotate(-12deg) scale(1);opacity:.9}}
 }
 
-/* ── desk width: the ticket lies down — the foil band, the body, the
-   perforation standing up, the stub full to the bottom ── */
 @media (min-width:940px){
   .pass{display:grid;grid-template-columns:28px minmax(0,1fr) 30px 380px}
   .lamina,.p-main,.perf,.stub{grid-row:1}.lamina{grid-column:1}.p-main{grid-column:2}.perf{grid-column:3}.stub{grid-column:4}
   .pass::after{left:34px}
-  /* the foil band: beaten and knurled gold leaf, flashed once on OPEN and on PAID */
   .lamina{position:relative;display:grid;place-items:center;overflow:hidden;border-radius:23px 0 0 23px;
     background:repeating-linear-gradient(0deg,rgba(0,0,0,.16) 0 1px,transparent 1px 3px),linear-gradient(180deg,#7a5f16,#f6e27a 14%,#8a6d1f 32%,#fdf0a8 48%,#b8942b 63%,#f6e27a 78%,#6b5716 100%);
     box-shadow:inset -1px 0 0 rgba(0,0,0,.55),inset 1px 0 0 rgba(255,255,255,.18)}
   .lamina em{font-style:normal;writing-mode:vertical-rl;transform:rotate(180deg);font-size:7.5px;font-weight:800;letter-spacing:.34em;text-transform:uppercase;color:#141005;white-space:nowrap;opacity:.9;text-shadow:0 1px 0 rgba(255,244,180,.5)}
   .p-main{padding:30px 34px 22px 32px}
-  /* the issuer seal beside the sentence: in flow, so it never meets the board */
   .lead-row{display:flex;align-items:center;justify-content:space-between;gap:24px;margin-top:16px}
   .lead-row .lead{margin-top:0}
   .seal{display:block;flex:none;width:104px;height:104px;transform:rotate(-9deg);mix-blend-mode:screen;opacity:.45}
@@ -349,17 +297,14 @@ h1 .h1a{display:block;color:var(--t2);font-size:clamp(26px,7vw,50px);text-wrap:b
   .s-i{stroke-width:.7;stroke-dasharray:2 3}
   .s-t{fill:rgba(255,215,0,.5);font-family:var(--sans);font-size:7.2px;font-weight:700}
   .route-p{display:none}
-  /* the perforation, standing: punched holes between the two notches */
   .perf{height:auto}
   .perf::before{content:'';position:absolute;left:0;right:0;top:20px;bottom:20px;background:var(--hole);background-size:100% 11px;background-repeat:repeat-y;background-position:center}
   .notch{left:50%!important;right:auto!important;margin:0 0 0 -13px}
   .notch.a{top:-14px;clip-path:inset(50% 0 0 0)}
   .notch.b{top:auto;bottom:-14px;clip-path:inset(0 0 50% 0)}
   .stub{display:flex;flex-direction:column;padding:30px 34px 24px 14px;isolation:isolate}
-  /* the rosette: concentric rings, as paper seen against the light */
   .stub::before{content:'';position:absolute;top:50%;left:50%;width:240px;height:240px;margin:-120px 0 0 -120px;border-radius:50%;z-index:-1;pointer-events:none;opacity:.05;
     background:repeating-radial-gradient(circle,var(--gold) 0 1px,transparent 1px 9px)}
-  /* FROM YOU · TO the desk's code */
   .route-s{display:block;margin-bottom:18px}
   .r-lab{display:flex;justify-content:space-between;font:400 9.5px var(--mono);letter-spacing:.2em;text-transform:uppercase;color:var(--t3)}
   .r-ends{display:flex;align-items:center;gap:12px;margin-top:4px}
@@ -370,10 +315,8 @@ h1 .h1a{display:block;color:var(--t2);font-size:clamp(26px,7vw,50px);text-wrap:b
   .route-s .r-plane{width:18px;height:18px;margin:-9px 0 0 -9px}
   .stub .fields.desk{margin-top:22px;padding-top:16px;border-top:1px solid var(--line-soft)}
   .stub-gate{margin-top:20px}
-  /* A5: the door block rides beside an open ticket, under the header; its track ends above the foot */
   .stub-track{flex:1 0 auto}
   .stub-st{position:sticky;top:78px}
-  /* a form or a card is taller: on a short window it stays put (its foot never hides under the fold) */
   @media (max-height:859px){.stub-st:has(#fFields:not([hidden]),.card:not([hidden])){position:static}}
   .stub-foot{margin-top:auto;padding-top:22px}
   .sside{display:block;position:absolute;right:11px;top:50%;transform:translateY(-50%) rotate(180deg);writing-mode:vertical-rl;
@@ -396,9 +339,6 @@ h1 .h1a{display:block;color:var(--t2);font-size:clamp(26px,7vw,50px);text-wrap:b
   @keyframes lampoX{to{transform:translateX(330%) skewX(-18deg)}}
 }
 
-/* ── §C below the pass: a terminal walk. Each section opens with an
-   eyebrow, then one h2 with one gold phrase; instruments are square,
-   ticked at the corners, on the void ── */
 .proof{margin:18px auto 0;max-width:92ch;text-align:center;font-size:12.5px;line-height:1.6;color:var(--t3)}
 .proof a{display:inline-flex;align-items:center;min-height:32px}
 .below{max-width:1088px;margin:0 auto;
@@ -419,7 +359,6 @@ h1 .h1a{display:block;color:var(--t2);font-size:clamp(26px,7vw,50px);text-wrap:b
 .quadro>.tacca::after{bottom:-1px;right:-1px;border-bottom:1px solid var(--gold-t);border-right:1px solid var(--gold-t)}
 .tacca{position:absolute;inset:0;pointer-events:none}
 
-/* §C.1 DEPARTURES — the steps as a board; statuses on Solari cells */
 .dep{margin-top:28px;border:1px solid var(--line-soft);background:linear-gradient(180deg,#0B0B0D,var(--void))}
 .dep-h{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 12px;min-height:50px;padding:10px 16px;border-bottom:1px solid var(--line-soft)}
 .dep-h b{color:var(--gold);font-weight:600}
@@ -447,8 +386,6 @@ h1 .h1a{display:block;color:var(--t2);font-size:clamp(26px,7vw,50px);text-wrap:b
   .dep-f{padding:12px 20px}
 }
 
-/* §C.2 PRE-FLIGHT — the checks as lanes on a hairline grid (no verdicts, no ticks) */
-/* the hairlines are each cell's own (opaque #151516 = .06 white on the void): an entering lane never shows a grey slab */
 .lanes{margin-top:28px;display:grid;grid-template-columns:minmax(0,1fr);gap:1px;background:var(--void);border:1px solid #151516}
 .lanes-h,.lane{background:var(--void);box-shadow:0 0 0 1px #151516}
 .lanes-h{grid-column:1/-1;padding:14px 18px}
@@ -463,13 +400,10 @@ h1 .h1a{display:block;color:var(--t2);font-size:clamp(26px,7vw,50px);text-wrap:b
 .lane>summary::after{grid-column:3;grid-row:1/3}
 .lane>summary:hover .t{color:var(--gold)}
 .lane>p{padding:0 22px 20px 56px;max-width:78ch;font-size:15px;color:var(--t2)}
-/* no empty cells in the hairline grid: an odd last lane fills its row; four lanes are a 2×2; an open
-   lane opens IN its cell (the row grows, its neighbours stretch with it), so opening one never moves the others */
 @media (min-width:640px){.lanes{grid-template-columns:repeat(2,minmax(0,1fr))}.lane:nth-of-type(odd):last-of-type{grid-column:1/-1}}
 @media (min-width:940px){.lanes{grid-template-columns:repeat(3,minmax(0,1fr))}.lane:nth-of-type(odd):last-of-type{grid-column:auto}
   .lane:nth-of-type(5):last-of-type{grid-column:span 2}.lanes:has(>.lane:nth-of-type(4):last-of-type){grid-template-columns:repeat(2,minmax(0,1fr))}}
 
-/* §C.3 BAGGAGE — the papers as static tags: eyelet, string, a cut corner, a fixed tilt */
 .manifest{margin-top:22px}
 .tags{list-style:none;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px 14px;margin-top:22px}
 .tag{position:relative;isolation:isolate;min-height:96px;padding:12px 14px 14px;rotate:var(--r,0deg)}
@@ -484,7 +418,6 @@ h1 .h1a{display:block;color:var(--t2);font-size:clamp(26px,7vw,50px);text-wrap:b
 .tail{margin-top:24px;font-size:15px;color:var(--t2)}
 @media (min-width:940px){.tags{grid-template-columns:repeat(4,minmax(0,1fr));gap:26px 18px}}
 
-/* §C.4 GATE — who answers, the clocks, the week, the outlined door */
 .gate-g{margin-top:28px;display:grid;gap:20px;align-items:start}
 .who{display:flex;align-items:center;gap:14px}
 .who .mono{flex:none;display:grid;place-items:center;width:52px;height:52px;border-radius:50%;border:1px solid var(--gold-line);
@@ -517,8 +450,6 @@ h1 .h1a{display:block;color:var(--t2);font-size:clamp(26px,7vw,50px);text-wrap:b
 .write{font-size:14px;color:var(--t3)}
 .write a{display:inline-flex;align-items:center;min-height:44px}
 @media (max-width:939px){.gate-g.quadro{box-shadow:none}.gate-g::before,.gate-g::after,.gate-g>.tacca{display:none}}
-/* A13: on a desk the Gate is one instrument: the person and the hours | the week and the door,
-   a hairline between; the week's top meets the person's, the door spans the hours to the last line */
 @media (min-width:940px){
   .gate-g{grid-template-columns:minmax(0,1fr) minmax(0,1.45fr);grid-template-areas:"who week" "hrs door" "write door";column-gap:68px;row-gap:12px;align-items:center;
     padding:30px 34px;border:1px solid var(--line-soft);
@@ -526,7 +457,6 @@ h1 .h1a{display:block;color:var(--t2);font-size:clamp(26px,7vw,50px);text-wrap:b
   .who{grid-area:who}.hrs{grid-area:hrs;align-self:start}.write{grid-area:write;align-self:end;margin-bottom:-12px}.week{grid-area:week}.door2{grid-area:door;align-self:stretch}
   #deskClocks{grid-column:1/-1}
   #deskClocks:not(:has(.clocks)){display:none}
-  /* no JS (no week, no door): the person and the hours alone, one column */
   .gate-g:not(:has(>.week:not([hidden]))){grid-template-columns:minmax(0,1fr);grid-template-areas:"who" "hrs" "write";background-size:0 0,auto}
   .who .mono{width:60px;height:60px;font-size:17px}
 }
@@ -537,7 +467,6 @@ h1 .h1a{display:block;color:var(--t2);font-size:clamp(26px,7vw,50px);text-wrap:b
   @keyframes wk{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 }
 
-/* §C.5 QUESTIONS, and the folds' shared grammar */
 .folds{margin-top:22px;max-width:880px;border-top:1px solid var(--line)}
 .folds details{border-bottom:1px solid var(--line)}
 .folds summary,.sheet>summary{display:flex;align-items:center;gap:14px;min-height:58px;padding:12px 2px;cursor:pointer;list-style:none;font-size:16px;font-weight:400;line-height:1.35}
@@ -549,7 +478,6 @@ h1 .h1a{display:block;color:var(--t2);font-size:clamp(26px,7vw,50px);text-wrap:b
 .folds summary:hover .t{color:var(--gold)}
 .folds details>p,.folds details>ul{padding:0 30px 18px 42px;max-width:72ch;font-size:15px;color:var(--t2)}
 
-/* §C.6 NETWORK — operated from Rome: the map (≥640) is decoration, the list navigates */
 .net-c{margin-top:12px;font-size:15px;color:var(--t2)}
 .net-g{margin-top:24px;display:grid;gap:22px;align-items:center}
 .map{display:none;width:100%;height:auto;max-width:640px}
@@ -568,7 +496,6 @@ circle.hub{stroke:#fff;stroke-width:1.6}
 .net a:hover{color:var(--ink);border-color:var(--gold-line);background:var(--gold-faint)}
 .net b{font:500 12px var(--mono);letter-spacing:.14em;color:var(--gold)}
 #netDots circle{fill-opacity:.2}
-/* BOOM Desks: every desk on the map — a desk not open is a hollow dot (no arc, no link), Rome wears its ring */
 .map .d.off{fill:none;stroke:rgba(255,255,255,.42);stroke-width:1}
 .m-l.off{opacity:.55}
 circle.hub-r{stroke:rgba(255,255,255,.22);stroke-width:1}
@@ -580,7 +507,6 @@ circle.hub-r{stroke:rgba(255,255,255,.22);stroke-width:1}
 @media (min-width:640px){.map{display:block}.net-k{display:flex}}
 @media (min-width:940px){.net-g{grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:40px}.map{grid-area:1/1}.net-k{grid-area:2/1}.net{grid-area:1/2/3}}
 
-/* §C.7 on the back of the ticket: the fact sheet, folded, whole in the DOM for the engines that quote it */
 .brief{position:relative}
 .corner{position:absolute;z-index:2;right:18px;top:calc(clamp(40px,4.6vw,64px) - 10px);pointer-events:none;padding:3px 9px;border-radius:6px;background:var(--leaf);color:#141005;
   font-size:9.5px;font-weight:700;letter-spacing:.24em;text-transform:uppercase;box-shadow:inset 0 1px 0 rgba(255,250,214,.6),0 4px 14px -6px rgba(0,0,0,.8)}
@@ -593,7 +519,6 @@ circle.hub-r{stroke:rgba(255,255,255,.22);stroke-width:1}
 .enbref dd b{color:var(--ink);font-weight:400}
 @media (min-width:760px){.enbref{grid-template-columns:150px minmax(0,1fr);padding-top:12px}.enbref dt{margin-top:0;padding-top:3px}}
 
-/* §D the footer: the statement, this desk, legal, the company */
 .foot{padding:44px 0 calc(34px + var(--strip-h) + env(safe-area-inset-bottom));border-top:1px solid var(--line);font-size:12.5px;line-height:1.6;color:var(--t3)}
 .f-top{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;column-gap:12px}
 .f-top svg{width:30px;height:30px}
@@ -612,8 +537,6 @@ circle.hub-r{stroke:rgba(255,255,255,.22);stroke-width:1}
 .cr .mono{font:400 9.5px var(--mono);letter-spacing:.14em;color:var(--t3);opacity:.8}
 @media (min-width:760px){.f-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.f-co{grid-column:auto}}
 
-/* §C the entrances: only with JS armed (html.vivo, the head's curtain), only
-   when motion is welcome; the pass, the proof and every no-JS page are never hidden */
 @media (prefers-reduced-motion:no-preference){
   html.vivo .rv{opacity:0;transform:translateY(18px);transition:opacity .7s var(--ease),transform .7s var(--ease);transition-delay:calc(var(--i,0) * 70ms)}
   html.vivo .sec.in .rv{opacity:1;transform:none}
@@ -626,14 +549,12 @@ circle.hub-r{stroke:rgba(255,255,255,.22);stroke-width:1}
   html.vivo .sec:focus-within>h2{clip-path:none;transition:none}
   html.vivo .arc{stroke-dasharray:1;stroke-dashoffset:1;transition:stroke-dashoffset .9s var(--ease) calc(var(--i,0) * 80ms)}
   html.vivo .sec.in .arc{stroke-dashoffset:0}
-  /* the tags drop onto their tilt with a spring, once; a fine pointer swings one */
   html.vivo .tag.rv{transform:none;translate:0 -24px;rotate:-6deg;transition:translate .7s cubic-bezier(.34,1.56,.64,1),rotate .7s cubic-bezier(.34,1.56,.64,1),opacity .45s var(--ease);transition-delay:calc(var(--i,0) * 70ms)}
   html.vivo .sec.in .tag.rv{translate:0 0;rotate:var(--r,0deg)}
   @media (hover:hover) and (pointer:fine){.tag:hover{animation:swing .6s var(--ease) 1}}
   @keyframes swing{0%,100%{rotate:var(--r,0deg)}30%{rotate:calc(var(--r,0deg) + 3deg)}65%{rotate:calc(var(--r,0deg) - 3deg)}}
 }
 
-/* the phone strip: one door, only while no door is on the screen; punched along its top */
 .strip{position:fixed;left:0;right:0;bottom:0;z-index:40;display:flex;align-items:center;justify-content:space-between;gap:12px;
   padding:10px max(14px,env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));
   background:rgba(8,8,10,.94);border-top:1px solid var(--gold-line);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
@@ -648,7 +569,6 @@ circle.hub-r{stroke:rgba(255,255,255,.22);stroke-width:1}
 @media (min-width:760px){.strip{display:none}}
 @media (prefers-reduced-motion:reduce){.strip,.strip.on{transition:none}}
 
-/* the till: a sheet on a phone, a card on a desk; a foil band at its top, a punched row before the payer's fields */
 dialog.till{width:100%;max-width:560px;max-height:min(94dvh,940px);margin:auto auto 0;padding:0;border:1px solid var(--gold-line);border-bottom:0;
   border-radius:22px 22px 0 0;background:#0E0E11;color:var(--ink);overscroll-behavior:contain}
 dialog.till::before{content:'';position:absolute;left:0;right:0;top:0;height:4px;pointer-events:none;
@@ -706,8 +626,6 @@ dialog.till::backdrop{background:rgba(0,0,0,.74);-webkit-backdrop-filter:blur(6p
   .tag::after{background:#fff;box-shadow:inset 0 0 0 1px #000}.eye{background:#fff;box-shadow:0 0 0 1px #000}
   .fc2,.fc2 i{background:transparent!important;box-shadow:none!important}.fc2 s,.quadro::before,.quadro::after,.tacca{display:none}
 }
-/* 200% zoom on a phone (under 300 CSS px): nothing that carries a price or its condition is cut */
 @media (max-width:300px){.f-name{font-size:11px;letter-spacing:.04em;overflow-wrap:anywhere}.f-cond{white-space:normal}.t-head{flex-wrap:wrap;padding-right:0}.t-price{text-align:left}.board{font-size:calc((100vw - 84px) / (var(--n) * .95));min-width:0}
   .dep-r{grid-template-columns:minmax(0,1fr);grid-template-areas:"n" "s" "st" "w"}.dep-r>.st{justify-self:start}.week{gap:3px}}
-/* no orphan word on a headline or a fare's line */
 .card h2{text-wrap:balance}.f-when{text-wrap:pretty}.nw{white-space:nowrap}
