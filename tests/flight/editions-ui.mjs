@@ -34,9 +34,9 @@ const origin='http://127.0.0.1:'+server.address().port;
 let browser,passed=0,failed=0;
 async function open(width=1280,motion='reduce'){
  const page=await browser.newPage({viewport:{width,height:900},isMobile:width<500,hasTouch:width<500,reducedMotion:motion});
- const errors=[],writes=[],missing=[],privateReads=[];
+ const errors=[],writes=[],missing=[],privateReads=[],expectedAssetFailures=new Set();
  page.setDefaultTimeout(10000);page.on('pageerror',e=>errors.push(e.message));
- page.on('response',r=>{if(r.url().startsWith(origin+'/assets/')&&r.status()>=400)missing.push(new URL(r.url()).pathname);});
+ page.on('response',r=>{if(r.url().startsWith(origin+'/assets/')&&r.status()>=400&&!expectedAssetFailures.has(new URL(r.url()).pathname))missing.push(new URL(r.url()).pathname);});
  await page.addInitScript(()=>{Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async value=>{window.__copied=value;}}});});
  await page.route('**/*',route=>{
   const req=route.request(),url=new URL(req.url());
@@ -48,7 +48,7 @@ async function open(width=1280,motion='reduce'){
   if(url.pathname.startsWith('/listing/')||/^\/(madrid|london|amsterdam|barcelona|milan)$/.test(url.pathname))return route.fulfill({contentType:'text/html',body:'<!doctype html><html><title>Original form navigation boundary</title><body><h1>Public brief received</h1><p>No application or payment is sent by this fixture.</p></body></html>'});
   return route.continue();
  });
- return {page,errors,writes,missing,privateReads};
+ return {page,errors,writes,missing,privateReads,expectedAssetFailures};
 }
 async function check(name,width,fn,motion='reduce'){
  if(focus&&!name.includes(focus))return;
@@ -79,6 +79,44 @@ async function geometry(page,selectors=[]){
  for(const selector of selectors){const sizes=await page.locator(selector).evaluateAll(nodes=>nodes.filter(n=>n.getClientRects().length).map(n=>{const r=n.getBoundingClientRect();return {width:r.width,height:r.height};}));assert.ok(sizes.length,selector+' visible');assert.ok(sizes.every(r=>r.width>=44&&r.height>=44),selector+' has usable targets: '+JSON.stringify(sizes));}
 }
 async function oneMap(page){assert.equal(await page.locator('iframe.boom-next-map-frame').count(),1,'one real map adapter iframe per preview');}
+async function white(page,inputs=false){
+ const appearance=await page.evaluate(withInputs=>{
+  function rgb(value){return (value.match(/[\d.]+/g)||[]).slice(0,3).map(Number);}
+  function luminance(c){return c.map(v=>v/255).map(v=>v<=.04045?v/12.92:((v+.055)/1.055)**2.4).reduce((n,v,i)=>n+v*[.2126,.7152,.0722][i],0);}
+  function contrast(a,b){const x=luminance(a),y=luminance(b);return (Math.max(x,y)+.05)/(Math.min(x,y)+.05);}
+  const body=getComputedStyle(document.body),background=rgb(body.backgroundColor);
+  const fields=withInputs?Array.from(document.querySelectorAll('#nextMoveIn,#nextMoveOut,#nextBudget,#nextPeople')).map(input=>{
+   let node=input,bg=body.backgroundColor;
+   while(node){const value=getComputedStyle(node).backgroundColor;if(value!=='transparent'&&!/^rgba\([^)]*,\s*0\)$/.test(value)){bg=value;break;}node=node.parentElement;}
+   const style=getComputedStyle(input);return {id:input.id,contrast:contrast(rgb(style.color),rgb(bg)),size:parseFloat(style.fontSize),scheme:style.colorScheme};
+  }):[];
+  return {background,contrast:contrast(rgb(body.color),background),fields,theme:window.BoomFlightNextMotion.state().theme};
+ },inputs);
+ assert.ok(appearance.background.length===3&&appearance.background.every(v=>v>=240)&&Math.max(...appearance.background)-Math.min(...appearance.background)<=10,'Club has a neutral white page, not a dark shell');
+ assert.ok(appearance.contrast>=4.5,'main text remains legible on white');assert.equal(appearance.theme,'light');
+ for(const field of appearance.fields){assert.ok(field.contrast>=4.5,field.id+' text contrast '+field.contrast);assert.ok(field.size>=16,field.id+' stays readable without mobile zoom');assert.ok(field.scheme.includes('light')&&!field.scheme.includes('dark'),field.id+' native control uses the light theme');}
+}
+async function readable(page,selectors){
+ // Check the rendered foreground against the composed ancestor backgrounds,
+ // including translucent controls and placeholder text, not just the body theme.
+ for(const entry of selectors){
+  const selector=typeof entry==='string'?entry:entry.selector,pseudo=typeof entry==='string'?null:entry.pseudo;
+  const samples=await page.locator(selector).evaluateAll((nodes,pseudo)=>{
+   const rgba=value=>{const parts=(value.match(/[\d.]+/g)||[]).map(Number);return parts.length>=3?[...parts.slice(0,3),parts[3]??1]:[0,0,0,0];};
+   const over=(front,back)=>{const alpha=front[3]+back[3]*(1-front[3]);return [...front.slice(0,3).map((v,i)=>alpha?(v*front[3]+back[i]*back[3]*(1-front[3]))/alpha:0),alpha];};
+   const light=c=>c.map(v=>v/255).map(v=>v<=.04045?v/12.92:((v+.055)/1.055)**2.4).reduce((s,v,i)=>s+v*[.2126,.7152,.0722][i],0);
+   return nodes.filter(n=>n.getClientRects().length&&getComputedStyle(n).visibility!=='hidden').map(n=>{
+    const chain=[];for(let p=n;p;p=p.parentElement)chain.push(p);
+    const paint=ink=>{for(const p of chain){const s=getComputedStyle(p);ink=over(ink,rgba(s.backgroundColor));ink[3]*=Number(s.opacity);}return over(ink,[255,255,255,1]).slice(0,3);};
+    const style=getComputedStyle(n,pseudo),fg=rgba(style.color);if(pseudo)fg[3]*=Number(style.opacity);
+    const a=light(paint(fg)),b=light(paint([0,0,0,0])),size=parseFloat(style.fontSize),large=size>=24||(size>=18.66&&Number(style.fontWeight)>=700);
+    return {text:(n.textContent||n.getAttribute('placeholder')||n.getAttribute('aria-label')||'').trim().slice(0,65),ratio:(Math.max(a,b)+.05)/(Math.min(a,b)+.05),minimum:large?3:4.5};
+   });
+  },pseudo);
+  assert.ok(samples.length,selector+' has rendered text to check');
+  for(const sample of samples)assert.ok(sample.ratio>=sample.minimum,selector+' contrast '+sample.ratio.toFixed(2)+' < '+sample.minimum+' for '+sample.text);
+ }
+}
 async function readyMap(page){await page.locator('#nextApartmentsMap').scrollIntoViewIfNeeded();await page.waitForFunction(()=>BoomNextMap.state().status==='ready');await oneMap(page);}
 async function city(page,value){await page.locator('.europe-city-switch [data-europe-city="'+value+'"]').click();await page.waitForFunction(value=>document.body.dataset.europeCity===value,value);}
 async function fields(page){if(!await page.locator('#europeOptionalBrief').evaluate(n=>n.open))await page.locator('#europeOptionalBrief summary').click();}
@@ -92,7 +130,11 @@ try{
  for(const edition of editions){
   for(const width of [320,390,1280])await check(edition+' '+width+': valid dates, filters, saves, history and the original Apply remain one journey',width,async({page})=>{
    await start(page,edition);await geometry(page,['#nextSearchForm button[type="submit"]']);
+   if(edition==='club')await white(page,true);
    if(edition==='club'&&width===390){
+    await readable(page,['.next-ticket .ticket-top span','.next-ticket .ticket-stub>span','.next-ticket .ticket-stub small','.next-ticket .ticket-stub>strong','.next-ticket .ticket-terms','.service-foot a']);
+    const tickets=await page.locator('.next-ticket').evaluateAll(cards=>cards.map(card=>{const outer=card.getBoundingClientRect();return Array.from(card.querySelectorAll('.ticket-stub>span,.ticket-stub>strong')).map(node=>{const box=node.getBoundingClientRect();return {left:box.left-outer.left,right:outer.right-box.right};});}).flat());
+    assert.equal(tickets.length,4);assert.ok(tickets.every(box=>box.left>=16&&box.right>=16),'service price and action stay comfortably inside their ticket: '+JSON.stringify(tickets));
     await page.evaluate(()=>scrollTo(0,0));const before=await page.evaluate(()=>scrollY);
     await geometry(page,['.edition-plan-link']);await page.locator('.edition-plan-link').click();
     await page.waitForFunction(()=>{const form=document.getElementById('nextSearch').getBoundingClientRect(),nav=document.querySelector('.next-nav').getBoundingClientRect();return form.top>=nav.bottom-1&&form.top<innerHeight/2;});
@@ -108,10 +150,24 @@ try{
    await page.locator('#nextSearchForm button[type="submit"]').click();
    assert.equal(await page.locator('body').getAttribute('data-view'),'home','invalid short stay cannot navigate');
    assert.ok(await page.evaluate(()=>document.getElementById('nextMoveOut').validationMessage||(!document.getElementById('nextSearchError').hidden&&document.getElementById('nextSearchError').textContent)),'the invalid stay is explained at the form or its date field');
-   await campus(page);await search(page);intent(new URL(page.url()),edition);
+   if(edition==='club'&&width===390){
+    await page.locator('.next-nav [data-europe-open]').click();
+    await readable(page,['#europeCityDialog .next-dialog-top span','#europeCityDialog h2','#europeCityDialog>p','#europeCityDialog .europe-cities button span']);
+    await geometry(page,['#europeCityDialog .europe-cities button']);await page.locator('#europeCityDialog [data-europe-close]').click();
+    await page.locator('#nextDestinationSummary').click();
+    await readable(page,['#nextDestinationDialog .next-dialog-top span','#nextDestinationTitle','.destination-dialog-head>p','.destination-mode button','#nextDestinationQuery',{selector:'#nextDestinationQuery',pseudo:'::placeholder'},'.destination-option strong','.destination-option span','#nextDestinationPrivacy']);
+    await page.locator('#nextDestinationQuery').fill('no-such-campus-fixture');await readable(page,['#nextDestinationOptions .destination-empty']);
+    await page.locator('#nextDestinationQuery').fill('LUISS');await readable(page,['.destination-option strong','.destination-option span']);
+    await page.locator('[data-destination="luiss"]').click();await page.locator('#nextDestinationDialog').waitFor({state:'hidden'});
+    await page.locator('#nextHomeMap').scrollIntoViewIfNeeded();await page.waitForFunction(()=>BoomNextMap.state().status==='ready');await page.evaluate(()=>BoomNextMap.select('edition-courtyard'));
+    await page.locator('.city-caption .city-selected').waitFor();await readable(page,['.city-caption .city-selected>span','.city-caption .city-selected small']);
+   }else await campus(page);
+   await search(page);intent(new URL(page.url()),edition);
    await page.locator('#nextFilterType').selectOption('__entire');await readyMap(page);
    assert.deepEqual(await page.locator('#nextResults .next-card').evaluateAll(ns=>ns.map(n=>n.dataset.homeId)),['edition-courtyard'],'canonical type and budget actually filter homes');
    intent(new URL(page.url()),edition,true);await geometry(page,['#nextEditStay']);
+   if(edition==='club')await white(page);
+   if(edition==='club'&&width===390)await readable(page,['#nextBalance .balance-route']);
    if(edition==='perspective'){
     const row=await page.locator('#nextResults .next-card').first().evaluate(card=>{const image=card.querySelector('.next-card-image').getBoundingClientRect(),info=card.querySelector('.next-card-info').getBoundingClientRect(),photo=card.querySelector('img').getBoundingClientRect();return {image:{right:image.right,bottom:image.bottom,width:image.width},info:{left:info.left,top:info.top,width:info.width},photo:{right:photo.right,width:photo.width}};});
     assert.ok(row.image.width>0&&row.info.width>0,'photo and home information both occupy space');
@@ -120,6 +176,11 @@ try{
    }
    const link=page.locator('#nextResults [data-home="edition-courtyard"]').first();intent(new URL(await link.getAttribute('href'),origin),edition,true);
    await link.click();await page.locator('#nextDetailTitle').waitFor();await oneMap(page);await geometry(page,['[data-next-apply]']);
+   if(edition==='club')await white(page);
+   if(edition==='club'&&width===390){
+    await page.locator('.detail-everyday .everyday-note summary').click();
+    await readable(page,['.detail-everyday .everyday-heading button','.detail-everyday .everyday-route>span','.detail-everyday .everyday-route strong','.detail-everyday .everyday-metrics>span','.detail-everyday .everyday-metrics a','.detail-everyday .everyday-note summary','.detail-everyday .everyday-note[open] p']);
+   }
    await page.locator('.detail-actions [data-save-home]').click();assert.deepEqual(await page.evaluate(()=>JSON.parse(localStorage.getItem('boomSalvate'))),['/listing/edition-courtyard']);
    const apply=new URL(await page.locator('[data-next-apply]').getAttribute('href'),origin);assert.equal(apply.pathname,'/listing/edition-courtyard');assert.equal(apply.hash,'#applica');intent(apply,null,true);
    await page.locator('[data-next-apply]').click();await page.waitForURL(url=>url.pathname==='/listing/edition-courtyard');intent(new URL(page.url()),null,true);
@@ -172,6 +233,43 @@ try{
    }
   });
  }
+ for(const width of [390,1280])await check('club white '+width+': globe buttons change the same city and preserve dates across EUR and GBP',width,async({page})=>{
+  await start(page,'club');await white(page,true);await page.waitForFunction(()=>window.BoomFlightGlobe?.state().ready);
+  assert.equal(await page.locator('.boom-flight-globe-canvas').count(),1);assert.equal(await page.locator('#boomGlobeMount button[data-globe-city]').count(),6);
+  await campus(page);await page.locator('#nextMoveIn').fill(arrival);await page.locator('#nextMoveOut').fill(departure);await page.locator('#nextBudget').selectOption('1500');await page.locator('#nextPeople').selectOption('couple');
+  for(const slug of ['madrid','amsterdam','london']){
+   const button=page.locator('#boomGlobeMount button[data-globe-city="'+slug+'"]');await button.focus();await button.press('Enter');
+   await page.waitForFunction(slug=>document.body.dataset.europeCity===slug&&BoomFlightGlobe.state().city===slug&&BoomFlightNextMotion.state().cityPattern===slug,slug);
+   assert.equal(await button.getAttribute('aria-pressed'),'true');assert.equal(await page.locator('.europe-city-switch [data-europe-city="'+slug+'"]').getAttribute('aria-pressed'),'true');
+   assert.equal(await page.locator('#nextDestinationBoard').getAttribute('aria-label'),slug.toUpperCase());
+   assert.equal(await page.locator('#europeMoveIn').inputValue(),arrival);assert.equal(await page.locator('#europeMoveOut').inputValue(),departure);assert.equal(await page.locator('#europePeople').inputValue(),'couple');
+   assert.equal(await page.locator('#europeBudget').inputValue(),slug==='london'?'':'1500');
+   for(const key of ['place','privatePlace','homes'])assert.equal(new URL(page.url()).searchParams.has(key),false,'foreign globe selection does not carry '+key);
+   await geometry(page,['#boomGlobeMount button[data-globe-city]']);await white(page);await oneMap(page);
+  }
+  await fields(page);await page.locator('#europeBudget').selectOption('3000');
+  const desk=new URL(await page.locator('[data-europe-desk-link]').first().getAttribute('href'),origin);assert.equal(desk.pathname,'/london');assert.equal(desk.searchParams.get('currency'),'GBP');assert.equal(desk.searchParams.get('budget'),'3000');assert.equal(desk.searchParams.get('moveOut'),departure);
+  await page.goBack();await page.waitForFunction(()=>document.body.dataset.europeCity==='amsterdam'&&BoomFlightGlobe.state().city==='amsterdam');assert.equal(await page.locator('#europeBudget').inputValue(),'1500');
+ });
+ await check('club white: globe motion settles, pauses outside view and respects reduced motion',1280,async({page})=>{
+  await start(page,'club');await page.locator('#boomGlobeMount').scrollIntoViewIfNeeded();await page.waitForFunction(()=>window.BoomFlightGlobe?.state().ready&&BoomFlightGlobe.state().visible);
+  await page.locator('#boomGlobeMount [data-globe-city="madrid"]').click();await page.waitForFunction(()=>BoomFlightGlobe.state().city==='madrid'&&!BoomFlightGlobe.state().rafPending);
+  let frames=await page.evaluate(()=>BoomFlightGlobe.state().frames);await page.waitForTimeout(180);assert.equal(await page.evaluate(()=>BoomFlightGlobe.state().frames),frames,'the globe does not spin forever');
+  await page.locator('#nextMotionToggle').click();await page.waitForFunction(()=>BoomFlightGlobe.state().paused&&!BoomFlightGlobe.state().rafPending);
+  frames=await page.evaluate(()=>BoomFlightGlobe.state().frames);await page.waitForTimeout(180);assert.equal(await page.evaluate(()=>BoomFlightGlobe.state().frames),frames,'manual pause stops drawing');
+  await page.locator('#nextMotionToggle').click();await page.locator('.next-footer').scrollIntoViewIfNeeded();await page.waitForFunction(()=>!BoomFlightGlobe.state().visible&&!BoomFlightGlobe.state().rafPending);
+  frames=await page.evaluate(()=>BoomFlightGlobe.state().frames);await page.waitForTimeout(180);assert.equal(await page.evaluate(()=>BoomFlightGlobe.state().frames),frames,'offscreen globe does not draw');
+  await page.emulateMedia({reducedMotion:'reduce'});await page.locator('#boomGlobeMount').scrollIntoViewIfNeeded();await page.waitForFunction(()=>BoomFlightGlobe.state().reducedMotion&&!BoomFlightGlobe.state().rafPending);
+  await page.locator('#boomGlobeMount [data-globe-city="amsterdam"]').click();await page.waitForFunction(()=>BoomFlightGlobe.state().city==='amsterdam'&&document.body.dataset.europeCity==='amsterdam');
+  assert.equal(await page.evaluate(()=>BoomFlightGlobe.state().rafPending),false,'reduced motion still changes destination without an animated flight');await oneMap(page);
+ },'no-preference');
+ await check('club white: failed globe geography keeps every semantic city control usable',390,async({page,expectedAssetFailures})=>{
+  const path='/assets/boom-globe-geography.json';expectedAssetFailures.add(path);await page.route('**'+path,r=>r.fulfill({status:503,body:'Unavailable'}));
+  await start(page,'club');await page.waitForFunction(()=>window.BoomFlightGlobe?.state().error);
+  assert.match(await page.locator('.boom-globe-status').innerText(),/unavailable/i);assert.equal(await page.locator('.boom-globe-status').isVisible(),true);
+  await page.locator('#boomGlobeMount [data-globe-city="madrid"]').click();await page.waitForFunction(()=>document.body.dataset.europeCity==='madrid');assert.equal(await page.locator('#boomGlobeMount [data-globe-city="madrid"]').getAttribute('aria-pressed'),'true');
+  await geometry(page,['#boomGlobeMount button[data-globe-city]']);await white(page);
+ });
  await check('Duo links only the current page, keeps briefs independent, and rejects forged navigation',1280,async({page})=>{
   await openDuo(page);assert.equal(await page.locator('#duoSync').isChecked(),true);
   const club=await duoFrame(page,'club'),perspective=await duoFrame(page,'perspective');

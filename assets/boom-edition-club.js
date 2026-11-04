@@ -1,121 +1,82 @@
-/* Club edition: a different composition over the existing public journey. */
+/* CLUB / white departure hall. Existing journey; a single connected composition. */
 (function () {
   'use strict';
-  if (new URLSearchParams(location.search).get('edition') !== 'club') return;
-  if (document.body.dataset.direction !== 'club' || document.body.dataset.edition === 'club') return;
-  var directions = window.BoomFlightDirections;
-  var hero = document.getElementById('nextHero');
-  var ticket = document.getElementById('directionClubTicket');
-  var planner = document.querySelector('.europe-planner');
-  if (!directions || !hero || !ticket || !planner) return;
-  document.body.dataset.edition = 'club';
+  if (new URLSearchParams(location.search).get('edition') !== 'club' || document.body.dataset.direction !== 'club') return;
+  var directions=window.BoomFlightDirections, hero=document.getElementById('nextHero'), ticket=document.getElementById('directionClubTicket'), planner=document.querySelector('.europe-planner');
+  if(!directions||!hero||!ticket||!planner)return;
+  document.body.dataset.edition='club';
+  document.documentElement.classList.add('boom-club-light');
+  var theme=document.querySelector('meta[name="theme-color"]');if(theme)theme.content='#ffffff';
+  var byId=function(id){return document.getElementById(id);};
+  document.querySelectorAll('.europe-brand-lockup').forEach(function(img){img.src='/assets/boom-brand-lockup-ink.svg';});
+  if(window.BoomFlightNextMotion)window.BoomFlightNextMotion.setTheme('light');
 
-  // Move the original forms, retaining their fields, listeners and validation.
+  // Keep the real forms and listeners intact; the destination now has a geographic counterpart.
   planner.classList.add('edition-club-runway');
-  hero.insertBefore(planner, hero.querySelector('.hero-bottom'));
-  var mast = document.createElement('div');
-  mast.className = 'edition-runway-head';
-  mast.innerHTML = '<span>YOUR ARRIVAL PLAN</span><span>One brief. A real person on your side.</span>';
-  planner.prepend(mast);
+  hero.insertBefore(planner,hero.querySelector('.hero-bottom'));
+  var mast=document.createElement('div');mast.className='edition-runway-head';
+  mast.innerHTML='<span>Your arrival plan</span><span>Dates. Place. Possibilities.</span>';planner.prepend(mast);
+  var atlas=document.createElement('div');atlas.className='edition-atlas';atlas.id='boomGlobeMount';ticket.appendChild(atlas);
+  var planLink=document.createElement('a');planLink.className='edition-plan-link';planLink.href='#nextSearch';planLink.innerHTML='Plan your move <span aria-hidden="true">↓</span>';
+  hero.querySelector('.hero-promise').insertAdjacentElement('afterend',planLink);
+  var globe=window.BoomFlightGlobe;if(globe)globe.mount(atlas);
+  var bottom=hero.querySelector('.hero-bottom');bottom.querySelector('span').replaceWith(byId('europeCitySignature'));
+  document.querySelector('.europe-switch-label').textContent='Your next city';
+  window.addEventListener('boom-globe-city',function(event){
+    var slug=event.detail&&event.detail.slug;
+    if(!['rome','madrid','barcelona','amsterdam','london','milan'].includes(slug))return;
+    var choice=hero.querySelector('button[data-europe-city="'+slug+'"]');if(choice)choice.click();
+  });
 
-  var stage = document.createElement('div');
-  stage.className = 'edition-home-stage';
-  stage.innerHTML = '<div class="edition-home-placeholder"><span>THE ROME COLLECTION</span><p>A place to make your own.</p><a href="/apartments" data-view="apartments">Explore the homes <span aria-hidden="true">↗</span></a></div><a class="edition-home-feature" hidden><img class="edition-home-photo" alt="" decoding="async" fetchpriority="high"><span class="edition-home-caption"><span class="edition-home-meta"></span><strong class="edition-home-name"></strong><span class="edition-home-bottom"><span class="edition-home-price"></span><span class="edition-home-open">Step inside <span aria-hidden="true">↗</span></span></span></span></a>';
-  ticket.appendChild(stage);
-  var planLink = document.createElement('a');
-  planLink.className = 'edition-plan-link';
-  planLink.href = '#nextSearch';
-  planLink.innerHTML = 'Plan your move <span aria-hidden="true">↓</span>';
-  hero.querySelector('.hero-promise').insertAdjacentElement('afterend', planLink);
-  var feature = stage.querySelector('.edition-home-feature');
-  var photo = feature.querySelector('img');
-  var chosenId = '', failedImage = '';
-  var preferred = ['Kz9bXztv5QXmQrNhAcoU', 'esFhjFMVfZtkIrhkx0PR', '5QAKCvswE3HN9nuuG82S'];
-  var sourceRender = directions.render;
-  directions.render = function (context) {
-    sourceRender.apply(this, arguments);
-    var homes = context.catalogue || [];
-    var eligible = homes.filter(function (c) { return c.lane !== 'closed' && c.image && c.image !== failedImage; });
-    var home = preferred.map(function (id) { return eligible.find(function (c) { return c.id === id; }); }).find(Boolean) || eligible[0];
-    if (!home) { feature.hidden = true; stage.dataset.ready = 'false'; return; }
-    if (chosenId !== home.id || photo.getAttribute('src') !== home.image) {
-      chosenId = home.id;
-      photo.src = home.image;
-      photo.alt = home.name + ' — photo from the BOOM catalogue';
-      feature.style.setProperty('--edition-photo-focus', home.id === 'Kz9bXztv5QXmQrNhAcoU' ? '50% 68%' : '50% 50%');
-    }
-    feature.href = context.url('detail', home.id);
-    feature.dataset.home = home.id;
-    feature.setAttribute('aria-label', 'Explore ' + home.name);
-    feature.querySelector('.edition-home-meta').textContent = [home.zone, home.status].filter(Boolean).join(' · ');
-    feature.querySelector('.edition-home-name').textContent = home.name;
-    feature.querySelector('.edition-home-price').textContent = home.price == null ? 'Price on request' : '€' + Number(home.price).toLocaleString('en-GB') + ' / month';
-    feature.hidden = false;
-    stage.dataset.ready = 'true';
-  };
-  photo.addEventListener('error', function () { failedImage = photo.getAttribute('src'); feature.hidden = true; stage.dataset.ready = 'false'; });
+  var skyline=document.querySelector('.skyline-chapter');skyline.id='clubHomes';
+  byId('nextSkyTitle').innerHTML='A home for<br>your everyday.';
+  skyline.querySelector('.chapter-aside>p').textContent='Start with your campus or work. Discover the neighbourhoods that make sense for your life.';
+  byId('nextHomesTitle').textContent='Inside the homes';
+  byId('nextServicesTitle').innerHTML='Your move.<br>Our people.';
+  document.querySelector('.services-chapter>.chapter-heading>.chapter-aside').textContent='A dedicated search, or support for the home you found. Choose where you need us.';
+  byId('nextJourneyTitle').innerHTML='From first look<br>to first morning.';
+  var flightline=document.createElement('nav');flightline.className='edition-flightline';flightline.setAttribute('aria-label','Your BOOM journey');
+  flightline.innerHTML='<a href="#nextHero" data-flight-stop="departure" aria-current="location"><span>01</span> Your destination</a><i aria-hidden="true"></i><a href="#nextSkyTitle" data-flight-stop="homes"><span>02</span> Homes & Skyline</a><i aria-hidden="true"></i><a href="#services" data-flight-stop="support"><span>03</span> Your support</a>';
+  hero.insertAdjacentElement('afterend',flightline);
+  var discovery=byId('nextDiscovery'),balance=byId('nextBalance');discovery.insertAdjacentElement('afterend',balance);
 
-  // The long European destinations fit the actual heading column, including the
-  // architectural signature beside it. No replacement of the Solari engine.
-  var fitFrame = 0;
-  function fitDestination() {
-    fitFrame = 0;
-    var board = document.getElementById('nextDestinationBoard');
-    var heading = document.getElementById('nextHeroTitle');
-    var letters = (board.getAttribute('aria-label') || 'ROME').length;
-    var width = heading.clientWidth;
-    if (width > 0) board.style.setProperty('--europe-board-size', Math.max(26, Math.min(innerWidth < 650 ? 84 : 132, (width - 8) / (letters * .91))) + 'px');
+  function syncCity(){
+    var city=document.body.dataset.europeCity||'rome',foreign=city!=='rome';
+    hero.querySelector('.hero-pretitle').textContent='Your next chapter in';
+    hero.querySelector('.hero-centre .eyebrow').textContent='BOOM. A modern real estate agency.';
+    hero.querySelector('.hero-promise').textContent=foreign?'A new city. A dedicated team to help you find your place.':'Real homes. The right neighbourhood. A team to help you settle in.';
+    planLink.href=foreign?'#europeDeskPlanner':'#nextSearch';
+    var homeStop=flightline.querySelector('[data-flight-stop="homes"]');homeStop.href=foreign?'#europeStoryCity':'#nextSkyTitle';homeStop.innerHTML='<span>02</span> '+(foreign?'Your service':'Homes & Skyline');
+    flightline.querySelector('[data-flight-stop="support"]').hidden=foreign;flightline.querySelector('i:last-of-type').hidden=foreign;
+    if(window.BoomFlightNextMotion){window.BoomFlightNextMotion.setTheme('light');window.BoomFlightNextMotion.setCityPattern(city);}
+    if(globe)globe.selectCity(city);
+    queueFit();queueScroll();
   }
-  function queueFit() { if (!fitFrame) fitFrame = requestAnimationFrame(fitDestination); }
-  new MutationObserver(queueFit).observe(document.body, {attributes:true,attributeFilter:['data-europe-city']});
-  window.addEventListener('resize', queueFit, {passive:true});
+  var fitFrame=0;
+  function fitDestination(){fitFrame=0;var host=byId('nextDestinationBoard'),heading=byId('nextHeroTitle'),letters=(host.getAttribute('aria-label')||'ROME').length,width=heading.clientWidth;if(width>0)host.style.setProperty('--europe-board-size',Math.max(23,Math.min(innerWidth<650?91:136,(width-6)/(letters*.91)))+'px');}
+  function queueFit(){if(!fitFrame)fitFrame=requestAnimationFrame(fitDestination);}
+  new MutationObserver(syncCity).observe(document.body,{attributes:true,attributeFilter:['data-europe-city']});
+  window.addEventListener('resize',queueFit,{passive:true});
+  var sourceRender=directions.render;
+  directions.render=function(context){sourceRender.apply(this,arguments);if(context.state.view==='apartments')byId('nextAptsTitle').textContent='Find your place in Rome.';queueScroll();};
 
-  // The catalogue opens with its homes and map. The existing comparison remains
-  // the destination of Find my balance, with its facts and controls untouched.
-  var discovery = document.getElementById('nextDiscovery');
-  var balance = document.getElementById('nextBalance');
-  if (discovery && balance) discovery.insertAdjacentElement('afterend', balance);
-
-  // Pointer feedback has no autonomous clock. The original motion control and
-  // reduced-motion preference govern it along with the Solari field.
-  var reduce = matchMedia('(prefers-reduced-motion: reduce)');
-  var fine = matchMedia('(hover: hover) and (pointer: fine)');
-  var tilted = null, frame = 0, point = null;
-  function resetTilt() {
-    if (frame) cancelAnimationFrame(frame);
-    frame = 0; point = null;
-    if (tilted) { tilted.style.removeProperty('--edition-rx'); tilted.style.removeProperty('--edition-ry'); }
-    tilted = null;
+  // One scroll update per input frame: current chapter and the four-step journey line.
+  var scrollFrame=0,reduce=matchMedia('(prefers-reduced-motion: reduce)'),pause=byId('nextMotionToggle');
+  function motionAllowed(){return !reduce.matches&&pause.getAttribute('aria-pressed')!=='true'&&!document.hidden;}
+  function renderScroll(){
+    scrollFrame=0;
+    var foreign=document.body.dataset.europeCity!=='rome',stops=[hero,foreign?byId('europeDeskStory'):skyline,document.getElementById('services')],active=0;
+    var positions=stops.map(function(el){return el.getBoundingClientRect().top;});
+    positions.forEach(function(top,index){if(top<innerHeight*.4&&(!foreign||index<2))active=index;});
+    flightline.querySelectorAll('[data-flight-stop]').forEach(function(link,index){if(index===active)link.setAttribute('aria-current','location');else link.removeAttribute('aria-current');});
+    var steps=document.querySelector('.next-journey'),box=steps.getBoundingClientRect(),progress=Math.max(0,Math.min(1,(innerHeight*.8-box.top)/(Math.max(1,box.height))));
+    steps.style.setProperty('--journey-progress',motionAllowed()?progress:1);
+    document.body.dataset.editionMotion=motionAllowed()?'active':'still';
   }
-  function motionAllowed() { return !reduce.matches && fine.matches && !document.hidden && hero.dataset.nextMotion === 'running'; }
-  function syncMotion() {
-    document.body.dataset.editionMotion = motionAllowed() ? 'active' : 'still';
-    if (!motionAllowed()) resetTilt();
-  }
-  function paintTilt() {
-    frame = 0;
-    if (!tilted || !point || !motionAllowed()) return;
-    var box = tilted.getBoundingClientRect();
-    if (!box.width || !box.height) return;
-    tilted.style.setProperty('--edition-rx', ((.5 - (point.y - box.top) / box.height) * 2).toFixed(2) + 'deg');
-    tilted.style.setProperty('--edition-ry', (((point.x - box.left) / box.width - .5) * 2).toFixed(2) + 'deg');
-  }
-  document.addEventListener('pointermove', function (event) {
-    if (!motionAllowed()) return;
-    var surface = event.target.closest('.edition-home-feature, .next-ticket');
-    if (!surface) { resetTilt(); return; }
-    if (surface !== tilted) { resetTilt(); tilted = surface; }
-    point = {x:event.clientX,y:event.clientY};
-    if (!frame) frame = requestAnimationFrame(paintTilt);
-  }, {passive:true});
-  document.addEventListener('pointerout', function (event) {
-    if (tilted && (!event.relatedTarget || !tilted.contains(event.relatedTarget))) resetTilt();
-  }, {passive:true});
-  new MutationObserver(syncMotion).observe(hero, {attributes:true,attributeFilter:['data-next-motion']});
-  reduce.addEventListener('change', syncMotion);
-  document.addEventListener('visibilitychange', syncMotion);
-  window.addEventListener('pagehide', resetTilt);
-  syncMotion();
-  // Europe computes the Solari cell size from the actual, recomposed column.
-  requestAnimationFrame(function () { window.dispatchEvent(new Event('resize')); queueFit(); });
+  function queueScroll(){if(!scrollFrame)scrollFrame=requestAnimationFrame(renderScroll);}
+  window.addEventListener('scroll',queueScroll,{passive:true});window.addEventListener('resize',queueScroll,{passive:true});
+  new MutationObserver(queueScroll).observe(pause,{attributes:true,attributeFilter:['aria-pressed']});
+  reduce.addEventListener('change',queueScroll);document.addEventListener('visibilitychange',queueScroll);
+  window.addEventListener('pagehide',function(){if(fitFrame)cancelAnimationFrame(fitFrame);if(scrollFrame)cancelAnimationFrame(scrollFrame);fitFrame=scrollFrame=0;});
+  syncCity();requestAnimationFrame(function(){window.dispatchEvent(new Event('resize'));queueFit();});
 })();

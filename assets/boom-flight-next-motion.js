@@ -163,7 +163,17 @@ function createSolari() {
   return { Cell: Cell, Board: Board, calibrate: calibrate, cancel: cancel, schedule: schedule };
 }
 
-  var instance = null, manuallyPaused = false, destinationWord = 'ROME';
+  var instance = null, manuallyPaused = false, destinationWord = 'ROME', theme = 'dark', cityPattern = null;
+  // Presentation only: the city controller remains the owner of the move.
+  // No new clock: geometry changes the existing fronts, not their 8.2s cadence.
+  var patterns = {
+    rome: {shape:'radial',rate:1,stretch:1},
+    madrid: {shape:'sw-ne',rate:1.08},
+    barcelona: {shape:'horizontal',rate:.88},
+    amsterdam: {shape:'vertical',rate:.94},
+    london: {shape:'nw-se',rate:1.04},
+    milan: {shape:'radial',rate:.86,stretch:1.55}
+  };
   function boot() {
     if (instance) return instance;
     var hero = document.getElementById('nextHero');
@@ -213,16 +223,31 @@ function createSolari() {
          non si ricopia mai — ogni frame disegna solo le celle accese */
       basetela = document.createElement('canvas');
       basetela.width = W; basetela.height = H;
-      var bg = basetela.getContext('2d');
+      paintBase();
+      return true;
+    }
+    function paintBase() {
+      var bg = basetela.getContext('2d'), light = theme === 'light';
+      bg.clearRect(0, 0, W, H);
       for (var r2 = 0; r2 < rows; r2++) for (var c2 = 0; c2 < cols; c2++) {
         var vy = velo(r2 * (ch + gap));
         if (vy <= 0) continue;
-        bg.fillStyle = 'rgba(' + LATTE + ',' + (.031 * vy) + ')';
+        bg.fillStyle = light ? 'rgba(222,222,217,' + (.14 * vy) + ')' : 'rgba(' + LATTE + ',' + (.031 * vy) + ')';
         bg.beginPath();
         bg.roundRect(c2 * (cw + gap), r2 * (ch + gap), cw, ch, 3 * DPR);
         bg.fill();
+        if (light) {
+          bg.fillStyle = 'rgba(184,184,175,' + (.14 * vy) + ')';
+          bg.fillRect(c2 * (cw + gap), r2 * (ch + gap) + Math.round(ch * .48), cw, Math.max(1, DPR));
+        }
       }
-      return true;
+    }
+    function distance(x, y, ox, oy) {
+      var p = patterns[cityPattern];
+      if (!p || p.shape === 'radial') return Math.hypot(x - ox, y - oy) * (p ? p.stretch : 1);
+      if (p.shape === 'horizontal') return y / H * MIN;
+      if (p.shape === 'vertical') return x / W * MIN;
+      return (x / W + (p.shape === 'sw-ne' ? 1 - y / H : y / H)) * MIN / 2;
     }
     var px = -1e4, py = -1e4, onde = [];
     function localizza(e) {
@@ -248,10 +273,10 @@ function createSolari() {
     }
     var battito = 700, flip = 2200, casc = [];
     function vita(t) {
-      ctx.clearRect(0, 0, W, H);
+      var pattern = patterns[cityPattern], light = theme === 'light';
       /* il battito del mosaico, anche in cima: l'anello dal cuore */
       if (!ridotto && t > battito) {
-        onde.push({ x: W * (mob ? .5 : .56), y: H * .42,
+        onde.push({ x: W * (pattern ? .5 : mob ? .5 : .56), y: H * .42,
           via: t, batte: true });
         if (onde.length > 4) onde.shift();
         battito = t + 8200;
@@ -260,7 +285,7 @@ function createSolari() {
          le palette scattano dall'alto in basso, a volte in verde */
       if (!ridotto && t > flip) {
         casc.push({ c: Math.floor(Math.random() * cols), via: t,
-          verde: Math.random() < .32 });
+          verde: !light && Math.random() < .32 });
         if (casc.length > 3) casc.shift();
         flip = t + 4600 + Math.random() * 3800;
       }
@@ -272,7 +297,7 @@ function createSolari() {
         for (var rr = da2; rr <= fino; rr++) {
           var ii = rr * cols + ca.c, forza = 1 - (testa - rr) / 3;
           if (forza <= 0) continue;
-          if (ca.verde) AV[ii] = Math.max(AV[ii], forza * .8);
+          if (ca.verde && !light) AV[ii] = Math.max(AV[ii], forza * .8);
           else AU[ii] = Math.max(AU[ii], forza * .85);
           E[ii] = Math.max(E[ii], forza);
         }
@@ -284,11 +309,14 @@ function createSolari() {
         : ((t * .00009 * vel) % 1.6) * (W + H) - H * .4;
       var f2 = ridotto ? -1
         : (1 - (t * .00005 * vel) % 1.6) * (W + H) - H * .4;
+      var pf1 = ridotto ? MIN * .5 : ((t * .00009 * vel * (pattern ? pattern.rate : 1)) % 1.6) * MIN * 1.3;
+      var pf2 = ridotto ? -MIN : (1 - (t * .00005 * vel * (pattern ? pattern.rate : 1)) % 1.6) * MIN * 1.3;
       for (var r = 0; r < rows; r++) for (var c = 0; c < cols; c++) {
         var x = c * (cw + gap) + cw / 2, y = r * (ch + gap) + ch / 2;
         var i = r * cols + c;
-        var v1 = Math.max(0, 1 - Math.abs((x + y * .82) - f1) / (MIN * .34));
-        var v2 = Math.max(0, 1 - Math.abs((x - y * .6 + H * .6) - f2) / (MIN * .5));
+        var along = pattern ? distance(x, y, W * .5, H * .42) : 0;
+        var v1 = Math.max(0, 1 - Math.abs(pattern ? along - pf1 : (x + y * .82) - f1) / (MIN * .34));
+        var v2 = Math.max(0, 1 - Math.abs(pattern ? along - pf2 : (x - y * .6 + H * .6) - f2) / (MIN * .5));
         var vm = Math.max(0, 1 - Math.hypot(x - px, y - py) / (MIN * .26));
         /* lo scroll spinge un fronte orizzontale attraverso il campo */
         var fs = H * .3 + scorsa * DPR * .85;
@@ -296,13 +324,13 @@ function createSolari() {
         E[i] = Math.max(E[i], v1 * v1 * .9, v2 * v2 * .35, vm * vm, vs);
         if (v1 > .96) { var brillo = Math.random();
           if (brillo < .0045) AU[i] = .9;
-          else if (brillo < .006) AV[i] = .85; }
+          else if (!light && brillo < .006) AV[i] = .85; }
         for (var oi = 0; oi < onde.length; oi++) {
           var od = onde[oi];
           /* il battito ha il passo del mosaico: lento, maestoso */
-          var eta = (t - od.via) / (od.batte ? 3000 : 900);
+          var eta = (t - od.via) / (od.batte ? 3000 : 900) * (od.batte && pattern ? pattern.rate : 1);
           if (eta > 1.4) continue;
-          var da = Math.abs(Math.hypot(x - od.x, y - od.y)
+          var da = Math.abs((od.batte && pattern ? distance(x, y, od.x, od.y) : Math.hypot(x - od.x, y - od.y))
             - eta * MIN * (od.batte ? 1.05 : .5));
           var vo = Math.max(0, 1 - da / (MIN * (od.batte ? .12 : .09)));
           E[i] = Math.max(E[i], vo * (1.2 - eta));
@@ -328,6 +356,11 @@ function createSolari() {
         if (AU[k] < .003) AU[k] = 0;
         if (AV[k] < .003) AV[k] = 0;
       }
+      drawField();
+    }
+    function drawField() {
+      var light = theme === 'light';
+      ctx.clearRect(0, 0, W, H);
       ctx.drawImage(basetela, 0, 0);
       for (var r2 = 0; r2 < rows; r2++) for (var c2 = 0; c2 < cols; c2++) {
         var i2 = r2 * cols + c2;
@@ -335,17 +368,17 @@ function createSolari() {
         var x2 = c2 * (cw + gap), y2 = r2 * (ch + gap);
         var vy2 = velo(y2);
         if (vy2 <= 0) continue;
-        ctx.fillStyle = AV[i2] > .06
+        ctx.fillStyle = !light && AV[i2] > .06
           ? 'rgba(' + VERDE + ',' + (AV[i2] * .32 * vy2) + ')'
           : AU[i2] > .05
-            ? 'rgba(' + ORO + ',' + (AU[i2] * .5 * vy2) + ')'
-            : 'rgba(' + LATTE + ',' + (E[i2] * .13 * vy2) + ')';
+            ? 'rgba(' + ORO + ',' + (AU[i2] * (light ? .6 : .5) * vy2) + ')'
+            : light ? 'rgba(154,154,145,' + (E[i2] * .11 * vy2) + ')' : 'rgba(' + LATTE + ',' + (E[i2] * .13 * vy2) + ')';
         ctx.beginPath();
         ctx.roundRect(x2, y2, cw, ch, 3 * DPR);
         ctx.fill();
         if (E[i2] > .14 || AU[i2] > .1 || AV[i2] > .1) {
-          ctx.fillStyle = 'rgba(3,3,3,.55)';
-          ctx.fillRect(x2, y2 + ch * .48, cw, Math.max(1, DPR));
+          ctx.fillStyle = light ? 'rgba(184,184,175,.25)' : 'rgba(3,3,3,.55)';
+          ctx.fillRect(x2, y2 + (light ? Math.round(ch * .48) : ch * .48), cw, Math.max(1, DPR));
         }
       }
     }
@@ -440,6 +473,13 @@ function createSolari() {
       resizeObserver = new ResizeObserver(resize); resizeObserver.observe(hero);
     }
     instance = {
+      state: function () { return {theme:theme,cityPattern:cityPattern||'classic',paused:manuallyPaused,running:running,elapsedMs:clock,nextPulseAt:battito,rafPending:!!raf}; },
+      setTheme: function (value) {
+        theme = value; hero.dataset.nextTheme = value;
+        // Repaint the same buffers. No resize, cell rebuild or clock reset.
+        if (W && H) { paintBase(); drawField(); }
+      },
+      setCityPattern: function (value) { cityPattern = value; hero.dataset.nextPattern = value; },
       setDestination: function (word) {
         if (word === destinationWord) return;
         settleBoard();
@@ -462,11 +502,27 @@ function createSolari() {
         instance = null;
       }
     };
+    hero.dataset.nextTheme = theme;
+    hero.dataset.nextPattern = cityPattern || 'classic';
     visibility();
     return instance;
   }
   window.BoomFlightNextMotion = {
     boot: boot,
+    setTheme: function (value) {
+      if (value !== 'light' && value !== 'dark') return false;
+      theme = value;
+      if (instance) instance.setTheme(value);
+      return true;
+    },
+    setCityPattern: function (value) {
+      if (typeof value !== 'string' || !Object.prototype.hasOwnProperty.call(patterns, value)) return false;
+      cityPattern = value;
+      if (instance) instance.setCityPattern(value);
+      return true;
+    },
+    isPaused: function () { return manuallyPaused; },
+    state: function () { return instance ? instance.state() : {theme:theme,cityPattern:cityPattern||'classic',paused:manuallyPaused,running:false,elapsedMs:null,nextPulseAt:null,rafPending:false}; },
     setDestination: function (word) {
       word = String(word || '').toUpperCase();
       if (!/^[A-Z ]{3,12}$/.test(word)) return;
