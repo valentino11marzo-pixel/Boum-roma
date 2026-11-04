@@ -11,7 +11,7 @@
  *
  * Le regole:
  *   - l'Italia vale sempre (il desk risponde da Roma), più il calendario del
- *     paese del desk (`nl`, `es`, `es-bcn`, `gb-eng`, `it-mi`); una chiave
+ *     paese del desk (`nl`, `es`, `es-bcn`, `gb-eng`, `it-mi`, `es-vlc`); una chiave
  *     ignota vale l'Italia sola — i test fissano le chiavi che i desk
  *     nominano (HOLIDAY_KEYS);
  *   - date in UTC a mezzogiorno di calendario (mai 14×24h: il cambio d'ora);
@@ -32,7 +32,8 @@
     return [Math.floor(n / 31), (n % 31) + 1];
   }
 
-  // Fixed dates as MM-DD, Easter-relative ones as offsets in days.
+  // Fixed dates as MM-DD, Easter-relative ones as offsets in days; `dated`
+  // as YYYY-MM-DD for a holiday decreed for ONE year only (it never repeats).
   var HOLIDAYS = {
     // national, plus Rome's patron day (29 June); 4 October is a national
     // holiday again from 2026
@@ -67,7 +68,19 @@
     // (a moved early May, a jubilee) is not a rule: re-check gov.uk yearly.
     'gb-eng': { fixed: [], easter: [-2, 1], mondays: [[5, 1], [5, -1], [8, -1]], weekdays: [[1, 1, 1], [12, 25, 2]] },
     // the Milan desk: Italy plus Sant'Ambrogio, 7 December
-    'it-mi': { fixed: ['12-07'], easter: [] }
+    'it-mi': { fixed: ['12-07'], easter: [] },
+    // the Valencia desk: the Comunitat Valenciana's labour calendar (DOGV:
+    // Decreto 100/2025 for 2026, Decreto 42/2026 for 2027 — Reis, Sant Josep
+    // 19/3, Divendres Sant, Dilluns de Pasqua, Dia de la Comunitat 9/10, Festa
+    // Nacional 12/10, Tots Sants, Constitució 6/12; NO Jueves Santo) plus the
+    // city of València's two local days: Sant Vicent Màrtir (22/1) and Sant
+    // Vicent Ferrer (the Monday after Easter Monday, Easter+8). Sant Joan (24/6)
+    // was a CV holiday in 2026 ONLY (`dated`): 24/6/2027 is a working day. 1/11
+    // and 6/12 fell on a Sunday in 2026 and were not moved: listing them only
+    // ever marks a Sunday. The Consell swaps days each spring (19/3, 24/6,
+    // Jueves Santo) and the city picks its two each July: re-check yearly.
+    // Keyed apart from `country` ('es' is Madrid's: 15/5, 9/11, Jueves Santo).
+    'es-vlc': { fixed: ['01-01', '01-06', '01-22', '03-19', '05-01', '08-15', '10-09', '10-12', '11-01', '12-06', '12-08', '12-25'], easter: [-2, 1, 8], dated: ['2026-06-24'] }
   };
   // the calendar keys a desk may name (CITY_MARKETS.<slug>.holidays || country):
   // an unknown key would silently fall back to Italy alone, so tests pin it
@@ -82,6 +95,7 @@
       var h = HOLIDAYS[keys[j]];
       if (!h) continue;
       if (h.fixed.indexOf(mmdd) >= 0) return true;
+      if (h.dated && h.dated.indexOf(y + '-' + mmdd) >= 0) return true;
       if (h.kingsDay && mmdd === '04-26' && new Date(Date.UTC(y, 3, 27)).getUTCDay() === 0) return true;
       if (h.merceMonday && mmdd === '09-25' && new Date(Date.UTC(y, 8, 24)).getUTCDay() === 0) return true;
       // [month, 1] = the first Monday, [month, -1] = the last one

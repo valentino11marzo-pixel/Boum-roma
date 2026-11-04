@@ -363,9 +363,11 @@ const CITY_SERVICE_META = {
   },
 };
 // The cover letter's language, where "the local language and English" reads
-// wrong: in London the local language IS English, in Milan it is Italian.
+// wrong: in London the local language IS English, in Milan it is Italian; in
+// Valencia two languages are local (Valencian is co-official) and the page
+// promises the letter in Spanish.
 // The desks not listed keep the line above, byte for byte.
-const CITY_LETTER_LANG = { london: 'in English', milan: 'in Italian and English' };
+const CITY_LETTER_LANG = { london: 'in English', milan: 'in Italian and English', valencia: 'in Spanish and English' };
 function cityServiceMeta(cityKey, kind) {
   const base = CITY_SERVICE_META[kind] || { emoji: '✓' };
   const lang = CITY_LETTER_LANG[cityKey];

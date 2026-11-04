@@ -54,6 +54,24 @@ check(H(2026, 4, 2, 'es') && H(2026, 4, 3, 'es') && H(2026, 5, 15, 'es') && H(20
 check(H(2026, 6, 24, 'es-bcn') && H(2026, 9, 11, 'es-bcn') && H(2026, 9, 24, 'es-bcn') && H(2026, 5, 25, 'es-bcn') && H(2026, 12, 26, 'es-bcn') && !H(2026, 4, 2, 'es-bcn'),
   'Barcelona: Sant Joan, the Diada, La Mercè, Pasqua Granada (Easter+50), Sant Esteve — and NO Dijous Sant');
 check(H(2028, 9, 25, 'es-bcn') && !H(2026, 9, 25, 'es-bcn'), 'La Mercè moves to Monday the 25th only when the 24th is a Sunday (2028), never otherwise');
+// Valencia (es-vlc): the Comunitat Valenciana's labour calendar (Decreto 100/2025 → 2026,
+// Decreto 42/2026 → 2027) plus the city's two local days. The weekday holidays of the
+// table alone (Italy set aside) are exactly the official ones, year by year; the
+// fixed 1/11 and 6/12 fall on a Sunday in 2026 and were not moved (a Sunday only)
+const VLC = {
+  2026: ['01-01', '01-06', '01-22', '03-19', '04-03', '04-06', '04-13', '05-01', '06-24', '10-09', '10-12', '12-08', '12-25'],
+  2027: ['01-01', '01-06', '01-22', '03-19', '03-26', '03-29', '04-05', '10-12', '11-01', '12-06', '12-08']
+};
+const vlcAlone = (fn) => { const it = CAL.HOLIDAYS.it; CAL.HOLIDAYS.it = { fixed: [], easter: [] }; try { return fn(); } finally { CAL.HOLIDAYS.it = it; } };
+for (const [y, days] of Object.entries(VLC)) {
+  const only = vlcAlone(() => { const a = []; for (let t = Date.UTC(+y, 0, 1); t < Date.UTC(+y + 1, 0, 1); t += 864e5) { const x = new Date(t); if (x.getUTCDay() % 6 && CAL.isDeskHoliday(x, 'es-vlc')) a.push(x.toISOString().slice(5, 10)); } return a; });
+  check(only.join() === days.join(), `Valencia ${y}: the es-vlc table alone gives exactly the official weekday holidays (DOGV + the city's two days)`, only.join(' '));
+}
+check(H(2026, 6, 24, 'es-vlc') && !H(2027, 6, 24, 'es-vlc') && !H(2028, 6, 24, 'es-vlc'), 'Valencia: Sant Joan (24 June) was a holiday in 2026 ONLY (`dated`) — 24 June 2027 is a working day');
+check(!H(2026, 4, 2, 'es-vlc') && !H(2027, 3, 25, 'es-vlc'), 'Valencia: NO Jueves Santo (2 April 2026, 25 March 2027)');
+check(H(2026, 4, 13, 'es-vlc') && H(2027, 4, 5, 'es-vlc') && !H(2026, 4, 13, 'es') && !H(2026, 4, 13, 'es-bcn'), 'Sant Vicent Ferrer, the Monday after Easter Monday (13 April 2026, 5 April 2027): Valencia only');
+check(!H(2026, 5, 15, 'es-vlc') && !H(2026, 11, 9, 'es-vlc') && !H(2026, 9, 11, 'es-vlc') && !H(2026, 9, 24, 'es-vlc'), 'Valencia never reads Madrid (San Isidro, La Almudena) or Barcelona (the Diada, La Mercè)');
+check(CAL.HOLIDAYS['es-vlc'].dated.every((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)) && !H(2026, 6, 24, 'it'), 'a one-year holiday is a full date (`dated`, YYYY-MM-DD), never an MM-DD that would repeat every year');
 // England & Wales bank holidays: every date of 2026–2028 (gov.uk; 2027 early
 // May and all of 2028 still await their proclamation — the statutory rule)
 const GB = {
@@ -88,6 +106,8 @@ check(line('2026-10-25T10:00:00Z', 'nl') === 'Tomorrow from 09:00 CET', 'Sunday 
 check(line('2026-03-27T18:00:00Z', 'nl') === 'Monday from 09:00 CEST', 'Friday 27 March 2026 after hours: Monday is already CEST');
 check(line('2026-04-26T10:00:00Z', 'nl') === 'Tuesday from 09:00 CEST' && line('2026-04-27T08:00:00Z', 'nl') === 'Tomorrow from 09:00 CEST', 'Koningsdag (Monday 27 April): on the Sunday the next open day is "Tuesday", on the day itself "Tomorrow"');
 check(line('2026-09-11T08:00:00Z', 'es-bcn') === 'Monday from 09:00 CEST' && line('2026-09-11T08:00:00Z', 'es') === 'desk open until 19:00 CEST', 'the Diada closes the Barcelona desk, not the Madrid one');
+check(line('2026-03-19T08:00:00Z', 'es-vlc') === 'Tomorrow from 09:00 CET' && line('2026-03-19T08:00:00Z', 'es') === 'desk open until 19:00 CET', 'Sant Josep (19 March) closes the Valencia desk, not the Madrid one');
+check(line('2026-10-09T08:00:00Z', 'es-vlc') === 'Tuesday from 09:00 CEST' && line('2027-06-24T08:00:00Z', 'es-vlc') === 'desk open until 19:00 CEST', 'Valencia: the Dia de la Comunitat (Fri 9 Oct) and the 12 October → Tuesday; 24 June 2027 open');
 check(line('2026-12-24T19:00:00Z', 'nl') === 'Monday from 09:00 CET', 'Christmas Eve 20:00: Christmas, Boxing Day, the weekend → Monday');
 check(line('2026-12-31T19:00:00Z', 'it') === 'Monday from 09:00 CET', 'New Year\'s Eve 20:00 (Thursday): New Year, the weekend → Monday 4 January');
 {
@@ -123,8 +143,8 @@ check(line('2026-12-31T19:00:00Z', 'it') === 'Monday from 09:00 CET', 'New Year\
 }
 
 // ── one copy: the webhook imports it, the page inlines it ─────────────────
-check(JSON.stringify(WEBHOOK_KEYS) === JSON.stringify(CAL.HOLIDAY_KEYS) && WEBHOOK_KEYS.join() === 'it,nl,es,es-bcn,gb-eng,it-mi', 'the webhook\'s calendar keys are the calendar\'s (it, nl, es, es-bcn, gb-eng, it-mi)');
-check(CAL.HOLIDAY_KEYS.every((k) => Array.isArray(CAL.HOLIDAYS[k].fixed) && Array.isArray(CAL.HOLIDAYS[k].easter)), 'every calendar table carries its fixed and easter arrays (isHoliday reads both)');
+check(JSON.stringify(WEBHOOK_KEYS) === JSON.stringify(CAL.HOLIDAY_KEYS) && WEBHOOK_KEYS.join() === 'it,nl,es,es-bcn,gb-eng,it-mi,es-vlc', 'the webhook\'s calendar keys are the calendar\'s (it, nl, es, es-bcn, gb-eng, it-mi, es-vlc)');
+check(CAL.HOLIDAY_KEYS.every((k) => Array.isArray(CAL.HOLIDAYS[k].fixed) && Array.isArray(CAL.HOLIDAYS[k].easter) && (CAL.HOLIDAYS[k].dated === undefined || Array.isArray(CAL.HOLIDAYS[k].dated))), 'every calendar table carries its fixed and easter arrays (isHoliday reads both), and `dated` when it has one');
 {
   let same = true, n = 0;
   for (let t = Date.UTC(2026, 0, 1); t < Date.UTC(2028, 11, 31); t += 864e5) {
@@ -162,7 +182,7 @@ check(CAL.HOLIDAY_KEYS.every((k) => Array.isArray(CAL.HOLIDAYS[k].fixed) && Arra
     'a runtime printing "GMT+1"/"GMT+0": London reads BST/GMT, Rome CEST/CET — the offset is read zone by zone, never CET for London',
     [fz('2026-08-31T10:00:00Z', 'Europe/London'), fz('2026-12-24T18:30:00Z', 'Europe/London'), fz('2026-08-31T10:00:00Z', 'Europe/Rome'), fz('2026-12-24T18:30:00Z', 'Europe/Rome')].join(' '));
   check((F.deskWindow(new Date('2026-08-31T10:00:00Z'), LONDESK, 'gb-eng') || {}).line === 'Tomorrow from 08:00 BST', 'on that runtime the London window still says "Tomorrow from 08:00 BST"');
-  for (const s of ['amsterdam', 'madrid', 'barcelona', 'paris', 'berlin', 'london', 'milan']) {
+  for (const s of ['amsterdam', 'madrid', 'barcelona', 'paris', 'berlin', 'london', 'milan', 'valencia']) {
     const file = path.join(R, `${s}.html`), built = fs.existsSync(file);
     check(built && fs.readFileSync(file, 'utf8').includes(fragments(R).deskCalendar), `${s}.html carries the calendar byte for byte`, built ? 'stale: run npm run build:cities' : 'not built');
   }
@@ -176,6 +196,7 @@ for (const [slug, m] of Object.entries(CITY_MARKETS)) {
 // Sant'Ambrogio, London without 'gb-eng' every bank holiday
 check((CITY_MARKETS.london || {}).holidays === 'gb-eng', 'London names the England & Wales calendar (gb-eng)', String((CITY_MARKETS.london || {}).holidays));
 check((CITY_MARKETS.milan || {}).holidays === 'it-mi', 'Milan names its own calendar (it-mi, with 7 December), never Italy alone', String((CITY_MARKETS.milan || {}).holidays));
+check((CITY_MARKETS.valencia || {}).holidays === 'es-vlc' && CITY_MARKETS.valencia.country === 'es', 'Valencia names its own calendar (es-vlc), never Madrid\'s es — its country stays es (the +34 phone reading)', String((CITY_MARKETS.valencia || {}).holidays));
 
 console.log(`\n  ${ok} passed, ${ko} failed`);
 process.exit(ko ? 1 : 0);

@@ -131,6 +131,8 @@ check(cityOffer('amsterdam', 'full-search').ok === true && cityOffer('amsterdam'
 check(['paris', 'berlin'].every((c) => cityOffer(c, 'full-search').error === 'checkout_closed'), 'cityOffer: every waitlist desk is checkout_closed — shown is not charged');
 check(cityOffer('barcelona', 'full-search').ok === true && cityOffer('barcelona', 'full-search').eur === 500 && cityOffer('barcelona', 'attended-viewing').eur === 149,
   'cityOffer: Barcelona sells from 22/10 at the CITY_PLANS prices');
+check(cityOffer('valencia', 'full-search').ok === true && cityOffer('valencia', 'full-search').eur === 500 && cityOffer('valencia', 'application-pack').eur === 199 && cityOffer('valencia', 'full-search').currency === 'eur',
+  'cityOffer: Valencia sells the three plans at the grid prices, in euros');
 check(cityOffer('rome', 'full-search').error === 'unknown_city' && cityOffer('amsterdam', 'concierge').error === 'unknown_service', 'cityOffer: unknown city, unknown plan');
 check(Object.keys(CITY_PLANS).join() === 'full-search,application-pack,attended-viewing' && CITY_PLANS['full-search'].eur === 500 && CITY_PLANS['application-pack'].eur === 199 && CITY_PLANS['attended-viewing'].eur === 149,
   'CITY_PLANS is the brief\'s grid: 500 / 199 / 149');
@@ -303,6 +305,17 @@ check(/Refunded in full if we decline the search in the first call/.test(CITY_PL
   await webhook(stream(evI), mkRes());
   const leadI = svcLead('cs_city_bcn_itphone');
   check(leadI && leadI.phone === '333 1234567', 'an Italian mobile typed on /barcelona is not given +34: it stays as typed, for the Rome rule', leadI && leadI.phone);
+  // and Valencia reads ITS calendar (es-vlc): paid on Fri 25 September 2026, +14 = Fri 9
+  // October (Dia de la Comunitat), then the weekend and the 12th → Tuesday 13, work from 14
+  const evV = event({ ...base, city: 'valencia', market: 'valencia', name: 'Lucía Ferrer', email: 'lucia@example.com', phone: '612 345 678' }, { id: 'cs_city_vlc_hol' });
+  evV.data.object.metadata.start_now = '0'; evV.created = Date.UTC(2026, 8, 25, 10, 0, 0) / 1000;
+  const eV = emails.length;
+  await webhook(stream(evV), mkRes());
+  const leadV = svcLead('cs_city_vlc_hol');
+  check(leadV && leadV.market === 'valencia' && leadV.city && leadV.city.withdrawalEndsOn === '2026-10-13' && leadV.city.workFrom === '2026-10-14' && /^VALENCIA — paid order · Full Search · €500 paid/.test(leadV.message) && leadV.phone === '+34612345678',
+    'a Valencia order: market valencia, the es-vlc calendar (9 Oct Dia de la Comunitat + 12 Oct → Tue 13), the +34 number', leadV && JSON.stringify([leadV.message, leadV.city, leadV.phone]));
+  const opV = emails.slice(eV).find((m) => m.to_email === 'valentino@boom-rome.com');
+  check(opV && !/Catalan|fulls oficials|RAICV|Registro de Agentes/.test(opV.intro || ''), 'a Valencia order: the operator\'s email carries no Barcelona line and no registry claim', opV && String(opV.intro).slice(-200));
   // the Rome Pacchetto: the same form, in Italian
   const eIt = emails.length;
   await webhook(stream(event({ service: 'SERVICE', kind: 'concordato-pack', name: 'Giulia Rossi', email: 'giulia@example.com', phone: '+393331234567', notes: '', amount_eur: '349', start_now: '0' }, { id: 'cs_pack_it', amount_total: 34900 })), mkRes());
@@ -405,6 +418,17 @@ check(/Refunded in full if we decline the search in the first call/.test(CITY_PL
   ];
   check(bcn.every(([at, last, start]) => w(at, 'es-bcn').lastDay === last && w(at, 'es-bcn').startDay === start),
     'withdrawalWindow (es-bcn): Sant Joan, the Diada, La Mercè, Pasqua Granada — and no Jueves Santo', JSON.stringify(bcn.map(([at]) => [at, w(at, 'es-bcn').lastDay, w(at, 'es-bcn').startDay])));
+  const vlc = [
+    ['2027-03-12T11:00:00Z', '2027-03-30', '2027-03-31', 'Good Friday (26 Mar 2027) and Easter Monday (29) → Tue 30'],
+    ['2026-01-08T10:00:00Z', '2026-01-23', '2026-01-26', 'Sant Vicent Màrtir (Thu 22 Jan 2026) → Fri 23, work from Mon 26'],
+    ['2026-03-05T10:00:00Z', '2026-03-20', '2026-03-23', 'Sant Josep (Thu 19 Mar 2026) → Fri 20'],
+    ['2026-06-10T10:00:00Z', '2026-06-25', '2026-06-26', 'Sant Joan (Wed 24 Jun 2026, that year only) → Thu 25'],
+    ['2027-06-10T10:00:00Z', '2027-06-24', '2027-06-25', 'Thu 24 Jun 2027 is a working day in Valencia (Sant Joan was 2026 only)'],
+    ['2027-03-11T10:00:00Z', '2027-03-25', '2027-03-30', 'Thu 25 Mar 2027: no Jueves Santo in Valencia; Good Friday and Easter Monday move the start'],
+    ['2027-03-22T10:00:00Z', '2027-04-06', '2027-04-07', 'Easter Monday (29 Mar) is not day 14; Sant Vicent Ferrer (Mon 5 Apr 2027) is → Tue 6'],
+  ];
+  check(vlc.every(([at, last, start]) => w(at, 'es-vlc').lastDay === last && w(at, 'es-vlc').startDay === start),
+    'withdrawalWindow (es-vlc): Sant Vicent Màrtir, Sant Josep, Sant Joan 2026 only, Sant Vicent Ferrer — and no Jueves Santo', JSON.stringify(vlc.map(([at]) => [at, w(at, 'es-vlc').lastDay, w(at, 'es-vlc').startDay])));
   check(w('2026-09-10T10:00:00Z', 'es').lastDay === '2026-09-24' && w('2027-03-11T10:00:00Z', 'es').lastDay === '2027-03-30',
     'the Madrid calendar is a different one: it keeps La Mercè a working day and has Jueves Santo — the reason Barcelona has its own key');
   // the national days Catalonia keeps, on a weekday: Fiesta Nacional (Mon 12

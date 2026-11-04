@@ -8,16 +8,16 @@
     "ogDescription": "Tenant-side desks in {cities}. Three flat fares, paid by you, never by landlords. One Italian agency, answering from Rome."
   },
   "hero": {
-    "kicker": "BOOM Desks · tenant-side rental search",
+    "kicker": "BOOM Desks",
     "h1": "A rental agent on your side, in",
     "word": "EUROPE",
-    "lead": "Tenant-side desks in {cities}. Three flat fares, paid by you, never by landlords. One Italian agency, answering from Rome."
+    "lead": "Tenant-side desks in {n} European cities. Three flat fares, paid by you, never by landlords. One Italian agency, answering from Rome."
   },
   "map": {
     "eb": "Network",
     "h2g": "one company.",
     "caption": "Every desk answers from Rome.",
-    "rome": { "h": "BOOM Rome, the hub", "p": "Where the company lives: homes to rent, owners, leases. Every desk answers from here.", "link": "BOOM Rome" },
+    "rome": { "h": "BOOM Rome, the hub", "p": "Where the company lives: homes to rent, owners, leases.", "link": "BOOM Rome" },
     "home": { "h": "BOOM {homeCity}, Italian law", "p1": "{legalName} is an Italian real estate agency, registered in Rome.", "p2": "In {homeCity} it works under the same Italian law, as a desk: tenant side, flat fares, paid by you.", "link": "The {homeCity} desk" }
   },
   "fares": {
@@ -44,7 +44,7 @@
     "eb": "Pre-flight",
     "h2": "Renting rules,",
     "h2g": "city by city.",
-    "note": "BOOM is an agency, not a law firm: each line is what that desk checks, as written on its page.",
+    "note": "BOOM is an agency, not a law firm.",
     "caption": "What each desk checks before you sign, as on its page",
     "heldNote": "A title alone: the check is on that desk's page.",
     "rows": [
@@ -65,6 +65,8 @@
       "madrid:contract": "RDL 29/2026 convalidation vote 12/11/2026: a lawyer confirms the temporada sentence",
       "barcelona:rentcap": "researched from summaries, BOE and DOGC unreachable: a lawyer confirms",
       "barcelona:contract": "researched from summaries, BOE and DOGC unreachable: a lawyer confirms",
+      "valencia:rent": "not a declared stressed zone on 3/11/2026, read in press summaries (DOGV unreachable) and under political pressure: re-check before every update",
+      "valencia:contract": "RDL 29/2026 convalidation pending (date unconfirmed): a lawyer confirms the temporada sentence",
       "milan:fees": "a market figure with no source",
       "milan:registration": "\"Unregistered, it is void\" overstates the rule (Cass. SS.UU. 23601/2017): a lawyer softens it"
     },
@@ -75,7 +77,7 @@
     "h2": "Questions about BOOM Desks.",
     "items": [
       { "q": "What is a BOOM desk?", "a": "A tenant-side rental desk: an agent you hire to find and secure a home in a European city, paid by you only, never by the landlord or their agent. Each desk has its own page, its local checks and three flat fares." },
-      { "q": "Which cities have a BOOM desk?", "a": "{cities}. {drafts} are not open: we would open them only with a locally licensed partner, and nothing is sold there today. In Rome, BOOM is the agency itself, with its own homes to rent." },
+      { "q": "Which cities have a BOOM desk?", "a": "{cities}. {drafts} are not open: we would open them only with a locally licensed partner, and nothing is sold there today. In Rome, BOOM is the agency itself, with homes to rent." },
       { "q": "Do the fares change from city to city?", "a": "No. Full Search {price:full-search}, Application Pack {price:application-pack} and Attended Viewing {price:attended-viewing} per viewing, VAT included, at every desk; the {gbpDesks} desk charges the same figures in pounds. {refund}" },
       { "q": "Who answers, and when?", "a": "{person}, on WhatsApp from each desk's page, or by email: {hours}. A reply comes the same working day." },
       { "q": "Is BOOM {homeCity} a real estate agency?", "a": "Yes. BOOM {homeCity} is a desk of {legalName}, an Italian real estate agency registered in Rome (REA {rea}), under the same Italian law as BOOM Rome. It works for the tenant only: you hire and pay it, never the landlord.", "home": true },
@@ -87,7 +89,7 @@
     "h2": "BOOM Desks",
     "h2g": "in brief.",
     "rows": [
-      { "dt": "What", "dd": "BOOM Desks are tenant-side rental desks: an agent hired and paid by the tenant only, never by the landlord or the landlord's agent." },
+      { "dt": "What", "dd": "BOOM Desks are tenant-side rental desks: an agent hired and paid by the tenant only, never by the landlord or their agent." },
       { "dt": "Open in", "derive": "open" },
       { "dt": "Operated by", "dd": "{legalName}, the Italian real estate agency behind BOOM Rome, registered in Rome: VAT {vatID}, REA {rea}; offices at {address}." },
       { "dt": "Spain", "dd": "In {esDesks} every fare is optional, chosen in writing (LAU art. 20)." },

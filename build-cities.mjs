@@ -217,13 +217,21 @@ export function arcCtrl(hub, to, f) {
 }
 const arcPts = (hub, c, to, n = 160) => Array.from({ length: n + 1 }, (_, i) => qAt(hub, c, to, i / n));
 const gap = (pts, [x, y]) => Math.min(...pts.map(([a, b]) => Math.hypot(a - x, b - y)));
+// A desk's FIRST bow, tried before "north first", when the greedy's usual
+// side would take a lane an older desk's arc needs (03/11/2026: Valencia's
+// north bow pushed Madrid onto London's line, and no bow was left for
+// London). Keyed by IATA; the same checks still decide, and a first bow that
+// fails them falls back to the usual order.
+export const BOW_FIRST = { VLC: -0.18 };
 export function bowArcs(hub, dests) {
   const len = ([x, y]) => Math.hypot(x - hub[0], y - hub[1]);
   const drawn = [], bows = new Map();
   for (const [key, to] of [...dests].sort((a, b) => len(a[1]) - len(b[1]) || a[0].localeCompare(b[0]))) {
     // north first: a westward chord bows up with f > 0, an eastward one with f < 0
     const north = to[0] < hub[0] ? 1 : -1;
-    const pick = [0.18, 0.24, 0.12, 0.3, 0.36].flatMap((f) => [north * f, -north * f]).find((f) => {
+    const order = [0.18, 0.24, 0.12, 0.3, 0.36].flatMap((f) => [north * f, -north * f]);
+    const first = BOW_FIRST[key];
+    const pick = (first === undefined ? order : [first, ...order.filter((f) => f !== first)]).find((f) => {
       const pts = arcPts(hub, arcCtrl(hub, to, f), to);
       if (dests.some(([k, xy]) => k !== key && gap(pts, xy) < ARC_ME_R + ARC_CLEAR)) return false;
       const out = pts.filter((p) => len(p) > 36);
@@ -277,7 +285,7 @@ export function familyFor(city, cities, shared) {
   const sisters = (cities || [])
     .filter((c) => c.slug !== city.slug && (city.live !== true || c.live === true))
     .sort((a, b) => a.slug.localeCompare(b.slug))
-    .map((c) => ({ label: `${c.city} desk`, href: `/${c.slug}`, iata: c.iata, geo: c.geo }));
+    .map((c) => ({ label: c.city, href: `/${c.slug}`, iata: c.iata, geo: c.geo }));
   const home = (shared.family || []).filter((f) => f.href !== `/${city.slug}`).map((f) => ({
     ...f,
     iata: f.iata || (f.href === '/' ? ROME_IATA : ''),
@@ -1497,10 +1505,12 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
     ratingHtml: rome.profileUrl ? `<a class="lnk" href="${esc(rome.profileUrl)}" target="_blank" rel="noopener">${rating}</a>` : rating,
     // who operates the desk, under the pass: on the HOME-COUNTRY desk (Milan)
     // what it is — an Italian real estate agency, under the same Italian law
-    // as in Rome; elsewhere the registered Italian agency, as before
+    // as in Rome; elsewhere the same agency, and WHICH registry (04/11/2026:
+    // in Valencia "a registered agency" reads as the RAICV, a registry the
+    // desks are not in — the line names Rome, where the company is registered)
     proofLead: isHomeDesk(city, shared)
       ? `Operated by ${shared.entity.legalName}, an Italian real estate agency, under the same Italian law as in Rome`
-      : `Operated by ${shared.entity.legalName}, a registered Italian agency`,
+      : `Operated by ${shared.entity.legalName}, an Italian real estate agency registered in Rome`,
     faresHtml: R.fares(city, shared),
     actHtml: R.act(city, contact),
     faqHtml: R.faq(city),
@@ -1801,7 +1811,7 @@ const HUB_BANNED = [
   [/\b(?:office|branch|team|based)\s+in\s+(?!Rome)\w+/i, 'a presence claim outside Rome (office, branch, team or based in …): every desk answers from Rome'],
   [/\b(?:licensed|registered)\s+in\s+(?!Rome)\w+/i, 'a licence or registration outside Rome: the company is registered in Rome'],
   [/(?<!Rome )Chamber of Commerce/, 'a Chamber of Commerce other than Rome\'s'],
-  [/AICAT|carte professionnelle|§34c|licensed agent/i, 'a licence the desks do not hold'],
+  [/AICAT|RAICV|Registro de Agentes|carte professionnelle|§34c|licensed agent/i, 'a licence the desks do not hold'],
   [/\b10\s*%|one year's rent/, 'Rome\'s 10% commission: the desks charge flat fees'],
   [/\bguarantee|legal advice\b/i, 'a guarantee or legal advice'],
   [/law firm/i, 'a law firm (only "not a law firm" is said)'],
@@ -2060,7 +2070,7 @@ export function renderHub({ template, shared, hub, cities, assetVersion, frags, 
     [
       `        <tr class="db-r hub" id="db-${ROME_IATA.toLowerCase()}" role="row">`,
       `          ${codeCell(ROME_IATA)}`,
-      '          <td class="db-city" role="cell"><a class="db-go" href="/">Rome</a><span class="db-sub">The hub · homes to rent in Rome</span></td>',
+      '          <td class="db-city" role="cell"><a class="db-go" href="/">Rome</a><span class="db-sub">The hub · homes to rent</span></td>',
       '          <td class="db-st c-w" role="cell" data-instr>HUB</td><td class="db-t c-w" role="cell"></td><td class="db-now c-w" role="cell"></td><td class="db-fare c-w" role="cell"></td>',
       '          <td class="db-gate" role="cell" aria-hidden="true"><span class="db-pill">Go to BOOM Rome <i>→</i></span></td>',
       '        </tr>'
@@ -2070,7 +2080,7 @@ export function renderHub({ template, shared, hub, cities, assetVersion, frags, 
     '      <div class="dboard-w quadro"><i class="tacca"></i>',
     '        <p class="db-h" aria-hidden="true"><b>BOOM · DESKS</b><span class="pill-st js" id="hubPill" data-nosnippet hidden><i class="dot"></i><span>Desks open</span></span></p>',
     '        <table class="dboard" id="dboard" role="table" aria-label="BOOM desks" data-instr>',
-    '          <thead data-instr><tr role="row"><th scope="col" role="columnheader">Code</th><th scope="col" role="columnheader">Desk</th><th scope="col" class="c-w" role="columnheader">Status</th><th scope="col" class="c-w" role="columnheader">Desk time</th><th scope="col" class="c-w" role="columnheader">Now</th><th scope="col" class="c-w" role="columnheader">Fares from</th><th scope="col" role="columnheader"><span class="sr">Desk page</span></th></tr></thead>',
+    '          <thead data-instr><tr role="row"><th scope="col" role="columnheader">Code</th><th scope="col" role="columnheader">Desk</th><th scope="col" class="c-w" role="columnheader">Status</th><th scope="col" class="c-w" role="columnheader">Desk time</th><th scope="col" class="c-w" role="columnheader">Now</th><th scope="col" class="c-w" role="columnheader">Fares</th><th scope="col" role="columnheader"><span class="sr">Desk page</span></th></tr></thead>',
     '          <tbody>',
     ...boardRows,
     '          </tbody>',

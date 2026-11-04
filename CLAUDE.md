@@ -2867,6 +2867,59 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
     - il Full Search pagato in anticipo e l'art. 6 L. 39/89.
   - Il radar PFS non copre Londra né Milano: si cerca a mano.
   Test: `tests/cities/run.mjs` 415, `checkout.mjs` 113, `calendar.mjs` 80, `ui.mjs` 144.
+- **VALENCIA (04/11/2026 — «aggiungi un desk VALENCIA, live»; il fondatore ha
+  deciso «live con la cassa» DOPO essere stato informato del RAICV, per iscritto,
+  il 03/11).** Sesto desk live con la cassa (`/valencia`, €500 · €199 · €149 IVA
+  inclusa), sulle regole spagnole di Madrid: «Optional, chosen in writing» (LAU
+  art. 20) prima di ogni prezzo, must-state «You hire us; we do not act for the
+  landlord.», «Who pays the agent · LAU art. 20» prima corsia, i must-state di
+  Madrid verbatim. **RAICV** (Registro de Agentes de Intermediación Inmobiliaria,
+  Decreto 98/2022) è l'AICAT valenciano: se un'agenzia stabilita a Roma senza
+  sede in Comunitat debba iscriversi è APERTO (avvocato valenciano); la pagina
+  non dichiara NESSUNA iscrizione o licenza (test: niente RAICV, «Registro de
+  Agentes», «registered in Valencia/Spain», «licensed in Spain»; `HUB_BANNED`
+  rifiuta RAICV sull'hub), nessuna assicurazione contro il mancato pagamento fra
+  le carte dei tre desk spagnoli (RDL 29/2026), niente hojas de reclamaciones né
+  documenti in valenciano promessi (nessun obbligo trovato per chi non ha sede
+  in Comunitat). Fianza un mese depositata dal locatore presso la Generalitat
+  (chiediamo la ricevuta); «non è zona tesa» detto con «today», sul «canone
+  iniziale» (gli aggiornamenti annuali SONO tettati, IRAV) e tenuto in `hold`
+  sull'hub con il contratto (voto RDL 29/2026). Calendario **`es-vlc`** in
+  `js/desk-calendar.js` (il webhook lo importa da `CITY_MARKETS.valencia.
+  holidays`; mai la chiave `es`, che porta San Isidro, La Almudena e il Giovedì
+  Santo di Madrid): Comunitat Valenciana (Decreto 100/2025 → 2026, 42/2026 →
+  2027: 19/3, Venerdì Santo, Pasquetta, 9/10, 12/10, 1/11, 6/12) più i due
+  giorni della città (22/1 Sant Vicent Màrtir, Sant Vicent Ferrer = Pasqua+8);
+  **24/6 solo nel 2026** con la chiave nuova `dated` (YYYY-MM-DD, un festivo
+  decretato per UN anno); niente Giovedì Santo; 2028 non pubblicato — si
+  ricontrolla ogni primavera. `country: 'es'` resta (il +34 del telefono).
+  Email del pagante: lettera «in Spanish and English» (`CITY_LETTER_LANG`),
+  nessuna riga catalana all'operatore. **La riga di prova sotto il pass** dice
+  ora su ogni desk non di casa «an Italian real estate agency registered in
+  Rome» (era «a registered Italian agency»: a Valencia «registered» si legge
+  RAICV — la riga nomina QUALE registro). Hub: lead `{n} European cities`,
+  kicker «BOOM Desks», thead «Fares», ROM «homes to rent», due frasi doppie
+  tolte (corpo 975/980, board 118/120, rules 153/160, brief 239/240); la lista
+  Network senza «desk» («AMS Amsterdam», 35/40 sui live); un altro desk costa
+  all'hub ~31 parole contro 5 di margine: il #8 è una decisione strutturale.
+  `bowArcs`: `BOW_FIRST = { VLC: -0.18 }` (si sposta solo Madrid, −0.18 →
+  −0.12; i sette archi di prima restano) — TEMPORANEO, sparisce con la mappa
+  Horizon dello Stage 2. Radar: Valencia DICHIARATA e spenta in
+  `js/radar-markets.js` (il Full Search si cerca a mano; prima di accenderla:
+  «Calle de Valencia» a Madrid e «Carrer de València» a Barcellona collidono
+  col token della città → maschera delle vie, zone, scope idealista, alias,
+  battito); nel modale cliente di pfs-command Valencia ha la sua voce e una
+  città col radar spento non si salva più come Roma. Card social spagnole
+  (MAD, BCN, VLC) «OPTIONAL · FROM €149», `og-desks.png` coi sei codici.
+  Superfici: sitemap (/valencia 2026-11-03 = `updated`; /terms e /privacy
+  «3 November 2026»), llms.txt, Termini §12, privacy, /withdrawal, i sei
+  piedi + pt.html + patch-lotto2.py. Latente, non toccato:
+  `api/portal/_shared.js:93` dice «The Rome market» a un cliente fuori radar
+  (Valencia, Londra, Milano). Aperte, del fondatore: RAICV (parere valenciano),
+  il voto sul RDL 29/2026 (base dell'«Optional» su tre desk), hojas de
+  reclamaciones, il calendario 2028; nessuno ha ancora letto un lead o un
+  ordine dei desk: «validato» non si può dire. Test: `tests/cities/run.mjs`
+  914, `calendar.mjs` 97, `checkout.mjs` 117, `ui.mjs` 336.
 - **IL DESK AVIAZIONE COMPLETO (v1.6, 03/11/2026 — il fondatore: «questo stile è
   troppo sintetizzato… itera lo stile del biglietto… anche per una pagina
   completa»).** Il primo schermo resta UNA carta d'imbarco, rifatta come oggetto

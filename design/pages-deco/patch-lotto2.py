@@ -83,6 +83,7 @@ s = uno(s, """      <div class="piede-col">
         <a href="/london.html">BOOM London</a>
         <a href="/madrid.html">BOOM Madrid</a>
         <a href="/milan.html">BOOM Milan</a>
+        <a href="/valencia.html">BOOM Valencia</a>
         <a href="/corporate.html">For Companies</a>
         <a href="/universities.html">For Universities</a>
         <a href="/owners.html">For Owners</a>

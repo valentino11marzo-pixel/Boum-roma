@@ -171,8 +171,8 @@ export function b2bReplyText(lead = {}) {
 
 // ═══════════════════════════════════════════════════════════════════════════
 // IL TERZO MERCATO: LE CITTÀ (BOOM_CITIES_BRIEF.md — Amsterdam, Madrid,
-// Barcellona, Parigi, Berlino, e dal 02/11/2026 Londra e Milano: la lista
-// chiusa è CITY_MARKETS qui sotto). Stessa lezione della
+// Barcellona, Parigi, Berlino, dal 02/11/2026 Londra e Milano, dal 03/11/2026
+// Valencia: la lista chiusa è CITY_MARKETS qui sotto). Stessa lezione della
 // Réunion, in un'altra lingua: un lead che arriva da /amsterdam cerca casa ad
 // AMSTERDAM, e il Commerciale — con il suo SYSTEM prompt sul mercato romano,
 // il catalogo `listings` che consulta e il follow-up «stai ancora cercando
@@ -192,7 +192,8 @@ export function b2bReplyText(lead = {}) {
 // JSON carries the same word; tests/cities keeps the two from drifting.
 // `holidays` names the withdrawal calendar when the desk's region differs
 // from its country's default (api/stripe-webhook.js HOLIDAYS: Barcelona is
-// 'es-bcn', Madrid the 'es' default, London 'gb-eng', Milan 'it-mi');
+// 'es-bcn', Madrid the 'es' default, London 'gb-eng', Milan 'it-mi',
+// Valencia 'es-vlc' — never the 'es' default, which holds Madrid's local days);
 // `country` stays the ISO code because it also reads the national phone
 // format (cityPhone below).
 // Barcelona went live with the till on 22/10/2026 by the founder's decision,
@@ -257,6 +258,7 @@ export const CITY_MARKETS = {
   berlin:    { label: 'Berlin',    flag: '🇩🇪', country: 'de', url: 'https://www.boomrome.com/berlin',    mode: 'waitlist', partner: 'a licensed partner', plans: CITY_PLANS },
   london:    { label: 'London', labelIt: 'Londra', flag: '🇬🇧', country: 'gb', holidays: 'gb-eng', currency: 'gbp', hoursEn: 'Mon–Fri 08:00–18:00, London time', url: 'https://www.boomrome.com/london', mode: 'search', checkout: true, plans: CITY_PLANS },
   milan:     { label: 'Milan',  labelIt: 'Milano', flag: '🇮🇹', country: 'it', holidays: 'it-mi',  currency: 'eur', hoursEn: 'Mon–Fri 09:00–19:00, Italian time', url: 'https://www.boomrome.com/milan', mode: 'search', checkout: true, plans: CITY_PLANS },
+  valencia:  { label: 'Valencia',  flag: '🇪🇸', country: 'es', holidays: 'es-vlc', url: 'https://www.boomrome.com/valencia',  mode: 'search', checkout: true, plans: CITY_PLANS },
 };
 
 /**

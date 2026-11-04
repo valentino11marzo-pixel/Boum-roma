@@ -92,7 +92,7 @@ console.log('\n\x1b[1m▸ cities\x1b[0m  the city desks (v1.6, the complete avia
 
 const template = read('cities/_template.html');
 const shared = JSON.parse(read('cities/_shared.json'));
-const SLUGS = ['amsterdam', 'barcelona', 'berlin', 'london', 'madrid', 'milan', 'paris'];
+const SLUGS = ['amsterdam', 'barcelona', 'berlin', 'london', 'madrid', 'milan', 'paris', 'valencia'];
 const CITY = Object.fromEntries(SLUGS.map((s) => [s, JSON.parse(read(`cities/${s}.json`))]));
 const ams = CITY.amsterdam;
 const assetVersion = { css: 'testcss000', js: 'testjs0000', onda: 'testonda00' };
@@ -110,7 +110,7 @@ const tplRefuses = (from, to, re, t, base = 'amsterdam') => {
 
 // ── 1 · the committed pages are exactly what the data builds ─────────────
 const pages = buildAll({ root: R });
-check(pages.length === 7 && pages.map((p) => p.slug).join() === SLUGS.join(), `the seven desks are built from cities/*.json (${pages.map((p) => p.slug).join(', ')})`);
+check(pages.length === 8 && pages.map((p) => p.slug).join() === SLUGS.join(), `the eight desks are built from cities/*.json (${pages.map((p) => p.slug).join(', ')})`);
 for (const p of pages) {
   const f = path.join(R, p.file);
   const cur = fs.existsSync(f) ? fs.readFileSync(f, 'utf8') : null;
@@ -160,9 +160,9 @@ for (const s of SLUGS) {
   check(live ? (!/noindex/.test(head) && /content="index, follow/.test(head)) : /<meta name="robots" content="noindex">/.test(head),
     `${s} is ${live ? 'LIVE: index, follow' : 'a draft: noindex'} in the first 4000 chars (tests/seo rule 8 reads exactly there)`);
 }
-check(['amsterdam', 'madrid', 'barcelona', 'london', 'milan'].every((s) => CITY[s].live && CITY[s].checkout === true && CITY[s].mode === 'search')
+check(['amsterdam', 'madrid', 'barcelona', 'london', 'milan', 'valencia'].every((s) => CITY[s].live && CITY[s].checkout === true && CITY[s].mode === 'search')
   && ['paris', 'berlin'].every((s) => !CITY[s].live && CITY[s].checkout === undefined && CITY[s].mode === 'waitlist'),
-  'the live set is pinned: Amsterdam, Madrid, Barcelona, London, Milan sell; Paris and Berlin are noindex waitlists without a till');
+  'the live set is pinned: Amsterdam, Madrid, Barcelona, London, Milan, Valencia sell; Paris and Berlin are noindex waitlists without a till');
 const canon = (html.match(/<link rel="canonical" href="([^"]+)"/) || [])[1];
 check(canon === `${shared.siteUrl}/amsterdam` && /^https:\/\/www\.boomrome\.com$/.test(shared.siteUrl), `canonical comes from siteUrl, on www: ${canon}`);
 
@@ -379,7 +379,7 @@ check(!/id="contact"/.test(html) && /<article class="pass" id="pass"/.test(html)
 // THE SEAL and THE STAMPS: the desk's must-state on a ring, never a new claim;
 // FILE OPEN / PAID only on the cards the server opens
 {
-  const SEAL = { amsterdam: 'NEVER PAID BY LANDLORDS', london: 'NEVER PAID BY LANDLORDS', milan: 'NEVER PAID BY LANDLORDS', madrid: 'WE DO NOT ACT FOR THE LANDLORD', barcelona: 'WE DO NOT ACT FOR THE LANDLORD', paris: 'OPENING WITH A LICENSED PARTNER', berlin: 'OPENING WITH A LICENSED PARTNER' };
+  const SEAL = { amsterdam: 'NEVER PAID BY LANDLORDS', london: 'NEVER PAID BY LANDLORDS', milan: 'NEVER PAID BY LANDLORDS', madrid: 'WE DO NOT ACT FOR THE LANDLORD', barcelona: 'WE DO NOT ACT FOR THE LANDLORD', valencia: 'WE DO NOT ACT FOR THE LANDLORD', paris: 'OPENING WITH A LICENSED PARTNER', berlin: 'OPENING WITH A LICENSED PARTNER' };
   for (const s of SLUGS) {
     const h = PAGE[s], C = CITY[s].city.toUpperCase();
     const seal = sliceOf(h, '<svg class="seal"', '</svg>');
@@ -398,13 +398,13 @@ check(!/id="contact"/.test(html) && /<article class="pass" id="pass"/.test(html)
 {
   const netList = (h) => [...sliceOf(h, '<ul class="net">', '</ul>').matchAll(/<li><a href="\/([a-z]*)"><b data-instr>([A-Z]{3})<\/b> ([^<]+)<\/a><\/li>/g)].map((m) => [m[1], m[2], m[3]]);
   const ams2 = netList(PAGE.amsterdam), par = netList(PAGE.paris);
-  check(ams2.map((x) => x[0]).join() === 'barcelona,london,madrid,milan,' && ams2.map((x) => x[1]).join() === 'BCN,LON,MAD,MIL,ROM' && ams2[4][2] === 'BOOM Rome',
+  check(ams2.map((x) => x[0]).join() === 'barcelona,london,madrid,milan,valencia,' && ams2.map((x) => x[1]).join() === 'BCN,LON,MAD,MIL,VLC,ROM' && ams2[5][2] === 'BOOM Rome' && ams2[0][2] === 'Barcelona',
     `a live desk links only the live sisters, then BOOM Rome (${ams2.map((x) => x[1]).join(', ')})`);
-  check(par.map((x) => x[0]).join() === 'amsterdam,barcelona,berlin,london,madrid,milan,', 'a draft links every sister (the review sees the suite)');
-  check(!/<a href="\/(amsterdam|barcelona|berlin|london|madrid|milan|paris)">/.test(sliceOf(html, '<footer class="foot">', '</footer>')), 'the network list replaces the family links of the footer (said once)');
+  check(par.map((x) => x[0]).join() === 'amsterdam,barcelona,berlin,london,madrid,milan,valencia,', 'a draft links every sister (the review sees the suite)');
+  check(!/<a href="\/(amsterdam|barcelona|berlin|london|madrid|milan|paris|valencia)">/.test(sliceOf(html, '<footer class="foot">', '</footer>')), 'the network list replaces the family links of the footer (said once)');
   const fam = familyFor({ slug: 'x', live: true }, [{ slug: 'b', city: 'B', live: false, iata: 'BBB', geo: { lat: 50, lon: 5 } }, { slug: 'a', city: 'A', live: true, iata: 'AAA', geo: { lat: 48, lon: 2 } }], { family: [{ label: 'BOOM Rome', href: '/' }], rome: { geo: shared.rome.geo } });
-  check(fam.map((f) => f.href).join() === '/a,/' && fam[0].label === 'A desk' && fam[0].iata === 'AAA' && fam[0].geo.lat === 48 && fam[1].iata === 'ROM' && fam[1].geo === shared.rome.geo,
-    'familyFor: live sisters only, alphabetical, labelled "<City> desk" with their IATA and coordinates, then BOOM Rome (ROM, the hub)');
+  check(fam.map((f) => f.href).join() === '/a,/' && fam[0].label === 'A' && fam[0].iata === 'AAA' && fam[0].geo.lat === 48 && fam[1].iata === 'ROM' && fam[1].geo === shared.rome.geo,
+    'familyFor: live sisters only, alphabetical, labelled with the city (the heading says "Other desks") with their IATA and coordinates, then BOOM Rome (ROM, the hub)');
   check(sliceOf(html, '<section class="sec" id="network"', '</section>').includes('<p class="net-c">Every desk answers from Rome.</p>'), 'the caption: "Every desk answers from Rome."');
   // BOOM Desks (03/11/2026): the map shows EVERY desk — the live sisters with an arc from Rome, this desk
   // with its gold arc (on a draft too), the desks not open as a hollow dot with NO arc; Rome wears its ring
@@ -450,7 +450,7 @@ check(!/id="contact"/.test(html) && /<article class="pass" id="pass"/.test(html)
     check((ul.match(/<li class="all">/g) || []).length === 1 && all.cls === 'all' && all.href === '/desks' && all.label === 'Every BOOM desk', `${s}: "ALL · Every BOOM desk" once, last, linking /desks`);
     if (live) check(!/href="(?:https:\/\/www\.boomrome\.com)?\/(?:berlin|paris)(?=[#"?/])/.test(h), `${s}: a live page links no desk that is not open (Berlin, Paris), anywhere`);
     const netWords = words(visibleText(sliceOf(atLoadParts(h).html, '<section class="sec" id="network"', '</section>')));
-    check(netWords === (live ? 37 : 35) && netWords <= BUDGET.network, `${s}: the Network section is ${netWords} words at load (${live ? 'live 37' : 'draft 35'}, ≤ ${BUDGET.network})`);
+    check(netWords === (live ? 35 : 31) && netWords <= BUDGET.network, `${s}: the Network section is ${netWords} words at load (${live ? 'live 35' : 'draft 31'}, ≤ ${BUDGET.network})`);
     const bc = [...h.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => JSON.parse(m[1])).find((b) => b['@type'] === 'BreadcrumbList') || {};
     const items = bc.itemListElement || [];
     check(items.length === 3 && items.map((i) => i.position).join() === '1,2,3' && items[0].item === `${shared.siteUrl}/` && items[1].name === 'BOOM Desks' && items[1].item === `${shared.siteUrl}/desks` && items[2].name === CITY[s].city && items[2].item === `${shared.siteUrl}/${s}`,
@@ -480,6 +480,12 @@ check(!/id="contact"/.test(html) && /<article class="pass" id="pass"/.test(html)
   const bows = bowArcs(H, SLUGS.map((x) => [CITY[x].iata, mapXY(CITY[x].geo)]));
   check(bows.size === SLUGS.length && [...bows.values()].every((f) => Math.abs(f) >= 0.12 && Math.abs(f) <= 0.36) && arcViolations(H, SLUGS.map((x) => ({ key: CITY[x].iata, to: mapXY(CITY[x].geo), c: arcCtrl(H, mapXY(CITY[x].geo), bows.get(CITY[x].iata)) })), SLUGS.map((x) => ({ key: CITY[x].iata, xy: mapXY(CITY[x].geo), r: ARC_ME_R }))).length === 0,
     'bowArcs bows every desk (|f| 0.12–0.36) so no arc comes near ANY desk\'s ring, whichever page draws it');
+  // Valencia (03/11): its FIRST bow is the southern one (BOW_FIRST); north first, its arc pushed Madrid onto
+  // London's line and no bow was left for London. Only Madrid moves (−0.18 → −0.12); without Valencia, nothing does
+  const fmt = (m) => [...m].sort((a, b) => a[0].localeCompare(b[0])).map(([k, f]) => `${k} ${f}`).join(' · ');
+  const without = bowArcs(H, SLUGS.filter((x) => x !== 'valencia').map((x) => [CITY[x].iata, mapXY(CITY[x].geo)]));
+  check(fmt(bows) === 'AMS -0.24 · BCN 0.18 · BER -0.18 · LON -0.3 · MAD -0.12 · MIL 0.18 · PAR -0.18 · VLC -0.18' && fmt(without) === 'AMS -0.24 · BCN 0.18 · BER -0.18 · LON -0.3 · MAD -0.18 · MIL 0.18 · PAR -0.18',
+    `bowArcs with Valencia moves Madrid only (${fmt(bows)}); without it, today\'s bows (${fmt(without)})`);
 }
 // a desk that no bow can serve is a build error, never an arc through a sister:
 // one set on the hub's doorstep sits under the start of every other arc
@@ -534,7 +540,7 @@ tplRefuses('<p class="proof">', '<p class="proof">REA RM-9999999 · ', /"REA RM-
   const Q6 = 'Is BOOM Milan a real estate agency?';
   const A6 = 'Yes. BOOM Milan is a desk of Egidi Immobiliare S.r.l., an Italian real estate agency registered with the Rome Chamber of Commerce (REA RM-1710623), under the same Italian law as our agency in Rome. On this desk we work for the tenant only: you hire us and pay us, never the landlord.';
   const HOME = 'Operated by Egidi Immobiliare S.r.l., an Italian real estate agency, under the same Italian law as in Rome';
-  const DEF = 'Operated by Egidi Immobiliare S.r.l., a registered Italian agency';
+  const DEF = 'Operated by Egidi Immobiliare S.r.l., an Italian real estate agency registered in Rome';
   check(M.bref.rows[0].dt === 'Who' && M.bref.rows[0].ddHtml === WHO && mil.includes(`<dt>Who</dt><dd>${WHO}</dd>`), 'milan: the "Who" row says what it is — an Italian real estate agency registered with the Rome Chamber of Commerce (REA RM-1710623), the same Italian law as in Rome');
   check(M.footer.statement === STMT && mil.includes(`<p class="stmt">${esc(STMT)}</p>`), 'milan: the footer statement — a desk of the Italian agency, under the same Italian law as in Rome, acting solely for the tenant');
   const mg = ([...mil.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => JSON.parse(m[1])).find((b) => Array.isArray(b['@graph'])) || {})['@graph'] || [];
@@ -543,7 +549,7 @@ tplRefuses('<p class="proof">', '<p class="proof">REA RM-9999999 · ', /"REA RM-
     && mf.length === 6 && mf[5].name === Q6 && mf[5].acceptedAnswer.text === A6, 'milan: the sixth question "Is BOOM Milan a real estate agency?" — visible and in the FAQPage, word for word');
   check(mil.includes(`<p class="proof">${esc(HOME)} · <a class="lnk" href="${shared.rome.profileUrl}"`), 'milan: the proof line under the pass says the home-country desk (an Italian real estate agency, the same Italian law as in Rome)');
   check(SLUGS.filter((x) => x !== 'milan').every((x) => PAGE[x].includes(`<p class="proof">${esc(DEF)} · <a class="lnk" href="${shared.rome.profileUrl}"`) && !PAGE[x].includes(HOME)),
-    'the six other desks keep the default proof line, byte for byte ("a registered Italian agency")');
+    'the seven other desks keep the default proof line, byte for byte ("an Italian real estate agency registered in Rome": which registry, never a Valencian or Spanish one)');
   const flipped = clone(M); flipped.country = 'XX';
   const fh = render(flipped).html;
   check(fh.includes(`<p class="proof">${esc(DEF)} · `) && !fh.includes(HOME), 'MUTATION: Milan with another country reverts to the default proof line (the home-country desk is derived, never typed)');
@@ -915,13 +921,17 @@ tplRefuses('<p class="proof">', '<p class="proof">Pay by bank transfer · ', /no
   check(CITY.berlin.hero.faresHead.span === 'Nothing charged today' && /data-plan-price="full-search">€500<\/span><span class="f-cond">flat ·<br> incl\. VAT · on signing<\/span>/.test(PAGE.berlin),
     'berlin: nothing is charged today, and Full Search says on its own row that it is due only once you sign (WoVermRG §2–§3)');
   check(/Catalan or Spanish/.test(CITY.barcelona.checkoutCopy.fine) && /fulls oficials/i.test(PAGE.barcelona), 'barcelona: documents in Catalan or Spanish on request, the official complaint forms named');
-  for (const s of ['madrid', 'barcelona']) {
+  for (const s of ['madrid', 'barcelona', 'valencia']) {
     const h = PAGE[s];
     check(h.includes('<b id="faresH">Optional, chosen in writing</b>') && h.includes('<b>You hire us; we do not act for the landlord.</b>'), `${s}: the prices open "Optional, chosen in writing"; the must-state in bold`);
     check(/<details class="lane rv" id="check-fees" style="--i:0"><summary><span class="ln" aria-hidden="true">01<\/span> <span class="at" data-instr>LAU art\. 20<\/span> <span class="t">[^<]+<\/span><\/summary>/.test(h) && CITY[s].checks.items[0].id === 'fees',
       `${s}: the check "Who pays the agent · LAU art. 20" is the FIRST Pre-flight lane`);
   }
   check(!/AICAT/.test(PAGE.barcelona.replace(/<!--[\s\S]*?-->/g, '')), 'barcelona: no AICAT registration is claimed anywhere (there is no number to print)');
+  check(!/RAICV|Registro de Agentes|registered (?:in|with) (?:Valencia|Spain|the Generalitat)|licensed (?:in|by) (?:Valencia|Spain)/i.test(PAGE.valencia.replace(/<!--[\s\S]*?-->/g, '')), 'valencia: no registration in the Valencian agents\' registry (RAICV) or any Spanish licence is claimed anywhere (there is no number to print)');
+  check(['madrid', 'barcelona', 'valencia'].every((s) => !/seguro de impago|rent[- ]default insurance|rent guarantee insurance/i.test(JSON.stringify(CITY[s]))), 'the Spanish desks never list rent-default insurance among the papers (a landlord may not require it: RDL 29/2026)');
+  check(/Generalitat/.test(CITY.valencia.checks.items.find((k) => k.id === 'deposit').text) && /deposit receipt/.test(CITY.valencia.checks.items.find((k) => k.id === 'deposit').text) && /\btoday\b/.test(CITY.valencia.checks.items.find((k) => k.id === 'rent').text),
+    'valencia: the deposit is lodged with the Generalitat (ask for the receipt); the no-stressed-zone line is dated ("today") and held on the hub');
   for (const s of ['paris', 'berlin']) {
     const extra = CITY[s].pricing.plans.flatMap((p) => ['negotiat', 'template', 'cover letter'].filter((w) => p.offerDescription.toLowerCase().includes(w) && !p.includes.join(' ').toLowerCase().includes(w)).map((w) => `${p.id}: ${w}`));
     check(!extra.length, `${s}: its Offers (JSON-LD) promise nothing its tickets do not show (no negotiation, templates or cover letter the page never names)`, extra.join(', '));
@@ -1079,7 +1089,7 @@ tplRefuses('<p class="proof">', '<p class="proof">Pay by bank transfer · ', /no
     check(iso && lm === iso, `${u}: the sitemap <lastmod> is the page's own "Last Updated" date`, `${iso} vs ${lm}`);
   }
   const pv = read('privacy.html');
-  check(!/AWS|SendGrid/.test(pv) && /Firebase/.test(pv) && /Vercel/.test(pv) && /Telegram/.test(pv) && /Anthropic/.test(pv) && /EmailJS/.test(pv) && /City desks \(Amsterdam, Barcelona, London, Madrid, Milan\)/.test(pv),
+  check(!/AWS|SendGrid/.test(pv) && /Firebase/.test(pv) && /Vercel/.test(pv) && /Telegram/.test(pv) && /Anthropic/.test(pv) && /EmailJS/.test(pv) && /City desks \(Amsterdam, Barcelona, London, Madrid, Milan, Valencia\)/.test(pv),
     'the privacy policy names the real processors and what a city request is used for');
   const cityLine = (pv.match(/<li><strong>City desks[\s\S]*?<\/li>/) || [''])[0];
   check(cityLine && !/Check-in|list of papers/i.test(cityLine) && /name/i.test(cityLine) && /service you were looking at/.test(cityLine),
@@ -1436,9 +1446,9 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
   const HB = buildHub({ root: R, pages });
   const W = writeAll({ root: R, check: true });
   const wHub = W.find((x) => x.file === 'desks.html');
-  check(wHub && !wHub.stale && fs.readFileSync(path.join(R, 'desks.html'), 'utf8') === HB.html && HB.html.includes(GENERATED_MARK) && W.filter((x) => x.file !== 'desks.html').length === 7,
-    'writeAll(--check) covers desks.html next to the seven desks; the committed page is what the data builds and carries the GENERATED mark');
-  check(buildAll({ root: R }).length === 7, 'buildAll() still returns the seven desk pages only');
+  check(wHub && !wHub.stale && fs.readFileSync(path.join(R, 'desks.html'), 'utf8') === HB.html && HB.html.includes(GENERATED_MARK) && W.filter((x) => x.file !== 'desks.html').length === 8,
+    'writeAll(--check) covers desks.html next to the eight desks; the committed page is what the data builds and carries the GENERATED mark');
+  check(buildAll({ root: R }).length === 8, 'buildAll() still returns the eight desk pages only');
   check(HB.weight.totalKb <= HUB_WEIGHT_KB.total && HB.weight.pageKb <= HUB_WEIGHT_KB.page && HB.weight.cssKb <= HUB_WEIGHT_KB.css && HB.weight.jsKb <= HUB_WEIGHT_KB.js,
     `desks.html: ${HB.weight.totalKb.toFixed(1)} KB gz first-party (≤ ${HUB_WEIGHT_KB.total}) · the page ${HB.weight.pageKb.toFixed(1)} (≤ ${HUB_WEIGHT_KB.page}) · boom-desks.css ${HB.weight.cssKb.toFixed(1)} · boom-desks.js ${HB.weight.jsKb.toFixed(1)} (≤ 6 each)`);
   check(HB.words <= HUB_BUDGET.body && HB.prose <= HUB_BUDGET.prose && HB.instr <= HUB_BUDGET.instr && Object.entries(HB.sections).every(([k, v]) => v <= HUB_BUDGET[k]),
@@ -1450,7 +1460,7 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
   // head
   const title = (H.match(/<title>([^<]*)<\/title>/) || [])[1] || '';
   const desc = (H.match(/<meta name="description" content="([^"]*)"/) || [])[1] || '';
-  check(title.length <= 62 && title === HUBJ.meta.title && desc.length >= 110 && desc.length <= 165 && desc.includes('Amsterdam, Barcelona, London, Madrid and Milan'),
+  check(title.length <= 62 && title === HUBJ.meta.title && desc.length >= 110 && desc.length <= 165 && desc.includes('Amsterdam, Barcelona, London, Madrid, Milan and Valencia'),
     `head: title ${title.length} ≤ 62 characters, description ${desc.length} in 110–165 naming the live desks ("${desc.slice(0, 60)}…")`);
   check(H.includes('<link rel="canonical" href="https://www.boomrome.com/desks">') && H.includes('<link rel="alternate" hreflang="en" href="https://www.boomrome.com/desks">') && H.includes('<link rel="alternate" hreflang="x-default" href="https://www.boomrome.com/desks">')
     && /<meta name="robots" content="index, follow/.test(H) && !/noindex/.test(H.slice(0, 4000)), 'head: canonical /desks, hreflang en and x-default to itself, robots index');
@@ -1478,8 +1488,8 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
   check(org && JSON.stringify(org) === JSON.stringify(orgAms) && JSON.stringify(org) === JSON.stringify(orgNode(shared, SLUGS.map((s) => CITY[s]))),
     'the organization node deep-equals the one amsterdam.html declares (orgNode, one function)');
   const list = g.find((n) => n['@type'] === 'ItemList');
-  check(list && list.numberOfItems === LIVE.length && LIVE.length === 5 && list.itemListElement.map((x) => x.url.split('/').pop()).join() === LIVE.join() && list.itemListElement.every((x, i) => x.position === i + 1 && x.item['@id'] === `https://www.boomrome.com/${LIVE[i]}#service`),
-    `the ItemList lists the live desks in order (${LIVE.join(', ')}), numberOfItems 5, each pointing at its desk's #service`);
+  check(list && list.numberOfItems === LIVE.length && LIVE.length === 6 && list.itemListElement.map((x) => x.url.split('/').pop()).join() === LIVE.join() && list.itemListElement.every((x, i) => x.position === i + 1 && x.item['@id'] === `https://www.boomrome.com/${LIVE[i]}#service`),
+    `the ItemList lists the live desks in order (${LIVE.join(', ')}), numberOfItems 6, each pointing at its desk's #service`);
   const svcs = g.filter((n) => n['@type'] === 'Service');
   const svcDiff = LIVE.filter((s) => { const a = svcs.find((n) => n['@id'] === `https://www.boomrome.com/${s}#service`); const b = ldOf(PAGE[s]).find((n) => n['@type'] === 'Service'); return !a || !b || JSON.stringify(a) !== JSON.stringify(b); });
   check(svcs.length === LIVE.length && !svcDiff.length, `each of the ${LIVE.length} Services deep-equals the Service of its own desk page, Offers and refund rule included`, svcDiff.join(', '));
@@ -1500,17 +1510,17 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
 
   // the board
   const rows = [...H.matchAll(/<tr class="db-r (live|off|hub)" id="(db-[a-z]+)"[\s\S]*?<\/tr>/g)];
-  check(rows.map((m) => m[2]).join() === 'db-ams,db-bcn,db-lon,db-mad,db-mil,db-ber,db-par,db-rom', `the board: eight rows in order (${rows.map((m) => m[2]).join(', ')})`);
+  check(rows.map((m) => m[2]).join() === 'db-ams,db-bcn,db-lon,db-mad,db-mil,db-vlc,db-ber,db-par,db-rom', `the board: nine rows in order (${rows.map((m) => m[2]).join(', ')})`);
   check(rows.filter((m) => m[1] === 'live').every((m) => { const s = m[0].match(/data-desk="([a-z]+)"/)[1]; return m[0].includes(`<a class="db-go" href="/${s}">${CITY[s].city}</a>`) && m[0].includes(`data-dw="${s}">${esc(deskHoursText(CITY[s].desk))}</span>`); })
-    && rows.filter((m) => m[1] === 'off').every((m) => !/<a\b|data-desk/.test(m[0])) && /<a class="db-go" href="\/">Rome<\/a>/.test(rows[7][0]) && !/data-desk/.test(rows[7][0]),
+    && rows.filter((m) => m[1] === 'off').every((m) => !/<a\b|data-desk/.test(m[0])) && /<a class="db-go" href="\/">Rome<\/a>/.test(rows[8][0]) && !/data-desk/.test(rows[8][0]),
     'live rows link /<slug> with the static hours (deskHoursText); the not-open rows have no link and no data-desk; ROM links / with no clock');
-  check(rows.filter((m) => m[1] === 'live').map((m) => (m[0].match(/from <b>([^<]+)<\/b>/) || [])[1]).join() === '€149,€149,£149,€149,€149' && /ITALIAN LAW · AS ROME/.test(rows[4][0]) && !/ITALIAN LAW/.test(rows.slice(0, 4).map((m) => m[0]).join('')),
+  check(rows.filter((m) => m[1] === 'live').map((m) => (m[0].match(/from <b>([^<]+)<\/b>/) || [])[1]).join() === '€149,€149,£149,€149,€149,€149' && /ITALIAN LAW · AS ROME/.test(rows[4][0]) && !/ITALIAN LAW/.test(rows.filter((m, i) => i !== 4).map((m) => m[0]).join('')),
     'live "from" prices: €149, London £149; the Milan row carries ITALIAN LAW · AS ROME, no other row does');
   check(rows.filter((m) => m[1] === 'off').every((m) => /<span class="db-sub">Not open<\/span>/.test(m[0]) && /data-instr>NOT OPEN</.test(m[0]) && !/[€£]|\d{2}:\d{2}|partner|opening/i.test(visibleText(m[0]))),
     'Berlin and Paris read "Not open" / NOT OPEN: no price, no hour, no partner, no opening');
   check(/<h1 id="h1"><span class="h1a">A rental agent on your side, in<\/span> <span class="sr">Europe<\/span><\/h1>\n\s*<p class="board-row" aria-hidden="true"><span class="board" id="hubBoard" data-word="EUROPE" style="--n:6"><\/span><\/p>/.test(H)
     && visibleText(sliceOf(H, '<h1', '</h1>') + '</h1>').trim() === 'A rental agent on your side, in Europe', 'the H1 reads "A rental agent on your side, in Europe"; the EUROPE board sits outside it, served empty');
-  check([...H.matchAll(/<[^>]*\sdata-(?:clk|dw|nsr)="[^"]*"[^>]*>/g)].every((m) => /data-nosnippet/.test(m[0])) && [...H.matchAll(/data-(?:clk|nsr)="[a-z]+"><\/span>/g)].length === 15,
+  check([...H.matchAll(/<[^>]*\sdata-(?:clk|dw|nsr)="[^"]*"[^>]*>/g)].every((m) => /data-nosnippet/.test(m[0])) && [...H.matchAll(/data-(?:clk|nsr)="[a-z]+"><\/span>/g)].length === 18,
     'every clock, window and status span carries data-nosnippet; the clocks (board and pin cards) and statuses are served empty (the script fills them)');
 
   // the map
@@ -1579,7 +1589,7 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
     const ucf = (s) => s.charAt(0).toLowerCase() + s.slice(1);
     check(Object.entries(HUBJ.fares.plans).every(([id, p]) => p.lines.every((l) => CITY_PLANS[id].desc.includes(ucf(l)) || CITY_PLANS[id].desc.includes(l))), 'every ticket line is a line the server sells (a substring of CITY_PLANS.desc)');
     check(sliceOf(fa, 'id="hf-full-search"', '</li>\n').includes(`<p class="refund">${esc(shared.refund.rule)}</p>`) && !/data-pay|<button/.test(fa), 'the refund rule sits inside the Full Search ticket; no button, no data-pay');
-    check(fa.indexOf('class="hnote es"') > -1 && fa.indexOf('class="hnote es"') < fa.search(/[€£]\d/) && /In Barcelona and Madrid every fare is optional, chosen in writing \(LAU art\. 20\)\./.test(fa),
+    check(fa.indexOf('class="hnote es"') > -1 && fa.indexOf('class="hnote es"') < fa.search(/[€£]\d/) && /In Barcelona, Madrid and Valencia every fare is optional, chosen in writing \(LAU art\. 20\)\./.test(fa),
       'the Spain note (LAU art. 20) names exactly the Spanish live desks and comes before the first price');
     check(LIVE.every((s) => fa.includes(`<a href="/${s}#fares"><b data-instr>${CITY[s].iata}</b> ${CITY[s].city}</a>`)) && fa.includes('<a class="lnk" href="/withdrawal">'), 'the gates send each reader to /<slug>#fares; the 14-day strip item links the model form');
   }
@@ -1610,7 +1620,7 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
     check(br && !sliceOf(H, 'id="brief"', 'id="enbref"').includes('<details') && fees.includes(esc(shared.refund.rule)) && /at the London desk £500, £199 and £149/.test(fees)
       && br.includes(`<time datetime="${HB.dateModified}">`) && !(visibleText(br).match(RATING_RE) || []).length,
       'the fact sheet is open; its Fees row carries the refund rule and the London figures; Updated is <time datetime> = dateModified; no rating in it');
-    check(/Amsterdam<\/a>, <a class="lnk" href="\/barcelona">Barcelona<\/a>[\s\S]*and <a class="lnk" href="\/milan">Milan<\/a>\. Berlin and Paris desks are not open\./.test(br), 'Open in: the live desks linked, then "Berlin and Paris desks are not open." (no link)');
+    check(/Amsterdam<\/a>, <a class="lnk" href="\/barcelona">Barcelona<\/a>[\s\S]*<a class="lnk" href="\/milan">Milan<\/a> and <a class="lnk" href="\/valencia">Valencia<\/a>\. Berlin and Paris desks are not open\./.test(br), 'Open in: the live desks linked, then "Berlin and Paris desks are not open." (no link)');
   }
   check(/<p class="stmt">Every BOOM desk acts solely for the tenant/.test(H) && LIVE.every((s) => sliceOf(H, '<nav aria-label="Desks">', '</nav>').includes(`<a href="/${s}">BOOM ${CITY[s].city}</a>`)) && /© 2026 BOOM <span class="mono" aria-hidden="true">· DESKS · TENANT SIDE · OPERATED BY EGIDI IMMOBILIARE<\/span>/.test(H),
     'the footer: the statement, the live desks and BOOM Rome, legal, the company');
@@ -1642,7 +1652,8 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
   hubRefuses((h) => { h.meta.extra = 'x'; }, /meta\.extra is a key the hub does not read/, 'a key the hub does not read is refused');
   hubRefuses((h) => { h.map.caption = 'Paris: book a call.'; }, /a sentence that names a desk not open promises a call/, 'a sentence naming Paris with a call is refused');
   hubRefuses((h) => { h.map.caption = 'Every desk answers from Rome, our office in Madrid too.'; }, /a presence claim outside Rome/, 'a presence claim outside Rome is refused');
-  hubRefuses((h) => { h.map.caption = 'Six desks, one company.'; }, /"Six desks" is not the live count/, 'a desk count that is not the live count is refused');
+  hubRefuses((h) => { h.map.caption = 'Every desk answers from Rome; RAICV listed.'; }, /a licence the desks do not hold/, 'a Valencian registry claim (RAICV) on the hub is refused');
+  hubRefuses((h) => { h.map.caption = 'Seven desks, one company.'; }, /"Seven desks" is not the live count/, 'a desk count that is not the live count is refused');
   hubRefuses((h) => { h.map.caption = 'Rated well: ★ by tenants.'; }, /the Rome rating appears exactly once/, 'a second rating is refused');
   hubRefuses((h) => { h.footer.statement += ' Paid through Stripe.'; }, /no till/, 'a Stripe word on the hub is refused');
   hubRefuses((h) => { h.brief.rows[0].dd += ' VAT IT12345678901.'; }, /"VAT 12345678901" is not the company's VAT number/, 'a VAT number other than the entity\'s is refused');
@@ -1707,7 +1718,7 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
   check((vj.redirects || []).some((r) => r.source === '/(cities|boom-desks)' && r.destination === '/desks' && r.permanent === true), '/cities and /boom-desks redirect permanently to /desks');
   check(lastmod === HB.dateModified, `the sitemap lists /desks with <lastmod> ${lastmod} = dateModified`);
   const llms = read('llms.txt');
-  check(/^## BOOM Desks \(tenant-side rental desks in Europe: Amsterdam, Barcelona, London, Madrid and Milan\)$/m.test(llms) && llms.includes('- [BOOM Desks](https://www.boomrome.com/desks):') && !/BOOM Cities/.test(llms) && llms.includes('Paris and Berlin desks are not open.') && /BOOM Milan is the home-country desk/.test(llms),
+  check(/^## BOOM Desks \(tenant-side rental desks in Europe: Amsterdam, Barcelona, London, Madrid, Milan and Valencia\)$/m.test(llms) && llms.includes('- [BOOM Desks](https://www.boomrome.com/desks):') && !/BOOM Cities/.test(llms) && llms.includes('Paris and Berlin desks are not open.') && /BOOM Milan is the home-country desk/.test(llms),
     'llms.txt: the section is "BOOM Desks", /desks first, Milan the home-country desk; "BOOM Cities" gone; the "not open" sentence kept');
   const FOOT8 = ['index.html', 'apartments.html', 'try.html', 'your-money.html', 'how-it-works.html', 'apartment-detail.html', 'design/pages-deco/pt.html', 'design/pages-deco/patch-lotto2.py'];
   const noHub = FOOT8.filter((f) => { const s = read(f); const i = s.search(/<a href="\/desks(?:\.html)?">BOOM Desks · Europe<\/a>/); return i < 0 || i > s.search(/<a href="\/amsterdam(?:\.html)?">/); });

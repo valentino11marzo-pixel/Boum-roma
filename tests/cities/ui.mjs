@@ -167,7 +167,7 @@ if (process.env.CITIES_UI_ONLY === 'hub') { await hubUI(); await finish(); }
   await ctx.close();
 }
 
-for (const slug of ['amsterdam', 'madrid', 'barcelona', 'london', 'milan', 'paris', 'berlin']) {
+for (const slug of ['amsterdam', 'madrid', 'barcelona', 'london', 'milan', 'valencia', 'paris', 'berlin']) {
   for (const [w, h] of [[390, 844], [1440, 900]]) {
     const { ctx, page } = await open({ slug, width: w, height: h });
     await page.waitForTimeout(400);
@@ -187,7 +187,7 @@ for (const slug of ['amsterdam', 'madrid', 'barcelona', 'london', 'milan', 'pari
     await ctx.close();
   }
 }
-for (const slug of ['amsterdam', 'madrid', 'barcelona', 'london', 'milan']) {
+for (const slug of ['amsterdam', 'madrid', 'barcelona', 'london', 'milan', 'valencia']) {
   // L1: an iPhone's visible height in Safari (~664): the first screen always
   // has an action — the gold door, or the strip when the door is under the fold
   const { ctx, page } = await open({ slug, width: 390, height: 664 });
@@ -506,7 +506,10 @@ const CLOCKS = [
   ['paris', '2026-12-24T19:00:00Z', 'free · replies Monday from 09:00 CET', 'Christmas Eve at 20:00 on a waitlist desk: Monday (Christmas, Santo Stefano, the weekend) — and a desk still opening says "replies", never "desk"'],
   ['london', '2026-08-31T10:00:00Z', 'no card · Tomorrow from 08:00 BST', 'the summer bank holiday in London: tomorrow, in London time'],
   ['london', '2026-12-24T18:30:00Z', 'no card · Tuesday from 08:00 GMT', 'Christmas Eve after hours in London: Tuesday (Christmas, the weekend, the Boxing Day substitute)'],
-  ['milan', '2026-12-07T08:00:00Z', 'no card · Wednesday from 09:00 CET', "Sant'Ambrogio (Monday 7 December) and the Immacolata: Wednesday"]
+  ['milan', '2026-12-07T08:00:00Z', 'no card · Wednesday from 09:00 CET', "Sant'Ambrogio (Monday 7 December) and the Immacolata: Wednesday"],
+  ['valencia', '2026-03-19T08:00:00Z', 'no card · Tomorrow from 09:00 CET', 'Sant Josep (Thursday 19 March) in Valencia: tomorrow (Madrid is open)'],
+  ['valencia', '2026-10-09T08:00:00Z', 'no card · Tuesday from 09:00 CEST', 'the Dia de la Comunitat (Friday 9 October) and the 12 October: Tuesday'],
+  ['valencia', '2027-06-24T08:00:00Z', 'no card · desk open until 19:00 CEST', '24 June 2027 is a working day in Valencia (Sant Joan was 2026 only)']
 ];
 for (const [slug, clock, want, what] of CLOCKS) {
   const { ctx, page } = await open({ slug, clock });
@@ -692,7 +695,7 @@ for (const slug of ['paris', 'berlin']) {
 }
 
 // ── 9 · v1.6 «the complete aviation desk» ────────────────────────────────
-const SLUGS7 = ['amsterdam', 'madrid', 'barcelona', 'london', 'milan', 'paris', 'berlin'];
+const SLUGS7 = ['amsterdam', 'madrid', 'barcelona', 'london', 'milan', 'valencia', 'paris', 'berlin'];
 const OPEN_T = '2026-11-03T10:00:00Z';    // a Tuesday: London 10:00 GMT, Amsterdam 11:00 CET — every desk open
 const SAT_T = '2026-10-31T09:00:00Z';     // a Saturday: every desk closed, next open Monday
 // the words a reader SEES on the first screen: text nodes inside the viewport,
@@ -988,7 +991,7 @@ await finish();
 // `CITIES_UI_ONLY=review node tests/cities/ui.mjs` runs this section alone.
 async function reviewFixes() {
   const R_OPEN = '2026-11-03T10:00:00Z', R_SAT = '2026-10-31T09:00:00Z';
-  const LIVE5 = ['amsterdam', 'madrid', 'barcelona', 'london', 'milan'];
+  const LIVE5 = ['amsterdam', 'madrid', 'barcelona', 'london', 'milan', 'valencia'];
   const dep1 = (page) => page.$eval('#dep-1 .st-b', (e) => {
     const cells = e.querySelectorAll(':scope > .fc2 > .st > b');
     return (cells.length ? [...cells].map((b) => b.textContent || ' ').join('') : e.textContent).replace(/ /g, ' ').replace(/\s+/g, ' ').trim();
@@ -1241,7 +1244,7 @@ async function hubUI() {
     }
     return n;
   });
-  const LIVE = ['ams', 'bcn', 'lon', 'mad', 'mil'];
+  const LIVE = ['ams', 'bcn', 'lon', 'mad', 'mil', 'vlc'];
   const nowOf = (page) => page.$$eval('.db-r.live', (rs) => Object.fromEntries(rs.map((r) => [r.id.slice(3), r.querySelector('.db-nb').textContent.trim()])));
   const subOf = (page) => page.$$eval('.db-r.live', (rs) => Object.fromEntries(rs.map((r) => [r.id.slice(3), r.querySelector('.db-sub').textContent.trim()])));
 
@@ -1265,16 +1268,16 @@ async function hubUI() {
 
   // the desk clocks, from the calendar the webhook reads (holidays included)
   for (const [t, want, label, extra] of [
-    ['2027-03-01T09:00:00Z', { ams: 'OPEN', bcn: 'OPEN', lon: 'OPEN', mad: 'OPEN', mil: 'OPEN' }, 'Monday 1 March 2027, 10:00 Rome: every live desk OPEN, the pill shown', 'pill'],
-    ['2027-03-06T09:00:00Z', { ams: 'CLOSED', bcn: 'CLOSED', lon: 'CLOSED', mad: 'CLOSED', mil: 'CLOSED' }, 'Saturday: every desk CLOSED, "Monday from 09:00 CET" (London 08:00 GMT), the pill hidden', 'sat'],
-    ['2027-04-27T08:00:00Z', { ams: 'CLOSED', bcn: 'OPEN', lon: 'OPEN', mad: 'OPEN', mil: 'OPEN' }, 'Koningsdag (Tuesday 27 April 2027, 10:00 Rome): Amsterdam CLOSED, the others OPEN', ''],
-    ['2027-08-30T08:00:00Z', { ams: 'OPEN', bcn: 'OPEN', lon: 'CLOSED', mad: 'OPEN', mil: 'OPEN' }, 'the English summer bank holiday (Monday 30 August 2027, 10:00 Rome): London CLOSED', '']
+    ['2027-03-01T09:00:00Z', { ams: 'OPEN', bcn: 'OPEN', lon: 'OPEN', mad: 'OPEN', mil: 'OPEN', vlc: 'OPEN' }, 'Monday 1 March 2027, 10:00 Rome: every live desk OPEN, the pill shown', 'pill'],
+    ['2027-03-06T09:00:00Z', { ams: 'CLOSED', bcn: 'CLOSED', lon: 'CLOSED', mad: 'CLOSED', mil: 'CLOSED', vlc: 'CLOSED' }, 'Saturday: every desk CLOSED, "Monday from 09:00 CET" (London 08:00 GMT), the pill hidden', 'sat'],
+    ['2027-04-27T08:00:00Z', { ams: 'CLOSED', bcn: 'OPEN', lon: 'OPEN', mad: 'OPEN', mil: 'OPEN', vlc: 'OPEN' }, 'Koningsdag (Tuesday 27 April 2027, 10:00 Rome): Amsterdam CLOSED, the others OPEN', ''],
+    ['2027-08-30T08:00:00Z', { ams: 'OPEN', bcn: 'OPEN', lon: 'CLOSED', mad: 'OPEN', mil: 'OPEN', vlc: 'OPEN' }, 'the English summer bank holiday (Monday 30 August 2027, 10:00 Rome): London CLOSED', '']
   ]) {
     const { ctx, page, st } = await open({ slug: 'desks', width: 1440, pwClock: t });
     await page.clock.runFor(1500);
     const now = await nowOf(page), sub = await subOf(page), pill = await shown(page, '#hubPill');
     const clk = await page.$$eval('.db-tv[data-clk]', (cs) => cs.map((c) => c.textContent.trim()));
-    let ok2 = JSON.stringify(now) === JSON.stringify(want) && clk.length === 5 && clk.every((c) => /^\d{2}:\d{2} (CET|CEST|GMT|BST)$/.test(c));
+    let ok2 = JSON.stringify(now) === JSON.stringify(want) && clk.length === 6 && clk.every((c) => /^\d{2}:\d{2} (CET|CEST|GMT|BST)$/.test(c));
     if (extra === 'pill') ok2 = ok2 && pill && sub.ams === 'Desk open until 19:00 CET' && sub.lon === 'Desk open until 18:00 GMT';
     if (extra === 'sat') ok2 = ok2 && !pill && sub.ams === 'Monday from 09:00 CET' && sub.mil === 'Monday from 09:00 CET' && sub.lon === 'Monday from 08:00 GMT';
     check(ok2 && st.errors.length === 0, `desks: ${label}`, JSON.stringify({ now, sub, pill, clk, e: st.errors }));
@@ -1286,11 +1289,11 @@ async function hubUI() {
       await page.clock.runFor(2500);
       const fl = await page.$$eval('.db-r.live', (rs) => rs.map((r) => { const f = r.querySelector('.db-nf'); return f ? `${f.querySelectorAll('.fc2').length}${f.classList.contains('on') ? '+' : '-'}` : 'none'; }));
       const onda = await page.evaluate(() => !!(window.BOOM_ONDA && window.BOOM_ONDA.running));
-      const wantFl = extra === 'pill' ? '6+,6+,6+,6+,6+' : '6-,6-,6-,6-,6-';
+      const wantFl = extra === 'pill' ? '6+,6+,6+,6+,6+,6+' : '6-,6-,6-,6-,6-,6-';
       check(fl.join() === wantFl && onda === (extra === 'pill') && await page.evaluate(() => !!window.BOOM_ONDA),
         `desks 1440: DESK NOW is a flap board per live desk (${fl.join(' ')}); the onda ${extra === 'pill' ? 'loops while desks are open' : 'is one still frame when every desk is closed'}`, JSON.stringify({ fl, onda }));
       const clk2 = await page.$$eval('.pc-t[data-clk]', (cs) => cs.map((c) => c.textContent.trim()));
-      check(clk2.length === 5 && clk2.every((c) => /^\d{2}:\d{2} (CET|CEST|GMT|BST)$/.test(c)), `desks 1440: each pin card carries its desk's clock (${clk2.join(', ')})`);
+      check(clk2.length === 6 && clk2.every((c) => /^\d{2}:\d{2} (CET|CEST|GMT|BST)$/.test(c)), `desks 1440: each pin card carries its desk's clock (${clk2.join(', ')})`);
     }
     await ctx.close();
   }
@@ -1306,8 +1309,8 @@ async function hubUI() {
       over: [...document.querySelectorAll('.db-r')].some((r) => r.scrollWidth > r.clientWidth + 1),
       board: document.getElementById('hubBoard').textContent, word: getComputedStyle(document.getElementById('hubBoard'), '::before').content
     }));
-    check(g.rows.length === 8 && g.sub === 'Mon–Fri 08:00–18:00, London time' && g.dash === '"—"' && g.now === '"—"' && !g.over && g.board === '' && g.word === '"EUROPE"' && await noHScroll(page),
-      'desks without JS: eight rows, the static hours, "—" for the clock and the status, EUROPE drawn by CSS, nothing overflows', JSON.stringify(g));
+    check(g.rows.length === 9 && g.sub === 'Mon–Fri 08:00–18:00, London time' && g.dash === '"—"' && g.now === '"—"' && !g.over && g.board === '' && g.word === '"EUROPE"' && await noHScroll(page),
+      'desks without JS: nine rows, the static hours, "—" for the clock and the status, EUROPE drawn by CSS, nothing overflows', JSON.stringify(g));
     await ctx.close();
   }
 
@@ -1320,7 +1323,7 @@ async function hubUI() {
       return { rows: h('.db-r.live, .db-r.hub'), pins: h('.pin'), gates: [...document.querySelectorAll('.hgates a')].map((e) => e.getBoundingClientRect().height), faq: [...document.querySelectorAll('#faq summary')].map((e) => e.getBoundingClientRect().height) };
     });
     const all = [...sz.rows, ...sz.pins, ...sz.gates, ...sz.faq];
-    check(await noHScroll(page) && sz.rows.length === 6 && sz.pins.length === 5 && sz.gates.length === 5 && sz.faq.length === 6 && all.every((x) => x >= 44),
+    check(await noHScroll(page) && sz.rows.length === 7 && sz.pins.length === 6 && sz.gates.length === 6 && sz.faq.length === 6 && all.every((x) => x >= 44),
       `desks 320: no horizontal scroll; rows, pins, gates and questions ≥ 44 px (smallest ${Math.round(Math.min(...all))})`, JSON.stringify(sz));
     await ctx.close();
   }
@@ -1352,8 +1355,8 @@ async function hubUI() {
         return Math.min(...ds);
       });
     });
-    check(gap.length === 5 && gap.every((x) => x <= 2), `desks 1440: every pin sits on its dot (≤ 2 px: ${gap.map((x) => x.toFixed(1)).join(', ')})`);
-    check(await page.$eval('.rtab', (t) => getComputedStyle(t).display === 'table' && t.getBoundingClientRect().height > 100) && await page.$$eval('.rtab thead th', (t) => t.length) === 5,
+    check(gap.length === 6 && gap.every((x) => x <= 2), `desks 1440: every pin sits on its dot (≤ 2 px: ${gap.map((x) => x.toFixed(1)).join(', ')})`);
+    check(await page.$eval('.rtab', (t) => getComputedStyle(t).display === 'table' && t.getBoundingClientRect().height > 100) && await page.$$eval('.rtab thead th', (t) => t.length) === 6,
       'desks 1440: the rules are a visible table, one column per live desk');
     check(await page.$$eval('[data-pay], dialog', (x) => x.length) === 0 && st.errors.length === 0, 'desks 1440: no pay control, no dialog, no JS error', st.errors.join(' | '));
     await ctx.close();
