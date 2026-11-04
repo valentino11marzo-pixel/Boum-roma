@@ -6,6 +6,7 @@
   var P=window.BOOM_MAPPA,G=window.BOOM_SKYLINE_GUIDE,M=window.BoomNextMap,J=window.BOOM_JOURNEY;
   if(!P||!G||!M||!J)return;
   var hooks=null,context=null,opener=null,mode='campus',hits=[],request=null,requestNumber=0;
+  var showBalanceEntry=new URLSearchParams(location.search).get('edition')==='club';
   function el(id){return document.getElementById(id);}
   function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
   function money(v){return v==null?'Not listed':'€'+Number(v).toLocaleString('en-GB');}
@@ -86,10 +87,39 @@
       (p?'<div class="balance-travel"><span>'+esc(travel(r.journey))+'</span>'+(link?'<a class="balance-route" href="'+esc(link)+'" target="_blank" rel="noopener noreferrer">'+esc(linkLabel)+'</a>':'')+'</div>':'')+
       '<p class="balance-tradeoff">'+esc(comparison(r))+'</p><div class="balance-card-actions"><a class="balance-action" href="'+esc(context.url('detail',c.id))+'" data-home="'+esc(c.id)+'">Explore home <span>↗</span></a><button class="balance-locate" type="button" data-locate="'+esc(c.id)+'" aria-label="Locate '+esc(c.name)+' in Skyline">⌖</button><button class="balance-save" type="button" data-save-home="'+esc(c.id)+'" aria-label="Save '+esc(c.name)+'" aria-pressed="false">Save ＋</button></div></div></article>';
   }
+  function renderBalanceEntry(result,p){
+    if(!showBalanceEntry||!context)return;
+    var discovery=el('nextDiscovery');if(!discovery)return;
+    var entry=el('nextBalanceEntry');
+    if(!entry){
+      entry=document.createElement('section');entry.id='nextBalanceEntry';entry.className='balance-entry';
+      entry.setAttribute('aria-label','Your Rome search brief');
+      entry.innerHTML='<div class="balance-entry-copy"><p class="balance-entry-label">YOUR EVERYDAY / SKYLINE</p><p class="balance-entry-destination"><span data-entry-place></span><small data-entry-private hidden>Private · this browser</small></p><ul class="balance-entry-context" aria-label="Current search preferences"><li data-entry-type></li><li data-entry-budget></li><li data-entry-dates></li></ul><p class="balance-entry-note" id="nextBalanceEntryNote"></p></div><button class="balance-entry-action" type="button" data-guide aria-describedby="nextBalanceEntryNote"><span data-entry-action></span><span aria-hidden="true">↗</span></button>';
+      discovery.insertAdjacentElement('beforebegin',entry);
+    }
+    entry.hidden=!!context.error;if(context.error)return;
+    var state=context.state,count=result?result.candidates.length:0;
+    var type=state.type==='__entire'?'Entire home':state.type==='__rooms'?'Rooms':state.type?(G.homeKind(state.type)?kindLabel(G.homeKind(state.type)):'Type from shared link'):'All home types';
+    var stay=window.BOOM_STAY?window.BOOM_STAY.summary(state.stay):'';
+    var amount=Number(state.budget),limited=Number.isFinite(amount)&&amount>0;
+    entry.dataset.count=context.loaded?String(count):'';
+    entry.dataset.ready=String(!!context.loaded);
+    entry.querySelector('[data-entry-place]').textContent=p?placeName(p):'Where will you go most days?';
+    entry.querySelector('[data-entry-private]').hidden=!state.privatePlace;
+    entry.querySelector('[data-entry-type]').textContent=type;
+    entry.querySelector('[data-entry-budget]').textContent=limited?'Up to '+money(amount)+' / month':'Any monthly rent';
+    entry.querySelector('[data-entry-dates]').textContent=stay?'Requested: '+stay:'Dates not chosen';
+    var label=!p?'Add your campus or work':!context.loaded?'View your plan':count>1?'Compare '+count+' options':count===1?'View this option':'Review these choices';
+    var note=!context.loaded?'Loading homes for these preferences.':!count?'No priced options match these preferences. Review your budget or home type.':!p?'Add your everyday destination to explore the journey too.':count===1?'One option highlighted from the matching homes. See its details and what still needs checking.':'See the reasons and trade-offs behind these options.';
+    if(context.loaded&&count&&state.type==='')note+=' Rental types stay distinct.';
+    entry.querySelector('[data-entry-action]').textContent=label;
+    entry.querySelector('.balance-entry-note').textContent=note;
+  }
   function renderBalance(){
-    var mount=el('nextBalance');if(!context||!mount)return;mount.hidden=!!context.error;if(context.error)return;
+    var mount=el('nextBalance');if(!context||!mount)return;mount.hidden=!!context.error;if(context.error){renderBalanceEntry(null,place());return;}
     var p=place(),records=context.filtered.map(function(c){return {id:c.id,name:c.name,rent:c.price,area:c.area,type:c.type,lane:c.lane,journey:evidence(c)};});
     var result=G.balance(records,{budget:context.state.budget?Number(context.state.budget):null});
+    renderBalanceEntry(result,p);
     var kinds=new Set(records.map(function(r){return G.homeKind(r.type)||'unknown';}));
     var heading=p?'Your Rome, in balance.':'There is more than one right home.';
     var intro=p?'Your everyday destination: '+placeName(p)+'. Compare what matters to you.':'Start with your campus or work. Then see what another neighbourhood could make possible.';

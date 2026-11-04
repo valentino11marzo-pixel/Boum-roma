@@ -545,3 +545,104 @@ body[data-direction="club"][data-edition="club"].europe-ready{
  & .detail-title-row h1{font-size:32px}& .next-photo-rail{height:305px}& .decision-price strong{font-size:43px}
 }}
 @media(prefers-reduced-motion:reduce){body[data-direction="club"][data-edition="club"].europe-ready{& :is(.next-ticket,.next-card-image img,.route-line>span){transform:none;transition:none;animation:none}& .next-journey ol:after{transform:scaleY(1)}}}
+
+/* The arrival desk: one decision surface, with the original brief beside the actual scope. */
+body[data-direction="club"][data-edition="club"].europe-ready{
+ &:not([data-europe-city="rome"]) :is(.edition-club-runway,.europe-trustbar,.next-signoff){display:none}
+ &:not([data-europe-city="rome"]) .edition-plan-link{display:inline-flex;align-items:center;gap:36px;min-height:48px;margin-top:19px;border-bottom:1px solid #99802e;font-size:15px;color:#e8ce75}
+ & #europeDeskStory{max-width:1320px;margin:0 auto;padding:60px 4.2vw 88px;scroll-margin-top:135px}
+ & #europeDeskStory .europe-story-lead{grid-template-columns:1.2fr 1fr;gap:16px 70px;margin-bottom:38px;align-items:end}
+ & #europeDeskStory .europe-story-lead>.eyebrow{margin:0;color:#cbbb8b;font-size:10px;letter-spacing:.1em}
+ & #europeDeskStory .europe-story-lead h2{font-size:clamp(38px,4.2vw,58px);line-height:1.04;letter-spacing:-.045em}
+ & #europeDeskStory .europe-story-lead>p:last-child{font-size:16px;line-height:1.6;color:#bbbcb6;max-width:380px;margin:0}
+ & .edition-desk-workspace{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(310px,.85fr);gap:30px 36px;align-items:start}
+ & #europeDeskStory #europeDeskPlanner{grid-column:1/-1;padding:0;min-width:0;scroll-margin-top:150px}
+ & #europeDeskStory #europeDeskTitle{color:#bbbcb6;font-size:14px;font-weight:400;letter-spacing:0;margin:0 0 14px}
+ & #europeDeskStory .europe-needs{grid-template-columns:repeat(3,minmax(0,1fr));gap:0;margin:0;border:1px solid #41433e;border-radius:5px;overflow:hidden}
+ & #europeDeskStory [data-europe-need]{display:grid;grid-template-columns:minmax(0,1fr) 16px;gap:16px;min-height:132px;padding:22px 24px;border:0;border-right:1px solid #41433e;border-radius:0;background:#101214;color:#f3f2ec;transition:background .18s}
+ & #europeDeskStory [data-europe-need]:last-child{border-right:0}
+ & #europeDeskStory [data-europe-need]>span:first-child{display:none}
+ & #europeDeskStory [data-europe-need]>div{grid-column:1;grid-row:1;gap:6px}
+ & #europeDeskStory [data-europe-need]:after{grid-column:2;grid-row:1;width:14px;height:14px;border-color:#888b80}
+ & #europeDeskStory [data-europe-need][aria-pressed="true"]{background:#20221c;box-shadow:inset 0 -2px #e8ce75}
+ & #europeDeskStory [data-europe-need][aria-pressed="true"]:after{background:#e8ce75;box-shadow:inset 0 0 0 3px #20221c;border-color:#e8ce75}
+ & #europeDeskStory [data-europe-need] strong{font-size:20px;line-height:1.15;color:#f3f2ec;font-weight:400}
+ & #europeDeskStory [data-europe-need] small{font-size:12px;line-height:1.5;color:#bbbcb6}
+ & #europeDeskStory .europe-need-price{color:#e8ce75;font-size:12px;line-height:1.4;margin-top:7px}
+ & #europeDeskStory #europeServicePass{grid-template-columns:minmax(0,1fr) auto;gap:0;padding:0;border:0;border-radius:0;background:none;overflow:visible;min-width:0}
+ & #europeDeskStory .europe-service-copy{padding:10px 28px 28px 0}
+ & #europeDeskStory .europe-service-copy>.eyebrow{font-size:10px;color:#cbbb8b;margin-bottom:14px}
+ & #europeDeskStory .europe-service-copy h3{font-size:34px;line-height:1.08;font-weight:300;letter-spacing:-.035em;max-width:420px}
+ & #europeDeskStory .europe-service-copy>p:not(.eyebrow){font-size:15px;line-height:1.65;margin-top:17px;color:#bbbcb6}
+ & #europeDeskStory .europe-service-price{padding:10px 0 24px 24px;background:none;color:#f3f2ec;border:0;border-left:1px dashed #41433e;justify-content:flex-start;gap:10px;max-width:175px}
+ & #europeDeskStory .europe-service-price strong{font-size:48px;line-height:1;letter-spacing:-.06em}
+ & #europeDeskStory .europe-service-price small{color:#e8ce75;font-size:12px}
+ & #europeDeskStory .europe-service-price p{font-size:12px;line-height:1.5;color:#bbbcb6}
+ & #europeDeskStory .europe-service-facts{padding:0;grid-template-columns:1fr 1fr;gap:0 30px;border-color:#33363a}
+ & #europeDeskStory .europe-service-facts>div{padding:23px 0;min-width:0}
+ & #europeDeskStory .europe-service-facts dt{color:#cbbb8b;font-size:10px}
+ & #europeDeskStory .europe-service-facts dd{font-size:14px;line-height:1.65;color:#d8d8d0}
+ & #europeDeskStory .europe-service-facts .europe-service-includes{grid-column:1/-1;padding-bottom:6px}
+ & #europeDeskStory .europe-service-includes ul{list-style:none;padding:0;margin:14px 0 0}
+ & #europeDeskStory .europe-service-includes li{position:relative;padding:13px 0 13px 22px;border-bottom:1px solid #26292c}
+ & #europeDeskStory .europe-service-includes li:before{content:"";position:absolute;left:1px;top:22px;width:5px;height:5px;border-radius:50%;background:#e8ce75}
+ & #europeDeskStory .europe-meet{display:flex;width:max-content;min-height:44px;align-items:center;color:#e8ce75;font-size:12px;text-decoration:underline;text-underline-offset:4px}
+ & #europeDeskStory .europe-service-bottom{border-top:1px solid #33363a}
+ & #europeDeskStory .europe-service-bottom>p{padding:19px 0 0;color:#bbbcb6;font-size:12px;line-height:1.65}
+ & #europeDeskStory .europe-service-action{display:none}
+ & #europeDeskStory #europeDeskForm{position:sticky;top:150px;padding:27px 28px 24px;border:1px solid #41433e;border-top:2px solid #e8ce75;border-radius:5px;background:#141619;min-width:0;color:#f3f2ec;color-scheme:dark}
+ & .edition-brief-head .eyebrow{font-size:10px;color:#cbbb8b;letter-spacing:.09em;margin:0 0 14px}
+ & .edition-brief-head h3{font-size:29px;line-height:1.1;font-weight:300;letter-spacing:-.035em}
+ & .edition-brief-head>p:last-child{font-size:13px;line-height:1.55;color:#bbbcb6;margin:12px 0 22px}
+ & #europeBriefSummary{margin:0;padding:0}
+ & #europeBriefSummary>div{padding:13px 0;border-top:1px solid #33363a}
+ & #europeBriefSummary dt{font-size:11px;color:#b1b4ac;line-height:1.4}
+ & #europeBriefSummary dd{font-size:15px;font-weight:400;line-height:1.6;color:#f3f2ec;margin:4px 0 0;overflow-wrap:anywhere}
+ & #europeDeskStory #europeOptionalBrief{margin:0 0 17px;border-top:1px dashed #52554a}
+ & #europeDeskStory #europeOptionalBrief>summary{color:#e8ce75;font-size:13px;padding:15px 0;min-height:48px}
+ & #europeDeskStory #europeOptionalBrief>summary span{margin-left:10px;color:#bbbcb6;font-size:11px}
+ & #europeDeskStory .europe-fields{grid-template-columns:1fr;gap:12px}
+ & #europeDeskStory .europe-fields label{color:#bbbcb6;font-size:12px}
+ & #europeDeskStory .europe-fields :is(input,select){color:#f3f2ec;background:#141619;border-color:#55584f;min-height:44px;font-size:16px}
+ & #europeDeskStory .europe-fields option{background:#141619;color:#f3f2ec}
+ & #europeDeskStory #europeDeskContinue{font-size:15px;min-height:54px;padding:14px 16px;background:#e8ce75;color:#171913;border:0;line-height:1.45;white-space:normal}
+ & #europeDeskStory .europe-next-step{font-size:11px;line-height:1.65;color:#bbbcb6;margin-top:13px}
+ & #europeDeskStory #europeDeskError{color:#ffaaa0}
+}
+@media(max-width:900px){body[data-direction="club"][data-edition="club"].europe-ready{
+ & .edition-desk-workspace{grid-template-columns:minmax(0,1fr) minmax(285px,.8fr);gap:26px}
+ & #europeDeskStory [data-europe-need]{padding:18px;min-height:140px}
+ & #europeDeskStory [data-europe-need] strong{font-size:18px}
+ & #europeDeskStory .europe-service-copy{grid-column:1/-1;padding-right:0}
+ & #europeDeskStory .europe-service-price{grid-column:1/-1;max-width:none;border:0;padding:0 0 24px;display:block}
+ & #europeDeskStory .europe-service-price small{display:block;margin:10px 0}
+ & #europeDeskStory #europeDeskForm{padding:24px 20px}
+}}
+@media(max-width:650px){body[data-direction="club"][data-edition="club"].europe-ready{
+ & #europeDeskStory{padding:35px 20px 50px;scroll-margin-top:104px}
+ & #europeDeskStory .europe-story-lead{display:block;margin-bottom:29px}
+ & #europeDeskStory .europe-story-lead>.eyebrow{font-size:9px;margin-bottom:16px}
+ & #europeDeskStory .europe-story-lead h2{font-size:40px;max-width:300px}
+ & #europeDeskStory .europe-story-lead>p:last-child{font-size:14px;line-height:1.6;margin-top:17px;max-width:340px}
+ & .edition-desk-workspace{display:flex;flex-direction:column;gap:28px}
+ & #europeDeskStory #europeDeskPlanner,& #europeDeskStory #europeDeskForm,& #europeDeskStory #europeServicePass{width:100%}
+ & #europeDeskStory .europe-needs{grid-template-columns:1fr}
+ & #europeDeskStory [data-europe-need]{min-height:108px;padding:18px 20px;border-right:0;border-bottom:1px solid #41433e;gap:18px}
+ & #europeDeskStory [data-europe-need]:last-child{border-bottom:0}
+ & #europeDeskStory [data-europe-need][aria-pressed="true"]{box-shadow:inset 3px 0 #e8ce75}
+ & #europeDeskStory [data-europe-need] strong{font-size:20px}
+ & #europeDeskStory [data-europe-need] small{font-size:12px}
+ & #europeDeskStory .europe-need-price{margin-top:3px}
+ & #europeDeskStory .europe-service-copy{padding-top:0;padding-bottom:20px}
+ & #europeDeskStory .europe-service-copy h3{font-size:33px;max-width:310px}
+ & #europeDeskStory .europe-service-copy>p:not(.eyebrow){font-size:14px}
+ & #europeDeskStory .europe-service-price{padding:0 0 25px}
+ & #europeDeskStory .europe-service-price strong{font-size:48px}
+ & #europeDeskStory .europe-service-facts{grid-template-columns:1fr;gap:0}
+ & #europeDeskStory .europe-service-facts>div{padding:18px 0}
+ & #europeDeskStory .europe-service-facts>div:last-child{padding-top:0}
+ & #europeDeskStory .europe-service-facts dd{font-size:14px}
+ & #europeDeskStory #europeDeskForm{position:relative;top:auto;padding:24px 22px;scroll-margin-top:120px}
+ & #europeDeskStory .europe-fields{grid-template-columns:1fr 1fr;gap:12px}
+ & #europeDeskStory .europe-next-step{font-size:12px}
+}}

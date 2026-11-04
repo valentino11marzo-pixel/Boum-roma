@@ -22,6 +22,20 @@
   var globe=window.BoomFlightGlobe;if(globe)globe.mount(atlas);
   var bottom=hero.querySelector('.hero-bottom');bottom.querySelector('span').replaceWith(byId('europeCitySignature'));
   document.querySelector('.europe-switch-label').textContent='Your next city';
+  // Arrive where the decision happens. Moving the original nodes preserves validation and handoff.
+  var deskStory=byId('europeDeskStory'),deskPlanner=byId('europeDeskPlanner'),deskForm=byId('europeDeskForm');
+  var workspace=document.createElement('div');workspace.className='edition-desk-workspace';
+  workspace.append(deskPlanner,byId('europeServicePass'),deskForm);deskStory.appendChild(workspace);
+  deskStory.querySelector('.europe-story-lead>.eyebrow').textContent='YOUR BOOM DESK / TENANT-SIDE SUPPORT';
+  deskStory.querySelector('.europe-story-lead>p:last-child').textContent='Start with what you need. See the work included, then bring us your plans.';
+  deskPlanner.querySelector('.europe-planner-top').classList.add('sr-only');
+  byId('europeDeskTitle').textContent='Where do you need us?';
+  var briefHeader=document.createElement('div');briefHeader.className='edition-brief-head';
+  briefHeader.innerHTML='<p class="eyebrow">YOUR NEXT STEP</p><h3 id="europeSelectedService">Your move</h3><p>Your plans travel with you to the desk.</p>';
+  var briefSummary=document.createElement('dl');briefSummary.id='europeBriefSummary';briefSummary.setAttribute('aria-label','Your move summary');
+  deskForm.prepend(briefHeader,briefSummary);
+  byId('europeOptionalBrief').querySelector('summary').innerHTML='Edit your move <span>optional</span>';
+  deskForm.querySelector('.europe-next-step').textContent='You’ll continue to the city desk with this brief. No payment at this step.';
   var flightVersion=0,flightTarget='';
   function cancelArrival(){++flightVersion;flightTarget='';if(globe&&globe.cancelFlight)globe.cancelFlight();}
   window.addEventListener('boom-globe-city',function(event){
@@ -70,7 +84,9 @@
     hero.querySelector('.hero-pretitle').textContent='Your next chapter in';
     hero.querySelector('.hero-centre .eyebrow').textContent='BOOM. A modern real estate agency.';
     hero.querySelector('.hero-promise').textContent=foreign?'A new city. A dedicated team to help you find your place.':'Real homes. The right neighbourhood. A team to help you settle in.';
-    planLink.href=foreign?'#europeDeskPlanner':'#nextSearch';
+    planLink.href=foreign?'#europeDeskStory':'#nextSearch';
+    byId('europeStoryCity').textContent='Your '+city.charAt(0).toUpperCase()+city.slice(1)+' move.';
+    if(window.BoomFlightEurope)window.BoomFlightEurope.refreshBrief();
     var homeStop=flightline.querySelector('[data-flight-stop="homes"]');homeStop.href=foreign?'#europeStoryCity':'#nextSkyTitle';homeStop.innerHTML='<span>02</span> '+(foreign?'Your service':'Homes & Skyline');
     flightline.querySelector('[data-flight-stop="support"]').hidden=foreign;flightline.querySelector('i:last-of-type').hidden=foreign;
     if(flightTarget&&city!==flightTarget)cancelArrival();

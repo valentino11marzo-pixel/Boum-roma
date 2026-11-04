@@ -3360,6 +3360,11 @@ I pulsanti del globo ora entrano nella destinazione: `flyTo` mostra un unico vol
 Escape/Skip completano subito; pausa e reduced-motion entrano senza zoom. Back/pagehide o una richiesta successiva annullano callback obsolete; dialog senza animazioni ereditate, un solo ciclo finito, pulizia anche su errore/timeout. Nessun nuovo catalogo, lead o pagamento.
 `flightclubflight` verifica atterraggio, singolo push/catalogo/iframe, bozza, Back/focus, ripetizioni, skip, pausa/ridotto e date estere; regressioni `flighteditionsui`, `flightclubmotion`, `flightclubui`, `flighteuropeui`, `flightnextui`, `flightdirectionsui`.
 
+Flight Club desk 04/11: dopo il globo, scelta del bisogno, servizio e brief stanno nello stesso `europeDeskStory`; il form originale viene spostato, con validazione e handoff invariati. I tre bisogni mostrano prezzi/condizioni del manifest pubblico; il servizio espone tutte le inclusioni, senza scambiare il rimborso Full Search per una garanzia di risultato.
+Il riepilogo di date, budget nella valuta corrente e persone segue i campi esistenti; invio unico dal form validato. Configurazione assente elimina i prezzi e rimanda al desk, mai dati della città precedente. La composizione Club riduce CTA e contatti ripetuti, conserva persona responsabile e termini.
+Roma aggiunge `nextBalanceEntry` prima dei risultati: stesso risultato `G.balance`, conteggio delle alternative evidenziate, tipo e date richieste espliciti; luogo privato resta nel browser. Il pulsante riusa la guida canonica, senza nuove stime o stato.
+`flighteuropeui` prova tutte le inclusioni; `flighteditionsui` prova Amsterdam390/1280, brief modificato/svuotato, date invalide e handoff, più entry Roma320/390/1280 e privacy. `flightclubflight` conserva il percorso globo→servizio/Skyline.
+
 Flight Lab 31/10: `/flight-lab` confronta Atlas, Residence e Club sulle stesse viste reali di `/flight-next?direction=…`, senza cambiare il sito pubblico.
 Le composizioni riusano catalogo, Solari, iframe Skyline, salvataggi e Apply; nessun secondo catalogo o nuovo handler di invio.
 Residence usa una foto realmente restituita dal catalogo pubblico (fallback a una casa pubblica non chiusa); Atlas sposta la stessa mappa nel primo schermo.

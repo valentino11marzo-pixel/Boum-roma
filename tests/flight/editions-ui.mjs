@@ -167,6 +167,15 @@ try{
    assert.deepEqual(await page.locator('#nextResults .next-card').evaluateAll(ns=>ns.map(n=>n.dataset.homeId)),['edition-courtyard'],'canonical type and budget actually filter homes');
    intent(new URL(page.url()),edition,true);await geometry(page,['#nextEditStay']);
    if(edition==='club')await dark(page);
+   if(edition==='club'){
+    assert.equal(await page.locator('#nextBalanceEntry').count(),1,'one brief, not a duplicate planner');
+    assert.equal(await page.locator('#nextBalanceEntry').getAttribute('data-count'),await page.locator('#nextBalance .balance-grid').getAttribute('data-count'),'the entry uses the actual comparison result count');
+    assert.equal(await page.locator('#nextBalanceEntry [data-entry-action]').innerText(),'View this option');
+    assert.equal(await page.locator('#nextBalanceEntry [data-entry-type]').innerText(),'Entire home');assert.match(await page.locator('#nextBalanceEntry [data-entry-budget]').innerText(),/1[,.\s]?500/);
+    const dates=await page.locator('#nextBalanceEntry [data-entry-dates]').innerText();assert.ok(dates.includes(arrival)&&dates.includes(departure),'both exact requested dates remain visible in the entry');assert.match(await page.locator('#nextBalanceEntry [data-entry-place]').innerText(),/Luiss/i);
+    await geometry(page,['#nextBalanceEntry [data-guide]']);const target=await page.locator('#nextBalanceEntry [data-guide]').boundingBox();assert.ok(target.height>=48,'the entry action has a 48px touch target');
+    const before=page.url();await page.locator('#nextBalanceEntry [data-guide]').click();await page.waitForFunction(()=>{const box=document.getElementById('nextBalance').getBoundingClientRect();return box.top>=0&&box.top<innerHeight*.5;});assert.equal(page.url(),before,'comparison uses the existing results without replacing the brief');
+   }
    if(edition==='club'&&width===390)await readable(page,['#nextBalance .balance-route']);
    if(edition==='perspective'){
     const row=await page.locator('#nextResults .next-card').first().evaluate(card=>{const image=card.querySelector('.next-card-image').getBoundingClientRect(),info=card.querySelector('.next-card-info').getBoundingClientRect(),photo=card.querySelector('img').getBoundingClientRect();return {image:{right:image.right,bottom:image.bottom,width:image.width},info:{left:info.left,top:info.top,width:info.width},photo:{right:photo.right,width:photo.width}};});
@@ -188,8 +197,20 @@ try{
    assert.equal(await page.locator('.detail-actions [data-save-home]').getAttribute('aria-pressed'),'true','canonical saves survive leaving the proposal');
    await page.locator('.detail-breadcrumb [data-view="apartments"]').click();await readyMap(page);intent(new URL(page.url()),edition,true);
    await page.locator('#nextFilterBudget').selectOption('1000');assert.equal(await page.locator('#nextResults .empty-state').count(),1,'empty state is a real filter result');
+   if(edition==='club'){assert.equal(await page.locator('#nextBalanceEntry').getAttribute('data-count'),'0');assert.equal(await page.locator('#nextBalanceEntry [data-entry-action]').innerText(),'Review these choices','zero options never become a promised comparison');}
    await page.locator('#nextResults [data-reset]').click();assert.equal(await page.locator('#nextResults .next-card').count(),3,'reset restores actual homes');
    assert.equal(new URL(page.url()).searchParams.get('edition'),edition);assert.equal(new URL(page.url()).searchParams.get('place'),'luiss');assert.equal(new URL(page.url()).searchParams.get('moveOut'),departure);await geometry(page);
+   if(edition==='club'&&width===390){
+    assert.equal(await page.locator('#nextBalanceEntry').getAttribute('data-count'),await page.locator('#nextBalance .balance-grid').getAttribute('data-count'));
+    assert.equal(await page.locator('#nextBalanceEntry [data-entry-type]').innerText(),'All home types');assert.equal(await page.locator('#nextBalanceEntry [data-entry-budget]').innerText(),'Any monthly rent');
+    await page.locator('#nextBalance [data-edit-destination]').click();await page.locator('#nextDestinationClear').click();assert.equal(await page.locator('#nextBalanceEntry [data-entry-action]').innerText(),'Add your campus or work');
+    await page.locator('#nextBalanceEntry [data-guide]').click();await page.locator('#nextDestinationDialog').waitFor({state:'visible'});await page.locator('[data-destination="luiss"]').click();await page.locator('#nextDestinationDialog').waitFor({state:'hidden'});assert.equal(new URL(page.url()).searchParams.get('place'),'luiss');
+    await page.evaluate(()=>BOOM_MAPPA.salvaPosto({name:'Synthetic private office',lat:41.9123,lng:12.5123}));await page.locator('#nextBalance [data-edit-destination]').click();await page.locator('[data-destination-mode="work"]').click();await page.locator('[data-private-place="0"]').click();
+    assert.equal(await page.locator('#nextBalanceEntry [data-entry-private]').isVisible(),true);assert.equal(await page.locator('#nextBalanceEntry [data-entry-place]').innerText(),'Synthetic private office');
+    await page.locator('#nextBalance [data-share-plan]').click();await page.waitForFunction(()=>!!window.__copied);const shared=new URL(await page.evaluate(()=>__copied));
+    for(const key of ['place','privatePlace','lat','lng','address','name'])assert.equal(shared.searchParams.has(key),false,'the entry keeps a personal destination out of shared '+key);
+    assert.equal(shared.href.includes('Synthetic'),false);assert.equal(shared.searchParams.get('moveOut'),departure);await geometry(page);
+   }
   });
   await check(edition+': public city brief survives edition navigation; GBP requires a new budget',390,async({page})=>{
    await start(page,edition,'&place=luiss&homes=edition-courtyard&privatePlace=office&address=Private%20Street');await city(page,'madrid');await fields(page);

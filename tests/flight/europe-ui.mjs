@@ -2,14 +2,17 @@
 // Only catalogue, rendering-heavy Skyline and selected config responses are fixtures.
 import assert from 'node:assert/strict';
 import {createServer} from 'node:http';
-import {readFileSync,existsSync,statSync} from 'node:fs';
+import {readFileSync,existsSync,mkdirSync,statSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {loadChromium,launchOptions} from '../_browser.mjs';
 const root=fileURLToPath(new URL('../../',import.meta.url)),chromium=await loadChromium();
+const focus=process.argv[2]||'',artifacts=process.env.BOOM_FLIGHT_ARTIFACT_DIR||'';
+if(artifacts)mkdirSync(artifacts,{recursive:true});
 console.log('\n▸ flighteuropeui  Real city choices, currency boundaries and the original desk handoff');
 if(!chromium){console.log('  SKIP: playwright unavailable — Europe browser checks did not run');process.exit(0);}
 const year=new Date().getFullYear()+1,arrival=year+'-04-01',departure=year+'-10-01';
 const manifestPath='/assets/boom-desks-public.json';
+const publicDesks=JSON.parse(readFileSync(root+manifestPath.slice(1),'utf8'));
 const homes=[['flat','bilocale',1400],['room','Room',900],['marketing','Premium Terrace',1800]].map(([id,type,price])=>({id:'fixture-'+id,name:'Fixture '+id,type,price,sqm:60,bedrooms:1,status:'available',availableDate:'Immediate',zone:'Prati',images:['/fixture-photo.svg']}));
 const server=createServer((req,res)=>{
  const pathname=new URL(req.url,'http://localhost').pathname;
@@ -42,12 +45,20 @@ async function open(width){
  });
  return {page,errors,writes,missing,privateReads,network};
 }
-async function check(name,width,fn){const t=await open(width);try{await fn(t);assert.deepEqual(t.errors,[],'no unhandled browser errors');assert.deepEqual(t.writes,[],'no unintended POST/payment/application');assert.deepEqual(t.missing,[],'real assets are present');assert.deepEqual(t.privateReads,[],'the browser never requests private city source files');passed++;console.log('  ✓ '+name);}catch(e){failed++;console.log('  ✗ '+name+' — '+e.message);}finally{await t.page.close();}}
+async function check(name,width,fn){if(focus&&!name.includes(focus))return;const t=await open(width);try{await fn(t);assert.deepEqual(t.errors,[],'no unhandled browser errors');assert.deepEqual(t.writes,[],'no unintended POST/payment/application');assert.deepEqual(t.missing,[],'real assets are present');assert.deepEqual(t.privateReads,[],'the browser never requests private city source files');passed++;console.log('  ✓ '+name);}catch(e){failed++;console.log('  ✗ '+name+' — '+e.message);}finally{await t.page.close();}}
 async function start(page,extra=''){await page.goto(origin+'/flight-next?direction=club'+extra,{waitUntil:'domcontentloaded'});await page.locator('.europe-city-switch').waitFor();await page.waitForFunction(()=>!!window.BoomFlightEurope&&document.body.dataset.view==='home');}
 async function city(page,name){await page.locator('.europe-city-switch [data-europe-city="'+name+'"]').click();await page.waitForFunction(name=>document.body.dataset.europeCity===name,name);}
 async function fields(page){if(!await page.locator('#europeOptionalBrief').evaluate(n=>n.open))await page.locator('#europeOptionalBrief summary').click();}
 async function setBrief(page,budget='2000'){await fields(page);await page.locator('#europeMoveIn').fill(arrival);await page.locator('#europeMoveOut').fill(departure);await page.locator('#europeBudget').selectOption(budget);await page.locator('#europePeople').selectOption('couple');}
 async function service(page,label){await page.waitForFunction(label=>document.getElementById('europeServicePass').textContent.includes(label),label);}
+async function completeService(page,slug,planId){
+ const plan=publicDesks.cities[slug].pricing.plans.find(plan=>plan.id===planId);assert.ok(plan,'the selected plan exists in the generated public manifest');
+ const price=new Intl.NumberFormat('en-GB',{style:'currency',currency:slug==='london'?'GBP':'EUR',maximumFractionDigits:0}).format(plan.price);
+ await service(page,price);const text=(await page.locator('#europeServicePass').innerText()).replace(/\s+/g,' ');
+ for(const fact of [plan.offerDescription,plan.condition,...plan.includes])assert.ok(text.includes(fact.replace(/\s+/g,' ')),'selected service exposes its actual scope: '+fact);
+ if(planId==='full-search')assert.ok(text.includes(publicDesks.refund.rule),'the actual refund condition stays beside the search offer');
+ else assert.equal(text.includes(publicDesks.refund.rule),false,'the search refund is not silently promised for another service');
+}
 function privateAbsent(url){for(const key of ['place','home','homes','type','privatePlace','private_place','lat','lng','lon','latitude','longitude','coordinates','address','name','email','phone','token'])assert.equal(url.searchParams.has(key),false,key+' must not enter a desk brief');}
 async function bounds(page,selectors){const width=await page.evaluate(()=>({client:innerWidth,scroll:document.documentElement.scrollWidth}));assert.ok(width.scroll<=width.client+1,'no sideways page overflow '+JSON.stringify(width));for(const selector of selectors){const sizes=await page.locator(selector).evaluateAll(nodes=>nodes.filter(n=>n.getClientRects().length).map(n=>{const r=n.getBoundingClientRect();return {width:r.width,height:r.height};}));assert.ok(sizes.length,selector+' is visible');assert.ok(sizes.every(s=>s.width>=44&&s.height>=44),selector+' touch target '+JSON.stringify(sizes));}}
 try{
@@ -127,6 +138,36 @@ try{
   await bounds(page,['.europe-home-controls button']);
   const rail=await page.locator('#nextHomeRail').boundingBox(),map=await page.locator('#nextHomeMap').boundingBox();assert.ok(rail.y<map.y,'on mobile the real photograph precedes the map');
  });
+ for(const width of [390,1280])await check('Amsterdam '+width+'px: arrival exposes every service condition and carries the edited brief to the original desk',width,async({page})=>{
+  await start(page,'&edition=club&place=luiss&homes=fixture-flat');await page.waitForFunction(()=>window.BoomFlightGlobe?.state().ready);
+  await page.locator('#nextMoveIn').fill(arrival);await page.locator('#nextMoveOut').fill(departure);await page.locator('#nextBudget').selectOption('2000');await page.locator('#nextPeople').selectOption('couple');
+  await page.locator('#boomGlobeMount button[data-globe-city="amsterdam"]').click();await page.waitForFunction(()=>document.body.dataset.europeCity==='amsterdam'&&!BoomFlightGlobe.state().flying);await completeService(page,'amsterdam','full-search');
+  assert.equal(await page.locator('#europeDeskStory #europeDeskForm').count(),1,'the arrival section contains the original actionable form');assert.equal(await page.locator('#europeDeskStory [data-europe-need]').count(),3,'all choices are available where the flight lands');
+  assert.equal(await page.locator('#europeDeskForm').count(),1,'the form is moved, never duplicated');assert.equal(await page.locator('#nextHomeRail').isVisible(),false,'Rome listings do not masquerade as Amsterdam inventory');
+  const summary=page.locator('#europeBriefSummary');assert.equal(await summary.isVisible(),true,'the current brief can be reviewed without reopening the fields');
+  let text=await summary.innerText();assert.match(text,/1 Apr/);assert.match(text,/1 Oct/);assert.ok(text.includes(String(year)));assert.match(text,/2[,.\s]?000/);assert.match(text,/couple/i);
+  if(artifacts){
+   await page.evaluate(()=>document.fonts.ready);
+   if(width===390){
+    const clip=await page.evaluate(()=>{const first=document.getElementById('europeDeskPlanner').getBoundingClientRect(),last=document.getElementById('europeServicePass').getBoundingClientRect(),top=Math.max(0,scrollY+first.top-12);return {x:0,y:top,width:innerWidth,height:Math.ceil(scrollY+last.bottom+12-top)};});
+    await page.screenshot({path:artifacts+'/amsterdam-selector-scope-390.png',fullPage:true,clip});await page.locator('#europeDeskForm').screenshot({path:artifacts+'/amsterdam-brief-390.png'});
+   }else await page.locator('#europeDeskStory').screenshot({path:artifacts+'/amsterdam-workspace-1280.png'});
+  }
+  for(const [need,planId] of [['search','full-search'],['application','application-pack'],['viewing','attended-viewing']]){
+   const plan=publicDesks.cities.amsterdam.pricing.plans.find(plan=>plan.id===planId),choice=page.locator('#europeDeskStory [data-europe-need="'+need+'"]');
+   assert.ok((await choice.innerText()).includes(String(plan.price)),'service choice exposes its actual price');await choice.click();await completeService(page,'amsterdam',planId);
+   assert.equal(await choice.getAttribute('aria-pressed'),'true');assert.ok((await page.locator('#europeSelectedService').innerText()).includes(plan.label),'the form names the chosen service');
+   assert.match(await page.locator('#europeDeskContinue').innerText(),new RegExp(plan.label.split(' ').at(-1),'i'),'the next action belongs to the selected service');
+  }
+  await bounds(page,['#europeDeskStory [data-europe-need]','#europeDeskContinue']);await fields(page);
+  await page.locator('#europeBudget').selectOption('3000');await page.locator('#europePeople').selectOption('family');text=await summary.innerText();assert.match(text,/3[,.\s]?000/);assert.match(text,/family/i);assert.doesNotMatch(text,/2[,.\s]?000|couple/i,'the summary does not retain the previous draft');
+  await page.locator('#europeMoveOut').fill('');await page.locator('#europeBudget').selectOption('');await page.locator('#europePeople').selectOption('');text=await summary.innerText();assert.doesNotMatch(text,/1 Oct|3[,.\s]?000|family/i,'cleared fields disappear from the live summary');assert.match(text,/departure date needed/i,'a required missing date is not presented as an accepted open-ended stay');
+  const before=page.url();await page.locator('#europeDeskContinue').click();assert.equal(page.url(),before,'an incomplete requested stay cannot leave for the desk');assert.equal(await page.locator('#europeDeskError').isVisible(),true);
+  const errorContrast=await page.locator('#europeDeskError').evaluate(node=>{const rgb=value=>(value.match(/[\d.]+/g)||[]).slice(0,3).map(Number);const light=color=>color.map(value=>value/255).map(value=>value<=.04045?value/12.92:((value+.055)/1.055)**2.4).reduce((sum,value,i)=>sum+value*[.2126,.7152,.0722][i],0);let background='rgb(0,0,0)';for(let parent=node;parent;parent=parent.parentElement){const value=getComputedStyle(parent).backgroundColor;if(value!=='transparent'&&!/^rgba\([^)]*,\s*0\)$/.test(value)){background=value;break;}}const a=light(rgb(getComputedStyle(node).color)),b=light(rgb(background));return (Math.max(a,b)+.05)/(Math.min(a,b)+.05);});assert.ok(errorContrast>=4.5,'the validation error is readable on its actual dark surface: '+errorContrast.toFixed(2));
+  await page.locator('#europeMoveOut').fill(year+'-03-31');const reversed=page.url();await page.locator('#europeDeskContinue').click();assert.equal(page.url(),reversed,'reversed dates cannot navigate');assert.equal(new URL(page.url()).pathname,'/flight-next');assert.equal(await page.locator('#europeDeskError').isVisible(),true);
+  await page.locator('#europeMoveOut').fill(departure);await page.locator('#europeBudget').selectOption('3000');await page.locator('#europePeople').selectOption('flatmates');await page.locator('#europeDeskContinue').click();await page.waitForURL(url=>url.pathname==='/amsterdam');
+  const handoff=new URL(page.url());for(const [key,value] of Object.entries({from:'flight',city:'amsterdam',need:'viewing',moveIn:arrival,moveOut:departure,budget:'3000',people:'flatmates',currency:'EUR'}))assert.equal(handoff.searchParams.get(key),value,key+' is preserved for the existing desk');privateAbsent(handoff);
+ });
  await check('Home photographs, the same Skyline and a real detail stay connected without automatic camera motion',1280,async({page})=>{
   await start(page);await page.locator('#nextHomeRail .next-card').first().waitFor();
   assert.equal(await page.locator('iframe.boom-next-map-frame').count(),1,'one map instance');
@@ -143,4 +184,5 @@ try{
   assert.equal(await page.locator('.next-footer a[href="/login"]').count(),1);
  });
 }finally{if(browser)await browser.close();await new Promise(resolve=>server.close(resolve));}
+if(!passed&&!failed){console.log('  No test matched '+focus);failed++;}
 console.log('Europe UI: '+passed+' passed, '+failed+' failed');process.exitCode=failed?1:0;

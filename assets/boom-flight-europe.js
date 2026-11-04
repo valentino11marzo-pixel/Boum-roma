@@ -70,6 +70,15 @@
     if(city==='rome') return;
     document.querySelectorAll('[data-europe-desk-link]').forEach(function(a){a.href=deskURL();});
     document.querySelector('.next-signoff .button').href=deskURL();
+    updateBrief();
+  }
+  function updateBrief() {
+    var summary=el('europeBriefSummary');if(!summary||city==='rome')return;
+    var brief=values(city),household={solo:'Just me',couple:'A couple',family:'A family',flatmates:'Flatmates'};
+    function date(value){if(!/^\d{4}-\d{2}-\d{2}$/.test(value))return '';var d=new Date(value+'T12:00:00');return Number.isNaN(d.getTime())?'':new Intl.DateTimeFormat('en-GB',{day:'numeric',month:'short',year:'numeric'}).format(d);}
+    var start=date(brief.moveIn),end=date(brief.moveOut),dates=start?(start+' → '+(end||'Departure date needed')):(end?'Arrival date needed → '+end:'Dates open');
+    var rent=brief.budget?new Intl.NumberFormat('en-GB',{style:'currency',currency:currency(city),maximumFractionDigits:0}).format(Number(brief.budget)):'Budget open';
+    summary.innerHTML='<div><dt>Your dates</dt><dd>'+esc(dates)+'</dd></div><div><dt>Monthly rent</dt><dd>'+esc(brief.budget?'Up to '+rent:rent)+'</dd></div><div><dt>Who’s moving</dt><dd>'+esc(household[brief.people]||'Household open')+'</dd></div>';
   }
   function fitBoard() {
     var host=el('nextDestinationBoard'),centre=document.querySelector('.hero-centre');
@@ -86,15 +95,23 @@
       });
   }
   function paintService(data,shared) {
-    var pass=el('europeServicePass');
+    var pass=el('europeServicePass'),currentClub=query.get('edition')==='club';
+    document.querySelectorAll('[data-europe-need]').forEach(function(button){
+      var old=button.querySelector('.europe-need-price');if(old)old.remove();
+      if(!currentClub||!validConfig(data)||data.live!==true||data.mode!=='search')return;
+      var choice=data.pricing.plans.find(function(p){return p.id===needs[button.dataset.europeNeed].plan;});if(!choice)return;
+      var priceTag=document.createElement('span');priceTag.className='europe-need-price';priceTag.textContent=new Intl.NumberFormat('en-GB',{style:'currency',currency:currency(city),maximumFractionDigits:0}).format(choice.price)+' · '+choice.condition;button.querySelector('div').appendChild(priceTag);
+    });
     if(!validConfig(data) || data.live!==true || data.mode!=='search') {
       pass.innerHTML='<div class="europe-service-copy"><p class="eyebrow">'+esc(places[city].name)+' / SERVICE DETAILS</p><h3>Speak with the '+esc(places[city].name)+' desk.</h3><p>Check the current service, price and availability on the city page.</p></div><a class="europe-service-action text-button" data-europe-desk-link href="'+esc(deskURL())+'">Open the desk ↗</a>';
+      if(currentClub){el('europeDeskContinue').textContent='Open '+places[city].name+' desk ↗';if(el('europeSelectedService'))el('europeSelectedService').textContent='Your move';}
       return;
     }
     var plan=data.pricing.plans.find(function(p){return p.id===needs[need].plan;});
     if(!plan) { paintService(null);return; }
     var price=new Intl.NumberFormat('en-GB',{style:'currency',currency:currency(city),maximumFractionDigits:0}).format(plan.price);
-    pass.innerHTML='<div class="europe-service-copy"><p class="eyebrow">'+esc(places[city].code)+' / '+esc(plan.label)+'</p><h3>'+esc(needs[need].label)+'.</h3><p>'+esc(plan.offerDescription)+'</p></div><div class="europe-service-price"><strong>'+esc(price)+'</strong><small>'+esc(plan.condition)+'</small><p>'+esc(data.hero.faresHead.b)+'</p></div><dl class="europe-service-facts"><div><dt>What you receive</dt><dd>'+esc(plan.includes[0])+'</dd></div><div><dt>Who answers</dt><dd>Valentino Egidi · BOOM, based in Rome</dd></div><div><dt>Your next step</dt><dd>Discuss your plans on a free call. Choose a paid service when its scope is clear.</dd></div></dl><div class="europe-service-bottom">'+(need==='search'&&shared&&shared.refund?'<p>'+esc(shared.refund.rule)+'</p>':'')+'<a class="europe-service-action text-button" data-europe-desk-link href="'+esc(deskURL())+'">See the full '+esc(places[city].name)+' service ↗</a></div>';
+    pass.innerHTML='<div class="europe-service-copy"><p class="eyebrow">'+esc(places[city].code)+' / '+esc(plan.label)+'</p><h3>'+esc(needs[need].label)+'.</h3><p>'+esc(plan.offerDescription)+'</p></div><div class="europe-service-price"><strong>'+esc(price)+'</strong><small>'+esc(plan.condition)+'</small><p>'+esc(data.hero.faresHead.b)+'</p></div><dl class="europe-service-facts"><div class="europe-service-includes"><dt>What you receive</dt><dd><ul>'+plan.includes.map(function(item){return '<li>'+esc(item)+'</li>';}).join('')+'</ul></dd></div><div><dt>Who answers</dt><dd>Valentino Egidi · BOOM, based in Rome'+(currentClub?'<a class="europe-meet" href="/about">Meet the agency ↗</a>':'')+'</dd></div><div><dt>Your next step</dt><dd>Discuss your plans on a free call. Choose a paid service when its scope is clear.</dd></div></dl><div class="europe-service-bottom">'+(need==='search'&&shared&&shared.refund?'<p>'+esc(shared.refund.rule)+'</p>':'')+'<a class="europe-service-action text-button" data-europe-desk-link href="'+esc(deskURL())+'">See the full '+esc(places[city].name)+' service ↗</a></div>';
+    if(currentClub){el('europeDeskContinue').textContent='Continue with '+plan.label+' ↗';if(el('europeSelectedService'))el('europeSelectedService').textContent=plan.label;}
   }
   function loadService() {
     var n=++loadNumber,slug=city;
@@ -278,7 +295,7 @@
     if(city!=='rome')fill(city,{moveIn:params.get('moveIn'),moveOut:params.get('moveOut'),budget:params.get('currency')===currency(city)||city!=='london'?params.get('budget'):'',people:params.get('people')});
     renderCity(false);chooseNeed(need,false);
   });
-  window.BoomFlightEurope={selectCity:function(slug,options){if(!places[slug]||view!=='home')return false;chooseCity(slug,options&&options.history===false?null:true);return true;},decorateURL:function(path,context){
+  window.BoomFlightEurope={refreshBrief:function(){updateBrief();if(loaded[city])paintService(loaded[city],loaded.shared);},selectCity:function(slug,options){if(!places[slug]||view!=='home')return false;chooseCity(slug,options&&options.history===false?null:true);return true;},decorateURL:function(path,context){
     var u=new URL(path,location.origin);var target=context.view==='home'?city:'rome';
     cleanQuery(u.searchParams);
     if(target!=='rome'){
