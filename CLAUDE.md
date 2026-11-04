@@ -3337,7 +3337,7 @@ Resta una preview noindex sul ramo Flight: non è il rilascio SEO/GEO del sito p
 
 Flight Club 04/11, prova prima del racconto: la rail di case e l'unico Skyline condividono una scena; sul telefono foto prima della mappa, controllo esplicito per localizzare la casa, nessun volo automatico durante lo swipe.
 Il referente occupa una fascia compatta; etichette a 12px e capitoli più raccolti. La demo PFS già esistente compare accanto ai servizi, l'accesso clienti nel footer; nessun nuovo portale o invio.
-Find my balance prosegue dopo la scelta della meta; una normale modifica resta locale, annullamento e Back cancellano l'intento e invalidano transizioni vecchie.
+Find my balance prosegue dopo la scelta della meta; una normale modifica resta locale, annullamento e Back cancellano l'intento e invalidano transizioni vecchie. Ogni selettore restituisce il focus al proprio comando, anche dopo un altro dialog.
 I link Home riflettono subito il cambio città, anche prima di aprire Apartments. Gli stessi nodi/catalogo restano validi per foto, salvataggi, mappa e dettaglio.
 Test `flighteuropeui` 9, `flightclubui` 8 e `flightnextui` 12: foto→mappa→scheda, singolo iframe, controlli 320/390, scelta campus/luogo privato, annullamento e Back senza salti.
 

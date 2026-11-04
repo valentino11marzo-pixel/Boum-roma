@@ -77,6 +77,9 @@ try{
   await city(page,'madrid');
   await page.locator('.next-nav [data-view="apartments"]').click();await page.locator('#nextApartments').waitFor({state:'visible'});assert.equal(await page.locator('body').getAttribute('data-europe-city'),'rome');assert.equal(new URL(page.url()).searchParams.has('need'),false);
   assert.deepEqual(await page.locator('#nextFilterType option').evaluateAll(ns=>ns.map(n=>[n.value,n.textContent])),[['','All home types'],['__entire','Entire home'],['__rooms','Rooms']]);
+  await page.locator('#nextEditStay').click();await page.locator('#nextStayDialog [data-close-dialog]').click();await page.waitForFunction(()=>document.activeElement.id==='nextEditStay');
+  await page.locator('[data-europe-open]').click();await page.keyboard.press('Escape');await page.locator('#europeCityDialog').waitFor({state:'hidden'});
+  await page.waitForFunction(()=>document.activeElement===document.querySelector('[data-europe-open]'));assert.equal(await page.locator('[data-europe-open]').evaluate(n=>n===document.activeElement),true,'closing the city chooser restores its own opener, not the previous dates opener');
   const homeLinks=await page.locator('.next-brand').evaluateAll(ns=>ns.map(n=>n.href));assert.ok(homeLinks.length>=2,'header and footer expose home navigation');
   for(const href of homeLinks){const u=new URL(href);assert.equal(u.searchParams.get('city')||'rome','rome','actual home href agrees with the Rome SPA context');assert.equal(u.searchParams.has('need'),false);}
   await page.locator('.next-nav .next-brand').click();await page.waitForFunction(()=>document.body.dataset.view==='home'&&document.body.dataset.europeCity==='rome');
