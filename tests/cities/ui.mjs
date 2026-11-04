@@ -1736,34 +1736,81 @@ async function v17Fixes() {
     await ctx.close();
   }
 
-  // R6 · the till opened from the pay button under the stub, the window shrunk below 940, Escape: the focus goes back to it
-  {
+  // the band a focused control must sit in to be SEEN: under the sticky header (scroll-padding-top), above the strip
+  const band = (page, sel) => page.evaluate((q) => {
+    const a = q ? document.querySelector(q) : document.activeElement, s = document.getElementById('strip');
+    const r = a.getBoundingClientRect(), top = parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop) || 0;
+    const bottom = innerHeight - (s && s.classList.contains('on') ? s.offsetHeight : 0);
+    return { t: Math.round(r.top), b: Math.round(r.bottom), top, bottom, in: r.top >= top - 1 && r.bottom <= bottom + 1 };
+  }, sel || null);
+
+  // R6 · the till opened from the pay button under the stub, the window shrunk below 940, Escape: the focus goes back to it,
+  // and (second round, G2) the focused button is ON SCREEN — under the header, above the strip — at 390×844 and 390×664
+  for (const h of [844, 664]) {
     const { ctx, page } = await open({ width: 1440, height: 900 });
     await page.waitForTimeout(300);
     check(await page.$eval('#fare-full-search', (d) => !d.open) && await page.$eval('.bp-pay [data-pay="full-search"]', () => true).catch(() => false), '1440: Full Search closed, its pay button rides under the stub');
     await tap(page, '.bp-pay [data-pay="full-search"]');
     await page.waitForTimeout(300);
     const opened = await page.$eval('#till', (d) => d.open);
-    await page.setViewportSize({ width: 390, height: 844 });
+    await page.setViewportSize({ width: 390, height: h });
     await page.waitForTimeout(400);
     await page.keyboard.press('Escape');
     await page.waitForTimeout(350);
     const f = await page.evaluate(() => { const a = document.activeElement; return { pay: a && a.getAttribute('data-pay'), fs: document.getElementById('fare-full-search').open, till: document.getElementById('till').open, body: a === document.body }; });
-    check(opened && f.pay === 'full-search' && f.fs === true && f.till === false, 'till opened at 1440 from under the stub, window shrunk to 390, Escape: Full Search opens and the focus is back on its pay button (never <body>)', JSON.stringify(f));
+    check(opened && f.pay === 'full-search' && f.fs === true && f.till === false, `till opened at 1440 from under the stub, window shrunk to 390×${h}, Escape: Full Search opens and the focus is back on its pay button (never <body>)`, JSON.stringify(f));
+    const v = await band(page);
+    check(v.in, `390×${h} after the resize and Escape: the focused pay button lies inside the visible band [${v.top}, ${v.bottom}] (WCAG 2.4.7 / 2.4.11)`, JSON.stringify(v));
+    if (h === 844) await shot(page, 'till-resize-escape-390.png');
     await ctx.close();
   }
 
-  // R7 · a link followed while the till is open does not re-target the tickets behind it
-  {
-    const { ctx, page } = await open({ slug: 'barcelona', query: '#pay-full-search' });
+  // R7 · a link followed while the till is open does not re-target the tickets behind it; (second round, G3) the page behind
+  // the modal does not move either, and after Escape the focused opener is on screen (G2's band) — at 1440 and 390
+  for (const [w, h] of [[1440, 900], [390, 844]]) {
+    const { ctx, page } = await open({ slug: 'barcelona', query: '#pay-full-search', width: w, height: h });
     await page.waitForTimeout(500);
-    const before = await page.evaluate(() => ({ till: document.getElementById('till').open, plan: document.getElementById('tillForm').getAttribute('data-plan'), fs: document.getElementById('fare-full-search').open, ap: document.getElementById('fare-application-pack').open }));
+    const before = await page.evaluate(() => ({ till: document.getElementById('till').open, plan: document.getElementById('tillForm').getAttribute('data-plan'), fs: document.getElementById('fare-full-search').open, ap: document.getElementById('fare-application-pack').open, y: scrollY }));
     await page.evaluate(() => { location.hash = '#fare-application-pack'; });
     await page.waitForTimeout(400);
-    const after = await page.evaluate(() => ({ till: document.getElementById('till').open, plan: document.getElementById('tillForm').getAttribute('data-plan'), fs: document.getElementById('fare-full-search').open, ap: document.getElementById('fare-application-pack').open, inTill: document.getElementById('till').contains(document.activeElement) }));
+    const after = await page.evaluate(() => ({ till: document.getElementById('till').open, plan: document.getElementById('tillForm').getAttribute('data-plan'), fs: document.getElementById('fare-full-search').open, ap: document.getElementById('fare-application-pack').open, inTill: document.getElementById('till').contains(document.activeElement), y: scrollY }));
     check(before.till && before.plan === 'full-search' && after.till && after.plan === 'full-search' && after.fs === before.fs && after.ap === before.ap && after.inTill,
-      'barcelona#pay-full-search, then #fare-application-pack with the till open: the till stays on Full Search, the tickets behind do not move, the focus stays in the till', JSON.stringify({ before, after }));
+      `barcelona#pay-full-search ${w}: then #fare-application-pack with the till open: the till stays on Full Search, the tickets behind do not move, the focus stays in the till`, JSON.stringify({ before, after }));
+    check(Math.abs(after.y - before.y) <= 1, `barcelona ${w}: the hash change with the till open does not scroll the page behind the modal (scrollY ${before.y} → ${after.y})`);
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(350);
+    const v = await band(page), pay = await page.evaluate(() => document.activeElement && document.activeElement.getAttribute('data-pay'));
+    check(pay === 'full-search' && v.in, `barcelona ${w} after Escape: the focus is back on the Full Search pay button, inside the visible band [${v.top}, ${v.bottom}]`, JSON.stringify({ pay, v }));
     await ctx.close();
+  }
+
+  // G4 · the closed economy pair: the two tickets as tall as their row, both stubs on one line (every desk, 390×844 and 360×780)
+  for (const slug of ['amsterdam', 'madrid', 'barcelona', 'london', 'milan', 'valencia', 'paris', 'berlin']) {
+    for (const [w, h] of [[390, 844], [360, 780]]) {
+      const { ctx, page } = await open({ slug, width: w, height: h });
+      await page.waitForTimeout(300);
+      const m = await page.evaluate(() => { const q = (x) => document.querySelector(x).getBoundingClientRect();
+        return { ap: q('#fare-application-pack').bottom, av: q('#fare-attended-viewing').bottom, apR: q('#fare-application-pack .f-r').top, avR: q('#fare-attended-viewing .f-r').top, apT: q('#fare-application-pack').top, avT: q('#fare-attended-viewing').top }; });
+      check(Math.abs(m.apT - m.avT) <= 1 && Math.abs(m.ap - m.av) <= 1 && Math.abs(m.apR - m.avR) <= 1, `${slug} ${w}×${h}: the closed economy pair, side by side, ends on one line and its two stubs start on one line`, JSON.stringify(m));
+      if (w === 390 && ['london', 'valencia', 'paris', 'milan'].includes(slug)) await shot(page, `first-${slug}-390.png`);
+      await ctx.close();
+    }
+  }
+
+  // G5 · an economy ticket lying down below 940 (a pair member open, or under 360): the price clears the pip by ≥ 4px
+  for (const slug of ['london', 'valencia', 'paris']) {
+    for (const w of [390, 320]) {
+      const { ctx, page } = await open({ slug, width: w, height: 844 });
+      await page.waitForTimeout(300);
+      await tap(page, '#fare-application-pack > summary');
+      await page.waitForTimeout(350);
+      const gap = await page.evaluate(() => ['#fare-application-pack', '#fare-attended-viewing'].map((id) => {
+        const d = document.querySelector(id), p = d.querySelector('.f-price'), rg = document.createRange(); rg.selectNodeContents(p);
+        return Math.round((d.querySelector('.f-tog').getBoundingClientRect().left - rg.getBoundingClientRect().right) * 10) / 10; }));
+      check(gap.every((g) => g >= 4), `${slug} ${w} with Application Pack open: the price clears the +/− pip (gaps ${gap.join(' / ')} px ≥ 4)`);
+      if (slug === 'london' && w === 390) await shot(page, 'london-390-ap-open.png');
+      await ctx.close();
+    }
   }
 
   // R8 · the keyboard ring on a fare row is whole: gold on its four sides, above the stub

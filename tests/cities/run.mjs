@@ -62,7 +62,8 @@ import {
   atLoadParts, longNodes, weightOf, validGeo, sealText, sealPhrase, STATUS_RE, STATUS_BANNED_RE, AVIATION_BAN_RE,
   ARC_CLEAR, ARC_DOT_R, ARC_ME_R, MAP_KB, HZ_CAM, HZ_LIFT, HZ_LEAN, HZ_KEY, HUB_MAP_PX, horizon, hzViolations, hzPathPts, hzCal, holidayKeyOf as hkOf,
   orgNode, serviceNode, numberWord, listJoin, dateLong, homeCountryOf, isHomeDesk,
-  renderHub, buildHub, HUB_WEIGHT_KB, HUB_BUDGET, HUB_FILE, HUB_PATH, COUNTRY_NAME, hoursSentence, hubText, CALL_RE, RATING_RE
+  renderHub, buildHub, HUB_WEIGHT_KB, HUB_BUDGET, HUB_FILE, HUB_PATH, COUNTRY_NAME, hoursSentence, hubText, CALL_RE, RATING_RE,
+  DESK_BANNED, DESK_BANNED_SELL
 } from '../../build-cities.mjs';
 import SCALO from '../../js/scalo-codes.js';
 import CAL from '../../js/desk-calendar.js';
@@ -999,20 +1000,38 @@ tplRefuses('<p class="proof">', '<p class="proof">Pay by bank transfer · ', /no
     const strsR = (v) => (typeof v === 'string' ? [v] : v && typeof v === 'object' ? Object.values(v).flatMap(strsR) : []);
     const saidOf = (h) => [visibleText(h.replace(/<!--[\s\S]*?-->/g, ' ')), ...[...h.matchAll(/<meta [^>]*content="([^"]*)"/g)].map((m) => m[1]),
       ...[...h.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].flatMap((m) => strsR(JSON.parse(m[1])))].join(' \n ');
-    const VAGUE = /\ba registered (?:Italian )?(?:real estate )?agency\b/i;
-    const CLAIM = /\b(?:licensed|registered|listed|authori[sz]ed|accredited|enrolled)\s+(?:in|with|by|at|under|on)\s+(?!Rome\b|the Rome Chamber of Commerce\b|the town hall\b|an? (?:university|school|college)\b|university\b)/i;
-    const HELD = /\bRAICV\b|Registro de Agentes|\bAICAT\b|carte professionnelle|§\s?34c|licensed agent|registered (?:estate )?agent\b/i;
+    // the page-level mirror: literal copies, independent of the build's arrays (a claim is said ABOUT US —
+    // the company as subject — an agency adjective, and on a desk that sells a licence or a register it does not hold)
+    const AGENCY = /\b(?!un|non)(?:[\w]+-)?(?:licensed|registered|accredited|authori[sz]ed|certified)\s+(?:(?!(?:with|by|in|at|on|to|through|via|as|an?|the|for|under)\b)[\w-]+\s+)?(?:real estate\s+)?(?:agency|agencies|agents?|brokers?|intermediar(?:y|ies))\b/i;
+    const CLAIM = /\b(?:we're|we|BOOM(?:'s)?(?:\s+(?!(?:is|are|was|were|has been|have been|is now|are now|became|becomes|remains|stays)\b)[\w'-]+){0,2}|Egidi(?:\s+Immobiliare(?:\s+S\.r\.l\.)?)?|the (?:desk|agency|company)|our (?:desk|agency|company|agents?))(?:\s+(?:is|are|was|were|has been|have been|is now|are now|became|becomes|remains|stays)|(?<=\bwe're))(?:\s+(?!(?:the|that|it|it's|its|your|you|their|they|this|lease|leases|contract|deposit|homes?|flats?)\b)[\w'-]+){0,3}\s+(?:licensed|registered|listed|authori[sz]ed|accredited|enrolled|certified|approved)\b(?!\s+in Rome\b|\s+with the Rome Chamber of Commerce\b|\s+office\b|(?:\s+[\w-]+){0,3}\s+trade ?mark\b)/i;
+    const HELD = [/\bRAICV\b|Registro de Agentes|\bAICAT\b|carte professionnelle|§\s?34c|\blicensed agent|\bregistered (?:estate )?agent\b/i,
+      /\b(?:licensed to|authori[sz]ed to|registered as|accredited as|certified as)\b(?:\W+\w+){0,4}?\W+(?:agents?|agency|brokers?|operate|act|intermediar(?:y|ies))\b/i,
+      /\b(?:Valencian|Catalan|Spanish|regional|Dutch|French|German|British|UK|English)\s+(?:(?:estate\s+)?agents?'?\s+)?regist(?:er|ry)\b|\bmember of (?:the )?\w+ regist(?:er|ry)\b/i];
     const hitOf = (said, re) => { const m = said.match(re); return m ? said.slice(Math.max(0, m.index - 30), m.index + m[0].length + 30).replace(/\s+/g, ' ') : ''; };
     for (const s of SLUGS) {
       const said = saidOf(PAGE[s]), sells = CITY[s].checkout === true;
-      const bad = [hitOf(said, VAGUE), hitOf(said, CLAIM), sells ? hitOf(said, HELD) : ''].filter(Boolean);
+      const bad = [hitOf(said, AGENCY), hitOf(said, CLAIM), ...(sells ? HELD.map((re) => hitOf(said, re)) : [])].filter(Boolean);
       check(!bad.length, `${s}: no registration but Rome's is stated${sells ? ', no licence or register the desk does not hold (RAICV, AICAT, §34c, carte professionnelle…)' : ''}`, bad.join(' | '));
     }
-    // the guard is not blind: the legitimate phrases pass, the claims are caught
-    const ok = ['an Italian real estate agency registered in Rome', 'registered with the Rome Chamber of Commerce (REA RM-1710623)', 'Registered at the town hall with your lease', 'register on the padrón', 'The lease must be registered within 30 days', 'BOOM® is a registered European Union trade mark', 'Registered office: Viale Liegi 42', 'opening with a licensed partner', 'students enrolled at a university away from home'];
-    const ko = ['a registered Italian agency', 'we are registered with the Comunitat Valenciana', 'listed in the RAICV', 'licensed by the Generalitat', 'accredited under Spanish law', 'registered in Valencia'];
-    check(ok.every((x) => !VAGUE.test(x) && !CLAIM.test(x)) && ko.every((x) => VAGUE.test(x) || CLAIM.test(x)) && HELD.test('listed in the RAICV') && !HELD.test('a licensed partner'),
-      'the registration guard passes the true phrases (registered in Rome, the Rome Chamber of Commerce, the town hall, a university, the trade mark, the office) and catches the claims');
+    // the guard is not blind and not trigger-happy: the OK list passes EVERY pattern (the build's arrays and the mirror),
+    // the KO list is refused by both. True copy about the lease, homes, the tenant or a student is not a claim about us.
+    const SELL_ALL = [...DESK_BANNED, ...DESK_BANNED_SELL].map(([re]) => re), DRAFT_ALL = DESK_BANNED.map(([re]) => re);
+    const MIRROR_ALL = [AGENCY, CLAIM, ...HELD], MIRROR_DRAFT = [AGENCY, CLAIM];
+    const OK = ['The lease is registered with the Agenzia delle Entrate within 30 days', 'Homes listed on Rightmove go fast.', 'Once you are registered with the gemeente you get a BSN.',
+      'Students enrolled at the Universidad Complutense qualify.', 'an Italian real estate agency registered in Rome', 'registered with the Rome Chamber of Commerce (REA RM-1710623)',
+      'Registered at the town hall with your lease', 'register on the padrón', 'BOOM® is a registered European Union trade mark', 'Registered office: Viale Liegi 42',
+      'Your deposit is protected in a government-approved scheme', 'The lease must be registered within 30 days', 'students enrolled at a university away from home',
+      'Egidi Immobiliare S.r.l. is registered with the Rome Chamber of Commerce', 'we check the lease is registered', 'beware of unlicensed agents'];
+    const OK_DRAFT = ['a licensed partner', 'Launching with a licensed partner.'];
+    const KO = ['we are registered with the Comunitat Valenciana', 'we are listed in the RAICV', 'we are authorised by the Generalitat', 'BOOM is licensed in Spain',
+      'BOOM Valencia is registered with the regional registry', 'a registered Italian agency', 'licensed to operate in Spain', 'a licensed agency in Valencia',
+      'registered as an agent in Valencia', 'a Valencia-registered agency', 'an accredited Valencian agency', 'authorised to broker leases in Valencia',
+      'registered real estate agency in Valencia', 'member of the Valencian register', "we're registered with the Generalitat", 'our agents are certified in Spain'];
+    const passes = (x, set) => set.every((re) => !re.test(x)), refused = (x, set) => set.some((re) => re.test(x));
+    const okBad = [...OK.filter((x) => !passes(x, SELL_ALL) || !passes(x, MIRROR_ALL)), ...OK_DRAFT.filter((x) => !passes(x, DRAFT_ALL) || !passes(x, MIRROR_DRAFT))];
+    const koMiss = KO.filter((x) => !refused(x, SELL_ALL) || !refused(x, MIRROR_ALL));
+    check(!okBad.length, `the registration guard passes the ${OK.length + OK_DRAFT.length} true sentences (the lease, homes on a portal, the tenant at the gemeente, a student, Rome, the trade mark, the office, the drafts' licensed partner) through the build's arrays and the mirror`, okBad.join(' | '));
+    check(!koMiss.length, `the registration guard refuses the ${KO.length} claims (the company as subject, the agency adjective, licensed to operate, a local register) in the build's arrays and the mirror`, koMiss.join(' | '));
     // the PFS plancia: every LIVE desk has its voice in the client modal's market select (pfs-command.html #cm-market),
     // or saving a Full Search client of that desk would rewrite it to 'roma' and the radar would push Rome listings
     const cm = (read('pfs-command.html').match(/<select id="cm-market">([\s\S]*?)<\/select>/) || [])[1] || '';
@@ -1124,6 +1143,22 @@ tplRefuses('<p class="proof">', '<p class="proof">Pay by bank transfer · ', /no
     'boom-map.js: the first-view flights start on ANY intersecting entry of the batch (never es[0] alone: a batch can lead with a stale entry)');
   check(/return !!\(drawn \|\| \/L\/\.test\(d\)\);/.test(mapJs) && /var dark = night\(sun\(\+now\)\);/.test(mapJs) && /x\.hidden = !!x\.querySelector\('\.k-n'\) && !dark;/.test(mapJs),
     'boom-map.js: the "night, now" key shows only when night() drew a veil pixel or a terminator segment in the frame; "open now" always');
+  // v1.7 review, second round: the till's and the forced-colors guards bite here too, where the browser suite is skipped
+  {
+    const cityJs = read('assets/src/boom-city.js'), cityCss = read('assets/src/boom-city.css');
+    const closeH = (cityJs.match(/till\.addEventListener\('close', function \(\) \{([\s\S]*?)\n    \}\);/) || [])[1] || '';
+    check(/var fd = opener && opener\.closest && opener\.closest\('details\.fare'\);/.test(closeH) && /if \(fd && !fd\.open && document\.contains\(fd\)\) \{ fares\.forEach\(function \(o\) \{ o\.open = o === fd; \}\); last = fd; sync\(\); \}/.test(closeH),
+      'boom-city.js (source): closing the till reopens the CLOSED ticket that holds its opener (the focus never falls to <body>)');
+    check(/opener\.focus\(\{ preventScroll: true \}\)/.test(closeH) && /var or = opener\.getBoundingClientRect\(\);\s*if \(or\.top < topLim\(\) \|\| or\.bottom > innerHeight - stripH\(\)\) opener\.scrollIntoView\(\{ block: 'center', behavior: 'instant' \}\);/.test(closeH),
+      'boom-city.js (source): the focus returned to the opener is SEEN — under the header or below the strip, it is scrolled to the centre');
+    const deepF = (cityJs.match(/function deep\(\) \{([\s\S]*?)\n  \}/) || [])[1] || '';
+    check(/if \(till && till\.open\) \{\s*scrollTo\(\{ left: tillX, top: tillY, behavior: 'instant' \}\);[\s\S]*?return;\s*\}/.test(deepF) && /tillX = scrollX; tillY = scrollY;/.test(cityJs),
+      'boom-city.js (source): a link followed with the till open returns early and puts the page behind back where the till found it (recorded in openTill)');
+    const fcPair = (cityCss.match(/@media \(forced-colors:active\) and \(min-width:360px\) and \(max-width:939px\)\{([\s\S]*?)\}\}/) || [])[1] || '';
+    const bare = cityCss.replace(/@media \(forced-colors:active\) and \(min-width:360px\) and \(max-width:939px\)\{[\s\S]*?\}\}/, '');
+    check(/\.bps:not\(\.pair-open\):not\(:has\(>\.bp:not\(\.eroe\)>\[open\]\)\)>\.bp:not\(\.eroe\) \.f-r::before\{border-left:0;border-top:1px dashed CanvasText/.test(fcPair) && !/\.bp:not\(\.eroe\) \.f-r::before\{border-left:0/.test(bare),
+      'boom-city.css (source): the forced-colors horizontal economy tear lives ONLY inside the 360–939 pair block (no unscoped ".bp:not(.eroe) .f-r::before{border-left:0")');
+  }
   check(stagger >= 260 && /if \(!a \|\| reduce \|\| fl\.some\(function \(f\) \{ return f\.a === a; \}\)\) return;/.test(mapJs), `boom-map.js: the first view sends the planes ${stagger}ms apart (≥ 260), never two on one arc`);
   check(/var reduce = matchMedia\('\(prefers-reduced-motion: reduce\)'\)\.matches/.test(mapJs) && /if \(!reduce && window\.IntersectionObserver\)/.test(mapJs), 'boom-map.js: under reduced motion no plane flies and no arc is drawn in');
   check(/60080 - Date\.now\(\) % 60000/.test(mapJs) && /if \(!document\.hidden\) timer = setTimeout/.test(mapJs) && /addEventListener\('visibilitychange'/.test(mapJs)
@@ -1715,7 +1750,7 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
   }
 
   // the onda (P4, v1.7): the desk pages' canvas script, versioned in its URL; the hub's script loads
-  // it at every width after load, when idle (origin ROM at ≥940, the EUROPE board below) and it loops
+  // it at every width after load, when idle; the beat rises from the EUROPE board (#hubBoard) at every width, and it loops
   // only while a desk is open (boom-desks.js says so each minute)
   {
     const cfg = JSON.parse((H.match(/window\.BOOM_DESKS = (\{[\s\S]*?\});\s*<\/script>/) || [])[1] || '{}');

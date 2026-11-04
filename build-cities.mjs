@@ -214,8 +214,9 @@ export const HZ_W = 640, HZ_H = 520, HZ_VIEWBOX = `0 0 ${HZ_W} ${HZ_H}`;
 // bound by the WIDTH, and at 0.1/0.1 the two closest pins (AMS and LON) stood
 // 42.4px apart on a 320px phone — 44px targets overlapping by 1.6px. Room is
 // taken from the right, where Rome's label sits under its ring anyway, and a
-// little from the left, where Madrid's label needs the margin: 45.0px at
-// 320px, 55.9px at 390px (HUB_MAP_PX, asserted by the hub build).
+// little from the left, where Madrid's label needs the margin: with the
+// eight desks of 04/11/2026 AMS–LON measure 44.7px at 320px and 55.6px at
+// 390px (HUB_MAP_PX, asserted by the hub build).
 export const HZ_CAM = { lon: 5, lat: 29, dist: 1.3, tlon: 5, tlat: 51, pad: { l: 0.09, r: 0.06, t: 0.25, b: 0.08 } };
 // THE FIT NEVER ZOOMS IN PAST THIS SCALE (frame units per unit of the pinhole
 // plane; today's eight desks fit at 981). A far desk zooms the map OUT and
@@ -2246,23 +2247,39 @@ const HUB_BANNED = [
   [/\d+\s*(?:km|miles)\b/, 'a distance']
 ];
 
-// v1.7 review (04/11/2026): the registration a desk page may state is ONE — the
-// company's, in Rome (the founder took Valencia live on that condition, and
-// Barcelona's AICAT is the same question). Every desk refuses the vague claim
-// ("a registered agency", which a reader in a registry region reads as the
-// local register) and any "licensed/registered/listed/… in|with|by|at|under|on"
-// that does not land on Rome, the Rome Chamber of Commerce or the town hall
-// (the padrón); a student "enrolled at a university" is not a claim. A desk
-// that SELLS also refuses naming a licence or a register it does not hold;
-// Paris and Berlin (noindex drafts) say they open WITH a licensed partner, and
-// keep the first two rules only. Run on the visible text, the meta and the JSON-LD.
-const DESK_CLAIM_RE = /\b(?:licensed|registered|listed|authori[sz]ed|accredited|enrolled)\s+(?:in|with|by|at|under|on)\s+(?!Rome\b|the Rome Chamber of Commerce\b|the town hall\b|an? (?:university|school|college)\b|university\b)/i;
+// v1.7 review (04/11/2026, second round): the registration a desk page may state is ONE — the
+// company's, in Rome (the founder took Valencia live on that condition, and Barcelona's AICAT is
+// the same question). A CLAIM is something said about US: the rule is anchored on the company as
+// subject (we, we're, BOOM [+ two words], Egidi [Immobiliare S.r.l.], the desk/agency/company,
+// our desk/agency/company/agents) + a verb (is, are, has been, became…) + up to three words +
+// licensed/registered/listed/authorised/accredited/enrolled/certified/approved, unless it lands on
+// Rome, the Rome Chamber of Commerce, an office or a trade mark. The lease registered with the
+// Agenzia delle Entrate, homes listed on Rightmove, a tenant registered with the gemeente, a student
+// enrolled at a university: none is about us, and the first round refused them all. Every desk
+// also refuses the AGENCY ADJECTIVE ("a licensed agency", "a Valencia-registered agency", "an
+// accredited Valencian agency", "registered real estate agency"): only "an Italian real estate
+// agency registered in Rome" (participle AFTER the noun) is said. A desk that SELLS also refuses
+// "licensed to / authorised to / registered as … agent|operate|broker" and naming a licence or a
+// register it does not hold; Paris and Berlin (noindex drafts) open WITH a licensed partner and keep
+// the first two rules only. Run on the visible text, the meta and the JSON-LD; the OK and KO lists
+// in tests/cities/run.mjs go through these very arrays.
+const CLAIM_VERB = String.raw`is|are|was|were|has been|have been|is now|are now|became|becomes|remains|stays`;
+const CLAIM_SUBJECT = String.raw`\b(?:we're|we|BOOM(?:'s)?(?:\s+(?!(?:${CLAIM_VERB})\b)[\w'-]+){0,2}|Egidi(?:\s+Immobiliare(?:\s+S\.r\.l\.)?)?|the (?:desk|agency|company)|our (?:desk|agency|company|agents?))`;
+// the words between the verb and the participle never open another noun phrase (the lease, it, your home…)
+const CLAIM_GAP = String.raw`(?:\s+(?!(?:the|that|it|it's|its|your|you|their|they|this|lease|leases|contract|deposit|homes?|flats?)\b)[\w'-]+){0,3}`;
+const CLAIM_PRED = String.raw`(?:licensed|registered|listed|authori[sz]ed|accredited|enrolled|certified|approved)\b(?!\s+in Rome\b|\s+with the Rome Chamber of Commerce\b|\s+office\b|(?:\s+[\w-]+){0,3}\s+trade ?mark\b)`;
+const DESK_CLAIM_RE = new RegExp(String.raw`${CLAIM_SUBJECT}(?:\s+(?:${CLAIM_VERB})|(?<=\bwe're))${CLAIM_GAP}\s+${CLAIM_PRED}`, 'i');
+// the agency adjective: "[a|an|the …] licensed / Valencia-registered / accredited [Valencian] [real estate] agency|agent|broker|intermediary"
+// ("unlicensed agents" is a warning, not a claim)
+const DESK_AGENCY_RE = /\b(?!un|non)(?:[\w]+-)?(?:licensed|registered|accredited|authori[sz]ed|certified)\s+(?:(?!(?:with|by|in|at|on|to|through|via|as|an?|the|for|under)\b)[\w-]+\s+)?(?:real estate\s+)?(?:agency|agencies|agents?|brokers?|intermediar(?:y|ies))\b/i;
 export const DESK_BANNED = [
-  [/\ba registered (?:Italian )?(?:real estate )?agency\b/i, 'a registration stated without its place ("a registered agency" reads as the local register): say "an Italian real estate agency registered in Rome"'],
-  [DESK_CLAIM_RE, 'a licence or registration that does not land on Rome (the company is registered in Rome; no desk holds a local licence)']
+  [DESK_AGENCY_RE, 'an agency adjective ("a licensed agency", "a Valencia-registered agency", "a registered Italian agency" reads as the local register): say "an Italian real estate agency registered in Rome"'],
+  [DESK_CLAIM_RE, 'a licence or registration claimed for the company that does not land on Rome (the company is registered in Rome; no desk holds a local licence)']
 ];
 export const DESK_BANNED_SELL = [
-  [/\bRAICV\b|Registro de Agentes|\bAICAT\b|carte professionnelle|§\s?34c|licensed agent|registered (?:estate )?agent\b/i, 'a licence or a register a selling desk does not hold (RAICV, AICAT, carte professionnelle, §34c, "licensed/registered agent")']
+  [/\bRAICV\b|Registro de Agentes|\bAICAT\b|carte professionnelle|§\s?34c|\blicensed agent|\bregistered (?:estate )?agent\b/i, 'a licence or a register a selling desk does not hold (RAICV, AICAT, carte professionnelle, §34c, "licensed/registered agent")'],
+  [/\b(?:licensed to|authori[sz]ed to|registered as|accredited as|certified as)\b(?:\W+\w+){0,4}?\W+(?:agents?|agency|brokers?|operate|act|intermediar(?:y|ies))\b/i, 'a licence to operate claimed by a selling desk ("licensed to operate", "authorised to broker", "registered as an agent")'],
+  [/\b(?:Valencian|Catalan|Spanish|regional|Dutch|French|German|British|UK|English)\s+(?:(?:estate\s+)?agents?'?\s+)?regist(?:er|ry)\b|\bmember of (?:the )?\w+ regist(?:er|ry)\b/i, 'a register a selling desk does not hold (the Valencian register, a regional registry, "member of the … register")']
 ];
 
 const DAY_NAMES_LONG = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];

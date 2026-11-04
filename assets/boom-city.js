@@ -412,6 +412,7 @@
     var p = planOf(id);
     if (!p || !till || state() !== 'blank' || sending) return;
     opener = from || null;
+    tillX = scrollX; tillY = scrollY;
     tf.setAttribute('data-plan', id);
     txt('tTitle', p.label); txt('tPrice', eur(p.eur)); txt('tCond', p.condition); txt('tTag', p.name);
     var ul = $('tInc'); ul.textContent = '';
@@ -429,7 +430,7 @@
     track('begin_checkout', { currency: CUR, value: p.eur, items: [{ item_id: 'city_' + C.SLUG + '_' + id, item_name: p.label }], market: C.SLUG });
     try { $('tTitle').focus({ preventScroll: true }); } catch (e) {}
   }
-  var payTok = 0;
+  var payTok = 0, tillX = 0, tillY = 0;
   function closeTill() {
     payTok++;
     if (till && till.open) { if (typeof till.close === 'function') till.close(); else till.removeAttribute('open'); }
@@ -453,7 +454,11 @@
       document.documentElement.style.overflow = '';
       var fd = opener && opener.closest && opener.closest('details.fare');
       if (fd && !fd.open && document.contains(fd)) { fares.forEach(function (o) { o.open = o === fd; }); last = fd; sync(); }
-      if (opener && document.contains(opener) && !opener.hidden) { try { opener.focus({ preventScroll: true }); } catch (e) {} }
+      if (opener && document.contains(opener) && !opener.hidden) {
+        try { opener.focus({ preventScroll: true }); } catch (e) {}
+        var or = opener.getBoundingClientRect();
+        if (or.top < topLim() || or.bottom > innerHeight - stripH()) opener.scrollIntoView({ block: 'center', behavior: 'instant' });
+      }
       doorTwins();
     });
     $('tAlt').addEventListener('click', function () { opener = null; closeTill(); openForm(true); });
@@ -633,7 +638,11 @@
   onScroll();
   handleReturn();
   function deep() {
-    if (till && till.open) { if (!till.contains(document.activeElement)) { try { $('tTitle').focus({ preventScroll: true }); } catch (e) {} } return; }
+    if (till && till.open) {
+      scrollTo({ left: tillX, top: tillY, behavior: 'instant' });
+      if (!till.contains(document.activeElement)) { try { $('tTitle').focus({ preventScroll: true }); } catch (e) {} }
+      return;
+    }
     var m = /^#(fare-|pay-)?([a-z-]+)$/.exec(location.hash), id = m && m[2], d = id && planOf(id) && $('fare-' + id);
     if (!d || /[?&]paid=/.test(location.search) || state() !== 'blank') return;
     try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}

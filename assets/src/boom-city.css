@@ -221,12 +221,18 @@ h1 .h1a{display:block;color:var(--t2);font-size:clamp(26px,7vw,50px);text-wrap:b
 .bp:not(.eroe) .f-price{grid-area:p}
 .bp:not(.eroe) .f-cond{grid-area:c;margin-top:1px}
 .bp:not(.eroe) .f-tog{grid-area:t}
+/* below 940 where an economy ticket lies down (a pair member open, or under 360) the stub is 6px wider: the €199/£199
+   cleared the pip by 0–2 px (v1.7 review); the closed pair at the fold is a flex column and does not read this */
+@media (max-width:939px){.bp:not(.eroe) .fare>summary{grid-template-columns:minmax(0,1fr) clamp(118px,32%,180px)}}
 /* between 360 and 939, while neither is open, the two are a PAIR side by side: the name and the situation, a tear, the darker stub at the foot */
 @media (min-width:360px) and (max-width:939px){
   .bps:not(.pair-open):not(:has(>.bp:not(.eroe)>[open])){grid-template-columns:repeat(2,minmax(0,1fr))}
   .bps:not(.pair-open):not(:has(>.bp:not(.eroe)>[open]))>.eroe{grid-column:1/-1}
+  /* the two closed tickets are as tall as their row (the summary's 100% now resolves) and the name block takes the
+     slack: both stubs at the foot, on one line (v1.7 review) */
+  .bps:not(.pair-open):not(:has(>.bp:not(.eroe)>[open]))>.bp:not(.eroe) .fare{height:100%}
   .bps:not(.pair-open):not(:has(>.bp:not(.eroe)>[open]))>.bp:not(.eroe) .fare>summary{display:flex;flex-direction:column;height:100%;padding:7px 9px 0 calc(var(--bw) + 10px)}
-  .bps:not(.pair-open):not(:has(>.bp:not(.eroe)>[open]))>.bp:not(.eroe) .f-l{padding:0}
+  .bps:not(.pair-open):not(:has(>.bp:not(.eroe)>[open]))>.bp:not(.eroe) .f-l{padding:0;flex:1 0 auto}
   .bps:not(.pair-open):not(:has(>.bp:not(.eroe)>[open]))>.bp:not(.eroe) .f-when{font-size:12px;line-height:1.26}
   .bps:not(.pair-open):not(:has(>.bp:not(.eroe)>[open]))>.bp:not(.eroe) .f-r{align-content:end;margin:7px -9px 0 calc(-1 * (var(--bw) + 10px));padding:10px 9px 9px calc(var(--bw) + 10px);background:linear-gradient(180deg,#0B0B0E,#08080A)}
   .bps:not(.pair-open):not(:has(>.bp:not(.eroe)>[open]))>.bp:not(.eroe) .f-r::before{left:9px;right:9px;top:-3px;bottom:auto;width:auto;height:8px;background-size:9px 8px;background-repeat:repeat-x}

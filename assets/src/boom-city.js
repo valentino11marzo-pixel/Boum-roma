@@ -495,6 +495,8 @@
     var p = planOf(id);
     if (!p || !till || state() !== 'blank' || sending) return;
     opener = from || null;
+    /* where the page stood when the till opened: a fragment jump behind the modal is undone (deep) */
+    tillX = scrollX; tillY = scrollY;
     tf.setAttribute('data-plan', id);
     txt('tTitle', p.label); txt('tPrice', eur(p.eur)); txt('tCond', p.condition); txt('tTag', p.name);
     var ul = $('tInc'); ul.textContent = '';
@@ -513,7 +515,7 @@
     track('begin_checkout', { currency: CUR, value: p.eur, items: [{ item_id: 'city_' + C.SLUG + '_' + id, item_name: p.label }], market: C.SLUG });
     try { $('tTitle').focus({ preventScroll: true }); } catch (e) {}
   }
-  var payTok = 0;
+  var payTok = 0, tillX = 0, tillY = 0;
   function closeTill() {
     payTok++;
     if (till && till.open) { if (typeof till.close === 'function') till.close(); else till.removeAttribute('open'); }
@@ -543,7 +545,13 @@
          window shrank below 940): open that ticket as a tap does, or the focus would fall to <body> */
       var fd = opener && opener.closest && opener.closest('details.fare');
       if (fd && !fd.open && document.contains(fd)) { fares.forEach(function (o) { o.open = o === fd; }); last = fd; sync(); }
-      if (opener && document.contains(opener) && !opener.hidden) { try { opener.focus({ preventScroll: true }); } catch (e) {} }
+      if (opener && document.contains(opener) && !opener.hidden) {
+        try { opener.focus({ preventScroll: true }); } catch (e) {}
+        /* the focus is seen (WCAG 2.4.7 / 2.4.11): after a resize, or a page moved behind the modal, the opener may sit
+           under the sticky header or below the viewport and its strip — bring it into the band, as place() does */
+        var or = opener.getBoundingClientRect();
+        if (or.top < topLim() || or.bottom > innerHeight - stripH()) opener.scrollIntoView({ block: 'center', behavior: 'instant' });
+      }
       doorTwins();
     });
     /* "Prefer to talk first?" — the free door, in the same ticket */
@@ -766,8 +774,14 @@
      re-applies a fragment) unless the reader has moved; fare_open {via:'link'} counts it. ── */
   function deep() {
     /* a link followed while the till is open never re-targets the tickets behind the modal; the browser's own
-       fragment jump blurs the till, so the focus goes back to its title */
-    if (till && till.open) { if (!till.contains(document.activeElement)) { try { $('tTitle').focus({ preventScroll: true }); } catch (e) {} } return; }
+       fragment jump has started to scroll the page behind it (smoothly: at this point it may not have moved yet) —
+       an instant scrollTo cancels it and keeps the page where the till found it; the jump also blurred the till,
+       so the focus goes back to its title */
+    if (till && till.open) {
+      scrollTo({ left: tillX, top: tillY, behavior: 'instant' });
+      if (!till.contains(document.activeElement)) { try { $('tTitle').focus({ preventScroll: true }); } catch (e) {} }
+      return;
+    }
     var m = /^#(fare-|pay-)?([a-z-]+)$/.exec(location.hash), id = m && m[2], d = id && planOf(id) && $('fare-' + id);
     if (!d || /[?&]paid=/.test(location.search) || state() !== 'blank') return;
     try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}

@@ -2927,7 +2927,7 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
   reclamaciones, il calendario 2028; nessuno ha ancora letto un lead o un
   ordine dei desk: «validato» non si può dire. Test: i conteggi del lancio
   (Stage 1) sono superati; quelli in vigore stanno in «IL BIGLIETTO v1.7»
-  (dopo la revisione: `run.mjs` 993, `ui.mjs` 444, `checkout.mjs` 117,
+  (dopo il secondo giro della revisione: `run.mjs` 998, `ui.mjs` 475, `checkout.mjs` 117,
   `calendar.mjs` 97).
 - **IL BIGLIETTO v1.7 (04/11/2026 — «iteriamo la prima card verso i biglietti
   della home, la mappa, l'onda, e Valencia live»).** Quattro prototipi della prima
@@ -3115,6 +3115,70 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
        tre nuovi sul loro mercato.
      - `updated` dei JSON e `<lastmod>` della sitemap al 04/11 per i sei desk
        live e /desks (quindi `dateModified` 2026-11-04).
+     **Il secondo giro (04/11, sera, commit «second review round»)**, sui
+     rilievi dei verificatori del primo:
+     - **La guardia delle iscrizioni guarda il SOGGETTO.** La regola del primo
+       giro non aveva soggetto e rifiutava frasi vere: «The lease is registered
+       with the Agenzia delle Entrate within 30 days», «Homes listed on
+       Rightmove go fast.», «Once you are registered with the gemeente you get
+       a BSN.», «Students enrolled at the Universidad Complutense qualify.»; e
+       lasciava passare «licensed to operate in Spain», «a Valencia-registered
+       agency», «an accredited Valencian agency», «member of the Valencian
+       register». Ora `DESK_BANNED` ha due regole: la PRETESA ancorata sull'azienda
+       (we · we're · BOOM [+ due parole] · Egidi [Immobiliare S.r.l.] · the
+       desk/agency/company · our desk/agency/company/agents, + un verbo is/are/
+       has been/became/remains…, + al massimo tre parole che non aprono un altro
+       sintagma — the, it, your, lease… —, + licensed/registered/listed/
+       authorised/accredited/enrolled/certified/approved, salvo «in Rome», «with
+       the Rome Chamber of Commerce», «office», «trade mark») e l'AGGETTIVO
+       D'AGENZIA («[a] licensed / Valencia-registered / accredited [Valencian]
+       [real estate] agency|agent|broker|intermediary»; «unlicensed agents» è un
+       avviso, passa; «an Italian real estate agency registered in Rome» passa,
+       il participio sta DOPO il nome). `DESK_BANNED_SELL` aggiunge «licensed
+       to / authorised to / registered as / accredited as / certified as» con
+       agent/agency/broker/operate/act entro quattro parole, e i registri per
+       nome («Valencian / Catalan / Spanish / regional / Dutch / French / German
+       / British / UK / English [agents'] register|registry», «member of the …
+       register»). `tests/cities/run.mjs` importa i due array dal build e ci fa
+       passare una lista OK (18 frasi vere: le quattro sopra, Roma, la Camera di
+       Commercio, il municipio, il padrón, il marchio, la sede, lo schema del
+       deposito, i partner delle bozze) e una lista KO (16 pretese) — e le
+       stesse due liste nello specchio letterale che legge le pagine costruite.
+       Verificato su copie: le quattro frasi vere nei JSON costruiscono pulito,
+       le quattordici pretese nella FAQ di Valencia sono rifiutate.
+     - **Il fuoco si vede**: chiusa la cassa dopo un ridimensionamento
+       1440→390, il bottone di pagamento riaperto stava a 870–920 su uno
+       schermo di 844 (o sotto la testata). La chiusura, dopo il focus,
+       controlla il rettangolo contro la fascia visibile (`topLim()`, sopra la
+       striscia) e lo centra (`scrollIntoView` istantaneo). `ui.mjs` lo misura a
+       390×844 e 390×664.
+     - **La pagina dietro la cassa non si muove**: un cambio di hash con la
+       cassa aperta faceva scorrere il documento (0→289 a 1440, 412→922 a 390:
+       il salto al frammento è smooth, e quando arriva `hashchange` può non
+       essere ancora partito). `openTill` registra `scrollX/scrollY`, `deep()`
+       con la cassa aperta fa SEMPRE un `scrollTo` istantaneo lì (annulla
+       l'animazione), poi rimette il fuoco su `#tTitle`; dopo Escape l'apritore
+       sta nella fascia visibile (1440 e 390).
+     - **La coppia economy su una riga**: fra 360 e 939 i due biglietti chiusi
+       hanno la stessa altezza e i due stub cominciano sulla stessa riga (il
+       `.fare` riempie la riga, il blocco del nome prende lo spazio in più:
+       prima Attended Viewing era fino a 30px più corto). I numeri della piega
+       non cambiano (il prezzo più basso era già quello di Application Pack:
+       Spagna 589, Amsterdam e Milano 571, Londra 556, Parigi e Berlino 550 a
+       390×664, limite 597).
+     - **Il prezzo lontano dal pip**: dove un biglietto economy è sdraiato sotto
+       i 940 (un membro della coppia aperto, o sotto i 360) lo stub ha un
+       minimo di 118px invece di 112: fra «€199»/«£199» e il «+/−» ora 6,2px
+       (8,1 a Londra) invece di 0,2 (2,1).
+     - `llms.txt` (Deposit Recovery, Roma): «BOOM is an Italian real estate
+       agency registered in Rome, not a law firm.»; corretti due commenti
+       (AMS–LON 44,7 px a 320 e 55,6 a 390; il battito dell'hub parte dal
+       tabellone a ogni larghezza).
+     - Le guardie solo-browser hanno anche un perno sulla sorgente in `run.mjs`
+       (la riapertura del biglietto e lo scroll alla chiusura della cassa, il
+       ritorno anticipato di `deep()` col `scrollTo`, lo strappo orizzontale in
+       forced colors solo dentro il blocco della coppia): mordono anche dove
+       `ui.mjs` salta.
   Aperte, del fondatore e del legale: il parere valenciano sul RAICV; la data di
   convalida del RDL 29/2026 (12/11 in questo file, ~6–7/11 dedotta, non
   confermata: regge l'«Optional, chosen in writing» di TRE desk con la cassa);
@@ -3129,9 +3193,9 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
   stampa già nel piede del pass; +~80 B di JS se lo si vuole); le porte dell'hub
   restano su `#fares`; nessuno ha ancora letto un lead o un ordine dei desk —
   «validato» non si può dire.
-  Test (dopo la revisione del 04/11): `tests/cities/run.mjs` 993, `ui.mjs`
-  444, `checkout.mjs` 117, `calendar.mjs` 97, `tests/pfs/markets-ui.mjs` 25
-  (prima della revisione 978 e 423); più consentbanner, scroll, cielo, seo, crawl, llmstxt,
+  Test (dopo il secondo giro del 04/11): `tests/cities/run.mjs` 998, `ui.mjs`
+  475, `checkout.mjs` 117, `calendar.mjs` 97, `tests/pfs/markets-ui.mjs` 25
+  (dopo il primo giro 993 e 444; prima della revisione 978 e 423); più consentbanner, scroll, cielo, seo, crawl, llmstxt,
   verita, whatsapp, testata; il `npm test` intero il 04/11 (2.291 s, `BOOM_PLAYWRIGHT` impostato): 288 suite
   verdi, 4 rosse per ragioni estranee ai desk — `magicsigncustomui` e
   `magicsigncustomsigner` scaricano pdf.js da cdn.jsdelivr.net e il sandbox non
