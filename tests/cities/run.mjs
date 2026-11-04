@@ -64,7 +64,7 @@ import {
   orgNode, serviceNode, numberWord, listJoin, dateLong, homeCountryOf, isHomeDesk,
   renderHub, buildHub, HUB_WEIGHT_KB, HUB_BUDGET, HUB_FILE, HUB_PATH, COUNTRY_NAME, hoursSentence, hubText, CALL_RE, RATING_RE,
   reviewSentences, claimProblems, claimGuard, lintClaims, loadClaims, CLAIM_VOCAB_RE, CLAIM_KINDS, CLAIMS_FILE,
-  hasClaimVocab, claimHits, sellHit, closeUp, cleanText, normSentence, PLACE_RE, htmlFieldGuard, neutralValue, joinCut
+  hasClaimVocab, claimHits, sellHit, closeUp, cleanText, normSentence, PLACE_RE, htmlFieldGuard, neutralValue, joinCut, numKeyCode
 } from '../../build-cities.mjs';
 import SCALO from '../../js/scalo-codes.js';
 import CAL from '../../js/desk-calendar.js';
@@ -1230,7 +1230,7 @@ tplRefuses('<p class="proof">', '<p class="proof">Pay by bank transfer · ', /no
       const pg5 = (b) => `<!DOCTYPE html><html><head><title>t</title></head><body><main>${b}</main></body></html>`;
       const why5 = (h, sell = true) => claimProblems(pg5(h), { claims, sell }).map((p) => p.why);
       // (F1a) the splitter never cuts after the abbreviation of a number; it still splits a sentence, and "S.r.l. is" stays one
-      const at5 = (h) => reviewSentences(pg5(`<p>${h}</p>`)).filter((x) => x.where === 'text' && !x.cut).map((x) => x.text);
+      const at5 = (h) => reviewSentences(pg5(`<p>${h}</p>`)).filter((x) => x.where === 'text' && !x.cut && !x.ncut).map((x) => x.text);
       const runOn = 'n. 1234. Lic. no. 4471. Regd. 1234. Agent ref. CV-1234. Núm. 1234. Nr. 1234. REG. NO. 1234.';
       check(JSON.stringify(at5('Agent no. CV-1234.')) === '["Agent no. CV-1234"]' && JSON.stringify(at5('Reg. No. 12345.')) === '["Reg. No. 12345"]'
         && JSON.stringify(at5(runOn)) === '["n. 1234","Lic. no. 4471","Regd. 1234","Agent ref. CV-1234","Núm. 1234","Nr. 1234","REG. NO. 1234"]'
@@ -1274,11 +1274,15 @@ tplRefuses('<p class="proof">', '<p class="proof">Pay by bank transfer · ', /no
         ['valencia', 'a fact-sheet row "Registration" / "At the town hall.<br>CV-1234" (a <br> is the same value)', (c) => c.bref.rows.splice(1, 0, { dt: 'Registration', ddHtml: 'At the town hall.<br>CV-1234' }), 'Registration', 'CV-1234'],
         ['valencia', 'a fact-sheet row "Registration" / "✓"', (c) => c.bref.rows.splice(1, 0, { dt: 'Registration', ddHtml: '✓' }), 'Registration', '✓'],
         ['valencia', 'a fact-sheet row "Registration" / "Active."', (c) => c.bref.rows.splice(1, 0, { dt: 'Registration', ddHtml: 'Active.' }), 'Registration', 'Active'],
-        ['valencia', 'a fact-sheet row "Registration · CV-1234" (the value inside the label)', (c) => c.bref.rows.splice(1, 0, { dt: 'Registration · CV-1234', ddHtml: 'On request.' }), 'Registration', 'CV-1234'],
+        ['valencia', 'a fact-sheet row "Registration · Yes, since 2026" (the value inside the label)', (c) => c.bref.rows.splice(1, 0, { dt: 'Registration · Yes, since 2026', ddHtml: 'On request.' }), 'Registration', 'Yes, since 2026'],
         ['valencia', 'a FAQ answer with "Registration. Yes, since 2026." inside prose', (c) => { c.faq.items[1].a += ' Registration. Yes, since 2026.'; }, 'Registration', 'Yes, since 2026']];
       const f2miss = F2.filter(([s, , mut, label, value]) => !new RegExp(`next to the reviewed label \\([^)]*"${reEsc(label)}"[^)]*\\), a sentence is not reviewed and reads as its value .*"${reEsc(value)}" \\([^)]*text`).test(desk(s, mut)));
       check(!f2miss.length, `fifth round: the ${F2.length} values next to a reviewed label ("Registration", "Generalitat", "INCASÒL", "fianza · INCASÒL"; after it, before it as a check's legal label, after a <br>) are refused on their desk, naming the label and the value`,
         f2miss.map(([s, t, mut]) => `${s}: ${t} → ${desk(s, mut).slice(0, 200)}`).join(' | '));
+      // since the seventh round "Registration · CV-1234" is itself a number shape across the middle dot (the keyword "registration", the
+      // code): the splitter belt refuses it before the label rule
+      check(/split by the sentence splitter \(on the page it reads as one claim\): "Registration · CV-1234" \(text\)/.test(desk('valencia', (c) => c.bref.rows.splice(1, 0, { dt: 'Registration · CV-1234', ddHtml: 'On request.' }))),
+        'fifth round, as of the seventh: a fact-sheet row "Registration · CV-1234" (the code inside the label) is a number shape across the middle dot, refused by the splitter belt');
       {
         const m1 = desk('valencia', (c) => { c.faq.items[1].a += ' Registration. No. CV-1234.'; });
         check(hasClaimVocab('No. CV-1234') && /: "No\. CV-1234" \((?:ld, text|text, ld)\)/.test(m1) && !/"How do I avoid/.test(m1),
@@ -1363,7 +1367,7 @@ tplRefuses('<p class="proof">', '<p class="proof">Pay by bank transfer · ', /no
         ['valencia', 'a FAQ item "What is your agent number in Valencia?" / "CV-1234."', (c) => { c.faq.items.splice(3, 0, { q: 'What is your agent number in Valencia?', a: 'CV-1234.' }); }, 'What is your agent number in Valencia? CV-1234'],
         ['london', 'a FAQ item "Your agent number?" / "4471."', (c) => { c.faq.items.splice(2, 0, { q: 'Your agent number?', a: '4471.' }); }, 'Your agent number? 4471'],
         ['valencia', 'a fact-sheet row "Agent number in Valencia" / "CV-1234" (a number key, the code apart)', row('Agent number in Valencia', 'CV-1234', 6), 'Agent number in Valencia CV-1234']];
-      const g1bmiss = G1b.filter(([s, , mut, join]) => !new RegExp(`${XCUT}.*${reEsc(join)}" \\(text\\)`).test(desk(s, mut)));
+      const g1bmiss = G1b.filter(([s, , mut, join]) => !new RegExp(`${XCUT}.*${reEsc(join)}" \\(text(?:, ld)?\\)`).test(desk(s, mut)));
       check(!g1bmiss.length, `sixth round: the ${G1b.length} splits inside one value (a <br>, a newline — whatever the first line's length), between a check's legal label and its title, and between a FAQ question and its answer (a number key, "agent number", and a code) are refused, the join quoted`,
         g1bmiss.map(([s, t, mut]) => `${s}: ${t} → ${desk(s, mut).slice(0, 200)}`).join(' | '));
       // the register's initials split between a label and its value: a ban on a desk that sells, the belt on /desks
@@ -1384,7 +1388,7 @@ tplRefuses('<p class="proof">', '<p class="proof">Pay by bank transfer · ', /no
           const joins = []; reviewSentences(h, { joins });
           for (const j of joins) { n++; kinds[j.how] = (kinds[j.how] || 0) + 1; if (j.cut) fired.push(`${x}: ${j.parts.join(' | ')}`); }
         }
-        check(n > 1000 && kinds.label > 0 && kinds.line > 0 && kinds.summary > 0 && !fired.length, `sixth round: on the nine built pages the belt across blocks reads ${n} joins (label ${kinds.label}, line ${kinds.line}, summary ${kinds.summary}) and refuses none`, fired.join(' | '));
+        check(n > 1000 && kinds.label > 0 && kinds.line > 0 && kinds.summary > 0 && !fired.length, `sixth round: on the nine built pages the belt across blocks reads ${n} joins (${Object.entries(kinds).map(([k, v]) => `${k} ${v}`).join(', ')}) and refuses none`, fired.join(' | '));
         check(['Who', 'Operated by', 'Egidi Immobiliare S.r.l.', 'Passport or EU ID', 'Email or WhatsApp number', 'Valentino Egidi tenant-side agent'].every((l) => !joinCut([l, 'VAT IT17322991005, REA RM-1710623, 00186 Roma, AMS 02, Mon–Fri 09:00–19:00']))
           && joinCut(['Agent no.', 'CV-1234']) === 'hits' && joinCut(['What is your agent number in Valencia?', 'CV-1234.']) === 'number' && joinCut(['ID', 'CV-1234']) === 'number' && !joinCut(['Agent number', 'Since 2026, €500 and 2,500 m² of flats']),
           'sixth round: joinCut — a label that is no number key (Who, Operated by, the company, "EU ID", "WhatsApp number", the hours) never makes a value\'s code a claim; "Agent no." | "CV-1234" is a hit, a number key and a code apart is a split; a year, a price, a measure are no code');
@@ -1423,8 +1427,165 @@ tplRefuses('<p class="proof">', '<p class="proof">Pay by bank transfer · ', /no
         `sixth round: "${G3.join('", "')}" build clean in a FAQ answer and a check text on valencia (with the i flag the code's letters took "in", "for", "fee", "has", "saw"), and no amount, measure or year after in/since reads as a code`,
         g3bad.map(([t, w, r]) => `${t} in ${w}: ${r.slice(0, 160)}`).join(' | '));
       check(['Our agent number is 1234.', 'Our agent no. is CV-1234.', 'Agent no. cv-1234.', 'Agent N. 1234.'].every((t) => new RegExp(`not reviewed in cities/_claims\\.json: "${reEsc(normSentence(t))}" \\(`).test(desk('valencia', (c) => { c.faq.items[1].a += ` ${t}`; })))
-        && JSON.stringify(reviewSentences(pg6('<p>Agent N. 1234. Iscrizione N. 5678.</p>')).filter((x) => x.where === 'text' && !x.cut).map((x) => x.text)) === '["Agent N. 1234","Iscrizione N. 5678"]',
+        && JSON.stringify(reviewSentences(pg6('<p>Agent N. 1234. Iscrizione N. 5678.</p>')).filter((x) => x.where === 'text' && !x.cut && !x.ncut).map((x) => x.text)) === '["Agent N. 1234","Iscrizione N. 5678"]',
         'sixth round: the copula ("Our agent number is 1234", "Our agent no. is CV-1234") and a lower-case code joined to its digits ("cv-1234") are number shapes; "Agent N. 1234" stays one sentence (an upper-case "N." is a number abbreviation), refused as unreviewed');
+    }
+    // ── seventh round (04/11/2026): the number key and its code wherever they stand — a label of any length with its value, in
+    //    either order, on any line of a block, across the house separators, anywhere in one string, on every line of a FAQ
+    //    answer, and across a page's title and its description or a JSON-LD node's name and its description ──
+    {
+      const desk = (slug, mut) => { const c = clone(CITY[slug]); mut(c); try { render(c); return 'built clean'; } catch (e) { return e instanceof BuildError ? e.message : `threw ${e.name}: ${e.message}`; } };
+      const reEsc = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const pg7 = (b) => `<!DOCTYPE html><html><head><title>t</title></head><body><main>${b}</main></body></html>`;
+      const why7 = (h, sell = true) => claimProblems(pg7(h), { claims, sell }).map((p) => p.why);
+      const row = (dt, dd, at) => (c) => { c.bref.rows.splice(at, 0, { dt, ddHtml: dd }); };
+      const XCUT = 'split between a label and its value \\(on the page they read as one claim\\): ';
+      const NCUT = 'stand in one block or string \\(on the page the code reads as that number\\): ';
+      const UNREV = 'not reviewed in cities/_claims\\.json: ';
+      const refused = (msg, list) => list.filter(([s, , mut, quote, at]) => !new RegExp(`${msg}.*${reEsc(quote)}${at ? `[^"]*" \\(${at}` : ''}`).test(desk(s, mut)));
+      const say = (miss, list) => miss.map(([s, t, mut]) => `${s}: ${t} → ${desk(s, mut).slice(0, 220)}`).join(' | ');
+      // (P1) a number key in a label of five words or more: a fact-sheet row on the six desks that sell and on both drafts, a how step's heading
+      const P1 = [
+        ['valencia', 'row 2 "Our agent number in Valencia" / "CV-1234."', row('Our agent number in Valencia', 'CV-1234.', 2), '"Our agent number in Valencia CV-1234" (text'],
+        ['valencia', 'row 6 "Our agent number in Valencia" / "CV-1234."', row('Our agent number in Valencia', 'CV-1234.', 6), '"Our agent number in Valencia CV-1234" (text'],
+        ['valencia', 'row 6 "Agent number of our Valencia desk" / "CV-1234"', row('Agent number of our Valencia desk', 'CV-1234', 6), '"Agent number of our Valencia desk CV-1234" (text'],
+        ['madrid', 'row 6 "Our agent number in Madrid" / "M-4471."', row('Our agent number in Madrid', 'M-4471.', 6), '"Our agent number in Madrid M-4471" (text'],
+        ['london', 'row 6 "Our agency number in England" / "4471."', row('Our agency number in England', '4471.', 6), '"Our agency number in England 4471" (text'],
+        ['milan', 'row 6 "Our agent number in Milan" / "MI-123456."', row('Our agent number in Milan', 'MI-123456.', 6), '"Our agent number in Milan MI-123456" (text'],
+        ['amsterdam', 'row 6 "Our agent number in Amsterdam" / "12345678."', row('Our agent number in Amsterdam', '12345678.', 6), '"Our agent number in Amsterdam 12345678" (text'],
+        ['barcelona', 'row 6 "Our agent number in Barcelona" / "B-5521."', row('Our agent number in Barcelona', 'B-5521.', 6), '"Our agent number in Barcelona B-5521" (text'],
+        ['berlin', 'row 5 "Our agent number in Berlin" / "B-4471." (draft)', row('Our agent number in Berlin', 'B-4471.', 5), '"Our agent number in Berlin B-4471" (text'],
+        ['paris', 'row 5 "Our agent number in Paris" / "P-4471." (draft)', row('Our agent number in Paris', 'P-4471.', 5), '"Our agent number in Paris P-4471" (text'],
+        ['valencia', 'a how step headed "Our agent number in Spain" whose text is "CV-1234, on every letter we send."', (c) => { Object.assign(c.how.steps[1], { h: 'Our agent number in Spain', p: 'CV-1234, on every letter we send.' }); }, '"Our agent number in Spain CV-1234, on every letter we send" (text'],
+        ['madrid', 'a how step headed "Our agent number in Spain" whose text is "M-4471, on every letter we send."', (c) => { Object.assign(c.how.steps[1], { h: 'Our agent number in Spain', p: 'M-4471, on every letter we send.' }); }, '"Our agent number in Spain M-4471, on every letter we send" (text']];
+      const p1miss = refused(XCUT, P1);
+      check(!p1miss.length, `seventh round: the ${P1.length} labels of five words or more that carry a number key ("Our agent number in Valencia" / "CV-1234." on the six desks that sell and on both drafts, a how step's heading "Our agent number in Spain" / "CV-1234, …") are joined with their value and refused, the join quoted`, say(p1miss, P1));
+      // (P3) the other way round: the code in the label, the number key in the value — short or long label, a row or a check
+      const P3 = [
+        ['valencia', 'row 2 "CV-1234" / "Our agent number in Valencia."', row('CV-1234', 'Our agent number in Valencia.', 2), '"CV-1234 Our agent number in Valencia" (text'],
+        ['valencia', 'row 6 "CV-1234" / "Our agent number in Valencia."', row('CV-1234', 'Our agent number in Valencia.', 6), '"CV-1234 Our agent number in Valencia" (text'],
+        ['madrid', 'row 6 "M-4471" / "Our agent number in Madrid."', row('M-4471', 'Our agent number in Madrid.', 6), '"M-4471 Our agent number in Madrid" (text'],
+        ['berlin', 'row 5 "B-4471" / "Our agent number in Berlin." (draft)', row('B-4471', 'Our agent number in Berlin.', 5), '"B-4471 Our agent number in Berlin" (text'],
+        ['valencia', 'a check whose legal label is "CV-1234" and whose title is "Our agent number"', (c) => { Object.assign(c.checks.items[4], { at: 'CV-1234', title: 'Our agent number', text: 'Shown on every letter we send.' }); }, '"CV-1234 Our agent number" (text'],
+        ['valencia', 'row 6 "Printed on every letter we send: CV-1234" / "Our agent number in Valencia." (a long label)', row('Printed on every letter we send: CV-1234', 'Our agent number in Valencia.', 6), '"Printed on every letter we send: CV-1234 Our agent number in Valencia" (text']];
+      const p3miss = refused(XCUT, P3);
+      check(!p3miss.length, `seventh round: the ${P3.length} reversed splits (the code in the label, the number key in the value: "CV-1234" / "Our agent number in Valencia.", a check {at "CV-1234", title "Our agent number"}, a long label ending on the code) are refused on the desk page, the join quoted`, say(p3miss, P3));
+      // (P4, and its siblings in a fact-sheet row) the code on a later line of the value's block: a FAQ answer with a newline, a value with a <br>
+      const P4 = [
+        ['valencia', 'a FAQ item "Do you have an agent number in Valencia?" / "Yes.⏎CV-1234."', (c) => { c.faq.items.splice(3, 0, { q: 'Do you have an agent number in Valencia?', a: 'Yes.\nCV-1234.' }); }, '"Do you have an agent number in Valencia? Yes. CV-1234" (text'],
+        ['valencia', 'a FAQ item "What is your agent number in Valencia?" / "Ask us.⏎CV-1234."', (c) => { c.faq.items.splice(3, 0, { q: 'What is your agent number in Valencia?', a: 'Ask us.\nCV-1234.' }); }, '"What is your agent number in Valencia? Ask us. CV-1234" (text'],
+        ['london', 'a FAQ item "Your agent number?" / "We print it on every letter.⏎4471."', (c) => { c.faq.items.splice(2, 0, { q: 'Your agent number?', a: 'We print it on every letter.\n4471.' }); }, '"Your agent number? We print it on every letter. 4471" (text'],
+        ['valencia', 'a check titled "Our agent number" whose text is "Ask us.⏎CV-1234, on every letter."', (c) => { Object.assign(c.checks.items[4], { title: 'Our agent number', text: 'Ask us.\nCV-1234, on every letter.' }); }, 'Our agent number Ask us. CV-1234, on every letter" (text'],
+        ['valencia', 'a check whose legal label is "Our agent number", titled "In Valencia", whose text is "Ask us.⏎CV-1234, on every letter." (only the summary reads the label with the answer\'s second line)', (c) => { Object.assign(c.checks.items[4], { at: 'Our agent number', title: 'In Valencia', text: 'Ask us.\nCV-1234, on every letter.' }); }, '"Our agent number In Valencia Ask us. CV-1234, on every letter" (text'],
+        ['valencia', 'a fact-sheet row "Our agent number" / "In Valencia:<br>CV-1234."', row('Our agent number', 'In Valencia:<br>CV-1234.', 6), '"Our agent number In Valencia: CV-1234" (text'],
+        ['madrid', 'a fact-sheet row "M-4471" / "On every letter.<br>Our agent number in Madrid."', row('M-4471', 'On every letter.<br>Our agent number in Madrid.', 6), '"M-4471 On every letter. Our agent number in Madrid" (text'],
+        ['valencia', 'a fact-sheet value "Our agent number<br>in Valencia." before a row labelled "CV-1234"', (c) => { c.bref.rows.splice(6, 0, { dt: 'Ours', ddHtml: 'Our agent number<br>in Valencia.' }, { dt: 'CV-1234', ddHtml: 'On every letter.' }); }, '"Our agent number in Valencia. CV-1234" (text']];
+      const p4miss = refused(XCUT, P4);
+      check(!p4miss.length, `seventh round: the ${P4.length} codes on a later line of the value's block (a FAQ answer "Yes.⏎CV-1234.", a check's text, a fact-sheet value "In Valencia:<br>CV-1234.", either order, the key on a first line) are joined with the question, the title or the label and refused`, say(p4miss, P4));
+      // (P2) the house separators between the keyword and the code: the number shape is read whole, and the guard refuses it (unreviewed,
+      // or the splitter belt for the spaced ·), on the six desks that sell and on a draft, wherever the string stands
+      const GUARD = `(?:${UNREV}|split by the sentence splitter \\(on the page it reads as one claim\\): |${XCUT}|${NCUT})`;
+      const P2 = [];
+      for (const [city, code] of [['valencia', 'CV-1234'], ['madrid', 'M-4471'], ['london', '4471'], ['milan', 'MI-123456'], ['amsterdam', '12345678'], ['barcelona', 'B-5521']]) P2.push([city, `a fact-sheet value "… Agent no. — ${code}."`, (c) => { c.bref.rows[4].ddHtml += ` Agent no. — ${code}.`; }, `Agent no. — ${code}`]);
+      // ('[' and '{' are a placeholder and a token in a desk's JSON, refused before the guard: they stay in the unit list SEPS)
+      for (const [sep, close] of [[' – ', ''], [' · ', ''], [' • ', ''], [' / ', ''], [' | ', ''], [' (', ')'], [' “', '”'], [' "', '"'], [" '", "'"], [' ‘', '’'], [' «', '»'], ['-', ''], [': ', '']]) {
+        const x = `Agent no.${sep}CV-1234${close}`;
+        P2.push(['valencia', `a fact-sheet value "… ${x}."`, (c) => { c.bref.rows[4].ddHtml += ` ${x}.`; }, x]);
+      }
+      P2.push(
+        ['valencia', 'the Who row, after the company\'s Rome line, "Agent number (CV-1234)."', (c) => { c.bref.rows[0].ddHtml += ' Agent number (CV-1234).'; }, 'Agent number (CV-1234)'],
+        ['madrid', 'the Who row "… Agent number (M-4471)."', (c) => { c.bref.rows[0].ddHtml += ' Agent number (M-4471).'; }, 'Agent number (M-4471)'],
+        ['london', 'the Who row "… Agency number — 4471."', (c) => { c.bref.rows[0].ddHtml += ' Agency number — 4471.'; }, 'Agency number — 4471'],
+        ['valencia', 'a check\'s legal label "Agent no. · CV-1234"', (c) => { c.checks.items[3].at = 'Agent no. · CV-1234'; }, 'Agent no. · CV-1234'],
+        ['madrid', 'a check\'s legal label "Agent no. · M-4471"', (c) => { c.checks.items[3].at = 'Agent no. · M-4471'; }, 'Agent no. · M-4471'],
+        ['valencia', 'a check\'s legal label "Agent no. (CV-1234)"', (c) => { c.checks.items[3].at = 'Agent no. (CV-1234)'; }, 'Agent no. (CV-1234)'],
+        ['valencia', 'a check\'s legal label "Agent number · CV-1234"', (c) => { c.checks.items[3].at = 'Agent number · CV-1234'; }, 'Agent number · CV-1234'],
+        ['valencia', 'a check\'s legal label "Reg. no. · 123456"', (c) => { c.checks.items[3].at = 'Reg. no. · 123456'; }, 'Reg. no. · 123456'],
+        ['valencia', 'a FAQ answer "… Our agent no. · CV-1234."', (c) => { c.faq.items[2].a += ' Our agent no. · CV-1234.'; }, 'Our agent no. · CV-1234'],
+        ['valencia', 'a check text "… Our agency number (CV-1234) is on every letter."', (c) => { c.checks.items[3].text += ' Our agency number (CV-1234) is on every letter.'; }, 'Our agency number (CV-1234) is on every letter'],
+        ['valencia', 'the footer statement "… Agent number (CV-1234)."', (c) => { c.footer.statement += ' Agent number (CV-1234).'; }, 'Agent number (CV-1234)'],
+        ['valencia', 'meta.description "… Agent number (CV-1234)."', (c) => { c.meta.description += ' Agent number (CV-1234).'; }, 'Agent number (CV-1234)'],
+        ['valencia', 'the Service description (JSON-LD) "… Agent no. · CV-1234."', (c) => { c.service.description += ' Agent no. · CV-1234.'; }, 'Agent no. · CV-1234'],
+        ['paris', 'a fact-sheet value "… Agent no. · P-4471." (draft)', (c) => { c.bref.rows[4].ddHtml += ' Agent no. · P-4471.'; }, 'Agent no. · P-4471']);
+      const p2miss = refused(GUARD, P2);
+      check(!p2miss.length, `seventh round: the ${P2.length} number shapes across a house separator (—, –, ·, •, /, |, (, straight and curly quotes, «, -, a colon) are refused on the six desks that sell and on a draft, in a fact-sheet value, the Who row after the company's Rome line, a check's legal label or text, a FAQ answer, the footer, the meta description and the JSON-LD, the string quoted`, say(p2miss, P2));
+      // (P2, the belt) a number key and a code in one string with no number shape at all — a word, a sentence or a comma between, or the
+      // code first: no other rule reads them, the block-level check refuses them
+      const P2n = [
+        ['valencia', 'a FAQ answer "… Our agent number in Valencia — CV-1234."', (c) => { c.faq.items[2].a += ' Our agent number in Valencia — CV-1234.'; }, 'Our agent number in Valencia — CV-1234', 'text, ld'],
+        ['valencia', 'a FAQ answer "… CV-1234 is our agent number in Valencia." (the code first)', (c) => { c.faq.items[2].a += ' CV-1234 is our agent number in Valencia.'; }, 'CV-1234 is our agent number in Valencia', 'text, ld'],
+        ['valencia', 'a FAQ answer "… Our agent no. today is CV-1234." (a word between)', (c) => { c.faq.items[2].a += ' Our agent no. today is CV-1234.'; }, 'Our agent no. today is CV-1234', 'text, ld'],
+        ['valencia', 'a FAQ answer "… Agent no. cv 1234." (lower-case letters spaced from the digits)', (c) => { c.faq.items[2].a += ' Agent no. cv 1234.'; }, 'Agent no. cv 1234', 'text, ld'],
+        ['valencia', 'a fact-sheet value of two sentences "… Our agent number in Valencia. CV-1234."', (c) => { c.bref.rows[4].ddHtml += ' Our agent number in Valencia. CV-1234.'; }, 'Our agent number in Valencia. CV-1234', 'text'],
+        ['madrid', 'a check text "… Our agency number, printed on every letter: M-4471."', (c) => { c.checks.items[3].text += ' Our agency number, printed on every letter: M-4471.'; }, 'Our agency number, printed on every letter: M-4471', 'text'],
+        ['london', 'the Who row "… Our agency number is on every invoice — 4471."', (c) => { c.bref.rows[0].ddHtml += ' Our agency number is on every invoice — 4471.'; }, 'Our agency number is on every invoice — 4471', 'text'],
+        ['valencia', 'the footer statement "… Our agent number in Valencia — CV-1234."', (c) => { c.footer.statement += ' Our agent number in Valencia — CV-1234.'; }, 'Our agent number in Valencia — CV-1234', 'text'],
+        ['valencia', 'meta.description "… Our agent number in Valencia — CV-1234."', (c) => { c.meta.description += ' Our agent number in Valencia — CV-1234.'; }, 'Our agent number in Valencia — CV-1234', 'meta'],
+        ['valencia', 'the Service description (JSON-LD) "… CV-1234 is our agent number."', (c) => { c.service.description += ' CV-1234 is our agent number.'; }, 'CV-1234 is our agent number', 'ld'],
+        ['paris', 'a fact-sheet value "… Our agent number in Paris — P-4471." (draft)', (c) => { c.bref.rows[4].ddHtml += ' Our agent number in Paris — P-4471.'; }, 'Our agent number in Paris — P-4471', 'text'],
+        ['valencia', 'a fact-sheet value "Our agent number<br>in Valencia<br>CV-1234." (the key and the code two lines apart in one block)', (c) => { c.bref.rows.splice(6, 0, { dt: 'Ours', ddHtml: 'Our agent number<br>in Valencia<br>CV-1234.' }); }, 'Our agent number in Valencia CV-1234', 'text'],
+        ['milan', 'a fact-sheet value "CV-1234<br>printed on every letter<br>is our agent number." (the code first, two lines apart)', (c) => { c.bref.rows.splice(6, 0, { dt: 'Ours', ddHtml: 'MI-123456<br>printed on every letter<br>is our agent number.' }); }, 'MI-123456 printed on every letter is our agent number', 'text']];
+      const p2nmiss = refused(NCUT, P2n);
+      check(!p2nmiss.length, `seventh round: the ${P2n.length} blocks and strings with a number key and a code and no number shape (a word, a sentence, a comma or two <br> lines between, the code first) are refused by the block-level check on the desks that sell and on a draft, in a FAQ answer, a fact-sheet value, a check text, the Who row, the footer, the meta description and the JSON-LD`, say(p2nmiss, P2n));
+      // the bridge itself: a separator between the keyword and the number word, where no number key is read
+      const P2b = [['valencia', 'a FAQ answer "… Our agent — number CV-1234."', (c) => { c.faq.items[2].a += ' Our agent — number CV-1234.'; }, '"Our agent — number CV-1234" (text, ld'],
+        ['valencia', 'a FAQ answer "… Agent: number CV-1234."', (c) => { c.faq.items[2].a += ' Agent: number CV-1234.'; }, '"Agent: number CV-1234" (text, ld']];
+      const p2bmiss = refused(UNREV, P2b);
+      check(!p2bmiss.length, 'seventh round: a number shape bridges the separators between its keyword and its number word too ("Our agent — number CV-1234", "Agent: number CV-1234"), refused as unreviewed', say(p2bmiss, P2b));
+      const SEPS = ['Agent no. — CV-1234', 'Agent no. – CV-1234', 'Agent no. · CV-1234', 'Agent no. • CV-1234', 'Agent no. / CV-1234', 'Agent no. | CV-1234', 'Agent no. (CV-1234)', 'Agent no. [CV-1234]', 'Agent no. {CV-1234}', 'Agent no. “CV-1234”', 'Agent no. "CV-1234"', "Agent no. 'CV-1234'", 'Agent no. ‘CV-1234’', 'Agent no. «CV-1234»', 'Agent no.-CV-1234', 'Agent no.: CV-1234', 'Agent number (CV-1234)', 'Agency number — 4471', 'Reg. no. · 123456', 'Número de agente — 1234', 'Agent — number CV-1234', 'Agent: no. CV-1234'];
+      const SEP_TRUE = ['Who pays the agent: no one but you.', 'An agency (100%) on your side.', 'Agent (since 2019).', 'Agent — since 2026.', 'Hire an agent (300 euros).', 'An agency (2,500 homes).', 'The agent — €500, flat.', 'Your agent · Mon–Fri 09:00–19:00.'];
+      check(SEPS.every((t) => hasClaimVocab(t)) && SEP_TRUE.every((t) => !hasClaimVocab(t)),
+        'seventh round: a number shape bridges the house separators between its keyword, its number word and its code (—, –, -, ·, •, /, |, an opening parenthesis, bracket or brace, straight and curly quotes, guillemets, the colon); an amount, a measure, a year after since, the hours or "no one" after a separator are no code',
+        [...SEPS.filter((t) => !hasClaimVocab(t)), ...SEP_TRUE.filter(hasClaimVocab)].join(' | '));
+      const KEYED = ['Our agent number in Valencia — CV-1234.', 'Our agency number (CV-1234) is on every letter.', 'CV-1234 is our agent number.', 'Our agent no. today is CV-1234.', 'Agent no. cv 1234.', 'Our agent number in Valencia. CV-1234.', 'Número de agente es 1234.', 'Registration ID: AB 4471.'];
+      const UNKEYED = ['Yes. BOOM Milan is a desk of Egidi Immobiliare S.r.l., an Italian real estate agency registered in Rome (REA RM-1710623).', 'Operated by Egidi Immobiliare S.r.l. — VAT IT17322991005, REA RM-1710623, Viale Liegi 42, 00198 Roma.', 'Your agent number? We have none outside Rome.', 'Ask the agent for the agency number; the lease is registered within 30 days, in 2026.', 'Agent number questions: Mon–Fri 09:00–19:00.', 'WhatsApp +39 331 325 1961 · Email or WhatsApp number'];
+      check(KEYED.every(numKeyCode) && !UNKEYED.some(numKeyCode), 'seventh round: numKeyCode — a number key and a code in one string, in either order and whatever stands between (a word, a sentence, a separator); the company lines with VAT IT17322991005 and REA RM-1710623, a key with no code, a year, the hours and a phone number are not one',
+        [...KEYED.filter((t) => !numKeyCode(t)), ...UNKEYED.filter(numKeyCode)].join(' | '));
+      check(why7('<p>Agent n<b>o.</b> in Valencia: CV-1234.</p>').includes('split') && why7('<p>Agent no. in Valencia — CV-1234.</p>').includes('ncut') && why7('<dl><dt>Our agent number in Valencia</dt><dd>CV-1234.</dd></dl>', false).includes('xcut')
+        && why7('<dl><dt>CV-1234</dt><dd>Our agent number in Valencia.</dd></dl>', false).includes('xcut') && why7('<dl><dt>Our agent number</dt><dd>In Valencia:<br>CV-1234.</dd></dl>', false).includes('xcut')
+        && why7('<details><summary>Do you have an agent number in Valencia?</summary><p>Yes.\nCV-1234.</p></details>', false).includes('xcut'),
+        'seventh round: a number key made whole by removing inline tags is a split; the number key and the code in one string, a long label, the reversed order, a <br> in the value and a newline in a FAQ answer are refused on a draft too');
+      // (P5) a page's title and its description, read together (a search snippet), and a JSON-LD node's name or serviceType with its description
+      const P5 = [
+        ['valencia', 'the <title> "… — BOOM agent no." and the meta description "CV-1234. …"', (c) => { c.meta.title = 'Valencia rental agent for expats — BOOM agent no.'; c.meta.description = `CV-1234. ${c.meta.description}`; }, '— BOOM agent no. CV-1234. Apartment search'],
+        ['valencia', 'og:title "BOOM Valencia — agent no." and og:description "CV-1234. …"', (c) => { c.meta.ogTitle = 'BOOM Valencia — agent no.'; c.meta.ogDescription = `CV-1234. ${c.meta.ogDescription}`; }, 'BOOM Valencia — agent no. CV-1234. Tenant-side rental search'],
+        ['valencia', 'the Service serviceType "Tenant-side rental search agent no." and its description "CV-1234. …"', (c) => { c.service.serviceType = 'Tenant-side rental search agent no.'; c.service.description = `CV-1234. ${c.service.description}`; }, 'Tenant-side rental search agent no. CV-1234. Rental search'],
+        ['madrid', 'the <title> "… — our agent number" and the meta description "M-4471. …"', (c) => { c.meta.title = 'Madrid rental agent for expats — our agent number'; c.meta.description = `M-4471. ${c.meta.description}`; }, '— our agent number M-4471. Apartment search']];
+      const p5miss = refused(XCUT, P5);
+      check(!p5miss.length, `seventh round: the ${P5.length} number shapes split between a page's title and its description (<title> and meta description, og:title and og:description) or between a JSON-LD node's serviceType and its description are refused, the pair quoted`, say(p5miss, P5));
+      // on /desks: a number typed in the hub's copy is refused by the hub's own rule before the guard ("types a number"); the guard itself
+      // reads the hub page the same way (a long number-key label with its code, a separator, the code first, injected into the built hub)
+      {
+        const errOf = (mut) => { const h = JSON.parse(read('cities/_hub.json')); mut(h); try { renderHub({ template: read('cities/_hub.html'), shared, hub: h, cities: SLUGS.map((s) => clone(CITY[s])), assetVersion: { css: 'testcss000', desksCss: 'testdcss00', desksJs: 'testdjs000' }, frags, root: R, weigh: false }); return 'built clean'; } catch (e) { return e.message; } };
+        const typed = errOf((h) => { h.footer.statement += ' Our agent number in Valencia — CV-1234.'; });
+        const inHub = (frag) => claimProblems(hubHtml.replace(/<\/main>/i, `${frag}</main>`), { claims }).map((p) => p.why);
+        check(/cities\/_hub\.json: footer\.statement: .*types a number/.test(typed)
+          && inHub('<dl><dt>Our agent number in Valencia</dt><dd>CV-1234.</dd></dl>').includes('xcut') && inHub('<dl><dt>CV-1234</dt><dd>Our agent number in Valencia.</dd></dl>').includes('xcut')
+          && inHub('<p>Our agent number in Valencia — CV-1234.</p>').includes('ncut') && inHub('<p>Agent no. · CV-1234.</p>').includes('cut') && !inHub('').length,
+          'seventh round: on /desks a typed code is refused by the hub\'s number rule; on the built hub page the guard refuses a long number-key label with its code, the reversed pair, a number key and a code in one string and a separator, and the hub as built is clean', typed.slice(0, 200));
+      }
+      // the nine built pages: every join, pair and string read, none refused; the true copy that stays clean
+      {
+        const kinds = {}, fired = [];
+        let strings = 0;
+        for (const [x, h] of [...SLUGS.map((y) => [y, PAGE[y]]), ['desks', hubHtml]]) {
+          const joins = [], all = reviewSentences(h, { joins });
+          for (const j of joins) { kinds[j.how] = (kinds[j.how] || 0) + 1; if (j.cut) fired.push(`${x} ${j.how}: ${j.parts.join(' | ')}`); }
+          for (const s of all) { if (s.ncut || s.cut || s.xcut || s.split) fired.push(`${x} ${s.where}: ${s.text}`); }
+          const blocks = new Map();
+          for (const s of all) blocks.set(`${s.where}|${s.block}`, `${blocks.get(`${s.where}|${s.block}`) || ''} ${s.text}`);
+          strings += blocks.size;
+          for (const [k, t] of blocks) if (numKeyCode(t)) fired.push(`${x} ${k}: ${t.trim()}`);
+        }
+        check(kinds.meta === 3 * (SLUGS.length + 1) && kinds.ld > 100 && !kinds.block && !fired.length,
+          `seventh round: on the nine built pages ${Object.values(kinds).reduce((a, b) => a + b, 0)} joins are read (${Object.entries(kinds).map(([k, v]) => `${k} ${v}`).join(', ')}) and ${strings} blocks and strings, and nothing is refused: no long label, no reversed pair, no multi-line value, no title and description carries a number key with a code`, fired.join(' | '));
+        check(joinCut(['Our agent number in Valencia', 'CV-1234.']) === 'number' && joinCut(['CV-1234', 'Our agent number in Valencia.']) === 'number' && joinCut(['Valencia rental agent — BOOM agent no.', 'CV-1234. Apartment search']) === 'hits'
+          && !joinCut(['VAT IT17322991005, REA RM-1710623', 'Email or WhatsApp number']) && !joinCut(['Operated by', 'Egidi Immobiliare S.r.l. — VAT IT17322991005, REA RM-1710623, 00186 Roma'])
+          && !joinCut(['Is BOOM Milan a real estate agency?', 'Yes. BOOM Milan is a desk of Egidi Immobiliare S.r.l., an Italian real estate agency registered in Rome (REA RM-1710623).'])
+          && !joinCut(['Who', 'BOOM Milan, the tenant-side rental desk of BOOM — operated by Egidi Immobiliare S.r.l. (REA RM-1710623)'])
+          && !joinCut(['€199', 'flat · incl. VAT']) && !joinCut(['Passport or EU ID', 'AMS 02']) && !joinCut(['AMS 02', 'Passport or EU ID']),
+          'seventh round: joinCut reads either order ("Our agent number in Valencia" | "CV-1234.", "CV-1234" | "Our agent number in Valencia.") and a title with its description; the company lines with VAT IT17322991005 and REA RM-1710623 under "Operated by", "Who" and "Is BOOM Milan a real estate agency?", a fare\'s "€199" | "flat · incl. VAT" and "Passport or EU ID" | "AMS 02" stay clean');
+      }
     }
     // (g) the page-level mirror, a literal copy independent of the build: no selling desk names a register it does not hold
     const HELD = /\bRAICV\b|Registro de Agentes|\bAICAT\b|Registre d['’]Agents|carte professionnelle|\bcarte T\b|§\s*34\s*c|Paragraph\s*34\s*c|Property Ombudsman|Property Redress|redress scheme|Propertymark|\bARLA\b|\bNAEA\b|\bKvK|Kamer van Koophandel|\bTPO\b|\bCMP\b|client money protection|\bRICS\b|\bNVM\b|\bVBO\b|Agente de la Propiedad|colegiad|\bFIMAA\b|\bFIAIP\b|\bPRS\b|\bFNAIM\b|\bIVD\b|\bIHK\b/i;

@@ -2927,7 +2927,7 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
   reclamaciones, il calendario 2028; nessuno ha ancora letto un lead o un
   ordine dei desk: «validato» non si può dire. Test: i conteggi del lancio
   (Stage 1) sono superati; quelli in vigore stanno in «IL BIGLIETTO v1.7»
-  (dopo il sesto giro: `run.mjs` 1105, `ui.mjs` 541,
+  (dopo il settimo giro: `run.mjs` 1119, `ui.mjs` 541,
   `checkout.mjs` 117, `calendar.mjs` 97).
 - **IL BIGLIETTO v1.7 (04/11/2026 — «iteriamo la prima card verso i biglietti
   della home, la mappa, l'onda, e Valencia live»).** Quattro prototipi della prima
@@ -3136,7 +3136,13 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
        minutes, km, m², mq, sqm, sq ft, metres, m: «An agency 100% on your
        side»), né un anno dopo in/since/from/until («AGENT IN 2026»), e una
        copula fra la parola chiave e il codice (is, es, è, ist, est: «Our agent
-       number is 1234», «Our agent no. is CV-1234»); «Nov 2026» non è «no 2026», e una citazione italiana con «n.»,
+       number is 1234», «Our agent no. is CV-1234»); dal settimo giro la forma
+       scavalca i separatori della casa fra la parola chiave, la parola del
+       numero e il codice (`NUM_SEP`: —, –, -, ·, •, /, |, una parentesi, quadra
+       o graffa aperta, virgolette dritte e curve, caporali, i due punti:
+       «Agent no. — CV-1234», «Agent number (CV-1234)», «Agent no. · CV-1234»,
+       «Agency number “4471”», «Our agent — number CV-1234»; prima solo lo
+       spazio e i due punti); «Nov 2026» non è «no 2026», e una citazione italiana con «n.»,
        «L. n. 392/1978», è letta come forma di numero: si mette in lista come
        law) e lo statuto (§34c, «§34 c», «Paragraph 34c», «34c GewO»).
        **L'estrazione** (`reviewSentences(html)`, esportata, la usano i test):
@@ -3206,10 +3212,43 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
        agente») o un'etichetta che è solo un numero («No.», «Number», «ID»,
        «Ref.», «Code») — e l'ultima un codice (`VALUE_NUM_RE`: lettere maiuscole e tre cifre o più,
        o quattro cifre o più; mai un anno, un prezzo, una misura): «What is
-       your agent number in Valencia?» | «CV-1234.». Un'unione rifiutata non si
-       mette in lista: si riscrive l'etichetta o il valore. Misurato sulle nove
+       your agent number in Valencia?» | «CV-1234.». Dal settimo giro: un blocco
+       di QUALSIASI lunghezza che porta una chiave di numero si unisce al blocco
+       dopo («Our agent number in Valencia» | «CV-1234.», il titolo di un passo
+       di How it works), e così un blocco che porta un codice quando il dopo
+       porta la chiave; l'unione è rifiutata anche nell'ordine rovesciato (il
+       codice nell'etichetta, la chiave nel valore: «CV-1234» | «Our agent
+       number in Valencia.»); le righe che un `<br>` o un a capo uniscono fanno
+       un blocco, e due blocchi consecutivi, uno con la chiave e l'altro col
+       codice, su qualunque riga stiano, si leggono uniti ({dt «Our agent
+       number», dd «In Valencia:<br>CV-1234.»}); il `<summary>` si unisce con
+       OGNI riga del primo blocco del suo `<details>` (il legale e il titolo di
+       un controllo con «Ask us.⏎CV-1234, …», «Do you have an agent number in
+       Valencia?» | «Yes.⏎CV-1234.»); e si leggono uniti il titolo e la
+       descrizione che uno snippet mostra insieme (`<title>` e meta
+       description, og:title e og:description, twitter:title e
+       twitter:description) e, nel JSON-LD, il name, serviceType o headline di
+       un nodo con la sua description e una domanda della FAQ con la sua
+       risposta. Un'unione rifiutata non si
+       mette in lista: si riscrive l'etichetta o il valore. **La chiave e il
+       codice nella stessa stringa** (settimo giro, `numKeyCode`): un blocco di
+       testo o di righe, una meta, una stringa JSON-LD, un attributo o una
+       stringa di script che porta una chiave di numero E un codice, in qualunque ordine e
+       con qualunque cosa fra i due (una parola, una frase, una virgola, un
+       separatore), è rifiutato intero («a number key … and a code … stand in
+       one string»: «Our agent number in Valencia — CV-1234.», «CV-1234 is our
+       agent number.», «Our agent no. today is CV-1234.», «Agent no. cv
+       1234.», «Our agent number<br>in Valencia<br>CV-1234.»; il messaggio
+       dice «stand in one block or string»), anche quando sono i tag in riga a tenerli separati («Agent
+       n<b>o.</b> in Valencia: CV-1234», rifiutata come «split»). È l'ultimo
+       controllo di `claimGuard`: riporta solo ciò che nessuna regola sopra ha
+       preso, e nessuna voce in lista lo scavalca. Misurato sulle nove
        pagine costruite: 1.511 unioni lette (1.236 etichetta+blocco, 164 righe
-       dello stesso blocco, 111 summary+risposta), nessuna rifiutata; le più
+       dello stesso blocco, 111 summary+risposta), nessuna rifiutata (dal
+       settimo giro 1.707: in più 169 coppie del JSON-LD e 27 titolo con
+       descrizione, nessuna rifiutata; nessuna delle 2.283 righe di testo
+       porta una chiave di numero, e nessuno dei 7.395 blocchi e stringhe una
+       chiave col codice); le più
        vicine sono le righe della società col codice sotto un'etichetta che
        non è una chiave di numero («Operated by» | «… VAT IT17322991005, REA
        RM-1710623 …», «Who» | «BOOM Milan … (REA RM-1710623)», «Egidi
@@ -3393,20 +3432,34 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
        caratteri invisibili); l'aggiramento deliberato (omoglifi cirillici, un
        trattino dentro la parola) è fuori portata. Una pretesa senza lessico
        di iscrizione/approvazione/appartenenza, senza nome di autorità o di
-       registro, senza una forma di numero — né in una stringa sola né divisa
-       fra un'etichetta e il suo valore — e senza un luogo di un desk accanto a
-       una frase della società («We are on the official list.») NON è presa da
-       una guardia di lessico; né un valore accanto a una chiave in lista che
-       non porta nessuno dei segni del valore («Registration — On request»);
-       né una forma di numero con fra la parola chiave e il codice una parola
-       che non è la copula («Our agent no. today is CV-1234»), con le lettere
-       minuscole staccate dalle cifre («agent no. cv 1234»), o sotto
-       un'etichetta senza parola chiave («Our number» | «CV-1234»,
-       «Reference» | «CV-1234»), o sotto una domanda che nomina l'agente senza
-       la parola del numero («Who is your agent?» | «CV-1234»: una domanda che
-       finisce su «agency?» non può essere una chiave di numero, perché «Is BOOM
-       Milan a real estate agency?» ha per risposta la riga della società con
-       REA RM-1710623 — provato: il build di Milano la rifiutava).
+       registro, senza una forma di numero né una chiave di numero col suo
+       codice — in una stringa o in un blocco di righe; divisa fra
+       un'etichetta e il suo valore, qualunque sia la lunghezza dell'etichetta,
+       attraverso i separatori della casa, in tutti e due gli ordini, su
+       qualunque riga di un blocco o di una risposta della FAQ; fra il titolo
+       e la descrizione di uno snippet o fra il name e la description di un
+       nodo JSON-LD — e senza un luogo di un desk accanto a una frase della
+       società («We are on the official list.») NON è presa da una guardia di
+       lessico; né un valore accanto a una chiave in lista che non porta
+       nessuno dei segni del valore («Registration — On request»); né un
+       codice sotto un'etichetta senza chiave di numero («Our number» |
+       «CV-1234», «Reference» | «CV-1234», «Who is your agent?» | «CV-1234»:
+       una domanda che finisce su «agency?» non può essere una chiave di
+       numero, perché «Is BOOM Milan a real estate agency?» ha per risposta la
+       riga della società con REA RM-1710623 — provato: il build di Milano la
+       rifiutava); né una chiave spezzata da un separatore in un'etichetta di
+       più di quattro parole o con una parola prima del codice («Our agent ·
+       number in Valencia» | «CV-1234», «Our agent — number in Valencia,
+       CV-1234»: la FORMA di numero scavalca i separatori, quindi «Agent —
+       number CV-1234» è presa, ma la CHIAVE no, perché «Who pays the agent:
+       no one but you» e «Bring it to the agency (ID required)» diventerebbero
+       chiavi — misurato: nessuna stringa delle nove pagine cambierebbe, il
+       rischio è la copia futura); né una chiave e un codice con un altro
+       blocco in mezzo (una riga della scheda fra i due); né due stringhe meta o
+       JSON-LD che nessun lettore vede insieme (og:image:alt con la
+       description). Il sesto giro dichiarava anche «Our agent no. today is
+       CV-1234» e «agent no. cv 1234»: dal settimo li rifiuta la chiave col
+       codice nella stessa stringa.
        La riga Who dei desk e `llms.txt` dicono «an Italian real estate agency
        registered in Rome».
      - **Forced colors**: lo strappo orizzontale delle economy vale solo nella
@@ -3611,6 +3664,73 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
      di nuovo codici (1), la frase breve in lista accettata nel blocco della
      sua chiave — la lettura letterale del brief — (2), gli anni dopo in/since
      di nuovo codici (1), la copula tolta (1).
+     **Il settimo giro (04/11, notte; commit «registration guard seventh
+     round»)**, sui rilievi del verificatore del sesto (il sesto doveva essere
+     l'ultimo). (1) Una chiave di numero in un'etichetta di cinque parole o
+     più non si univa al suo codice: {dt «Our agent number in Valencia», dd
+     «CV-1234.»} costruiva sui sei desk che vendono e su Berlino, e così il
+     titolo di un passo «Our agent number in Spain» col testo «CV-1234, on
+     every letter we send.»; ora un blocco di qualunque lunghezza con una
+     chiave si unisce al blocco dopo. (2) I separatori fra la parola chiave e
+     il codice: «Agent no. — CV-1234.» in una riga della scheda su ogni desk
+     che vende, «Agent number (CV-1234).» e «Agency number — 4471.» nella riga
+     Who dopo la riga della società, l'etichetta legale «Agent no. · CV-1234»
+     o «Reg. no. · 123456», la risposta «Our agent no. · CV-1234.», il testo
+     «Our agency number (CV-1234) is on every letter.», il piede, la meta
+     description, la description del Service e «Agent no. · P-4471.» su
+     Parigi costruivano tutti: ora la forma di numero scavalca i separatori
+     della casa (`NUM_SEP`) e l'ultimo controllo rifiuta un blocco o una
+     stringa con una chiave E un codice, in qualunque ordine e con qualunque
+     cosa in mezzo (`numKeyCode`), così cadono anche le due forme che il
+     sesto giro dichiarava («Our agent no. today is CV-1234», «agent no. cv
+     1234»). (3) L'ordine rovesciato ({dt «CV-1234», dd «Our agent number in
+     Valencia.»}, e il controllo {at «CV-1234», title «Our agent number»},
+     preso prima solo dalla tabella di /desks): `joinCut` legge i due sensi,
+     anche con un'etichetta lunga che finisce sul codice. (4) Un a capo nella
+     risposta della FAQ nascondeva il codice («Do you have an agent number in
+     Valencia?» | «Yes.⏎CV-1234.»): il summary si unisce con ogni riga del
+     primo blocco del suo details; della stessa classe, trovati da questo
+     giro e chiusi, una riga della scheda «Our agent number» | «In
+     Valencia:<br>CV-1234.» (due blocchi di righe consecutivi, la chiave e il
+     codice su qualunque riga) e «Our agent number<br>in
+     Valencia<br>CV-1234.» (la chiave e il codice a due righe di distanza
+     nello stesso blocco). (5) Una forma di numero divisa fra il titolo e la
+     descrizione («… BOOM agent no.» + «CV-1234. …», o serviceType e
+     description del Service): si leggono uniti `<title>` e meta description,
+     og:title e og:description, twitter:title e twitter:description e, nel
+     JSON-LD, name/serviceType/headline con la description e la domanda con
+     la risposta. La chiave NON scavalca i separatori, di proposito (il limite
+     dichiarato). Misurato sulle nove pagine costruite: le occorrenze del
+     lessico non cambiano su nessuna delle 5.232 frasi lette (1.475 distinte)
+     né sulle 9.904 righe di testo grezzo (vecchio e nuovo codice
+     confrontati); le liste delle frasi sono identiche; 1.707 unioni (le
+     1.511 del sesto giro, 169 coppie del JSON-LD e 27 titolo+descrizione),
+     nessuna rifiutata; nessuna delle 2.283 righe di testo porta una chiave di
+     numero (44 portano un codice), quindi nessuna unione nuova per chiave
+     nasce; 140 blocchi di più righe, 7.395 blocchi e stringhe e le 2.274
+     coppie di blocchi consecutivi, nei due sensi: nessuna chiave col codice;
+     le pagine costruite non cambiano di un byte. Rieseguiti su copie i banchi
+     dei giri precedenti (512 sonde, le 16 frasi vere di G3 comprese): stesso
+     verdetto su ognuna. Delle 84 sonde del verificatore del sesto giro, le 59
+     che costruivano sono ora 52 rifiutate e 7 che costruiscono ancora: il
+     vero («Registration» | «The landlord lodges it with the Generalitat
+     Valenciana», «Opening» e «Partner» | «A licensed partner» sulle bozze,
+     «Generalitat» | «Who» come nel sesto giro) e il dichiarato («Our
+     number», «Reference», «Who is your agent?» | «CV-1234»). Il controllo
+     nuovo è l'ultimo di `claimGuard`, così ogni caso dei giri precedenti
+     tiene il suo messaggio; due prove sono cambiate perché le prende prima
+     un'altra regola: «Registration · CV-1234» (ora una forma di numero oltre
+     il ·, rifiutata dalla cintura del divisore; il suo posto nella regola
+     delle chiavi l'ha preso «Registration · Yes, since 2026») e la FAQ «What
+     is your agent number in Valencia?» | «CV-1234.», che compare anche nel
+     JSON-LD («(text, ld)»). Provato su copie, nove mutazioni, ognuna fa
+     cadere `run.mjs` (il `--check` resta verde: nessuna pagina cambia):
+     l'etichetta lunga non unita (3 prove cadono), i separatori non scavalcati
+     (4), la chiave col codice nella stessa stringa tolta (3), l'ordine
+     rovesciato tolto (5), il summary con la sola prima riga (1), titolo e
+     descrizione e le coppie del JSON-LD non uniti (2), i blocchi di righe
+     consecutivi non uniti (2), la copia schiacciata non letta per la chiave
+     (1), la chiave e il codice su due righe dello stesso blocco non letti (1).
   9. **La coppia economy col font della CI (04/11, sera)**: la CI ha trovato quello che la sandbox non vedeva.
      Con Liberation Sans (metrica Arial/Helvetica, il font dei runner) a 360px «PER VIEWING · INCL. VAT» andava a
      capo e i due tagliandi della coppia partivano a 11,7px di distanza; in Inter, il font della sandbox, entrava
@@ -3635,10 +3755,10 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
   stampa già nel piede del pass; +~80 B di JS se lo si vuole); le porte dell'hub
   restano su `#fares`; nessuno ha ancora letto un lead o un ordine dei desk —
   «validato» non si può dire.
-  Test (dopo il sesto giro, 04/11): `tests/cities/run.mjs`
-  1105, `ui.mjs` 541 (G4 a cinque larghezze e in due font, 541 anche con il font della CI
-  simulato; il sesto giro non cambia nessuna pagina), `checkout.mjs` 117, `calendar.mjs` 97, `tests/pfs/markets-ui.mjs` 25 (dopo il
-  quinto giro e la coppia col font della CI 1094 e 541; dopo il quinto giro 1085 e 477; dopo il quarto giro 1064 e 477; dopo il terzo giro 1027 e 477; dopo il secondo giro 998 e 475; dopo il primo 993 e 444; prima della revisione 978 e 423); più consentbanner, scroll, cielo, seo, crawl, llmstxt,
+  Test (dopo il settimo giro, 04/11): `tests/cities/run.mjs`
+  1119, `ui.mjs` 541 (G4 a cinque larghezze e in due font, 541 anche con il font della CI
+  simulato; il sesto e il settimo giro non cambiano nessuna pagina), `checkout.mjs` 117, `calendar.mjs` 97, `tests/pfs/markets-ui.mjs` 25 (dopo il
+  sesto giro 1105 e 541; dopo il quinto giro e la coppia col font della CI 1094 e 541; dopo il quinto giro 1085 e 477; dopo il quarto giro 1064 e 477; dopo il terzo giro 1027 e 477; dopo il secondo giro 998 e 475; dopo il primo 993 e 444; prima della revisione 978 e 423); più consentbanner, scroll, cielo, seo, crawl, llmstxt,
   verita, whatsapp, testata; il `npm test` intero il 04/11 (2.291 s, `BOOM_PLAYWRIGHT` impostato): 288 suite
   verdi, 4 rosse per ragioni estranee ai desk — `magicsigncustomui` e
   `magicsigncustomsigner` scaricano pdf.js da cdn.jsdelivr.net e il sandbox non

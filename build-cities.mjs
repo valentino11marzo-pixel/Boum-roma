@@ -2276,8 +2276,9 @@ const HUB_BANNED = [
 // a claim that BOOM holds a registration, licence or membership outside Rome. A new sentence is
 // refused until a person reads it and adds it. The file is also the list a lawyer reads.
 // The sentences come from the visible text (block boundaries, then . ! ? ; · splits), from EACH meta
-// content and EACH JSON string separately (never concatenated), from attribute values and from the
-// string literals of inline scripts — reviewSentences(), the same code the tests use.
+// content and EACH JSON string separately (never concatenated into one sentence; since the seventh round a
+// title and its description, and a JSON-LD node's name and its description, are also read as a join), from
+// attribute values and from the string literals of inline scripts — reviewSentences(), the same code the tests use.
 export const CLAIMS_FILE = 'cities/_claims.json';
 // THE VOCABULARY (fourth round, 04/11/2026). Matched on text that is already decoded (entities), NFKC-normalised
 // and stripped of format characters (soft hyphen, zero-width, word joiner, BOM, U+2028/9): see cleanText. Letters are
@@ -2344,12 +2345,17 @@ const caseless = (src) => {
   return out;
 };
 const NUM_UNIT = String.raw`(?:[%€£$]|${caseless(String.raw`(?:euros?|pounds?|eur|gbp|per\s*cent|percent|months?|weeks?|days?|years?|hours?|minutes?|mins?|km|kms|m2|m²|mq|sqm|sq\s*m|sq\s*ft|metres?|meters?|m)`)}(?![\p{L}\p{N}]))`;
-const NUM_CODE = String.raw`[:\s]*(?!${caseless('(?:in|since|from|until)')}\s+(?:1[89]|20)\d{2}(?!\d))(?:[A-Z]{0,3}[\s-]?|[a-z]{1,3}-?)\d{3,}(?!\d)(?![\s-]*${NUM_UNIT})`;
+// seventh round: the house separators a number shape bridges between its keyword, its number word and its code — the colon,
+// the dashes (—, –, -), the middle dot and the bullet, the slash, the bar, an opening parenthesis, bracket or brace, straight
+// and curly quotes and guillemets ("Agent no. — CV-1234", "Agent number (CV-1234)", "Agent no. · CV-1234", "Agency number
+// “4471”"); before, only a space or a colon stood between them
+const NUM_SEP = String.raw`[\s:\u2010-\u2015\-·•/|(\[{"'\u2018-\u201F«»‹›]`;
+const NUM_CODE = String.raw`${NUM_SEP}*(?!${caseless('(?:in|since|from|until)')}\s+(?:1[89]|20)\d{2}(?!\d))(?:[A-Z]{0,3}[\s-]?|[a-z]{1,3}-?)\d{3,}(?!\d)(?![\s-]*${NUM_UNIT})`;
 const NUM_KW = caseless(String.raw`(?:agent|agency|reg|regd|lic|licen[cs]e|registration|ref|n\.?[ºo°]|no|nr|n[úu]m)`);
 const NUM_WORD = caseless(String.raw`(?:no|nr|n\.?[ºo°]|n[úu]m|ref)`), NUM_NOUN = caseless(String.raw`(?:n[úu]mero|number|id|code)`);
 const NUM_COPULA = String.raw`(?:${caseless('(?:is|es|è|ist|est)')}(?!\p{L})\s*)?`;
 const CLAIM_NUM_RE = new RegExp([
-  String.raw`(?<!\p{L})(?:${NUM_KW}(?!\p{L})\.?|${caseless('n')}\.)\s*(?:${NUM_WORD}(?!\p{L})\.?\s*|(?:${NUM_NOUN}(?!\p{L})|#)\s*)?${NUM_COPULA}${NUM_CODE}`,
+  String.raw`(?<!\p{L})(?:${NUM_KW}(?!\p{L})\.?|${caseless('n')}\.)${NUM_SEP}*(?:${NUM_WORD}(?!\p{L})\.?\s*|(?:${NUM_NOUN}(?!\p{L})|#)\s*)?${NUM_COPULA}${NUM_CODE}`,
   String.raw`(?<!\p{L})${caseless(String.raw`n[úu]mero\s+(?:de|di|del|della)\s+(?:agente|registro|inscripci[óo]n|iscrizione|licencia|licenza|llic[eè]ncia)`)}${NUM_COPULA}${NUM_CODE}`,
   String.raw`§\s*34\s*[cC]`, String.raw`(?<!\p{L})${caseless('paragraph')}\s*34\s*[cC]`, String.raw`(?<![\p{L}\p{N}])34\s*[cC]\s*${caseless('gewo')}`
 ].join('|'), 'gu');
@@ -2366,6 +2372,11 @@ export const VALUE_NUM_RE = new RegExp(String.raw`(?<![\p{L}\p{N}€£$])(?:[A-Z
 // (a question that only ends on the agent is no number key: "Is BOOM Milan a real estate agency?" is answered by the company's
 // line with REA RM-1710623)
 export const numKeySplit = (label, value) => NUM_KEY_RE.test(label) && VALUE_NUM_RE.test(value);
+// seventh round: a number key and a code in ONE block or string, in either order and whatever stands between them ("Our agent
+// number in Valencia — CV-1234.", "Our agency number (CV-1234) is on every letter.", "CV-1234 is our agent number."): on the
+// page the code reads as that number. Read on every text block, meta, JSON-LD string, attribute and script string as a whole,
+// so neither the sentence splitter (the spaced ·) nor a word between the key and the code hides it (reviewSentences: ncut)
+export const numKeyCode = (t) => { const c = cleanText(t); return numKeySplit(c, c); };
 // "R.A.I.C.V." → "RAICV", "K.v.K." → "KvK", "T P O" → "TPO" (single letters closed up; only for matching)
 export const closeUp = (t) => String(t).replace(/(?<!\p{L})\p{L}(?:\.\p{L}(?!\p{L})){1,}\.?/gu, (m) => m.replace(/[.\s]/g, '')).replace(/(?<!\p{L})\p{Lu}(?:\s\p{Lu}(?!\p{L})){2,}/gu, (m) => m.replace(/\s/g, ''));
 // every vocabulary hit of one text (on the text and on its closed-up copy)
@@ -2486,16 +2497,24 @@ const lostHits = (t, parts) => {
 // register's initials split between them reads as one claim on the page ({dt "Agent no.", dd "CV-1234"}). A join is refused
 // when its text has more vocabulary hits than its parts (on the text and on the closed-up copy, apart), or when a part
 // before the last carries a NUMBER KEY and the last carries a code (numKeySplit: "What is your agent number in Valencia?" —
-// "CV-1234."). The joins are (reviewSentences): every text block of four words or fewer with the next text block (a dt, a
-// th, a check's legal label or title, a paper, a line ended by a <br> or a newline); two lines of one block split by a <br>
-// or a newline, whatever their length; and a <summary> (a FAQ question, a check's legal label and title, without the lane
-// number) with the first text block after it inside its <details> (the answer, the check's text). A refused join is
+// "CV-1234."), or — seventh round — the other way round (a code before, the number key last: "CV-1234" — "Our agent number in
+// Valencia."). The joins are (reviewSentences): every text block of four words or fewer with the next text block (a dt, a
+// th, a check's legal label or title, a paper, a line ended by a <br> or a newline), and since the seventh round a block of
+// ANY length that carries a number key ("Our agent number in Valencia", a how step's heading), or a code when the next block
+// carries one; two lines of one block split by a <br> or a newline, whatever their length; a <summary> (a FAQ question, a
+// check's legal label and title, without the lane number) with the first text block after it inside its <details> (the
+// answer, the check's text) — since the seventh round with EVERY line of that block, a newline or a <br> inside the answer
+// included; since the seventh round two consecutive blocks of lines (the lines a <br> or a newline joins) when one carries a
+// number key and the other a code, whatever line each stands on; and the strings a reader takes together: a page's title and
+// its description (the <title> and the meta description, og:title and og:description, twitter:title and twitter:description)
+// and a JSON-LD node's name, serviceType or headline with its description (a Question with its answer). A refused join is
 // rewritten, never listed: no allowlist entry clears it.
 export function joinCut(parts) {
   const all = parts.join(' '), plain = hitCount(all), closed = hitCount(closeUp(all));
   if ((plain || closed) && (plain > parts.reduce((n, p) => n + hitCount(p), 0) || closed > parts.reduce((n, p) => n + hitCount(closeUp(p)), 0))) return 'hits';
   const value = parts[parts.length - 1], labels = parts.slice(0, -1);
-  if ([...labels, labels.join(' ')].some((l) => numKeySplit(l, value))) return 'number';
+  // seventh round: in either order — the code in a label and the number key in the value ("CV-1234" — "Our agent number in Valencia.")
+  if ([...labels, labels.join(' ')].some((l) => numKeySplit(l, value) || numKeySplit(value, l))) return 'number';
   return null;
 }
 // block boundaries, plus the start of an instrument field (data-instr) or of a row's description (.dp); the END of
@@ -2518,6 +2537,16 @@ function markInstr(html) {
   return out + html.slice(i);
 }
 const jsonStrings = (v) => (typeof v === 'string' ? [v] : v && typeof v === 'object' ? Object.values(v).flatMap(jsonStrings) : []);
+// seventh round: the JSON-LD strings a reader takes together (a node's name, serviceType or headline with its description; a
+// Question's name with its acceptedAnswer's text)
+const jsonPairs = (v) => {
+  if (Array.isArray(v)) return v.flatMap(jsonPairs);
+  if (!v || typeof v !== 'object') return [];
+  const own = [];
+  if (typeof v.description === 'string') for (const k of ['name', 'serviceType', 'headline']) if (typeof v[k] === 'string') own.push([v[k], v.description]);
+  if (typeof v.name === 'string' && v.acceptedAnswer && typeof v.acceptedAnswer.text === 'string') own.push([v.name, v.acceptedAnswer.text]);
+  return [...own, ...Object.values(v).flatMap(jsonPairs)];
+};
 // the attributes that never carry text a reader reads: everything else that holds a letter is reviewed
 // (either quote style or none). meta content is read as "meta" on its own.
 export const ATTR_SKIP = new Set(['href', 'src', 'srcset', 'class', 'id', 'style', 'd', 'viewbox', 'points', 'transform', 'rel', 'type', 'name', 'for', 'lang', 'hreflang',
@@ -2536,21 +2565,41 @@ export function reviewSentences(html, { joins: seenJoins } = {}) {
     for (const s of parts) dest.push({ text: s, where, block: b, ...flags });
     // the belt: the whole string has a hit its sentences lost → the whole string is refused (claimGuard: "cut")
     if (lostHits(t, parts)) dest.push({ text: normSentence(t), where, block: b, cut: true });
+    // seventh round: a number key and a code in the same string, whatever stands between them (claimGuard: "ncut")
+    if (numKeyCode(t)) dest.push({ text: normSentence(t), where, block: b, ncut: true });
   };
   // comments become a marker: a space in the spaced copy, nothing in the squashed copy
   const src = String(html).replace(/<!--[\s\S]*?-->/g, '\u0001');
+  // seventh round: the strings a reader takes together — a page's title and its description (a search snippet: <title> and
+  // meta description, og:title and og:description, twitter:title and twitter:description), a JSON-LD node's name, serviceType
+  // or headline and its description, a Question and its answer — are read as a join too ("… agent no." — "CV-1234. …")
+  const pairs = [];
   for (const m of src.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)) {
     if (/\ssrc=/i.test(m[1])) continue;
     if (/type=["']?application\/(?:ld\+)?json/i.test(m[1])) {
       let data; try { data = JSON.parse(m[2]); } catch { add(m[2], 'json'); continue; }
-      for (const v of jsonStrings(data)) add(v, /ld\+json/i.test(m[1]) ? 'ld' : 'json');
+      const where = /ld\+json/i.test(m[1]) ? 'ld' : 'json';
+      for (const v of jsonStrings(data)) add(v, where);
+      for (const pr of jsonPairs(data)) pairs.push({ how: where, parts: pr });
     } else for (const s of m[2].matchAll(/"((?:[^"\\\n]|\\.)*)"|'((?:[^'\\\n]|\\.)*)'|`((?:[^`\\]|\\.)*)`/g)) add(s[1] ?? s[2] ?? s[3], 'script');
   }
   // <style> content strings ("content: '…'") are text a reader sees
   for (const m of src.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi)) for (const c of m[1].matchAll(/\bcontent\s*:\s*(?:"((?:[^"\\]|\\.)*)"|'((?:[^'\\]|\\.)*)')/g)) add(c[1] ?? c[2], 'style');
   const noScript = src.replace(/<script\b[\s\S]*?<\/script>/gi, ' ').replace(/<style\b[\s\S]*?<\/style>/gi, ' ');
   for (const m of noScript.matchAll(/<title>([\s\S]*?)<\/title>/gi)) add(m[1], 'title');
-  for (const m of noScript.matchAll(/<meta\b[^>]*>/gi)) for (const a of m[0].matchAll(ATTR_RE)) if (a[1].toLowerCase() === 'content') add(a[2] ?? a[3] ?? a[4] ?? '', 'meta');
+  const metaOf = new Map();
+  for (const m of noScript.matchAll(/<meta\b[^>]*>/gi)) {
+    let key = '', content;
+    for (const a of m[0].matchAll(ATTR_RE)) {
+      const name = a[1].toLowerCase(), v = a[2] ?? a[3] ?? a[4] ?? '';
+      if (name === 'content') { content = v; add(v, 'meta'); } else if (name === 'name' || name === 'property') key = v.toLowerCase();
+    }
+    if (key && content !== undefined && !metaOf.has(key)) metaOf.set(key, content);
+  }
+  const headTitle = (/<head\b[\s\S]*?<title>([\s\S]*?)<\/title>/i.exec(noScript) || [])[1];
+  for (const [a, b] of [[headTitle, metaOf.get('description')], [metaOf.get('og:title'), metaOf.get('og:description')], [metaOf.get('twitter:title'), metaOf.get('twitter:description')]]) {
+    if (a !== undefined && b !== undefined) pairs.push({ how: 'meta', parts: [a, b] });
+  }
   for (const m of noScript.matchAll(/<[a-z][\w:-]*\b[^>]*>/gi)) {
     for (const a of m[0].slice(m[0].search(/\s|>/)).matchAll(ATTR_RE)) {
       const name = a[1].toLowerCase(), v = a[2] ?? a[3] ?? a[4];
@@ -2578,25 +2627,60 @@ export function reviewSentences(html, { joins: seenJoins } = {}) {
     // the squashed copy: inline tags and comments removed with no space ("Regis<span>tered</span>")
     const squashed = line.replace(/\u0001/g, '').replace(INLINE_TAG_RE, '').replace(/<[^>]+>/g, ' ');
     if (squashed !== spaced && claimHits(squashed).length > claimHits(spaced).length) for (const s of splitSentences(squashed)) if (hasClaimVocab(s)) out.push({ text: s, where: 'text', block: b, split: true });
+    // seventh round: a number key and a code the inline tags kept apart ("Agent n<b>o.</b> in Valencia: CV-1234")
+    if (squashed !== spaced && numKeyCode(squashed) && !numKeyCode(spaced)) out.push({ text: normSentence(cleanText(squashed)), where: 'text', block: b, split: true });
     const t = cleanText(spaced).replace(/\s+/g, ' ').trim();
     if (t) { lines.push({ t, b, at, seps }); seps = []; }
     seps.push(c[0]);
   }
-  // the belt across blocks (sixth round): a label and its value, two lines of one block, a summary and its first block
+  // the belt across blocks (sixth round): a label and its value, two lines of one block, a summary and its first block; since
+  // the seventh round a label of any length with a number key, the reversed order, every line of the summary's block, the blocks
+  // of lines, and the title/description and JSON-LD pairs
   const joins = [];
+  const sameBlock = (l) => l.seps.every((x) => /^(?:<br\b[^>]*>|\n)$/i.test(x));
   for (let k = 0; k + 1 < lines.length; k++) {
-    const a = lines[k], n = lines[k + 1], line = n.seps.every((x) => /^(?:<br\b[^>]*>|\n)$/i.test(x));
-    if (line || a.t.split(' ').length <= 4) joins.push({ how: line ? 'line' : 'label', parts: [a.t, n.t], block: a.b });
+    const a = lines[k], n = lines[k + 1], line = sameBlock(n);
+    // seventh round: a block of ANY length is a label when it carries a number key ("Our agent number in Valencia" — "CV-1234"),
+    // or a code when the next block carries a number key ("CV-1234 …" — "Our agent number in Valencia.")
+    const key = NUM_KEY_RE.test(a.t) || (VALUE_NUM_RE.test(a.t) && NUM_KEY_RE.test(n.t));
+    if (line || a.t.split(' ').length <= 4 || key) joins.push({ how: line ? 'line' : 'label', parts: [a.t, n.t], block: a.b });
   }
   for (const m of body.matchAll(/<summary\b[^>]*>[\s\S]*?<\/summary>/gi)) {
     // the head without the lane or question number ("05", "01": the build's own, aria-hidden)
-    const e = m.index + m[0].length, head = lines.filter((l) => l.at > m.index && l.at < e && !/^\d{1,2}$/.test(l.t)), next = lines.find((l) => l.at >= e);
-    if (head.length && next && !/<\/details>/i.test(body.slice(e, next.at))) joins.push({ how: 'summary', parts: [...head.map((l) => l.t), next.t], block: head[0].b });
+    const e = m.index + m[0].length, head = lines.filter((l) => l.at > m.index && l.at < e && !/^\d{1,2}$/.test(l.t)), k0 = lines.findIndex((l) => l.at >= e);
+    if (!head.length || k0 < 0 || /<\/details>/i.test(body.slice(e, lines[k0].at))) continue;
+    // seventh round: the head with EVERY line of the first block after it, not only its first line (a newline or a <br> inside
+    // the answer: "Do you have an agent number in Valencia?" — "Yes.⏎CV-1234.")
+    let k1 = k0;
+    while (k1 + 1 < lines.length && sameBlock(lines[k1 + 1])) k1++;
+    for (let k = k0; k <= k1; k++) joins.push({ how: 'summary', parts: [...head.map((l) => l.t), ...lines.slice(k0, k + 1).map((l) => l.t)], block: head[0].b });
+  }
+  // seventh round: the lines a <br> or a newline joins make one block, and a number key in one block with a code in the next, in
+  // either order, is a label and its value whatever line each stands on ({dt "Our agent number", dd "In Valencia:<br>CV-1234."});
+  // two single-line blocks are already joined above (a label of four words or fewer, or one with a number key or a code)
+  const groups = [];
+  for (const l of lines) { if (groups.length && sameBlock(l)) groups[groups.length - 1].push(l); else groups.push([l]); }
+  // and a block of lines is one block: a number key and a code on any two of its lines ("Our agent number<br>in Valencia<br>CV-1234.")
+  for (const G of groups) {
+    if (G.length < 2 || G.some((l) => numKeyCode(l.t))) continue;
+    const gt = G.map((l) => l.t).join(' ');
+    if (numKeyCode(gt)) out.push({ text: normSentence(gt), where: 'text', block: G[0].b, ncut: true });
+  }
+  for (let g = 0; g + 1 < groups.length; g++) {
+    if (groups[g].length < 2 && groups[g + 1].length < 2) continue;
+    const gt = groups[g].map((l) => l.t).join(' '), ht = groups[g + 1].map((l) => l.t).join(' ');
+    if (numKeySplit(gt, ht) || numKeySplit(ht, gt)) joins.push({ how: 'block', parts: [gt, ht], block: groups[g][0].b });
   }
   for (const j of joins) {
     j.cut = joinCut(j.parts);
     if (seenJoins) seenJoins.push(j);
     if (j.cut) out.push({ text: normSentence(j.parts.join(' ')), where: 'text', block: j.block, xcut: j.cut });
+  }
+  for (const j of pairs) {
+    j.parts = j.parts.map((x) => cleanText(x).replace(/\s+/g, ' ').trim());
+    j.cut = joinCut(j.parts);
+    if (seenJoins) seenJoins.push(j);
+    if (j.cut) late.push({ text: normSentence(j.parts.join(' ')), where: j.how, block: block++, xcut: j.cut });
   }
   return [...out.sort((a, b) => (a.where === 'text' ? 0 : 1) - (b.where === 'text' ? 0 : 1)), ...late];
 }
@@ -2695,7 +2779,7 @@ export function claimProblems(html, { claims, sell = false } = {}) {
   const out = [], seen = new Set();
   const all = reviewSentences(html);
   for (const s of all) {
-    const key = `${s.where}|${s.text}|${s.split ? 1 : 0}|${s.cut ? 1 : 0}|${s.xcut ? 1 : 0}`;
+    const key = `${s.where}|${s.text}|${s.split ? 1 : 0}|${s.cut ? 1 : 0}|${s.xcut ? 1 : 0}|${s.ncut ? 1 : 0}`;
     if (seen.has(key)) continue;
     seen.add(key);
     const ban = sell ? sellHit(s.text) : null;
@@ -2703,13 +2787,14 @@ export function claimProblems(html, { claims, sell = false } = {}) {
     if (s.split) { out.push({ ...s, why: 'split' }); continue; }
     if (s.cut) { out.push({ ...s, why: 'cut' }); continue; }
     if (s.xcut) { out.push({ ...s, why: 'xcut' }); continue; }
+    if (s.ncut) { out.push({ ...s, why: 'ncut' }); continue; }
     if (!hasClaimVocab(s.text)) continue;
     if (!kind.has(s.text)) out.push({ ...s, why: 'unreviewed' });
     else if (sell && kind.get(s.text) === 'partner') out.push({ ...s, why: 'partner' });
   }
   // the context rules
   const byBlock = new Map();
-  for (const s of all) if (!s.split && !s.cut && !s.xcut) byBlock.set(s.block, [...(byBlock.get(s.block) || []), s]);
+  for (const s of all) if (!s.split && !s.cut && !s.xcut && !s.ncut) byBlock.set(s.block, [...(byBlock.get(s.block) || []), s]);
   const blocks = [...byBlock.keys()].sort((a, b) => a - b);
   for (const b of blocks) {
     const list = byBlock.get(b);
@@ -2777,7 +2862,7 @@ export function claimGuard(html, { claims, sell = false }, where) {
   const group = (list) => [...list.reduce((m, p) => m.set(p.text, [...(m.get(p.text) || []), p.where]), new Map())].map(([text, w]) => ({ text, where: [...new Set(w)].join(', '), hit: (list.find((p) => p.text === text) || {}).hit }));
   const say = (p) => `"${p.text}" (${p.where})`;
   const of = (why) => group(bad.filter((p) => p.why === why));
-  const ban = of('banned'), part = of('partner'), split = of('split'), cut = of('cut'), place = of('place'), label = of('label'), pair = of('pair'), xcut = of('xcut'), unrev = of('unreviewed');
+  const ban = of('banned'), part = of('partner'), split = of('split'), ncut = of('ncut'), cut = of('cut'), place = of('place'), label = of('label'), pair = of('pair'), xcut = of('xcut'), unrev = of('unreviewed');
   need(!ban.length, where, `a desk that sells names a register or a licence it does not hold (${ban.map((p) => p.hit).join(', ')}): ${ban.map(say).join(' | ')} — it cannot ship`);
   need(!part.length, where, `"a licensed partner" is the wording of a desk that is not open (kind partner): a desk that sells cannot say it: ${part.map(say).join(' | ')}`);
   need(!split.length, where, `a registration or licence word is split by inline tags or comments (it reads as one word on the page): ${split.map(say).join(' | ')} — write the word whole, and review the sentence`);
@@ -2787,6 +2872,8 @@ export function claimGuard(html, { claims, sell = false }, where) {
   need(!pair.length, where, `next to the reviewed label (${[...new Set(pair.map((p) => `"${p.hit}"`))].join(', ')}), another reviewed label of four words or fewer, or a label that asks who or what status, reads as its value — two labels make a claim neither was reviewed for: ${pair.map(say).join(' | ')} — a true value next to a reviewed label is a sentence of more than four words or a kind follower; if the two say that BOOM or the company holds a registration, licence or membership outside Rome, it cannot ship`);
   need(!xcut.length, where, `a registration or licence word, a register's initials or a number shape is split between a label and its value (on the page they read as one claim): ${xcut.map(say).join(' | ')} — if it does not say that BOOM or the company holds a registration, licence or membership outside Rome, rewrite the label or the value so they no longer read as one; if it does, it cannot ship`);
   need(!unrev.length, where, `${unrev.length} sentence(s) about registration or licences not reviewed in ${CLAIMS_FILE}: ${unrev.map(say).join(' | ')} — if it does not say that BOOM or the company holds a registration, licence or membership outside Rome, add it to ${CLAIMS_FILE} with its kind and a note; if it does, it cannot ship`);
+  // seventh round, last: what no rule above caught — a number key and a code in one block or string (a word, a sentence, a line or a separator between them)
+  need(!ncut.length, where, `a number key (agent no., agency number, registration ID, número de agente …) and a code (upper-case letters and three digits or more, or four digits or more) stand in one block or string (on the page the code reads as that number): ${ncut.map(say).join(' | ')} — if it does not say that BOOM or the company holds a registration, licence or membership outside Rome, rewrite the string so the code no longer reads as that number; if it does, it cannot ship`);
 }
 
 const DAY_NAMES_LONG = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
