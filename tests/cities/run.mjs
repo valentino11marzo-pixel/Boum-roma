@@ -63,7 +63,8 @@ import {
   ARC_CLEAR, ARC_DOT_R, ARC_ME_R, MAP_KB, HZ_CAM, HZ_LIFT, HZ_LEAN, HZ_KEY, HUB_MAP_PX, horizon, hzViolations, hzPathPts, hzCal, holidayKeyOf as hkOf,
   orgNode, serviceNode, numberWord, listJoin, dateLong, homeCountryOf, isHomeDesk,
   renderHub, buildHub, HUB_WEIGHT_KB, HUB_BUDGET, HUB_FILE, HUB_PATH, COUNTRY_NAME, hoursSentence, hubText, CALL_RE, RATING_RE,
-  reviewSentences, claimProblems, claimGuard, lintClaims, loadClaims, CLAIM_VOCAB_RE, CLAIM_KINDS, CLAIMS_FILE
+  reviewSentences, claimProblems, claimGuard, lintClaims, loadClaims, CLAIM_VOCAB_RE, CLAIM_KINDS, CLAIMS_FILE,
+  hasClaimVocab, claimHits, sellHit, closeUp, cleanText, normSentence, PLACE_RE, htmlFieldGuard
 } from '../../build-cities.mjs';
 import SCALO from '../../js/scalo-codes.js';
 import CAL from '../../js/desk-calendar.js';
@@ -558,7 +559,7 @@ tplRefuses('<p class="net-c">Every desk answers from Rome.</p>', '<p class="net-
   'MUTATION: a live page linking a desk that is not open (href="/paris", from the template) is refused by the build');
 tplRefuses('<p class="net-c">Every desk answers from Rome.</p>', '<p class="net-c">Every desk answers from Rome. <a href="https://www.boomrome.com/berlin#fares">Berlin</a></p>', /a live page links a desk that is not open/,
   'a live page linking a desk that is not open by its absolute URL is refused too');
-refuses((c) => { c.bref.rows[0].ddHtml += ' See <a class="lnk" href="/berlin">Berlin</a>.'; }, /a live page links a desk that is not open \(href="\/berlin/, 'a live desk\'s own data linking a desk that is not open is refused', 'london');
+refuses((c) => { c.bref.rows[0].ddHtml += ' See <a href="/berlin">Berlin</a>.'; }, /a live page links a desk that is not open \(href="\/berlin/, 'a live desk\'s own data linking a desk that is not open is refused', 'london');
 check(throws(() => render(CITY.paris, shared, template.replace('<p class="net-c">Every desk answers from Rome.</p>', '<p class="net-c">Every desk answers from Rome. <a href="/berlin">Berlin</a></p>')), /not open/) === 'did not throw',
   'a draft may link another draft (the review sees the suite)');
 
@@ -1011,7 +1012,7 @@ tplRefuses('<p class="proof">', '<p class="proof">Pay by bank transfer · ', /no
     for (const [s, h] of [...SLUGS.map((x) => [x, PAGE[x]]), ['desks', hubHtml]]) {
       const bad = claimProblems(h, { claims, sell: SELLERS.includes(s) });
       check(!bad.length, `${s}: every sentence about registration or licences is in ${CLAIMS_FILE}${SELLERS.includes(s) ? ', no register the desk does not hold, no partner line' : ''}`, bad.map((p) => `${p.why}: "${p.text}"`).join(' | '));
-      for (const x of reviewSentences(h)) if (CLAIM_VOCAB_RE.test(x.text)) used.add(x.text);
+      for (const x of reviewSentences(h)) used.add(x.text);
     }
     // the extractor reads each meta and each JSON string on its own, never concatenated
     {
@@ -1049,7 +1050,7 @@ tplRefuses('<p class="proof">', '<p class="proof">Pay by bank transfer · ', /no
     // (c) true sentences are refused by default, and pass once a person adds them with a non-claim kind (the workflow, on an in-memory copy)
     const TRUE = [['The lease is registered with the Agenzia delle Entrate within 30 days', 'lease'], ['Egidi Immobiliare S.r.l. is registered under REA RM-1710623.', 'company-rome'],
       ['Students enrolled at the Universidad Complutense qualify.', 'tenant'], ['BOOM is registered as a European Union trade mark.', 'trade-mark'], ['Your fianza is lodged with the regional register of deposits.', 'tenant'],
-      ['The company is registered at Viale Liegi 42, Rome.', 'company-rome'], ['The desk is registered under Egidi Immobiliare S.r.l. in Rome.', 'company-rome'], ['BOOM is registered with the EUIPO as a trade mark.', 'trade-mark'],
+      ['The company is registered at Viale Liegi 42, Rome.', 'company-rome'], ['BOOM is registered with the EUIPO as a trade mark.', 'trade-mark'],
       ["We're a Rome-registered agency.", 'company-rome'], ['Ask whether the agency is licensed.', 'law'], ['Only pay a holding deposit to a registered letting agent.', 'law'],
       ['Most homes on Idealista are listed by licensed agencies.', 'law'], ['The deposit goes to the Catalan register of tourist dwellings.', 'law'], ['BRP: registration in the Dutch register of persons.', 'tenant'],
       ["The landlord's agent is authorised to act for the landlord, not for you.", 'law'], ['we are not licensed in Spain', 'law'], ['We are not a Spanish-registered agency.', 'law'],
@@ -1060,8 +1061,19 @@ tplRefuses('<p class="proof">', '<p class="proof">Pay by bank transfer · ', /no
       try { return claimProblems(page(t), { claims: withEntries(before.map((p) => ({ text: p.text, kind, note: 'reviewed in the test: not a claim about us' }))), sell: true }).length > 0; } catch { return true; }
     });
     check(!trueBad.length, `the ${TRUE.length} true sentences the regexes refused are reported as unreviewed (default deny) and pass once added to a copy of ${CLAIMS_FILE} with their kind (lease, tenant, company-rome, trade-mark, law)`, trueBad.map(([t]) => t).join(' | '));
-    check(['All BOOM desks are listed on the network map.', "BOOM's prices are listed with VAT included.", 'The agency is approved by the landlord before the viewing.', 'Homes listed on Rightmove go fast.'].every((t) => !claimProblems(page(t), { claims, sell: true }).length),
-      '"listed" and "approved" are not in the vocabulary: the round-2 false positives on them pass without a review');
+    // fourth round: "listed", "approved", "member", "permit" are in the vocabulary now; true sentences with them are reviewed like the rest
+    {
+      const T4 = [['Homes listed on Rightmove go fast.', 'listing'], ['The landlord must approve the tenant before signing.', 'law'], ['Unregistered leases are void in Italy until registered.', 'lease'],
+        ['The landlord lodges the deposit with the Generalitat Valenciana.', 'deposit'], ['Your household members can live with you.', 'tenant']];
+      const bad4 = T4.filter(([t, kind]) => {
+        const before = claimProblems(page(t), { claims, sell: true });
+        if (!before.length || before.some((p) => p.why !== 'unreviewed')) return true;
+        try { return claimProblems(page(t), { claims: withEntries(before.map((p) => ({ text: p.text, kind, note: 'reviewed in the test: not a claim about us' }))), sell: true }).length > 0; } catch { return true; }
+      });
+      check(!bad4.length, 'fourth round: sentences with "listed", "approve", "Unregistered", "Generalitat", "members" are reviewed (default deny) and pass once listed with their kind (listing, law, lease, deposit, tenant)', bad4.map(([t]) => t).join(' | '));
+      check(["rent within the bands of Milan's local agreement", 'We read the agreement before you sign', 'Shortlisted, still abroad', 'All prices include VAT'].every((t) => !hasClaimVocab(t)),
+        'fourth round: "agreement" (agréé is accented only), "shortlisted" (a word inside another) and plain copy are not in the vocabulary');
+    }
     // (d) the lint: a reviewed file cannot carry a claim
     const lintRefuses = (e, re) => throws(() => withEntries([{ note: 'a lint probe, refused', ...e }]), re) === true;
     check(lintRefuses({ text: 'we are registered with the Comunitat Valenciana', kind: 'tenant' }, /kind tenant, but the company is the subject/), 'lint: "we are registered with the Comunitat Valenciana" as kind tenant is refused (the company as subject)');
@@ -1093,12 +1105,119 @@ tplRefuses('<p class="proof">', '<p class="proof">Pay by bank transfer · ', /no
       let r2 = 'threw'; try { render(c, shared, template, R, { claims: more }); r2 = true; } catch (e) { r2 = e.message; }
       check(r1 === true && r2 === true, 'build: a true lease sentence added to milan is refused with "add it to cities/_claims.json…", and builds once the sentence is added (an in-memory allowlist)', `${r1} / ${r2}`);
     }
+    // ── fourth round (04/11/2026): the extractor, the vocabulary, the context rules, the lint, the HTML whitelist ──
+    {
+      const at = (h) => reviewSentences(h);
+      const has = (h, t, w) => at(h).some((x) => x.text === t && (!w || x.where === w));
+      // (h1) the extractor: entities decoded BEFORE the split, NFKC, no format characters, inline tags squashed, every attribute
+      check(has('<p>R&#101;gistered with the Generalitat Valenciana.</p>', 'Registered with the Generalitat Valenciana', 'text') && has('<p>Regis&shy;tered with the Generalitat Valenciana.</p>', 'Registered with the Generalitat Valenciana', 'text')
+        && has('<p>Licen&#99;ed in Spain.</p>', 'Licenced in Spain') && has('<p>Member&nbsp;of the NVM.</p>', 'Member of the NVM') && has('<p>Regis&#x200D;tered in Spain.</p>', 'Registered in Spain'),
+        'extractor: entities are decoded on the whole text before the split ("&#101;" and "&shy;" are no longer cut at their ";")');
+      check(has('<p>Regis\u200Btered in Spain.</p>', 'Registered in Spain') && has('<p>Regis\u00ADtered in Spain.</p>', 'Registered in Spain') && has('<p>Licen\u2060sed in Spain.</p>', 'Licensed in Spain')
+        && has('<p>Regis\u2028tered in Spain.</p>', 'Registered in Spain') && has('<p>Ｒｅｇｉｓｔｅｒｅｄ in Spain.</p>', 'Registered in Spain') && cleanText('Regis\uFEFFtered') === 'Registered',
+        'extractor: NFKC (fullwidth letters) and no \\p{Cf} (soft hyphen, zero-width space/joiner, word joiner, BOM) nor U+2028/2029');
+      check(at('<p>Regis<span>tered</span> with the Generalitat Valenciana.</p>').some((x) => x.split && x.text === 'Registered with the Generalitat Valenciana')
+        && at('<p><b>Reg</b><i>istered</i> with the Generalitat Valenciana.</p>').some((x) => x.split) && at('<p><!-- x --><span>Licen</span><!-- y -->sed in Spain.</p>').some((x) => x.split)
+        && !at('<p>Hello <b>registered</b>in Rome.</p>').some((x) => x.split),
+        'extractor: a word split by inline tags or comments is read whole in the squashed copy, and refused (a block whose squashed copy has more vocabulary than its spaced copy)');
+      check(has("<p><span title='Registered with the Generalitat Valenciana'>x</span></p>", 'Registered with the Generalitat Valenciana', 'attr') && has('<p><span title=Licensed>x</span></p>', 'Licensed', 'attr')
+        && has('<p><span aria-description="Registered in Valencia">x</span></p>', 'Registered in Valencia', 'attr') && has('<p><input value="Registered in Valencia" readonly></p>', 'Registered in Valencia', 'attr')
+        && has('<select><optgroup label="Licensed in Spain"><option>x</option></optgroup></select>', 'Licensed in Spain', 'attr') && has("<p><span data-x='Licensed in Spain'></span></p>", 'Licensed in Spain', 'attr')
+        && !at('<p><a href="/registration" class="registered">x</a></p>').some((x) => /regist/i.test(x.text)),
+        'extractor: every attribute that carries letters is read, in either quote style or none (title, aria-*, value, label, data-*), except the non-text ones (href, class, …)');
+      check(has('<style>.rx::after{content:"Registered with the Generalitat Valenciana"}</style><p>x</p>', 'Registered with the Generalitat Valenciana', 'style'), 'extractor: <style> content strings are text a reader sees');
+      check(has('<ul><li><b data-instr>One company</b> Egidi Immobiliare S.r.l., registered in Rome.</li></ul>', 'Egidi Immobiliare S.r.l., registered in Rome')
+        && has('<ul><li><span class="tn" aria-hidden="true">MIL 08</span> <span class="tt">University enrolment, for students</span></li></ul>', 'University enrolment, for students'),
+        'extractor: the END of a data-instr element and span.tn / span.tt are sentence boundaries (no instrument label inside an entry)');
+      check(normSentence('A trade mark of Egidi Immobiliare S.r.l.') === 'A trade mark of Egidi Immobiliare S.r.l.' && normSentence('Paid by you.') === 'Paid by you' && normSentence('Acme Ltd.') === 'Acme Ltd.'
+        && has('<p>Agència col·legiada a Barcelona.</p>', 'Agència col·legiada a Barcelona'),
+        'normSentence keeps the dot that closes S.r.l. / Ltd.; a middle dot inside a word (col·legiada) is not a split');
+      // (h3, h4) the vocabulary: KO on a desk that sells (every probe of both verifiers)
+      const KO4 = ['R.A.I.C.V. n.º 1234.', 'A.I.C.A.T. n.º 5678.', 'K.v.K. 12345678.', 'Kvk12345678.', 'KvK12345678.', 'Member: T.P.O. and A.R.L.A.', 'Erlaubnis nach §34 c GewO.', 'Makler mit Erlaubnis nach Paragraph 34c GewO.',
+        'Chamber of Commerce no. 12345678 (Amsterdam).', 'BOOM Valencia is listed with the Generalitat Valenciana as an estate agency.', 'Approved by the Generalitat Valenciana as a real estate agent.', 'Our Generalitat Valenciana agent number: CV-1234.',
+        'Reg. no. CV-1234 with the Generalitat Valenciana.', 'Regd. with the Generalitat Valenciana.', 'Lic. no. CV-1234, Generalitat Valenciana.', 'BOOM Valencia appears on the Generalitat list of estate agents.',
+        'Supervised by the Generalitat Valenciana.', 'BOOM London is a RICS member firm.', 'A TPO member agency, with CMP cover for your money.', 'BOOM London is a chartered letting agent in England.',
+        'Signed up to a government-approved complaints scheme in England.', 'BOOM Amsterdam is an NVM member agency.', 'We hold the trade permit in Germany.', 'BOOM is an NVM member.',
+        'BOOM is a TPO member and offers client money protection.', 'BOOM is FIAIP-affiliated.', 'Approved by the Generalitat.', 'we are unregulated in Spain', 'Deregistered in Spain.', 'Unregistered agent in Spain.',
+        'Agencia autorizada por la Generalitat Valenciana.', 'Agencia acreditada en Valencia.', 'Agencia certificada en Madrid.', 'Agencia regulada en Madrid.', 'Miembro de la Asociación de Agentes Inmobiliarios de Madrid.',
+        'Agente de la Propiedad Inmobiliaria (API) n.º 1234.', 'Dada de alta como agencia ante la Generalitat Valenciana.', 'Agència amb llicència de la Generalitat.', 'Agència habilitat per la Generalitat.',
+        'Agència acreditada a Catalunya.', 'Agència autoritzada a Barcelona.', 'Agència col·legiada a Barcelona.', 'Membre de l’API de Catalunya.', 'BOOM staat ingeschreven in het Handelsregister.',
+        'Erkend makelaar in Amsterdam.', 'Lid van de NVM.', 'Een NVM-makelaar voor huurders.', 'Agence agréée en Espagne.', 'Titulaire de la carte T à Madrid.', 'Agence habilitée à Madrid.',
+        'Im Handelsregister eingetragen.', 'Egidi Immobiliare è iscritta al ruolo degli agenti di Milano.', 'Iscritta alla Camera di Commercio di Milano.', 'Agenzia abilitata a Milano.', 'Com licença em Lisboa.',
+        'We are on the Generalitat list of agents.', 'Is BOOM Valencia approved by the Generalitat?', 'Ask our Generalitat-approved agent.', 'Lic&shy;ensed in Spain.', 'Regis&#8203;tered in Spain.', 'R E G I S T E R E D in Spain.'];
+      const KO4H = ['<p>R&#101;gistered with the Generalitat Valenciana.</p>', '<p>Licen&ZeroWidthSpace;sed in Spain.</p>', '<p>Member&#160;of the NVM.</p>', '<p>Regis<wbr>tered with the Generalitat Valenciana.</p>',
+        '<p>Regis<span>tered</span> with the Generalitat Valenciana.</p>', '<p><b>Reg</b><i>istered</i> with the Generalitat Valenciana.</p>', '<p><!-- x --><span>Licen</span><!-- y -->sed in Spain.</p>',
+        "<p><span title='Registered with the Generalitat Valenciana'>Valencia</span></p>", "<p><img alt='Licensed in Spain' src=\"/boom-logo.svg\"></p>", "<p><a href=\"#\" title='Licensed in Spain'>Valencia</a></p>",
+        '<p><span aria-description="Registered with the Generalitat Valenciana">Valencia</span></p>', '<p><input value="Registered with the Generalitat Valenciana" readonly></p>',
+        '<style>.rx::after{content:"Registered with the Generalitat Valenciana"}</style><span class="rx"></span>', '<select><optgroup label="Licensed in Spain"><option>x</option></optgroup></select>',
+        "<p><abbr title='Registro de Agentes de Intermediacion Inmobiliaria'>R.A.I.C.V.</abbr></p>"];
+      const pg = (b) => `<!DOCTYPE html><html><head><title>t</title></head><body><main>${b}</main></body></html>`;
+      const miss4 = [...KO4.filter((t) => !claimProblems(page(t), { claims, sell: true }).length), ...KO4H.filter((h) => !claimProblems(pg(h), { claims, sell: true }).length)];
+      check(!miss4.length, `fourth round: the ${KO4.length + KO4H.length} probes of both verifiers (entities, zero-width, inline tags, attributes, CSS content, abbreviations, synonyms, local languages, number shapes, §34c spellings) are refused on a desk that sells`, miss4.join(' | '));
+      const BAN4 = ['R.A.I.C.V. n.º 1234.', 'A.I.C.A.T. n.º 5678.', 'K.v.K. 12345678.', 'Kvk12345678.', 'Member: T.P.O. and A.R.L.A.', 'Erlaubnis nach §34 c GewO.', 'Paragraph 34c GewO applies.', 'Property Redress',
+        'A RICS member firm', 'An NVM agency', 'A VBO agency', 'client money protection', 'Agente de la Propiedad Inmobiliaria', 'API n.º 12', 'colegiado', 'carte T', 'TPO', 'CMP', 'PRS', 'Kamer van Koophandel'];
+      const nb4 = BAN4.filter((t) => !claimProblems(page(t), { claims, sell: true }).some((p) => p.why === 'banned'));
+      check(!nb4.length && !sellHit('Within 30 days the landlord lodges it in a government-approved scheme (DPS, TDS or mydeposits) and sends you its details') && closeUp('R.A.I.C.V. and K.v.K.') === 'RAICV and KvK',
+        'fourth round: the registers by name and initials (closed up: R.A.I.C.V., K.v.K., T.P.O.; KvK12345678; §34 c; Paragraph 34c) are banned on a desk that sells; the deposit schemes DPS, TDS, mydeposits are not', nb4.join(' | '));
+      // (h5) the context rules: the Rome line is not continued elsewhere; a reviewed heading is not followed by an unreviewed place
+      const CTX4 = [['<dl><dt>Who</dt><dd>Egidi Immobiliare S.r.l. is an Italian real estate agency, registered in Rome. Also in Valencia, since 2026.</dd></dl>', 'place'],
+        ['<dl><dt>Who</dt><dd>Egidi Immobiliare S.r.l. is an Italian real estate agency, registered in Rome; also in Valencia.</dd></dl>', 'place'],
+        ['<dl><dt>Who</dt><dd>Egidi Immobiliare S.r.l. is an Italian real estate agency, registered in Rome. And with the Comunitat, in València.</dd></dl>', 'place'],
+        ['<dl><dt>Registration</dt><dd>In Valencia, with the Generalitat.</dd></dl>', 'heading'], ['<dl><dt>Registration</dt><dd>In Valencia, since 2026.</dd></dl>', 'heading']];
+      const ctxMiss = CTX4.filter(([h, w]) => !claimProblems(pg(h), { claims, sell: true }).some((p) => p.why === w)).map(([h]) => h);
+      const ctxOk = [['<dl><dt>Who</dt><dd>Egidi Immobiliare S.r.l. is an Italian real estate agency, registered in Rome. Hired by the tenant, paid by the tenant only.</dd></dl>'],
+        ['<dl><dt>Registration</dt><dd>padrón · NIE</dd><dd>Registered at the town hall with your lease: the SIP health card and a school place hang on it.</dd></dl>']].filter(([h]) => claimProblems(pg(h), { claims, sell: true }).length).map(([h]) => h);
+      check(!ctxMiss.length && !ctxOk.length, 'fourth round: next to the company\'s Rome line an unreviewed sentence naming another desk place is refused ("Also in Valencia, since 2026"); after the heading "Registration" an unreviewed place or authority is refused; the true rows pass', [...ctxMiss, ...ctxOk].join(' | '));
+      check(throws(() => claimGuard(pg(CTX4[0][0]), { claims, sell: true }, 'cities/valencia.json'), /cities\/valencia\.json: next to the company's Rome line, a sentence names another desk place \(Valencia\) and is not reviewed: "Also in Valencia, since 2026"/) === true
+        && throws(() => claimGuard(pg('<p>Regis<span>tered</span> in Spain.</p>'), { claims, sell: true }, 'x'), /a registration or licence word is split by inline tags or comments/) === true,
+        'the place and split refusals name the sentence and say what to do');
+      // (h6) the lint: the eight claim entries verifier B saw accepted, and more
+      const L4 = [['Registered with the Generalitat Valenciana for your peace of mind', 'tenant', /participle with no subject/], ['Registered with the Generalitat Valenciana, so your deposit is safe', 'lease', /participle with no subject/],
+        ['Registration with the Generalitat Valenciana', 'heading', /nominal registration/], ['As a regulated agency in Valencia we check your lease', 'lease', /agency adjective/],
+        ['BOOM, which is licensed in Spain, works only for you', 'tenant', /relative clause/], ['BOOM, which is licensed in Spain, works only for you', 'law', /first person/],
+        ["Valencia requires agents to register in the regional agents' register, and you can check us there", 'law', /first person/],
+        ['Egidi Immobiliare S.r.l., an Italian real estate agency registered in Valencia as well as Rome', 'company-rome', /does not land on Rome/],
+        ['Egidi Immobiliare S.r.l., an Italian real estate agency registered in Valencia (Rome office)', 'company-rome', /does not land on Rome/],
+        ['Egidi Immobiliare S.r.l., an Italian real estate agency registered in Rome and in the Valencian agents list', 'company-rome', /after Rome it names another place/],
+        ['The desk is registered under Egidi Immobiliare S.r.l. in Rome', 'company-rome', /does not land on Rome/],
+        ['BOOM, with its licensed partner, holds a carte professionnelle', 'partner', /another licence|carte professionnelle or §34c stands only|holds/],
+        ['Also in Valencia, since 2026', 'context', /adds to the Rome line/], ['Egidi has an office in Valencia', 'context', /adds to the Rome line/], ['In Valencia, with the Generalitat', 'context', /review it under its own kind/],
+        ['a registered Italian agency', 'law', /agency adjective .* with no verb/], ['a licensed agency in Valencia', 'law', /agency adjective .* with no verb/], ['an accredited Valencian agency', 'law', /agency adjective .* with no verb/],
+        ['The deposit is lodged, and we are registered with the Generalitat', 'deposit', /company is the subject/], ['Our agency, which is approved by the Generalitat', 'deposit', /relative clause|first person|company is the subject/],
+        ['The listed agency in Valencia is ours', 'listing', /agency adjective|first person/], ['The tenant checks the NVM listing', 'law', /names a register .*NVM/], ['A T.P.O. member', 'law', /names a register/]];
+      const lintMiss = L4.filter(([text, kind, re]) => !lintRefuses({ text, kind }, re)).map(([t, k]) => `${k}: ${t}`);
+      check(!lintMiss.length, `fourth round lint: the ${L4.length} claim entries (verifier B's eight, the strict Rome seat, the partner who holds, context continuations, the law label, first person in law/deposit/listing, named registers) are refused`, lintMiss.join(' | '));
+      check(['Registered at the town hall with your new lease, before the health card', 'BRP: registration in the Dutch register of persons', 'Only pay a holding deposit to a registered letting agent', 'Egidi Immobiliare S.r.l. is registered under REA RM-1710623']
+        .every((t, i) => !lintRefuses({ text: t, kind: ['tenant', 'tenant', 'law', 'company-rome'][i] }, /./)), 'fourth round lint: the tenant\'s own registration at the town hall, the BRP, advice about a registered letting agent and "registered under REA RM-1710623" pass');
+      // (h2) the trusted-markup fields: only <b>, <strong>, <em>, <i>, <br>, <a href="…">
+      for (const [bad, what] of [['<span>x</span>', 'a span'], ['<!-- x -->', 'a comment'], ["<a href='#'>x</a>", 'a single-quoted href'], ['<a href="#" title="Licensed">x</a>', 'a title attribute'], ['<img src="/x.png">', 'an img'],
+        ['<abbr title="x">R</abbr>', 'an abbr'], ['<b data-x="y">x</b>', 'a data attribute'], ['<style>p{}</style>', 'a style'], ['<input value="x">', 'an input'], ['x < y', 'a stray <']]) {
+        refuses((c) => { c.bref.rows[2].ddHtml += ` ${bad}`; }, /bref\.rows\[2\]\.ddHtml: trusted markup carries only <b>, <strong>, <em>, <i>, <br> and <a href="…">/, `the trusted markup of a desk refuses ${what}`, 'valencia');
+      }
+      check(throws(() => htmlFieldGuard({ rows: [{ ddHtml: 'Pay <b>once</b>, <strong>flat</strong>, <em>in</em> <i>writing</i><br><a href="/terms">terms</a>.' }] }, 'x'), /./) === 'did not throw' && throws(() => htmlFieldGuard({ brief: { rows: [{ ddHtml: '<span>x</span>' }] } }, 'cities/_hub.json'), /cities\/_hub\.json: brief\.rows\[0\]\.ddHtml/) === true,
+        'the trusted markup allows exactly <b>, <strong>, <em>, <i>, <br>, <a href="…">, and the hub is held to it too');
+      // the build: an entity or a zero-width character inside the word is refused through render()
+      refuses((c) => { c.bref.rows[2].ddHtml += ' R&#101;gistered with the Generalitat Valenciana.'; }, /cities\/valencia\.json: 1 sentence\(s\) about registration or licences not reviewed.*"Registered with the Generalitat Valenciana" \(text\)/, 'build: "R&#101;gistered with the Generalitat Valenciana." in a fact-sheet row is refused (the entity no longer cuts the word)', 'valencia');
+      refuses((c) => { c.faq.items[1].a += ' Regis\u200Btered with the Generalitat Valenciana.'; }, /cities\/valencia\.json: 1 sentence\(s\) about registration or licences not reviewed.*"Registered with the Generalitat Valenciana" \(text, ld\)/, 'build: a zero-width space inside "Registered" in the FAQ is refused', 'valencia');
+      refuses((c) => { c.bref.rows.splice(1, 0, { dt: 'Registration', ddHtml: 'In Valencia, since 2026.' }); }, /after the reviewed heading \("Registration"\), a sentence names a desk place or an authority and is not reviewed: "In Valencia, since 2026"/, 'build: a fact-sheet row "Registration" followed by "In Valencia, since 2026." is refused (the heading rule)', 'valencia');
+      // verifier A's surfaces: "approved" with no other trigger word, in the JSON-LD only, in a check, in a meta description
+      refuses((c) => { c.service.description += ' Approved by the Generalitat Valenciana as an agent.'; }, /not reviewed in cities\/_claims\.json: "Approved by the Generalitat Valenciana as an agent" \(ld\)/, 'build: "Approved by the Generalitat Valenciana as an agent." in the Service (JSON-LD only) is refused', 'valencia');
+      refuses((c) => { c.checks.items[1].text += ' We are on the Generalitat list of agents.'; }, /not reviewed in cities\/_claims\.json: "We are on the Generalitat list of agents"/, 'build: "We are on the Generalitat list of agents." in a check is refused (the authority is in the vocabulary)', 'valencia');
+      refuses((c) => { c.meta.description = 'Apartment search for expats in Valencia, an approved agent: a Spanish-format file, applications as listings appear, viewings attended.'; }, /not reviewed in cities\/_claims\.json: "Apartment search for expats in Valencia, an approved agent: a Spanish-format file, applications as listings appear, viewings attended" \(meta/, 'build: "an approved agent" in the meta description is refused', 'valencia');
+      // (h8) the served assets: no string of assets/boom-*.js and no CSS content string carries the vocabulary
+      for (const f of fs.readdirSync(path.join(R, 'assets')).filter((x) => /^boom-[\w-]+\.(?:js|css)$/.test(x))) {
+        const src = read(`assets/${f}`);
+        const strs = f.endsWith('.js') ? [...src.matchAll(/"((?:[^"\\\n]|\\.)*)"|'((?:[^'\\\n]|\\.)*)'|`((?:[^`\\]|\\.)*)`/g)].map((x) => x[1] ?? x[2] ?? x[3]) : [...src.matchAll(/\bcontent\s*:\s*(?:"((?:[^"\\]|\\.)*)"|'((?:[^'\\]|\\.)*)')/g)].map((x) => x[1] ?? x[2]);
+        const hit = strs.filter((x) => hasClaimVocab(x));
+        check(strs.length > 0 && !hit.length, `assets/${f}: none of its ${strs.length} ${f.endsWith('.js') ? 'string literals' : 'content strings'} carries registration, licence or authority vocabulary`, hit.join(' | '));
+      }
+    }
     // (g) the page-level mirror, a literal copy independent of the build: no selling desk names a register it does not hold
-    const HELD = /\bRAICV\b|Registro de Agentes|\bAICAT\b|Registre d['’]Agents|carte professionnelle|§\s?34c|Property Ombudsman|Property Redress Scheme|redress scheme|Propertymark|\bARLA\b|\bNAEA\b|KvK[- ]registered|Kamer van Koophandel registration/i;
+    const HELD = /\bRAICV\b|Registro de Agentes|\bAICAT\b|Registre d['’]Agents|carte professionnelle|\bcarte T\b|§\s*34\s*c|Paragraph\s*34\s*c|Property Ombudsman|Property Redress|redress scheme|Propertymark|\bARLA\b|\bNAEA\b|\bKvK|Kamer van Koophandel|\bTPO\b|\bCMP\b|client money protection|\bRICS\b|\bNVM\b|\bVBO\b|Agente de la Propiedad|colegiad/i;
     for (const s of SELLERS) {
       const said = reviewSentences(PAGE[s]).map((x) => x.text).join(' \n ');
       const m = said.match(HELD);
-      check(!m, `${s}: no register or licence it does not hold (RAICV, AICAT, carte professionnelle, §34c, redress scheme, Property Ombudsman, Propertymark, ARLA, NAEA, KvK registration)`, m ? m[0] : '');
+      check(!m, `${s}: no register or licence it does not hold (RAICV, AICAT, carte professionnelle, carte T, §34c, redress scheme, Property Ombudsman, Propertymark, ARLA, NAEA, KvK, TPO, CMP, RICS, NVM, VBO, Agente de la Propiedad, colegiado)`, m ? m[0] : '');
     }
     // the hub runs the same guard
     {

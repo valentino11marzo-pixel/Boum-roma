@@ -21,7 +21,7 @@
     "name": "BOOM Amsterdam — tenant-side rental search (aanhuurmakelaar)",
     "serviceType": "Tenant-side rental search agent",
     "audience": "Expats and internationals relocating to Amsterdam",
-    "description": "Rental search in Amsterdam on the tenant's side only: Dutch-format application dossier within one working day of the tenant's papers, applications sent as listings appear, attended viewings with live video and written report, negotiation of rent, deposit and service costs, contract check against Dutch law, BRP registration confirmed in writing. Flat fees paid by the tenant, nothing from landlords or platforms."
+    "description": "Rental search in Amsterdam on the tenant's side only: Dutch-format application dossier within one working day of the tenant's papers, applications sent as listings appear, attended viewings with live video and written report, negotiation of rent, deposit and service costs, contract check against Dutch law, the right to register (BRP) at the address confirmed in writing. Flat fees paid by the tenant, nothing from landlords or platforms."
   },
   "hero": {
     "h1Before": "Your home in",
@@ -201,7 +201,7 @@
       },
       {
         "dt": "What we do",
-        "ddHtml": "Dutch-format dossier within <b>one working day</b> of your papers, applications <b>as listings appear</b>, attended viewings with live video and written report, negotiation, contract check against Dutch law, BRP confirmed in writing."
+        "ddHtml": "Dutch-format dossier within <b>one working day</b> of your papers, applications <b>as listings appear</b>, attended viewings with live video and written report, negotiation, contract check against Dutch law, the right to register (BRP) at the address confirmed in writing."
       },
       {
         "dt": "What we don't do",

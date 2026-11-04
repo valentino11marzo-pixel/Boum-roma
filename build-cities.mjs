@@ -1644,6 +1644,23 @@ function allowOnly(obj, path, where) {
 // the per-item allow-lists and the array each walks
 const ITEM_LISTS = { 'how.step': 'how.steps', 'checks.item': 'checks.items', 'faq.item': 'faq.items', 'bref.row': 'bref.rows' };
 
+// v1.7 fourth round: the trusted-markup fields (keys ending in "Html", e.g. bref.rows[].ddHtml) carry only
+// <b>, <strong>, <em>, <i>, <br> and <a href="…"> with double-quoted attributes: no comment, no style, no img, no
+// input, no abbr, no title / aria-* / data-* attribute (a registration word cannot hide in markup a reader sees)
+const HTML_FIELD_TAG_RE = /^<(?:\/?(?:b|strong|em|i)|br\s?\/?|a href="[^"<>]*"(?: target="_blank" rel="noopener")?|\/a)>$/;
+export function htmlFieldGuard(obj, where, pth = '') {
+  if (Array.isArray(obj)) { obj.forEach((x, i) => htmlFieldGuard(x, where, `${pth}[${i}]`)); return; }
+  if (!obj || typeof obj !== 'object') return;
+  for (const [k, v] of Object.entries(obj)) {
+    const at = pth ? `${pth}.${k}` : k;
+    if (/Html$/.test(k) && typeof v === 'string') {
+      const bad = (v.match(/<[^>]*>?|<!--[\s\S]*?-->/g) || []).filter((t) => !HTML_FIELD_TAG_RE.test(t));
+      const left = v.replace(/<[^>]*>/g, '');
+      need(!bad.length && !/[<>]/.test(left), where, `${at}: trusted markup carries only <b>, <strong>, <em>, <i>, <br> and <a href="…"> (double quotes, no other attribute); found ${bad.length ? bad.map((t) => `"${t.slice(0, 60)}"`).join(', ') : 'a stray < or >'}`);
+    } else htmlFieldGuard(v, where, at);
+  }
+}
+
 // the company's identity strings: any "REA XX-…" is entity.rea, any "VAT /
 // P.IVA <11 digits>" is entity.vat. Shared by the desks and the hub.
 export function identityGuard(text, shared, where) {
@@ -1711,6 +1728,9 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
     if (ITEM_LISTS[pth]) { const arr = get(city, ITEM_LISTS[pth]); if (Array.isArray(arr)) arr.forEach((x) => allowOnly(x, pth, where)); continue; }
     allowOnly(pth ? get(city, pth) : city, pth, where);
   }
+
+  htmlFieldGuard(city, where);
+  htmlFieldGuard(shared, 'cities/_shared.json');
 
   // ── the pass ──
   need(str(city.hero.h1Before) && str(city.hero.lead) && str(city.hero.leadStrong), where, 'hero needs h1Before, lead and leadStrong (the desk\'s must-state, in bold)');
@@ -2254,66 +2274,185 @@ const HUB_BANNED = [
 // content and EACH JSON string separately (never concatenated), from attribute values and from the
 // string literals of inline scripts — reviewSentences(), the same code the tests use.
 export const CLAIMS_FILE = 'cities/_claims.json';
-export const CLAIM_VOCAB_RE = /\b(?:(?:un)?licen[cs]\w*|regist\w*|accredit\w*|authori[sz]ed|authori[sz]ation|certified|certification|recogni[sz]ed|regulated|regulator|members? of|membership|redress|ombudsman|propertymark|enrol\w*|inscri\w*|colegiad\w*|habilitad\w*|RAICV|AICAT|carte professionnelle|KvK|Kamer van Koophandel|ARLA|NAEA)\b|§\s?34c/i;
-export const CLAIM_KINDS = ['company-rome', 'trade-mark', 'lease', 'tenant', 'law', 'partner', 'heading'];
+// THE VOCABULARY (fourth round, 04/11/2026). Matched on text that is already decoded (entities), NFKC-normalised
+// and stripped of format characters (soft hyphen, zero-width, word joiner, BOM, U+2028/9): see cleanText. Letters are
+// Unicode letters (\p{L}), so accented stems and compounds work: every stem takes the prefixes un-, non-, de-, pre-
+// ("Unregistered", "unregulated"); regist/licen/lizenz/erlaubnis also match inside a compound (Handelsregister,
+// Maklererlaubnis). Then the public bodies and the registers by name, the local-language forms, the number shapes
+// ("agent no. CV-1234", "Reg. no.", "Lic. no.", "n.º 1234") and the statute (§34c GewO in every spelling).
+const LET = String.raw`[\p{L}\p{N}]`;
+const CLAIM_STEMS = [
+  String.raw`(?:${LET}*)regist${LET}*`, String.raw`(?:${LET}*)licen[cçs]${LET}*`, String.raw`(?:${LET}*)lizenz${LET}*`, String.raw`(?:${LET}*)erlaubnis${LET}*`,
+  String.raw`llic[eè]nci${LET}*`, String.raw`accredit${LET}*`, String.raw`acredit${LET}*`, String.raw`authori[sz](?:ed|ation|ations|es|ing)`, String.raw`autori[zt]${LET}*`, String.raw`autoritz${LET}*`,
+  'certified', 'certification', String.raw`certificad${LET}*`, String.raw`recogni[sz]ed`, String.raw`reconocid${LET}*`, 'regulated', String.raw`regulator${LET}*`, String.raw`regulad${LET}*`,
+  String.raw`approv${LET}*`, 'listed', 'members?', 'membership', String.raw`affiliat${LET}*`, 'permits?', String.raw`supervis${LET}*`, 'chartered',
+  String.raw`enrol${LET}*`, String.raw`inscri${LET}*`, String.raw`colegiad${LET}*`, String.raw`col·?legia[dt]${LET}*`, String.raw`habilit${LET}*`, String.raw`iscritt${LET}*`, String.raw`abilitat${LET}*`, 'ruolo',
+  'ingeschreven', String.raw`erkend${LET}*`, String.raw`eingetragen${LET}*`, String.raw`zugelassen${LET}*`, String.raw`agr[ée]é${LET}*`, 'miembros?', 'membres?', String.raw`mitglied${LET}*`, 'lid van',
+  'redress', 'ombudsman', 'propertymark',
+  // the authorities and the registers, by name
+  'generalitat', 'comunitat valenciana', 'comunidad de madrid', 'ayuntamiento', 'ajuntament', 'junta', 'consell', 'gemeente', 'municipality',
+  'chamber of commerce', 'camera di commercio', String.raw`gewerbeamt${LET}*`, 'kamer van koophandel', String.raw`pr[ée]fecture`, String.raw`incas[òo]l`,
+  'client money protection', 'vastgoedpro', 'agente de la propiedad(?: inmobiliaria)?', 'carte professionnelle', 'carte t'
+];
+const CLAIM_WORDS_RE = new RegExp(String.raw`(?<!${LET})(?:un|non-?|de|pre)?(?:${CLAIM_STEMS.join('|')})(?!${LET})`, 'giu');
+// the registers' initials: upper case, on the text and on a copy where "R.A.I.C.V." / "K.v.K." / "T P O" are closed up
+const CLAIM_ABBR_RE = /(?<![\p{L}\p{N}])(?:RAICV|AICAT|TPO|PRS|CMP|ARLA|NAEA|RICS|NVM|VBO|API|FIAIP|FIMAA|CCIAA|CCI|INCASÒL|INCASOL)(?!\p{Ll})|(?<!\p{L})[Kk][Vv][Kk](?!\p{L})/gu;
+const CLAIM_NUM_RE = /(?<!\p{L})(?:agent|reg|regd|lic|licen[cs]e|registration|n\.?[ºo°]|no)\.?\s*(?:no\.?|n\.?[ºo°]|number|#)?[:\s]*[A-Z]{0,3}-?\d{3,}|§\s*34\s*c|(?<!\p{L})paragraph\s*34\s*c|(?<![\p{L}\p{N}])34\s*c\s*GewO/giu;
+// "R.A.I.C.V." → "RAICV", "K.v.K." → "KvK", "T P O" → "TPO" (single letters closed up; only for matching)
+export const closeUp = (t) => String(t).replace(/(?<!\p{L})\p{L}(?:\.\p{L}(?!\p{L})){1,}\.?/gu, (m) => m.replace(/[.\s]/g, '')).replace(/(?<!\p{L})\p{Lu}(?:\s\p{Lu}(?!\p{L})){2,}/gu, (m) => m.replace(/\s/g, ''));
+// every vocabulary hit of one text (on the text and on its closed-up copy)
+export function claimHits(t) {
+  const s = cleanText(t), out = [];
+  for (const x of new Set([s, closeUp(s)])) for (const re of [CLAIM_WORDS_RE, CLAIM_ABBR_RE, CLAIM_NUM_RE]) for (const m of x.matchAll(re)) out.push(m[0].toLowerCase());
+  return out;
+}
+export const hasClaimVocab = (t) => claimHits(t).length > 0;
+// kept for the callers that read a regex: .test() is hasClaimVocab
+export const CLAIM_VOCAB_RE = { test: hasClaimVocab, toString: () => 'hasClaimVocab' };
+export const CLAIM_KINDS = ['company-rome', 'trade-mark', 'lease', 'tenant', 'deposit', 'listing', 'law', 'partner', 'heading', 'context'];
 // the registers and licences no desk that sells holds: never on a selling page, allowlisted or not
-export const SELL_REGISTRY_RE = /\bRAICV\b|Registro de Agentes|\bAICAT\b|Registre d['’]Agents|carte professionnelle|§\s?34c|Property Ombudsman|Property Redress Scheme|redress scheme|Propertymark|\bARLA\b|\bNAEA\b|\bKvK[- ]registered\b|\b(?:KvK|Kamer van Koophandel) registration\b|\bregistered (?:with|at) (?:the )?(?:KvK|Kamer van Koophandel)\b/i;
+// (tested on the text and on its closed-up copy, so "R.A.I.C.V." and "K.v.K. 12345678" are the names)
+const SELL_REGISTRY_WORDS_RE = /Registro de Agentes|Registre d['’]Agents|carte professionnelle|\bcarte T\b|§\s*34\s*c|\bParagraph\s*34\s*c|\b34\s*c\s*GewO|Property Ombudsman|Property Redress|redress scheme|Propertymark|client money protection|Agente de la Propiedad|colegiad|\bkvk|Kamer van Koophandel/i;
+const SELL_REGISTRY_ABBR_RE = /(?<![\p{L}\p{N}])(?:RAICV|AICAT|ARLA|NAEA|TPO|CMP|RICS|NVM|VBO|PRS|FIAIP|FIMAA)(?!\p{Ll})|(?<![\p{L}\p{N}])API\s+n|(?<!\p{L})[Kk][Vv][Kk](?!\p{L})/u;
+export const SELL_REGISTRY_RE = { test: (t) => !!sellHit(t), toString: () => 'sellHit' };
+export function sellHit(t) {
+  const s = cleanText(t);
+  for (const x of [s, closeUp(s)]) { const m = x.match(SELL_REGISTRY_WORDS_RE) || x.match(SELL_REGISTRY_ABBR_RE); if (m) return m[0]; }
+  return null;
+}
 // in the allowlist itself: the registers no entry may name; the drafts' carte professionnelle and §34c
 // only in a statement of the law or of the partner's licence (kinds law, partner)
-const LINT_NEVER_RE = /\bRAICV\b|Registro de Agentes|\bAICAT\b|Registre d['’]Agents|Property Ombudsman|Property Redress Scheme|redress scheme|Propertymark|\bARLA\b|\bNAEA\b|\bKvK\b|Kamer van Koophandel|ombudsman/i;
-const LINT_DRAFT_RE = /carte professionnelle|§\s?34c/i;
+const LINT_NEVER_RE = /\bRAICV\b|Registro de Agentes|\bAICAT\b|Registre d['’]Agents|Property Ombudsman|Property Redress|redress scheme|Propertymark|\bARLA\b|\bNAEA\b|\bkvk|Kamer van Koophandel|ombudsman|\bTPO\b|\bCMP\b|client money protection|\bRICS\b|\bNVM\b|\bVBO\b|Vastgoedpro|\bFIAIP\b|\bFIMAA\b|Agente de la Propiedad|\bAPI\b|colegiad|col·?legia[dt]|\bcarte T\b/i;
+const lintNever = (t) => { const s = cleanText(t); for (const x of [s, closeUp(s)]) { const m = x.match(LINT_NEVER_RE); if (m) return m[0]; } return null; };
+const LINT_DRAFT_RE = /carte professionnelle|§\s*34\s*c/i;
 // the round-2 company-subject rule, now the allowlist's lint: the company (we, BOOM …, Egidi …, the/our
 // desk, agency, company, team, agents) + a verb + a licence/registration predicate, or + hold/have … a licence
 const LINT_SUBJECT = String.raw`\b(?:we're|we've|we|BOOM(?:'s)?(?:\s+[\w'.®-]+){0,3}?|Egidi(?:\s+Immobiliare)?(?:\s+S\.?r\.?l\.?)?|(?<!\b(?:whether|if|that|check|ask|sure)\s)(?:the|our)(?:\s+\w+)?\s+(?:desk|agency|company|team|staff|agents?))`;
 const LINT_VERB = String.raw`(?:is|are|was|were|been|has been|have been|is now|are now|became|becomes|remains|stays|is fully|are fully)`;
 const LINT_GAP = String.raw`(?:\s+(?!(?:the|that|it|it's|its|your|you|their|they|this|lease|leases|contract|deposit|homes?|flats?)\b)[\w'-]+){0,5}`;
-const LINT_CLAIM_RE = new RegExp(String.raw`${LINT_SUBJECT}(?:\s+${LINT_VERB}|(?<=\bwe're))${LINT_GAP}[\s-]+(?:licensed|registered|accredited|authori[sz]ed|certified|regulated|a member of|members of)\b`
-  + String.raw`|${LINT_SUBJECT}\s+(?:hold|holds|have|has|got|obtained|were granted|was granted|operate under|operates under)${LINT_GAP}\s+(?:licen[cs]es?|permit|registration|membership|carte professionnelle)\b`, 'i');
+const LINT_PART = String.raw`(?:licensed|registered|accredited|authori[sz]ed|certified|regulated|approved|listed|chartered|supervised|affiliated)`;
+const LINT_CLAIM_RE = new RegExp(String.raw`${LINT_SUBJECT}(?:\s+${LINT_VERB}|(?<=\bwe're))${LINT_GAP}[\s-]+(?:${LINT_PART}|a member of|members of)\b`
+  + String.raw`|${LINT_SUBJECT}\s+(?:hold|holds|have|has|got|obtained|were granted|was granted|operate under|operates under)${LINT_GAP}\s+(?:licen[cs]es?|permits?|registration|membership|carte professionnelle)\b`, 'i');
 // "our licensed team", "BOOM's registered agents": the adjective on something of ours
-const LINT_OURS_RE = /\b(?:our|BOOM's)\s+(?:[\w-]+\s+)?(?:\w+-)?(?:licensed|registered|accredited|authori[sz]ed|certified|regulated)\s+(?:[\w-]+\s+)?(?:desk|agency|agencies|company|team|staff|agents?|brokers?)\b/i;
+const LINT_OURS_RE = new RegExp(String.raw`\b(?:our|BOOM's)\s+(?:[\w-]+\s+)?(?:\w+-)?${LINT_PART}\s+(?:[\w-]+\s+)?(?:desk|agency|agencies|company|team|staff|agents?|brokers?)\b`, 'i');
 const LINT_NEG_RE = /\b(?:not|never|no)\b|n't\b/i;
-const ROME_SEAT_RE = /^\s*(?:(?!and\b)[^\s,;]+\s+){0,6}?\(?(?:Rome|Roma|REA RM-1710623|Viale Liegi)\b/i;
-// the claim SHAPES the round-2 regexes knew, now a lint on the kinds that describe the lease, the tenant,
-// a heading or the law: a subject-free participle ("Registered with the Generalitat", "BOOM, licensed in
-// Spain"), the agency adjective ("a licensed agency"), an agency + participle that does not land on Rome,
-// a licence to operate, a membership of a register
-const LINT_PART = String.raw`(?:licensed|registered|accredited|authori[sz]ed|certified|regulated)`;
+const LAW_VERB_RE = /\b(?:is|are|was|were|be|been|must|needs?|requires?|pays?|ask|check|may|can|cannot|beware|post|posts|list|lists|lodges?|goes|go|has|have|charge|charges|works?|sets?)\b/i;
+const LINT_FIRST_RE = /\b(?:we|we're|we've|us|our|ours|BOOM|Egidi)\b/i;
+// a "regist…" of the company lands on Rome: only "in", "with", "the", "at", "of" (or "office:") between, and
+// nothing after Rome that names another place or adds one ("as well as", "and in", "also")
+const ROME_SEAT_RE = /^\s*(?:office:\s+)?(?:(?:in|with|the|at|of)\s+){0,3}(?:Rome|Roma|REA RM-1710623|Viale Liegi)\b|^\s*under\s+REA RM-1710623\b/i;
+// the desk places other than Rome and Italy (the place rule, and what follows Rome in a company line)
+export const PLACE_RE = /(?<!\p{L})(?:Amsterdam|Netherlands|Dutch|Holland|Barcelona|Catalonia|Catalunya|Catalan|Madrid|Valencia|València|Valencian|Comunitat|Spain|Spanish|London|England|UK|U\.K|British|Britain|Milan|Milano|Lombardy|Lombardia|Paris|France|French|Berlin|Germany|German)(?!\p{L})/u;
+const ROME_AFTER_RE = /\b(?:as well as|and in|also|plus)\b/i;
+const CONTEXT_ADD_RE = /^(?:and|also|plus|too|as well)\b|\b(?:also|too|as well|since|offices?|branch(?:es)?|based|seat|headquarter\w*)\b/i;
+// the participle with no subject is the tenant's own only when its object is a tenant place
+const TENANT_PLACE_RE = /^(?:Registered|Enrolled)\s+(?:at|with|on|in)\s+(?:the\s+)?(?:town hall|municipality|gemeente|padrón|Anagrafe|university)\b/i;
+// the claim SHAPES the round-2 regexes knew, now a lint on the kinds that describe the lease, the tenant, the
+// deposit, a listing, a heading or the law: a subject-free participle ("Registered with the Generalitat", "BOOM,
+// licensed in Spain"), the agency adjective ("a licensed agency"), an agency + participle that does not land on Rome,
+// a licence to operate, a membership of a register, a relative clause ("BOOM, which is licensed in Spain") and the
+// nominal registration ("Registration with the Generalitat Valenciana")
 const LINT_SHAPES = [
   ['a participle with no subject', new RegExp(String.raw`(?:^|[,—–:(]\s*)(?:fully\s+)?${LINT_PART}(?:\s+and\s+\w+)?\s+(?:in|with|by|under|as|at|on)\b`, 'i')],
   ['an agency + participle that does not land on Rome', new RegExp(String.raw`\b(?:agency|agencies|agents?|brokers?|intermediar(?:y|ies)|desk|company)\s+${LINT_PART}\s+(?:in|with|by|under|as|at)\b(?!\s+(?:the\s+)?Rome\b)`, 'i')],
-  ['a licence to operate', /\b(?:licensed to|authori[sz]ed to|registered as|accredited as|certified as)\b(?:\W+\w+){0,4}?\W+(?:agents?|agency|brokers?|operate|broker|intermediar(?:y|ies))\b/i],
+  ['a licence to operate', /\b(?:licensed to|authori[sz]ed to|registered as|accredited as|certified as|approved as)\b(?:\W+\w+){0,4}?\W+(?:agents?|agency|brokers?|operate|broker|intermediar(?:y|ies))\b/i],
   ['a membership of a register', /\bmember of (?:the )?[\w ]{0,30}regist(?:er|ry)\b/i],
-  ['the agency adjective', /\b(?!un|non)(?:[\w]+-)?(?:licensed|registered|accredited|authori[sz]ed|certified)\s+(?:(?!(?:with|by|in|at|on|to|through|via|as|an?|the|for|under)\b)[\w-]+\s+)?(?:real estate\s+)?(?:agency|agencies|agents?|brokers?|intermediar(?:y|ies))\b/i, 'noLaw']
+  ['the agency adjective', /\b(?!un|non)(?:[\w]+-)?(?:licensed|registered|accredited|authori[sz]ed|certified|regulated|approved|chartered|listed)\s+(?:(?!(?:with|by|in|at|on|to|through|via|as|an?|the|for|under)\b)[\w-]+\s+)?(?:real estate\s+)?(?:agency|agencies|agents?|brokers?|intermediar(?:y|ies))\b/i, 'noLaw'],
+  ['a relative clause', new RegExp(String.raw`\b(?:which|who|that)\s+(?:is|are|was|has been)\s+(?:\w+\s+){0,2}${LINT_PART}\b`, 'i'), 'noLaw'],
+  ['a nominal registration', /\bregistration\s+(?:with|in|at)\s+(?!(?:the\s+)?(?:town hall|municipality|gemeente|Agenzia delle Entrate|Anagrafe|padrón|BRP|(?:Dutch\s+)?register of persons|(?:your\s+|this\s+|that\s+)?(?:new\s+)?address|university)\b)/i, 'noLaw']
 ];
+const SHAPE_KINDS = ['lease', 'tenant', 'deposit', 'listing', 'heading', 'law'];
 
-const ENT = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ', middot: '·', rsquo: '’', lsquo: '‘', ldquo: '“', rdquo: '”', mdash: '—', ndash: '–', hellip: '…', euro: '€', pound: '£', copy: '©', reg: '®', sect: '§', rarr: '→', larr: '←', times: '×', thinsp: ' ', ensp: ' ', emsp: ' ', shy: '' };
-const unescHtml = (s) => String(s).replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (m, e) => (e[0] === '#' ? String.fromCodePoint(/^#x/i.test(e) ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10)) : (ENT[e.toLowerCase()] ?? m)));
+const ENT = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ', middot: '·', rsquo: '’', lsquo: '‘', ldquo: '“', rdquo: '”', mdash: '—', ndash: '–', hellip: '…', euro: '€', pound: '£', copy: '©', reg: '®', sect: '§', rarr: '→', larr: '←', times: '×', thinsp: ' ', ensp: ' ', emsp: ' ', shy: '\u00AD', zwsp: '\u200B', zwnj: '\u200C', zwj: '\u200D', ZeroWidthSpace: '\u200B', NoBreak: '\u2060', ordm: 'º', ordf: 'ª', deg: '°', aacute: 'á', eacute: 'é', iacute: 'í', oacute: 'ó', uacute: 'ú', ntilde: 'ñ', egrave: 'è', agrave: 'à', ograve: 'ò', ccedil: 'ç', uuml: 'ü', ouml: 'ö', auml: 'ä', szlig: 'ß' };
+const ENT_LC = Object.fromEntries(Object.entries(ENT).map(([k, v]) => [k.toLowerCase(), v]));
+const unescHtml = (s) => String(s).replace(/&(#x[0-9a-f]+|#\d+|[a-z][a-z0-9]*);/gi, (m, e) => {
+  if (e[0] === '#') { const n = /^#x/i.test(e) ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10); return n > 0 && n < 0x110000 ? String.fromCodePoint(n) : m; }
+  return ENT[e] ?? ENT_LC[e.toLowerCase()] ?? m;
+});
+// decoded, NFKC (fullwidth letters, ligatures), no format characters (U+00AD, U+200B–U+200F, U+2060, U+FEFF, bidi
+// marks …) and no line/paragraph separators: what a reader sees, letter for letter
+export const cleanText = (s) => unescHtml(s).normalize('NFKC').replace(/[\p{Cf}\u2028\u2029]/gu, '');
+// the abbreviations whose final dot is part of the name ("Egidi Immobiliare S.r.l.")
+const ABBR_END_RE = /(?:\bS\.r\.l|\bS\.p\.A|\bS\.L|\bS\.A|\bB\.V|\bN\.V|\bLtd|\bInc|\bCo)$/;
 // one sentence as the allowlist stores it: whitespace collapsed, no leading ", " or dash, no trailing . ; · ,
-export const normSentence = (s) => unescHtml(s).replace(/\s+/g, ' ').replace(/\s+([.,;:!?)])/g, '$1').replace(/\(\s+/g, '(').trim()
-  .replace(/^(?:[,;·—–:]\s*)+/, '').replace(/(?:\s*[.;·,])+$/, '').trim();
-const splitSentences = (t) => String(t).split(/(?<=[.!?])\s+(?=[A-Z0-9"“‘'(«¿¡])|[;·\n]/).map(normSentence).filter(Boolean);
-// block boundaries, plus the start of an instrument field (data-instr) or of a row's description (.dp)
-const BLOCK_RE = /<\/?(?:address|article|aside|blockquote|br|button|caption|cite|dd|details|dialog|div|dl|dt|fieldset|figcaption|figure|footer|form|h[1-6]|header|hr|label|legend|li|main|nav|noscript|ol|option|p|section|select|summary|svg|table|tbody|td|text|textarea|tfoot|th|thead|title|tr|ul)\b[^>]*>|<[a-z][\w-]*\b[^>]*(?:\sdata-instr\b|\sclass="(?:dp|at|rc-at|ln|n|s|t|rc-t)")[^>]*>/gi;
+// (a final "." that closes S.r.l., S.p.A., S.L., B.V., Ltd. stays)
+export const normSentence = (s) => {
+  const t = cleanText(s).replace(/\s+/g, ' ').replace(/\s+([.,;:!?)])/g, '$1').replace(/\(\s+/g, '(').trim().replace(/^(?:[,;·—–:]\s*)+/, '');
+  const u = t.replace(/(?:\s*[.;·,])+$/, '').trim();
+  return ABBR_END_RE.test(u) && t.slice(u.length).startsWith('.') ? `${u}.` : u;
+};
+// sentences: decoded and cleaned FIRST (so "&#101;" or "&shy;" is not split at its ";"), then . ! ? ; and a spaced ·
+const splitSentences = (t) => cleanText(t).split(/(?<=[.!?])\s+(?=[A-Z0-9"“‘'(«¿¡])|[;\n]|\s+·\s*|\s*·\s+/).map(normSentence).filter(Boolean);
+// block boundaries, plus the start of an instrument field (data-instr) or of a row's description (.dp); the END of
+// an instrument field and the span.tn / span.tt labels are boundaries too (markInstr)
+const BLOCK_RE = /<\/?(?:address|article|aside|blockquote|br|button|caption|cite|dd|details|dialog|div|dl|dt|fieldset|figcaption|figure|footer|form|h[1-6]|header|hr|label|legend|li|main|nav|noscript|ol|option|optgroup|p|section|select|summary|svg|table|tbody|td|text|textarea|tfoot|th|thead|title|tr|ul)\b[^>]*>|<[a-z][\w-]*\b[^>]*(?:\sdata-instr\b|\sclass="(?:dp|at|rc-at|ln|n|s|t|rc-t|tn|tt)")[^>]*>/gi;
+// the inline tags a word can be split by: removed with NO space in the squashed copy
+const INLINE_TAG_RE = /<\/?(?:span|b|i|em|strong|a|abbr|small|sup|sub|wbr|u|s|mark|q|time|data|bdi|bdo|ins|del|kbd|code|var|dfn)\b[^>]*>/gi;
+// the END of an element carrying data-instr (or class tn/tt) is a boundary: a newline after its matching close tag
+function markInstr(html) {
+  const open = /<([a-z][\w-]*)\b[^>]*(?:\sdata-instr\b|\sclass="(?:tn|tt)")[^>]*>/gi;
+  const ins = [];
+  for (const m of html.matchAll(open)) {
+    const tag = m[1].toLowerCase(), re = new RegExp(`<(/?)${tag}\\b[^>]*>`, 'gi');
+    re.lastIndex = m.index + m[0].length;
+    let depth = 1, x;
+    while (depth && (x = re.exec(html))) { if (x[1]) depth--; else if (!/\/>$/.test(x[0])) depth++; if (!depth) ins.push(x.index + x[0].length); }
+  }
+  let out = '', i = 0;
+  for (const p of [...new Set(ins)].sort((a, b) => a - b)) { out += html.slice(i, p) + '\n'; i = p; }
+  return out + html.slice(i);
+}
 const jsonStrings = (v) => (typeof v === 'string' ? [v] : v && typeof v === 'object' ? Object.values(v).flatMap(jsonStrings) : []);
+// the attributes that never carry text a reader reads: everything else that holds a letter is reviewed
+// (either quote style or none). meta content is read as "meta" on its own.
+export const ATTR_SKIP = new Set(['href', 'src', 'srcset', 'class', 'id', 'style', 'd', 'viewbox', 'points', 'transform', 'rel', 'type', 'name', 'for', 'lang', 'hreflang',
+  'width', 'height', 'fill', 'stroke', 'role', 'tabindex', 'target', 'method', 'action', 'autocomplete', 'inputmode', 'enctype', 'sizes', 'media', 'crossorigin', 'integrity',
+  'loading', 'decoding', 'data-v', 'content', 'property', 'charset', 'http-equiv', 'as', 'fetchpriority', 'pattern', 'accept', 'form', 'list', 'dir', 'translate', 'spellcheck',
+  'aria-hidden', 'aria-controls', 'aria-labelledby', 'aria-describedby', 'aria-live', 'aria-current', 'aria-expanded', 'aria-haspopup', 'aria-modal', 'aria-atomic', 'aria-busy', 'aria-invalid', 'aria-pressed', 'aria-checked', 'aria-disabled', 'aria-required', 'aria-owns', 'aria-orientation',
+  'stroke-width', 'stroke-linecap', 'stroke-linejoin', 'stroke-dasharray', 'stroke-dashoffset', 'stroke-opacity', 'stroke-miterlimit', 'fill-rule', 'fill-opacity', 'clip-rule', 'clip-path', 'opacity',
+  'cx', 'cy', 'r', 'rx', 'ry', 'x', 'y', 'x1', 'x2', 'y1', 'y2', 'dx', 'dy', 'offset', 'stop-color', 'stop-opacity', 'gradientunits', 'gradienttransform', 'preserveaspectratio', 'vector-effect', 'pathlength',
+  'text-anchor', 'dominant-baseline', 'font-size', 'font-family', 'font-weight', 'letter-spacing', 'mask', 'filter', 'marker-end', 'marker-start', 'shape-rendering', 'paint-order', 'focusable', 'xlink:href', 'version', 'datetime', 'min', 'max', 'step', 'maxlength', 'minlength', 'nonce']);
+const ATTR_RE = /\s([^\s"'=<>\/`]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/g;
 export function reviewSentences(html) {
-  const out = [], late = [], add = (t, where) => { for (const s of splitSentences(t)) (/^(?:ld|json|script)$/.test(where) ? late : out).push({ text: s, where }); };
-  const src = String(html).replace(/<!--[\s\S]*?-->/g, ' ');
+  const out = [], late = [];
+  let block = 0;
+  const add = (t, where, b = block++) => { for (const s of splitSentences(t)) (/^(?:ld|json|script)$/.test(where) ? late : out).push({ text: s, where, block: b }); };
+  // comments become a marker: a space in the spaced copy, nothing in the squashed copy
+  const src = String(html).replace(/<!--[\s\S]*?-->/g, '\u0001');
   for (const m of src.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)) {
     if (/\ssrc=/i.test(m[1])) continue;
-    if (/type="application\/(?:ld\+)?json"/i.test(m[1])) {
+    if (/type=["']?application\/(?:ld\+)?json/i.test(m[1])) {
       let data; try { data = JSON.parse(m[2]); } catch { add(m[2], 'json'); continue; }
       for (const v of jsonStrings(data)) add(v, /ld\+json/i.test(m[1]) ? 'ld' : 'json');
     } else for (const s of m[2].matchAll(/"((?:[^"\\\n]|\\.)*)"|'((?:[^'\\\n]|\\.)*)'|`((?:[^`\\]|\\.)*)`/g)) add(s[1] ?? s[2] ?? s[3], 'script');
   }
+  // <style> content strings ("content: '…'") are text a reader sees
+  for (const m of src.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi)) for (const c of m[1].matchAll(/\bcontent\s*:\s*(?:"((?:[^"\\]|\\.)*)"|'((?:[^'\\]|\\.)*)')/g)) add(c[1] ?? c[2], 'style');
   const noScript = src.replace(/<script\b[\s\S]*?<\/script>/gi, ' ').replace(/<style\b[\s\S]*?<\/style>/gi, ' ');
   for (const m of noScript.matchAll(/<title>([\s\S]*?)<\/title>/gi)) add(m[1], 'title');
-  for (const m of noScript.matchAll(/<meta\b[^>]*\scontent="([^"]*)"/gi)) add(m[1], 'meta');
-  for (const m of noScript.matchAll(/\s(?:aria-label|alt|title|placeholder|data-[\w-]+)="([^"]*[A-Za-z][^"]*)"/g)) add(m[1], 'attr');
-  const body = noScript.replace(/<head\b[\s\S]*?<\/head>/i, ' ');
-  for (const line of body.replace(BLOCK_RE, '\n').replace(/<[^>]+>/g, ' ').split('\n')) add(line, 'text');
+  for (const m of noScript.matchAll(/<meta\b[^>]*>/gi)) for (const a of m[0].matchAll(ATTR_RE)) if (a[1].toLowerCase() === 'content') add(a[2] ?? a[3] ?? a[4] ?? '', 'meta');
+  for (const m of noScript.matchAll(/<[a-z][\w:-]*\b[^>]*>/gi)) {
+    for (const a of m[0].slice(m[0].search(/\s|>/)).matchAll(ATTR_RE)) {
+      const name = a[1].toLowerCase(), v = a[2] ?? a[3] ?? a[4];
+      if (v === undefined || ATTR_SKIP.has(name) || name.startsWith('xmlns') || !/\p{L}/u.test(cleanText(v))) continue;
+      add(v, 'attr');
+    }
+  }
+  const body = markInstr(noScript.replace(/<head\b[\s\S]*?<\/head>/i, ' '));
+  for (const line of body.replace(BLOCK_RE, '\n').split('\n')) {
+    const spaced = line.replace(/\u0001/g, ' ').replace(/<[^>]+>/g, ' ');
+    const b = block++;
+    add(spaced, 'text', b);
+    // the squashed copy: inline tags and comments removed with no space ("Regis<span>tered</span>")
+    const squashed = line.replace(/\u0001/g, '').replace(INLINE_TAG_RE, '').replace(/<[^>]+>/g, ' ');
+    if (squashed !== spaced && claimHits(squashed).length > claimHits(spaced).length) for (const s of splitSentences(squashed)) if (hasClaimVocab(s)) out.push({ text: s, where: 'text', block: b, split: true });
+  }
   return [...out.sort((a, b) => (a.where === 'text' ? 0 : 1) - (b.where === 'text' ? 0 : 1)), ...late];
 }
 const claimWhere = 'cities/_claims.json';
+// what the company's, the partner's and the trade mark's lines may carry besides "regist…": removed, then nothing
+// of the vocabulary may remain
+const LINE_ALLOWED_RE = /(?<!\p{L})\p{L}*regist\p{L}*|\b(?:locally\s+)?licensed partners?\b(?:\s*\([^)]*\))?|\bRome Chamber of Commerce\b|\btrade ?mark\b/giu;
 // the lint: a reviewed file cannot carry a claim
 export function lintClaims(claims, where = claimWhere) {
   need(claims && typeof claims === 'object' && typeof claims.about === 'string' && claims.about.length > 80 && Array.isArray(claims.allowed), where, 'must be { "about": "<what this file is>", "allowed": [ { "text", "kind", "note" } ] }');
@@ -2322,31 +2461,59 @@ export function lintClaims(claims, where = claimWhere) {
     need(e && typeof e === 'object' && Object.keys(e).every((k) => ['text', 'kind', 'note'].includes(k)), where, `an entry has keys other than text, kind, note: ${JSON.stringify(e)}`);
     const t = e.text, at = `${where} "${String(t).slice(0, 90)}"`;
     need(typeof t === 'string' && t === normSentence(t) && t.length > 0, at, 'the text must be one sentence, normalised (single spaces, no trailing . ; · , no leading ", ")');
-    need(CLAIM_VOCAB_RE.test(t), at, 'carries no registration or licence word: an entry only for the sentences the build reviews (remove it)');
+    // kind context: a sentence with NO vocabulary that stands next to the company's Rome line and names a desk place
+    // (the place rule): reviewed so that the Rome registration is never continued elsewhere
+    if (e.kind === 'context') {
+      need(!hasClaimVocab(t), at, `kind context carries a registration, licence or authority word ("${claimHits(t)[0]}"): review it under its own kind`);
+      need(PLACE_RE.test(t), at, 'kind context names a desk place: it is only for a sentence next to the company\'s Rome line (the place rule)');
+      need(!CONTEXT_ADD_RE.test(t), at, `kind context: "${(t.match(CONTEXT_ADD_RE) || [])[0]}" adds to the Rome line (also, and, too, as well, since, office, branch, based): it cannot be reviewed`);
+    } else need(hasClaimVocab(t), at, 'carries no registration or licence word: an entry only for the sentences the build reviews (remove it)');
     need(CLAIM_KINDS.includes(e.kind), at, `kind must be one of ${CLAIM_KINDS.join(', ')}`);
     need(typeof e.note === 'string' && e.note.trim().length >= 12, at, 'a note says why the sentence is not a claim that BOOM holds a registration, licence or membership outside Rome');
-    need(!LINT_NEVER_RE.test(t), at, `names a register or a scheme no desk holds (${(t.match(LINT_NEVER_RE) || [])[0]}): it cannot be reviewed into the file`);
+    const never = lintNever(t);
+    need(!never, at, `names a register or a scheme no desk holds (${never}): it cannot be reviewed into the file`);
     need(!LINT_DRAFT_RE.test(t) || e.kind === 'law' || e.kind === 'partner', at, 'names the carte professionnelle or §34c outside a statement of the law or of the partner\'s licence (kinds law, partner)');
     const subj = LINT_CLAIM_RE.exec(t) || LINT_OURS_RE.exec(t);
-    if (['lease', 'tenant', 'heading'].includes(e.kind)) need(!subj, at, `kind ${e.kind}, but the company is the subject of a licence or registration ("${subj && subj[0]}"): that is a claim about us`);
+    if (['lease', 'tenant', 'deposit', 'listing', 'heading'].includes(e.kind)) need(!subj, at, `kind ${e.kind}, but the company is the subject of a licence or registration ("${subj && subj[0]}"): that is a claim about us`);
     for (const [name, re, noLaw] of LINT_SHAPES) {
-      if (!['lease', 'tenant', 'heading', 'law'].includes(e.kind) || (noLaw && e.kind === 'law')) continue;
+      if (!SHAPE_KINDS.includes(e.kind) || (noLaw && e.kind === 'law')) continue;
       const m = re.exec(t);
-      need(!m || (e.kind === 'law' && (LINT_NEG_RE.test(t) || /\byou(?:r)?\b/i.test(t))) || (e.kind !== 'law' && name === LINT_SHAPES[0][0] && /\byour?\b/i.test(t)), at, `kind ${e.kind}, but it has the shape of a claim (${name}: "${m && m[0]}")${e.kind === 'law' ? ' with no negation and no "you"' : ''}: if it is about us, it cannot ship`);
+      need(!m || (e.kind === 'law' && (LINT_NEG_RE.test(t) || /\byou(?:r)?\b/i.test(t))) || (e.kind !== 'law' && name === LINT_SHAPES[0][0] && TENANT_PLACE_RE.test(t)), at, `kind ${e.kind}, but it has the shape of a claim (${name}: "${m && m[0]}")${e.kind === 'law' ? ' with no negation and no "you"' : ''}: if it is about us, it cannot ship`);
     }
-    if (e.kind === 'law') need(!subj || LINT_NEG_RE.test(t), at, `kind law, with the company as subject ("${subj && subj[0]}") and no negation: a statement of the law about us says what we are NOT`);
+    if (['listing', 'deposit'].includes(e.kind)) need(!LINT_FIRST_RE.test(t), at, `kind ${e.kind}, in the first person ("${(t.match(LINT_FIRST_RE) || [])[0]}"): a listing or a deposit line is about the home or the landlord, never about us`);
+    if (e.kind === 'law') {
+      // the agency adjective in a statement of the law is advice ("Only pay … to a registered letting agent"); with no
+      // verb it is a label ("a licensed agency in Valencia"), and a label with a licence word is a claim
+      const adj = LINT_SHAPES.find(([n]) => n === 'the agency adjective')[1].exec(t);
+      need(!adj || LAW_VERB_RE.test(t), at, `kind law, the agency adjective ("${adj && adj[0]}") with no verb: a label, not a statement of the law`);
+      need(!subj || LINT_NEG_RE.test(t), at, `kind law, with the company as subject ("${subj && subj[0]}") and no negation: a statement of the law about us says what we are NOT`);
+      need(!LINT_FIRST_RE.test(t) || LINT_NEG_RE.test(t), at, `kind law, in the first person ("${(t.match(LINT_FIRST_RE) || [])[0]}") with no negation: a statement of the law names nobody of ours, or says what we are NOT`);
+    }
     if (e.kind === 'company-rome' || e.kind === 'partner') {
       need(e.kind !== 'company-rome' || /\bRome\b|REA RM-1710623|Viale Liegi/.test(t), at, 'kind company-rome names Rome, REA RM-1710623 or Viale Liegi');
-      for (const m of t.matchAll(/\bregist\w*/gi)) need(/\bRome-$/i.test(t.slice(Math.max(0, m.index - 6), m.index)) || ROME_SEAT_RE.test(t.slice(m.index + m[0].length)), at, `kind ${e.kind}: "${m[0]}" does not land on Rome, REA RM-1710623 or Viale Liegi within six words`);
+      for (const m of t.matchAll(/\bregist\w*/gi)) {
+        const rest = t.slice(m.index + m[0].length), seat = rest.match(ROME_SEAT_RE);
+        need(/\bRome-$/i.test(t.slice(Math.max(0, m.index - 6), m.index)) || !!seat, at, `kind ${e.kind}: "${m[0]}" does not land on Rome, REA RM-1710623 or Viale Liegi (only "in", "with", "the", "at", "of" between)`);
+        const after = seat ? rest.slice(seat[0].length) : '';
+        need(!PLACE_RE.test(after) && !ROME_AFTER_RE.test(after), at, `kind ${e.kind}: after Rome it names another place or adds one ("${(after.match(PLACE_RE) || after.match(ROME_AFTER_RE) || [])[0]}")`);
+      }
       for (const m of t.matchAll(/\b(?:un)?licen[cs]\w*/gi)) need(e.kind === 'partner' && /^(?:\s+\w+){0,1}?\s+partners?\b/i.test(t.slice(m.index + m[0].length)), at, `kind ${e.kind}: "${m[0]}" — the company's line names its Rome registration only, a licence only as "a licensed partner"`);
-      need(!/accredit|authori[sz]|certifi|recogni[sz]|regulat|members? of|membership|redress|ombudsman|enrol|inscri|colegiad|habilitad/i.test(t), at, `kind ${e.kind} carries another licence or membership word`);
+      const left = t.replace(LINE_ALLOWED_RE, ' ');
+      need(!hasClaimVocab(left), at, `kind ${e.kind} carries another licence, register or membership word ("${claimHits(left)[0]}")`);
       need(!subj || (e.kind === 'partner' && !LINT_CLAIM_RE.exec(t.replace(/\blicensed partners?\b/gi, 'partner'))) || e.kind === 'company-rome', at, `kind ${e.kind}: the company is the subject of a licence ("${subj && subj[0]}")`);
     }
-    if (e.kind === 'partner') need(/\blicensed partners?\b/i.test(t), at, 'kind partner names "a licensed partner"');
+    if (e.kind === 'partner') {
+      need(/\blicensed partners?\b/i.test(t), at, 'kind partner names "a licensed partner"');
+      // the partner holds the licence: carte professionnelle / §34c only in the parentheses right after "licensed partner",
+      // and nobody "holds", "has" or "obtained" anything (the subject is the partner, the desk opens WITH it, or the law)
+      need(!LINT_DRAFT_RE.test(t.replace(/\blicensed partners?\s*\([^)]*\)/gi, ' ')), at, 'kind partner: the carte professionnelle or §34c stands only in the parentheses right after "licensed partner"');
+      need(!/\b(?:holds?|has|have|had|got|obtained|granted|owns?)\b/i.test(t), at, `kind partner: "${(t.match(/\b(?:holds?|has|have|had|got|obtained|granted|owns?)\b/i) || [])[0]}" — a partner line says the desk opens WITH a licensed partner, never who holds what`);
+    }
     if (e.kind === 'trade-mark') {
       need(/\btrade ?mark\b/i.test(t), at, 'kind trade-mark names the trade mark');
       for (const m of t.matchAll(/\bregist\w*/gi)) need(/^(?:\s+\S+){0,6}?\s+trade ?mark\b/i.test(t.slice(m.index + m[0].length)), at, `kind trade-mark: "${m[0]}" does not land on the trade mark`);
-      need(!/licen[cs]|accredit|authori[sz]|certifi|regulat|members? of|membership|redress|enrol/i.test(t), at, 'kind trade-mark carries a licence or membership word');
+      const left = t.replace(LINE_ALLOWED_RE, ' ');
+      need(!hasClaimVocab(left), at, `kind trade-mark carries a licence, register or membership word ("${claimHits(left)[0]}")`);
     }
   }
   const sorted = [...texts].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
@@ -2360,30 +2527,57 @@ export function loadClaims(root = ROOT) {
   let c; try { c = JSON.parse(fs.readFileSync(f, 'utf8')); } catch (e) { throw new BuildError(`${CLAIMS_FILE}: ${e.message}`); }
   return lintClaims(c);
 }
-// the problems of one page: the unreviewed sentences, a partner line on a desk that sells, a register
-// a selling desk does not hold (the last checked on every sentence, allowlisted or not)
+// the problems of one page: the unreviewed sentences, a word split by inline tags, a partner line on a desk that
+// sells, a register a selling desk does not hold (checked on every sentence, allowlisted or not), and the context
+// rules: next to the company's Rome line no other desk place unless reviewed (place), and a reviewed heading is
+// followed by a reviewed sentence or by one with no desk place and no authority (heading)
 export function claimProblems(html, { claims, sell = false } = {}) {
   const kind = new Map(claims.allowed.map((e) => [e.text, e.kind]));
   const out = [], seen = new Set();
-  for (const s of reviewSentences(html)) {
-    const key = `${s.where}|${s.text}`;
+  const all = reviewSentences(html);
+  for (const s of all) {
+    const key = `${s.where}|${s.text}|${s.split ? 1 : 0}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    if (sell && SELL_REGISTRY_RE.test(s.text)) { out.push({ ...s, why: 'banned', hit: s.text.match(SELL_REGISTRY_RE)[0] }); continue; }
-    if (!CLAIM_VOCAB_RE.test(s.text)) continue;
+    const ban = sell ? sellHit(s.text) : null;
+    if (ban) { out.push({ ...s, why: 'banned', hit: ban }); continue; }
+    if (s.split) { out.push({ ...s, why: 'split' }); continue; }
+    if (!hasClaimVocab(s.text)) continue;
     if (!kind.has(s.text)) out.push({ ...s, why: 'unreviewed' });
     else if (sell && kind.get(s.text) === 'partner') out.push({ ...s, why: 'partner' });
+  }
+  // the context rules
+  const byBlock = new Map();
+  for (const s of all) if (!s.split) byBlock.set(s.block, [...(byBlock.get(s.block) || []), s]);
+  const blocks = [...byBlock.keys()].sort((a, b) => a - b);
+  for (const [i, b] of blocks.entries()) {
+    const list = byBlock.get(b);
+    if (list.some((s) => ['company-rome', 'trade-mark'].includes(kind.get(s.text)))) {
+      for (const s of list) if (!kind.has(s.text) && PLACE_RE.test(s.text)) out.push({ ...s, why: 'place', hit: s.text.match(PLACE_RE)[0] });
+    }
+    // a reviewed heading (a block of its own, four words at most: a dt, a summary, a table head) is followed by
+    // reviewed sentences or by ones with no desk place and no authority; short labels (two words) are read through
+    if (list.length === 1 && list[0].where === 'text' && kind.get(list[0].text) === 'heading' && list[0].text.split(' ').length <= 4) {
+      for (const nb of blocks.slice(i + 1).map((x) => byBlock.get(x)).filter((l) => l[0].where === 'text')) {
+        for (const nx of nb) if (!kind.has(nx.text) && (PLACE_RE.test(nx.text) || hasClaimVocab(nx.text))) out.push({ ...nx, why: 'heading', hit: list[0].text });
+        if (nb.some((x) => x.text.split(' ').length > 2)) break;
+      }
+    }
   }
   return out;
 }
 export function claimGuard(html, { claims, sell = false }, where) {
   const bad = claimProblems(html, { claims, sell });
-  // one line per sentence, with every place it stands (text, meta, ld, attr, script)
+  // one line per sentence, with every place it stands (text, meta, ld, attr, script, style)
   const group = (list) => [...list.reduce((m, p) => m.set(p.text, [...(m.get(p.text) || []), p.where]), new Map())].map(([text, w]) => ({ text, where: [...new Set(w)].join(', '), hit: (list.find((p) => p.text === text) || {}).hit }));
   const say = (p) => `"${p.text}" (${p.where})`;
-  const ban = group(bad.filter((p) => p.why === 'banned')), part = group(bad.filter((p) => p.why === 'partner')), unrev = group(bad.filter((p) => p.why === 'unreviewed'));
+  const of = (why) => group(bad.filter((p) => p.why === why));
+  const ban = of('banned'), part = of('partner'), split = of('split'), place = of('place'), head = of('heading'), unrev = of('unreviewed');
   need(!ban.length, where, `a desk that sells names a register or a licence it does not hold (${ban.map((p) => p.hit).join(', ')}): ${ban.map(say).join(' | ')} — it cannot ship`);
   need(!part.length, where, `"a licensed partner" is the wording of a desk that is not open (kind partner): a desk that sells cannot say it: ${part.map(say).join(' | ')}`);
+  need(!split.length, where, `a registration or licence word is split by inline tags or comments (it reads as one word on the page): ${split.map(say).join(' | ')} — write the word whole, and review the sentence`);
+  need(!place.length, where, `next to the company's Rome line, a sentence names another desk place (${place.map((p) => p.hit).join(', ')}) and is not reviewed: ${place.map(say).join(' | ')} — the Rome registration cannot be continued elsewhere; if it is not about the company, add it to ${CLAIMS_FILE}`);
+  need(!head.length, where, `after the reviewed heading (${head.map((p) => `"${p.hit}"`).join(', ')}), a sentence names a desk place or an authority and is not reviewed: ${head.map(say).join(' | ')} — add it to ${CLAIMS_FILE} with its kind and a note, or it cannot ship`);
   need(!unrev.length, where, `${unrev.length} sentence(s) about registration or licences not reviewed in ${CLAIMS_FILE}: ${unrev.map(say).join(' | ')} — if it does not say that BOOM or the company holds a registration, licence or membership outside Rome, add it to ${CLAIMS_FILE} with its kind and a note; if it does, it cannot ship`);
 }
 
@@ -2487,6 +2681,7 @@ export function renderHub({ template, shared, hub, cities, assetVersion, frags, 
   hub.faq.items.forEach((x) => allow(x, 'faq.item'));
   need(Array.isArray(hub.brief.rows) && hub.brief.rows.length, where, 'brief.rows is a non-empty list');
   hub.brief.rows.forEach((x) => allow(x, 'brief.row'));
+  htmlFieldGuard(hub, where);
   need(/^\d{4}-\d{2}-\d{2}$/.test(hub.updated || ''), where, '"updated" is YYYY-MM-DD');
   need(hub.hero.word && /^[A-Z]{2,12}$/.test(hub.hero.word), where, 'hero.word is the board word: 2–12 capital letters (the drum has no accents)');
 
