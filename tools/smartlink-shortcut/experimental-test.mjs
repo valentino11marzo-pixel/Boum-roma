@@ -250,6 +250,8 @@ function omitCaptureHelper(source) {
 }
 for(const [name,method] of [['plan','capturePlan'],['frame','captureFrame']]) {
   const sources=buildShareSubset(rulesSource,shareSource,method);
+  for(const deferred of ['validate','combineFrames']) assert.equal(sources.retained.share.includes(deferred),false,
+    'Native '+name+' must validate the ordinary payload without including the frame-envelope dispatcher or merger');
   const omittedScript=replaceScriptModules(captureScripts[name],sources.rules,omitCaptureHelper(sources.share));
   const broken=captureScenario({...captureScripts,[name]:omittedScript});
   assert.equal(name==='plan'?broken.plan.error:broken.frames[0].error,'capture_unavailable','Missing '+name+' dependency fails closed');

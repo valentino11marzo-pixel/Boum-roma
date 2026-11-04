@@ -61,16 +61,17 @@ function dom(html,onClick,currentSrc) {
   return wrap(root);
 }
 function page(clock,options={}) {
-  const state={index:options.start || 1,total:options.total || 15,url:base,canonical:base,contact:false,prices:options.prices || []};
+  const state={index:options.start || 1,total:options.total || 15,url:base,canonical:base,contact:false,prices:options.prices || [],extraPhotos:[]};
   const clicks=[];let outside=0;
-  const currentSrc=src=>options.jpgAt===state.index?src:src.replace(/\.jpg$/,'.webp');
+  const currentSrc=src=>options.invalidCurrentAt===state.index?'https://example.invalid/foreign.jpg':options.jpgAt===state.index?src:src.replace(/\.jpg$/,'.webp');
   const imageIndex=index=>options.duplicateAt===index?1:index;
   const render=()=>{
     const center=state.contact?'<div class="image-gallery-slide center"><img src="https://st3.idealista.it/profilephotos/fixture-avatar.jpg"></div>':
       '<div class="image-gallery-slide center"><figure class="item-gallery"><picture><img src="'+photo(imageIndex(state.index))+'"></picture></figure></div>';
     const neighbor=state.index<state.total?'<div class="image-gallery-slide right"><figure class="item-gallery"><picture><img src="'+photo(imageIndex(state.index+1))+'"></picture></figure></div>':'';
     const controls=['Previous Slide','Next Slide'].map(label=>'<button aria-label="'+label+'"'+(options.disabled?' disabled':'')+'></button>').join('');
-    const gallery='<div id="gallery"><p data-testid="gallery-counter">'+(state.contact?'':state.index+'/'+state.total)+'</p><div class="image-gallery-slide-wrapper">'+center+neighbor+controls+'</div></div>';
+    const extra=state.extraPhotos.map(index=>'<div class="image-gallery-slide"><figure class="item-gallery"><picture><img src="'+photo(index)+'"></picture></figure></div>').join('');
+    const gallery='<div id="gallery"><p data-testid="gallery-counter">'+(state.contact?'':state.index+'/'+state.total)+'</p><div class="image-gallery-slide-wrapper">'+center+neighbor+extra+controls+'</div></div>';
     const prices='<section class="detail-content-wrapper"><p class="info-data"><span class="price-container">'+state.prices.map(price=>'<strong class="price">'+price+' €/mese</strong>').join('')+'</span></p></section>';
     return '<link rel="canonical" href="'+state.canonical+'"><h1>Casa fixture</h1>'+prices+'<div id="main-multimedia"></div>'+gallery+(options.multipleRoots?gallery:'')+
       '<aside><img src="https://img4.idealista.it/fixture-recommendation.jpg"></aside>';
@@ -211,10 +212,45 @@ function unknownFields(api) {
   test.frames[1].data.title='';
   assert.equal(api.combineFrames(test.envelope(),test.now()).payload.data.title,'','an empty text field remains unknown as well');
 }
+function beforeClick(api) {
+  const malformed=scenario(api,{total:2});
+  assert.equal(malformed.planned.ok,true);
+  malformed.state.extraPhotos=[3];
+  assert.equal(api.capture(malformed.document,malformed.state.url).error,'invalid_gallery','ordinary capture checks the parsed DOM payload');
+  assert.equal(api.capturePlan(malformed.document,malformed.state.url).error,'invalid_gallery','plan validates the same ordinary payload');
+  assert.equal(malformed.step(1).error,'invalid_gallery','snapshot validation completes before advancing');
+  assert.equal(malformed.clicks.length,0);
+
+  const wrongPhoto=scenario(api,{invalidCurrentAt:2});wrongPhoto.walk();
+  assert.equal(wrongPhoto.frames[1].error,'invalid_photo_url','a foreign loaded image cannot fall back to the declared image');
+  assert.equal(wrongPhoto.clicks.length,1,'no further click after an invalid image URL');
+
+  const future=scenario(api);
+  future.plan.capturedAt=new Date(future.now()+300001).toISOString();
+  assert.equal(future.step(1).error,'invalid_capture_date');assert.equal(future.clicks.length,0);
+  const foreign=scenario(api);
+  foreign.plan.sourceUrl=base.replace('123456789','987654321');
+  foreign.plan.canonicalUrl=foreign.plan.sourceUrl;
+  assert.equal(foreign.step(1).error,'source_mismatch');assert.equal(foreign.clicks.length,0);
+}
+function decoding(api) {
+  const test=scenario(api),ordinary=api.capture(test.document,test.state.url).payload;
+  const expected=json(api.validate(ordinary,test.now()));
+  assert.equal(expected.ok,true);
+  assert.deepEqual(json(api.validate({toJSON:()=>ordinary},test.now())),expected,'object input keeps the JSON serialization boundary');
+  const cyclic={};cyclic.self=cyclic;
+  for(const raw of [undefined,()=>ordinary,Symbol('fixture'),1n,cyclic,{toJSON(){throw new Error('source_mismatch');}},{toJSON(){throw new Error('payload_too_large');}}]) {
+    assert.deepEqual(json(api.validate(raw,test.now())),{ok:false,error:'invalid_payload'},'serialization failures never become protocol diagnostics');
+  }
+  assert.equal(api.validate(' '.repeat(131073),test.now()).error,'payload_too_large','raw bytes are bounded before parsing');
+  assert.equal(api.validate({...ordinary,data:{title:'é'.repeat(65536)}},test.now()).error,'payload_too_large','the decoder bounds UTF-8 bytes');
+  assert.equal(api.validate({...ordinary,images:['https://example.invalid/foreign.jpg'],gallery:{expected:1,found:1}},test.now()).error,'invalid_photo_url');
+  assert.equal(api.validate({...ordinary,capturedAt:new Date(test.now()+300001).toISOString()},test.now()).error,'invalid_capture_date');
+}
 const loaded=load();
 for(const start of [1,2,8,14,15]) complete(loaded.api,start);
 complete(loaded.api,1,1);complete(loaded.api,30,60);
-changes(loaded.api);duplicates(loaded.api);bounded(loaded.api);protocol(loaded.api);conflicts(loaded.api);unknownFields(loaded.api);
+changes(loaded.api);duplicates(loaded.api);bounded(loaded.api);protocol(loaded.api);conflicts(loaded.api);unknownFields(loaded.api);beforeClick(loaded.api);decoding(loaded.api);
 for(const options of [{total:61},{multipleRoots:true}]) {
   const test=scenario(loaded.api,options);assert.equal(test.planned.ok,false);assert.equal(test.clicks.length,0);
 }
@@ -230,9 +266,13 @@ const mutations=[
   ['conflicting fields','return values.length===1?values[0]:empty;','return values.length>=1?values[0]:empty;',conflicts],
   ['unknown field persists','const values=[...new Set(data.map(item=>item[key]))];',"const values=[...new Set(data.map(item=>item[key]).filter(value=>value!==null && value!==''))];",unknownFields],
   ['last-frame control','if(repeatIndex<plan.count)','if(true)',api=>complete(api,15)],
+  ['ordinary validation before click','const result=validateOrdinary(captured.payload);','const result={ok:true};',beforeClick],
+  ['loaded photo URL before click','if((declared && !src) || (current && !loaded))','if(false)',beforeClick],
+  ['plan date before click','if(!exactDate(plan.capturedAt,now))','if(false)',beforeClick],
+  ['serialized bytes before parsing','if(byteLength(serialized)>MAX_BYTES)','if(false)',decoding],
 ];
 for(const [name,from,to,check] of mutations) {
   assert.ok(implementation.includes(from),name);
   assert.throws(()=>check(load(implementation.replaceAll(from,to)).api),undefined,'mutation must fail: '+name);
 }
-console.log('SmartLink native gallery protocol: PASS (real capture/DOM, simulated native Wait, plan/frame/carrier, source/canonical, 1..N order, 60/61, prefix/expiry, no contact slide, conservative fields, 8 mutations; full native shortcut/iPhone not tested)');
+console.log('SmartLink native gallery protocol: PASS (real capture/DOM, simulated native Wait, plan/frame/carrier, source/canonical, 1..N order, 60/61, prefix/expiry, no contact slide, conservative fields, ordinary guards before click, 12 mutations; full native shortcut/iPhone not tested)');

@@ -140,12 +140,17 @@ firebase.json             Firebase deploy config (firestore + storage rules)
 | `sw.js` | Service worker (network-first HTML, cache-first static). |
 
 ### SmartLink annunci esterni (BOOM Tools)
+Il manifest Shortcut v2 viene emesso solo dopo verifica AEA locale e confronto dell'intero plist signed/unsigned corrente; nome rimosso e quattro default osservati sono le sole normalizzazioni ammesse.
+Il decoder usa copie temporanee dei byte attestati, rifiuta percorsi estranei e fallisce se mancano tool macOS: nessun override, firma, installazione o rete. Il trust della catena Apple non viene dichiarato verificato.
+La CI confronta hash e attestazione registrata, senza fingere di ripetere il decoder; una prova scritta a mano non è autenticata dai digest. `release-test.mjs`, incluso in `smartlinkshortcut`, verifica mismatch, drift, errori nativi e mutazione del confronto; gli asset obsoleti restano bloccanti.
 `tools/smartlink-shortcut/experimental.mjs` costruisce separatamente il candidato Mac a 22 azioni sulla galleria Idealista osservata: piano/frame sincroni, combinazione, download nativo delle foto e carrier media negli appunti locali.
 Il build usa soltanto sorgenti versionati e Acorn/Escodegen dev fissati nel lockfile; la compattazione confronta gli AST e ricostruisce i riferimenti nativi. Nessun dato reale o percorso del Mac entra nel workflow.
 L'output unsigned richiede un percorso nuovo fuori dagli asset distribuiti; nessuna firma, installazione, rete o modifica al pacchetto/manifest pubblicato. `EXPERIMENTAL.md` distingue il candidato Mac dal percorso iPhone non collaudato.
 Piano, frame e merge vengono ridotti tramite dipendenze AST dei medesimi motori: `buildShareSubset` accetta solo i tre ingressi noti, conserva i corpi delle funzioni e tutte le validazioni; strutture sconosciute fermano la build.
 La suite `smartlinkexperimental` aggiunge 34 confronti di piano/frame, diagnostiche e click contro il bundle completo, oltre all'equivalenza merge, wiring, JSON ostile, plist e mutazioni delle dipendenze.
-Il piano passa da 30.899 a 22.345 byte e il template frame da 30.943 a 23.211; non è una prova di limiti o prestazioni Apple. Il trasporto Mac resta a 22 azioni e il collaudo nativo completo rimane separato dall'importazione autenticata.
+La lettura DOM e la validazione del payload ordinario sono separate dallo smistamento degli envelope nello stesso motore: piano/frame conservano le guardie, senza trascinare il dispatcher `validate` e `combineFrames`.
+Piano e frame misurano 19.682 e 20.577 byte, contro i precedenti 22.345 e 23.211; non è una prova di limiti o prestazioni Apple. Il trasporto Mac resta a 22 azioni e il collaudo nativo completo rimane separato dall'importazione autenticata.
+`gallery` verifica che dati, foto e date non validi fermino il click; `smartlinkexperimental` controlla anche la chiusura delle dipendenze. Nessun nuovo protocollo, formato media o percorso iPhone è introdotto da questa separazione.
 Nel carrier locale il MIME può essere assente: il Portal lo deriva sempre dalla firma dei byte JPEG/PNG/WebP, senza fidarsi dell'estensione dell'URL né richiedere una seconda elaborazione Safari.
 Se il campo è presente deve coincidere col formato reale: `null`, vuoto, tipi diversi e campi aggiuntivi restano invalidi. Il risultato normalizzato e il Blob portano soltanto il MIME derivato.
 `tests/smartlink/media.mjs` copre i tre raster reali con e senza dichiarazione, mismatch, conservazione dei byte e mutazioni; restano invariati limiti, identità, completezza e controller Studio.

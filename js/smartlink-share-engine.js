@@ -35,13 +35,16 @@
     const match=String(value || '').trim().match(/^(?:€\s*)?((?:\d{1,3}(?:\.\d{3})+|\d+)(?:,\d{1,2})?)\s*€?(?:\s*\/\s*(?:mese|mes))?$/i);
     return match?number(match[1].replace(/\./g,'').replace(',','.'),1000000):null;
   }
-  function validate(raw, now=Date.now()) {
+  function decodePayload(raw) {
     try {
       const serialized=typeof raw==='string' ? raw : JSON.stringify(raw);
       if(typeof serialized!=='string') return fail('invalid_payload');
       if(byteLength(serialized)>MAX_BYTES) return fail('payload_too_large');
-      const payload=JSON.parse(serialized);
-      if(payload?.kind===FRAMES_KIND) {const combined=combineFrames(payload,now);return combined.ok?validate(combined.payload,now):combined;}
+      return {ok:true,payload:JSON.parse(serialized)};
+    } catch {return fail('invalid_payload');}
+  }
+  function validatePayload(payload, now) {
+    try {
       if(keys(payload,['kind','version','error']) && Object.keys(payload).length===3 && payload.kind===KIND && payload.version===VERSION && ERRORS.includes(payload.error)) return fail(payload.error);
       if(!keys(payload,['kind','version','sourceUrl','pageUrl','canonicalUrl','capturedAt','data','images','gallery']) || payload.kind!==KIND || payload.version!==VERSION) return fail('invalid_payload');
       const source=listing(payload.sourceUrl), page=listing(payload.pageUrl);
@@ -63,6 +66,19 @@
       return {ok:true,source:{url:source.url,source:source.source},data,images,gallery:{expected:gallery.expected,found:images.length},capturedAt:at};
     } catch {return fail('invalid_payload');}
   }
+  function validateOrdinary(raw, now=Date.now()) {
+    const decoded=decodePayload(raw);
+    return decoded.ok ? validatePayload(decoded.payload,now) : decoded;
+  }
+  function validate(raw, now=Date.now()) {
+    try {
+      const decoded=decodePayload(raw);
+      if(!decoded.ok) return decoded;
+      const payload=decoded.payload;
+      if(payload?.kind===FRAMES_KIND) {const combined=combineFrames(payload,now);return combined.ok?validateOrdinary(combined.payload,now):combined;}
+      return validatePayload(payload,now);
+    } catch {return fail('invalid_payload');}
+  }
   /* Nessuna lettura globale delle immagini: i suggerimenti di altre case restano fuori. */
   const GALLERIES={
     'immobiliare.it':['.in-gallery','[data-testid="listing-gallery"]','[data-testid="gallery"]'],
@@ -72,7 +88,7 @@
     'immobiliare.it':['.in-gallery__counter','.in-carousel__counter','[data-testid="gallery-counter"]'],
     'idealista.it':['.multimedia-shortcuts','[data-testid="gallery-counter"]'],
   };
-  function capture(document, pageUrl) {
+  function readCapturePayload(document, pageUrl) {
     try {
       const source=listing(pageUrl);
       if(!source) return fail('unsupported_listing_url');
@@ -161,8 +177,15 @@
       const payload={kind:KIND,version:VERSION,sourceUrl:source.url,pageUrl:source.pageUrl,...(canonicalUrl?{canonicalUrl:listing(canonicalUrl).pageUrl}:{}),capturedAt:new Date().toISOString(),
         data:{title:text(item.name || getText(['h1']),130),price:consistent(number(item.offers?.price,1000000) || displayedPrice(visiblePrice),visible.price),zone:text(item.address?.addressLocality,90) || (zones.length===1?zones[0]:''),sqm:consistent(number(item.floorSize?.value,100000),visible.sqm),rooms:consistent(number(item.numberOfRooms,100),visible.rooms)},
         images,gallery:{expected,found:images.length}};
-      const result=validate(payload);
-      return result.ok ? {ok:true,payload} : result;
+      return {ok:true,payload};
+    } catch {return fail('capture_unavailable');}
+  }
+  function capture(document, pageUrl) {
+    try {
+      const captured=readCapturePayload(document,pageUrl);
+      if(!captured.ok) return captured;
+      const result=validateOrdinary(captured.payload);
+      return result.ok ? captured : result;
     } catch {return fail('capture_unavailable');}
   }
   const PLAN_KIND='boom.smartlink.plan', FRAME_KIND='boom.smartlink.frame', FRAMES_KIND='boom.smartlink.share.frames';
@@ -282,7 +305,7 @@
         const at=Date.parse(frame.capturedAt);
         if(!exactDate(frame.capturedAt,now) || at<previousAt || at-Date.parse(plan.capturedAt)>MAX_SEQUENCE_MS) return fail('invalid_capture_date');
         previousAt=at;
-        const checked=validate({kind:KIND,version:VERSION,sourceUrl:frame.sourceUrl,pageUrl:frame.pageUrl,
+        const checked=validateOrdinary({kind:KIND,version:VERSION,sourceUrl:frame.sourceUrl,pageUrl:frame.pageUrl,
           ...(frame.canonicalUrl?{canonicalUrl:frame.canonicalUrl}:{}),capturedAt:frame.capturedAt,
           data:frame.data,images:[frame.image],gallery:{expected:plan.total,found:1}},now);
         if(!checked.ok) return checked;
@@ -301,7 +324,7 @@
         ...(plan.canonicalUrl?{canonicalUrl:plan.canonicalUrl}:{}),capturedAt:plan.capturedAt,
         data:{title:coherent('title',''),price:coherent('price',null),zone:coherent('zone',''),sqm:coherent('sqm',null),rooms:coherent('rooms',null)},
         images,gallery:{expected:plan.total,found:images.length}};
-      const result=validate(payload,now);
+      const result=validateOrdinary(payload,now);
       return result.ok?{ok:true,payload}:result;
     } catch(error) {return protocolError(error,'invalid_payload');}
   }
