@@ -2927,7 +2927,7 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
   reclamaciones, il calendario 2028; nessuno ha ancora letto un lead o un
   ordine dei desk: «validato» non si può dire. Test: i conteggi del lancio
   (Stage 1) sono superati; quelli in vigore stanno in «IL BIGLIETTO v1.7»
-  (dopo il settimo giro: `run.mjs` 1119, `ui.mjs` 541,
+  (dopo l'ottavo giro: `run.mjs` 1126, `ui.mjs` 541,
   `checkout.mjs` 117, `calendar.mjs` 97).
 - **IL BIGLIETTO v1.7 (04/11/2026 — «iteriamo la prima card verso i biglietti
   della home, la mappa, l'onda, e Valencia live»).** Quattro prototipi della prima
@@ -3056,9 +3056,9 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
      `?v=` sono dei file emessi. Mai una mano su `assets/boom-*.css|js`.
   7. **Pesi e parole dal build** (nessun tetto alzato per farci stare qualcosa:
      i byte vengono dallo Stage 0 e dall'artigianato; dopo la revisione del
-     04/11): CSS 13,2 KB gz (15), JS 10,7 (14), onda 3,6 (4), mappa 3,0 (3,5);
-     pagine CON la mappa contata: Parigi 76,4 · Berlino 76,5 · Amsterdam 78,2 ·
-     Madrid 78,3 · Valencia 78,3 · Barcellona 78,5 · Londra 78,9 · Milano 79,4
+     04/11, riletti dal `node build-cities.mjs --check` dell'ottavo giro): CSS 13,3 KB gz (15), JS 10,8 (14), onda 3,6 (4), mappa 3,0 (3,5);
+     pagine CON la mappa contata: Parigi 76,6 · Berlino 76,7 · Amsterdam 78,4 ·
+     Madrid 78,4 · Valencia 78,5 · Barcellona 78,6 · Londra 79,1 · Milano 79,5
      (82); hub 71,8 (pagina 26,4 · css 3,7 · js 2,6 · mappa 3,0; 78). Parole al caricamento: Berlino 461 ·
      Amsterdam 469 · Parigi 482 · Madrid 487 · Valencia 487 · Londra 491 ·
      Barcellona 513 · Milano 538 (640; prosa ≤ 520: Milano 484); hub 975
@@ -3142,7 +3142,23 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
        o graffa aperta, virgolette dritte e curve, caporali, i due punti:
        «Agent no. — CV-1234», «Agent number (CV-1234)», «Agent no. · CV-1234»,
        «Agency number “4471”», «Our agent — number CV-1234»; prima solo lo
-       spazio e i due punti); «Nov 2026» non è «no 2026», e una citazione italiana con «n.»,
+       spazio e i due punti); dall'ottavo giro un codice si scrive anche
+       raggruppato («1.234», «1,234», «12 345», «12.345.678», «1,234,567»,
+       «CV-12.345»: un solo separatore, gruppi di tre, e niente dopo che
+       continui il numero — «1.234,56», il telefono «331 325 1961») dopo una
+       parola o un'abbreviazione di numero o # («Agent no. 1.234», «Our agent
+       number is 12.345», «Nº 1.234», «Agente n. 1.234»), e con lettere e
+       trattino anche dopo la sola parola chiave («Agent CV-12.345»), mai
+       senza («An agency (2,500 homes)» resta copia); un numero col suo anno è
+       un codice («Agent no. 45/2026»; mai una data, «22/10/2026», né due anni,
+       «2025/2026»); «agente» è una parola chiave, e le parole spagnole e
+       italiane del numero prima di lei fanno l'ordine spagnolo («Agente:
+       CV-1234», «Nº de agente», «N.º de agente», «Núm. de agente», «Nro. de
+       agente», «N. agente», «número agente», «código de agente», «codice
+       agente», «ID de agente», come «Número de agente 1234»); l'ordinale di
+       «nº» e «N.º» e il segno «№» restano un segno (`cleanText`: l'NFKC li
+       faceva «o» e «No», la parola inglese, che senza punto non è
+       un'abbreviazione: «No 1,000 listings» resta copia); «Nov 2026» non è «no 2026», e una citazione italiana con «n.»,
        «L. n. 392/1978», è letta come forma di numero: si mette in lista come
        law) e lo statuto (§34c, «§34 c», «Paragraph 34c», «34c GewO»).
        **L'estrazione** (`reviewSentences(html)`, esportata, la usano i test):
@@ -3211,7 +3227,9 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
        numero («agent no.», «agency number», «registration ID», «número de
        agente») o un'etichetta che è solo un numero («No.», «Number», «ID»,
        «Ref.», «Code») — e l'ultima un codice (`VALUE_NUM_RE`: lettere maiuscole e tre cifre o più,
-       o quattro cifre o più; mai un anno, un prezzo, una misura): «What is
+       o quattro cifre o più, e dall'ottavo giro un codice raggruppato o un
+       numero col suo anno, «1.234», «B-1.234», «45/2026»; mai un anno, una
+       data, un prezzo, una misura, un telefono, «+34 612 345 678»): «What is
        your agent number in Valencia?» | «CV-1234.». Dal settimo giro: un blocco
        di QUALSIASI lunghezza che porta una chiave di numero si unisce al blocco
        dopo («Our agent number in Valencia» | «CV-1234.», il titolo di un passo
@@ -3229,7 +3247,18 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
        description, og:title e og:description, twitter:title e
        twitter:description) e, nel JSON-LD, il name, serviceType o headline di
        un nodo con la sua description e una domanda della FAQ con la sua
-       risposta. Un'unione rifiutata non si
+       risposta. Dall'ottavo giro gli indici del build non sono righe della
+       copia: un codice `span.tn` («VLC 08», il numero di un documento) o un
+       numero nudo di una o due cifre (la corsia di un controllo, la domanda
+       della FAQ, il passo di How it works: «03») si salta, e le due righe ai
+       suoi lati si leggono consecutive (due documenti «Our agent number» |
+       «CV-1234»; il testo di un controllo che finisce su «Ask for our agent
+       number.» e l'etichetta legale «M-4471» del controllo dopo; una risposta
+       e la domanda dopo); e in una tabella la testata di riga (`<th
+       scope="row">`, o un `<th>` in una riga di celle) che porta una chiave
+       di numero o un codice si legge con OGNI cella della sua riga, non solo
+       con la prima («Agent number» | «—» | «—» | «—» | «M-4471» nella tabella
+       delle regole di /desks). Un'unione rifiutata non si
        mette in lista: si riscrive l'etichetta o il valore. **La chiave e il
        codice nella stessa stringa** (settimo giro, `numKeyCode`): un blocco di
        testo o di righe, una meta, una stringa JSON-LD, un attributo o una
@@ -3246,9 +3275,15 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
        pagine costruite: 1.511 unioni lette (1.236 etichetta+blocco, 164 righe
        dello stesso blocco, 111 summary+risposta), nessuna rifiutata (dal
        settimo giro 1.707: in più 169 coppie del JSON-LD e 27 titolo con
-       descrizione, nessuna rifiutata; nessuna delle 2.283 righe di testo
-       porta una chiave di numero, e nessuno dei 7.395 blocchi e stringhe una
-       chiave col codice); le più
+       descrizione, nessuna rifiutata; una sola delle 2.283 righe di testo
+       porta una chiave di numero, la testata «Code» del tabellone di /desks,
+       e 41 un codice; nessuno dei 7.395 blocchi e stringhe una chiave col
+       codice; dall'ottavo giro 1.541: le 214 unioni che tenevano un indice
+       del build cadono, 48 nuove uniscono le righe ai suoi lati, nessuna
+       testata di riga dell'hub porta una chiave o un codice, nessuna
+       rifiutata; 45 righe portano un codice, in più le quattro citazioni di
+       legge col loro anno, «Llei 11/2025» e «L. 392/1978», nessuna accanto a
+       una chiave); le più
        vicine sono le righe della società col codice sotto un'etichetta che
        non è una chiave di numero («Operated by» | «… VAT IT17322991005, REA
        RM-1710623 …», «Who» | «BOOM Milan … (REA RM-1710623)», «Egidi
@@ -3455,11 +3490,22 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
        no one but you» e «Bring it to the agency (ID required)» diventerebbero
        chiavi — misurato: nessuna stringa delle nove pagine cambierebbe, il
        rischio è la copia futura); né una chiave e un codice con un altro
-       blocco in mezzo (una riga della scheda fra i due); né due stringhe meta o
-       JSON-LD che nessun lettore vede insieme (og:image:alt con la
-       description). Il sesto giro dichiarava anche «Our agent no. today is
+       blocco in mezzo (una riga della scheda fra i due; lo stato e il nome
+       di un passo di How it works; la promessa di un biglietto fra la sua
+       domanda e le sue ✓) — dall'ottavo giro un indice del build in mezzo non
+       conta —; né un codice sotto una testata di COLONNA (`<th scope="col">`)
+       o accanto a una chiave in un'altra cella della stessa riga che non è la
+       testata; né un codice raggruppato senza lettere dopo la sola parola
+       chiave («Agent 1.234»: «An agency (2,500 homes)» resta copia) o dopo il
+       «no» inglese senza punto («No 1.234»); né un codice di tre cifre senza
+       lettere sotto una chiave che con lui non fa una forma di numero («Our
+       agent number in Valencia» | «123»: «Agent no.» | «123» è presa); né due stringhe meta o JSON-LD che nessun lettore vede
+       insieme (og:image:alt con la description; il `<title>` con
+       og:description). Il sesto giro dichiarava anche «Our agent no. today is
        CV-1234» e «agent no. cv 1234»: dal settimo li rifiuta la chiave col
-       codice nella stessa stringa.
+       codice nella stessa stringa. L'ottavo giro è stato l'ultimo: un'altra
+       forma della stessa classe si scrive qui, nel limite dichiarato, e non
+       si chiude.
        La riga Who dei desk e `llms.txt` dicono «an Italian real estate agency
        registered in Rome».
      - **Forced colors**: lo strappo orizzontale delle economy vale solo nella
@@ -3705,9 +3751,11 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
      né sulle 9.904 righe di testo grezzo (vecchio e nuovo codice
      confrontati); le liste delle frasi sono identiche; 1.707 unioni (le
      1.511 del sesto giro, 169 coppie del JSON-LD e 27 titolo+descrizione),
-     nessuna rifiutata; nessuna delle 2.283 righe di testo porta una chiave di
-     numero (44 portano un codice), quindi nessuna unione nuova per chiave
-     nasce; 140 blocchi di più righe, 7.395 blocchi e stringhe e le 2.274
+     nessuna rifiutata; una sola delle 2.283 righe di testo porta una chiave
+     di numero, la testata «Code» del tabellone di /desks, già unita perché ha
+     meno di quattro parole, e 41 portano un codice (il settimo giro scriveva
+     0 e 44: corretto dal suo verificatore), quindi nessuna unione nuova per
+     chiave nasce; 140 blocchi di più righe, 7.395 blocchi e stringhe e le 2.274
      coppie di blocchi consecutivi, nei due sensi: nessuna chiave col codice;
      le pagine costruite non cambiano di un byte. Rieseguiti su copie i banchi
      dei giri precedenti (512 sonde, le 16 frasi vere di G3 comprese): stesso
@@ -3731,6 +3779,69 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
      descrizione e le coppie del JSON-LD non uniti (2), i blocchi di righe
      consecutivi non uniti (2), la copia schiacciata non letta per la chiave
      (1), la chiave e il codice su due righe dello stesso blocco non letti (1).
+     **L'ottavo giro (04/11, notte, l'ultimo; commit «registration guard eighth
+     round»)**, sui rilievi del verificatore del settimo. (1) Un codice
+     raggruppato o scritto come numero e anno non era un codice: «Agent no.
+     1.234.», «1,234», «12 345», «CV-12.345», «Our agent number is 12.345.»,
+     «Agent number: 1,234,567.», «Agente inmobiliario nº 1.234.» e «Nº 1.234.»
+     nella FAQ di Valencia, «Agency no. 12,345.» a Londra, «Agent no.
+     12.345.678.» ad Amsterdam, «Agente n. 1.234.» a Milano, {dt «Agent no.»,
+     dd «1.234»}, «1,234», «B-1.234», «Agent no. 1.234.» nella riga Who dopo la
+     riga della società e «Agent no. 45/2026.» costruivano: ora il codice
+     raggruppato è una forma di numero dopo una parola o un'abbreviazione di
+     numero o # (con lettere e trattino anche dopo la sola parola chiave), il
+     numero col suo anno è un codice dovunque lo sia un codice, e tutti e due
+     valgono come valore di una chiave; l'ordinale di «nº» e il segno «№»
+     restano un segno (l'NFKC li faceva «o» e «No»). (2) Un indice del build
+     fra due righe spezzava l'unione: due documenti «Our agent number» |
+     «CV-1234» (con «VLC 08» in mezzo) a Valencia e «Our agent number, for the
+     landlord» | «M-4471 on every letter» a Madrid, il testo di un controllo
+     che finisce su «Ask for our agent number.» e l'etichetta legale «M-4471»
+     del controllo dopo (la corsia «03» in mezzo), una risposta che finisce
+     sulla chiave e la domanda dopo che apre col codice (il suo numero in
+     mezzo): ora gli indici si saltano. (3) Nella tabella delle regole di
+     /desks una testata di riga con la chiave si univa solo alla prima cella:
+     «Agent number» col «M-4471» di Madrid nella quarta cella o col
+     «MI-123456» di Milano nella quinta, e una testata lunga, costruivano; ora
+     la testata si unisce con ogni cella della sua riga, nei due sensi. (4) Lo
+     spagnolo e l'italiano «agente» non erano una parola chiave: «Agente:
+     CV-1234.», «Agente CV-1234.», «Nº de agente CV-1234.», «N.º de agente:
+     1234.», «Núm. de agente», «Nro. de agente», «Número agente», «Código de
+     agente», «ID de agente», «Codice agente», «N. agente», «Numero agente» e
+     {dt «Nº de agente», dd «M-4471»}, {dt «Agente», dd «B-5521»}, {dt «Nº de
+     agente», dd «1234»} costruivano: ora «agente» è una parola chiave e le
+     parole del numero prima di lei fanno l'ordine spagnolo; «Agente de la
+     Propiedad Inmobiliaria» senza codice tiene il suo verdetto (un'occorrenza,
+     il nome). (5) Il conto delle righe del settimo giro era sbagliato: una
+     riga porta una chiave (la testata «Code» del tabellone di /desks) e 41 un
+     codice, non 0 e 44; corretto qui e nel testo della cintura, coi pesi del
+     punto 7 riletti dal `--check`. Misurato sulle nove pagine costruite
+     contro il settimo giro: le occorrenze del lessico non cambiano su nessuna
+     delle 5.232 frasi lette (1.475 distinte) né sulle 9.904 righe di testo
+     grezzo; le liste delle frasi sono identiche; con le sole forme nuove le
+     unioni sono le stesse 1.707; col salto degli indici diventano 1.541 (le
+     214 che tenevano un indice cadono, 48 nuove uniscono le righe ai suoi
+     lati); nessuna testata di riga dell'hub porta una chiave o un codice;
+     delle 2.283 righe di testo una porta una chiave e 45 un codice (in più le
+     quattro citazioni di legge col loro anno, nessuna accanto a una chiave);
+     nessuna unione, nessun blocco e nessuna stringa rifiutati; le pagine
+     costruite non cambiano di un byte. Rieseguiti su copie i 596 sondaggi dei
+     giri precedenti (i 512 di prima e gli 84 del verificatore del sesto):
+     stesso verdetto e stessa categoria su ognuno; delle 51 sonde del
+     verificatore del settimo che costruivano, 43 sono ora rifiutate e 8
+     costruiscono ancora, tutte nel limite dichiarato (la chiave spezzata da
+     un separatore o da un trattino, un codice di tre cifre senza lettere sotto
+     una chiave lunga, una chiave e un codice con un altro blocco in mezzo — lo stato e il nome di
+     un passo, la promessa di un biglietto —, il `<title>` con
+     og:description, una description del piano senza chiave). Provato su
+     copie, sette mutazioni, ognuna fa cadere `run.mjs` (il `--check` resta
+     verde): il codice raggruppato tolto (4 prove cadono), il numero col suo
+     anno tolto (2), il salto degli indici tolto (2), la testata di riga unita
+     solo alla prima cella (1), «agente» tolto dalle parole chiave (1), le
+     parole spagnole e italiane del numero ridotte a «número de» (1),
+     l'ordinale di «nº» lasciato all'NFKC (3). **È stato l'ultimo giro**: una
+     forma della stessa classe trovata da qui in poi si scrive nel limite
+     dichiarato, non si chiude.
   9. **La coppia economy col font della CI (04/11, sera)**: la CI ha trovato quello che la sandbox non vedeva.
      Con Liberation Sans (metrica Arial/Helvetica, il font dei runner) a 360px «PER VIEWING · INCL. VAT» andava a
      capo e i due tagliandi della coppia partivano a 11,7px di distanza; in Inter, il font della sandbox, entrava
@@ -3755,10 +3866,10 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
   stampa già nel piede del pass; +~80 B di JS se lo si vuole); le porte dell'hub
   restano su `#fares`; nessuno ha ancora letto un lead o un ordine dei desk —
   «validato» non si può dire.
-  Test (dopo il settimo giro, 04/11): `tests/cities/run.mjs`
-  1119, `ui.mjs` 541 (G4 a cinque larghezze e in due font, 541 anche con il font della CI
-  simulato; il sesto e il settimo giro non cambiano nessuna pagina), `checkout.mjs` 117, `calendar.mjs` 97, `tests/pfs/markets-ui.mjs` 25 (dopo il
-  sesto giro 1105 e 541; dopo il quinto giro e la coppia col font della CI 1094 e 541; dopo il quinto giro 1085 e 477; dopo il quarto giro 1064 e 477; dopo il terzo giro 1027 e 477; dopo il secondo giro 998 e 475; dopo il primo 993 e 444; prima della revisione 978 e 423); più consentbanner, scroll, cielo, seo, crawl, llmstxt,
+  Test (dopo l'ottavo giro, 04/11): `tests/cities/run.mjs`
+  1126, `ui.mjs` 541 (G4 a cinque larghezze e in due font, 541 anche con il font della CI
+  simulato; il sesto, il settimo e l'ottavo giro non cambiano nessuna pagina), `checkout.mjs` 117, `calendar.mjs` 97, `tests/pfs/markets-ui.mjs` 25 (dopo il
+  settimo giro 1119 e 541; dopo il sesto giro 1105 e 541; dopo il quinto giro e la coppia col font della CI 1094 e 541; dopo il quinto giro 1085 e 477; dopo il quarto giro 1064 e 477; dopo il terzo giro 1027 e 477; dopo il secondo giro 998 e 475; dopo il primo 993 e 444; prima della revisione 978 e 423); più consentbanner, scroll, cielo, seo, crawl, llmstxt,
   verita, whatsapp, testata; il `npm test` intero il 04/11 (2.291 s, `BOOM_PLAYWRIGHT` impostato): 288 suite
   verdi, 4 rosse per ragioni estranee ai desk — `magicsigncustomui` e
   `magicsigncustomsigner` scaricano pdf.js da cdn.jsdelivr.net e il sandbox non

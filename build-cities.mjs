@@ -2331,7 +2331,9 @@ const CLAIM_ABBR_RE = /(?<![\p{L}\p{N}])(?:RAICV|AICAT|TPO|PRS|CMP|ARLA|NAEA|RIC
 // (%, €, £, $, euro, pound, EUR, GBP, per cent, months, weeks, days, years, hours, minutes, km, m², mq, sqm, metres …:
 // "An agency 100% on your side"), nor a year right after in / since / from / until ("AGENT IN 2026"); a copula may
 // stand between the keyword and the code ("Our agent number is 1234", "Our agent no. is CV-1234": with the i flag the
-// first was caught by accident, through "is" taken as the code's letters).
+// first was caught by accident, through "is" taken as the code's letters). Eighth round: a grouped code ("Agent no. 1.234") and a
+// number with its year ("Agent no. 45/2026"), the keyword "agente" and the Spanish and Italian number words before it ("Nº de
+// agente", "codice agente") — NUM_GROUPED, NUM_SLASH, NUM_ABBR and NUM_ES below.
 const caseless = (src) => {
   let out = '', inClass = false;
   for (let i = 0; i < src.length; i++) {
@@ -2350,25 +2352,53 @@ const NUM_UNIT = String.raw`(?:[%€£$]|${caseless(String.raw`(?:euros?|pounds?
 // and curly quotes and guillemets ("Agent no. — CV-1234", "Agent number (CV-1234)", "Agent no. · CV-1234", "Agency number
 // “4471”"); before, only a space or a colon stood between them
 const NUM_SEP = String.raw`[\s:\u2010-\u2015\-·•/|(\[{"'\u2018-\u201F«»‹›]`;
-const NUM_CODE = String.raw`${NUM_SEP}*(?!${caseless('(?:in|since|from|until)')}\s+(?:1[89]|20)\d{2}(?!\d))(?:[A-Z]{0,3}[\s-]?|[a-z]{1,3}-?)\d{3,}(?!\d)(?![\s-]*${NUM_UNIT})`;
-const NUM_KW = caseless(String.raw`(?:agent|agency|reg|regd|lic|licen[cs]e|registration|ref|n\.?[ºo°]|no|nr|n[úu]m)`);
+// the code. A YEAR is 1800–2099: a year after in/since/from/until is never a code ("AGENT IN 2026"), nor a run of digits that
+// an amount or a measure follows (NUM_UNIT)
+const NUM_YEAR = String.raw`(?:1[89]|20)\d{2}`;
+const NUM_HEAD = String.raw`${NUM_SEP}*(?!${caseless('(?:in|since|from|until)')}\s+${NUM_YEAR}(?!\d))`, NUM_TAIL = String.raw`(?![\s-]*${NUM_UNIT})`;
+// up to three letters (upper case; lower case only joined or hyphenated to the digits) and three digits or more
+const NUM_PLAIN = String.raw`(?:[A-Z]{0,3}[\s-]?|[a-z]{1,3}-?)\d{3,}(?!\d)`;
+// eighth round: a number and its year ("45/2026", "CV-12/2026") — never a date ("22/10/2026": no digit or slash before it), nor
+// two years ("2025/2026")
+const NUM_SLASH = String.raw`(?:[A-Z]{1,3}[\s-]?|[a-z]{1,3}-?)?(?<![\p{N}/])(?!${NUM_YEAR}\/)\d{1,4}\/${NUM_YEAR}(?![\d/])`;
+// eighth round: a GROUPED code ("1.234", "1,234", "12 345", "12.345.678", "1,234,567", "CV-12.345"): one separator, groups of
+// three, and nothing after it that continues the number ("1.234,56", the phone "331 325 1961")
+const NUM_GROUPS = String.raw`\d{1,3}(?:(?:\.\d{3})+|(?:,\d{3})+|(?:[ \u00a0\u202f]\d{3})+)(?![.,\s]?\d)`;
+const NUM_GROUPED = String.raw`(?:[A-Z]{1,3}[\s-]?|[a-z]{1,3}-?)?(?<![\p{N}/])${NUM_GROUPS}`;
+// the code after a bare keyword: a grouped code only with its letters and a hyphen ("Agent CV-12.345"), so "An agency (2,500
+// homes)" stays copy; after a number word, a number abbreviation or # (NUM_CODE_N) every grouped code ("Agent no. 1.234")
+const NUM_CODE = String.raw`${NUM_HEAD}(?:${NUM_PLAIN}|${NUM_SLASH}|(?:[A-Z]{1,3}|[a-z]{1,3})-${NUM_GROUPS})${NUM_TAIL}`;
+const NUM_CODE_N = String.raw`${NUM_HEAD}(?:${NUM_PLAIN}|${NUM_SLASH}|${NUM_GROUPED})${NUM_TAIL}`;
+// the keywords — eighth round: the Spanish and Italian "agente" too ("Agente: CV-1234")
+const NUM_KW = caseless(String.raw`(?:agent|agente|agency|reg|regd|lic|licen[cs]e|registration|ref|n\.?[ºo°]|no|nr|n[úu]m)`);
 const NUM_WORD = caseless(String.raw`(?:no|nr|n\.?[ºo°]|n[úu]m|ref)`), NUM_NOUN = caseless(String.raw`(?:n[úu]mero|number|id|code)`);
 const NUM_COPULA = String.raw`(?:${caseless('(?:is|es|è|ist|est)')}(?!\p{L})\s*)?`;
+const NUM_LEAD = String.raw`(?<!\p{L})(?:${NUM_KW}(?!\p{L})\.?|${caseless('n')}\.)${NUM_SEP}*`;
+const NUM_MID = String.raw`(?:${NUM_WORD}(?!\p{L})\.?\s*|(?:${NUM_NOUN}(?!\p{L})|#)\s*)`;
+// eighth round: a keyword that is itself a number abbreviation (nº, n.º, n°, no., nr., núm., n. — the dot required on the
+// letters, so the English "no" never is one), before a grouped code ("Nº 1.234", "Agente n. 1.234")
+const NUM_ABBR = String.raw`(?<!\p{L})(?:${caseless(String.raw`n\.?[º°]`)}\.?|${caseless('(?:no|nr|n[úu]m|n)')}\.)(?!\p{L})`;
+// the Spanish and Italian order: a number word before the agent, the register, the registration or the licence — eighth round:
+// with the abbreviated and the other words of the number ("Nº de agente", "N.º de agente", "Núm. de agente", "Nro. de agente",
+// "N. agente", "número agente", "código de agente", "codice agente", "ID de agente"; "número de agente" as before)
+const NUM_ES = String.raw`(?<!\p{L})${caseless(String.raw`(?:n[úu]mero|n\.?[º°]|no\.|n[úu]m\.?|nro\.?|n\.|c[óo]digo|codice|id)\s*(?:(?:de|di|del|della)\s+)?(?:agente|registro|inscripci[óo]n|iscrizione|licencia|licenza|llic[eè]ncia)`)}(?!\p{L})`;
 const CLAIM_NUM_RE = new RegExp([
-  String.raw`(?<!\p{L})(?:${NUM_KW}(?!\p{L})\.?|${caseless('n')}\.)${NUM_SEP}*(?:${NUM_WORD}(?!\p{L})\.?\s*|(?:${NUM_NOUN}(?!\p{L})|#)\s*)?${NUM_COPULA}${NUM_CODE}`,
-  String.raw`(?<!\p{L})${caseless(String.raw`n[úu]mero\s+(?:de|di|del|della)\s+(?:agente|registro|inscripci[óo]n|iscrizione|licencia|licenza|llic[eè]ncia)`)}${NUM_COPULA}${NUM_CODE}`,
+  String.raw`${NUM_LEAD}${NUM_MID}${NUM_COPULA}${NUM_CODE_N}`, String.raw`${NUM_LEAD}${NUM_COPULA}${NUM_CODE}`, String.raw`${NUM_ABBR}${NUM_COPULA}${NUM_CODE_N}`,
+  String.raw`${NUM_ES}${NUM_SEP}*${NUM_COPULA}${NUM_CODE_N}`,
   String.raw`§\s*34\s*[cC]`, String.raw`(?<!\p{L})${caseless('paragraph')}\s*34\s*[cC]`, String.raw`(?<![\p{L}\p{N}])34\s*[cC]\s*${caseless('gewo')}`
 ].join('|'), 'gu');
 // sixth round: a NUMBER KEY — the keyword of a number shape with its number word ("agent no.", "agency number", "registration
-// ID", "número de agente") or a label that is only a number word ("No.", "Number", "ID", "Ref.", "Code") — and a CODE of the
-// value (upper-case letters and three digits or more, or four digits or more; never a year, nor a price or a measure): the
-// two halves of a number shape a label and its value carry apart ("What is your agent number in Valencia?" — "CV-1234.")
+// ID", "agente nº", "número de agente", "Nº de agente") or a label that is only a number word ("No.", "Number", "ID", "Ref.",
+// "Code") — and a CODE of the value (upper-case letters and three digits or more, or four digits or more, and since the eighth
+// round a grouped code or a number and its year, "1.234", "B-1.234", "45/2026"; never a year, a date, a price, a measure or a
+// phone number): the two halves of a number shape a label and its value carry apart ("What is your agent number in
+// Valencia?" — "CV-1234.")
 const NUM_KEY_RE = new RegExp([
-  String.raw`(?<!\p{L})${caseless(String.raw`(?:agent|agency|reg|regd|lic|licen[cs]e|registration|ref)`)}(?:['’][sS])?(?!\p{L})\.?\s*(?:${NUM_WORD}|${NUM_NOUN})(?!\p{L})`,
-  String.raw`(?<!\p{L})${caseless(String.raw`n[úu]mero\s+(?:de|di|del|della)\s+(?:agente|registro|inscripci[óo]n|iscrizione|licencia|licenza|llic[eè]ncia)`)}(?!\p{L})`,
+  String.raw`(?<!\p{L})${caseless(String.raw`(?:agent|agente|agency|reg|regd|lic|licen[cs]e|registration|ref)`)}(?:['’][sS])?(?!\p{L})\.?\s*(?:${NUM_WORD}|${NUM_NOUN})(?!\p{L})`,
+  NUM_ES,
   String.raw`^\s*(?:${caseless(String.raw`(?:no|nr|n\.?[ºo°]|n[úu]m|n|ref|n[úu]mero|number|nummer|id|code)`)}\.?|#)\s*:?\s*$`
 ].join('|'), 'u');
-export const VALUE_NUM_RE = new RegExp(String.raw`(?<![\p{L}\p{N}€£$])(?:[A-Z]{1,3}[\s-]?\d{3,}|(?!(?:1[89]|20)\d{2}(?!\d))\d{4,})(?!\d)(?![\s-]*${NUM_UNIT})`, 'u');
+export const VALUE_NUM_RE = new RegExp(String.raw`(?<![\p{L}\p{N}€£$])(?:[A-Z]{1,3}[\s-]?\d{3,}(?!\d)|(?!${NUM_YEAR}(?!\d))\d{4,}(?!\d)|(?<![+/]|\p{N}[.,\s])(?:${NUM_SLASH}|${NUM_GROUPED}))${NUM_TAIL}`, 'u');
 // (a question that only ends on the agent is no number key: "Is BOOM Milan a real estate agency?" is answered by the company's
 // line with REA RM-1710623)
 export const numKeySplit = (label, value) => NUM_KEY_RE.test(label) && VALUE_NUM_RE.test(value);
@@ -2466,8 +2496,9 @@ const unescHtml = (s) => String(s).replace(/&(#x[0-9a-f]+|#\d+|[a-z][a-z0-9]*);/
   return ENT[e] ?? ENT_LC[e.toLowerCase()] ?? m;
 });
 // decoded, NFKC (fullwidth letters, ligatures), no format characters (U+00AD, U+200B–U+200F, U+2060, U+FEFF, bidi
-// marks …) and no line/paragraph separators: what a reader sees, letter for letter
-export const cleanText = (s) => unescHtml(s).normalize('NFKC').replace(/[\p{Cf}\u2028\u2029]/gu, '');
+// marks …) and no line/paragraph separators: what a reader sees, letter for letter. Eighth round: the ordinal º of "nº" /
+// "N.º" stays, and the sign № reads "Nº" (NFKC makes them "o" and "No", the English word): a number abbreviation keeps its mark
+export const cleanText = (s) => unescHtml(s).replace(/º/g, '\uE000').replace(/№/g, 'N\uE000').normalize('NFKC').replace(/\uE000/g, 'º').replace(/[\p{Cf}\u2028\u2029]/gu, '');
 // the abbreviations whose final dot is part of the name ("Egidi Immobiliare S.r.l.")
 const ABBR_END_RE = /(?:\bS\.r\.l|\bS\.p\.A|\bS\.L|\bS\.A|\bB\.V|\bN\.V|\bLtd|\bInc|\bCo)$/;
 // one sentence as the allowlist stores it: whitespace collapsed, no leading ", " or dash, no trailing . ; · ,
@@ -2507,8 +2538,10 @@ const lostHits = (t, parts) => {
 // included; since the seventh round two consecutive blocks of lines (the lines a <br> or a newline joins) when one carries a
 // number key and the other a code, whatever line each stands on; and the strings a reader takes together: a page's title and
 // its description (the <title> and the meta description, og:title and og:description, twitter:title and twitter:description)
-// and a JSON-LD node's name, serviceType or headline with its description (a Question with its answer). A refused join is
-// rewritten, never listed: no allowlist entry clears it.
+// and a JSON-LD node's name, serviceType or headline with its description (a Question with its answer). Since the eighth round
+// the build's own indexes between two blocks (a span.tn code, a bare lane, question or step number) are skipped, so the blocks on
+// either side are consecutive, and inside a <table> a row head that carries a number key or a code is joined with EVERY cell of
+// its row. A refused join is rewritten, never listed: no allowlist entry clears it.
 export function joinCut(parts) {
   const all = parts.join(' '), plain = hitCount(all), closed = hitCount(closeUp(all));
   if ((plain || closed) && (plain > parts.reduce((n, p) => n + hitCount(p), 0) || closed > parts.reduce((n, p) => n + hitCount(closeUp(p)), 0))) return 'hits';
@@ -2630,7 +2663,7 @@ export function reviewSentences(html, { joins: seenJoins } = {}) {
     // seventh round: a number key and a code the inline tags kept apart ("Agent n<b>o.</b> in Valencia: CV-1234")
     if (squashed !== spaced && numKeyCode(squashed) && !numKeyCode(spaced)) out.push({ text: normSentence(cleanText(squashed)), where: 'text', block: b, split: true });
     const t = cleanText(spaced).replace(/\s+/g, ' ').trim();
-    if (t) { lines.push({ t, b, at, seps }); seps = []; }
+    if (t) { lines.push({ t, b, at, seps, code: !!flags.code, i: lines.length }); seps = []; }
     seps.push(c[0]);
   }
   // the belt across blocks (sixth round): a label and its value, two lines of one block, a summary and its first block; since
@@ -2638,8 +2671,15 @@ export function reviewSentences(html, { joins: seenJoins } = {}) {
   // of lines, and the title/description and JSON-LD pairs
   const joins = [];
   const sameBlock = (l) => l.seps.every((x) => /^(?:<br\b[^>]*>|\n)$/i.test(x));
-  for (let k = 0; k + 1 < lines.length; k++) {
-    const a = lines[k], n = lines[k + 1], line = sameBlock(n);
+  // eighth round: the build's own indexes are no lines of the copy — a span.tn ("VLC 08", a paper's number) and a bare lane,
+  // question or step number ("03") — and the two lines on either side of them are consecutive (a paper "Our agent number" and the
+  // next paper "CV-1234"; a check's text ending on the key and the next check's legal label; an answer and the next question);
+  // two lines stay one block when every cut between them, across the indexes, is a <br> or a newline
+  const index = (l) => l.code || /^\d{1,2}$/.test(l.t);
+  const seq = lines.filter((l) => !index(l));
+  const joined = (a, n) => lines.slice(a.i + 1, n.i + 1).every(sameBlock);
+  for (let k = 0; k + 1 < seq.length; k++) {
+    const a = seq[k], n = seq[k + 1], line = joined(a, n);
     // seventh round: a block of ANY length is a label when it carries a number key ("Our agent number in Valencia" — "CV-1234"),
     // or a code when the next block carries a number key ("CV-1234 …" — "Our agent number in Valencia.")
     const key = NUM_KEY_RE.test(a.t) || (VALUE_NUM_RE.test(a.t) && NUM_KEY_RE.test(n.t));
@@ -2659,7 +2699,7 @@ export function reviewSentences(html, { joins: seenJoins } = {}) {
   // either order, is a label and its value whatever line each stands on ({dt "Our agent number", dd "In Valencia:<br>CV-1234."});
   // two single-line blocks are already joined above (a label of four words or fewer, or one with a number key or a code)
   const groups = [];
-  for (const l of lines) { if (groups.length && sameBlock(l)) groups[groups.length - 1].push(l); else groups.push([l]); }
+  for (const l of seq) { const G = groups[groups.length - 1]; if (G && joined(G[G.length - 1], l)) G.push(l); else groups.push([l]); }
   // and a block of lines is one block: a number key and a code on any two of its lines ("Our agent number<br>in Valencia<br>CV-1234.")
   for (const G of groups) {
     if (G.length < 2 || G.some((l) => numKeyCode(l.t))) continue;
@@ -2670,6 +2710,21 @@ export function reviewSentences(html, { joins: seenJoins } = {}) {
     if (groups[g].length < 2 && groups[g + 1].length < 2) continue;
     const gt = groups[g].map((l) => l.t).join(' '), ht = groups[g + 1].map((l) => l.t).join(' ');
     if (numKeySplit(gt, ht) || numKeySplit(ht, gt)) joins.push({ how: 'block', parts: [gt, ht], block: groups[g][0].b });
+  }
+  // eighth round: inside a <table> a row head (a <th scope="row">, or a <th> in a row of cells) that carries a number key or a
+  // code is the label of EVERY cell of its row, not only of the first: the hub's rules table "Agent number" | "—" | "—" | "M-4471"
+  for (const [s, e] of tables) {
+    for (const r of body.slice(s, e).matchAll(/<tr\b[^>]*>[\s\S]*?<\/tr>/gi)) {
+      const at = s + r.index;
+      const cells = [...r[0].matchAll(/<(t[hd])\b([^>]*)>[\s\S]*?<\/\1>/gi)].map((c) => ({ th: /^th$/i.test(c[1]), attrs: c[2], from: at + c.index, to: at + c.index + c[0].length }));
+      const inCell = (c) => seq.filter((l) => l.at >= c.from && l.at < c.to), hasTd = cells.some((c) => !c.th);
+      for (const h of cells) {
+        if (!h.th || /\bscope\s*=\s*["']?col/i.test(h.attrs) || !(/\bscope\s*=\s*["']?row/i.test(h.attrs) || hasTd)) continue;
+        const hl = inCell(h), ht = hl.map((l) => l.t).join(' ');
+        if (!ht || !(NUM_KEY_RE.test(ht) || VALUE_NUM_RE.test(ht))) continue;
+        for (const c of cells) { const ct = c === h ? '' : inCell(c).map((l) => l.t).join(' '); if (ct) joins.push({ how: 'row', parts: [ht, ct], block: hl[0].b }); }
+      }
+    }
   }
   for (const j of joins) {
     j.cut = joinCut(j.parts);

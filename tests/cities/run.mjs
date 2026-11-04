@@ -1587,6 +1587,119 @@ tplRefuses('<p class="proof">', '<p class="proof">Pay by bank transfer · ', /no
           'seventh round: joinCut reads either order ("Our agent number in Valencia" | "CV-1234.", "CV-1234" | "Our agent number in Valencia.") and a title with its description; the company lines with VAT IT17322991005 and REA RM-1710623 under "Operated by", "Who" and "Is BOOM Milan a real estate agency?", a fare\'s "€199" | "flat · incl. VAT" and "Passport or EU ID" | "AMS 02" stay clean');
       }
     }
+    // ── eighth round (04/11/2026, the last): a code written grouped or as a number and its year, the build's indexes between two
+    //    lines, the hub's row heads with every cell of their row, and the Spanish and Italian "agente" ──
+    {
+      const desk = (slug, mut) => { const c = clone(CITY[slug]); mut(c); try { render(c); return 'built clean'; } catch (e) { return e instanceof BuildError ? e.message : `threw ${e.name}: ${e.message}`; } };
+      const reEsc = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const pg8 = (b) => `<!DOCTYPE html><html><head><title>t</title></head><body><main>${b}</main></body></html>`;
+      const why8 = (h, sell = true) => claimProblems(pg8(h), { claims, sell }).map((p) => p.why);
+      const row = (dt, dd, at) => (c) => { c.bref.rows.splice(at, 0, { dt, ddHtml: dd }); };
+      const faq = (k, t) => (c) => { c.faq.items[k].a += ` ${t}`; };
+      const XCUT = 'split between a label and its value \\(on the page they read as one claim\\): ';
+      const UNREV = 'not reviewed in cities/_claims\\.json: ';
+      // the quote is the END of the quoted sentence, with its closing quote and where it stands
+      const refused = (msg, list) => list.filter(([s, , mut, quote]) => !new RegExp(`${msg}.*${reEsc(quote)}`).test(desk(s, mut)));
+      const say = (miss, list) => miss.map(([s, t, mut]) => `${s}: ${t} → ${desk(s, mut).slice(0, 220)}`).join(' | ');
+      // (P1) a grouped code ("1.234", "1,234", "12 345", "CV-12.345", "12.345.678", "1,234,567") after a number word, a number
+      // abbreviation (nº, n., no.) or with its letters and a hyphen after a bare keyword, and a number with its year ("45/2026")
+      const P1 = [];
+      for (const t of ['Agent no. 1,234.', 'Agent no. 1.234.', 'Agent no. 12 345.', 'Agent no. CV-12.345.', 'Our agent number is 12.345.', 'Agent number: 1,234,567.', 'Agente inmobiliario nº 1.234.', 'Nº 1.234.', 'Agent no. 45/2026.'])
+        P1.push(['valencia', `a FAQ answer "… ${t}"`, faq(2, t), `"${normSentence(t)}" (text, ld)`]);
+      P1.push(['london', 'a FAQ answer "… Agency number 12,345."', faq(2, 'Agency number 12,345.'), '"Agency number 12,345" (text, ld)'],
+        ['london', 'a FAQ answer "… Agency no. 12,345."', faq(2, 'Agency no. 12,345.'), '"Agency no. 12,345" (text, ld)'],
+        ['amsterdam', 'a FAQ answer "… Agent no. 12.345.678."', faq(2, 'Agent no. 12.345.678.'), '"Agent no. 12.345.678" (text, ld)'],
+        ['milan', 'a FAQ answer "… Agente n. 1.234."', faq(2, 'Agente n. 1.234.'), '"Agente n. 1.234" (text, ld)'],
+        ['madrid', 'a FAQ answer "… Agent CV-12.345." (letters and a hyphen after a bare keyword)', faq(2, 'Agent CV-12.345.'), '"Agent CV-12.345" (text, ld)'],
+        ['valencia', 'the Who row, after the company\'s Rome line, "… Agent no. 1.234."', (c) => { c.bref.rows[0].ddHtml += ' Agent no. 1.234.'; }, '"Agent no. 1.234" (text)'],
+        ['paris', 'a FAQ answer "… Agent no. 1.234." (draft)', faq(1, 'Agent no. 1.234.'), '"Agent no. 1.234" (text, ld)'],
+        ['berlin', 'a FAQ answer "… Agent no. 45/2026." (draft)', faq(1, 'Agent no. 45/2026.'), '"Agent no. 45/2026" (text, ld)']);
+      const p1miss = refused(UNREV, P1);
+      check(!p1miss.length, `eighth round: the ${P1.length} grouped codes and numbers with their year ("Agent no. 1.234", "1,234", "12 345", "CV-12.345", "Our agent number is 12.345", "1,234,567", "Agente inmobiliario nº 1.234", "Nº 1.234", "Agente n. 1.234", "Agent no. 12.345.678", "Agent CV-12.345", "Agent no. 45/2026") are number shapes, refused as unreviewed on the six desks that sell (a FAQ answer, the Who row after the company's Rome line) and on both drafts`, say(p1miss, P1));
+      const P1L = [
+        ['valencia', 'row 6 "Agent no." / "1.234"', row('Agent no.', '1.234', 6), '"Agent no. 1.234" (text'],
+        ['valencia', 'row 6 "Our agent number in Valencia" / "12.345"', row('Our agent number in Valencia', '12.345', 6), '"Our agent number in Valencia 12.345" (text'],
+        ['madrid', 'row 6 "Agent no." / "1,234"', row('Agent no.', '1,234', 6), '"Agent no. 1,234" (text'],
+        ['barcelona', 'row 6 "Agent no." / "B-1.234"', row('Agent no.', 'B-1.234', 6), '"Agent no. B-1.234" (text'],
+        ['valencia', 'row 6 "Agent no." / "45/2026"', row('Agent no.', '45/2026', 6), '"Agent no. 45/2026" (text'],
+        ['london', 'row 6 "Our agency number" / "12 345"', row('Our agency number', '12 345', 6), '"Our agency number 12 345" (text'],
+        ['berlin', 'row 5 "Our agent number in Berlin" / "12.345" (draft)', row('Our agent number in Berlin', '12.345', 5), '"Our agent number in Berlin 12.345" (text']];
+      const p1lmiss = refused(XCUT, P1L);
+      check(!p1lmiss.length, `eighth round: the ${P1L.length} grouped codes and numbers with their year under a number key ({dt "Agent no.", dd "1.234"}, "Our agent number in Valencia" | "12.345", "1,234", "B-1.234", "45/2026", "12 345") are refused on the desks that sell and on a draft, the join quoted`, say(p1lmiss, P1L));
+      // the true copy: a grouped number with no number word before it, an amount, a measure, a date, a phone number, two years, a law
+      const NOCODE8 = ['An agency (2,500 homes).', 'Rents run €1,500 – €2,000/month.', '12,000 students a year.', '1.500 € per month.', 'No 1,000 listings to scroll.', 'There is no 10,000-word contract.',
+        'Llei 11/2025 and RDL 29/2026.', 'art. 11 L. 392/1978', 'The academic year 2026/2027.', 'Agent since 22/10/2026.', 'Agency fee 1,500 €.', 'Agency (1.234 m²).'];
+      const KEYFREE8 = ['Our agent number? None outside Rome; rents run €1,500 – €2,000/month.', "Your agent's number: +34 612 345 678.", 'Our agency number since 22/10/2026.', 'Agent number questions: 1.500 € per month.',
+        'Our agent number covers 2025/2026.', 'WhatsApp +39 331 325 1961 · Email or WhatsApp number'];
+      check(NOCODE8.every((t) => !hasClaimVocab(t)) && !KEYFREE8.some(numKeyCode) && !joinCut(['Agent no.', '1.500 €']) && !joinCut(['Our agent number', '+34 612 345 678'])
+          && !joinCut(['Our agent number', '22/10/2026']) && !joinCut(['Operated by', 'Egidi Immobiliare S.r.l. — VAT IT17322991005, REA RM-1710623, Viale Liegi 42, 00198 Roma'])
+          && !joinCut(['Who', 'BOOM Milan, the tenant-side rental desk of BOOM — operated by Egidi Immobiliare S.r.l. (REA RM-1710623)'])
+          && !joinCut(['Is BOOM Milan a real estate agency?', 'Yes. BOOM Milan is a desk of Egidi Immobiliare S.r.l., an Italian real estate agency registered in Rome (REA RM-1710623).'])
+          && JSON.stringify(claimHits('Agente de la Propiedad Inmobiliaria')) === '["agente de la propiedad inmobiliaria"]' && cleanText('N&ordm; 1.234 · № 5') === 'Nº 1.234 · Nº 5',
+        'eighth round: the true copy stays clean — "An agency (2,500 homes)", "€1,500 – €2,000/month", "12,000 students a year", "1.500 € per month", "No 1,000 listings" (the English "no", no dot), laws, two years, a date, a phone number, an amount or a measure after a key; the company lines with VAT IT17322991005 and REA RM-1710623 under "Operated by", "Who" and "Is BOOM Milan a real estate agency?"; "Agente de la Propiedad Inmobiliaria" keeps its one hit; the ordinal of "Nº" and the sign № keep their mark',
+        [...NOCODE8.filter(hasClaimVocab), ...KEYFREE8.filter(numKeyCode)].join(' | '));
+      // (P2) the build's indexes between two lines: a paper's code ("VLC 08"), a lane number ("03"), a question number
+      const P2 = [
+        ['valencia', 'two papers "Our agent number" / "CV-1234" (the build\'s "VLC 08" between)', (c) => { c.papers.items.splice(6, 2, 'Our agent number', 'CV-1234'); }, '"Our agent number CV-1234" (text'],
+        ['madrid', 'two papers "Our agent number, for the landlord" / "M-4471 on every letter" ("MAD 08" between)', (c) => { c.papers.items.splice(6, 2, 'Our agent number, for the landlord', 'M-4471 on every letter'); }, '"Our agent number, for the landlord M-4471 on every letter" (text'],
+        ['madrid', 'a check\'s text ending "Ask for our agent number." and the next check\'s legal label "M-4471" (the lane "03" between)', (c) => { c.checks.items[1].text += ' Ask for our agent number.'; c.checks.items[2].at = 'M-4471'; }, 'Ask for our agent number. M-4471" (text'],
+        ['valencia', 'an answer ending "Ask for our agent number." and the next question "CV-1234: is it on every letter we send?" (the question number between)', (c) => { c.faq.items[1].a += ' Ask for our agent number.'; c.faq.items[2].q = 'CV-1234: is it on every letter we send?'; }, 'Ask for our agent number. CV-1234: is it on every letter we send?" (text'],
+        ['paris', 'two papers "Our agent number" / "P-4471" (draft)', (c) => { c.papers.items.splice(6, 2, 'Our agent number', 'P-4471'); }, '"Our agent number P-4471" (text']];
+      const p2miss = refused(XCUT, P2);
+      check(!p2miss.length && why8('<ol><li><span class="tn" aria-hidden="true">VLC 07</span> <span class="tt">Our agent number</span></li><li><span class="tn" aria-hidden="true">VLC 08</span> <span class="tt">CV-1234</span></li></ol>').includes('xcut')
+          && why8('<details><summary><span class="ln" aria-hidden="true">01</span> <span class="at" data-instr>fianza</span> <span class="t">The deposit</span></summary><p>Ask for our agent number.</p></details><details><summary><span class="ln" aria-hidden="true">02</span> <span class="at" data-instr>M-4471</span> <span class="t">The rent</span></summary><p>We check.</p></details>').includes('xcut'),
+        `eighth round: the ${P2.length} keys and codes with a build index between them (two papers with the span.tn "VLC 08" between, a check's text and the next check's legal label with the lane "03" between, an answer and the next question with its number between) are refused on the desks that sell and on a draft, the join quoted`, say(p2miss, P2));
+      // (P3) /desks: a row head with a number key is the label of every cell of its row (the render, and the built hub with a row injected)
+      {
+        const hubOf = (hmut, cmut) => { const h = JSON.parse(read('cities/_hub.json')); hmut(h); const cs = SLUGS.map((s) => { const c = clone(CITY[s]); if (cmut[s]) cmut[s](c); return c; }); try { renderHub({ template: read('cities/_hub.html'), shared, hub: h, cities: cs, assetVersion: { css: 'testcss000', desksCss: 'testdcss00', desksJs: 'testdjs000' }, frags, root: R, weigh: false }); return 'built clean'; } catch (e) { return e.message; } };
+        const move = (id, head) => (h) => { h.rules.rows = [...h.rules.rows.map((r) => (r.ids ? { ...r, ids: r.ids.filter((x) => x !== id) } : r)), { head, ids: [id] }]; };
+        const P3 = [
+          ['a row head "Agent number" over Madrid\'s rent check at "M-4471" (the fourth cell)', move('rent', 'Agent number'), { madrid: (c) => { c.checks.items[2].at = 'M-4471'; } }, '"Agent number M-4471" (text)'],
+          ['a row head "Our agent number, desk by desk" over Madrid\'s "M-4471"', move('rent', 'Our agent number, desk by desk'), { madrid: (c) => { c.checks.items[2].at = 'M-4471'; } }, '"Our agent number, desk by desk M-4471" (text)'],
+          ['a row head "Agent number" over Milan\'s charges check at "MI-123456" (the fifth cell)', move('charges', 'Agent number'), { milan: (c) => { c.checks.items[3].at = 'MI-123456'; } }, '"Agent number MI-123456" (text)'],
+          ['a row head "Agent number" over Amsterdam\'s check at "AMS-1234" (the first cell)', move('wws', 'Agent number'), { amsterdam: (c) => { c.checks.items[2].at = 'AMS-1234'; } }, '"Agent number AMS-1234" (text)']];
+        const p3miss = P3.filter(([, hm, cm, quote]) => !new RegExp(`cities/_hub\\.json: .*${XCUT}.*${reEsc(quote)}`).test(hubOf(hm, cm)));
+        const inHub = (frag) => claimProblems(hubHtml.replace(/<\/main>/i, `${frag}</main>`), { claims }).map((p) => p.why);
+        const tr = (head, cells) => `<table class="rtab"><tbody><tr><th scope="row">${head}</th>${cells.map((c) => `<td>${c}</td>`).join('')}</tr></tbody></table>`;
+        const joinsOf = (h) => { const j = []; reviewSentences(h, { joins: j }); return j; };
+        check(!p3miss.length && inHub(tr('Agent number', ['—', '—', '—', 'M-4471', '—'])).includes('xcut') && inHub(tr('M-4471', ['—', '—', 'Our agent number'])).includes('xcut')
+            && inHub(tr('Our agent number, desk by desk', ['—', '—', 'In Valencia', 'CV-12.345'])).includes('xcut') && !inHub('').length && !joinsOf(hubHtml).some((j) => j.how === 'row'),
+          `eighth round: on /desks a row head with a number key is the label of every cell of its row — the ${P3.length} rules tables built from _hub.json and the desks (the code in the first, fourth or fifth cell, a long head) are refused, and so are rows injected into the built hub (the code in a later cell, the code in the head and the key in a cell, a grouped code); the hub as built has no row head with a key or a code`,
+          p3miss.map(([t, hm, cm]) => `${t} → ${hubOf(hm, cm).slice(0, 220)}`).join(' | '));
+      }
+      // (P4) the Spanish and Italian "agente", and the abbreviated words of the number before it
+      const P4 = [];
+      for (const t of ['Agente: CV-1234.', 'Agente CV-1234.', 'Nº de agente CV-1234.', 'Nº de agente: CV-1234.', 'N.º de agente: 1234.', 'Núm. de agente: 1234.', 'Nro. de agente: 1234.', 'Número agente: 1234.', 'Código de agente: CV-1234.', 'ID de agente: CV-1234.', 'Nº de agente 1.234.'])
+        P4.push(['valencia', `a FAQ answer "… ${t}"`, faq(2, t), `"${normSentence(t)}" (text, ld)`]);
+      for (const t of ['Agente: MI-1234.', 'Codice agente: MI-1234.', 'N. agente MI-1234.', 'Numero agente MI-1234.']) P4.push(['milan', `a FAQ answer "… ${t}"`, faq(2, t), `"${normSentence(t)}" (text, ld)`]);
+      P4.push(['berlin', 'a FAQ answer "… Agente: B-1234." (draft)', faq(1, 'Agente: B-1234.'), '"Agente: B-1234" (text, ld)']);
+      const p4miss = refused(UNREV, P4);
+      const P4L = [
+        ['madrid', 'row 6 "Nº de agente" / "M-4471"', row('Nº de agente', 'M-4471', 6), '"Nº de agente M-4471" (text'],
+        ['barcelona', 'row 6 "Agente" / "B-5521"', row('Agente', 'B-5521', 6), '"Agente B-5521" (text'],
+        ['valencia', 'row 6 "Nº de agente" / "1234"', row('Nº de agente', '1234', 6), '"Nº de agente 1234" (text'],
+        ['valencia', 'row 6 "Nº de agente" / "1.234"', row('Nº de agente', '1.234', 6), '"Nº de agente 1.234" (text'],
+        ['milan', 'row 6 "Codice agente" / "MI-1234"', row('Codice agente', 'MI-1234', 6), '"Codice agente MI-1234" (text']];
+      const p4lmiss = refused(XCUT, P4L);
+      check(!p4miss.length && !p4lmiss.length, `eighth round: the ${P4.length + P4L.length} number shapes and labels with the Spanish and Italian "agente" ("Agente: CV-1234", "Nº de agente CV-1234", "N.º de agente: 1234", "Núm. de agente", "Nro. de agente", "Número agente", "Código de agente", "ID de agente", "Codice agente", "N. agente", "Numero agente"; {dt "Nº de agente", dd "M-4471"}, {dt "Agente", dd "B-5521"}) are refused on the desks that sell and on a draft; "Agente de la Propiedad Inmobiliaria" with no code keeps its verdict`,
+        [say(p4miss, P4), say(p4lmiss, P4L)].filter(Boolean).join(' | '));
+      // the nine built pages: no join holds a build index, the hub has no row join, nothing is refused
+      {
+        const kinds = {}, fired = [], idx = [];
+        for (const [x, h] of [...SLUGS.map((y) => [y, PAGE[y]]), ['desks', hubHtml]]) {
+          const joins = [], all = reviewSentences(h, { joins });
+          for (const j of joins) {
+            kinds[j.how] = (kinds[j.how] || 0) + 1;
+            if (j.cut) fired.push(`${x} ${j.how}: ${j.parts.join(' | ')}`);
+            if (j.parts.some((p) => /^(?:\d{1,2}|[A-Z]{3} \d{2})$/.test(p))) idx.push(`${x} ${j.how}: ${j.parts.join(' | ')}`);
+          }
+          for (const s of all) if (s.ncut || s.cut || s.xcut || s.split) fired.push(`${x} ${s.where}: ${s.text}`);
+        }
+        check(!fired.length && !idx.length && !kinds.row && kinds.label > 1000,
+          `eighth round: on the nine built pages ${Object.values(kinds).reduce((a, b) => a + b, 0)} joins are read (${Object.entries(kinds).map(([k, v]) => `${k} ${v}`).join(', ')}), none holds a build index (a paper's code, a lane, question or step number), none is refused, and no row head of the hub carries a number key or a code`,
+          [...fired, ...idx].slice(0, 8).join(' | '));
+      }
+    }
     // (g) the page-level mirror, a literal copy independent of the build: no selling desk names a register it does not hold
     const HELD = /\bRAICV\b|Registro de Agentes|\bAICAT\b|Registre d['’]Agents|carte professionnelle|\bcarte T\b|§\s*34\s*c|Paragraph\s*34\s*c|Property Ombudsman|Property Redress|redress scheme|Propertymark|\bARLA\b|\bNAEA\b|\bKvK|Kamer van Koophandel|\bTPO\b|\bCMP\b|client money protection|\bRICS\b|\bNVM\b|\bVBO\b|Agente de la Propiedad|colegiad|\bFIMAA\b|\bFIAIP\b|\bPRS\b|\bFNAIM\b|\bIVD\b|\bIHK\b/i;
     for (const s of SELLERS) {
