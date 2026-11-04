@@ -280,6 +280,8 @@ const SUITES = [
   { name: 'flight', file: 'tests/flight/run.mjs', what: 'Flight: salvati sicuri condivisibili, privacy dei luoghi, vero salva ricerca con errori/retry e invii concorrenti' },
   { name: 'flightjourney', file: 'tests/flight/journey.mjs', what: 'Public destination brief, private places excluded, original Apply and service handoff' },
   { name: 'flightclubui', file: 'tests/flight/club-ui.mjs', what: 'Club campus to balance to Apply, private workplace search, route evidence and responsive layouts' },
+  { name: 'flighteuropeui', file: 'tests/flight/europe-ui.mjs', what: 'Europe city/need navigation, currency boundaries, private URL cleanup, stale configs, desk handoff and mobile bounds' },
+  { name: 'flightcityhandoff', file: 'tests/cities/handoff.mjs', what: 'Public Flight brief into original city forms and checkout, plan selection, currency and privacy boundaries' },
   { name: 'flightnextdata', file: 'tests/flight/next-data.mjs', what: 'Flight Next: live catalogue shape, real facts, unknown fields, safe images and filters' },
   { name: 'flightnextmap', file: 'tests/flight/next-map.mjs', what: 'Flight Next: one Skyline iframe, empty scope, secure events, retained WebGL, precision and fallback' },
   { name: 'flightnextui', file: 'tests/flight/next-ui.mjs', what: 'Flight Next: responsive Home to homes to detail and original Apply, shared saves, dates, filters and retry' },

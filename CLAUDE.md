@@ -3326,6 +3326,15 @@ Il catalogo di Roma esclude città estere esplicite; le date scartano disponibil
 Nessun invio automatico, nuovo handler, archivio clienti o pagamento; collegamenti Desks alle città già attive. Il laboratorio resta noindex e conserva anche la meta pubblica.
 `flightclubui`, `flightjourney`, `flightnextdata/map/ui`, `flightdirectionsui` coprono percorso, privacy, errori/risposte tardive, bozza e history, filtri e telefoni 320/390; unità e mutazioni guida in `flight`.
 
+Flight Europe 04/11: Club usa il lockup vettoriale Helvetica Neue Light 300 del kit confermato, oro originale e sei firme architettoniche; il giallo funzionale e il pulso Solari restano distinti. Il tabellone cambia città sul gesto, senza un secondo ciclo di animazione; le firme rispettano reduced-motion.
+La città è visibile da Home e navigazione: Roma conserva catalogo/Skyline/Apply, i cinque desk portano al servizio scelto. Prezzi, inclusioni e condizioni sono letti dai JSON città esistenti; errori o dati incompleti mostrano la porta del desk, senza inventare un'offerta.
+`boom-flight-europe` conserva città/bisogno e preferenze pubbliche nella navigazione; cambio EUR/GBP azzera il budget da riconfermare. Foto mobili larghe, titoli concreti, tipi canonici e motivazioni numeriche dei confronti sostituiscono categorie commerciali duplicate.
+`journey-engine.deskURL` crea il collegamento `from=flight`: date, budget, persone e bisogno, mai campus, shortlist o luoghi privati romani. Il desk accetta il brief soltanto se la città coincide con `BOOM_CITY.SLUG`.
+Il riepilogo modificabile segue il modulo originale: `city-lead` riceve ingresso/budget/situazione e uscita nel messaggio; checkout usa le note esistenti. Le date non ereditano il minimo romano; London richiede GBP esplicito, senza conversioni.
+Caricamento lento trattiene l'invio incompleto, un guasto dichiara il fallback; scelte e note già editate, anche cancellate, prevalgono. Nessun nuovo handler, archivio, invio automatico o pagamento.
+`flighteuropeui` verifica città/valute/history/privacy/configurazioni tardive o errate e 320/390; `flightcityhandoff` prova moduli reali, payload, calendario e due mutazioni, insieme alle regressioni `flightjourney`, `cities` e `flightclubui`.
+Resta una preview noindex sul ramo Flight: non è il rilascio SEO/GEO del sito pubblico, né una promessa di catalogo o Skyline nelle altre città.
+
 Flight Lab 31/10: `/flight-lab` confronta Atlas, Residence e Club sulle stesse viste reali di `/flight-next?direction=…`, senza cambiare il sito pubblico.
 Le composizioni riusano catalogo, Solari, iframe Skyline, salvataggi e Apply; nessun secondo catalogo o nuovo handler di invio.
 Residence usa una foto realmente restituita dal catalogo pubblico (fallback a una casa pubblica non chiusa); Atlas sposta la stessa mappa nel primo schermo.

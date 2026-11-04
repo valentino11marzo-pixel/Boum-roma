@@ -377,6 +377,7 @@
          tap; nothing pre-selected otherwise: the server reads "to decide") */
       var picked = planOf(plan) ? plan : '';
       var body = { city: C.SLUG, name: name, service: picked, requestId: requestId, company: ($('fCompany') || {}).value || '' };
+      if (window.BoomJourneyHandoff) Object.assign(body, BoomJourneyHandoff.cityLead());
       if (c.email) body.email = c.email; else body.phone = c.phone;
       sending = true; door.setAttribute('aria-disabled', 'true'); txt('fNetErr', '');
       var label = $('doorL'), was = label.textContent;
@@ -479,6 +480,7 @@
   function openTill(id, from) {
     var p = planOf(id);
     if (!p || !till || state() !== 'blank' || sending) return;
+    if (window.BoomJourneyHandoff && !BoomJourneyHandoff.cityCheckout()) return;
     opener = from || null;
     tf.setAttribute('data-plan', id);
     txt('tTitle', p.label); txt('tPrice', eur(p.eur)); txt('tCond', p.condition); txt('tTag', p.name);

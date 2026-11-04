@@ -61,16 +61,41 @@
     if(x.areaDelta>0&&r.category==='space')parts.push(x.areaDelta+' m² more');
     if(x.minutesDelta<0&&r.category==='commute')parts.push(Math.abs(x.minutesDelta)+' min less in the same transit model');
     if(x.rentDelta>0)parts.push(money(x.rentDelta)+' more per month');else if(x.rentDelta<0)parts.push(money(-x.rentDelta)+' less per month');else parts.push('the same monthly rent');
-    return parts.join(' · ')+', compared with '+x.referenceName+'.';
+    return parts.join(' · ')+', compared with '+x.referenceName+' ('+kindLabel(x.kind).toLowerCase()+').';
+  }
+  function kindLabel(kind){return {apartment:'Entire home',room:'Room','private room':'Private room','shared room':'Shared room'}[kind]||'Type to confirm';}
+  function secondaryReasons(r){
+    return (r.reasons||[]).filter(function(x){return x.category!==r.category&&x.referenceName&&x.kind&&x.kind===G.homeKind(r.type);}).map(function(x){
+      var benefit='';
+      if(x.category==='commute'&&x.basis==='timetable-model'&&r.journey&&r.journey.fonte==='rete'&&Number.isFinite(x.minutesDelta)&&x.minutesDelta<0)benefit=Math.abs(x.minutesDelta)+' min less in the same transit model';
+      else if(x.category==='space'&&Number.isFinite(x.areaDelta)&&x.areaDelta>0)benefit=x.areaDelta+' m² more listed space';
+      else if(x.category==='rent'&&Number.isFinite(x.rentDelta)&&x.rentDelta<0)benefit=money(-x.rentDelta)+' less per month';
+      return benefit?benefit+', compared with '+x.referenceName+' ('+kindLabel(x.kind).toLowerCase()+').':'';
+    }).filter(Boolean).join(' ');
+  }
+  function balanceCard(r,i,p){
+    var c=context.catalogue.find(function(c){return c.id===r.id;}),kind=G.homeKind(c.type),link=p&&route(c,r.journey),extra=secondaryReasons(r);
+    var title={rent:r.reason.label,space:'More listed space',commute:'Shorter modelled journey'}[r.category]||'Listed home';
+    var precision=r.journey?r.journey.precision:window.BOOM_GEO?window.BOOM_GEO.pinPrecision(c.raw).level:'zone';
+    var linkLabel=link&&link.indexOf('/maps/dir/')>=0?(precision==='exact'?'Check route in Maps ↗':'Check route from this area ↗'):'Open destination in Maps ↗';
+    return '<article class="balance-card" data-primary="'+(i===0)+'"><p class="balance-reason">'+String(i+1).padStart(2,'0')+' / '+esc(title)+'</p>'+
+      (extra?'<p class="balance-also">'+esc(extra)+'</p>':'')+
+      '<a class="balance-photo" href="'+esc(context.url('detail',c.id))+'" data-home="'+esc(c.id)+'">'+(c.image?'<img src="'+esc(c.image)+'" alt="'+esc(c.name)+'" loading="lazy" decoding="async">':'<span>Photos to follow</span>')+'</a>'+
+      '<div class="balance-card-body"><p class="eyebrow">'+esc(c.zone)+' · '+esc(kindLabel(kind))+'</p><p class="balance-availability">'+esc(c.status)+'</p><h3>'+esc(c.name)+'</h3>'+
+      '<dl class="balance-facts"><div><dt>Monthly rent</dt><dd>'+esc(money(c.price))+'</dd></div><div><dt>Listed area</dt><dd>'+(c.area==null?'Not listed':esc(c.area)+' m²')+'</dd></div></dl>'+
+      (p?'<div class="balance-travel"><span>'+esc(travel(r.journey))+'</span>'+(link?'<a class="balance-route" href="'+esc(link)+'" target="_blank" rel="noopener noreferrer">'+esc(linkLabel)+'</a>':'')+'</div>':'')+
+      '<p class="balance-tradeoff">'+esc(comparison(r))+'</p><div class="balance-card-actions"><a class="balance-action" href="'+esc(context.url('detail',c.id))+'" data-home="'+esc(c.id)+'">Explore home <span>↗</span></a><button class="balance-locate" type="button" data-locate="'+esc(c.id)+'" aria-label="Locate '+esc(c.name)+' in Skyline">⌖</button><button class="balance-save" type="button" data-save-home="'+esc(c.id)+'" aria-label="Save '+esc(c.name)+'" aria-pressed="false">Save ＋</button></div></div></article>';
   }
   function renderBalance(){
     var mount=el('nextBalance');if(!context||!mount)return;mount.hidden=!!context.error;if(context.error)return;
     var p=place(),records=context.filtered.map(function(c){return {id:c.id,name:c.name,rent:c.price,area:c.area,type:c.type,lane:c.lane,journey:evidence(c)};});
     var result=G.balance(records,{budget:context.state.budget?Number(context.state.budget):null});
+    var kinds=new Set(records.map(function(r){return G.homeKind(r.type)||'unknown';}));
     var heading=p?'Your Rome, in balance.':'There is more than one right home.';
     var intro=p?'Your everyday destination: '+placeName(p)+'. Compare what matters to you.':'Start with your campus or work. Then see what another neighbourhood could make possible.';
     mount.innerHTML='<div class="balance-heading"><div><p class="eyebrow">SKYLINE / FIND MY BALANCE</p><h2>'+esc(heading)+'</h2><p>'+esc(intro)+'</p></div><div class="balance-tools"><button class="text-button" type="button" data-edit-destination>'+(p?'Change destination':'Choose your destination')+' <span>↗</span></button><button class="text-button" type="button" data-share-plan>Share this plan <span>↗</span></button></div></div>'+
-      (context.loaded?'<div class="balance-grid" data-count="'+result.candidates.length+'">'+result.candidates.map(function(r,i){var c=context.catalogue.find(function(c){return c.id===r.id;}),title={rent:'More room in your budget',space:'More space to live',commute:'Less time on the way'}[r.category]||'An option to explore';return '<article class="balance-card" data-primary="'+(i===0)+'"><p class="balance-reason">'+String(i+1).padStart(2,'0')+' / '+esc(title)+'</p>'+(r.categories.length>1?'<p class="balance-also">Also: '+r.categories.filter(function(x){return x!==r.category;}).map(function(x){return {rent:'lower rent',space:'more space',commute:'an easier journey'}[x];}).join(' · ')+'</p>':'')+'<a class="balance-photo" href="'+esc(context.url('detail',c.id))+'" data-home="'+esc(c.id)+'">'+(c.image?'<img src="'+esc(c.image)+'" alt="'+esc(c.name)+'" loading="lazy" decoding="async">':'<span>Photos to follow</span>')+'</a><div class="balance-card-body"><p class="eyebrow">'+esc(c.zone)+' · '+esc(c.type)+'</p><p class="balance-availability">'+esc(c.status)+'</p><h3>'+esc(c.name)+'</h3><dl class="balance-facts"><div><dt>Monthly rent</dt><dd>'+esc(money(c.price))+'</dd></div><div><dt>Listed area</dt><dd>'+(c.area==null?'Not listed':esc(c.area)+' m²')+'</dd></div></dl>'+(p?'<p class="balance-travel">'+esc(travel(r.journey))+'</p>':'')+'<p class="balance-tradeoff">'+esc(comparison(r))+'</p><div class="balance-card-actions"><a class="balance-action" href="'+esc(context.url('detail',c.id))+'" data-home="'+esc(c.id)+'">Explore home <span>↗</span></a><button class="balance-locate" type="button" data-locate="'+esc(c.id)+'" aria-label="Locate '+esc(c.name)+' in Skyline">⌖</button><button class="balance-save" type="button" data-save-home="'+esc(c.id)+'" aria-label="Save '+esc(c.name)+'" aria-pressed="false">Save ＋</button></div></div></article>';}).join('')+'</div>':'<p class="load-message">Opening your possibilities…</p>')+
+      (context.loaded&&kinds.size>1?'<p class="balance-kind-note">These options include different rental types. Price and space comparisons stay within each type.</p>':'')+
+      (context.loaded?'<div class="balance-grid" data-count="'+result.candidates.length+'">'+result.candidates.map(function(r,i){return balanceCard(r,i,p);}).join('')+'</div>':'<p class="load-message">Opening your possibilities…</p>')+
       (context.loaded&&!result.candidates.length?'<p class="balance-empty">No priced homes match these choices right now. Adjust your budget or <a href="'+esc(intent('/property-finding'))+'">give BOOM your search brief ↗</a>.</p>':'')+
       '<div class="balance-foot"><p>'+(!context.loaded?'Your options are loading.':p?(result.comparableJourneys?'Transit comparisons use a static timetable model. Check the actual route.':'A reliable transit comparison is not available for these homes yet. Rent and space remain comparable.'):'Choose a destination to add the everyday journey.')+' Dates are a request; availability is confirmed for each home.</p><a href="'+esc(intent('/property-finding'))+'">Want more possibilities? Let BOOM search ↗</a></div>';
   }

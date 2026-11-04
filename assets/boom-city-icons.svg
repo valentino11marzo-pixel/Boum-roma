@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg">
+  <!-- Editorial architectural silhouettes. Decorative city identifiers, not offices or addresses. -->
+  <symbol id="city-rome" viewBox="0 0 160 120">
+    <g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M16 48C16 32 48 23 83 23c28 0 50 7 61 17v53c-22 14-102 21-128-1Z"/>
+      <path d="M16 48c25 16 102 16 128-8M16 66c25 16 102 16 128-8M16 84c25 16 102 16 128-8M23 103c27 9 91 7 123-7"/>
+      <path d="M25 53v10m0 10v10m0 9v8M38 58v10m0 10v10m0 9v7M53 62v10m0 10v10m0 9v7M69 64v10m0 10v10m0 9v7M86 64v10m0 10v10m0 9v7M103 62v10m0 10v10m0 9v7M119 58v10m0 10v10m0 9v7M133 52v10m0 10v10m0 9v7"/>
+      <path d="M29 65v-5c0-5 6-4 6 1v6M43 70v-5c0-5 7-4 7 1v5M58 73v-5c0-5 7-5 7 0v6M75 75v-5c0-5 7-5 7 0v5M92 74v-5c0-5 7-6 7-1v5M109 71v-5c0-5 6-6 6-1v4M124 66v-4c0-5 5-7 5-2v4"/>
+      <path d="M29 85v-5c0-5 6-4 6 1v6M43 90v-5c0-5 7-4 7 1v5M58 93v-5c0-5 7-5 7 0v6M75 95v-5c0-5 7-5 7 0v5M92 94v-5c0-5 7-6 7-1v5M109 91v-5c0-5 6-6 6-1v4M124 86v-4c0-5 5-7 5-2v4"/>
+      <path d="M24 42c12-9 36-13 61-13 19 0 37 4 49 10-23 12-85 15-110 3Z"/>
+    </g>
+  </symbol>
+  <symbol id="city-madrid" viewBox="0 0 160 120">
+    <g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 106h136M18 101V48h124v53M15 48h130M18 41h124M24 41v-7h20v7m72 0v-7h20v7M45 41V30h70v11M51 30v-7h58v7M56 23l24-12 24 12M65 17l-4-7m34 7 4-7M80 11V5"/>
+      <path d="M25 101V67h17v34M118 101V67h17v34M51 101V68a9 9 0 0 1 18 0v33M91 101V68a9 9 0 0 1 18 0v33M72 101V60a8 8 0 0 1 16 0v41"/>
+      <path d="M22 54h21m4 0h20m26 0h20m4 0h21M46 58v43M112 58v43M20 96h122M24 63h19m74 0h19M78 26h4v8h-4z"/>
+      <path d="M29 31v-7l5-4 5 4v7M121 31v-7l5-4 5 4v7"/>
+    </g>
+  </symbol>
+  <symbol id="city-barcelona" viewBox="0 0 160 120">
+    <g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M18 108h124M24 104V78l8-10 8 10v26M120 104V78l8-10 8 10v26M40 104V53l5-25 5 25v51M53 104V40l6-30 6 30v64M95 104V40l6-30 6 30v64M110 104V53l5-25 5 25v51"/>
+      <path d="M45 28v-7m-3 3h6M59 10V4m-3 3h6M101 10V4m-3 3h6M115 28v-7m-3 3h6M65 85l15-24 15 24M65 104V85h30v19M70 104V93l10-9 10 9v11M80 61V46m-4 5h8"/>
+      <path d="M43 53h4m-4 9h4m-4 9h4m-4 9h4M57 40h4m-4 9h4m-4 9h4m-4 9h4m-4 9h4M99 40h4m-4 9h4m-4 9h4m-4 9h4m-4 9h4M113 53h4m-4 9h4m-4 9h4m-4 9h4M28 85h8m88 0h8"/>
+      <path d="M32 68V58m96 10V58M18 104h124"/>
+    </g>
+  </symbol>
+  <symbol id="city-amsterdam" viewBox="0 0 160 120">
+    <g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M14 101h132M20 97V49h6v-8h6v-8h12v8h6v8h6v48M58 97V40h6v-9h6v-9h6v-8h8v8h6v9h6v9h6v57M105 97V50c5 0 5-12 10-12 0-9 14-9 14 0 5 0 5 12 10 12v47"/>
+      <path d="M29 54h8v10h-8zM41 54h8v10h-8zM29 73h8v10h-8zM41 73h8v10h-8zM67 47h9v11h-9zM84 47h9v11h-9zM67 66h9v11h-9zM84 66h9v11h-9zM113 55h7v10h-7zM126 55h7v10h-7zM113 74h7v10h-7zM126 74h7v10h-7zM32 97v-8h11v8M75 97V85h10v12M119 97V88h10v9"/>
+      <path d="M11 108c9-5 14 5 23 0s14 5 23 0 14 5 23 0 14 5 23 0 14 5 23 0 14 5 23 0M19 115h122M77 23h6v9h-6zM35 40h6v5h-6z"/>
+    </g>
+  </symbol>
+  <symbol id="city-london" viewBox="0 0 160 120">
+    <g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M8 94h144M8 99h144M30 94V42h4V27h5v-9l5-8 5 8v9h5v15h4v52M102 94V42h4V27h5v-9l5-8 5 8v9h5v15h4v52M30 42h28M102 42h28M34 51h20M106 51h20M58 52h44v7H58M58 79h44M58 84h44"/>
+      <path d="M36 94V76a8 8 0 0 1 16 0v18M108 94V76a8 8 0 0 1 16 0v18M40 34h8v6h-8zM112 34h8v6h-8zM40 56h8v9h-8zM112 56h8v9h-8z"/>
+      <path d="M8 84c9-1 17-12 22-24M130 60c5 12 13 23 22 24M58 59c13 15 31 15 44 0M17 79v15M24 71v23M68 68v11M80 71v8M92 68v11M136 71v23M143 79v15M11 107c9-5 14 5 23 0s14 5 23 0 14 5 23 0 14 5 23 0 14 5 23 0 14 5 23 0"/>
+    </g>
+  </symbol>
+  <symbol id="city-milan" viewBox="0 0 160 120">
+    <g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 108h136M18 104V65l15-13 15 13 16-20 16-15 16 15 16 20 15-13 15 13v39M18 65V47m-3 5h6M33 52V30m-3 5h6M48 65V43m-3 5h6M64 45V22m-3 5h6M80 30V6m-3 5h6M96 45V22m-3 5h6M112 65V43m-3 5h6M127 52V30m-3 5h6M142 65V47m-3 5h6"/>
+      <path d="M23 104V72l10-9 10 9v32M49 104V76l15-19 16-12 16 12 15 19v28M117 104V72l10-9 10 9v32M70 104V88l10-12 10 12v16M28 104V89l5-6 5 6v15M122 104V89l5-6 5 6v15"/>
+      <path d="M56 84v-8l6-8 6 8v8M92 84v-8l6-8 6 8v8M76 64l4-5 4 5-4 5ZM30 75l3-4 3 4-3 4ZM124 75l3-4 3 4-3 4ZM18 98h124"/>
+    </g>
+  </symbol>
+</svg>

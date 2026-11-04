@@ -6,6 +6,10 @@
 })(typeof window !== 'undefined' ? window : globalThis, function (STAY, MAPPA) {
   'use strict';
   var people = ['solo', 'couple', 'family', 'flatmates'], types = ['__entire', '__rooms'];
+  // Public route vocabulary only. Availability, prices and operating mode
+  // remain in CITY_MARKETS / the generated BOOM_CITY configuration.
+  var desks = ['amsterdam','barcelona','berlin','london','madrid','milan','paris'];
+  var needs = ['search','application','viewing'];
   var sensitive = /^(privateplace|private_place|lat|lng|lon|latitude|longitude|coordinates|address|name|email|phone|contact|token)$/i;
   function destination(value) {
     if (typeof value !== 'string') return null;
@@ -66,5 +70,40 @@
   function share(value, options) {
     return withIntent('/flight-next?direction=club&view=apartments', value, options);
   }
-  return Object.freeze({normalize:normalize, read:read, withIntent:withIntent, share:share, destination:destination});
+  function deskNormalize(value) {
+    value=value&&typeof value==='object'?value:{};
+    var city=desks.indexOf(value.city)>=0?value.city:null, currency=city==='london'?'GBP':'EUR';
+    var amount=budget(value.budget), confirmed=currency==='GBP'?value.currency==='GBP':!value.currency||value.currency==='EUR';
+    return {city:city,need:needs.indexOf(value.need)>=0?value.need:null,
+      moveIn:STAY.date(value.moveIn),moveOut:STAY.date(value.moveOut),
+      budget:confirmed?amount:null,currency:currency,people:people.indexOf(value.people)>=0?value.people:null,
+      budgetNeedsConfirmation:amount!==null&&!confirmed};
+  }
+  function deskError(value) {
+    value=value||{};
+    // Calendar validity only: Rome's three-month policy is not a desk rule.
+    if(value.moveIn&&!STAY.date(value.moveIn))return {field:'moveIn',message:'Choose a valid arrival date.'};
+    if(value.moveOut&&!STAY.date(value.moveOut))return {field:'moveOut',message:'Choose a valid departure date.'};
+    if(value.moveIn&&!value.moveOut)return {field:'moveOut',message:'Choose a departure date, or clear both dates.'};
+    if(value.moveOut&&!value.moveIn)return {field:'moveIn',message:'Choose an arrival date, or clear both dates.'};
+    if(value.moveIn&&value.moveOut<=value.moveIn)return {field:'moveOut',message:'Departure must be after arrival.'};
+    return null;
+  }
+  function deskBrief(search, actualCity) {
+    try {
+      var q=new URLSearchParams(search||'');
+      if(q.get('from')!=='flight'||q.get('city')!==actualCity||desks.indexOf(actualCity)<0)return null;
+      return deskNormalize({city:actualCity,need:q.get('need'),moveIn:q.get('moveIn'),moveOut:q.get('moveOut'),
+        budget:q.get('budget'),currency:q.get('currency'),people:q.get('people')});
+    } catch(_){return null;}
+  }
+  function deskURL(city, value) {
+    var b=deskNormalize(Object.assign({},value,{city:city}));if(!b.city)return null;
+    // A fresh URL deliberately excludes Rome campuses, homes and private POIs.
+    var q=new URLSearchParams({from:'flight',city:b.city,currency:b.currency});
+    ['need','moveIn','moveOut','budget','people'].forEach(function(key){if(b[key]!==null)q.set(key,String(b[key]));});
+    return '/'+b.city+'?'+q.toString();
+  }
+  return Object.freeze({normalize:normalize, read:read, withIntent:withIntent, share:share, destination:destination,
+    deskURL:deskURL,deskBrief:deskBrief,deskNormalize:deskNormalize,deskError:deskError});
 });

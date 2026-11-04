@@ -163,7 +163,7 @@ function createSolari() {
   return { Cell: Cell, Board: Board, calibrate: calibrate, cancel: cancel, schedule: schedule };
 }
 
-  var instance = null, manuallyPaused = false;
+  var instance = null, manuallyPaused = false, destinationWord = 'ROME';
   function boot() {
     if (instance) return instance;
     var hero = document.getElementById('nextHero');
@@ -181,10 +181,10 @@ function createSolari() {
     var listeners = [];
     var solari = createSolari();
     var drum = ' ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    var board = new solari.Board(host, 4, drum);
-    host.setAttribute('aria-label', 'Rome');
+    var board = new solari.Board(host, destinationWord.length, drum);
+    host.setAttribute('aria-label', destinationWord);
     host.setAttribute('role', 'img');
-    board.show('ROME', 0, false);
+    board.show(destinationWord, 0, false);
     Array.prototype.forEach.call(host.children, function (cell) { cell.setAttribute('aria-hidden', 'true'); });
     var ORO = '255,215,0', LATTE = '250,248,240', VERDE = '0,255,136';
     var W, H, DPR, MIN, cw, ch, gap, cols, rows, E, AU, AV, basetela;
@@ -360,7 +360,7 @@ function createSolari() {
         cell.ltEl.onanimationend = null; cell.lbEl.onanimationend = null;
         cell.ltEl.style.animation = ''; cell.lbEl.style.animation = '';
         cell.ltEl.style.display = 'none'; cell.lbEl.style.display = 'none';
-        cell.busy = false; cell.turns = 0; cell.set('ROME'[i]);
+        cell.busy = false; cell.turns = 0; cell.set(destinationWord[i] || ' ');
       });
     }
     function stop() {
@@ -440,6 +440,15 @@ function createSolari() {
       resizeObserver = new ResizeObserver(resize); resizeObserver.observe(hero);
     }
     instance = {
+      setDestination: function (word) {
+        if (word === destinationWord) return;
+        settleBoard();
+        destinationWord = word;
+        board = new solari.Board(host, word.length, drum);
+        host.setAttribute('aria-label', word);
+        Array.prototype.forEach.call(host.children, function (cell) { cell.setAttribute('aria-hidden', 'true'); });
+        board.show(word, 45, running && !ridotto);
+      },
       setPaused: function (paused) {
         manuallyPaused = Boolean(paused);
         sync();
@@ -458,6 +467,12 @@ function createSolari() {
   }
   window.BoomFlightNextMotion = {
     boot: boot,
+    setDestination: function (word) {
+      word = String(word || '').toUpperCase();
+      if (!/^[A-Z ]{3,12}$/.test(word)) return;
+      if (instance) instance.setDestination(word);
+      else destinationWord = word;
+    },
     setPaused: function (paused) {
       manuallyPaused = Boolean(paused);
       if (instance) instance.setPaused(manuallyPaused);

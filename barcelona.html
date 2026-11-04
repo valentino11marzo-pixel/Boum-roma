@@ -1213,7 +1213,21 @@ body::before, body::after { z-index: 1 !important; }
     "ONDA": "/assets/boom-onda.js?v=e1d2717948"
   };
 </script>
-<script src="/assets/boom-city.js?v=9ad1ce6ced"></script>
+<script>
+/* Only a deliberate Flight handoff loads its public brief editor. A slow
+   download cannot silently send an empty brief; no form is submitted here. */
+(function(){
+  var q=new URLSearchParams(location.search);
+  if(q.get('from')!=='flight'||q.get('city')!==window.BOOM_CITY.SLUG)return;
+  var pending=true,active=true,files=['/js/stay-engine.js','/js/journey-engine.js','/assets/boom-journey-handoff.js'];
+  function wait(e){if(pending&&/^(fileForm|tillForm)$/.test(e.target.id)){e.preventDefault();e.stopImmediatePropagation();var n=document.getElementById(e.target.id==='fileForm'?'fNetErr':'tErr');if(n)n.textContent='Loading your plans. Please try again in a moment.';}}
+  document.addEventListener('submit',wait,true);
+  function done(failed){if(!active)return;active=false;pending=false;document.removeEventListener('submit',wait,true);if(failed){var n=document.createElement('p');n.setAttribute('role','alert');n.className='s-h';n.textContent='Your plans could not load. Please include them in your message or discuss them on the call.';document.getElementById('fileForm').prepend(n);}}
+  function load(i){if(!active)return;if(i===files.length){done(false);return;}var s=document.createElement('script'),timer=setTimeout(function(){s.remove();done(true);},8000);s.src=files[i]+'?v=20261104a';s.onload=function(){clearTimeout(timer);load(i+1);};s.onerror=function(){clearTimeout(timer);done(true);};document.head.appendChild(s);}
+  load(0);
+})();
+</script>
+<script src="/assets/boom-city.js?v=3e346f0957"></script>
 <script>
   /* The door is served disabled and the desk script opens it. If that script
      never ran (a failed download, an early error) the button stays shut: say
