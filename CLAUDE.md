@@ -3335,6 +3335,12 @@ Caricamento lento trattiene l'invio incompleto, un guasto dichiara il fallback; 
 `flighteuropeui` verifica città/valute/history/privacy/configurazioni tardive o errate e 320/390; `flightcityhandoff` prova moduli reali, payload, calendario e due mutazioni; `citiespublic` prova parità e whitelist del manifest anche per mutazione, insieme alle regressioni `flightjourney`, `cities` e `flightclubui`.
 Resta una preview noindex sul ramo Flight: non è il rilascio SEO/GEO del sito pubblico, né una promessa di catalogo o Skyline nelle altre città.
 
+Flight Club 04/11, prova prima del racconto: la rail di case e l'unico Skyline condividono una scena; sul telefono foto prima della mappa, controllo esplicito per localizzare la casa, nessun volo automatico durante lo swipe.
+Il referente occupa una fascia compatta; etichette a 12px e capitoli più raccolti. La demo PFS già esistente compare accanto ai servizi, l'accesso clienti nel footer; nessun nuovo portale o invio.
+Find my balance prosegue dopo la scelta della meta; una normale modifica resta locale, annullamento e Back cancellano l'intento e invalidano transizioni vecchie.
+I link Home riflettono subito il cambio città, anche prima di aprire Apartments. Gli stessi nodi/catalogo restano validi per foto, salvataggi, mappa e dettaglio.
+Test `flighteuropeui` 9, `flightclubui` 8 e `flightnextui` 12: foto→mappa→scheda, singolo iframe, controlli 320/390, scelta campus/luogo privato, annullamento e Back senza salti.
+
 Flight Lab 31/10: `/flight-lab` confronta Atlas, Residence e Club sulle stesse viste reali di `/flight-next?direction=…`, senza cambiare il sito pubblico.
 Le composizioni riusano catalogo, Solari, iframe Skyline, salvataggi e Apply; nessun secondo catalogo o nuovo handler di invio.
 Residence usa una foto realmente restituita dal catalogo pubblico (fallback a una casa pubblica non chiusa); Atlas sposta la stessa mappa nel primo schermo.

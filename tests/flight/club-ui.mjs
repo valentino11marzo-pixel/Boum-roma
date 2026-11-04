@@ -73,6 +73,10 @@ async function campus(page,slug='luiss'){
  await page.locator('[data-destination="'+slug+'"]').click();
  await page.locator('#nextDestinationDialog').waitFor({state:'hidden'});
 }
+async function balancePicker(page){
+ await page.locator('[data-page]:visible button[data-guide]:not([data-place]):visible').first().click();
+ await page.locator('#nextDestinationDialog').waitFor({state:'visible'});
+}
 async function searchHomes(page){
  await page.locator('#nextMoveIn').fill(arrival);await page.locator('#nextMoveOut').fill(departure);
  await page.locator('#nextBudget').selectOption('1500');await page.locator('#nextPeople').selectOption('couple');
@@ -118,8 +122,15 @@ try{
   const shared=new URL(await page.evaluate(()=>__copied));publicBrief(shared);assert.equal(shared.searchParams.get('homes'),'fixture-journey');assert.equal(shared.searchParams.get('direction'),'club');
   assert.deepEqual([...shared.searchParams.keys()].sort(),['budget','direction','homes','moveIn','moveOut','people','place','stay','view']);
  });
- await check('Public history preserves the campus; editing or clearing dates recomputes real availability and result counts',1280,async({page})=>{
-  await home(page);await campus(page);await searchHomes(page);await mapReady(page);await page.locator('#nextResults [data-home="fixture-rent"]').first().click();await campus(page,'sapienza');
+ await check('Balance selection continues once, cancel/Back leave editing local, and history/date edits preserve the actual brief',1280,async({page})=>{
+  await home(page);await balancePicker(page);await page.keyboard.press('Escape');await campus(page,'sapienza');assert.equal(await page.locator('body').getAttribute('data-view'),'home','cancelled Find my balance must not turn a later brief edit into navigation');
+  await page.locator('#nextDestinationSummary').click();await page.locator('#nextDestinationClear').click();
+  await balancePicker(page);await page.locator('[data-destination="luiss"]').click();await page.locator('#nextApartments').waitFor({state:'visible'});
+  assert.equal(new URL(page.url()).searchParams.get('place'),'luiss');assert.match(await page.locator('.balance-heading').innerText(),/LUISS/i,'choosing a campus from Find my balance opens the comparison');
+  await page.goBack();await page.locator('#nextSearch').waitFor({state:'visible'});await page.locator('#nextDestinationSummary').click();await page.locator('#nextDestinationClear').click();
+  await page.locator('.next-nav [data-view="apartments"]').click();await balancePicker(page);await page.goBack();await page.locator('#nextDestinationDialog').waitFor({state:'hidden'});
+  await campus(page,'sapienza');assert.equal(await page.locator('body').getAttribute('data-view'),'home','Back cancels a pending continuation without changing a later editor selection');
+  await campus(page);await searchHomes(page);await mapReady(page);await page.locator('#nextResults [data-home="fixture-rent"]').first().click();await campus(page,'sapienza');
   await page.goBack();await page.locator('#nextApartments').waitFor({state:'visible'});publicBrief(new URL(page.url()));assert.match(await page.locator('.balance-heading').innerText(),/LUISS/i);
   assert.equal(await page.locator('#nextApartmentsMap iframe').evaluate(frame=>frame.contentWindow.destinations.at(-1)),'luiss','browser Back must restore the map destination as well as the brief');
   await page.goForward();await page.locator('#nextDetailTitle').waitFor();publicBrief(new URL(page.url()),'sapienza');assert.match(await page.locator('.detail-everyday').innerText(),/Sapienza/i);
@@ -135,12 +146,11 @@ try{
  });
  await check('Work search sends only explicit GET, rejects out-of-area hits and never includes a private place in shared or Apply URLs',1280,async({page,photon,network})=>{
   network.handler=route=>route.fulfill({contentType:'application/json',body:JSON.stringify({features:[feature('Fixture Office'),feature('Outside Rome',2.3,48.8),feature('Invalid point',12.4,null)]})});
-  await home(page);await page.locator('#nextDestinationSummary').click();await page.locator('[data-destination-mode="work"]').click();
+  await home(page,'&budget=1500&people=couple&moveIn='+arrival+'&moveOut='+departure);await balancePicker(page);await page.locator('[data-destination-mode="work"]').click();
   await page.locator('#nextDestinationQuery').fill('Fixture Office 12');assert.equal(photon.length,0,'typing must not transmit a workplace');
   await page.locator('#nextDestinationSearch').click();await page.locator('[data-found-place]').waitFor();assert.equal(photon.length,1);assert.equal(photon[0].searchParams.get('q'),'Fixture Office 12');assert.equal(await page.locator('[data-found-place]').count(),1);
-  await page.locator('[data-found-place]').click();assert.match(await page.locator('#nextDestinationSummary strong').innerText(),/Fixture Office/);
+  await page.locator('[data-found-place]').click();await page.locator('#nextApartments').waitFor({state:'visible'});assert.match(await page.locator('.balance-heading').innerText(),/Fixture Office/,'a private destination also continues Find my balance');
   const saved=await page.evaluate(()=>JSON.parse(localStorage.getItem('boom:pois')));assert.equal(saved.length,1);assert.equal(saved[0].name,'Fixture Office 12');
-  await searchHomes(page);assert.match(await page.locator('.balance-heading').innerText(),/Fixture Office/);
   await page.locator('[data-share-plan]').click();await page.waitForFunction(()=>!!window.__copied);const shared=await page.evaluate(()=>__copied);
   assert.doesNotMatch(shared,/Office|12\.49|41\.9|private|address|coordinates|place=/i);
   await page.locator('.balance-card [data-home]').first().click();assert.match(await page.locator('.detail-everyday').innerText(),/Fixture Office/);

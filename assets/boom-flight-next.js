@@ -3,7 +3,7 @@
   var D = window.BoomNextData, S = window.BOOM_STAY, F = window.BOOM_FLIGHT, M = window.BoomNextMap, C = window.BoomFlightClub, J = window.BOOM_JOURNEY;
   if (!D || !S || !F || !M) return;
   var catalogue = [], loaded = false, loading = false, loadError = false, selected = '', toastTimer, lastOpener, homeDirty = false;
-  var privateHistory = Object.create(null), privateSequence = 0;
+  var privateHistory = Object.create(null), privateSequence = 0, balanceIntent = null, navigationVersion = 0;
   var state = { view: 'home', home: '', budget: '', people: '', type: '', layout: 'skyline', saved: false, place: '', privatePlace: null, homes: [], stay: S.normalize() };
   var heart = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z"/></svg>';
   function byId(id) { return document.getElementById(id); }
@@ -144,18 +144,23 @@
     if(window.BoomFlightDirections)window.BoomFlightDirections.render({state:state,catalogue:catalogue,url:url});
     if(focus){window.scrollTo({top:0,behavior:'instant'});var heading=state.view==='detail'?byId('nextDetailTitle'):state.view==='apartments'?byId('nextAptsTitle'):byId('nextHeroTitle');if(heading){heading.setAttribute('tabindex','-1');heading.focus({preventScroll:true});}}
   }
-  function navigate(view,home) {
-    var update=function(){state.view=view;state.home=home||'';commit();showPage(true);};
+  function navigate(view,home,afterRender) {
+    var version=++navigationVersion;
+    var update=function(){if(version!==navigationVersion)return;state.view=view;state.home=home||'';commit();showPage(true);if(afterRender)afterRender();};
     if(document.startViewTransition&&!reduce()){var transition=document.startViewTransition(update);transition.ready.catch(function(){});transition.finished.catch(function(){});}else update();
   }
   function openDialog(dialog,opener){lastOpener=opener||document.activeElement;dialog.showModal();}
   function editStay(opener){byId('nextDialogIn').value=state.stay.moveIn||'';byId('nextDialogOut').value=state.stay.moveOut||'';byId('nextDialogPeople').value=state.people;byId('nextDialogError').hidden=true;openDialog(byId('nextStayDialog'),opener);}
+  function openBalance(){
+    var reveal=function(){byId('nextBalance').scrollIntoView({block:'start',behavior:reduce()?'instant':'smooth'});};
+    if(state.view!=='apartments')navigate('apartments','',reveal);else reveal();
+  }
   function guide(opener){
     if(C){
+      balanceIntent=null;
       if(opener&&opener.dataset.place){state.place=opener.dataset.place;state.privatePlace=null;M.destination(state.place);commit(true);refreshClub();}
-      if(!state.place&&!state.privatePlace){C.open(opener);return;}
-      if(state.view!=='apartments')navigate('apartments');
-      byId('nextBalance').scrollIntoView({block:'start',behavior:reduce()?'instant':'smooth'});return;
+      if(!state.place&&!state.privatePlace){balanceIntent='picking';C.open(opener);return;}
+      openBalance();return;
     }
     var mount=byId('nextGuideMount');
     if(!mount.firstChild){
@@ -220,9 +225,14 @@
   byId('nextClearDates').addEventListener('click',function(){state.stay=S.normalize();commit(true);syncControls();if(state.view==='apartments')renderResults();if(state.view==='detail')renderDetail();byId('nextStayDialog').close();});
   byId('nextMotionToggle').addEventListener('click',function(e){var b=e.currentTarget,paused=b.getAttribute('aria-pressed')!=='true';b.setAttribute('aria-pressed',String(paused));b.innerHTML=paused?'Resume motion <span aria-hidden="true">▷</span>':'Pause motion <span aria-hidden="true">Ⅱ</span>';if(window.BoomFlightNextMotion)window.BoomFlightNextMotion.setPaused(paused);});
   document.querySelectorAll('dialog').forEach(function(dialog){dialog.addEventListener('close',function(){if(dialog.id==='nextGuideDialog'){byId('nextGuideMount').replaceChildren();if(state.view==='home')M.mount(byId('nextHomeMap'));else if(state.view==='apartments'&&state.layout==='skyline')M.mount(byId('nextApartmentsMap'));}if(lastOpener&&lastOpener.isConnected)lastOpener.focus({preventScroll:true});});});
-  window.addEventListener('popstate',function(){readURL();showPage(true);});
+  window.addEventListener('popstate',function(){++navigationVersion;if(balanceIntent){balanceIntent=null;byId('nextDestinationDialog').close();}readURL();showPage(true);});
   window.addEventListener('storage',function(e){if(e.key==='boomSalvate'){syncSaved();if(state.view==='apartments'&&state.saved)renderResults();}});
   window.addEventListener('focus',syncSaved);
-  if(C)C.init({destination:function(slug,privatePlace){state.place=slug;state.privatePlace=privatePlace;M.destination(slug);commit(true);refreshClub();if(state.view==='apartments')renderResults();if(state.view==='detail')renderDetail();},refresh:function(){refreshClub();if(state.view==='detail'){var c=getHome(state.home),panel=document.querySelector('.detail-everyday');if(c&&panel)panel.outerHTML=C.detail(c);}syncSaved();},announce:announce});
+  if(C){
+    C.init({destination:function(slug,privatePlace){state.place=slug;state.privatePlace=privatePlace;if(balanceIntent)balanceIntent=slug||privatePlace?'selected':null;M.destination(slug);commit(true);refreshClub();if(state.view==='apartments')renderResults();if(state.view==='detail')renderDetail();},refresh:function(){refreshClub();if(state.view==='detail'){var c=getHome(state.home),panel=document.querySelector('.detail-everyday');if(c&&panel)panel.outerHTML=C.detail(c);}syncSaved();},announce:announce});
+    // Continue only after a guide selection, once the picker's own focus cleanup
+    // has finished. Closing, clearing or going Back never leaves a queued jump.
+    byId('nextDestinationDialog').addEventListener('close',function(){var selectedDestination=balanceIntent==='selected';balanceIntent=null;if(selectedDestination)openBalance();});
+  }
   readURL();if(C&&state.place)M.destination(state.place);showPage(false);syncSaved();load();
 })();

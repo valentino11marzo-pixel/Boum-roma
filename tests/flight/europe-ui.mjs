@@ -32,7 +32,7 @@ async function open(width){
   if(req.method()!=='GET'){writes.push(req.method()+' '+url.pathname);return route.abort();}
   if(url.origin!==origin)return route.abort();
   if(url.pathname==='/api/listings')return route.fulfill({contentType:'application/json',body:JSON.stringify({ok:true,listings:homes})});
-  if(url.pathname==='/skyline')return route.fulfill({contentType:'text/html',body:'<!doctype html><html><body style="margin:0;background:#101319;color:white">Skyline rendering boundary<script>window.BoomSkyline={state:()=>({catalogueStatus:"ready",mapStatus:"ready",usable:true}),setBudget(){},selectPublicPlace(){},map:{resize(){},stop(){}}};parent.postMessage({t:"boomSkylineReady"},location.origin);</script></body></html>'});
+  if(url.pathname==='/skyline')return route.fulfill({contentType:'text/html',body:'<!doctype html><html><body style="margin:0;background:#101319;color:white">Skyline rendering boundary<script>window.BoomSkyline={state:()=>({catalogueStatus:"ready",mapStatus:"ready",usable:true}),setBudget(){},selectPublicPlace(){},map:{resize(){},stop(){}}};addEventListener("message",e=>{if(e.source===parent&&e.origin===location.origin&&e.data.t==="boomSelect"){document.body.dataset.selected=e.data.id;parent.postMessage({t:"boomSelected",id:e.data.id},location.origin);}});parent.postMessage({t:"boomSkylineReady"},location.origin);</script></body></html>'});
   if(url.pathname.startsWith('/cities/'))privateReads.push(url.pathname);
   if(url.pathname===manifestPath)return network.config(route,url);
   // Only test the navigation boundary here. Original desk forms have their own
@@ -61,6 +61,7 @@ try{
   await city(page,'london');assert.equal(await page.locator('#europeBudget').inputValue(),'');assert.match(await page.locator('#europeCurrencyNote').innerText(),/GBP/);assert.match(await page.locator('#europeBudgetLabel').innerText(),/£/);await service(page,'£500');
   assert.equal(await page.locator('#europeMoveIn').inputValue(),arrival);assert.equal(await page.locator('#europeMoveOut').inputValue(),departure);
   await page.locator('#europeBudget').selectOption('3000');await city(page,'amsterdam');assert.equal(await page.locator('#europeBudget').inputValue(),'');assert.match(await page.locator('#europeCurrencyNote').innerText(),/EUR/);assert.match(await page.locator('#europeBudgetLabel').innerText(),/€/);assert.equal(new URL(page.url()).searchParams.has('budget'),false);
+  for(const slug of ['madrid','rome']){await city(page,slug);for(const href of await page.locator('.next-brand').evaluateAll(ns=>ns.map(n=>n.href))){assert.equal(new URL(href).searchParams.get('city')||'rome',slug,'home href follows a city choice without requiring another view');}}
  });
  await check('Foreign city URLs and handoffs scrub stale Rome/private fields while retaining only the public desk brief',1280,async({page})=>{
   await start(page,'&place=luiss&homes=fixture-flat&type=__entire&privatePlace=office&lat=41.9123&lng=12.5123&address=Private%20Street&email=private%40example.test');
@@ -120,6 +121,23 @@ try{
   await fields(page);const font=await page.locator('#europeDeskForm input,#europeDeskForm select').evaluateAll(ns=>ns.map(n=>parseFloat(getComputedStyle(n).fontSize)));assert.ok(font.every(n=>n>=16),'touch inputs avoid zoom');
   await page.locator('[data-europe-open]').click();await bounds(page,['#europeCityDialog [data-europe-close]','#europeCityDialog [data-europe-city]']);await page.locator('[data-europe-close]').click();
   await city(page,'rome');await page.locator('#nextHomeRail .next-card').first().waitFor();await bounds(page,['#nextDestinationSummary']);assert.equal(await page.locator('.hero-bottom>a').getAttribute('href'),'#nextSearch');
+  await bounds(page,['.europe-home-controls button']);
+  const rail=await page.locator('#nextHomeRail').boundingBox(),map=await page.locator('#nextHomeMap').boundingBox();assert.ok(rail.y<map.y,'on mobile the real photograph precedes the map');
+ });
+ await check('Home photographs, the same Skyline and a real detail stay connected without automatic camera motion',1280,async({page})=>{
+  await start(page);await page.locator('#nextHomeRail .next-card').first().waitFor();
+  assert.equal(await page.locator('iframe.boom-next-map-frame').count(),1,'one map instance');
+  await page.locator('[data-europe-home-step="1"]').click();await page.waitForFunction(()=>document.getElementById('europeHomePosition').textContent==='02 / 03');
+  const second=await page.locator('#nextHomeRail .next-card').nth(1).getAttribute('data-home-id');
+  const frame=page.frames().find(f=>new URL(f.url()).pathname==='/skyline');assert.ok(frame);
+  assert.equal(await frame.locator('body').getAttribute('data-selected'),null,'browsing photos does not move the camera');
+  await page.locator('[data-europe-locate]').click();await frame.waitForFunction(id=>document.body.dataset.selected===id,second);
+  await page.waitForFunction(()=>document.querySelector('.city-caption .city-selected'));
+  assert.equal(await page.locator('.city-caption [data-home]').getAttribute('data-home'),second,'map caption and current photograph refer to the same home');
+  await page.locator('.city-caption [data-home]').click();await page.waitForFunction(()=>document.body.dataset.view==='detail');assert.equal(new URL(page.url()).searchParams.get('home'),second);
+  await page.goBack();await page.waitForFunction(()=>document.body.dataset.view==='home');assert.equal(await page.locator('iframe.boom-next-map-frame').count(),1);
+  assert.equal(await page.locator('.europe-service-proof').getAttribute('href'),'/client-portal?code=DEMO');
+  assert.equal(await page.locator('.next-footer a[href="/login"]').count(),1);
  });
 }finally{if(browser)await browser.close();await new Promise(resolve=>server.close(resolve));}
 console.log('Europe UI: '+passed+' passed, '+failed+' failed');process.exitCode=failed?1:0;

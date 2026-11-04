@@ -56,8 +56,15 @@
       if(brief.budget)url.searchParams.set('currency',currency(city));else url.searchParams.delete('currency');
     } else url.searchParams.delete('currency');
     history[push?'pushState':'replaceState'](history.state,'',url.pathname+url.search+url.hash);
+    updateHomeLinks();
   }
   function deskURL() { return J && J.deskURL ? J.deskURL(city,values(city)) : '/'+city; }
+  function updateHomeLinks() {
+    var brief=Object.assign({},J?J.read(location.search):{},values(city));
+    var path=J?J.withIntent(canonicalHome(city),brief):canonicalHome(city);
+    if(window.BoomFlightEurope)path=window.BoomFlightEurope.decorateURL(path,{view:'home'});
+    document.querySelectorAll('.next-brand[data-view="home"]').forEach(function(a){a.href=path;});
+  }
   function updateLinks() {
     if(city==='rome') return;
     document.querySelectorAll('[data-europe-desk-link]').forEach(function(a){a.href=deskURL();});
@@ -187,7 +194,7 @@
   desk.innerHTML='<div class="europe-planner-top"><span id="europePlannerCity"></span><span id="europePlannerCode"></span></div><h2 id="europeDeskTitle">What do you need?</h2><div class="europe-needs" role="group" aria-label="Choose the support you need">'+Object.keys(needs).map(function(key,i){return '<button type="button" data-europe-need="'+key+'" aria-pressed="'+(key===need)+'"><span>0'+(i+1)+'</span><div><strong>'+needs[key].label+'</strong><small>'+needs[key].hint+'</small></div><span aria-hidden="true">↗</span></button>';}).join('')+'</div><form id="europeDeskForm"><details id="europeOptionalBrief"><summary>Add dates &amp; budget <span>optional</span></summary><div class="europe-fields"><label>Move in<input id="europeMoveIn" type="date" aria-label="Desk move-in date"></label><label>Move out<input id="europeMoveOut" type="date" aria-label="Desk move-out date"></label><label><span id="europeBudgetLabel">Monthly rent (€)</span><select id="europeBudget" aria-label="Desk monthly rent budget"><option value="">Choose later</option><option value="1000">Up to €1,000</option><option value="1500">Up to €1,500</option><option value="2000">Up to €2,000</option><option value="3000">Up to €3,000</option><option value="5000">Up to €5,000</option></select></label><label>Who’s moving?<select id="europePeople" aria-label="Desk household"><option value="">Choose later</option><option value="solo">Just me</option><option value="couple">A couple</option><option value="family">A family</option><option value="flatmates">Flatmates</option></select></label></div></details><p id="europeCurrencyNote" class="europe-form-note" hidden></p><p id="europeDeskError" class="form-error" role="alert" hidden></p><button id="europeDeskContinue" class="button gold" type="submit"></button><p class="europe-next-step">See the service and speak with the desk. No payment at this step.</p></form>';
   planner.appendChild(desk);
   var trust=document.createElement('section');trust.className='europe-trustbar';trust.setAttribute('aria-label','Who is behind BOOM');
-  trust.innerHTML='<div><span>THE AGENCY</span><strong>Egidi Immobiliare S.r.l.</strong><a href="/about">Meet BOOM ↗</a></div><div><span>YOUR CONTACT</span><strong>Valentino Egidi</strong><span>Your first point of contact</span></div><div><span>BEFORE YOU COMMIT</span><strong>Scope. Costs. Next step.</strong><span>Understand the service before choosing it</span></div><p id="europeContextNote"></p>';
+  trust.innerHTML='<div class="europe-trust-person"><span>YOUR CONTACT</span><strong>Valentino Egidi</strong><span>Egidi Immobiliare S.r.l. · Rome</span></div><a href="/about">Meet BOOM ↗</a><p id="europeContextNote" class="sr-only"></p>';
   hero.insertAdjacentElement('afterend',trust);
   var story=document.createElement('section');story.id='europeDeskStory';story.className='next-section europe-desk-story';story.hidden=true;
   story.innerHTML='<div class="europe-story-lead"><p class="eyebrow">THE SERVICE / IN PLAIN WORDS</p><h2 id="europeStoryCity"></h2><p>Your choice above brings the relevant service into focus. The desk explains the full scope before you decide.</p></div><article id="europeServicePass" class="europe-service-pass" aria-live="polite"></article>';
@@ -195,6 +202,57 @@
   var dialog=document.createElement('dialog');dialog.id='europeCityDialog';dialog.setAttribute('aria-labelledby','europeCityDialogTitle');dialog.innerHTML='<div class="next-dialog-top"><span>BOOM / CITIES</span><button type="button" data-europe-close aria-label="Close city chooser">✕</button></div><h2 id="europeCityDialogTitle">Where are you moving?</h2><p>Homes and Skyline in Rome. Tenant-side rental support at our European desks.</p><div class="europe-cities">'+buttons()+'</div><a href="/desks" class="text-button">Explore every BOOM desk ↗</a>';
   document.body.appendChild(dialog);
   var status=document.createElement('p');status.id='europeHomeStatus';status.className='sr-only';status.setAttribute('role','status');document.body.appendChild(status);
+  // The existing catalogue rail and single Skyline instance share one scene.
+  // A deliberate action moves the camera; browsing photographs never does.
+  var skyline=document.querySelector('.skyline-chapter'),homes=document.querySelector('.homes-chapter');
+  var explore=document.createElement('div');explore.className='europe-explore-grid';
+  skyline.querySelector('.chapter-heading').insertAdjacentElement('afterend',explore);
+  explore.append(homes,skyline.querySelector('.next-city-scene'));
+  homes.querySelector('.eyebrow').textContent='FROM THE ROME CATALOGUE';
+  homes.querySelector('.chapter-heading>.text-button').textContent='All homes ↗';
+  var rail=el('nextHomeRail'),railControls=document.createElement('div');railControls.className='europe-home-controls';
+  railControls.innerHTML='<span id="europeHomePosition" role="status" aria-live="polite"></span><button type="button" data-europe-home-step="-1" aria-label="Previous home" aria-controls="nextHomeRail" disabled>←</button><button type="button" data-europe-home-step="1" aria-label="Next home" aria-controls="nextHomeRail" disabled>→</button><button type="button" data-europe-locate disabled>Show on Skyline ↗</button>';
+  rail.insertAdjacentElement('afterend',railControls);
+  function homeCards(){return Array.from(rail.querySelectorAll('[data-home-id]'));}
+  function currentHomeIndex(){
+    var cards=homeCards(),left=rail.getBoundingClientRect().left;
+    var index=0,distance=Infinity;
+    cards.forEach(function(card,i){var delta=Math.abs(card.getBoundingClientRect().left-left);if(delta<distance){index=i;distance=delta;}});
+    return index;
+  }
+  function syncRail(){
+    var cards=homeCards(),index=currentHomeIndex(),card=cards[index];
+    el('europeHomePosition').textContent=card?String(index+1).padStart(2,'0')+' / '+String(cards.length).padStart(2,'0'):'';
+    railControls.querySelector('[data-europe-home-step="-1"]').disabled=!card||index===0;
+    railControls.querySelector('[data-europe-home-step="1"]').disabled=!card||index===cards.length-1;
+    var locate=railControls.querySelector('[data-europe-locate]');locate.disabled=!card;
+    locate.setAttribute('aria-label',card?'Show '+card.querySelector('h3').textContent+' on Skyline':'Show on Skyline');
+  }
+  function showRailCard(card){
+    if(!card)return;
+    rail.scrollTo({left:rail.scrollLeft+card.getBoundingClientRect().left-rail.getBoundingClientRect().left,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});
+  }
+  railControls.addEventListener('click',function(e){
+    var step=e.target.closest('[data-europe-home-step]'),cards=homeCards(),index=currentHomeIndex();
+    if(step){showRailCard(cards[index+Number(step.dataset.europeHomeStep)]);return;}
+    if(e.target.closest('[data-europe-locate]')&&cards[index]&&window.BoomNextMap){
+      window.BoomNextMap.select(cards[index].dataset.homeId);
+      if(innerWidth<761)el('nextHomeMap').scrollIntoView({block:'center',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});
+    }
+  });
+  rail.addEventListener('scroll',syncRail,{passive:true});
+  new MutationObserver(syncRail).observe(rail,{childList:true});
+  window.addEventListener('resize',syncRail,{passive:true});
+  window.addEventListener('boom-next:map-select',function(e){
+    if(view!=='home')return;
+    var card=homeCards().find(function(c){return c.dataset.homeId===e.detail.id;});
+    if(card)showRailCard(card);
+  });
+  var proof=document.createElement('a');proof.className='europe-service-proof';proof.href='/client-portal?code=DEMO';
+  proof.innerHTML='<span><small>PROPERTY FINDING / A LOOK INSIDE</small><strong>Explore the client workspace.</strong><span>The existing app, with sample homes. No signup.</span></span><span aria-hidden="true">↗</span>';
+  document.querySelector('.next-tickets').insertAdjacentElement('afterend',proof);
+  var clientAccess=document.createElement('a');clientAccess.href='/login';clientAccess.textContent='Client area ↗';
+  document.querySelector('.next-footer>div').prepend(clientAccess);
   var opener;
   document.addEventListener('click',function(e){
     var cityButton=e.target.closest('button[data-europe-city]');
@@ -232,7 +290,7 @@
   if(city!=='rome')fill(city,{moveIn:query.get('moveIn'),moveOut:query.get('moveOut'),budget:city!=='london'||query.get('currency')==='GBP'?query.get('budget'):'',people:query.get('people')});
   renderCity(false);
   el('nextSkyTitle').innerHTML='Find a home around<br><em>your daily life.</em>';
-  el('nextHomesTitle').textContent='Homes in Rome.';
+  el('nextHomesTitle').textContent='Inside the homes.';
   el('nextServicesTitle').textContent='How can BOOM help?';
   document.querySelector('.ticket-gold h3').textContent='We search for you.';
   document.querySelector('.ticket-dark h3').textContent='Support for a home you found.';
