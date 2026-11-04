@@ -1701,6 +1701,15 @@ async function v17Fixes() {
     await x.ctx.close();
   }
 
+  // R3b · forced colors at ≥940: First class (Full Search) is ONE closed frame on a waitlist desk and on a desk that sells
+  for (const slug of ['paris', 'amsterdam']) {
+    const x = await open({ slug, width: 1280, forced: true });
+    const f = await x.page.$eval('.bp.eroe', (e) => { const s = getComputedStyle(e), fr = getComputedStyle(e.querySelector('.fare')); const r = e.getBoundingClientRect(), q = e.querySelector('.fare').getBoundingClientRect();
+      return { b: [s.borderTopWidth, s.borderRightWidth, s.borderBottomWidth, s.borderLeftWidth, s.borderTopStyle].join(' '), fb: fr.borderBottomWidth + ' ' + fr.borderLeftWidth, inside: q.bottom <= r.bottom + 0.5 && q.top >= r.top - 0.5 }; });
+    check(f.b === '1px 1px 1px 1px solid' && f.fb === '0px 0px' && f.inside, `${slug}, forced colors at 1280: First class is one frame (the ticket's 1px border all round, no second border on the fare inside it)`, JSON.stringify(f));
+    await x.ctx.close();
+  }
+
   // R4 · the hub's heartbeat rises from the EUROPE board, inside the canvas, on a desktop
   {
     const { ctx, page, st } = await open({ slug: 'desks', width: 1440, height: 900, clock: '2027-03-01T10:00:00Z', init: () => {

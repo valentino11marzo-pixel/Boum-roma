@@ -678,6 +678,7 @@ dialog.till::backdrop{background:rgba(0,0,0,.74);-webkit-backdrop-filter:blur(6p
 @media (forced-colors:active) and (min-width:360px) and (max-width:939px){
   .bps:not(.pair-open):not(:has(>.bp:not(.eroe)>[open]))>.bp:not(.eroe) .f-r::before{border-left:0;border-top:1px dashed CanvasText}}
 @media (forced-colors:active) and (max-width:300px){.bps>.bp .f-r::before{border-left:0;border-top:1px dashed CanvasText}}
+@media (forced-colors:active) and (min-width:940px){.eroe{border:1px solid ButtonText}.eroe>.fare{border:0}}
 @media print{
   html.vivo .rv,html.vivo .tag.rv{opacity:1!important;transform:none!important;translate:none!important}
   html.vivo .sec>h2{clip-path:none!important}

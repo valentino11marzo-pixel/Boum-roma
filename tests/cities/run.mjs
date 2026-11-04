@@ -63,7 +63,7 @@ import {
   ARC_CLEAR, ARC_DOT_R, ARC_ME_R, MAP_KB, HZ_CAM, HZ_LIFT, HZ_LEAN, HZ_KEY, HUB_MAP_PX, horizon, hzViolations, hzPathPts, hzCal, holidayKeyOf as hkOf,
   orgNode, serviceNode, numberWord, listJoin, dateLong, homeCountryOf, isHomeDesk,
   renderHub, buildHub, HUB_WEIGHT_KB, HUB_BUDGET, HUB_FILE, HUB_PATH, COUNTRY_NAME, hoursSentence, hubText, CALL_RE, RATING_RE,
-  DESK_BANNED, DESK_BANNED_SELL
+  reviewSentences, claimProblems, claimGuard, lintClaims, loadClaims, CLAIM_VOCAB_RE, CLAIM_KINDS, CLAIMS_FILE
 } from '../../build-cities.mjs';
 import SCALO from '../../js/scalo-codes.js';
 import CAL from '../../js/desk-calendar.js';
@@ -100,8 +100,10 @@ const assetVersion = { css: 'testcss000', js: 'testjs0000', onda: 'testonda00' }
 const frags = fragments(R);
 // the refusals are measured without the weight gate (it has its own check);
 // the family is the real one, so a mutation of one desk keeps its sisters
+// the reviewed sentences (cities/_claims.json) travel with the render, whatever root the refusal builds in
+const CLAIMS = loadClaims(R);
 const render = (city, sh = shared, tpl = template, root = R, extra = {}) =>
-  renderCity({ template: tpl, shared: sh, city, assetVersion, frags, root, weigh: false, cities: SLUGS.map((s) => (s === city.slug ? city : CITY[s])), ...extra });
+  renderCity({ template: tpl, shared: sh, city, assetVersion, frags, root, weigh: false, cities: SLUGS.map((s) => (s === city.slug ? city : CITY[s])), claims: CLAIMS, ...extra });
 // a template mutation: the build must refuse its own output
 const tplRefuses = (from, to, re, t, base = 'amsterdam') => {
   check(template.includes(from), `(the template still carries the anchor of: ${t})`);
@@ -828,7 +830,7 @@ refuses((c) => { c.bref.rows = c.bref.rows.filter((r) => r.dt !== "What we don't
 refuses((c) => { c.word = 'AMSTERDAMNORTHHOLLAND'; }, /2–12 letters/, 'a board word over 12 letters is refused (the drum has no room)');
 refuses((c) => { c.iata = 'Ams'; }, /"iata" \(three upper-case letters\)/, 'the stub destination is three upper-case letters');
 // the word budgets bite on the OUTPUT (not only the data)
-refuses((c) => { c.pricing.plans[0].includes[0] += ', and a very long extra clause about everything else we do for you on the Full Search, from the brief to the keys, the registration and the first week'; }, /ticket is \d+ words, over 60/, 'a ticket over its 60 words is refused');
+refuses((c) => { c.pricing.plans[0].includes[0] += ', and a very long extra clause about everything else we do for you on the Full Search, from the brief to the keys, the paperwork and the first week'; }, /ticket is \d+ words, over 60/, 'a ticket over its 60 words is refused');
 refuses((c) => { for (const k of c.how.steps) k.p += ' ' + 'Every word here is read at load, so the page cannot quietly grow back past the budget the founder set for it.'.repeat(5); }, /visible words at load, over the 640 budget/, 'the page over its 640 words at load is refused: it cannot grow back');
 // v1.6: the prose has its own cap under the total (the richness comes from
 // instruments, not paragraphs), and no text node runs past 24 words
@@ -993,53 +995,127 @@ tplRefuses('<p class="proof">', '<p class="proof">Pay by bank transfer · ', /no
     const hAt = fares.indexOf('id="faresH"'), pAt = fares.search(/data-plan-price=/);
     check(hAt > -1 && pAt > -1 && hAt < pAt, `${s}: in #fares the head "Optional, chosen in writing" (#faresH) comes BEFORE the first price (LAU art. 20)`, `head at ${hAt}, first price at ${pAt}`);
   }
-  // v1.7 review: the only registration a desk states is the company's, in Rome — on every desk the vague
-  // "a registered agency" and any licence/registration that does not land on Rome; on a desk that sells,
-  // any licence or register it does not hold (visible text, meta, JSON-LD; comments out)
+  // v1.7 review, third round: every sentence about registration or licences is REVIEWED (cities/_claims.json,
+  // default deny). Two rounds of regexes chased each other (round 1 refused true copy about the lease, round 2 let
+  // "Registered with the Generalitat Valenciana." through); now an unlisted sentence is refused whatever its shape.
   {
-    const strsR = (v) => (typeof v === 'string' ? [v] : v && typeof v === 'object' ? Object.values(v).flatMap(strsR) : []);
-    const saidOf = (h) => [visibleText(h.replace(/<!--[\s\S]*?-->/g, ' ')), ...[...h.matchAll(/<meta [^>]*content="([^"]*)"/g)].map((m) => m[1]),
-      ...[...h.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].flatMap((m) => strsR(JSON.parse(m[1])))].join(' \n ');
-    // the page-level mirror: literal copies, independent of the build's arrays (a claim is said ABOUT US —
-    // the company as subject — an agency adjective, and on a desk that sells a licence or a register it does not hold)
-    const AGENCY = /\b(?!un|non)(?:[\w]+-)?(?:licensed|registered|accredited|authori[sz]ed|certified)\s+(?:(?!(?:with|by|in|at|on|to|through|via|as|an?|the|for|under)\b)[\w-]+\s+)?(?:real estate\s+)?(?:agency|agencies|agents?|brokers?|intermediar(?:y|ies))\b/i;
-    const CLAIM = /\b(?:we're|we|BOOM(?:'s)?(?:\s+(?!(?:is|are|was|were|has been|have been|is now|are now|became|becomes|remains|stays)\b)[\w'-]+){0,2}|Egidi(?:\s+Immobiliare(?:\s+S\.r\.l\.)?)?|the (?:desk|agency|company)|our (?:desk|agency|company|agents?))(?:\s+(?:is|are|was|were|has been|have been|is now|are now|became|becomes|remains|stays)|(?<=\bwe're))(?:\s+(?!(?:the|that|it|it's|its|your|you|their|they|this|lease|leases|contract|deposit|homes?|flats?)\b)[\w'-]+){0,3}\s+(?:licensed|registered|listed|authori[sz]ed|accredited|enrolled|certified|approved)\b(?!\s+in Rome\b|\s+with the Rome Chamber of Commerce\b|\s+office\b|(?:\s+[\w-]+){0,3}\s+trade ?mark\b)/i;
-    const HELD = [/\bRAICV\b|Registro de Agentes|\bAICAT\b|carte professionnelle|§\s?34c|\blicensed agent|\bregistered (?:estate )?agent\b/i,
-      /\b(?:licensed to|authori[sz]ed to|registered as|accredited as|certified as)\b(?:\W+\w+){0,4}?\W+(?:agents?|agency|brokers?|operate|act|intermediar(?:y|ies))\b/i,
-      /\b(?:Valencian|Catalan|Spanish|regional|Dutch|French|German|British|UK|English)\s+(?:(?:estate\s+)?agents?'?\s+)?regist(?:er|ry)\b|\bmember of (?:the )?\w+ regist(?:er|ry)\b/i];
-    const hitOf = (said, re) => { const m = said.match(re); return m ? said.slice(Math.max(0, m.index - 30), m.index + m[0].length + 30).replace(/\s+/g, ' ') : ''; };
-    for (const s of SLUGS) {
-      const said = saidOf(PAGE[s]), sells = CITY[s].checkout === true;
-      const bad = [hitOf(said, AGENCY), hitOf(said, CLAIM), ...(sells ? HELD.map((re) => hitOf(said, re)) : [])].filter(Boolean);
-      check(!bad.length, `${s}: no registration but Rome's is stated${sells ? ', no licence or register the desk does not hold (RAICV, AICAT, §34c, carte professionnelle…)' : ''}`, bad.join(' | '));
+    const claims = loadClaims(R);
+    const page = (t) => `<!DOCTYPE html><html><head><title>t</title></head><body><main><p>${t}</p></main></body></html>`;
+    const sortE = (a) => [...a].sort((x, y) => (x.text < y.text ? -1 : x.text > y.text ? 1 : 0));
+    const withEntries = (add) => lintClaims({ ...claims, allowed: sortE([...claims.allowed, ...add]) });
+    // (a) the real build is clean: every trigger sentence on the eight desks and /desks is reviewed; no selling desk names a register
+    const SELLERS = SLUGS.filter((s) => CITY[s].checkout === true);
+    check(SELLERS.join() === 'amsterdam,barcelona,london,madrid,milan,valencia', `the selling desks are ${SELLERS.join(', ')}`);
+    const hubHtml = read('desks.html');
+    const used = new Set();
+    for (const [s, h] of [...SLUGS.map((x) => [x, PAGE[x]]), ['desks', hubHtml]]) {
+      const bad = claimProblems(h, { claims, sell: SELLERS.includes(s) });
+      check(!bad.length, `${s}: every sentence about registration or licences is in ${CLAIMS_FILE}${SELLERS.includes(s) ? ', no register the desk does not hold, no partner line' : ''}`, bad.map((p) => `${p.why}: "${p.text}"`).join(' | '));
+      for (const x of reviewSentences(h)) if (CLAIM_VOCAB_RE.test(x.text)) used.add(x.text);
     }
-    // the guard is not blind and not trigger-happy: the OK list passes EVERY pattern (the build's arrays and the mirror),
-    // the KO list is refused by both. True copy about the lease, homes, the tenant or a student is not a claim about us.
-    const SELL_ALL = [...DESK_BANNED, ...DESK_BANNED_SELL].map(([re]) => re), DRAFT_ALL = DESK_BANNED.map(([re]) => re);
-    const MIRROR_ALL = [AGENCY, CLAIM, ...HELD], MIRROR_DRAFT = [AGENCY, CLAIM];
-    const OK = ['The lease is registered with the Agenzia delle Entrate within 30 days', 'Homes listed on Rightmove go fast.', 'Once you are registered with the gemeente you get a BSN.',
-      'Students enrolled at the Universidad Complutense qualify.', 'an Italian real estate agency registered in Rome', 'registered with the Rome Chamber of Commerce (REA RM-1710623)',
-      'Registered at the town hall with your lease', 'register on the padrón', 'BOOM® is a registered European Union trade mark', 'Registered office: Viale Liegi 42',
-      'Your deposit is protected in a government-approved scheme', 'The lease must be registered within 30 days', 'students enrolled at a university away from home',
-      'Egidi Immobiliare S.r.l. is registered with the Rome Chamber of Commerce', 'we check the lease is registered', 'beware of unlicensed agents'];
-    const OK_DRAFT = ['a licensed partner', 'Launching with a licensed partner.'];
+    // the extractor reads each meta and each JSON string on its own, never concatenated
+    {
+      const h = '<html><head><meta name="description" content="Paid by you"><meta property="og:description" content="registered with the Generalitat"><script type="application/ld+json">{"a":"Tenant side","b":"Licensed in Spain."}</script></head><body><p>Hello <b>registered</b>in Rome.</p><div aria-label="BOOM, registered in Valencia"></div><script>var x = "We are licensed in Spain";</script></body></html>';
+      const r = reviewSentences(h);
+      const has = (t, w) => r.some((x) => x.text === t && x.where === w);
+      check(has('registered with the Generalitat', 'meta') && has('Licensed in Spain', 'ld') && has('BOOM, registered in Valencia', 'attr') && has('We are licensed in Spain', 'script') && !r.some((x) => /Paid by you registered/.test(x.text)),
+        'reviewSentences: each meta, each JSON-LD string, attributes and inline-script strings separately (never concatenated), normalised', JSON.stringify(r));
+    }
+    { const empty = fs.mkdtempSync(path.join(os.tmpdir(), 'boom-claims-')); check(throws(() => loadClaims(empty), /cities\/_claims\.json: is missing: every sentence about registration or licences is reviewed there \(default deny\)/) === true, 'no cities/_claims.json, no page: default deny'); }
+    // (f) no stale entries
+    const stale = claims.allowed.filter((e) => !used.has(e.text)).map((e) => e.text);
+    check(!stale.length, `${CLAIMS_FILE}: every one of the ${claims.allowed.length} entries is printed on at least one built page (no stale entry)`, stale.join(' | '));
+    check(claims.allowed.length >= 50 && CLAIM_KINDS.every((k) => claims.allowed.some((e) => e.kind === k)) && claims.allowed.every((e) => e.kind !== 'partner' || !SELLERS.some((s) => reviewSentences(PAGE[s]).some((x) => x.text === e.text))),
+      `${CLAIMS_FILE}: ${claims.allowed.length} reviewed sentences, every kind used, no partner line on a desk that sells`);
+    // (b) the claims of both regex rounds and the verifier's misses: refused on a desk that sells (unreviewed or banned)
     const KO = ['we are registered with the Comunitat Valenciana', 'we are listed in the RAICV', 'we are authorised by the Generalitat', 'BOOM is licensed in Spain',
       'BOOM Valencia is registered with the regional registry', 'a registered Italian agency', 'licensed to operate in Spain', 'a licensed agency in Valencia',
       'registered as an agent in Valencia', 'a Valencia-registered agency', 'an accredited Valencian agency', 'authorised to broker leases in Valencia',
-      'registered real estate agency in Valencia', 'member of the Valencian register', "we're registered with the Generalitat", 'our agents are certified in Spain'];
-    const passes = (x, set) => set.every((re) => !re.test(x)), refused = (x, set) => set.some((re) => re.test(x));
-    const okBad = [...OK.filter((x) => !passes(x, SELL_ALL) || !passes(x, MIRROR_ALL)), ...OK_DRAFT.filter((x) => !passes(x, DRAFT_ALL) || !passes(x, MIRROR_DRAFT))];
-    const koMiss = KO.filter((x) => !refused(x, SELL_ALL) || !refused(x, MIRROR_ALL));
-    check(!okBad.length, `the registration guard passes the ${OK.length + OK_DRAFT.length} true sentences (the lease, homes on a portal, the tenant at the gemeente, a student, Rome, the trade mark, the office, the drafts' licensed partner) through the build's arrays and the mirror`, okBad.join(' | '));
-    check(!koMiss.length, `the registration guard refuses the ${KO.length} claims (the company as subject, the agency adjective, licensed to operate, a local register) in the build's arrays and the mirror`, koMiss.join(' | '));
+      'registered real estate agency in Valencia', 'member of the Valencian register', "we're registered with the Generalitat", 'our agents are certified in Spain',
+      'Registered with the Generalitat Valenciana.', 'Licensed in the Netherlands.', 'Registered with the Generalitat de Catalunya as an estate agency.', 'BOOM, registered in Valencia, answers from Rome.',
+      'BOOM — licensed in Spain.', 'Accredited by the Generalitat Valenciana.', 'Registered in Spain under number V-1234.', 'Fully licensed and insured in Spain.', 'BOOM Amsterdam, licensed by the gemeente.',
+      'Registered with the KvK (Dutch Chamber of Commerce).', 'We are an Italian real estate agency registered in Valencia.', 'an agency licensed in Spain', 'an agency registered in the Netherlands',
+      'The Valencia desk is registered with the Generalitat.', 'We hold a licence in Spain.', "We've been licensed in Spain since 2024.", 'Our Valencia desk is licensed by the Generalitat.',
+      'Our team is licensed in Spain.', 'Our licensed team in Valencia.', 'BOOM Desks Valencia S.L. is registered with the Generalitat.', 'Egidi Immobiliare srl is registered in Valencia.',
+      'We were granted a licence by the Generalitat.', 'We have a licence from the Generalitat.', 'Our agents hold a licence in Valencia.', 'BOOM holds a Valencian agent licence.',
+      'The desk holds a Spanish licence.', 'We operate under licence in Spain.', 'We are KvK-registered.', 'BOOM is a member of a government-approved redress scheme.',
+      'We are regulated by the Property Ombudsman.', 'BOOM is a member of ARLA Propertymark.'];
+    const koMiss = KO.filter((t) => !claimProblems(page(t), { claims, sell: true }).length);
+    check(!koMiss.length, `the ${KO.length} claims of both rounds and the verifier's misses (subject-free footers, the agency after its noun, licences as nouns, memberships) are refused on a desk that sells`, koMiss.join(' | '));
+    check(['Registered with the Generalitat Valenciana.', 'We are an Italian real estate agency registered in Valencia.', 'BOOM is a member of a government-approved redress scheme.', 'We are regulated by the Property Ombudsman.', 'We hold a licence in Spain.', 'We are KvK-registered.', 'Fully licensed and insured in Spain.', 'The Valencia desk is registered with the Generalitat.']
+      .every((t) => claimProblems(page(t), { claims, sell: false }).length), 'the eight named claims are refused on a draft desk and on /desks too (default deny is not a selling-desk rule)');
+    check(throws(() => claimGuard(page('Registered with the Generalitat Valenciana.'), { claims, sell: true }, 'cities/valencia.json'), /cities\/valencia\.json: 1 sentence\(s\) about registration or licences not reviewed in cities\/_claims\.json: "Registered with the Generalitat Valenciana" \(text\) — if it does not say that BOOM or the company holds a registration, licence or membership outside Rome, add it to cities\/_claims\.json with its kind and a note; if it does, it cannot ship/) === true,
+      'the refusal names the desk, quotes the sentence and says what to do');
+    // (c) true sentences are refused by default, and pass once a person adds them with a non-claim kind (the workflow, on an in-memory copy)
+    const TRUE = [['The lease is registered with the Agenzia delle Entrate within 30 days', 'lease'], ['Egidi Immobiliare S.r.l. is registered under REA RM-1710623.', 'company-rome'],
+      ['Students enrolled at the Universidad Complutense qualify.', 'tenant'], ['BOOM is registered as a European Union trade mark.', 'trade-mark'], ['Your fianza is lodged with the regional register of deposits.', 'tenant'],
+      ['The company is registered at Viale Liegi 42, Rome.', 'company-rome'], ['The desk is registered under Egidi Immobiliare S.r.l. in Rome.', 'company-rome'], ['BOOM is registered with the EUIPO as a trade mark.', 'trade-mark'],
+      ["We're a Rome-registered agency.", 'company-rome'], ['Ask whether the agency is licensed.', 'law'], ['Only pay a holding deposit to a registered letting agent.', 'law'],
+      ['Most homes on Idealista are listed by licensed agencies.', 'law'], ['The deposit goes to the Catalan register of tourist dwellings.', 'law'], ['BRP: registration in the Dutch register of persons.', 'tenant'],
+      ["The landlord's agent is authorised to act for the landlord, not for you.", 'law'], ['we are not licensed in Spain', 'law'], ['We are not a Spanish-registered agency.', 'law'],
+      ['Portals: Funda and Pararius list most homes; registered agents post first.', 'law'], ['Once you are registered with the gemeente you get a BSN.', 'tenant'], ['beware of unlicensed agents', 'law'], ['we check the lease is registered', 'lease']];
+    const trueBad = TRUE.filter(([t, kind]) => {
+      const before = claimProblems(page(t), { claims, sell: true });
+      if (!before.length || before.some((p) => p.why !== 'unreviewed')) return true;
+      try { return claimProblems(page(t), { claims: withEntries(before.map((p) => ({ text: p.text, kind, note: 'reviewed in the test: not a claim about us' }))), sell: true }).length > 0; } catch { return true; }
+    });
+    check(!trueBad.length, `the ${TRUE.length} true sentences the regexes refused are reported as unreviewed (default deny) and pass once added to a copy of ${CLAIMS_FILE} with their kind (lease, tenant, company-rome, trade-mark, law)`, trueBad.map(([t]) => t).join(' | '));
+    check(['All BOOM desks are listed on the network map.', "BOOM's prices are listed with VAT included.", 'The agency is approved by the landlord before the viewing.', 'Homes listed on Rightmove go fast.'].every((t) => !claimProblems(page(t), { claims, sell: true }).length),
+      '"listed" and "approved" are not in the vocabulary: the round-2 false positives on them pass without a review');
+    // (d) the lint: a reviewed file cannot carry a claim
+    const lintRefuses = (e, re) => throws(() => withEntries([{ note: 'a lint probe, refused', ...e }]), re) === true;
+    check(lintRefuses({ text: 'we are registered with the Comunitat Valenciana', kind: 'tenant' }, /kind tenant, but the company is the subject/), 'lint: "we are registered with the Comunitat Valenciana" as kind tenant is refused (the company as subject)');
+    check(lintRefuses({ text: 'The tenant checks the RAICV listing', kind: 'law' }, /names a register or a scheme no desk holds \(RAICV\)/), 'lint: an entry naming RAICV is refused, whatever its kind');
+    check(lintRefuses({ text: 'Egidi Immobiliare S.r.l. is registered in Italy', kind: 'company-rome' }, /kind company-rome names Rome/), 'lint: a company-rome entry without Rome, REA RM-1710623 or Viale Liegi is refused');
+    check(lintRefuses({ text: 'BOOM, registered in Valencia, answers from Rome', kind: 'company-rome' }, /does not land on Rome/), 'lint: a company-rome entry whose "registered" does not land on Rome is refused (Rome named later in the sentence is not enough)');
+    check(lintRefuses({ text: 'We are licensed in Spain', kind: 'law' }, /no negation/) && !lintRefuses({ text: 'We are not licensed in Spain', kind: 'law' }, /./),
+      'lint: a law entry with the company as subject needs a negation ("We are not licensed in Spain" passes, "We are licensed in Spain" does not)');
+    check(lintRefuses({ text: 'Registered with the Generalitat Valenciana', kind: 'tenant' }, /shape of a claim \(a participle with no subject/) && lintRefuses({ text: 'Our licensed team in Valencia', kind: 'heading' }, /company is the subject/),
+      'lint: the subject-free footer and "our licensed team" are refused as tenant/heading');
+    check(lintRefuses({ text: 'Launching with a licensed partner in Valencia, registered in Spain', kind: 'partner' }, /does not land on Rome/) && lintRefuses({ text: 'Registration', kind: 'nothing' }, /kind must be one of/)
+      && lintRefuses({ text: 'Licensed partner and licensed in Spain', kind: 'partner' }, /a licence only as "a licensed partner"/),
+      'lint: a partner entry may only name "a licensed partner" and the Rome registration; an unknown kind is refused');
+    check(throws(() => lintClaims({ ...claims, allowed: [...claims.allowed].reverse() }), /sorted by text/) === true && throws(() => lintClaims({ ...claims, allowed: sortE([...claims.allowed, claims.allowed[0]]) }), /listed twice/) === true
+      && throws(() => withEntries([{ text: 'Paid by you', kind: 'tenant', note: 'no trigger word here' }]), /carries no registration or licence word/) === true,
+      'lint: the file is sorted and unique, and holds only sentences the build reviews');
+    // (e) kind partner: the drafts' wording, refused on a desk that sells
+    const partnerP = page('Launching with a licensed partner.');
+    check(claimProblems(partnerP, { claims, sell: true }).some((p) => p.why === 'partner') && !claimProblems(partnerP, { claims, sell: false }).length
+      && throws(() => claimGuard(partnerP, { claims, sell: true }, 'cities/amsterdam.json'), /cities\/amsterdam\.json: "a licensed partner" is the wording of a desk that is not open/) === true,
+      'kind partner ("Launching with a licensed partner") passes on a draft and on /desks, and is refused on a desk that sells');
+    // the build itself: an unreviewed sentence in a desk's data, through render()
+    refuses((c) => { c.faq.items[0].a += ' Registered with the Generalitat Valenciana.'; }, /cities\/valencia\.json: 1 sentence\(s\) about registration or licences not reviewed.*"Registered with the Generalitat Valenciana" \(text, ld\)/, 'build: a subject-free registration claim in valencia\'s FAQ is refused (it was the round-2 regression)', 'valencia');
+    refuses((c) => { c.faq.items[0].a += ' We are regulated by the Property Ombudsman.'; }, /a desk that sells names a register or a licence it does not hold \(Property Ombudsman\): "We are regulated by the Property Ombudsman" \(text, ld\)/, 'build: a named scheme on a desk that sells is refused even before review (London)', 'london');
+    {
+      const c = clone(CITY.milan); c.checks.items[0].text += ' The lease is registered with the Agenzia delle Entrate within 30 days.';
+      const r1 = throws(() => render(c), /add it to cities\/_claims\.json with its kind and a note/);
+      const more = withEntries([{ text: 'The lease is registered with the Agenzia delle Entrate within 30 days', kind: 'lease', note: 'the lease registration, not ours' }]);
+      let r2 = 'threw'; try { render(c, shared, template, R, { claims: more }); r2 = true; } catch (e) { r2 = e.message; }
+      check(r1 === true && r2 === true, 'build: a true lease sentence added to milan is refused with "add it to cities/_claims.json…", and builds once the sentence is added (an in-memory allowlist)', `${r1} / ${r2}`);
+    }
+    // (g) the page-level mirror, a literal copy independent of the build: no selling desk names a register it does not hold
+    const HELD = /\bRAICV\b|Registro de Agentes|\bAICAT\b|Registre d['’]Agents|carte professionnelle|§\s?34c|Property Ombudsman|Property Redress Scheme|redress scheme|Propertymark|\bARLA\b|\bNAEA\b|KvK[- ]registered|Kamer van Koophandel registration/i;
+    for (const s of SELLERS) {
+      const said = reviewSentences(PAGE[s]).map((x) => x.text).join(' \n ');
+      const m = said.match(HELD);
+      check(!m, `${s}: no register or licence it does not hold (RAICV, AICAT, carte professionnelle, §34c, redress scheme, Property Ombudsman, Propertymark, ARLA, NAEA, KvK registration)`, m ? m[0] : '');
+    }
+    // the hub runs the same guard
+    {
+      const hub = JSON.parse(read('cities/_hub.json')); hub.footer.statement += ' Accredited by the Generalitat Valenciana.';
+      const r = throws(() => renderHub({ template: read('cities/_hub.html'), shared, hub, cities: SLUGS.map((s) => clone(CITY[s])), assetVersion: { css: 'testcss000', desksCss: 'testdcss00', desksJs: 'testdjs000' }, frags, root: R, weigh: false }), /cities\/_hub\.json: 1 sentence\(s\) about registration or licences not reviewed.*"Accredited by the Generalitat Valenciana"/);
+      check(r === true, 'the hub (/desks) refuses an unreviewed sentence too', r);
+    }
+    const llms = read('llms.txt');
+    check(!/registered Italian agency/i.test(llms) && /Operated by Egidi Immobiliare S\.r\.l\., an Italian real estate agency registered in Rome/.test(llms),
+      'llms.txt: the desks paragraph says "an Italian real estate agency registered in Rome", never "the registered Italian agency"');
+  }
+  {
     // the PFS plancia: every LIVE desk has its voice in the client modal's market select (pfs-command.html #cm-market),
     // or saving a Full Search client of that desk would rewrite it to 'roma' and the radar would push Rome listings
     const cm = (read('pfs-command.html').match(/<select id="cm-market">([\s\S]*?)<\/select>/) || [])[1] || '';
     const missing = SLUGS.filter((s) => CITY[s].live === true && !cm.includes(`<option value="${s}">`));
     check(cm && !missing.length, 'pfs-command.html: every live desk has an <option> in the client modal\'s market select (#cm-market)', `missing: ${missing.join(', ')}`);
-    const llms = read('llms.txt');
-    check(!/registered Italian agency/i.test(llms) && /Operated by Egidi Immobiliare S\.r\.l\., an Italian real estate agency registered in Rome/.test(llms),
-      'llms.txt: the desks paragraph says "an Italian real estate agency registered in Rome", never "the registered Italian agency"');
   }
   check(['madrid', 'barcelona', 'valencia'].every((s) => !/seguro de impago|rent[- ]default insurance|rent guarantee insurance/i.test(JSON.stringify(CITY[s]))), 'the Spanish desks never list rent-default insurance among the papers (a landlord may not require it: RDL 29/2026)');
   check(/Generalitat/.test(CITY.valencia.checks.items.find((k) => k.id === 'deposit').text) && /deposit receipt/.test(CITY.valencia.checks.items.find((k) => k.id === 'deposit').text) && /\btoday\b/.test(CITY.valencia.checks.items.find((k) => k.id === 'rent').text),
@@ -1158,6 +1234,8 @@ tplRefuses('<p class="proof">', '<p class="proof">Pay by bank transfer · ', /no
     const bare = cityCss.replace(/@media \(forced-colors:active\) and \(min-width:360px\) and \(max-width:939px\)\{[\s\S]*?\}\}/, '');
     check(/\.bps:not\(\.pair-open\):not\(:has\(>\.bp:not\(\.eroe\)>\[open\]\)\)>\.bp:not\(\.eroe\) \.f-r::before\{border-left:0;border-top:1px dashed CanvasText/.test(fcPair) && !/\.bp:not\(\.eroe\) \.f-r::before\{border-left:0/.test(bare),
       'boom-city.css (source): the forced-colors horizontal economy tear lives ONLY inside the 360–939 pair block (no unscoped ".bp:not(.eroe) .f-r::before{border-left:0")');
+    check(cityCss.includes('@media (forced-colors:active) and (min-width:940px){.eroe{border:1px solid ButtonText}.eroe>.fare{border:0}}'),
+      'boom-city.css (source): in forced colors at ≥940 First class has ONE frame, the ticket\'s own border (the closed waitlist Full Search kept open corners above a separate foot)');
   }
   check(stagger >= 260 && /if \(!a \|\| reduce \|\| fl\.some\(function \(f\) \{ return f\.a === a; \}\)\) return;/.test(mapJs), `boom-map.js: the first view sends the planes ${stagger}ms apart (≥ 260), never two on one arc`);
   check(/var reduce = matchMedia\('\(prefers-reduced-motion: reduce\)'\)\.matches/.test(mapJs) && /if \(!reduce && window\.IntersectionObserver\)/.test(mapJs), 'boom-map.js: under reduced motion no plane flies and no arc is drawn in');
@@ -1184,7 +1262,7 @@ tplRefuses('<p class="proof">', '<p class="proof">Pay by bank transfer · ', /no
   for (const d of ['cities', 'assets/src', 'css', 'js', 'design/pages-deco']) fs.mkdirSync(path.join(tmp, d), { recursive: true });
   // the SOURCES only: the build emits the served assets/boom-*.{css,js} from them (Stage 0)
   for (const f of ['cities/_template.html', 'cities/_shared.json', 'cities/paris.json', 'assets/src/boom-city.css', 'assets/src/boom-city.js', 'assets/src/boom-onda.js', 'assets/src/boom-map.js',
-    'css/boom-scroll.css', 'js/boom-scroll.js', 'js/boom-consent.js', 'js/boom-track.js', 'js/desk-calendar.js', 'design/pages-deco/solari-engine.html', 'og-paris.png']) fs.copyFileSync(path.join(R, f), path.join(tmp, f));
+    'css/boom-scroll.css', 'js/boom-scroll.js', 'js/boom-consent.js', 'js/boom-track.js', 'js/desk-calendar.js', 'design/pages-deco/solari-engine.html', 'og-paris.png', 'cities/_claims.json']) fs.copyFileSync(path.join(R, f), path.join(tmp, f));
   fs.writeFileSync(path.join(tmp, 'paris.html'), '<!doctype html><title>hand-made</title>');
   check(throws(() => writeAll({ root: tmp }), /not generated by this script — refusing/) === true && fs.readFileSync(path.join(tmp, 'paris.html'), 'utf8').includes('hand-made'),
     'a root page without the GENERATED mark is never overwritten');

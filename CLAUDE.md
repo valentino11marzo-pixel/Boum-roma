@@ -2879,7 +2879,7 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
   non dichiara NESSUNA iscrizione o licenza (test: niente RAICV, «Registro de
   Agentes», «registered in Valencia/Spain», «licensed in Spain»; `HUB_BANNED`
   rifiuta RAICV sull'hub; dalla revisione v1.7 anche il build su OGNI pagina
-  desk, `DESK_BANNED`: vedi «IL BIGLIETTO v1.7», punto 8), nessuna assicurazione contro il mancato pagamento fra
+  desk, la lista rivista `cities/_claims.json`: vedi «IL BIGLIETTO v1.7», punto 8), nessuna assicurazione contro il mancato pagamento fra
   le carte dei tre desk spagnoli (RDL 29/2026), niente hojas de reclamaciones né
   documenti in valenciano promessi (nessun obbligo trovato per chi non ha sede
   in Comunitat). Fianza un mese depositata dal locatore presso la Generalitat
@@ -3010,9 +3010,9 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
      694/765; Londra 1440×900 porta 316, chi 411, FS chiusa 112px (176 con la
      riga 2). A 390×664 la BARRA porta la porta su ogni desk (porta 703–742 e
      chi 773–812 stanno sotto per costruzione) e i tre prezzi restano leggibili.
-     Detto senza giri: a **360×780** chi-risponde sta 4–43px sotto la piega
-     (Londra 786, Parigi 780, Madrid/Valencia 819, Milano 823; la porta sopra su
-     tutti: guadagnarli costerebbe ~45px di copy su ogni desk) e a **320×568** i
+     Detto senza giri: a **360×780** chi-risponde sta 0–86px sotto la piega su
+     6 desk su 8 (misurato; la porta sopra su tutti: guadagnarli costerebbe
+     fino a ~90px di copy) e a **320×568** i
      prezzi della coppia stanno sotto la barra (AP 556/568, AV 624/649, regola
      509 contro il limite 501; l'ammiraglia no; porta 839) — accettati dal lead,
      che ha pinnato 664/812/844. Primo schermo 117–127 parole (tetto 150);
@@ -3074,25 +3074,71 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
        that sells, the fares head … comes BEFORE the first price»); `run.mjs`
        lo ripete sui tre desk, `ui.mjs` lo misura (fondo di `#faresH` ≤ cima
        del prezzo di Full Search a 390×844 e 1440×900).
-     - **Nessuna iscrizione che non sia quella di Roma** (`DESK_BANNED`, su
-       testo visibile, meta e JSON-LD di OGNI pagina desk): rifiutate la frase
-       vaga «a registered (Italian) (real estate) agency» (in una regione con
-       un registro si legge come quello locale) e ogni «licensed / registered /
-       listed / authorised / accredited / enrolled» + «in / with / by / at /
-       under / on» che non atterra su Rome, the Rome Chamber of Commerce, the
-       town hall (il padrón) o un'università/scuola. Passano quindi «registered
-       in Rome», «registered with the Rome Chamber of Commerce (REA
-       RM-1710623)», «Registered at the town hall with your lease», «enrolled at
-       a university», «The lease must be registered within 30 days». I
-       desk che VENDONO rifiutano anche `DESK_BANNED_SELL`: RAICV, Registro de
-       Agentes, AICAT, carte professionnelle, §34c, «licensed agent»,
-       «registered (estate) agent»; Parigi e Berlino (bozze) tengono le loro
-       frasi del partner («with a licensed partner (§34c GewO)», la carte
-       professionnelle) perché quella lista non si applica ai waitlist. La riga
-       Who della scheda dei fatti dei sei desk che la scrivevano (Amsterdam,
-       Madrid, Barcellona, Londra, Parigi, Berlino) e `llms.txt` dicono ora «an
-       Italian real estate agency registered in Rome»; `run.mjs` lo specchia su
-       tutte e otto le pagine e su `llms.txt`.
+     - **Nessuna iscrizione che non sia quella di Roma: la LISTA delle frasi
+       riviste** (`cities/_claims.json`, terzo giro del 04/11 — sostituisce le
+       regex dei primi due giri). Ogni frase di una pagina desk (tutti e otto,
+       live e bozze) e di /desks che usa il lessico di iscrizioni e licenze
+       (`CLAIM_VOCAB_RE`: licen[cs]… anche «unlicensed», regist… anche
+       «registro», accredit…, authorised/authorisation, certified/
+       certification, recognised, regulated/regulator, «member(s) of»,
+       membership, redress, ombudsman, Propertymark, enrol…, inscri…,
+       colegiad…, habilitad…, e i nomi RAICV, AICAT, carte professionnelle,
+       §34c, KvK, Kamer van Koophandel, ARLA, NAEA) deve stare, parola per
+       parola dopo la normalizzazione, fra le voci del file — altrimenti il
+       build RIFIUTA la pagina (default deny), nominando il desk, citando la
+       frase e dicendo cosa fare: «if it does not say that BOOM or the company
+       holds a registration, licence or membership outside Rome, add it to
+       cities/_claims.json with its kind and a note; if it does, it cannot
+       ship». Le frasi le estrae `reviewSentences(html)` (esportata, la usano
+       anche i test): testo visibile spezzato sui blocchi e poi su . ! ? ; ·,
+       OGNI meta e OGNI stringa JSON-LD per conto suo (mai concatenate), gli
+       attributi (aria-label, alt, title, data-*), le stringhe degli script
+       inline; normalizzate (spazi, entità, niente «, » in testa né . ; · , in
+       coda). Ogni voce è `{text, kind, note}`; i tipi: `company-rome` (la
+       società iscritta a Roma: REA RM-1710623, Viale Liegi 42), `trade-mark`
+       (il marchio UE), `lease` (la registrazione del contratto), `tenant` (le
+       iscrizioni dell'inquilino: BRP, padrón, università), `law` (cosa chiede
+       la legge, o una negazione onesta), `partner` («opening with a licensed
+       partner», SOLO su Parigi, Berlino e /desks: su un desk che vende è
+       rifiutata), `heading` (il nome di una sezione). Oggi 58 voci, ordinate e
+       uniche. **Il file ha un lint nel build** (`lintClaims`): nessuna voce
+       nomina RAICV, AICAT, Registro de Agentes, redress scheme, Property
+       Ombudsman, Propertymark, ARLA, NAEA, KvK (carte professionnelle e §34c
+       solo nei tipi law e partner); `company-rome` nomina Rome/REA/Viale Liegi
+       e ogni «regist…» ci atterra entro sei parole senza virgola, nessun'altra
+       parola di licenza; `partner` dice «a licensed partner» e nient'altro; nei
+       tipi lease/tenant/heading l'azienda non è mai soggetto di una licenza o
+       iscrizione (la regola del secondo giro, ora lint: we/BOOM…/Egidi…/the
+       desk/our team… + verbo + licensed/registered/…, o hold/have … licence) e
+       nessuna FORMA di pretesa (participio senza soggetto «Registered with the
+       Generalitat», agenzia + participio non su Roma, «licensed to operate»,
+       «member of the … register», l'aggettivo «a licensed agency»); in `law`
+       l'azienda come soggetto vuole una negazione (o un «you»). **I desk che
+       VENDONO** (Amsterdam, Barcellona, Londra, Madrid, Milano, Valencia)
+       rifiutano in ogni caso, anche su una frase in lista: RAICV, Registro de
+       Agentes, AICAT, Registre d'Agents, carte professionnelle, §34c, Property
+       Ombudsman, Property Redress Scheme, redress scheme, Propertymark, ARLA,
+       NAEA, «KvK-registered», «Kamer van Koophandel registration» (nessuna
+       compare oggi). `HUB_BANNED` resta com'era per /desks. **Perché**: due
+       giri di regex hanno prodotto buchi opposti (il primo rifiutava la
+       registrazione del contratto all'Agenzia delle Entrate e lo studente
+       iscritto all'università; il secondo, ancorato sul soggetto, lasciava
+       passare «Registered with the Generalitat Valenciana.», «We are an
+       Italian real estate agency registered in Valencia.», «We hold a licence
+       in Spain.», «BOOM is a member of a government-approved redress
+       scheme.»); una lista rivista non ha forme da indovinare, e il file È
+       l'elenco che un avvocato legge: ogni frase dei desk che parla di
+       iscrizioni o licenze, con il perché. **Aggiungere una frase**:
+       leggerla sulla pagina; se non dice che BOOM o la società ha
+       un'iscrizione, una licenza o un'appartenenza fuori Roma, aggiungerla al
+       file con tipo e nota, in ordine; se lo dice, non si pubblica. Le voci
+       che nessuna pagina stampa più cadono in `run.mjs` (niente voci
+       stantie). Limite dichiarato: «listed», «approved» e «certificate» non
+       sono nel lessico (sono ovunque nel testo vero); una pretesa che usa
+       SOLO quelle («approved by the Generalitat», «listed in the agents'
+       list») passerebbe — nessuna delle frasi dei verificatori lo fa.
+       La riga Who dei desk e `llms.txt` dicono «an Italian real estate agency
+       registered in Rome».
      - **Forced colors**: lo strappo orizzontale delle economy vale solo nella
        coppia 360–939 (e sotto i 300px); dove i biglietti sono sdraiati (≥ 940,
        o un membro della coppia aperto) resta la colonna tratteggiata a sinistra.
@@ -3117,35 +3163,11 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
        live e /desks (quindi `dateModified` 2026-11-04).
      **Il secondo giro (04/11, sera, commit «second review round»)**, sui
      rilievi dei verificatori del primo:
-     - **La guardia delle iscrizioni guarda il SOGGETTO.** La regola del primo
-       giro non aveva soggetto e rifiutava frasi vere: «The lease is registered
-       with the Agenzia delle Entrate within 30 days», «Homes listed on
-       Rightmove go fast.», «Once you are registered with the gemeente you get
-       a BSN.», «Students enrolled at the Universidad Complutense qualify.»; e
-       lasciava passare «licensed to operate in Spain», «a Valencia-registered
-       agency», «an accredited Valencian agency», «member of the Valencian
-       register». Ora `DESK_BANNED` ha due regole: la PRETESA ancorata sull'azienda
-       (we · we're · BOOM [+ due parole] · Egidi [Immobiliare S.r.l.] · the
-       desk/agency/company · our desk/agency/company/agents, + un verbo is/are/
-       has been/became/remains…, + al massimo tre parole che non aprono un altro
-       sintagma — the, it, your, lease… —, + licensed/registered/listed/
-       authorised/accredited/enrolled/certified/approved, salvo «in Rome», «with
-       the Rome Chamber of Commerce», «office», «trade mark») e l'AGGETTIVO
-       D'AGENZIA («[a] licensed / Valencia-registered / accredited [Valencian]
-       [real estate] agency|agent|broker|intermediary»; «unlicensed agents» è un
-       avviso, passa; «an Italian real estate agency registered in Rome» passa,
-       il participio sta DOPO il nome). `DESK_BANNED_SELL` aggiunge «licensed
-       to / authorised to / registered as / accredited as / certified as» con
-       agent/agency/broker/operate/act entro quattro parole, e i registri per
-       nome («Valencian / Catalan / Spanish / regional / Dutch / French / German
-       / British / UK / English [agents'] register|registry», «member of the …
-       register»). `tests/cities/run.mjs` importa i due array dal build e ci fa
-       passare una lista OK (18 frasi vere: le quattro sopra, Roma, la Camera di
-       Commercio, il municipio, il padrón, il marchio, la sede, lo schema del
-       deposito, i partner delle bozze) e una lista KO (16 pretese) — e le
-       stesse due liste nello specchio letterale che legge le pagine costruite.
-       Verificato su copie: le quattro frasi vere nei JSON costruiscono pulito,
-       le quattordici pretese nella FAQ di Valencia sono rifiutate.
+     - (Superato dal terzo giro) la guardia delle iscrizioni ancorata sul
+       SOGGETTO (`DESK_BANNED`/`DESK_BANNED_SELL`): un verificatore indipendente
+       vi ha trovato 8 falsi positivi e 8 buchi, fra cui una regressione (le
+       frasi senza soggetto, «Registered with the Generalitat Valenciana.»). Le
+       sue liste OK/KO restano come test della lista rivista.
      - **Il fuoco si vede**: chiusa la cassa dopo un ridimensionamento
        1440→390, il bottone di pagamento riaperto stava a 870–920 su uno
        schermo di 844 (o sotto la testata). La chiusura, dopo il focus,
@@ -3179,6 +3201,18 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
        ritorno anticipato di `deep()` col `scrollTo`, lo strappo orizzontale in
        forced colors solo dentro il blocco della coppia): mordono anche dove
        `ui.mjs` salta.
+     **Il terzo giro (04/11, notte, commit «registration claims through a
+     reviewed allowlist»)**: la lista rivista qui sopra (`cities/_claims.json`,
+     `reviewSentences`, `lintClaims`, `claimGuard`, controllata per ULTIMA su
+     ogni pagina finita, desk e hub); e in forced colors a ≥ 940 la prima
+     classe ha UNA cornice (il bordo del `.eroe` stesso, nessun bordo sul
+     `.fare` dentro): sui waitlist chiusi i lati si fermavano ~10px sopra un
+     filo di piede separato. Provato su copie: «Registered with the Generalitat
+     Valenciana.» nella FAQ di Valencia → il build rifiuta; una frase vera sul
+     contratto aggiunta a Milano → rifiutata con «add it to cities/_claims.json»,
+     poi pulita una volta aggiunta alla lista della copia; «we are registered
+     with the Comunitat Valenciana» come voce `tenant` → il lint rifiuta il
+     file; sette mutazioni del codice della guardia, tutte prese da `run.mjs`.
   Aperte, del fondatore e del legale: il parere valenciano sul RAICV; la data di
   convalida del RDL 29/2026 (12/11 in questo file, ~6–7/11 dedotta, non
   confermata: regge l'«Optional, chosen in writing» di TRE desk con la cassa);
@@ -3193,9 +3227,9 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
   stampa già nel piede del pass; +~80 B di JS se lo si vuole); le porte dell'hub
   restano su `#fares`; nessuno ha ancora letto un lead o un ordine dei desk —
   «validato» non si può dire.
-  Test (dopo il secondo giro del 04/11): `tests/cities/run.mjs` 998, `ui.mjs`
-  475, `checkout.mjs` 117, `calendar.mjs` 97, `tests/pfs/markets-ui.mjs` 25
-  (dopo il primo giro 993 e 444; prima della revisione 978 e 423); più consentbanner, scroll, cielo, seo, crawl, llmstxt,
+  Test (dopo il terzo giro del 04/11): `tests/cities/run.mjs` 1027, `ui.mjs`
+  477, `checkout.mjs` 117, `calendar.mjs` 97, `tests/pfs/markets-ui.mjs` 25
+  (dopo il secondo giro 998 e 475; dopo il primo 993 e 444; prima della revisione 978 e 423); più consentbanner, scroll, cielo, seo, crawl, llmstxt,
   verita, whatsapp, testata; il `npm test` intero il 04/11 (2.291 s, `BOOM_PLAYWRIGHT` impostato): 288 suite
   verdi, 4 rosse per ragioni estranee ai desk — `magicsigncustomui` e
   `magicsigncustomsigner` scaricano pdf.js da cdn.jsdelivr.net e il sandbox non
