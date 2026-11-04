@@ -718,6 +718,11 @@
   var wideOnda = function () { if (wide.matches && document.readyState === 'complete') ondaLater(); };
   if (wide.addEventListener) wide.addEventListener('change', wideOnda); else if (wide.addListener) wide.addListener(wideOnda);
 
+  /* the Horizon comes alive when it nears the screen (assets/boom-map.js) */
+  var hzMap = document.querySelector('svg.hz'), hzIn = false;
+  function hzGo() { if (hzIn || !hzMap || !C.MAP) return; hzIn = true; var e = document.createElement('script'); e.src = C.MAP; e.async = true; document.head.appendChild(e); }
+  if (hzMap && IO) { var hzIO = new IntersectionObserver(function (es) { if (es[0].isIntersecting) { hzIO.disconnect(); hzGo(); } }, { rootMargin: '600px 0px' }); hzIO.observe(hzMap); } else addEventListener('load', hzGo);
+
   /* ── small things: the WhatsApp links, the questions ── */
   $$('a[href^="https://wa.me/"]').forEach(function (a) {
     a.addEventListener('click', function () { track('wa_open', { location: a.id || 'link', plan: plan || 'none', market: C.SLUG }); });

@@ -634,7 +634,7 @@
       ]
     },
     {
-      "source": "/assets/boom-(city\\.css|city\\.js|onda\\.js|desks\\.css|desks\\.js)",
+      "source": "/assets/boom-(city\\.css|city\\.js|onda\\.js|desks\\.css|desks\\.js|map\\.js)",
       "headers": [
         {
           "key": "Cache-Control",

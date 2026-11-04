@@ -59,10 +59,10 @@ import {
   buildAll, renderCity, writeAll, fill, findPlaceholders, fragments, familyFor, BuildError, esc, eur, money, currencyOf, GENERATED_MARK, WEIGHT_KB, BUDGET,
   daysLabel, deskHoursText, feesRowOf, holidayKeyOf, visibleAtLoad, visibleText, sliceOf, words, waHref, WITHDRAWAL_PATH, TERMS_PATH,
   stripComments, emittedAssets, emitAssets, SERVED_ASSETS,
-  atLoadParts, longNodes, weightOf, mapXY, validGeo, sealText, sealPhrase, STATUS_RE, STATUS_BANNED_RE, AVIATION_BAN_RE,
-  arcViolations, bowArcs, arcCtrl, ARC_CLEAR, ARC_DOT_R, ARC_ME_R,
+  atLoadParts, longNodes, weightOf, validGeo, sealText, sealPhrase, STATUS_RE, STATUS_BANNED_RE, AVIATION_BAN_RE,
+  ARC_CLEAR, ARC_DOT_R, ARC_ME_R, MAP_KB, HZ_CAM, HZ_LIFT, HZ_LEAN, HZ_KEY, HUB_MAP_PX, horizon, hzViolations, hzPathPts, hzCal, holidayKeyOf as hkOf,
   orgNode, serviceNode, numberWord, listJoin, dateLong, homeCountryOf, isHomeDesk,
-  renderHub, buildHub, HUB_WEIGHT_KB, HUB_BUDGET, HUB_FILE, HUB_PATH, HUB_VIEWBOX, COUNTRY_NAME, hoursSentence, hubText, arcD, CALL_RE, RATING_RE
+  renderHub, buildHub, HUB_WEIGHT_KB, HUB_BUDGET, HUB_FILE, HUB_PATH, COUNTRY_NAME, hoursSentence, hubText, CALL_RE, RATING_RE
 } from '../../build-cities.mjs';
 import SCALO from '../../js/scalo-codes.js';
 import CAL from '../../js/desk-calendar.js';
@@ -139,17 +139,23 @@ check(WEIGHT_KB.total <= 82 && WEIGHT_KB.js <= 14 && WEIGHT_KB.css <= 15 && WEIG
   // weightOf reads the onda canvas script: a fatter onda makes every page heavier
   const tmpW = fs.mkdtempSync(path.join(os.tmpdir(), 'boom-cities-w-'));
   fs.mkdirSync(path.join(tmpW, 'assets'), { recursive: true }); fs.mkdirSync(path.join(tmpW, 'js'), { recursive: true });
-  for (const f of ['assets/boom-city.css', 'assets/boom-city.js', 'assets/boom-onda.js', 'js/boom-consent.js', 'js/boom-track.js']) fs.copyFileSync(path.join(R, f), path.join(tmpW, f));
+  for (const f of ['assets/boom-city.css', 'assets/boom-city.js', 'assets/boom-onda.js', 'assets/boom-map.js', 'js/boom-consent.js', 'js/boom-track.js']) fs.copyFileSync(path.join(R, f), path.join(tmpW, f));
   const w0 = weightOf(pages[0].html, tmpW);
   fs.appendFileSync(path.join(tmpW, 'assets/boom-onda.js'), '\n/*' + Array.from({ length: 4000 }, (_, i) => ((i * 2654435761) % 4294967296).toString(36)).join(' ') + '*/');
   const w1 = weightOf(pages[0].html, tmpW);
   check(w0.ondaKb > 0 && w1.ondaKb > w0.ondaKb && w1.totalKb - w0.totalKb > (w1.ondaKb - w0.ondaKb) * 0.99, `weightOf counts assets/boom-onda.js in the total and on its own (${w0.ondaKb.toFixed(1)} → ${w1.ondaKb.toFixed(1)} KB)`);
+  // v1.7: the map's script, loaded on view, is in the total AND on its own line (MAP_KB)
+  fs.appendFileSync(path.join(tmpW, 'assets/boom-map.js'), '\n/*' + Array.from({ length: 3000 }, (_, i) => ((i * 2246822519) % 4294967296).toString(36)).join(' ') + '*/');
+  const w2 = weightOf(pages[0].html, tmpW);
+  check(w1.mapKb > 0 && w2.mapKb > w1.mapKb && w2.totalKb - w1.totalKb > (w2.mapKb - w1.mapKb) * 0.99 && w2.ondaKb === w1.ondaKb, `weightOf counts assets/boom-map.js in the total and on its own (${w1.mapKb.toFixed(1)} → ${w2.mapKb.toFixed(1)} KB; total +${(w2.totalKb - w1.totalKb).toFixed(1)})`);
   fs.rmSync(tmpW, { recursive: true, force: true });
 }
 const PAGE = Object.fromEntries(pages.map((p) => [p.slug, p.html]));
-// the coast drawing (P4, optional): design/pages-deco/genera-europa.py → cities/_europe.json
+// the coast (optional): design/pages-deco/genera-europa.mjs → cities/_europe.json, rings in degrees the camera projects at build time
 const EUROPE = fs.existsSync(path.join(R, 'cities/_europe.json')) ? JSON.parse(fs.readFileSync(path.join(R, 'cities/_europe.json'), 'utf8')) : null;
 const html = PAGE.amsterdam;
+// the Horizon's model over every desk: the same camera, arcs and labels every page draws (memoised in the build)
+const HZ = horizon(shared.rome.geo, SLUGS.map((x) => CITY[x]), EUROPE);
 
 // ── 2 · the Amsterdam page, as built ──────────────────────────────────────
 check(!/\{\{\{?\s*[\w.]+\s*\}\}\}?/.test(html), 'amsterdam: no unresolved {{token}} in the output');
@@ -409,34 +415,48 @@ check(!/id="contact"/.test(html) && /<article class="pass" id="pass"/.test(html)
   // BOOM Desks (03/11/2026): the map shows EVERY desk — the live sisters with an arc from Rome, this desk
   // with its gold arc (on a draft too), the desks not open as a hollow dot with NO arc; Rome wears its ring
   for (const s of SLUGS) {
-    const h = PAGE[s], map = sliceOf(h, '<svg class="map"', '</svg>');
-    const xy = (g) => mapXY(g).map((v) => Math.round(v * 10) / 10);
-    const [mx, my] = xy(CITY[s].geo), [rx, ry] = xy(shared.rome.geo);
-    const dots = [...map.matchAll(/<circle class="(d(?: me| off)?|hub|hub-r)" cx="([\d.]+)" cy="([\d.]+)" r="([\d.]+)"( fill="none")?/g)].map((m) => [m[1], +m[2], +m[3], +m[4], !!m[5]]);
-    const arcs = [...map.matchAll(/<path class="arc( me)?"[^>]*d="M([\d.]+) ([\d.]+)Q[\d.]+ [\d.]+ ([\d.]+) ([\d.]+)"/g)];
-    const inside = dots.every(([, x, y]) => x >= 20 && x <= 580 && y >= 20 && y <= 400);
-    const me = dots.find((d) => d[0] === 'd me'), hub = dots.find((d) => d[0] === 'hub'), ring = dots.find((d) => d[0] === 'hub-r');
+    const h = PAGE[s], map = sliceOf(h, '<svg class="hz"', '</svg>');
+    const xy = (g) => HZ.cam.xy(g);
+    const [mx, my] = xy(CITY[s].geo), [rx, ry] = HZ.hub, [vx, vy, vw, vh] = HZ.view;
+    const dots = [...map.matchAll(/<circle class="(d(?: me| off)?|d-ring|hub|hub-r)" cx="([\d.]+)" cy="([\d.]+)" r="([\d.]+)"( fill="none")?/g)].map((m) => [m[1], +m[2], +m[3], +m[4], !!m[5]]);
+    const arcs = [...map.matchAll(/<path class="arc( me)?" data-k="([a-z]{3})" pathLength="1" fill="none" d="(M[\d.]+ [\d.]+C[^"]+)"\/>/g)];
+    const inside = dots.every(([, x, y]) => x >= 0 && x <= 640 && y >= vy && y <= vy + vh);
+    const me = dots.find((d) => d[0] === 'd me'), myRing = dots.find((d) => d[0] === 'd-ring'), hub = dots.find((d) => d[0] === 'hub'), ring = dots.find((d) => d[0] === 'hub-r');
     const others = SLUGS.filter((x) => x !== s).map((x) => CITY[x]);
     const liveSis = others.filter((x) => x.live === true), offSis = others.filter((x) => x.live !== true);
-    check(/viewBox="0 0 600 420" aria-hidden="true" focusable="false"/.test(map) && inside && me && me[1] === mx && me[2] === my && hub && hub[1] === rx && hub[2] === ry
+    check(map.startsWith(`<svg class="hz" viewBox="${HZ.view.join(' ')}" aria-hidden="true" focusable="false">`) && vx === 0 && vw === 640 && inside
+      && me && me[1] === mx && me[2] === my && me[3] === 4 && myRing && myRing[1] === mx && myRing[2] === my && myRing[3] === ARC_ME_R && myRing[4] && hub && hub[1] === rx && hub[2] === ry
       && liveSis.every((x) => { const [px, py] = xy(x.geo); return dots.some((d) => d[0] === 'd' && d[1] === px && d[2] === py && d[3] === ARC_DOT_R); })
-      && arcs.length === liveSis.length + 1 && arcs.every((a) => +a[2] === rx && +a[3] === ry) && arcs.filter((a) => a[1]).length === 1 && +arcs.find((a) => a[1])[4] === mx
+      && arcs.length === liveSis.length + 1 && arcs.every((a) => a[3].startsWith(`M${rx} ${ry}C`) && HZ.arcs.get(a[2].toUpperCase()).d === a[3]) && arcs.filter((a) => a[1]).length === 1 && arcs[arcs.length - 1][1] === ' me' && arcs[arcs.length - 1][2] === CITY[s].iata.toLowerCase()
       && SLUGS.every((x) => validGeo(CITY[x].geo)) && validGeo(shared.rome.geo),
-      `${s}: the map's dots are the projected real coordinates, inside the 600×420 viewBox margins (this desk ${mx},${my}; ROM ${rx},${ry}); one arc from Rome per LIVE sister (${liveSis.length}) and this desk's in gold`);
-    check(offSis.length >= 1 && offSis.every((x) => { const [px, py] = xy(x.geo); return dots.some((d) => d[0] === 'd off' && d[1] === px && d[2] === py && d[3] === ARC_DOT_R && d[4]) && !arcs.some((a) => +a[4] === px && +a[5] === py); })
-      && dots.filter((d) => d[0] === 'd off').length === offSis.length,
-      `${s}: the desks not open (${offSis.map((x) => x.iata).join(', ')}) are hollow dots (fill="none") at their real coordinates, and NO arc ends at them (an arc means "operated from Rome")`);
-    check(ring && ring[1] === rx && ring[2] === ry && ring[3] === 10 && ring[4] && map.indexOf('class="hub-r"') > map.indexOf('class="hub"'), `${s}: Rome, the hub, wears its ring (r 10, hollow)`);
-    // the coast (P4): Natural Earth's land cut to this map's box (cities/_europe.json `desk`), drawn as a
-    // dot matrix clipped to it, under the arcs; the same drawing as the hub, never a second source
-    if (EUROPE) check(map.includes(`<clipPath id="netCoast" clip-rule="evenodd"><path d="${EUROPE.desk}"/></clipPath>`) && /<rect class="m-land" width="600" height="420" fill="url\(#netLand\)" clip-path="url\(#netCoast\)"\/>/.test(map)
-      && map.indexOf('class="m-land"') > map.indexOf('class="m-bg"') && map.indexOf('class="m-land"') < map.indexOf('<path class="arc'),
-      `${s}: the coast lies under the network (land dots clipped to cities/_europe.json \`desk\`, before the arcs)`);
-    const offLab = [...map.matchAll(/<text class="m-l off(?: l)?"[^>]*>([A-Z]{3})<\/text>/g)].map((m) => m[1]);
-    check(offLab.join() === offSis.map((x) => x.iata).join(), `${s}: each desk not open carries its code, dimmed (m-l off): ${offLab.join(', ')}`);
+      `${s}: the Horizon's dots are the camera's projection of the real coordinates, inside the cropped frame (this desk ${mx},${my} with its ${ARC_ME_R}px ring; ROM ${rx},${ry}); one lifted arc from Rome per LIVE sister (${liveSis.length}), each the model's own cubic, and this desk's in gold, drawn last`);
+    check(offSis.length >= 1 && offSis.every((x) => { const [px, py] = xy(x.geo); return dots.some((d) => d[0] === 'd off' && d[1] === px && d[2] === py && d[3] === ARC_DOT_R && d[4]) && !arcs.some((a) => a[2] === x.iata.toLowerCase()); })
+      && dots.filter((d) => d[0] === 'd off').length === offSis.length && !new RegExp(`id="hzd-(?:${offSis.map((x) => x.iata.toLowerCase()).join('|')})"`).test(map),
+      `${s}: the desks not open (${offSis.map((x) => x.iata).join(', ')}) are hollow dots (fill="none") at their real coordinates, with NO arc and no glow (an arc means "operated from Rome")`);
+    check(ring && ring[1] === rx && ring[2] === ry && ring[3] === 10 && ring[4] && map.indexOf('class="hub-r"') > map.indexOf('class="hub"') && !/hub-r r2/.test(map) && /<text class="m-l hub"[^>]*>ROM<\/text>/.test(map),
+      `${s}: Rome, the hub, wears its ring (r 10, hollow — the second ring is the hub page's) and its code`);
+    // the globe: the earth disc under the limb (three strokes), the sea and the land dot matrices, the graticule, the seas that fit, the night EMPTY
+    check(/<use class="earth" href="#hzEarth"\/><rect class="sea" width="640" height="520" fill="url\(#hzSea\)" clip-path="url\(#hzEc\)"\/>/.test(map) && /<path class="grat" d="M/.test(map)
+      && /<use class="limb l3" href="#hzLimb"\/><use class="limb l2" href="#hzLimb"\/><use class="limb l1" href="#hzLimb"\/>/.test(map) && (map.match(/<g class="hz-nite"><\/g>/g) || []).length === 1 && !/<image\b|hz-term|hz-pl/.test(map)
+      && HZ.seas.length >= 2 && HZ.seas.every((sea) => map.includes(`>${sea.t}</text>`)) && map.indexOf('class="m-s"') < map.indexOf('<path class="arc'),
+      `${s}: the globe is drawn (earth, limb, sea and land patterns, graticule, ${HZ.seas.map((x) => x.t).join(' · ')}), the night layer served empty — the hour draws it`);
+    // the coast: Natural Earth in degrees (cities/_europe.json rings) projected by the camera, as a dot matrix clipped to it, under the arcs; the same drawing as the hub
+    if (EUROPE) check(/<path id="hzCoast" d="M-?\d+ -?\d+l[-\d ]+z/.test(map) && /<rect class="land" width="640" height="520" fill="url\(#hzDots\)" clip-path="url\(#hzLc\)"\/><use class="coast" href="#hzCoast"\/>/.test(map)
+      && map.indexOf('class="land"') > map.indexOf('class="sea"') && map.indexOf('class="land"') < map.indexOf('<path class="arc') && sliceOf(map, '<path id="hzCoast"', '/>') === sliceOf(sliceOf(read('desks.html'), '<svg class="hz"', '</svg>'), '<path id="hzCoast"', '/>'),
+      `${s}: the coast lies under the network (land dots clipped to the projected coast, before the arcs), the very same path as the hub's`);
+    const offLab = [...map.matchAll(/<text class="m-l off"[^>]*>([A-Z]{3})<\/text>/g)].map((m) => m[1]);
+    check(offLab.join() === offSis.map((x) => x.iata).join() && /<text class="m-l me"[^>]*>/.test(map) && [...map.matchAll(/<text class="m-l[^"]*"[^>]*>([A-Z]{3})/g)].length === SLUGS.length + 1,
+      `${s}: each desk not open carries its code, dimmed (m-l off): ${offLab.join(', ')}; this desk's in gold; one label per desk and the hub`);
+    // the script's data: the camera (15 numbers), the crop, each live desk's calendar facts — never a person
+    const data = JSON.parse(sliceOf(h.slice(h.indexOf('</svg>', h.indexOf('<svg class="hz"'))), '<script type="application/json" class="hz-data">', '</script>').replace('<script type="application/json" class="hz-data">', '') || '{}');
+    const liveHere = [...liveSis, ...(CITY[s].live === true ? [CITY[s]] : [])];
+    check(Array.isArray(data.c) && data.c.length === 15 && data.c.every(Number.isFinite) && JSON.stringify(data.v) === JSON.stringify(HZ.view) && Object.keys(data.d).sort().join() === liveHere.map((x) => x.iata.toLowerCase()).sort().join()
+      && liveHere.every((x) => data.d[x.iata.toLowerCase()].h === hkOf(x.slug)) && (!data.d.lon || (data.d.lon.z === 'Europe/London' && data.d.lon.f === '08:00' && data.d.lon.t === '18:00')) && (!data.d.ams || !('z' in data.d.ams)) && JSON.stringify(data.d) === JSON.stringify(hzCal(liveHere)),
+      `${s}: the map's data script carries the camera, the crop and the live desks' calendar facts (${Object.keys(data.d).join(', ')}: holiday key, and only what differs from Rome's 09–19)`);
     const key = sliceOf(h, '<p class="net-k"', '</p>');
-    check(/^<p class="net-k" aria-hidden="true">/.test(key) && ['live desk', 'not open', 'Rome, the hub'].every((t) => key.includes(t)) && h.indexOf('<p class="net-k"') > h.indexOf('</svg>', h.indexOf('<svg class="map"')) && h.indexOf('<p class="net-k"') < h.indexOf('<ul class="net">'),
-      `${s}: the legend after the map — live desk · not open · Rome, the hub (decorative, like the map)`);
+    check(key === `<p class="net-k" aria-hidden="true">${HZ_KEY}` && ['live desk', 'not open', 'Rome, the hub'].every((t) => key.includes(t)) && /<span class="k-x" hidden><i class="k-g"><\/i>open now<\/span><span class="k-x" hidden><i class="k-n"><\/i>night, now<\/span>$/.test(key)
+      && h.indexOf('<p class="net-k"') > h.indexOf('</svg>', h.indexOf('<svg class="hz"')) && h.indexOf('<p class="net-k"') < h.indexOf('<ul class="net">'),
+      `${s}: the legend after the map — live desk · not open · Rome, the hub, plus the two the script reveals (open now, night) served hidden`);
     // the list: the family, then (live page) the desks not open as plain text, BOOM Rome, then every desk
     const ul = sliceOf(h, '<ul class="net">', '</ul>');
     const codes = [...ul.matchAll(/<li(?: class="(off|all)")?>(?:<a href="([^"]*)">)?<b data-instr>([A-Z]{3})<\/b> ([^<]+)/g)].map((m) => ({ cls: m[1] || '', href: m[2], code: m[3], label: m[4] }));
@@ -456,41 +476,40 @@ check(!/id="contact"/.test(html) && /<article class="pass" id="pass"/.test(html)
     check(items.length === 3 && items.map((i) => i.position).join() === '1,2,3' && items[0].item === `${shared.siteUrl}/` && items[1].name === 'BOOM Desks' && items[1].item === `${shared.siteUrl}/desks` && items[2].name === CITY[s].city && items[2].item === `${shared.siteUrl}/${s}`,
       `${s}: the breadcrumb runs Home → BOOM Desks (/desks) → ${CITY[s].city}`, JSON.stringify(items.map((i) => i.item)));
   }
-  // v1.6 review (visual F9): an arc never passes over a desk it does not serve. Read from
-  // what is DRAWN (the path's control point, each dot with the mark it carries: 3px, this
-  // desk's 10px ring), and the same arc on every page (the bows are chosen over every desk)
-  const drawnCtrl = {};
+  // v1.6 review (visual F9), on the Horizon: an arc never passes over a desk it does not serve.
+  // Read from what is DRAWN (the cubic path, each dot with the mark it carries: 3px, this desk's
+  // 10px ring), and the same arc on every page (one lift and lean per desk, chosen over all of them)
+  const drawnD = {};
   for (const s of SLUGS) {
-    const map = sliceOf(PAGE[s], '<svg class="map"', '</svg>');
-    const hub = (map.match(/<circle class="hub" cx="([\d.]+)" cy="([\d.]+)"/) || []).slice(1).map(Number);
-    const at = (x, y) => `${x},${y}`;
-    const dots = [...map.matchAll(/<circle class="(d|d off|d-ring)" cx="([\d.]+)" cy="([\d.]+)" r="([\d.]+)"/g)].map((m) => ({ key: at(m[2], m[3]), xy: [+m[2], +m[3]], r: +m[4] }));
-    const arcs = [...map.matchAll(/<path class="arc(?: me)?"[^>]*d="M[\d.]+ [\d.]+Q([\d.]+) ([\d.]+) ([\d.]+) ([\d.]+)"/g)].map((m) => ({ key: at(m[3], m[4]), c: [+m[1], +m[2]], to: [+m[3], +m[4]] }));
-    for (const a of arcs) (drawnCtrl[a.key] = drawnCtrl[a.key] || new Set()).add(a.c.join());
-    const bad = arcViolations(hub, arcs, dots);
-    check(hub.length === 2 && arcs.length >= 2 && dots.some((d) => d.r === ARC_ME_R) && dots.length === SLUGS.length && bad.length === 0,
+    const map = sliceOf(PAGE[s], '<svg class="hz"', '</svg>');
+    const dots = [...map.matchAll(/<circle class="(d|d off|d-ring)" cx="([\d.]+)" cy="([\d.]+)" r="([\d.]+)"/g)].map((m) => ({ key: `${m[2]},${m[3]}`, xy: [+m[2], +m[3]], r: +m[4] }));
+    const arcs = [...map.matchAll(/<path class="arc(?: me)?" data-k="([a-z]{3})"[^>]*d="([^"]+)"\/>/g)].map((m) => ({ k: m[1].toUpperCase(), d: m[2] }));
+    for (const a of arcs) (drawnD[a.k] = drawnD[a.k] || new Set()).add(a.d);
+    // the dot an arc serves is the one under its end
+    const keyed = arcs.map((a) => { const p = hzPathPts(a.d, 8), e = p[p.length - 1]; return { key: (dots.find((d) => Math.hypot(d.xy[0] - e[0], d.xy[1] - e[1]) < 0.6) || {}).key, d: a.d }; });
+    const bad = hzViolations(keyed, dots);
+    check(arcs.length >= 2 && keyed.every((a) => a.key) && dots.some((d) => d.r === ARC_ME_R) && dots.length === SLUGS.length && bad.length === 0,
       `${s}: every arc drawn from Rome clears every other desk's dot by ≥ ${ARC_CLEAR}px — the hollow dots of the desks not open included (this desk's ${ARC_ME_R}px ring counted)`, bad.join('; '));
   }
-  check(Object.values(drawnCtrl).every((set) => set.size === 1), 'the arc to a desk is the same on every page (one bow per desk, chosen over all of them)',
-    JSON.stringify(Object.entries(drawnCtrl).filter(([, v]) => v.size > 1).map(([k, v]) => [k, [...v]])));
-  // the check bites: v1.5's control point (the chord's midpoint raised by 0.18 × chord) took ROM → LON through Milan's dot
-  const H = mapXY(shared.rome.geo), LON = mapXY(CITY.london.geo), MIL = mapXY(CITY.milan.geo), L = Math.hypot(LON[0] - H[0], LON[1] - H[1]);
-  const old = arcViolations(H, [{ key: 'LON', to: LON, c: [(H[0] + LON[0]) / 2, (H[1] + LON[1]) / 2 - 0.18 * L] }], [{ key: 'MIL', xy: MIL, r: ARC_DOT_R }, { key: 'LON', xy: LON, r: ARC_DOT_R }]);
-  check(old.length === 1 && /^ROM → LON passes -?\d+\.\dpx from MIL$/.test(old[0]), `(arcViolations catches v1.5's arc: "${old[0]}")`);
-  const bows = bowArcs(H, SLUGS.map((x) => [CITY[x].iata, mapXY(CITY[x].geo)]));
-  check(bows.size === SLUGS.length && [...bows.values()].every((f) => Math.abs(f) >= 0.12 && Math.abs(f) <= 0.36) && arcViolations(H, SLUGS.map((x) => ({ key: CITY[x].iata, to: mapXY(CITY[x].geo), c: arcCtrl(H, mapXY(CITY[x].geo), bows.get(CITY[x].iata)) })), SLUGS.map((x) => ({ key: CITY[x].iata, xy: mapXY(CITY[x].geo), r: ARC_ME_R }))).length === 0,
-    'bowArcs bows every desk (|f| 0.12–0.36) so no arc comes near ANY desk\'s ring, whichever page draws it');
-  // Valencia (03/11): its FIRST bow is the southern one (BOW_FIRST); north first, its arc pushed Madrid onto
-  // London's line and no bow was left for London. Only Madrid moves (−0.18 → −0.12); without Valencia, nothing does
-  const fmt = (m) => [...m].sort((a, b) => a[0].localeCompare(b[0])).map(([k, f]) => `${k} ${f}`).join(' · ');
-  const without = bowArcs(H, SLUGS.filter((x) => x !== 'valencia').map((x) => [CITY[x].iata, mapXY(CITY[x].geo)]));
-  check(fmt(bows) === 'AMS -0.24 · BCN 0.18 · BER -0.18 · LON -0.3 · MAD -0.12 · MIL 0.18 · PAR -0.18 · VLC -0.18' && fmt(without) === 'AMS -0.24 · BCN 0.18 · BER -0.18 · LON -0.3 · MAD -0.18 · MIL 0.18 · PAR -0.18',
-    `bowArcs with Valencia moves Madrid only (${fmt(bows)}); without it, today\'s bows (${fmt(without)})`);
+  check(Object.keys(drawnD).length === SLUGS.length && Object.values(drawnD).every((set) => set.size === 1), 'the arc to a desk is the same on every page (one lift and lean per desk, chosen over all of them)',
+    JSON.stringify(Object.entries(drawnD).filter(([, v]) => v.size > 1).map(([k]) => k)));
+  // the check bites: a dot 4px off the middle of the real ROM → LON arc is the violation the build refuses
+  {
+    const lon = HZ.arcs.get('LON'), pts = hzPathPts(lon.d, 40), mid = pts[Math.floor(pts.length / 2)];
+    const bad = hzViolations([{ key: 'LON', d: lon.d }], [{ key: 'X', xy: [mid[0] + 4, mid[1]], r: ARC_DOT_R }, { key: 'LON', xy: lon.to, r: ARC_DOT_R }]);
+    check(bad.length === 1 && /^ROM → LON passes -?\d+\.\dpx from X$/.test(bad[0]) && hzViolations([{ key: 'LON', d: lon.d }], [{ key: 'Y', xy: [mid[0], mid[1] + 40], r: ARC_DOT_R }]).length === 0,
+      `(hzViolations catches an arc within ${ARC_CLEAR}px of a dot it does not serve — "${bad[0]}" — and clears one 40px away)`);
+    const lifts = new Set([...HZ.arcs.values()].map((a) => a.lift));
+    check(HZ.arcs.size === SLUGS.length && lifts.size === 1 && HZ_LIFT.includes([...lifts][0]) && [...HZ.arcs.values()].every((a) => HZ_LEAN.includes(a.lean) && /^M[\d.]+ [\d.]+C/.test(a.d) && hzPathPts(a.d).length > 20),
+      `one lift serves every desk (${[...lifts][0]}: the height stays proportional to the distance), the arcs are cubics from Rome; leans only where needed (${[...HZ.arcs.values()].filter((a) => a.lean).map((a) => `${a.key} ${a.lean}`).join(', ') || 'none'})`);
+    check(HZ_CAM.pad.l === 0.09 && HZ_CAM.pad.r === 0.06 && HZ.view[0] === 0 && HZ.view[2] === 640 && HZ.view[1] > 0 && HZ.view[1] + HZ.view[3] <= 520,
+      `the camera's side paddings are the Stage 2 ones (pins ≥ 44px at 320); the frame is cropped top and bottom only (viewBox ${HZ.view.join(' ')})`);
+  }
 }
-// a desk that no bow can serve is a build error, never an arc through a sister:
-// one set on the hub's doorstep sits under the start of every other arc
-refuses((c) => { c.geo = { lat: 42.15, lon: 12.62 }; check(validGeo(c.geo), '(the doorstep coordinates are a valid geo: only the arcs refuse them)'); },
-  /network map: no bow takes the arc ROM → [A-Z]{3} clear of the other desks|draws an arc over a desk/, 'a desk placed where every arc from Rome would cross its dot is refused by the build (no arc through a sister)');
+// a desk no arc can serve is a build error, never an arc through a sister: one set 6 km from
+// Milan ends every arc (its own, and Milan's) inside the other's ring, whatever lift or lean
+refuses((c) => { c.geo = { lat: CITY.milan.geo.lat + 0.05, lon: CITY.milan.geo.lon + 0.05 }; check(validGeo(c.geo), '(coordinates 6 km from Milan are a valid geo: only the arcs refuse them)'); },
+  /network map: no bow takes the arc ROM → [A-Z]{3} clear of the other desks|draws an arc over a desk/, 'a desk placed where every arc from Rome would cross a sister\'s dot is refused by the build (no arc through a sister)');
 
 // BOOM Desks (03/11/2026): a LIVE page never links a desk that is not open —
 // the build refuses it, from the template and from a city's own data
@@ -812,9 +831,10 @@ refuses((c) => { c.geo = { lat: '52.37', lon: 4.9 }; }, /"geo" \{lat, lon\} is r
 {
   const sh = clone(shared); delete sh.rome.geo;
   check(throws(() => render(ams, sh), /rome\.geo \{lat, lon\} is required/) === true, '_shared.json without rome.geo is refused (the hub of the map)');
-  const XY = SLUGS.map((s) => [s, ...mapXY(CITY[s].geo)]);
-  check(XY.every(([, x, y]) => x >= 20 && x <= 580 && y >= 20 && y <= 400) && validGeo(shared.rome.geo) && !validGeo({ lat: 52, lon: 40 }) && !validGeo({ lat: 64, lon: -21 }),
-    `every desk projects inside the 600×420 map (${XY.map(([s, x, y]) => `${s} ${Math.round(x)},${Math.round(y)}`).join(' · ')}); Moscow and Reykjavik would not`);
+  const XY = SLUGS.map((s) => [s, ...HZ.cam.xy(CITY[s].geo)]);
+  const [, vy, , vh] = HZ.view;
+  check(XY.every(([, x, y]) => x >= 20 && x <= 620 && y >= vy + 10 && y <= vy + vh - 10) && validGeo(shared.rome.geo) && !validGeo({ lat: 52, lon: 40 }) && !validGeo({ lat: 64, lon: -21 }) && !validGeo({ lat: '52', lon: 5 }),
+    `every desk projects inside the Horizon's cropped frame (${XY.map(([s, x, y]) => `${s} ${Math.round(x)},${Math.round(y)}`).join(' · ')}); Moscow and Reykjavik would not`);
 }
 // the Baggage heading, the seal
 refuses((c) => { c.papers.summary = 'Documents'; }, /papers\.summary must read "The papers a\/an … asks for"/, 'papers.summary "Documents" is refused (the Baggage heading is split from it)');
@@ -958,8 +978,8 @@ tplRefuses('<p class="proof">', '<p class="proof">Pay by bank transfer · ', /no
     }
     return keep.join('\n').replace(/\n{4,}/g, '\n\n');
   };
-  check(SERVED_ASSETS.map((a) => a.name).join() === 'boom-city.css,boom-city.js,boom-onda.js,boom-desks.css,boom-desks.js' && SERVED_ASSETS.every((a) => a.kind === path.extname(a.name).slice(1)),
-    'SERVED_ASSETS: the five files of the desks and the hub, each with its kind');
+  check(SERVED_ASSETS.map((a) => a.name).join() === 'boom-city.css,boom-city.js,boom-onda.js,boom-map.js,boom-desks.css,boom-desks.js' && SERVED_ASSETS.every((a) => a.kind === path.extname(a.name).slice(1)),
+    'SERVED_ASSETS: the six files of the desks and the hub (the map\'s script since v1.7), each with its kind');
   for (const a of SERVED_ASSETS) {
     const src = path.join(R, 'assets/src', a.name), out = path.join(R, 'assets', a.name);
     check(fs.existsSync(src) && fs.existsSync(out), `assets/src/${a.name} (the source) and assets/${a.name} (served) both exist`);
@@ -975,7 +995,7 @@ tplRefuses('<p class="proof">', '<p class="proof">Pay by bank transfer · ', /no
     }
   }
   const em = emittedAssets(R);
-  check(em.length === 5 && em.every((a) => !a.stale && a.gzKb < a.sourceGzKb), 'emittedAssets(R): no served copy is stale against its source (the committed assets are the build\'s)');
+  check(em.length === 6 && em.every((a) => !a.stale && a.gzKb < a.sourceGzKb), 'emittedAssets(R): no served copy is stale against its source (the committed assets are the build\'s)');
   const sha = (f) => crypto.createHash('sha256').update(fs.readFileSync(path.join(R, f))).digest('hex').slice(0, 10);
   check(SLUGS.every((s) => PAGE[s].includes(`/assets/boom-city.css?v=${sha('assets/boom-city.css')}`) && PAGE[s].includes(`/assets/boom-city.js?v=${sha('assets/boom-city.js')}`)) && sha('assets/boom-city.css') !== sha('assets/src/boom-city.css'),
     'every desk page links the CSS and the JS by the hash of the SERVED file, never the source\'s');
@@ -1006,12 +1026,52 @@ tplRefuses('<p class="proof">', '<p class="proof">Pay by bank transfer · ', /no
     'the stripper refuses what it cannot follow (an unterminated comment or string, an unknown kind) instead of guessing');
 }
 
+// ── 8b · Stage 2 (04/11/2026): the Horizon's script, loaded on view ──────
+{
+  const gz = (x) => zlib.gzipSync(Buffer.from(x), { level: 9 }).length;
+  const sha = (f) => crypto.createHash('sha256').update(fs.readFileSync(path.join(R, f))).digest('hex').slice(0, 10);
+  const mapJs = read('assets/src/boom-map.js'), served = read('assets/boom-map.js');
+  check(SERVED_ASSETS.some((a) => a.name === 'boom-map.js' && a.kind === 'js' && a.of === 'desk') && served === stripComments(mapJs, 'js'), 'assets/boom-map.js is a served asset emitted from assets/src/ like the others (Stage 0)');
+  check(MAP_KB === 3.5 && gz(served) / 1024 <= MAP_KB && pages.every((p) => p.weight.mapKb <= MAP_KB && Math.abs(p.weight.mapKb * 1024 - gz(served)) < 1),
+    `the map's script is ${(gz(served) / 1024).toFixed(2)} KB gzipped, under its own ${MAP_KB} KB line, measured on the served file`);
+  const base = ['assets/boom-city.css', 'assets/boom-city.js', 'assets/boom-onda.js', 'assets/boom-map.js', 'js/boom-consent.js', 'js/boom-track.js'].reduce((n, f) => n + gz(fs.readFileSync(path.join(R, f))), 0);
+  check(pages.every((p) => p.weight.totalKb <= WEIGHT_KB.total && Math.abs(p.weight.totalKb * 1024 - (gz(p.html) + base)) < 2),
+    `every page's total counts the map and holds the ${WEIGHT_KB.total} KB cap WITH it (${pages.map((p) => `${p.slug} ${p.weight.totalKb.toFixed(1)}`).join(' · ')})`);
+  check(SLUGS.every((s) => { const cfg = JSON.parse((PAGE[s].match(/window\.BOOM_CITY = (\{[\s\S]*?\});\s*<\/script>/) || [])[1] || '{}'); return cfg.MAP === `/assets/boom-map.js?v=${sha('assets/boom-map.js')}`; }),
+    'every desk page carries the map script\'s versioned URL (the hash of the served file) in its config');
+  const cityJs = read('assets/src/boom-city.js'), desksJs = read('assets/src/boom-desks.js');
+  check([cityJs, desksJs].every((j) => /var hzMap = document\.querySelector\('svg\.hz'\), hzIn = false;/.test(j) && /rootMargin: '600px 0px'/.test(j) && /if \(es\[0\]\.isIntersecting\) \{ hzIO\.disconnect\(\); hzGo\(\); \}/.test(j) && /if \(hzIn \|\| !hzMap \|\| ![CD]\.MAP\) return; hzIn = true;/.test(j))
+    && /e\.src = C\.MAP; e\.async = true;/.test(cityJs) && /e\.src = D\.MAP; e\.async = true;/.test(desksJs),
+    'boom-city.js and boom-desks.js inject the map script once, when the map nears the screen (600px ahead)');
+  // the script: one rAF chain, the stagger ≥ 260ms, never two planes on an arc, nothing under reduced motion, the night every minute from the desk calendar
+  check((mapJs.match(/requestAnimationFrame\(/g) || []).length === 2 && /raf = raf \|\| requestAnimationFrame\(step\);/.test(mapJs) && /raf = fl\.length \? requestAnimationFrame\(step\) : 0;/.test(mapJs) && !/setInterval|\.animate\(|@keyframes/.test(mapJs),
+    'boom-map.js: ONE requestAnimationFrame chain for every plane (a flight joins the list; the chain ends when the list is empty); no interval, no CSS animation');
+  const stagger = +((mapJs.match(/fly\(k, i \* (\d+), !seen\)/) || [])[1] || 0);
+  check(stagger >= 260 && /if \(!a \|\| reduce \|\| fl\.some\(function \(f\) \{ return f\.a === a; \}\)\) return;/.test(mapJs), `boom-map.js: the first view sends the planes ${stagger}ms apart (≥ 260), never two on one arc`);
+  check(/var reduce = matchMedia\('\(prefers-reduced-motion: reduce\)'\)\.matches/.test(mapJs) && /if \(!reduce && window\.IntersectionObserver\)/.test(mapJs), 'boom-map.js: under reduced motion no plane flies and no arc is drawn in');
+  check(/60080 - Date\.now\(\) % 60000/.test(mapJs) && /if \(!document\.hidden\) timer = setTimeout/.test(mapJs) && /addEventListener\('visibilitychange'/.test(mapJs)
+    && /CAL\.deskWindow\(now, \{ timeZone: x\.z \|\| 'Europe\/Rome', hours: \{ from: x\.f \|\| '09:00', to: x\.t \|\| '19:00' \}, days: x\.w \|\| \[1, 2, 3, 4, 5\] \}, x\.h\)/.test(mapJs) && /g\.classList\.toggle\('on', !!w\.open\)/.test(mapJs),
+    'boom-map.js: the night and the open-now glow are redrawn on each minute boundary while the tab is visible, from the desk calendar (the board\'s)');
+  check(/if \(!svg \|\| svg\.hzOn\) return;/.test(mapJs) && /svg\.hzOn = 1;/.test(mapJs) && /window\.BOOM_MAP = \{ fly: fly, sun: sun \};/.test(mapJs) && /setAttribute\('transform', 'translate\(/.test(mapJs) && !/\.style\.(left|top|width|height)\b/.test(mapJs),
+    'boom-map.js runs once per map, moves a plane by its transform attribute only, and exposes fly() to the hub\'s pins');
+  check(/\.hz-pl\{fill:var\(--gold-hi\)\}/.test(read('assets/src/boom-city.css')) && /\.hz-term\{fill:none;stroke:rgba\(255,215,0,\.5\);stroke-dasharray:3 5\}/.test(read('assets/src/boom-city.css')),
+    'boom-city.css styles the plane and the terminator the script adds (gold, a dashed line)');
+  // served immutable, like the other emitted assets
+  const rule = JSON.parse(read('vercel.json')).headers.find((h) => /boom-\(city/.test(h.source));
+  check(rule && new RegExp(`^${rule.source}$`).test('/assets/boom-map.js') && new RegExp(`^${rule.source}$`).test('/assets/boom-city.js') && rule.headers.some((x) => x.key === 'Cache-Control' && /immutable/.test(x.value)),
+    'vercel.json serves /assets/boom-map.js immutable, in the same rule as the other emitted assets (it carries ?v=)');
+  check(SLUGS.every((s) => PAGE[s].includes(`<p class="net-k" aria-hidden="true">${HZ_KEY}</p>`)) && read('desks.html').includes(`<figcaption class="m-legend" aria-hidden="true">${HZ_KEY}</figcaption>`),
+    'the map\'s key is one copy on every desk and the hub (HZ_KEY)');
+  check(!/comet|hmap-svg|netDots|seaDots|landDots|mapXY|HUB_VIEWBOX|bowArcs|BOW_FIRST/.test(read('build-cities.mjs') + read('assets/src/boom-city.css') + read('assets/src/boom-desks.css') + read('assets/src/boom-desks.js')),
+    'the flat map is gone: no comet, no fixed viewBox, no equirectangular projection, no bows, in the build or the assets');
+}
+
 // ── 9 · the build never overwrites a page it did not make ────────────────
 {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'boom-cities-'));
   for (const d of ['cities', 'assets/src', 'css', 'js', 'design/pages-deco']) fs.mkdirSync(path.join(tmp, d), { recursive: true });
   // the SOURCES only: the build emits the served assets/boom-*.{css,js} from them (Stage 0)
-  for (const f of ['cities/_template.html', 'cities/_shared.json', 'cities/paris.json', 'assets/src/boom-city.css', 'assets/src/boom-city.js', 'assets/src/boom-onda.js',
+  for (const f of ['cities/_template.html', 'cities/_shared.json', 'cities/paris.json', 'assets/src/boom-city.css', 'assets/src/boom-city.js', 'assets/src/boom-onda.js', 'assets/src/boom-map.js',
     'css/boom-scroll.css', 'js/boom-scroll.js', 'js/boom-consent.js', 'js/boom-track.js', 'js/desk-calendar.js', 'design/pages-deco/solari-engine.html', 'og-paris.png']) fs.copyFileSync(path.join(R, f), path.join(tmp, f));
   fs.writeFileSync(path.join(tmp, 'paris.html'), '<!doctype html><title>hand-made</title>');
   check(throws(() => writeAll({ root: tmp }), /not generated by this script — refusing/) === true && fs.readFileSync(path.join(tmp, 'paris.html'), 'utf8').includes('hand-made'),
@@ -1021,8 +1081,8 @@ tplRefuses('<p class="proof">', '<p class="proof">Pay by bank transfer · ', /no
   const again = writeAll({ root: tmp, check: true });
   check(first[0].stale === true && again[0].stale === false, 'write then --check: the build is deterministic');
   const tCss = path.join(tmp, 'assets', 'boom-city.css'), tSrc = path.join(tmp, 'assets/src', 'boom-city.css');
-  check(['boom-city.css', 'boom-city.js', 'boom-onda.js'].every((f) => fs.readFileSync(path.join(tmp, 'assets', f), 'utf8') === stripComments(fs.readFileSync(path.join(tmp, 'assets/src', f), 'utf8'), path.extname(f).slice(1))),
-    'the build emitted the three served assets from assets/src/, comments stripped (Stage 0)');
+  check(['boom-city.css', 'boom-city.js', 'boom-onda.js', 'boom-map.js'].every((f) => fs.readFileSync(path.join(tmp, 'assets', f), 'utf8') === stripComments(fs.readFileSync(path.join(tmp, 'assets/src', f), 'utf8'), path.extname(f).slice(1))),
+    'the build emitted the four served assets from assets/src/, comments stripped (Stage 0)');
   fs.appendFileSync(tSrc, '/* a note in the source */\n');   // the source ends with a newline: a whole comment line
   check(writeAll({ root: tmp, check: true })[0].stale === false && emittedAssets(tmp).every((a) => !a.stale), 'a comment added to the SOURCE changes no served byte: neither the asset nor the page goes stale');
   fs.appendFileSync(tSrc, '\n.changed{color:red}\n');
@@ -1523,47 +1583,49 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
   check([...H.matchAll(/<[^>]*\sdata-(?:clk|dw|nsr)="[^"]*"[^>]*>/g)].every((m) => /data-nosnippet/.test(m[0])) && [...H.matchAll(/data-(?:clk|nsr)="[a-z]+"><\/span>/g)].length === 18,
     'every clock, window and status span carries data-nosnippet; the clocks (board and pin cards) and statuses are served empty (the script fills them)');
 
-  // the map
-  const svg = sliceOf(H, '<svg class="hmap-svg"', '</svg>');
-  const hubArcs = [...svg.matchAll(/<path class="arc" id="arc-([a-z]{3})"[^>]*d="([^"]+)"/g)].map((m) => [m[1], m[2]]);
-  const gold = (s) => (PAGE[s].match(/<path class="arc me"[^>]*d="([^"]+)"/) || [])[1];
-  check(hubArcs.length === LIVE.length && hubArcs.every(([k, d]) => { const s = LIVE.find((x) => CITY[x].iata.toLowerCase() === k); return s && d === gold(s); }),
-    `the map draws one arc per live desk, each with the SAME d as that desk's gold arc on its own page (${hubArcs.map(([k]) => k).join(', ')})`);
-  check(new RegExp(`viewBox="${HUB_VIEWBOX}"`).test(svg) && DRAFT.every((s) => { const [x, y] = mapXY(CITY[s].geo); return svg.includes(`<circle class="d off" cx="${Math.round(x * 10) / 10}" cy="${Math.round(y * 10) / 10}" r="3" fill="none"/>`); }) && !hubArcs.some(([k]) => ['ber', 'par'].includes(k)),
-    'Berlin and Paris are hollow dots at their real coordinates, with no arc');
-  check(/<circle class="hub" [^>]*r="5" fill="none"\/>/.test(svg) && /<circle class="hub-r" [^>]*r="10" fill="none"\/>/.test(svg) && /<circle class="hub-r r2" [^>]*r="16" fill="none"\/>/.test(svg) && /ROM · HUB<\/text>/.test(svg), 'Rome wears its two rings and the label ROM · HUB');
+  // the map (v1.7, the Horizon)
+  const svg = sliceOf(H, '<svg class="hz"', '</svg>');
+  const hubArcs = [...svg.matchAll(/<path class="arc" id="arc-([a-z]{3})" data-k="\1" style="--s:url\(#ga-\1\)" pathLength="1" fill="none" d="([^"]+)"\/>/g)].map((m) => [m[1], m[2]]);
+  const gold = (s) => (PAGE[s].match(/<path class="arc me" data-k="[a-z]{3}" pathLength="1" fill="none" d="([^"]+)"\/>/) || [])[1];
+  check(hubArcs.length === LIVE.length && hubArcs.every(([k, d]) => { const s = LIVE.find((x) => CITY[x].iata.toLowerCase() === k); return s && d === gold(s) && d === HZ.arcs.get(CITY[s].iata).d && svg.includes(`<linearGradient id="ga-${k}" gradientUnits="userSpaceOnUse"`); }),
+    `the map draws one arc per live desk, lit from Rome by its own gradient, each with the SAME d as that desk's gold arc on its own page (${hubArcs.map(([k]) => k).join(', ')})`);
+  check(svg.startsWith(`<svg class="hz" viewBox="${HZ.view.join(' ')}" aria-hidden="true" focusable="false">`) && DRAFT.every((s) => { const [x, y] = HZ.cam.xy(CITY[s].geo); return svg.includes(`<circle class="d off" cx="${x}" cy="${y}" r="3" fill="none"/>`); }) && !hubArcs.some(([k]) => ['ber', 'par'].includes(k)) && !/id="hzd-(?:ber|par)"/.test(svg),
+    'Berlin and Paris are hollow dots at their real coordinates, with no arc and no glow');
+  check(/<circle class="hub" [^>]*r="5" fill="none"\/>/.test(svg) && /<circle class="hub-r" [^>]*r="10" fill="none"\/>/.test(svg) && /<circle class="hub-r r2" [^>]*r="16" fill="none"\/>/.test(svg) && /<text class="m-l hub"[^>]*>ROM<tspan class="hb"> · HUB<\/tspan><\/text>/.test(svg),
+    'Rome wears its two rings and the label ROM · HUB');
+  check(LIVE.every((s) => { const [x, y] = HZ.cam.xy(CITY[s].geo), k = CITY[s].iata.toLowerCase(); return svg.includes(`<g class="dk" id="hzd-${k}"><circle class="gl" cx="${x}" cy="${y}" r="15"/><circle class="lr" cx="${x}" cy="${y}" r="6" fill="none"/><circle class="d" cx="${x}" cy="${y}" r="3"/></g>`); }),
+    'every live desk is a dot with its ring and a glow the script lights while the desk is open');
   {
+    const [vx, vy, vw, vh] = HZ.view;
     const pins = [...H.matchAll(/<a class="pin[^"]*" id="pin-([a-z]{3})" href="\/([a-z]+)" style="--x:([\d.]+)%;--y:([\d.]+)%"/g)];
-    const ok2 = pins.length === LIVE.length && pins.every((m) => { const [x, y] = mapXY(CITY[m[2]].geo); return CITY[m[2]].live && Math.abs(+m[3] - Math.round(x * 10) / 10 / 640 * 100) < 0.06 && Math.abs(+m[4] - (Math.round(y * 10) / 10 + 40) / 520 * 100) < 0.06; });
-    check(ok2, `pins for the live desks only, at the projected --x/--y (${pins.map((m) => `${m[1]} ${m[3]}/${m[4]}`).join(' · ')})`);
-    const hubXY = mapXY(shared.rome.geo);
-    const bows = bowArcs(hubXY, SLUGS.map((s) => [CITY[s].iata, mapXY(CITY[s].geo)]));
-    const arcs = LIVE.map((s) => { const to = mapXY(CITY[s].geo); return { key: CITY[s].iata, to, c: arcCtrl(hubXY, to, bows.get(CITY[s].iata)) }; });
-    check(arcViolations(hubXY, arcs, SLUGS.map((s) => ({ key: CITY[s].iata, xy: mapXY(CITY[s].geo), r: ARC_DOT_R }))).length === 0 && arcs.every((a) => svg.includes(arcD(hubXY, a))), 'no arc on the hub passes over a desk it does not serve (arcViolations = 0)');
-    check(LIVE.every((s) => H.includes(`.hmap:has(#pin-${CITY[s].iata.toLowerCase()}:is(:hover,:focus-visible)) #arc-${CITY[s].iata.toLowerCase()}{stroke:var(--gold)`)), 'a pin lights its own arc (one generated :has rule per live desk)');
-    check(!EUROPE || ([EUROPE.path, EUROPE.desk].every((d) => typeof d === 'string' && /^[MLZ0-9 .\-]+$/.test(d) && d.length <= 16000) && /Natural Earth/.test(EUROPE.source) && /^https:\/\/raw\.githubusercontent\.com\/nvkelso\/natural-earth-vector\//.test(EUROPE.url) && /^\d{4}-\d{2}-\d{2}$/.test(EUROPE.generated)),
-      'the optional coast paths, when present, are plain M/L/Z numbers ≤ 16000 characters, with their provenance (Natural Earth, the raw URL, the date)');
-    if (EUROPE) {
-      const nums = (d) => [...d.matchAll(/-?\d+(?:\.\d+)?/g)].map((x) => +x[0]);
-      const inBox = (d, [x0, y0, x1, y1]) => { const n = nums(d); return n.length > 100 && n.every((v, i) => (i % 2 ? v >= y0 && v <= y1 : v >= x0 && v <= x1)); };
-      check(inBox(EUROPE.path, [-5, -45, 645, 485]) && inBox(EUROPE.desk, [-5, -5, 605, 425]), 'each coast stays within its map box ±5 (the hub 0 −40 640 520, a desk 0 0 600 420)');
-      // the generator: the root derived from its own file (tests/radici), the same projection as mapXY, and the
-      // simplification the JSON declares is the one the script runs
-      const gen = read('design/pages-deco/genera-europa.py');
-      check(/RADICE = os\.path\.dirname\(os\.path\.dirname\(QUI\)\)/.test(gen) && /return \(300 \+ \(lon - 5\) \* 17\.73, 210 \+ \(46\.75 - lat\) \* 26\)/.test(gen) && mapXY({ lon: 5, lat: 46.75 }).join() === '300,210'
-        && gen.includes(`EPS = ${EUROPE.simplify.douglasPeucker.toFixed(1)}`) && gen.includes(`MIN_AREA = ${EUROPE.simplify.minRingArea.toFixed(1)}`) && gen.includes(`DECIMALS = ${EUROPE.simplify.decimals}`),
-        'design/pages-deco/genera-europa.py projects with mapXY, derives its root from its own file, and runs the simplification cities/_europe.json declares');
-      check(svg.includes(`<path id="coast" d="${EUROPE.path}"/><clipPath id="land" clip-rule="evenodd"><use href="#coast"/></clipPath>`) && /<rect class="land"[^>]*fill="url\(#landDots\)" clip-path="url\(#land\)"\/><use class="coast" href="#coast" fill="none"\/>/.test(svg)
-        && svg.indexOf('class="land"') < svg.indexOf('<path class="arc'), 'the hub map draws the land as a dot matrix clipped to the coast, plus one hairline, under the arcs');
+    const ok2 = pins.length === LIVE.length && pins.every((m) => { const [x, y] = HZ.cam.xy(CITY[m[2]].geo); return CITY[m[2]].live && Math.abs(+m[3] - (x - vx) / vw * 100) < 0.06 && Math.abs(+m[4] - (y - vy) / vh * 100) < 0.06; });
+    check(ok2, `pins for the live desks only, at the projected --x/--y inside the cropped frame (${pins.map((m) => `${m[1]} ${m[3]}/${m[4]}`).join(' · ')})`);
+    // 44px targets: no two pins overlap on a 390px phone nor on a 320px one (HUB_MAP_PX: the drawn width, the column minus the box's two 1px borders)
+    check(HUB_MAP_PX[390] === 356 && HUB_MAP_PX[320] === 286, 'HUB_MAP_PX: 356px at 390, 286px at 320');
+    for (const [w, px] of Object.entries(HUB_MAP_PX)) {
+      let min = 1e9, pair = '';
+      for (const a of LIVE) for (const b of LIVE) if (a < b) { const A = HZ.cam.xy(CITY[a].geo), B = HZ.cam.xy(CITY[b].geo); const d = Math.hypot(A[0] - B[0], A[1] - B[1]) * px / vw; if (d < min) { min = d; pair = `${CITY[a].iata}–${CITY[b].iata}`; } }
+      check(min >= 44, `on a ${w}px phone (map ${px}px) the closest pins (${pair}) are ${min.toFixed(1)}px apart: 44px targets never overlap`);
     }
-    // the comet: the SAME curve as the arc, one per live desk, run once on hover/focus — only with motion allowed
-    const comets = [...svg.matchAll(/<path class="comet" id="cm-([a-z]{3})" pathLength="1" fill="none" d="([^"]+)"\/>/g)].map((m) => [m[1], m[2]]);
-    check(comets.length === LIVE.length && comets.every(([k, d]) => (hubArcs.find((a) => a[0] === k) || [])[1] === d), `one comet per live desk, on the same d as its arc (${comets.map((c) => c[0]).join(', ')})`);
-    const motion = sliceOf(H, '@media (prefers-reduced-motion:no-preference){.hmap:has(#pin-', '}}');
-    check(motion && LIVE.every((sl) => motion.includes(`.hmap:has(#pin-${CITY[sl].iata.toLowerCase()}:is(:hover,:focus-visible)) #cm-${CITY[sl].iata.toLowerCase()}`)) && /\{animation:comet \.9s [^;}]* both$/.test(motion) && !/infinite/.test(motion),
-      'the comet runs once (.9s, never infinite), only under prefers-reduced-motion: no-preference');
-    const dcss = read('assets/boom-desks.css');
-    check(/@keyframes comet\{0%\{stroke-dashoffset:[.\d]+;opacity:1\}[^@]*100%\{stroke-dashoffset:-1;opacity:0\}\}/.test(dcss) && /\.hmap \.comet\{[^}]*opacity:0/.test(dcss), 'the comet is invisible at rest and ends where it started: invisible (assets/boom-desks.css)');
+    const arcs = LIVE.map((s) => ({ key: CITY[s].iata, d: HZ.arcs.get(CITY[s].iata).d }));
+    check(hzViolations(arcs, SLUGS.map((s) => ({ key: CITY[s].iata, xy: HZ.cam.xy(CITY[s].geo), r: ARC_DOT_R }))).length === 0, 'no arc on the hub passes over a desk it does not serve (hzViolations = 0)');
+    const rules = sliceOf(H, '<style>.hmap:has(#pin-', '</style>');
+    check(LIVE.every((s) => rules.includes(`.hmap:has(#pin-${CITY[s].iata.toLowerCase()}:is(:hover,:focus-visible,.sel)) #arc-${CITY[s].iata.toLowerCase()}{stroke:var(--gold);stroke-width:2;opacity:1}`)) && !/animation|@keyframes|comet/.test(rules),
+      'a pin lights its own arc (one generated :has rule per live desk, the tapped pin .sel included); the flight is the script\'s, no CSS animation');
+    // the coast: Natural Earth in degrees (cities/_europe.json rings) inside the camera's window, projected at build time
+    check(EUROPE && Array.isArray(EUROPE.rings) && EUROPE.rings.length > 50 && EUROPE.rings.every((r) => Array.isArray(r) && r.length >= 6 && r.length % 2 === 0 && r.every((n, i) => typeof n === 'number' && (i % 2 ? n >= EUROPE.window[1] && n <= EUROPE.window[3] : n >= EUROPE.window[0] && n <= EUROPE.window[2])))
+      && /Natural Earth/.test(EUROPE.source) && /^https:\/\/raw\.githubusercontent\.com\/nvkelso\/natural-earth-vector\//.test(EUROPE.url) && /^\d{4}-\d{2}-\d{2}$/.test(EUROPE.generated) && /degrees/.test(EUROPE.projection) && !('path' in EUROPE) && !('desk' in EUROPE),
+      'cities/_europe.json: the coast in degrees (lon, lat rings inside the camera\'s window), with its provenance (Natural Earth, the raw URL, the date); the projected paths are gone');
+    const gen = read('design/pages-deco/genera-europa.mjs');
+    check(/const RADICE = path\.dirname\(path\.dirname\(QUI\)\);/.test(gen) && /import \{ clipRect, dpRing, ringArea \} from '\.\.\/\.\.\/build-cities\.mjs';/.test(gen) && gen.includes(`const EPS = ${EUROPE.simplify.douglasPeucker}, MIN_AREA = ${EUROPE.simplify.minRingArea}, DECIMALS = ${EUROPE.simplify.decimals};`) && gen.includes(`export const WINDOW = [${EUROPE.window.join(', ')}];`) && !fs.existsSync(path.join(R, 'design/pages-deco/genera-europa.py')),
+      'design/pages-deco/genera-europa.mjs derives its root from its own file, clips and simplifies with the build\'s own helpers, and runs the simplification the JSON declares; the projected-path generator is gone');
+    check(/<path id="hzCoast" d="M-?\d+ -?\d+l[-\d ]+z/.test(svg) && /<rect class="land" width="640" height="520" fill="url\(#hzDots\)" clip-path="url\(#hzLc\)"\/><use class="coast" href="#hzCoast"\/>/.test(svg) && svg.indexOf('class="land"') < svg.indexOf('<path class="arc'),
+      'the hub map draws the land as a dot matrix clipped to the projected coast, plus one hairline, under the arcs');
+    check((svg.match(/<g class="hz-nite"><\/g>/g) || []).length === 1 && !/<image\b|hz-term|hz-pl/.test(svg), 'the night layer is served EMPTY and no plane is in the static HTML: the hour and the script draw them');
+    const hzData = JSON.parse((H.match(/<script type="application\/json" class="hz-data">([\s\S]*?)<\/script>/) || [])[1] || '{}');
+    check(Array.isArray(hzData.c) && hzData.c.length === 15 && JSON.stringify(hzData.v) === JSON.stringify(HZ.view) && JSON.stringify(hzData.d) === JSON.stringify(hzCal(LIVE.map((s) => CITY[s]))) && Object.keys(hzData.d).length === LIVE.length && hzData.d.vlc.h === 'es-vlc' && hzData.d.lon.z === 'Europe/London',
+      'the hub\'s data script carries the camera, the crop and the six live desks\' calendar facts');
+    check(!/comet|cm-[a-z]{3}|hmap-svg/.test(H) && !/comet/.test(read('assets/boom-desks.css')) && /<symbol id="boomPlane" viewBox="0 0 24 24">/.test(H), 'the comet is gone (page and boom-desks.css); the hub carries the plane symbol the script flies');
   }
 
   // the onda (P4): the desk pages' canvas script, versioned in its URL; the hub's script loads it

@@ -137,7 +137,7 @@ async function open({ js = true, width = 390, height = null, api = LEAD_OK, paid
 }
 const events = (page) => page.evaluate(() => (window.dataLayer || []).map((a) => [].slice.call(a)).filter((a) => a[0] === 'event').map((a) => ({ name: a[1], p: a[2] || {} })));
 const rect = (page, sel) => page.$eval(sel, (e) => { const r = e.getBoundingClientRect(); return { top: r.top, bottom: r.bottom, left: r.left, right: r.right, h: r.height, w: r.width }; });
-const shown = (page, sel) => page.$eval(sel, (e) => !e.hidden && !!e.offsetParent && getComputedStyle(e).visibility !== 'hidden').catch(() => false);
+const shown = (page, sel) => page.$eval(sel, (e) => { if (e.hidden || getComputedStyle(e).visibility === 'hidden' || getComputedStyle(e).display === 'none') return false; if (e instanceof SVGElement) { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; } return !!e.offsetParent; }).catch(() => false);
 const text = (page, sel) => page.$eval(sel, (e) => e.textContent.trim().replace(/\s+/g, ' ')).catch(() => null);
 const boardWord = (page, sel) => page.$eval(sel, (e) => [...e.querySelectorAll('.st b')].map((b) => b.textContent).join('').trim()).catch(() => '');
 const center = (page, sel) => page.$eval(sel, (el) => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
@@ -659,28 +659,85 @@ for (const slug of ['paris', 'berlin']) {
   await ctx.close();
 }
 
-// ── 8b · BOOM Desks (03/11/2026): the Network shows EVERY desk ───────────
-// the desks not open as hollow dots with no arc and no link, the legend from
-// 640px, Rome with its ring; "Every BOOM desk" → /desks, last
+// ── 8b · BOOM Desks (03/11/2026) → the Horizon (v1.7): the Network shows EVERY desk ──
+// the desks not open as hollow dots with no arc and no link, the legend, Rome with
+// its ring, the map on a phone too; "Every BOOM desk" → /desks, last
 {
   const { ctx, page, st } = await open({ slug: 'london', width: 1440 });
   await center(page, '#network');
   await page.waitForTimeout(500);
-  const offs = await page.$$eval('svg.map circle.d.off', (cs) => cs.map((c) => ({ fill: getComputedStyle(c).fill, stroke: getComputedStyle(c).stroke })));
+  const offs = await page.$$eval('svg.hz circle.d.off', (cs) => cs.map((c) => ({ fill: getComputedStyle(c).fill, stroke: getComputedStyle(c).stroke })));
   check(offs.length === 2 && offs.every((o) => o.fill === 'none' && o.stroke !== 'none'), 'london 1440: two hollow dots on the map (computed fill: none) — Berlin and Paris, not open', JSON.stringify(offs));
-  check(await page.$eval('svg.map circle.hub-r', (c) => getComputedStyle(c).fill === 'none' && getComputedStyle(c).stroke !== 'none'), 'london 1440: Rome wears its ring');
+  check(await page.$eval('svg.hz circle.hub-r', (c) => getComputedStyle(c).fill === 'none' && getComputedStyle(c).stroke !== 'none'), 'london 1440: Rome wears its ring');
   check(await shown(page, '.net-k') && await page.$eval('.net-k', (e) => getComputedStyle(e).display) === 'flex' && /live desk.*not open.*Rome, the hub/.test(await text(page, '.net-k')), 'london 1440: the legend is shown — live desk · not open · Rome, the hub');
-  const mapR = await rect(page, 'svg.map'), keyR = await rect(page, '.net-k'), ulR = await rect(page, 'ul.net');
+  const mapR = await rect(page, 'svg.hz'), keyR = await rect(page, '.net-k'), ulR = await rect(page, 'ul.net');
   check(keyR.top >= mapR.bottom - 1 && keyR.left < mapR.left + 2 && ulR.left >= mapR.right - 1 && ulR.top < keyR.top, 'london 1440: the legend sits under the map, the list beside them (one grid)', JSON.stringify({ mapR, keyR, ulR }));
   check(await page.$$eval('ul.net li.off', (ls) => ls.map((l) => l.textContent.trim()).join('|')) === 'BER Berlin · not open|PAR Paris · not open' && await page.$$eval('ul.net li.off a, a[href="/paris"], a[href="/berlin"]', (a) => a.length) === 0,
     'london 1440: Berlin and Paris are named "not open" in the list, never linked');
+  // the script, loaded on view: the night drawn, the two script-only key entries revealed
+  await page.waitForTimeout(600);
+  const alive = await page.evaluate(() => ({ map: !!window.BOOM_MAP, img: !!document.querySelector('svg.hz .hz-nite image[href^="data:image/png"]'), term: !!document.querySelector('svg.hz .hz-nite path.hz-term'), keys: [...document.querySelectorAll('.net-k .k-x')].map((k) => k.hidden).join() }));
+  check(alive.map && alive.img && alive.term && alive.keys === 'false,false', 'london 1440: once in view the script draws the night (an image under a terminator line) and reveals "open now · night, now" in the key', JSON.stringify(alive));
   check(st.errors.length === 0, 'london 1440: no JS error', st.errors.join(' | '));
   await ctx.close();
 }
+// v1.7: the map is shown on a phone too (v1.6 hid it under 640px), as wide as the column; its script arrives on view
 {
   const { ctx, page } = await open({ slug: 'london', width: 390 });
   await page.waitForTimeout(300);
-  check(!(await shown(page, '.net-k')) && !(await shown(page, 'svg.map')), 'london 390: no map and no legend on a phone (the list navigates)');
+  const before = await page.evaluate(() => !!window.BOOM_MAP);
+  await center(page, '#network');
+  await page.waitForTimeout(700);
+  const r = await rect(page, 'svg.hz');
+  check(await shown(page, '.net-k') && await shown(page, 'svg.hz') && Math.abs(r.w - 358) <= 1 && r.h > 150 && await noHScroll(page), `london 390: the map AND the legend are shown on a phone (map ${Math.round(r.w)}×${Math.round(r.h)}, the column's width)`);
+  check(!before && await page.evaluate(() => !!window.BOOM_MAP), 'london 390: the map\'s script is not loaded at the top of the page; it arrives when the map nears the screen');
+  await ctx.close();
+}
+// the planes: once on first view, 260ms apart, each on its own arc; again on a Network line's focus; never two on one arc
+{
+  const { ctx, page, st } = await open({ slug: 'london', width: 1440, pwClock: '2027-03-01T09:00:00Z' });
+  // the installed clock also ticks in real time: paused here, only runFor moves the planes (the script, its observer and the CSS transitions still run on real time)
+  await page.clock.pauseAt(new Date('2027-03-01T09:00:10Z'));
+  check(await page.$$eval('g.hz-pl', (x) => x.length) === 0 && await page.$eval('svg.hz .hz-nite', (g) => g.children.length) === 0, 'london 1440: before the map is in view, no plane and no night');
+  await center(page, '#network');
+  await page.waitForTimeout(600);
+  const vis = () => page.$$eval('g.hz-pl', (gs) => gs.filter((g) => +g.getAttribute('opacity') > 0).length);
+  const n0 = await page.$$eval('g.hz-pl', (x) => x.length);
+  await page.clock.runFor(200);
+  const v1 = await vis();
+  await page.clock.runFor(520);
+  const v2 = await vis();
+  // the exact counts (1, then 3) hold on an idle machine; under a starved suite the observer fires late against the paused clock, so the pin is the progression: some but not all after 200ms, more after 720ms (the 260ms stagger itself is read from the source in run.mjs)
+  check(n0 === 6 && v1 >= 1 && v1 < 6 && v2 > v1, `london 1440: on first view six planes leave Rome one after the other (visible after 200ms: ${v1}, after 720ms: ${v2})`, JSON.stringify({ n0, v1, v2 }));
+  const glow = await page.$$eval('svg.hz g.dk.on', (x) => x.length);
+  check(glow === 6, `london 1440 (Monday 10:00 Rome): the six live desks glow — open now (${glow})`);
+  await page.clock.runFor(5000);
+  const after = await page.evaluate(() => ({ planes: document.querySelectorAll('g.hz-pl').length, drawn: [...document.querySelectorAll('svg.hz .arc')].every((a) => a.style.strokeDashoffset === '0' || a.style.strokeDashoffset === '') }));
+  check(after.planes === 0 && after.drawn, 'london 1440: every plane has landed and every arc is fully drawn', JSON.stringify(after));
+  await page.focus('ul.net a[href="/barcelona"]');
+  await page.clock.runFor(300);
+  // the stroke's .2s transition runs on the real clock: wait for it (a starved suite can take longer than the transition)
+  const hi = await page.waitForFunction(() => { const a = document.querySelector('svg.hz .arc[data-k="bcn"]'); return a && a.classList.contains('hi') && getComputedStyle(a).stroke === 'rgb(255, 215, 0)'; }, null, { timeout: 4000 }).then(() => true).catch(() => false);
+  const f1 = await page.$$eval('g.hz-pl', (x) => x.length);
+  await page.hover('ul.net a[href="/barcelona"]');
+  await page.clock.runFor(300);
+  const f2 = await page.$$eval('g.hz-pl', (x) => x.length);
+  await page.clock.runFor(5000);
+  const f3 = await page.$$eval('g.hz-pl', (x) => x.length);
+  check(f1 === 1 && hi && f2 === 1 && f3 === 0, `london 1440: focusing the Barcelona line flies ONE plane along its arc, lit gold; hovering it meanwhile adds no second one (${f1} → ${f2} → ${f3})`);
+  check(st.errors.length === 0, 'london 1440 planes: no JS error', st.errors.join(' | '));
+  await ctx.close();
+}
+// reduced motion: no plane on view nor on focus, no arc drawn in; the night is still drawn (a fact of the hour, not motion)
+{
+  const { ctx, page } = await open({ slug: 'london', width: 1440, reducedMotion: 'reduce', pwClock: '2027-03-01T17:30:00Z' });
+  await center(page, '#network');
+  await page.waitForTimeout(500);
+  await page.clock.runFor(1500);
+  await page.focus('ul.net a[href="/barcelona"]');
+  await page.clock.runFor(800);
+  const g = await page.evaluate(() => ({ planes: document.querySelectorAll('g.hz-pl').length, dashed: [...document.querySelectorAll('svg.hz .arc')].some((a) => a.style.strokeDasharray), night: !!document.querySelector('svg.hz .hz-nite image'), term: /^M[\d.]+ [\d.]+L/.test((document.querySelector('svg.hz .hz-term') || { getAttribute: () => '' }).getAttribute('d') || ''), inf: document.getAnimations().filter((x) => x.effect && x.effect.getTiming().iterations === Infinity).length }));
+  check(g.planes === 0 && !g.dashed && g.night && g.term && g.inf === 0, 'london 1440, reduced motion (a March dusk): no plane on view nor on focus, no arc drawn in, no loop — the night veil and the terminator still drawn', JSON.stringify(g));
   await ctx.close();
 }
 {
@@ -1325,6 +1382,32 @@ async function hubUI() {
     const all = [...sz.rows, ...sz.pins, ...sz.gates, ...sz.faq];
     check(await noHScroll(page) && sz.rows.length === 7 && sz.pins.length === 6 && sz.gates.length === 6 && sz.faq.length === 6 && all.every((x) => x >= 44),
       `desks 320: no horizontal scroll; rows, pins, gates and questions ≥ 44 px (smallest ${Math.round(Math.min(...all))})`, JSON.stringify(sz));
+    const gapPx = await page.evaluate(() => { const ps = [...document.querySelectorAll('a.pin')].map((a) => { const r = a.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; }); let m = 1e9; for (let i = 0; i < ps.length; i++) for (let j = i + 1; j < ps.length; j++) m = Math.min(m, Math.hypot(ps[i][0] - ps[j][0], ps[i][1] - ps[j][1])); return m; });
+    check(gapPx >= 44, `desks 320: the closest two pins are ${gapPx.toFixed(1)}px apart — 44px targets never overlap (v1.7: 42.3 before the camera's side paddings moved)`);
+    await ctx.close();
+  }
+
+  // a touch screen (or under 600px): the first tap on a pin docks its card under the map and flies its
+  // plane; the second tap goes to the desk; Escape closes the card; the pins at 390 are ≥ 52px apart
+  {
+    const { ctx, page, st } = await open({ slug: 'desks', width: 390, touch: true, pwClock: '2027-03-01T09:00:00Z' });
+    await page.clock.runFor(500);
+    await center(page, '#hmap');
+    await page.waitForTimeout(500);
+    await page.clock.runFor(6000);
+    const gap390 = await page.evaluate(() => { const ps = [...document.querySelectorAll('a.pin')].map((a) => { const r = a.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; }); let m = 1e9; for (let i = 0; i < ps.length; i++) for (let j = i + 1; j < ps.length; j++) m = Math.min(m, Math.hypot(ps[i][0] - ps[j][0], ps[i][1] - ps[j][1])); return m; });
+    check(gap390 >= 52 && await page.$$eval('g.hz-pl', (x) => x.length) === 0, `desks 390: the closest two pins are ${gap390.toFixed(1)}px apart; the first view's planes have landed`);
+    await page.click('#pin-vlc');
+    await page.clock.runFor(300);
+    const docked = await page.evaluate(() => { const p = document.getElementById('pin-vlc'), pc = p.querySelector('.pc'), box = document.querySelector('.hmap-box').getBoundingClientRect(), r = pc.getBoundingClientRect(); return { sel: p.classList.contains('sel'), dock: pc.classList.contains('dock'), shown: r.width > 0 && getComputedStyle(pc).display !== 'none', under: r.top >= box.bottom && Math.abs(r.left - box.left) <= 1 && Math.abs(r.width - box.width) <= 1, clear: r.bottom <= document.querySelector('#hmap .m-legend').getBoundingClientRect().top, text: pc.textContent.replace(/\s+/g, ' ').trim(), planes: document.querySelectorAll('g.hz-pl').length, path: location.pathname }; });
+    check(docked.sel && docked.dock && docked.shown && docked.under && docked.clear && /VLC Valencia · Live/.test(docked.text) && docked.planes === 1 && docked.path === '/desks', 'desks 390 (touch): the first tap docks the Valencia card under the map (the key and the cards step down, nothing is covered), lights its pin and flies its plane; the page stays', JSON.stringify(docked));
+    await page.keyboard.press('Escape');
+    check(await page.evaluate(() => !document.getElementById('pin-vlc').classList.contains('sel') && !document.querySelector('#pin-vlc .pc').classList.contains('dock') && document.querySelector('.hmap-box').style.marginBottom === ''), 'desks 390 (touch): Escape closes the docked card and gives its room back');
+    await page.click('#pin-vlc');
+    await page.clock.runFor(200);
+    await Promise.all([page.waitForURL(/\/valencia$/, { timeout: 5000 }).catch(() => {}), page.click('#pin-vlc')]);
+    check(/\/valencia$/.test(page.url()), 'desks 390 (touch): the second tap goes to the Valencia desk');
+    check(st.errors.length === 0, 'desks 390 (touch): no JS error', st.errors.join(' | '));
     await ctx.close();
   }
 
@@ -1334,6 +1417,8 @@ async function hubUI() {
     await page.clock.runFor(800);
     await center(page, '#hmap');
     await page.clock.runFor(2500);
+    await page.clock.runFor(4000);   // the first view's six planes have landed
+    const pl0 = await page.$$eval('g.hz-pl', (x) => x.length);
     const before = await page.$eval('#arc-lon', (a) => getComputedStyle(a).stroke);
     await page.hover('#pin-lon');
     await page.clock.runFor(500);
@@ -1342,12 +1427,16 @@ async function hubUI() {
     const other = await page.$eval('#arc-ams', (a) => getComputedStyle(a).stroke);
     check(after.stroke === 'rgb(255, 215, 0)' && before !== after.stroke && other !== after.stroke && await shown(page, '#pin-lon .pc') && /London · Live/.test(await text(page, '#pin-lon .pc')),
       'desks 1440: hovering the London pin strokes ITS arc gold (computed) and shows its card', JSON.stringify({ before, after, other }));
-    const comet = await page.evaluate(() => document.getAnimations().filter((a) => a.animationName === 'comet').map((a) => `${a.effect.target.id}:${a.effect.getTiming().iterations}`));
-    check(comet.join() === 'cm-lon:1', `desks 1440: the hover sends ONE comet along London's arc, once (${comet.join(', ') || 'none'})`);
-    const land = await page.evaluate(() => { const r = document.querySelector('.hmap-svg rect.land'); return r ? r.getBoundingClientRect().width > 300 && getComputedStyle(r).clipPath !== 'none' : false; });
+    const pl1 = await page.$$eval('g.hz-pl', (x) => x.length);
+    await page.clock.runFor(4000);
+    const pl2 = await page.$$eval('g.hz-pl', (x) => x.length);
+    check(pl0 === 0 && pl1 === 1 && pl2 === 0, `desks 1440: the hover sends ONE plane along London's arc, once (${pl0} → ${pl1} → ${pl2})`);
+    const glow = await page.$$eval('svg.hz g.dk.on', (x) => x.length), keys = await page.$$eval('.m-legend .k-x', (x) => x.map((k) => k.hidden).join());
+    check(glow === 6 && keys === 'false,false' && !!(await page.$('svg.hz .hz-nite image')), `desks 1440 (Monday 10:00 Rome): the six live desks glow, the night is drawn, the key's last two entries are revealed (${glow}, ${keys})`);
+    const land = await page.evaluate(() => { const r = document.querySelector('.hmap svg.hz rect.land'); return r ? r.getBoundingClientRect().width > 300 && getComputedStyle(r).clipPath !== 'none' : false; });
     check(land, 'desks 1440: the land is drawn, clipped to the coast');
     const gap = await page.evaluate(() => {
-      const svg = document.querySelector('.hmap-svg');
+      const svg = document.querySelector('.hmap svg.hz');
       const m = svg.getScreenCTM();
       return [...document.querySelectorAll('.pin')].map((p) => {
         const r = p.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
@@ -1378,9 +1467,9 @@ async function hubUI() {
     await center(page, '#hmap');
     await page.hover('#pin-ams');
     await page.waitForTimeout(300);
-    const rmComet = await page.evaluate(() => document.getAnimations().filter((a) => a.animationName === 'comet').length);
+    const rmPlanes = await page.$$eval('g.hz-pl', (x) => x.length);
     await page.waitForTimeout(2200);
-    check(rmComet === 0 && await page.evaluate(() => !window.BOOM_ONDA || !window.BOOM_ONDA.running), 'desks, reduced motion: no comet on hover, and the onda never loops');
+    check(rmPlanes === 0 && await page.$$eval('g.hz-pl', (x) => x.length) === 0 && await page.evaluate(() => !!window.BOOM_MAP && (!window.BOOM_ONDA || !window.BOOM_ONDA.running)), 'desks, reduced motion: the map script is there but no plane flies on hover, and the onda never loops');
     await ctx.close();
   }
 }
