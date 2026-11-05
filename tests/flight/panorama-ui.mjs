@@ -325,6 +325,97 @@ try{
   await page.locator('#panoramaGlobeDialog').waitFor({state:'hidden'});
   assert.equal(await page.evaluate(()=>BoomFlightGlobe.state().flying),false,'reduced motion chooses the destination without a simulated flight');await oneGlobe(page);
  },'no-preference');
+ await check('Service motion: pointer feedback is finite; rapid, keyboard, pause and reduced-motion choices preserve the real offer',1440,async({page})=>{
+  const manifest=JSON.parse(readFileSync(root+'assets/boom-desks-public.json','utf8'));
+  const plans={search:'full-search',application:'application-pack',viewing:'attended-viewing'};
+  await start(page,'&city=london&need=search');
+  await page.locator('#europeServicePass .europe-service-price strong').waitFor();
+  const choices=page.locator('#europeDeskStory [data-europe-need]');
+  await choices.first().scrollIntoViewIfNeeded();
+  // Observe real browser animations and painted states, without replacing
+  // animate(), adding application globals or reproducing its event handler.
+  async function observe(){return page.locator('#europeServicePass').evaluateHandle(node=>{
+   const trace={seen:new Map(),maxConcurrent:0,painted:false,frame:0};
+   trace.sample=()=>{
+    const active=node.getAnimations().filter(animation=>animation.effect?.target===node&&animation.playState!=='finished'&&animation.playState!=='idle');
+    trace.maxConcurrent=Math.max(trace.maxConcurrent,active.length);
+    for(const animation of active)if(!trace.seen.has(animation))trace.seen.set(animation,animation.effect.getComputedTiming().endTime);
+    const style=getComputedStyle(node);
+    if(active.length&&Number(style.opacity)<.99&&style.transform!=='none')trace.painted=true;
+   };
+   function frame(){trace.sample();trace.frame=requestAnimationFrame(frame);}
+   frame();return trace;
+  });}
+  async function pointer(need,trace){
+   await page.locator('[data-europe-need="'+need+'"]').click();
+   await trace.evaluate(value=>value.sample());
+  }
+  async function begun(trace){await page.waitForFunction(value=>[...value.seen.keys()].some(animation=>animation.playState==='running'),trace);}
+  async function finish(trace){
+   const result=await trace.evaluate(async value=>{
+    await new Promise(resolve=>setTimeout(resolve,350));
+    value.sample();cancelAnimationFrame(value.frame);
+    const node=document.getElementById('europeServicePass'),style=getComputedStyle(node);
+    return {motions:[...value.seen].map(([animation,end])=>({state:animation.playState,end})),maxConcurrent:value.maxConcurrent,painted:value.painted,
+     active:node.getAnimations().filter(animation=>animation.playState!=='finished'&&animation.playState!=='idle').length,opacity:Number(style.opacity),transform:style.transform};
+   });
+   await trace.dispose();
+   assert.equal(result.active,0,'service feedback settles without an animation loop');
+   assert.equal(result.opacity,1,'the complete service returns to full readability');
+   assert.equal(result.transform,'none','the service returns to its normal layout');
+   assert.ok(result.motions.every(motion=>Number.isFinite(motion.end)&&motion.end>0&&motion.end<=400),'each observed state transition is short and finite');
+   assert.ok(result.maxConcurrent<=1,'rapid input never stacks service transitions');
+   return result;
+  }
+  async function offer(need){
+   const plan=manifest.cities.london.pricing.plans.find(item=>item.id===plans[need]);
+   const expected=new Intl.NumberFormat('en-GB',{style:'currency',currency:'GBP',maximumFractionDigits:0}).format(plan.price);
+   assert.equal(await choices.count(),3,'the original three service choices remain available');
+   assert.deepEqual(await choices.evaluateAll(nodes=>nodes.filter(node=>node.getAttribute('aria-pressed')==='true').map(node=>node.dataset.europeNeed)),[need],'only the final requested service is selected');
+   assert.equal(await page.locator('#europeServicePass .europe-service-price strong').innerText(),expected,'animation never changes the published GBP fee');
+   assert.equal(await page.locator('#europeServicePass .europe-service-price small').innerText(),plan.condition,'the actual fee condition stays with the offer');
+   assert.deepEqual(await page.locator('#europeServicePass .europe-service-includes li').allTextContents(),plan.includes,'the final offer keeps its real scope');
+   assert.equal(new URL(page.url()).searchParams.get('need'),need,'the canonical route agrees with the visible choice');
+   assert.equal(await page.locator('[data-europe-need="'+need+'"]').evaluate(node=>node===document.activeElement),true,'service rendering preserves focus on the chosen control');
+  }
+  let trace=await observe();await pointer('application',trace);let result=await finish(trace);
+  assert.equal(result.motions.length,1,'a changed pointer choice produces actual browser motion');
+  assert.equal(result.painted,true,'the finite animation actually changes the rendered service');await offer('application');
+  trace=await observe();await pointer('application',trace);result=await finish(trace);
+  assert.equal(result.motions.length,0,'choosing the selected service does not replay feedback');
+
+  const rapidPoints=await Promise.all(['viewing','search'].map(need=>page.locator('[data-europe-need="'+need+'"]').boundingBox()));
+  trace=await observe();
+  for(const [index,box] of rapidPoints.entries()){
+   await page.mouse.click(box.x+box.width/2,box.y+box.height/2);await trace.evaluate(value=>value.sample());
+   if(index===0)await begun(trace);
+  }
+  result=await finish(trace);
+  assert.equal(result.motions.length,2,'two rapid changes each receive their own feedback');
+  assert.equal(result.motions[0].state,'idle','the superseded animation is cancelled');
+  assert.equal(result.motions[1].state,'finished','the latest choice completes normally');await offer('search');
+
+  trace=await observe();await page.locator('[data-europe-need="application"]').focus();await page.keyboard.press('Enter');result=await finish(trace);
+  assert.equal(result.motions.length,0,'keyboard activation commits without animation');await offer('application');
+  trace=await observe();await pointer('viewing',trace);await begun(trace);await page.keyboard.press('Escape');result=await finish(trace);
+  assert.equal(result.motions.length,1,'pointer feedback started before keyboard input');
+  assert.equal(result.motions[0].state,'idle','keyboard input cancels motion already in progress');await offer('viewing');
+
+  trace=await observe();await pointer('search',trace);await begun(trace);
+  // Click the original control directly to isolate its pause behavior from
+  // keyboard cancellation or the time needed to scroll back to the hero.
+  await page.locator('#nextMotionToggle').evaluate(node=>node.click());result=await finish(trace);
+  assert.equal(await page.locator('#nextMotionToggle').getAttribute('aria-pressed'),'true');
+  assert.equal(result.motions.length,1);assert.equal(result.motions[0].state,'idle','pause cancels in-progress service motion');await offer('search');
+  trace=await observe();await pointer('application',trace);result=await finish(trace);
+  assert.equal(result.motions.length,0,'paused choices stay immediate');await offer('application');
+
+  await page.locator('#nextMotionToggle').evaluate(node=>node.click());
+  trace=await observe();await pointer('viewing',trace);await begun(trace);await page.emulateMedia({reducedMotion:'reduce'});result=await finish(trace);
+  assert.equal(result.motions.length,1);assert.equal(result.motions[0].state,'idle','enabling reduced motion cancels an active transition');await offer('viewing');
+  trace=await observe();await pointer('search',trace);result=await finish(trace);
+  assert.equal(result.motions.length,0,'reduced-motion choices remain fully functional without movement');await offer('search');
+ },'no-preference');
  await check('Studio: one preview retains the public London draft; invalid dates block switching and device changes never reload',1440,async({page})=>{
   const query=new URLSearchParams({city:'london',moveIn:arrival,moveOut:departure,budget:'3000',currency:'GBP',people:'couple',need:'application',privatePlace:'synthetic-office',lat:'41.9123',lng:'12.5123'});
   await page.goto(origin+'/flight-studio?'+query,{waitUntil:'domcontentloaded'});

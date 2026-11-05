@@ -3408,6 +3408,11 @@ Ticket Roma: corpo nero, linea delle attività reali, stacco giallo prezzo/azion
 La decorazione non duplica stato, nodi d’invio o offerte. Pause, reduced motion, città, date, disponibilità e handoff canonici restano autoritativi.
 `flightpanoramaui` aggiunge sei firme città e quindici combinazioni estere città/servizio, condizioni/valute/contrasto/handoff e ticket Roma. Direzione vincolante in `design/panorama-aviation-notes.md`.
 
+Flight Panorama componenti 06/11: azioni principali con vano freccia, utility da48px e inviti da56px condividono famiglia tipografica, focus e risposta alla pressione anche touch. Le città mantengono selezione gialla e controller originale.
+I servizi Roma diventano due biglietti orizzontali: titolo/condizioni, percorso/ambito e stacco giallo con prezzo, nota e azione nera; tablet/telefono ricompongono gli stessi link senza controlli annidati.
+Il cambio bisogno da puntatore aggiorna subito il servizio e accompagna il contenuto con220ms finiti. Tastiera, pausa, riduzione, history e pagehide annullano la transizione; una nuova scelta cancella quella precedente. Nessun nuovo clock persistente o libreria.
+`flightpanoramaui` verifica animazione realmente dipinta, interruzioni, selezioni rapide, prezzo GBP e focus; restano le dieci prove precedenti. Gerarchia, fonti e decisioni in `design/panorama-component-craft.md`.
+
 Flight Lab 31/10: `/flight-lab` confronta Atlas, Residence e Club sulle stesse viste reali di `/flight-next?direction=…`, senza cambiare il sito pubblico.
 Le composizioni riusano catalogo, Solari, iframe Skyline, salvataggi e Apply; nessun secondo catalogo o nuovo handler di invio.
 Residence usa una foto realmente restituita dal catalogo pubblico (fallback a una casa pubblica non chiusa); Atlas sposta la stessa mappa nel primo schermo.
