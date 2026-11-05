@@ -1,5 +1,7 @@
 # BOOM Panorama — component craft, 6 November 2026
 
+The service composition below is superseded by `panorama-live-ticketing.md`: four original product identities and service colours, integrated as a second home. Control and motion principles remain.
+
 The original black/yellow identity, Solari, globe and real service journeys remain
 binding. This pass addresses the user's rejection of ordinary-looking controls:
 precise anatomy and useful state feedback, rather than more effects or libraries.

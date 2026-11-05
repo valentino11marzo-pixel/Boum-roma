@@ -13,7 +13,8 @@
   function place(){return context&&(context.state.privatePlace||P.destination(context.state.place));}
   function placeName(p){return p&&(p.nome||p.name)||'';}
   function brief(){var s=context.state;return Object.assign({},s.stay,{place:s.place,budget:s.budget?Number(s.budget):null,people:s.people,type:s.type,homes:s.homes||[]});}
-  function intent(href){return context?J.withIntent(href,brief()):href;}
+  function intent(href){return context?J.withIntent(href,hooks&&hooks.publicBrief?hooks.publicBrief():brief()):href;}
+  function refreshServiceLinks(){document.querySelectorAll('a[data-journey-service]').forEach(function(a){a.href=intent(a.dataset.journeyService);});}
   function origin(c){var r=c.raw||{},lat=Number(r.lat),lng=Number(r.lng);return Number.isFinite(lat)&&Number.isFinite(lng)&&lat!==0&&lng!==0?{lat:lat,lng:lng}:null;}
   function evidence(c){
     var p=place();if(!p)return null;
@@ -138,7 +139,7 @@
   function render(next){
     context=next;var p=place(),b=el('nextDestinationSummary');b.querySelector('strong').textContent=placeName(p)||'Where will you go most days?';b.querySelector('.destination-hint').textContent=p?(p.address||p.che||(context.state.privatePlace?'Your saved place · private':'Your everyday destination')):'Campus, work or your own place';
     b.dataset.selected=String(!!p);renderBalance();
-    document.querySelectorAll('a[data-journey-service]').forEach(function(a){a.href=intent(a.dataset.journeyService);});
+    refreshServiceLinks();
   }
   function init(callbacks){
     hooks=callbacks;
@@ -160,5 +161,5 @@
     el('nextDestinationDialog').addEventListener('close',function(){++requestNumber;if(request)request.abort();var focus=opener&&opener.isConnected?opener:document.querySelector(context&&context.state.view==='detail'?'.detail-everyday [data-edit-destination]':'#nextBalance [data-edit-destination]');if(focus)focus.focus({preventScroll:true});});
     window.addEventListener('boom-next:map-journeys',function(){if(context)hooks.refresh();});
   }
-  window.BoomFlightClub={init:init,render:render,detail:detail,open:open,intent:intent};
+  window.BoomFlightClub={init:init,render:render,detail:detail,open:open,intent:intent,refreshServiceLinks:refreshServiceLinks};
 })();

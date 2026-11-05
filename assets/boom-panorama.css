@@ -111,6 +111,7 @@ body[data-direction="club"][data-experience="panorama"][data-edition="club"].eur
  & .edition-flightline i{width:48px;background:var(--p-line)}
  & .panorama-globe-dialog{width:100vw;max-width:none;height:100vh;height:100dvh;max-height:none;inset:0;margin:0;padding:24px clamp(18px,4vw,64px) 16px;border:0;border-radius:0;background:var(--p-bg);color:var(--p-text);overflow:hidden;box-shadow:none;font-family:var(--p-font)}
  & .panorama-globe-dialog[open]{display:flex;flex-direction:column;animation:none;transform:none}
+ & .panorama-globe-dialog{padding-top:max(24px,env(safe-area-inset-top));padding-right:max(clamp(18px,4vw,64px),env(safe-area-inset-right));padding-bottom:max(16px,env(safe-area-inset-bottom));padding-left:max(clamp(18px,4vw,64px),env(safe-area-inset-left))}
  & .panorama-globe-dialog::backdrop{background:var(--p-bg)}
  & .panorama-full-head{display:flex;align-items:center;justify-content:space-between;gap:24px;flex:none;border-bottom:1px solid var(--p-line);padding-bottom:20px}
  & .panorama-full-head>div>span{display:none}
@@ -202,7 +203,7 @@ body[data-direction="club"][data-experience="panorama"][data-edition="club"].eur
  & .edition-flightline{gap:8px;padding:10px 20px;justify-content:space-between}
  & .edition-flightline a{font-size:12px;gap:6px}
  & .edition-flightline i{display:none}
- & .panorama-globe-dialog{padding:18px 16px 12px}
+ & .panorama-globe-dialog{padding:max(18px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
  & .panorama-full-head{align-items:flex-start;gap:16px;padding-bottom:16px}
  & .panorama-full-head h2{font-size:24px;max-width:180px}
  & .panorama-full-actions{flex-direction:column-reverse;gap:8px;align-items:stretch}
@@ -213,6 +214,7 @@ body[data-direction="club"][data-experience="panorama"][data-edition="club"].eur
  & .panorama-full-stage .boom-globe-cities button{font-size:12px;min-height:44px}
  & .panorama-full-note{font-size:12px;max-width:310px;margin:auto;padding-top:0}
 }}
+@media(max-width:650px){html.boom-panorama{scroll-padding-top:112px}}
 @media(max-width:360px){body[data-direction="club"][data-experience="panorama"][data-edition="club"].europe-ready{
  & .hero-pretitle{font-size:24px}
  & .europe-cities button{font-size:12px;padding-inline:4px}

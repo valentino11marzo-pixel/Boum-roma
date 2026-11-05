@@ -196,6 +196,17 @@
   }
   function photos(index,opener){var c=getHome(state.home);if(!c||!c.images.length)return;var mount=byId('nextFullPhotos');mount.innerHTML=c.images.map(function(src,i){return '<figure><img src="'+esc(src)+'" alt="'+esc(c.name)+' — photo '+(i+1)+'" loading="lazy"><figcaption>'+String(i+1).padStart(2,'0')+' / '+String(c.images.length).padStart(2,'0')+' · '+esc(c.name)+'</figcaption></figure>';}).join('');openDialog(byId('nextPhotoDialog'),opener);mount.scrollLeft=Math.min(index,c.images.length-1)*mount.clientWidth;}
   function updateFilters(){commit(true);syncControls();renderResults();}
+  function publicBrief(){
+    var stay=state.stay,budget=state.budget,people=state.people;
+    if(homeDirty&&state.view==='home'){
+      var requested={moveIn:byId('nextMoveIn').value,moveOut:byId('nextMoveOut').value};
+      // Native service links include an edited brief without submitting the search.
+      // An incomplete or invalid draft must not resurrect previous valid dates.
+      stay=S.validate(requested)?S.normalize():S.normalize(requested);
+      budget=byId('nextBudget').value;people=byId('nextPeople').value;
+    }
+    return Object.assign({},stay,{place:state.place,budget:budget||null,people:people,type:state.type,homes:state.homes});
+  }
   function readHome(){
     var requested={moveIn:byId('nextMoveIn').value,moveOut:byId('nextMoveOut').value},error=S.validate(requested);
     byId('nextSearchError').hidden=!error;
@@ -226,6 +237,12 @@
     var b=e.target.closest('button,a');if(!b)return;
     if(b.hasAttribute('data-view')){if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return;e.preventDefault();navigate(b.dataset.view);}
     else if(b.hasAttribute('data-home')){if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return;e.preventDefault();if(homeDirty&&state.view==='home'){if(!readHome())return;commit(true);}navigate('detail',b.dataset.home);}
+    else if(b.hasAttribute('data-journey-service')&&C&&homeDirty&&state.view==='home'){
+      if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey||e.button)return;
+      // Remember the public brief only when leaving this page. Native navigation
+      // still owns the handoff; Back restores the planner without running a search.
+      var serviceBrief=publicBrief();state.stay=S.normalize(serviceBrief);state.budget=serviceBrief.budget||'';state.people=serviceBrief.people||'';homeDirty=false;commit(true);
+    }
     else if(b.hasAttribute('data-save-home')){toggleSave(b.dataset.saveHome);}
     else if(b.hasAttribute('data-guide')){guide(b);}
     else if(b.hasAttribute('data-edit-stay')||b.id==='nextEditStay'){editStay(b);}
@@ -244,7 +261,7 @@
   window.addEventListener('boom-next:map-select',function(e){selected=e.detail.id;var c=getHome(selected);if(!c)return;if(state.view==='home'){document.querySelector('.city-caption').innerHTML='<span class="city-selected">'+(c.image?'<img src="'+esc(c.image)+'" alt="">':'')+'<span>'+esc(c.name)+'<small>'+esc(c.zone)+' · '+esc(money(c.price))+(c.price?' / month':'')+'</small></span></span><a href="'+esc(url('detail',c.id))+'" data-home="'+esc(c.id)+'">Explore this home <span aria-hidden="true">↗</span></a>';}else selectCard(true);});
   byId('nextFilterBudget').addEventListener('change',function(e){state.budget=e.target.value;updateFilters();});
   byId('nextFilterType').addEventListener('change',function(e){state.type=e.target.value;updateFilters();});
-  ['input','change'].forEach(function(event){byId('nextSearchForm').addEventListener(event,function(){homeDirty=true;});});
+  ['input','change'].forEach(function(event){byId('nextSearchForm').addEventListener(event,function(){homeDirty=true;if(C)C.refreshServiceLinks();});});
   byId('nextSearchForm').addEventListener('submit',function(e){e.preventDefault();if(readHome())navigate('apartments');});
   byId('nextStayForm').addEventListener('submit',function(e){e.preventDefault();var requested={moveIn:byId('nextDialogIn').value,moveOut:byId('nextDialogOut').value},error=S.validate(requested);byId('nextDialogError').hidden=!error;if(error){byId('nextDialogError').textContent=error.message;byId(error.field==='moveIn'?'nextDialogIn':'nextDialogOut').focus();return;}state.stay=S.normalize(requested);state.people=byId('nextDialogPeople').value;commit(true);syncControls();if(state.view==='apartments')renderResults();if(state.view==='detail')renderDetail();byId('nextStayDialog').close();});
   byId('nextClearDates').addEventListener('click',function(){state.stay=S.normalize();commit(true);syncControls();if(state.view==='apartments')renderResults();if(state.view==='detail')renderDetail();byId('nextStayDialog').close();});
@@ -263,7 +280,7 @@
   });
   window.addEventListener('focus',syncSaved);
   if(C){
-    C.init({destination:function(slug,privatePlace){state.place=slug;state.privatePlace=privatePlace;if(balanceIntent)balanceIntent=slug||privatePlace?'selected':null;M.destination(slug);commit(true);refreshClub();if(state.view==='apartments')renderResults();if(state.view==='detail')renderDetail();},refresh:function(){refreshClub();if(state.view==='detail'){var c=getHome(state.home),panel=document.querySelector('.detail-everyday');if(c&&panel)panel.outerHTML=C.detail(c);}syncSaved();},announce:announce});
+    C.init({publicBrief:publicBrief,destination:function(slug,privatePlace){state.place=slug;state.privatePlace=privatePlace;if(balanceIntent)balanceIntent=slug||privatePlace?'selected':null;M.destination(slug);commit(true);refreshClub();if(state.view==='apartments')renderResults();if(state.view==='detail')renderDetail();},refresh:function(){refreshClub();if(state.view==='detail'){var c=getHome(state.home),panel=document.querySelector('.detail-everyday');if(c&&panel)panel.outerHTML=C.detail(c);}syncSaved();},announce:announce});
     // Continue only after a guide selection, once the picker's own focus cleanup
     // has finished. Closing, clearing or going Back never leaves a queued jump.
     byId('nextDestinationDialog').addEventListener('close',function(){var selectedDestination=balanceIntent==='selected';balanceIntent=null;if(selectedDestination)openBalance();});

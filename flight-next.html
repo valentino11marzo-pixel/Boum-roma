@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="robots" content="noindex,nofollow"><meta name="theme-color" content="#070709">
+  <script>if(new URLSearchParams(location.search).get('experience')==='panorama'){var panoramaFont=document.createElement('link');panoramaFont.rel='preload';panoramaFont.as='font';panoramaFont.type='font/woff2';panoramaFont.crossOrigin='anonymous';panoramaFont.href='/assets/fonts/instrument-sans-latin.woff2';document.head.appendChild(panoramaFont);}</script>
   <title>BOOM — Your next chapter, Rome.</title>
   <link rel="icon" href="/assets/icons/favicon-32.png">
   <link rel="stylesheet" href="/assets/boom-flight-next.css?v=20261103a">
@@ -18,15 +19,15 @@
   <link rel="stylesheet" href="/assets/boom-club-company.css?v=20261105a">
   <link rel="stylesheet" href="/assets/boom-club-journey.css?v=20261105a">
   <link rel="stylesheet" href="/assets/boom-edition-perspective.css?v=20261104a">
-  <link rel="stylesheet" href="/assets/boom-panorama.css?v=20261106c1">
-  <link rel="stylesheet" href="/assets/boom-panorama-interior.css?v=20261106c1">
+  <link rel="stylesheet" href="/assets/boom-panorama.css?v=20261106live1">
+  <link rel="stylesheet" href="/assets/boom-panorama-interior.css?v=20261106live1">
   <script src="/js/listing-facts.js" defer></script><script src="/js/dispo-engine.js" defer></script>
   <script src="/js/stay-engine.js" defer></script><script src="/js/mappa-engine.js" defer></script><script src="/js/boom-geo.js" defer></script><script src="/js/skyline-guide-engine.js?v=20261103a" defer></script><script src="/js/journey-engine.js?v=20261104a" defer></script><script src="/js/flight-engine.js" defer></script>
   <script src="/assets/boom-flight-next-data.js?v=20261103a" defer></script>
   <script src="/assets/boom-flight-next-map.js?v=20261103a" defer></script>
   <script src="/assets/boom-flight-next-motion.js?v=20261104night1" defer></script>
   <script src="/assets/boom-flight-directions.js?v=20261104b" defer></script>
-  <script src="/assets/boom-flight-club.js?v=20261104craft1" defer></script>
+  <script src="/assets/boom-flight-club.js?v=20261106brief1" defer></script>
   <script src="/assets/boom-flight-europe.js?v=20261105p1" defer></script>
   <script src="/assets/boom-flight-globe.js?v=20261105p1" defer></script>
   <script src="/assets/boom-edition-club.js?v=20261105p1" defer></script>
@@ -34,8 +35,8 @@
   <script src="/assets/boom-edition-perspective.js?v=20261104a" defer></script>
   <script src="/assets/boom-club-company.js?v=20261105a" defer></script>
   <script src="/assets/boom-club-journey.js?v=20261105a" defer></script>
-  <script src="/assets/boom-panorama.js?v=20261106c1" defer></script>
-  <script src="/assets/boom-flight-next.js?v=20261105continuity1" defer></script>
+  <script src="/assets/boom-panorama.js?v=20261106live1" defer></script>
+  <script src="/assets/boom-flight-next.js?v=20261106brief1" defer></script>
 </head>
 <body>
   <a class="skip" href="#nextMain">Skip to content</a>
@@ -98,4 +99,55 @@
   <dialog id="nextPhotoDialog" class="next-photo-dialog" aria-label="Home photos"><button type="button" data-close-dialog aria-label="Close photo gallery">✕</button><div id="nextFullPhotos"></div></dialog>
   <p id="nextAnnouncement" class="next-toast" role="status" hidden></p>
   <noscript><div class="next-noscript">This interactive design preview uses JavaScript. <a href="/apartments">Browse all homes</a> or <a href="/skyline">open Skyline</a>.</div></noscript>
+  <!-- Panorama presents the four published Rome services. Original pages own forms and checkout. -->
+  <template id="panoramaServiceTickets">
+    <a class="next-ticket panorama-ticket" data-rome-service="property-finding" href="/property-finding" data-journey-service="/property-finding">
+      <span class="panorama-ticket-band" aria-hidden="true">Property Finding</span>
+      <div class="panorama-ticket-body">
+        <h3>Property Finding</h3>
+        <p class="panorama-ticket-situation">Still searching from abroad?</p>
+        <div class="panorama-ticket-route"><span>ABROAD</span><i aria-hidden="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.5 15.5v-2l-8-5V3c0-.83-.67-1.5-1.5-1.5S10.5 2.17 10.5 3v5.5l-8 5v2l8-2.5v5.5l-2 1.5V21l3.5-1 3.5 1v-1.5l-2-1.5v-5.5l8 2.5z"/></svg></i><span>ROME</span></div>
+        <p class="panorama-ticket-description">A dedicated search across the Rome market, based on your written criteria. We organise viewings and help you choose.</p>
+        <dl class="panorama-ticket-facts"><div><dt>Search brief</dt><dd>Your criteria</dd></div><div><dt>Viewings</dt><dd>In person</dd></div><div><dt>On success</dt><dd>Agency fee credit</dd></div></dl>
+        <p class="ticket-terms">At least 3 matching options within 15 days, or €350 refunded. Terms §4.2.</p>
+      </div>
+      <div class="ticket-stub"><span class="panorama-ticket-reference">BOOM · PF-0350</span><strong>€350</strong><small>Credited to the agency fee on success.</small><span class="panorama-ticket-action"><span>Start your search</span><b aria-hidden="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></b></span></div>
+    </a>
+    <a class="next-ticket panorama-ticket" data-rome-service="virtual-viewing" href="/virtual-viewing" data-journey-service="/virtual-viewing">
+      <span class="panorama-ticket-band" aria-hidden="true">Virtual Viewing</span>
+      <div class="panorama-ticket-body">
+        <h3>Virtual Viewing</h3>
+        <p class="panorama-ticket-situation">Found it, can’t fly?</p>
+        <div class="panorama-ticket-route"><span>YOU</span><i aria-hidden="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></i><span>THE DOOR</span></div>
+        <p class="panorama-ticket-description">See the home live on video before you travel, with photos and an honest written report.</p>
+        <dl class="panorama-ticket-facts"><div><dt>Format</dt><dd>Live video</dd></div><div><dt>Includes</dt><dd>Photos &amp; report</dd></div></dl>
+        <p class="ticket-terms">Scheduled within 48 hours. Refunded if we cannot reach the property.</p>
+      </div>
+      <div class="ticket-stub"><span class="panorama-ticket-reference">BOOM · VV-0089</span><strong>€89</strong><small>Credited if you rent that home with BOOM.</small><span class="panorama-ticket-action"><span>Book a live tour</span><b aria-hidden="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></b></span></div>
+    </a>
+    <a class="next-ticket panorama-ticket" data-rome-service="deal-assistance" href="/deal-assistance" data-journey-service="/deal-assistance">
+      <span class="panorama-ticket-band" aria-hidden="true">Deal Assistance</span>
+      <div class="panorama-ticket-body">
+        <h3>Deal Assistance</h3>
+        <p class="panorama-ticket-situation">Found it elsewhere?</p>
+        <div class="panorama-ticket-route"><span>FOUND</span><i aria-hidden="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></i><span>PROTECTED</span></div>
+        <p class="panorama-ticket-description">Landlord and property checks, contract review in English, and negotiation through to signature.</p>
+        <dl class="panorama-ticket-facts"><div><dt>Checks</dt><dd>Landlord &amp; contract</dd></div><div><dt>Support</dt><dd>To signature</dd></div></dl>
+        <p class="ticket-terms">First review within 24 hours of payment. Your €49 Contract Check is credited.</p>
+      </div>
+      <div class="ticket-stub"><span class="panorama-ticket-reference">BOOM · DA-0249</span><strong>€249</strong><small>Fixed fee. Scope explained before checkout.</small><span class="panorama-ticket-action"><span>Protect your deal</span><b aria-hidden="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></b></span></div>
+    </a>
+    <a class="next-ticket panorama-ticket" data-rome-service="contract-check-express" href="/contract-check-express" data-journey-service="/contract-check-express">
+      <span class="panorama-ticket-band" aria-hidden="true">Contract Check Express</span>
+      <div class="panorama-ticket-body">
+        <h3>Contract Check Express</h3>
+        <p class="panorama-ticket-situation">About to sign?</p>
+        <div class="panorama-ticket-route"><span>DRAFT</span><i aria-hidden="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></i><span>VERDICT</span></div>
+        <p class="panorama-ticket-description">A written verdict on your contract: what is fine, unfair or missing.</p>
+        <dl class="panorama-ticket-facts"><div><dt>Verdict</dt><dd>Written</dd></div><div><dt>Scope</dt><dd>Contract review</dd></div></dl>
+        <p class="ticket-terms">Within 24 hours of receiving your contract. Negotiation is not included.</p>
+      </div>
+      <div class="ticket-stub"><span class="panorama-ticket-reference">BOOM · CC-0049</span><strong>€49</strong><small>Credited in full toward Deal Assistance.</small><span class="panorama-ticket-action"><span>Check my contract</span><b aria-hidden="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></b></span></div>
+    </a>
+  </template>
 </body></html>

@@ -13,7 +13,7 @@
   else window.addEventListener('resize',sizePreview);
   var play=document.getElementById('playTour'), status=document.getElementById('tourStatus');
   var steps=[
-    {title:'Il tuo punto di partenza.',note:'Il pulso giallo attraversa il pattern Solari originale. Scegli inizio e fine soggiorno, poi esplora Skyline.',name:'Home',url:'/'},
+    {title:'Il tuo punto di partenza.',note:'Il pulso giallo attraversa il pattern Solari originale. Scegli inizio e fine soggiorno, poi esplora Skyline.',name:'Home',url:'/home-flight'},
     {title:'Scegli una casa. Guarda come vivi.',note:'Filtra le case, passa tra lista e Skyline. “On Skyline” raggiunge la casa selezionata senza perdere la ricerca.',name:'Apartments',url:'/apartments'},
     {title:'Tutto quello che serve per decidere.',note:'Foto senza scatti, un biglietto leggibile e Apply accanto alla casa: quattro passaggi, riepilogo e dati conservati.',name:'Apartment Details',url:null},
     {title:'La tua Roma prende forma.',note:'Your Rome: scegli il campus preciso, confronta le possibilità e condividi la tua ricerca. Find my balance ti accompagna nella scelta.',name:'Skyline',url:'/skyline?guide=1'}
@@ -66,7 +66,7 @@
     clearTimeout(loadTimer);stage.classList.remove('is-loading');stage.classList.add('is-arriving');
     try {
       var doc=frame.contentDocument, path=frame.contentWindow.location.pathname;
-      if(path==='/')current=0;else if(/^\/apartments(?:\.html)?$/.test(path))current=1;else if(path.indexOf('/listing/')===0){current=2;detailPath=path;steps[2].url=path;document.querySelector('[data-step="2"]').disabled=false;}else if(/^\/skyline(?:\.html)?$/.test(path))current=3;
+      if(/^\/home-flight(?:\.html)?$/.test(path))current=0;else if(/^\/apartments(?:\.html)?$/.test(path))current=1;else if(path.indexOf('/listing/')===0){current=2;detailPath=path;steps[2].url=path;document.querySelector('[data-step="2"]').disabled=false;}else if(/^\/skyline(?:\.html)?$/.test(path))current=3;
       update();document.getElementById('openPage').href=frame.contentWindow.location.href;
       cleanup.forEach(function(fn){fn();});cleanup=[];watchInteractions(doc,new WeakSet(),new WeakSet());
     }catch(_){pause('Apri la pagina per continuare');return;}

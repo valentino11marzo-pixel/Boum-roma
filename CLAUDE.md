@@ -3413,6 +3413,16 @@ I servizi Roma diventano due biglietti orizzontali: titolo/condizioni, percorso/
 Il cambio bisogno da puntatore aggiorna subito il servizio e accompagna il contenuto con220ms finiti. Tastiera, pausa, riduzione, history e pagehide annullano la transizione; una nuova scelta cancella quella precedente. Nessun nuovo clock persistente o libreria.
 `flightpanoramaui` verifica animazione realmente dipinta, interruzioni, selezioni rapide, prezzo GBP e focus; restano le dieci prove precedenti. Gerarchia, fonti e decisioni in `design/panorama-component-craft.md`.
 
+Flight Panorama biglietteria 06/11: la seconda home riprende i quattro prodotti della home pubblicata: Property Finding €350, Virtual Viewing €89, Deal Assistance €249 e Contract Check Express €49, con nomi/codici/rotte e famiglie cromatiche originali. Il frammento inerte `panoramaServiceTickets` si monta solo in Panorama.
+Le condizioni restano specifiche e verificabili; visite gratuite alle case BOOM e accesso a `/services` sono espliciti. Link nativi e brief passano ancora dal controller Club alle pagine originali: nessun modulo, pagamento o catalogo nuovo.
+`/home-panorama` è un redirect temporaneo alla URL canonica; Studio offre Home attuale verso il dominio pubblicato, separata dall'iframe Panorama/Club. Conservati validazione, preferenze pubbliche e confine dei luoghi privati.
+`flightpanoramaui` verifica quattro biglietti contro prezzi server, condizioni, 320/390/900/1440, rientro Roma, passaggi alle porte originali senza invii e l'ingresso della seconda home. La regia è documentata in `design/panorama-live-ticketing.md`.
+
+Flight home separate 06/11: `index.html` torna identica a `origin/main` (2d211327, commit verificato anche sul dominio pubblico); la precedente home Flight è conservata noindex in `/home-flight`. Il vecchio percorso `/flight-preview` e le sue prove usano questa porta esplicita.
+Il generatore `costruisci-portale.py` applica Flight solo con `--flight`, producendo un file alternativo; il default conserva la composizione principale. Le altre modifiche già presenti nel ramo a catalogo, schede, Skyline, servizi e API restano parte della revisione PR.
+Il brief dei servizi ora legge anche date/budget/persone modificati nel planner prima della ricerca: href nativi aggiornati, nessun commit durante la modifica. Solo il clic ordinario in uscita conserva il brief valido nella history per Back; nuova scheda non altera la pagina. Date incomplete/non valide escluse; luoghi privati mai serializzati.
+`flight`, `flightstay`, `flighthomeui`, `flightstaydates`, `listing` e `flightpanoramaui` coprono separazione, generatore e handoff; la parità del builder Your Rome riallinea solo il token della guida già pubblicato nella pagina.
+
 Flight Lab 31/10: `/flight-lab` confronta Atlas, Residence e Club sulle stesse viste reali di `/flight-next?direction=…`, senza cambiare il sito pubblico.
 Le composizioni riusano catalogo, Solari, iframe Skyline, salvataggi e Apply; nessun secondo catalogo o nuovo handler di invio.
 Residence usa una foto realmente restituita dal catalogo pubblico (fallback a una casa pubblica non chiusa); Atlas sposta la stessa mappa nel primo schermo.

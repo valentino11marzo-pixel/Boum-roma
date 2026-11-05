@@ -31,10 +31,12 @@
     resize();
   }
   function resize(){
-    var width=device==='mobile'?390:1280,scale=Math.min(1,viewport.clientWidth/width);
+    var viewportWidth=viewport.clientWidth,viewportHeight=viewport.clientHeight;
+    var width=device==='mobile'?390:1280,scale=Math.min(1,viewportWidth/width);
     if(!scale)return;
-    frame.style.width=width+'px';frame.style.height=Math.ceil(viewport.clientHeight/scale)+'px';
-    frame.style.transform='scale('+scale+')';frame.style.left=Math.max(0,(viewport.clientWidth-width*scale)/2)+'px';
+    var height=Math.ceil(viewportHeight/scale),left=Math.max(0,(viewportWidth-width*scale)/2);
+    frame.style.width=width+'px';frame.style.height=height+'px';
+    frame.style.transform='scale('+scale+')';frame.style.left=left+'px';
   }
   function child(){
     try{

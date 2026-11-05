@@ -35,10 +35,17 @@ f=form();await S.submit(f,body,async()=>{throw Error('offline');});
 check('Network failure is explicit and re-enables submission',()=>{assert.equal(f.button.disabled,false);assert.match(f.status.textContent,/could not confirm/);});
 f=form();await S.submit(f,body,async()=>({ok:false,status:429,json:async()=>({ok:false})}));
 check('Rate limiting asks the visitor to wait rather than claiming a saved search',()=>assert.match(f.status.textContent,/few minutes/));
-for(const file of ['index.html','apartments.html','apartment-detail.html','skyline.html']){
+for(const file of ['home-flight.html','apartments.html','apartment-detail.html','skyline.html']){
  const src=readFileSync(new URL('../../'+file,import.meta.url),'utf8');
  check(file+' uses the shared shell once',()=>{assert.equal(src.split('src="/assets/boom-flight.js?').length-1,1);assert.match(src,/src="\/js\/flight-engine.js\?/);});
 }
+check('The original root home remains separate from the opt-in Flight composition',()=>{
+ const original=readFileSync(new URL('../../index.html',import.meta.url),'utf8');
+ const alternative=readFileSync(new URL('../../home-flight.html',import.meta.url),'utf8');
+ assert.doesNotMatch(original,/data-flight-home=|boom-flight-home\.(?:css|js)|boom-flight-stay\.(?:css|js)/);
+ assert.match(original,/id="quandoData"/);assert.match(original,/<header class="hero">/);
+ assert.match(alternative,/data-flight-home="true"/);assert.match(alternative,/<meta name="robots" content="noindex,nofollow">/);
+});
 const apartments=readFileSync(new URL('../../apartments.html',import.meta.url),'utf8');
 check('Catalogue uses the real transport and retains dynamic registration',()=>{assert.match(apartments,/BoomSaveSearch.submit\(forma, corpo\)/);assert.doesNotMatch(apartments,/Saved — PREVIEW|POST \/api\/search\/save', corpo/);assert.match(apartments,/__muroInnesta/);assert.match(apartments,/flight-split/);});
 console.log(`\nFlight: ${checks} passed, 0 failed`);

@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 # BOOM · IL PORTALE — l'impostazione da azienda internazionale, dati veri.
-#   python3 costruisci-portale.py artefatto | sito
+#   python3 costruisci-portale.py artefatto | sito [--flight]
 import json, os, re, sys
 from datetime import datetime, timezone
 sys.dont_write_bytecode = True   # niente design/__pycache__ nel repo
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 from listing_facts import bedrooms_of  # design/listing_facts.py: la regola UNA
 
-MODO = sys.argv[1] if len(sys.argv) > 1 else 'artefatto'
+FLIGHT = '--flight' in sys.argv[1:]
+ARGOMENTI = [arg for arg in sys.argv[1:] if arg != '--flight']
+MODO = ARGOMENTI[0] if ARGOMENTI else 'artefatto'
 def euro(n): return '€' + f'{int(n):,}'
 def leggi(n): return open(n, encoding='utf-8').read()
 def quando(r):
@@ -347,14 +349,23 @@ if MODO == 'sito':
          + '\n<script src="/js/dispo-engine.js"></script>'
          + '\n' + leggi('vetrina-idrante.html')
          + '\n' + TESTA.SW + '\n' + TESTA.CONSENSO + '\n</body>\n</html>')
-# Flight is a final presentation pass: keep source engines and live hooks.
-from flight_home import enhance_home
-h = enhance_home(h)
-if MODO == 'sito':
-    from importlib.machinery import SourceFileLoader
-    flight = SourceFileLoader('flight_shell', os.path.join(os.path.dirname(__file__), 'flight-shell.py')).load_module()
-    h = flight.enhance(h, 'home')
-uscita = 'boom-portale.html' if MODO == 'artefatto' else 'boom-portale-sito.html' 
+# The default build remains the canonical home. Flight is an explicit alternative.
+def finish_home(source, mode, flight=False):
+    if flight:
+        from flight_home import enhance_home
+        source = enhance_home(source)
+        if mode == 'sito':
+            from importlib.machinery import SourceFileLoader
+            shell = SourceFileLoader('flight_shell', os.path.join(os.path.dirname(__file__), 'flight-shell.py')).load_module()
+            source = shell.enhance(source, 'home')
+            robots = '<meta name="robots" content="noindex,nofollow">'
+            source, count = re.subn(r'<meta name="robots"[^>]*>', robots, source, count=1)
+            if not count:
+                source = source.replace('</head>', robots + '\n</head>', 1)
+        return source, 'home-flight.html' if mode == 'sito' else 'boom-home-flight.html'
+    return source, 'boom-portale.html' if mode == 'artefatto' else 'boom-portale-sito.html'
+
+h, uscita = finish_home(h, MODO, FLIGHT)
 open(uscita, 'w', encoding='utf-8').write(h)
 print(f'{uscita} · {len(h)//1024} KB · board {len(board)} righe · '
       f'aggiornato {AGG} · vetrina {len(tre)}')

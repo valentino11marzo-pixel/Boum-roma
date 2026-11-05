@@ -72,7 +72,7 @@ check('Stay is never appended to external destinations or payment actions',()=>{
  assert.doesNotMatch(runtime,/fetch\(|localStorage|sessionStorage|\.price\s*\*|\.prezzo\s*\*/);
 });
 check('Home and discovery expose both dates; the original advanced arrival and Apply hooks remain unique',()=>{
- const home=readFileSync(new URL('../../index.html',import.meta.url),'utf8');
+ const home=readFileSync(new URL('../../home-flight.html',import.meta.url),'utf8');
  const ap=readFileSync(new URL('../../apartments.html',import.meta.url),'utf8');
  const detail=readFileSync(new URL('../../apartment-detail.html',import.meta.url),'utf8');
  assert.equal((home.match(/id="durataSoggiorno"/g)||[]).length,1);
@@ -95,8 +95,24 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path('design/pages-deco').resolve()))
 from flight_home import enhance_home, _stay_intent
-s=Path('index.html').read_text()
+s=Path('home-flight.html').read_text()
 assert enhance_home(s)==s
+# Execute the real final generator function without its external catalogue inputs.
+import ast, os, re
+builder=Path('design/pages-deco/costruisci-portale.py')
+tree=ast.parse(builder.read_text())
+finish=next(node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name=='finish_home')
+namespace={'__file__':str(builder.resolve()), 'os':os, 're':re}
+exec(compile(ast.Module(body=[finish], type_ignores=[]), str(builder), 'exec'), namespace)
+base=Path('index.html').read_text()
+default, default_path=namespace['finish_home'](base,'sito')
+assert default==base and default_path=='boom-portale-sito.html'
+alternative, alternative_path=namespace['finish_home'](base,'sito',True)
+assert alternative_path=='home-flight.html' and alternative_path!=default_path
+assert 'data-flight-home="true"' in alternative
+assert alternative.count('id="stayMoveIn"')==1
+assert '<meta name="robots" content="noindex,nofollow">' in alternative
+assert namespace['finish_home'](alternative,'sito',True)==(alternative,alternative_path)
 legacy='''<style>/* «when do you land?» — l'atterraggio è il primo gesto del funnel */ .x{color:red}</style>
 <form class="atterro" id="atterro"><div class="atterro-campo ac-data"><span id="quandoEti">When do you land?</span><input id="quandoData"></div></form>
 <script>

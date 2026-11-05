@@ -45,6 +45,11 @@
   },
   "redirects": [
     {
+      "source": "/home-panorama",
+      "destination": "/flight-next?direction=club&edition=club&experience=panorama",
+      "permanent": false
+    },
+    {
       "source": "/(v2-property-finding|v2-property-finding.html)",
       "destination": "/property-finding",
       "permanent": true

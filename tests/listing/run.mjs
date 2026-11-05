@@ -816,7 +816,7 @@ if (!chromium) {
         },
       });
     });
-    await page.goto(BASE + '/index.html', { waitUntil: 'load' });
+    await page.goto(BASE + '/home-flight', { waitUntil: 'load' });
     await page.locator('.flight-stay-options>summary').click();
     await page.selectOption('#durataSoggiorno', '6');
     await page.fill('#stayMoveIn', FUT('01', '31'));
@@ -836,7 +836,7 @@ if (!chromium) {
     check('Apartments rilegge la durata, con data rimasta tra i filtri avanzati',
       await page.inputValue('#durataSoggiorno') === '6'
       && await page.locator('#foglioVelo #quandoData').count() === 1);
-    await page.goto(BASE + '/index.html' + intent.search, { waitUntil: 'load' });
+    await page.goto(BASE + '/home-flight' + intent.search, { waitUntil: 'load' });
     await Promise.all([
       page.waitForURL(url => url.pathname === '/skyline'),
       page.locator('.flight-home-expand').click(),

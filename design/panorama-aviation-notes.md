@@ -1,5 +1,7 @@
 # BOOM Panorama — aviation identity restored, 5 November 2026
 
+The 6 November service integration in `panorama-live-ticketing.md` restores the four original service colour families and ticket identities. The black/yellow hero and city direction below remains binding.
+
 ## Binding direction
 
 Valentino rejected the grey refinement: restore strong BOOM black/yellow, make

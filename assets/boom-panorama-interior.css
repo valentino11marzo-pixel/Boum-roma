@@ -63,36 +63,62 @@ body[data-direction="club"][data-experience="panorama"][data-edition="club"].eur
  & .club-media-open{font-size:14px;font-weight:500;min-height:44px;color:var(--p-text)}
  & .club-media-open>span{display:none}
 
- /* Service tickets pair the real process with a distinct fare and action stub. */
+ /* The published ticket family: one gold flagship and three distinct services. */
  & .services-chapter{border-top:1px solid var(--p-line);background:var(--p-bg)}
- & .next-tickets{grid-template-columns:1fr;gap:20px;perspective:none}
- & .next-ticket,& .next-ticket:hover{display:grid;grid-template-columns:minmax(210px,.9fr) minmax(320px,1.4fr) 280px;grid-template-rows:auto 1fr;min-height:256px;gap:0;padding:0;background:var(--p-bg);border:1px solid var(--p-line);border-radius:var(--p-radius);color:var(--p-text);box-shadow:none;transform:none;transition:border-color var(--p-state) var(--p-ease)}
- & .next-ticket:focus-visible{outline:2px solid var(--p-yellow);outline-offset:5px}
+ & .next-tickets.panorama-ticketing{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-items:stretch;gap:24px;perspective:none}
+ & .panorama-ticket,& .panorama-ticket:hover{--ticket-accent:var(--p-yellow);position:relative;display:grid;grid-template-columns:22px minmax(0,1fr);grid-template-rows:1fr auto;min-width:0;min-height:0;gap:0;padding:0;overflow:hidden;isolation:isolate;background:var(--p-surface);border:1px solid var(--p-line);border-radius:16px;color:var(--p-text);box-shadow:none;transform:none;transition:border-color var(--p-state) var(--p-ease)}
+ & .panorama-ticket[data-rome-service="virtual-viewing"]{--ticket-accent:#00ff88}
+ & .panorama-ticket[data-rome-service="deal-assistance"]{--ticket-accent:#9d8cff}
+ & .panorama-ticket[data-rome-service="contract-check-express"]{--ticket-accent:#3ed3ff}
+ & .panorama-ticket:focus-visible{outline:2px solid var(--ticket-accent);outline-offset:5px}
  & .detail-decision::before,
  & :is(.next-ticket,.detail-decision,#europeDeskForm)::after,
  & .next-ticket::before,& .decision-cta::before,& .decision-cta::after{display:none}
- & .next-ticket .ticket-top{display:none}
- & .next-ticket h3{grid-column:1;grid-row:1;min-height:0;padding:32px 24px 0 32px;margin:0;font:500 clamp(28px,2.3vw,34px)/1.15 var(--p-font);letter-spacing:-.025em;color:var(--p-text);max-width:470px;text-wrap:balance}
- & .next-ticket .panorama-service-route{position:relative;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-column:2;grid-row:1;gap:12px;margin:38px 32px 0 24px;padding:0;align-items:start;align-self:start;color:var(--p-yellow);font:500 13px/1.45 var(--p-font);letter-spacing:0}
- & .panorama-service-route::before{content:"";position:absolute;inset:3px 0 auto;height:1px;background:var(--p-yellow)}
- & .panorama-service-route>span{position:relative;padding-top:16px;text-align:left;font:inherit;color:inherit}
- & .panorama-service-route>i{display:none}
- & .panorama-service-route>span::before{content:"";position:absolute;top:0;left:0;width:7px;height:7px;border:1px solid var(--p-yellow);border-radius:50%;background:var(--p-bg)}
- & .panorama-service-route>span:last-child{text-align:right}
- & .panorama-service-route>span:last-child::before{right:0;left:auto}
- & .panorama-service-route>span:nth-of-type(2){text-align:center}
- & .panorama-service-route>span:nth-of-type(2)::before{left:calc(50% - 3px)}
- & .next-ticket>p{grid-column:2;grid-row:1/-1;align-self:start;font-size:16px;line-height:1.65;color:var(--p-muted);opacity:1;margin:92px 32px 32px 24px;max-width:48ch}
- & .next-ticket .ticket-stub{position:relative;grid-column:3;grid-row:1/-1;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto 1fr auto;align-items:start;gap:12px;padding:28px 24px 24px;margin:0;border:0;border-left:1px dashed #786500;background:var(--p-yellow);color:#000}
- & .next-ticket .ticket-stub::before,& .next-ticket .ticket-stub::after{content:"";display:block;position:absolute;left:-10px;right:auto;width:20px;height:20px;border:0;border-radius:50%;background:var(--p-bg)}
- & .next-ticket .ticket-stub::before{top:-10px;bottom:auto}
- & .next-ticket .ticket-stub::after{top:auto;bottom:-10px}
- & .next-ticket .ticket-stub>.panorama-ticket-action{display:grid;grid-template-columns:minmax(0,1fr) 36px;align-items:center;gap:12px;width:100%;min-height:56px;margin-top:12px;padding:10px 10px 10px 16px;border:1px solid #000;border-radius:var(--p-radius);background:#000;font:600 15px/1.35 var(--p-font);color:var(--p-text);transition:background-color var(--p-state) var(--p-ease),transform var(--p-fast) var(--p-ease)}
- & .panorama-ticket-action>b{display:grid;place-items:center;align-self:center;width:36px;height:36px;margin:0;border-radius:8px;background:var(--p-yellow);color:#000}
+ & .panorama-ticket-band{grid-column:1;grid-row:1;display:flex;align-items:center;justify-content:center;overflow:hidden;writing-mode:vertical-rl;white-space:nowrap;font:600 12px/1 var(--p-font);letter-spacing:.04em;color:#000;background:linear-gradient(180deg,color-mix(in srgb,var(--ticket-accent) 60%,#000),color-mix(in srgb,var(--ticket-accent) 62%,#fff) 19%,color-mix(in srgb,var(--ticket-accent) 65%,#000) 43%,var(--ticket-accent) 72%,color-mix(in srgb,var(--ticket-accent) 48%,#000))}
+ & .panorama-ticket-body{position:relative;grid-column:2;grid-row:1;display:flex;flex-direction:column;min-width:0;padding:28px}
+ & .panorama-ticket h3{min-height:2.3em;padding:0;margin:0;font:500 30px/1.15 var(--p-font);letter-spacing:-.025em;color:var(--p-text);text-wrap:balance}
+ & .panorama-ticket[data-rome-service="contract-check-express"] h3{text-wrap:wrap}
+ & .panorama-ticket-situation{margin:8px 0 0;font:400 14px/1.5 var(--p-font);color:var(--p-muted)}
+ & .panorama-ticket-route{position:relative;display:flex;align-items:center;gap:12px;margin:24px 0;font:500 16px/1.2 var(--p-font);letter-spacing:.015em;color:var(--p-text);white-space:nowrap}
+ & .panorama-ticket-route>span:last-child{color:var(--ticket-accent)}
+ & .panorama-ticket-route>i{position:relative;display:grid;place-items:center;flex:1;min-width:28px;height:28px;color:var(--ticket-accent)}
+ & .panorama-ticket-route>i::before{content:"";position:absolute;inset:50% 0 auto;border-top:1px dashed color-mix(in srgb,var(--ticket-accent) 48%,transparent)}
+ & .panorama-ticket-route svg{position:relative;width:28px;height:28px;padding:4px;background:var(--p-surface);fill:none;stroke:currentColor;stroke-width:1.6}
+ & .panorama-ticket-description{flex:1;margin:0;font:400 16px/1.6 var(--p-font);color:var(--p-muted);max-width:65ch}
+ & .panorama-ticket-facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:24px 0 0;padding-top:20px;border-top:1px solid var(--p-line)}
+ & .panorama-ticket-facts dt{font:400 12px/1.5 var(--p-font);color:var(--p-muted)}
+ & .panorama-ticket-facts dd{margin:6px 0 0;font:500 14px/1.45 var(--p-font);color:var(--p-text)}
+ & .panorama-ticket .ticket-terms{min-height:4.65em;margin:20px 0 0;padding:0;max-width:76ch;font:400 13px/1.55 var(--p-font);color:var(--p-muted);opacity:1}
+ & .panorama-ticket .ticket-stub{position:relative;grid-column:1/-1;grid-row:2;display:grid;grid-template-columns:auto minmax(0,1fr);grid-template-rows:auto auto auto;align-items:center;gap:12px 20px;padding:24px 28px 28px;margin:0;border:0;border-top:1px dashed color-mix(in srgb,var(--ticket-accent) 48%,transparent);background:var(--p-bg);color:var(--p-text)}
+ & .panorama-ticket .ticket-stub::before,& .panorama-ticket .ticket-stub::after{content:"";display:block;position:absolute;top:-10px;bottom:auto;left:-10px;right:auto;width:20px;height:20px;border:0;border-radius:50%;background:var(--p-bg)}
+ & .panorama-ticket .ticket-stub::after{left:auto;right:-10px}
+ & .panorama-ticket-reference{grid-column:1/-1;font:500 12px/1.4 var(--p-font);letter-spacing:.045em;color:var(--ticket-accent)}
+ & .panorama-ticket .ticket-stub>strong{grid-column:1;grid-row:2;order:0;font:600 48px/1 var(--p-font);letter-spacing:-.025em;color:var(--ticket-accent);white-space:nowrap;font-variant-numeric:tabular-nums}
+ & .panorama-ticket .ticket-stub>small{grid-column:2;grid-row:2;font:400 13px/1.55 var(--p-font);color:var(--p-muted);opacity:1;margin:0;max-width:27ch}
+ & .panorama-ticket .ticket-stub>.panorama-ticket-action{grid-column:1/-1;grid-row:3;display:grid;grid-template-columns:minmax(0,1fr) 36px;align-items:center;gap:12px;width:100%;min-height:56px;margin-top:8px;padding:10px 10px 10px 16px;border:1px solid transparent;border-radius:var(--p-radius);background:var(--ticket-accent);font:600 15px/1.35 var(--p-font);color:#000;transition:transform var(--p-fast) var(--p-ease)}
+ & .panorama-ticket-action>b{display:grid;place-items:center;align-self:center;width:36px;height:36px;margin:0;border-radius:8px;background:#000;color:var(--ticket-accent)}
  & .panorama-ticket-action>b svg{width:20px;height:20px;stroke-width:1.6;transition:transform var(--p-state) var(--p-ease)}
- & .next-ticket .ticket-stub>small{grid-column:1;font-size:13px;font-weight:400;line-height:1.55;opacity:1;color:#453b00;margin:0;max-width:27ch}
- & .next-ticket .ticket-stub>strong{grid-column:1;order:0;font-size:56px;font-weight:600;line-height:1;letter-spacing:-.025em;color:#000;white-space:nowrap;font-variant-numeric:tabular-nums}
- & .next-ticket .ticket-terms{grid-column:1;grid-row:2;font-size:13px;line-height:1.6;opacity:1;color:var(--p-muted);padding:20px 24px 32px 32px;max-width:none;margin:0}
+ & .panorama-ticket[data-rome-service="property-finding"]{grid-column:1/-1;grid-template-columns:28px minmax(0,1fr) 320px;grid-template-rows:1fr}
+ & [data-rome-service="property-finding"] .panorama-ticket-band{grid-row:1/-1}
+ & [data-rome-service="property-finding"] .panorama-ticket-body{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(250px,.9fr);grid-template-rows:auto auto auto auto auto;gap:0 32px;padding:36px}
+ & [data-rome-service="property-finding"] .panorama-ticket-body::after{content:"";position:absolute;inset:0;pointer-events:none;background:url('/assets/boom-logo-mark.svg') right 32px center/250px 250px no-repeat;opacity:.065;z-index:0}
+ & [data-rome-service="property-finding"] .panorama-ticket-body>*{position:relative;z-index:1}
+ & [data-rome-service="property-finding"] h3{grid-column:1;grid-row:1;min-height:0;font-size:42px}
+ & [data-rome-service="property-finding"] .panorama-ticket-situation{grid-column:1;grid-row:2;font-size:16px}
+ & [data-rome-service="property-finding"] .panorama-ticket-route{grid-column:2;grid-row:1/3;align-self:center;margin:0;font-size:23px}
+ & [data-rome-service="property-finding"] .panorama-ticket-route svg{width:32px;height:32px;fill:currentColor;stroke:none;transform:rotate(90deg)}
+ & [data-rome-service="property-finding"] .panorama-ticket-description{grid-column:1/-1;grid-row:3;margin-top:24px}
+ & [data-rome-service="property-finding"] .panorama-ticket-facts{grid-column:1/-1;grid-row:4;grid-template-columns:repeat(3,minmax(0,1fr));max-width:720px}
+ & [data-rome-service="property-finding"] .ticket-terms{grid-column:1/-1;grid-row:5;min-height:0}
+ & [data-rome-service="property-finding"] .ticket-stub{grid-column:3;grid-row:1;grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto 1fr auto;align-items:start;gap:16px;padding:32px;border:0;border-left:1px dashed #786500;background:var(--p-yellow);color:#000}
+ & [data-rome-service="property-finding"] .ticket-stub::after{top:auto;bottom:-10px;left:-10px;right:auto}
+ & [data-rome-service="property-finding"] .panorama-ticket-reference{color:#453b00}
+ & [data-rome-service="property-finding"] .ticket-stub>strong{grid-column:1;grid-row:2;font-size:64px;color:#000}
+ & [data-rome-service="property-finding"] .ticket-stub>small{grid-column:1;grid-row:3;color:#453b00;font-size:14px}
+ & [data-rome-service="property-finding"] .ticket-stub>.panorama-ticket-action{grid-column:1;grid-row:4;margin-top:16px;background:#000;color:var(--p-text)}
+ & [data-rome-service="property-finding"] .panorama-ticket-action>b{background:var(--p-yellow);color:#000}
+ & .panorama-catalogue-note{margin:24px 0 0;max-width:76ch;font:400 14px/1.65 var(--p-font);color:var(--p-muted)}
+ & .panorama-catalogue-note a{color:var(--p-text);text-decoration:underline;text-decoration-color:var(--p-yellow);text-underline-offset:4px}
  & .service-foot{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));padding:24px 0 0;border:0;gap:16px}
  & .service-foot a{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:0 0 0 20px;border:1px solid var(--p-line);border-radius:var(--p-radius);overflow:hidden;background:var(--p-bg);text-decoration:none;font-size:15px;font-weight:500;line-height:1.4;color:var(--p-text);min-height:64px;transition:border-color var(--p-state) var(--p-ease),background-color var(--p-state) var(--p-ease)}
  & .service-foot span{display:grid;place-items:center;align-self:stretch;flex:none;width:56px;min-height:62px;border-left:1px dashed #786500;background:var(--p-yellow);color:#000}
@@ -299,20 +325,38 @@ body[data-direction="club"][data-experience="panorama"][data-edition="club"].eur
  & :is(.card-save,.europe-home-controls button,.club-media-controls button,.next-view-switch button,.detail-actions button,.photo-controls button,.balance-tools button,.balance-card-actions button){touch-action:manipulation;transition:background-color var(--p-state) var(--p-ease),border-color var(--p-state) var(--p-ease),color var(--p-state) var(--p-ease),transform var(--p-fast) var(--p-ease)}
  & :is(.next-ticket,.service-foot a,[data-europe-need],#europeDeskContinue){touch-action:manipulation;-webkit-tap-highlight-color:transparent}
  & :is(.card-save,.europe-home-controls button,.club-media-controls button,.next-view-switch button,.detail-actions button,.photo-controls button,.balance-tools button,.balance-card-actions button,.service-foot a,[data-europe-need],#europeDeskContinue):focus-visible{outline:2px solid var(--p-yellow);outline-offset:4px}
- & .next-ticket:focus-visible .panorama-ticket-action{outline:2px solid #000;outline-offset:3px}
+ & .panorama-ticket:focus-visible .panorama-ticket-action{outline:2px solid var(--ticket-accent);outline-offset:3px}
+ & .panorama-ticket[data-rome-service="property-finding"]:focus-visible .panorama-ticket-action{outline-color:#000}
  & .next-ticket:active .panorama-ticket-action,& :is(.card-save,.europe-home-controls button,.club-media-controls button,.next-view-switch button,.detail-actions button,.photo-controls button,.balance-tools button,.balance-card-actions button,[data-europe-need]):active{transform:scale(.985)}
  & :is(.europe-home-controls button,.club-media-controls button,.photo-controls button,#europeDeskContinue):disabled{opacity:.5;cursor:not-allowed;transform:none}
  &[data-panorama-motion-state="quiet"] :is(.panorama-ticket-action,.panorama-ticket-action svg,.card-save,.europe-home-controls button,.club-media-controls button,.next-view-switch button,.detail-actions button,.photo-controls button,.balance-tools button,.balance-card-actions button,[data-europe-need]){transition:none;transform:none}
 }
 
 @media(max-width:1150px){body[data-direction="club"][data-experience="panorama"][data-edition="club"].europe-ready{
- & .next-tickets{grid-template-columns:1fr}
- & .next-ticket h3{grid-column:1;grid-row:1;min-height:0;padding:28px 28px 0}
- & .next-ticket,& .next-ticket:hover{grid-template-columns:minmax(0,1fr) 240px;grid-template-rows:auto auto 1fr auto;min-height:0}
- & .next-ticket .panorama-service-route{grid-column:1;grid-row:2;margin:24px 28px 0}
- & .next-ticket>p{grid-column:1;grid-row:3;margin:20px 28px 0}
- & .next-ticket .ticket-terms{grid-column:1;grid-row:4;padding:20px 28px 28px}
- & .next-ticket .ticket-stub{grid-column:2}
+ & .panorama-ticket-body{padding:24px}
+ & .panorama-ticket h3{font-size:28px}
+ & .panorama-ticket .ticket-stub{padding:24px}
+ & .panorama-ticket[data-rome-service="property-finding"]{grid-template-columns:24px minmax(0,1fr) 280px}
+ & [data-rome-service="property-finding"] .panorama-ticket-body{display:flex;padding:32px}
+ & [data-rome-service="property-finding"] h3{font-size:38px}
+ & [data-rome-service="property-finding"] .panorama-ticket-route{align-self:stretch;margin:24px 0;max-width:520px}
+ & [data-rome-service="property-finding"] .panorama-ticket-description{margin-top:0}
+ & [data-rome-service="property-finding"] .ticket-stub{padding:28px}
+}}
+
+@media(max-width:1000px){body[data-direction="club"][data-experience="panorama"][data-edition="club"].europe-ready{
+ & .next-tickets.panorama-ticketing{grid-template-columns:1fr;gap:20px}
+ & .panorama-ticket,& .panorama-ticket:hover,& .panorama-ticket[data-rome-service="property-finding"]{grid-template-columns:22px minmax(0,1fr) 240px;grid-template-rows:1fr}
+ & .panorama-ticket h3{min-height:0}
+ & .panorama-ticket-body,& [data-rome-service="property-finding"] .panorama-ticket-body{padding:28px}
+ & .panorama-ticket-route{max-width:520px}
+ & .panorama-ticket .ticket-terms{min-height:0}
+ & .panorama-ticket .ticket-stub{grid-column:3;grid-row:1;grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto 1fr auto;align-items:start;gap:16px;padding:28px 24px;border:0;border-left:1px dashed color-mix(in srgb,var(--ticket-accent) 48%,transparent)}
+ & .panorama-ticket .ticket-stub::after{top:auto;bottom:-10px;left:-10px;right:auto}
+ & .panorama-ticket .ticket-stub>small{grid-column:1;grid-row:3}
+ & .panorama-ticket .ticket-stub>.panorama-ticket-action{grid-column:1;grid-row:4;margin-top:16px}
+ & [data-rome-service="property-finding"] .ticket-stub{border-left-color:#786500}
+ & [data-rome-service="property-finding"] .ticket-stub>strong{font-size:56px}
 }}
 
 @media(max-width:1100px){body[data-direction="club"][data-experience="panorama"][data-edition="club"].europe-ready{
@@ -335,10 +379,6 @@ body[data-direction="club"][data-experience="panorama"][data-edition="club"].eur
 @media(max-width:800px){body[data-direction="club"][data-experience="panorama"][data-edition="club"].europe-ready{
  & .next-section{padding-block:64px}
  & .chapter-heading{gap:24px;align-items:start}
- & .next-tickets{gap:20px}
- & .next-ticket,& .next-ticket:hover{grid-template-columns:minmax(0,1fr) 240px}
- & .next-ticket .ticket-stub{gap:12px}
- & .next-ticket .ticket-stub>strong{font-size:52px}
  & .service-foot{grid-template-columns:1fr;gap:12px}
  & .next-journey{gap:40px}
  & #clubCompany .club-company-links{grid-template-columns:repeat(2,minmax(0,1fr));gap:32px 24px}
@@ -364,18 +404,22 @@ body[data-direction="club"][data-experience="panorama"][data-edition="club"].eur
  & .club-media-caption{padding:20px 0 0}
  & .club-media-name{font-size:26px}
  & .club-media-open{border-color:var(--p-line);margin-top:12px}
- & .next-tickets{grid-template-columns:1fr;gap:20px}
- & .next-ticket,& .next-ticket:hover{grid-template-columns:1fr;grid-template-rows:auto auto auto auto auto;padding:0}
- & .next-ticket h3{padding:24px 24px 0;font-size:28px}
- & .next-ticket .panorama-service-route{margin:24px 24px 0;gap:8px}
- & .next-ticket>p{margin:20px 24px 0}
- & .next-ticket .ticket-stub{grid-column:1;grid-row:5;display:grid;grid-template-columns:auto minmax(0,1fr);grid-template-rows:auto auto;align-items:center;gap:20px;padding:24px;border:0;border-top:1px dashed #786500}
- & .next-ticket .ticket-stub::before,& .next-ticket .ticket-stub::after{top:-10px;bottom:auto}
- & .next-ticket .ticket-stub::after{right:-10px;left:auto}
- & .next-ticket .ticket-stub>.panorama-ticket-action{grid-column:1/-1;grid-row:2;margin:0;font-size:15px}
- & .next-ticket .ticket-stub>strong{grid-column:1;grid-row:1;font-size:48px}
- & .next-ticket .ticket-stub>small{grid-column:2;grid-row:1;font-size:13px;line-height:1.5;margin:0}
- & .next-ticket .ticket-terms{font-size:13px;padding:20px 24px 24px}
+ & .panorama-ticket,& .panorama-ticket:hover,& .panorama-ticket[data-rome-service="property-finding"]{grid-template-columns:18px minmax(0,1fr);grid-template-rows:1fr auto}
+ & .panorama-ticket-band,& [data-rome-service="property-finding"] .panorama-ticket-band{grid-row:1;font-size:12px}
+ & .panorama-ticket-body,& [data-rome-service="property-finding"] .panorama-ticket-body{padding:24px;display:flex}
+ & .panorama-ticket h3,& [data-rome-service="property-finding"] h3{min-height:0;font-size:30px}
+ & [data-rome-service="property-finding"] .panorama-ticket-situation{font-size:14px}
+ & .panorama-ticket-route,& [data-rome-service="property-finding"] .panorama-ticket-route{font-size:18px;margin:24px 0}
+ & .panorama-ticket-description{font-size:16px}
+ & [data-rome-service="property-finding"] .panorama-ticket-facts{grid-template-columns:repeat(2,minmax(0,1fr))}
+ & [data-rome-service="property-finding"] .panorama-ticket-facts>div:last-child{grid-column:1/-1}
+ & .panorama-ticket .ticket-stub,& [data-rome-service="property-finding"] .ticket-stub{grid-column:1/-1;grid-row:2;grid-template-columns:auto minmax(0,1fr);grid-template-rows:auto auto auto;align-items:center;gap:12px 20px;padding:24px;border:0;border-top:1px dashed color-mix(in srgb,var(--ticket-accent) 48%,transparent)}
+ & [data-rome-service="property-finding"] .ticket-stub{border-top-color:#786500}
+ & .panorama-ticket .ticket-stub::before,& .panorama-ticket .ticket-stub::after,& [data-rome-service="property-finding"] .ticket-stub::after{top:-10px;bottom:auto}
+ & .panorama-ticket .ticket-stub::after,& [data-rome-service="property-finding"] .ticket-stub::after{right:-10px;left:auto}
+ & .panorama-ticket .ticket-stub>strong,& [data-rome-service="property-finding"] .ticket-stub>strong{grid-column:1;grid-row:2;font-size:48px}
+ & .panorama-ticket .ticket-stub>small,& [data-rome-service="property-finding"] .ticket-stub>small{grid-column:2;grid-row:2;font-size:13px}
+ & .panorama-ticket .ticket-stub>.panorama-ticket-action,& [data-rome-service="property-finding"] .ticket-stub>.panorama-ticket-action{grid-column:1/-1;grid-row:3;margin-top:8px}
  & .service-foot{gap:12px;padding-top:20px}
  & .service-foot a{min-height:60px}
  & .service-foot span{min-height:58px}
@@ -475,11 +519,11 @@ body[data-direction="club"][data-experience="panorama"][data-edition="club"].eur
 
 @media(max-width:360px){body[data-direction="club"][data-experience="panorama"][data-edition="club"].europe-ready{
  & .detail-decision,& #europeDeskStory #europeDeskForm{padding:20px}
- & .next-ticket .ticket-stub{gap:16px;padding:24px 20px}
- & .next-ticket .ticket-stub>strong{font-size:44px}
- & .next-ticket h3{padding-inline:20px}
- & .next-ticket>p,& .next-ticket .panorama-service-route{margin-inline:20px}
- & .next-ticket .ticket-terms{padding-inline:20px}
+ & .panorama-ticket-body,& [data-rome-service="property-finding"] .panorama-ticket-body{padding:24px 20px}
+ & .panorama-ticket h3,& [data-rome-service="property-finding"] h3{font-size:28px}
+ & .panorama-ticket .ticket-stub,& [data-rome-service="property-finding"] .ticket-stub{gap:12px 16px;padding:24px 20px}
+ & .panorama-ticket .ticket-stub>strong,& [data-rome-service="property-finding"] .ticket-stub>strong{font-size:44px}
+ & .panorama-ticket-route,& [data-rome-service="property-finding"] .panorama-ticket-route{gap:8px;font-size:16px}
  & #europeDeskStory .edition-brief-head{margin:-20px -20px 24px;padding:24px 20px}
  & .next-results .next-card-info{grid-template-columns:1fr}
  & .next-results .card-price{grid-column:1;grid-row:auto;display:flex;align-items:baseline;justify-content:flex-start;gap:8px;margin-top:12px}
@@ -489,8 +533,9 @@ body[data-direction="club"][data-experience="panorama"][data-edition="club"].eur
 }}
 
 @media(hover:hover) and (pointer:fine){body[data-direction="club"][data-experience="panorama"][data-edition="club"].europe-ready{
- & .next-ticket:hover,& .service-foot a:hover,& #europeDeskStory [data-europe-need]:hover{border-color:var(--p-yellow)}
- & .next-ticket:hover .panorama-ticket-action{background:#181700}
+ & .panorama-ticket:hover{border-color:var(--ticket-accent)}
+ & .service-foot a:hover,& #europeDeskStory [data-europe-need]:hover{border-color:var(--p-yellow)}
+ & [data-rome-service="property-finding"]:hover .panorama-ticket-action{background:#181700}
  & .next-ticket:hover .panorama-ticket-action svg{transform:translateX(2px)}
  & .service-foot a:hover{background:var(--p-surface)}
  & :is(.card-save,.europe-home-controls button,.club-media-controls button,.detail-actions button,.photo-controls button,.balance-tools button,.balance-card-actions button):hover:not(:disabled){background:var(--p-raised);border-color:var(--p-yellow)}
@@ -501,4 +546,19 @@ body[data-direction="club"][data-experience="panorama"][data-edition="club"].eur
  & .button.gold:active{transform:none}
  & :is(.next-ticket,.panorama-ticket-action,.panorama-ticket-action svg,.card-save,.europe-home-controls button,.club-media-controls button,.next-view-switch button,.detail-actions button,.photo-controls button,.balance-tools button,.balance-card-actions button,[data-europe-need]){transition:none;transform:none}
  & .next-ticket:hover .panorama-ticket-action svg,& .next-ticket:active .panorama-ticket-action,& :is(.card-save,.europe-home-controls button,.club-media-controls button,.next-view-switch button,.detail-actions button,.photo-controls button,.balance-tools button,.balance-card-actions button,[data-europe-need]):active{transform:none}
+}}
+
+@media(forced-colors:active){body[data-direction="club"][data-experience="panorama"][data-edition="club"].europe-ready{
+ & .panorama-ticket,& .panorama-ticket:hover{background:Canvas;border-color:CanvasText;color:CanvasText}
+ & .panorama-ticket-band{background:CanvasText;color:Canvas}
+ & [data-rome-service="property-finding"] .panorama-ticket-body::after{display:none}
+ & .panorama-ticket :is(h3,.panorama-ticket-situation,.panorama-ticket-description,.panorama-ticket-route,.panorama-ticket-route>span:last-child,.panorama-ticket-route>i,.panorama-ticket-facts dt,.panorama-ticket-facts dd,.ticket-terms,.panorama-ticket-reference){color:CanvasText}
+ & .panorama-ticket .panorama-ticket-route>i::before,& .panorama-ticket .panorama-ticket-facts{border-color:CanvasText}
+ & .panorama-ticket .panorama-ticket-route svg{background:Canvas}
+ & .panorama-ticket .ticket-stub,& [data-rome-service="property-finding"] .ticket-stub{background:Canvas;color:CanvasText;border-color:CanvasText}
+ & .panorama-ticket .ticket-stub::before,& .panorama-ticket .ticket-stub::after{background:Canvas}
+ & .panorama-ticket .ticket-stub>strong,& .panorama-ticket .ticket-stub>small{color:CanvasText}
+ & .panorama-ticket .ticket-stub>.panorama-ticket-action,& [data-rome-service="property-finding"]:hover .panorama-ticket-action{background:ButtonFace;border-color:ButtonText;color:ButtonText}
+ & .panorama-ticket .panorama-ticket-action>b{background:ButtonText;color:ButtonFace}
+ & .panorama-ticket:focus-visible,& .panorama-ticket:focus-visible .panorama-ticket-action{outline-color:Highlight}
 }}

@@ -27,7 +27,7 @@ try{
   if(url.startsWith(origin))return route.continue();
   return route.abort();
  });
- await page.goto(origin,{waitUntil:'domcontentloaded'});
+ await page.goto(origin+'/home-flight',{waitUntil:'domcontentloaded'});
  await page.waitForSelector('#flapDays .fc2');
  const dimensions=await page.evaluate(()=>{let rect=s=>{const r=document.querySelector(s).getBoundingClientRect();return {top:r.top,bottom:r.bottom,width:r.width};};return {date:rect('#stayMoveIn'),button:rect('#quandoVai'),map:rect('#skyline'),width:innerWidth,overflow:document.documentElement.scrollWidth};});
  assert.ok(dimensions.date.top<600,JSON.stringify(dimensions));assert.ok(dimensions.button.bottom<dimensions.map.top);assert.ok(dimensions.overflow<=dimensions.width+1);checks++;

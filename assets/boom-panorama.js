@@ -8,6 +8,7 @@
   if(!hero||!atlas||!ticket)return;
   document.body.dataset.experience='panorama';
   document.documentElement.classList.add('boom-panorama');
+  document.querySelector('meta[name="theme-color"]').content='#000';
   var anchor=document.createElement('span');anchor.hidden=true;anchor.dataset.panoramaAnchor='';atlas.before(anchor);
   atlas.dataset.globeLabels='selected';
   var toolbar=document.createElement('div');toolbar.className='panorama-globe-toolbar';
@@ -26,20 +27,17 @@
   hero.querySelector('.edition-plan-link').after(proof);
   var actionArrow='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
   hero.querySelector('.edition-pass-arrow').innerHTML=actionArrow;
-  document.querySelectorAll('#services .ticket-stub b,#services .europe-service-proof>span[aria-hidden],#services .service-foot a>span').forEach(function(icon){icon.innerHTML=actionArrow;});
-  // A ticket is one link. Its visual action is not a second interactive control.
-  document.querySelectorAll('#services .ticket-stub').forEach(function(stub){
-    var action=stub.querySelector(':scope>span'),note=action.querySelector('small'),price=stub.querySelector('strong');
-    var label=document.createElement('span');
-    Array.from(action.childNodes).filter(function(node){return node.nodeType===Node.TEXT_NODE;}).forEach(function(node){label.appendChild(node);});
-    action.prepend(label);action.className='panorama-ticket-action';
-    stub.replaceChildren(price,note,action);
-  });
-  var serviceRoutes=[['Your brief','Search','Viewings'],['Home found','Checks','Signature support']];
-  document.querySelectorAll('#services .next-ticket .ticket-route').forEach(function(line,index){
-    line.classList.add('panorama-service-route');
-    line.innerHTML=serviceRoutes[index].map(function(step){return '<span>'+step+'</span>';}).join('<i aria-hidden="true"></i>');
-  });
+  // The published Rome products, not a second catalogue or a checkout. Club
+  // still owns public-brief links; the original service pages own every form.
+  var ticketing=document.querySelector('#services .next-tickets');
+  ticketing.replaceChildren(byId('panoramaServiceTickets').content.cloneNode(true));
+  ticketing.classList.add('panorama-ticketing');
+  document.querySelector('#services .chapter-aside').textContent='Four ways to help with your move. Choose the service, see its scope, then continue with BOOM.';
+  var catalogueNote=document.createElement('p');catalogueNote.className='panorama-catalogue-note';
+  catalogueNote.innerHTML='Renting a BOOM home? <strong>Viewings are free.</strong> Apply directly from the home’s page. <a href="/flight-next?direction=club&amp;edition=club&amp;experience=panorama&amp;view=apartments&amp;layout=skyline" data-view="apartments">Browse the homes</a>';
+  document.querySelector('#services .service-foot').before(catalogueNote);
+  document.querySelector('#services .service-foot').innerHTML='<a href="/services">All services &amp; prices <span aria-hidden="true"></span></a><a href="/your-money">How fees work <span aria-hidden="true"></span></a><a href="/concierge">Life in Rome, handled <span aria-hidden="true"></span></a>';
+  document.querySelectorAll('#services .europe-service-proof>span[aria-hidden],#services .service-foot a>span').forEach(function(icon){icon.innerHTML=actionArrow;});
   byId('nextSearchForm').querySelector('.search-submit').textContent='See matching homes';
   var continueButton=byId('europeDeskContinue');
   function cleanContinueArrow(){var label=continueButton.textContent.replace(/\s*[↗→]\s*$/,'');if(label!==continueButton.textContent)continueButton.textContent=label;}

@@ -14,7 +14,7 @@ const household=detail.match(/<select id="apChi"[\s\S]*?<\/select>/)[0];
 const scripts='<script defer src="/js/stay-engine.js"></script><script defer src="/assets/boom-flight-stay.js"></script>';
 const links='<a id="listing" href="/listing/fixture">Explore home</a><a id="skyline" href="/skyline?guide=1">Skyline</a><a id="rome" href="/your-rome">Your Rome</a>';
 function html(path){
- let content=path==='/'?form('index.html'):path==='/apartments'?form('apartments.html')+'<input id="quandoData" type="date"><button id="pulisci">Reset</button>':path.startsWith('/listing/')?
+ let content=path==='/home-flight'?form('home-flight.html'):path==='/apartments'?form('apartments.html')+'<input id="quandoData" type="date"><button id="pulisci">Reset</button>':path.startsWith('/listing/')?
  '<form id="modApplica">'+input('apQuando')+input('apUscita')+select+household+'<p id="apStayError" role="alert" hidden></p><output data-stay-summary></output><button type="submit">Send</button></form><div class="durata-tasti"><button data-m="6">6 months</button><button data-m="12">12 months</button></div><div class="durata-conto">Existing quote</div>':'';
  return '<!doctype html><html><head><meta charset="utf-8">'+scripts+'</head><body>'+content+links+`<script>
  window.__quoteCalls=[]; window.__submitted=0; window.__arrivalChanges=[];
@@ -43,7 +43,7 @@ try{
  async function check(name,fn){try{errors.length=0;await fn();assert.deepEqual(errors,[]);console.log('  ✓ '+name);pass++;}catch(e){console.log('  ✗ '+name+' — '+e.message);fail++;}}
  const params=()=>new URL(page.url()).searchParams;
  await check('Home → catalogue → Skyline → Apply carries exact dates and the original arrival filter',async()=>{
-  await goto('/');await page.locator('.flight-stay-options>summary').click();await page.locator('#durataSoggiorno').selectOption('6');
+  await goto('/home-flight');await page.locator('.flight-stay-options>summary').click();await page.locator('#durataSoggiorno').selectOption('6');
   await page.locator('#stayMoveIn').fill('2027-01-31');
   assert.equal(await page.locator('#stayMoveOut').inputValue(),'2027-07-31');
   await Promise.all([page.waitForURL('**/apartments?**'),page.locator('#atterro button[type="submit"]').click()]);

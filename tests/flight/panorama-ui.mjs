@@ -6,6 +6,7 @@ import {createServer} from 'node:http';
 import {readFileSync,existsSync,statSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {loadChromium,launchOptions} from '../_browser.mjs';
+import {CATALOG} from '../../api/_catalog.js';
 
 const root=fileURLToPath(new URL('../../',import.meta.url)),chromium=await loadChromium();
 console.log('\n▸ flightpanoramaui  One globe, a complete move and an honest immersive preview');
@@ -13,6 +14,18 @@ const focus=process.argv[2]||'';
 if(focus)console.log('  Focus: '+focus+' (default invocation runs every scenario)');
 if(!chromium){console.log('  SKIP: playwright unavailable — panorama browser checks did not run');process.exit(0);}
 const year=new Date().getFullYear()+1,arrival=year+'-01-31',departure=year+'-07-31';
+// PFS has its own checkout; the other Rome services share the server catalogue.
+// Read its declared amount without importing Stripe or constructing a checkout.
+const pfsAmount=Number(readFileSync(root+'api/create-checkout.js','utf8').match(/unit_amount:\s*(\d+)/)?.[1]);
+assert.equal(pfsAmount,35000,'the PFS ticket contract agrees with the server checkout amount');
+const romeServices=[
+ {path:'/property-finding',name:'Property Finding',code:'PF-0350',price:pfsAmount/100,route:['ABROAD','ROME'],brief:true},
+ {path:'/virtual-viewing',name:'Virtual Viewing',code:'VV-0089',price:CATALOG['virtual-viewing'].eur,route:['YOU','THE DOOR']},
+ {path:'/deal-assistance',name:'Deal Assistance',code:'DA-0249',price:CATALOG['deal-assistance'].eur,route:['FOUND','PROTECTED'],brief:true},
+ {path:'/contract-check-express',name:'Contract Check Express',code:'CC-0049',price:CATALOG['contract-check-express'].eur,route:['DRAFT','VERDICT']}
+];
+const euro=amount=>new Intl.NumberFormat('en-GB',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(amount);
+const romeTicket=(page,path)=>page.locator('#services a[href^="'+path+'"]');
 const homes=[
  {id:'panorama-courtyard',name:'Fixture Courtyard',price:1200,sqm:65,bedrooms:2,type:'Apartment',depositMonths:2},
  {id:'panorama-room',name:'Fixture Room',price:700,sqm:18,bedrooms:1,type:'Room'}
@@ -35,8 +48,9 @@ async function check(name,width,fn,motion='reduce'){
  const page=await browser.newPage({viewport:{width,height:900},isMobile:width<500,hasTouch:width<500,reducedMotion:motion});
  const errors=[],writes=[],missing=[],privateReads=[];let catalogueReads=0;
  page.setDefaultTimeout(10000);page.on('pageerror',error=>errors.push(error.message));
+ page.context().on('page',opened=>opened.on('pageerror',error=>errors.push(error.message)));
  page.on('response',response=>{if(response.url().startsWith(origin+'/assets/')&&response.status()>=400)missing.push(new URL(response.url()).pathname);});
- await page.route('**/*',route=>{
+ await page.context().route('**/*',route=>{
   const request=route.request(),url=new URL(request.url());
   if(request.method()!=='GET'){writes.push(request.method()+' '+url.pathname);return route.abort();}
   if(url.origin!==origin)return route.abort();
@@ -86,6 +100,42 @@ async function geometry(page,selectors=[]){
   const controls=await page.locator(selector).evaluateAll(nodes=>nodes.filter(node=>node.getClientRects().length&&getComputedStyle(node).visibility!=='hidden').map(node=>{const r=node.getBoundingClientRect();return {width:r.width,height:r.height};}));
   assert.ok(controls.length,selector+' is visible');assert.ok(controls.every(r=>r.width>=44&&r.height>=44),selector+' is usable by touch: '+JSON.stringify(controls));
  }
+}
+async function romeTickets(page){
+ const tickets=page.locator('#services .next-tickets.panorama-ticketing a.panorama-ticket');
+ assert.equal(await tickets.count(),4,'Panorama has the four real Rome service tickets');
+ assert.deepEqual(await tickets.evaluateAll(nodes=>nodes.map(node=>new URL(node.href).pathname)),romeServices.map(service=>service.path),'the ticket sequence keeps the four canonical service doors');
+ await geometry(page,['#services a.panorama-ticket']);
+ for(const service of romeServices){
+  const ticket=romeTicket(page,service.path);
+  assert.equal(await ticket.count(),1,'one ticket for '+service.name);
+  assert.equal(await ticket.locator('h3').innerText(),service.name,'the service has its recognizable product name');
+  assert.equal(await ticket.locator('.ticket-stub>strong').innerText(),euro(service.price),'the displayed fee agrees with the server offer');
+  assert.ok((await ticket.locator('.panorama-ticket-reference').innerText()).includes(service.code),'the printed code identifies the actual product');
+  const route=(await ticket.locator('.panorama-ticket-route').innerText()).replace(/\s+/g,' ').trim();
+  assert.ok(route.includes(service.route[0])&&route.indexOf(service.route[1])>route.indexOf(service.route[0]),'the ticket preserves its real service route: '+route);
+  const terms=await ticket.locator('.ticket-terms').innerText(),credit=await ticket.locator('.ticket-stub>small').innerText();
+  assert.ok(terms.trim(),'the ticket keeps its service conditions beside the fee');
+  if(service.path==='/property-finding'){assert.match(terms,/3 matching options within 15 days.*€350 refunded.*4\.2/);assert.match(credit,/agency fee.*success/i);}
+  if(service.path==='/virtual-viewing'){assert.match(terms,/48 hours.*refunded.*cannot reach/i);assert.match(credit,/credited.*rent.*home.*BOOM/i);}
+  if(service.path==='/deal-assistance'){assert.match(terms,/24 hours of payment.*€49.*credited/i);}
+  if(service.path==='/contract-check-express'){assert.match(terms,/24 hours of receiving.*contract.*negotiation is not included/i);assert.match(credit,/credited in full.*Deal Assistance/i);}
+  assert.ok((await ticket.locator('.ticket-stub>small').innerText()).trim(),'the price retains its credit or scope note');
+  assert.equal(await ticket.locator('a,button,input,select').count(),0,'the whole ticket remains one native navigation target');
+  const layout=await ticket.evaluate(node=>{
+   const card=node.getBoundingClientRect(),body=node.querySelector('.panorama-ticket-body').getBoundingClientRect(),stub=node.querySelector('.ticket-stub').getBoundingClientRect();
+   const samples=[['h3',20],['.panorama-ticket-description',14],['.ticket-terms',12],['.ticket-stub>small',12],['.panorama-ticket-action>span',14]];
+   return {card:card.toJSON(),body:body.toJSON(),stub:stub.toJSON(),samples:samples.map(([selector,min])=>{const item=node.querySelector(selector),style=getComputedStyle(item),box=item.getBoundingClientRect();return {selector,min,font:parseFloat(style.fontSize),visible:box.width>0&&box.height>0,overflow:item.clientWidth>0&&item.scrollWidth>item.clientWidth+1};})};
+  });
+  for(const [name,box] of [['body',layout.body],['stub',layout.stub]])assert.ok(box.left>=layout.card.left-1&&box.right<=layout.card.right+1&&box.top>=layout.card.top-1&&box.bottom<=layout.card.bottom+1,service.name+' '+name+' fits inside its ticket');
+  const overlapX=Math.min(layout.body.right,layout.stub.right)-Math.max(layout.body.left,layout.stub.left),overlapY=Math.min(layout.body.bottom,layout.stub.bottom)-Math.max(layout.body.top,layout.stub.top);
+  assert.ok(overlapX<=1||overlapY<=1,service.name+' information and action stub do not overlap');
+  assert.ok(layout.samples.every(sample=>sample.visible&&sample.font>=sample.min&&!sample.overflow),service.name+' names, description, conditions and action stay readable: '+JSON.stringify(layout.samples));
+ }
+ const note=page.locator('#services .panorama-catalogue-note');
+ assert.equal(await note.isVisible(),true,'the BOOM catalogue distinction is visible');
+ assert.match((await note.innerText()).replace(/\s+/g,' '),/BOOM.*(?:homes?|apartments).*free/i,'viewings of BOOM homes are clearly free');
+ assert.equal(await page.locator('#services .service-foot a[href="/services"]').isVisible(),true,'the full real service catalogue remains available');
 }
 async function typeQuality(page,view){
  await page.evaluate(()=>document.fonts.ready);
@@ -165,6 +215,7 @@ try{
  browser=await chromium.launch(await launchOptions());
  for(const width of [320,390,1440])await check(width+': Home → Apartments → Detail keeps the move and reaches the original Apply',width,async({page})=>{
   await start(page);await geometry(page,['[data-panorama-expand]','.edition-plan-link','#nextSearchForm button[type="submit"]']);
+  await romeTickets(page);
   await typeQuality(page,'home');await primaryContrast(page,'.edition-pass-action');await primaryContrast(page,'#nextSearchForm button[type="submit"]');
   assert.equal(await page.locator('#nextSearchForm').count(),1,'one original planner');
   await fillRome(page);await page.locator('#nextSearchForm button[type="submit"]').click();await page.locator('#nextApartments').waitFor({state:'visible'});
@@ -183,6 +234,7 @@ try{
  });
  await check('900: tablet planner controls do not overlap; reduced motion preserves the keyboard-only skip link',900,async({page})=>{
   await start(page);await typeQuality(page,'home');await geometry(page,['#nextDestinationSummary','#nextSearchForm button[type="submit"]']);
+  await romeTickets(page);
   const layout=await page.locator('#nextSearchForm').evaluate(form=>({
    bounds:form.getBoundingClientRect().toJSON(),
    controls:[...form.children].filter(node=>node.matches('label,button')&&node.getClientRects().length).map(node=>({
@@ -231,13 +283,7 @@ try{
    const fit=await signature.evaluate(node=>{const r=node.getBoundingClientRect(),g=document.getElementById('boomGlobeMount').getBoundingClientRect();return r.width>0&&r.height>0&&r.left>=g.left&&r.right<=g.right+1;});
    assert.equal(fit,true,'the city signature stays inside the mobile globe');await geometry(page);
    if(slug==='rome'){
-    for(const [selector,price,path] of [['.ticket-gold','€350','/property-finding'],['.ticket-dark','€249','/deal-assistance']]){
-     const ticket=page.locator('#services '+selector);
-     assert.equal(await ticket.locator('.ticket-stub strong').innerText(),price,'the Rome ticket preserves its published fee');
-     assert.equal(new URL(await ticket.getAttribute('href'),origin).pathname,path,'the Rome ticket keeps its original service');
-     assert.ok((await ticket.locator('.ticket-terms').innerText()).trim(),'the ticket keeps its service conditions beside the fee');
-     assert.equal(await ticket.locator('.panorama-service-route').isVisible(),true,'the service route is visible');
-    }
+    await romeTickets(page);
     continue;
    }
    const currency=slug==='london'?'GBP':'EUR',symbol=currency==='GBP'?'£':'€';
@@ -274,6 +320,85 @@ try{
    }
   }
   assert.equal(art.size,6,'each city has a distinct illustration');assert.equal(captions.size,6,'each city has its own caption');
+ });
+ await check('Rome service tickets reach the original forms, retain the supported public brief and remain distinct from foreign desk offers',390,async({page})=>{
+  await start(page,'&privatePlace=synthetic-private-office&lat=41.9123&lng=12.5123');await fillRome(page);
+  await romeTickets(page);
+  const requested={moveIn:arrival,moveOut:departure,budget:'1500',people:'couple',place:'luiss'};
+  const homeURL=page.url();
+  assert.equal(new URL(homeURL).searchParams.has('moveIn'),false,'editing the planner does not commit a home search');
+  for(const invalid of [false,true]){
+   await page.locator('#nextMoveIn').fill(invalid?arrival:'');await page.locator('#nextMoveOut').fill(invalid?year+'-01-01':'');
+   for(const service of romeServices){
+    const href=new URL(await romeTicket(page,service.path).getAttribute('href'),origin);
+    for(const key of ['moveIn','moveOut','stay'])assert.equal(href.searchParams.has(key),false,(invalid?'invalid':'cleared')+' draft dates never leak into '+service.name);
+    for(const [key,value] of Object.entries({budget:'1500',people:'couple',place:'luiss'}))assert.equal(href.searchParams.get(key),value,'date editing preserves the public '+key);
+   }
+   assert.equal(page.url(),homeURL,'reading a service brief does not write history or commit filters');
+   assert.equal(await page.locator('#nextHome').isVisible(),true,'editing the service brief stays on Home');
+   assert.equal(await page.locator('#nextApartments').isVisible(),false,'service links do not submit the home search');
+  }
+  await page.locator('#nextMoveIn').fill(arrival);await page.locator('#nextMoveOut').fill(departure);
+  const nativeHref=new URL(await romeTicket(page,'/property-finding').getAttribute('href'),origin).href;
+  const opened=page.context().waitForEvent('page');await romeTicket(page,'/property-finding').click({button:'middle'});
+  const separate=await opened;
+  try{
+   await separate.waitForURL(url=>url.pathname==='/property-finding');await separate.waitForFunction(()=>!!window.BoomJourneyHandoff);
+   assert.equal(separate.url(),nativeHref,'opening the native ticket in a new tab carries the current public draft');
+   assert.equal(await separate.locator('#ckBudget').inputValue(),'1500');
+   assert.equal(page.url(),homeURL,'opening another tab leaves the home and its draft in place');
+  }finally{await separate.close();}
+  for(const service of romeServices){
+   const ticket=romeTicket(page,service.path),href=new URL(await ticket.getAttribute('href'),origin);
+   assert.equal(href.origin,origin,'the ticket stays on the current BOOM deployment');
+   assert.equal(href.pathname,service.path,'the complete card has its canonical native href');
+   assert.equal(await ticket.evaluate(node=>node.tagName),'A');
+   const visibleDraft=await page.locator('#nextMoveIn,#nextMoveOut,#nextBudget,#nextPeople').evaluateAll(nodes=>Object.fromEntries(nodes.map(node=>[node.id,node.value])));
+   for(const [key,value] of Object.entries(requested))assert.equal(href.searchParams.get(key),value,service.name+' link carries the public '+key+'; current planner '+JSON.stringify(visibleDraft));
+   for(const key of ['experience','edition','direction','privatePlace','lat','lng','currency','city'])assert.equal(href.searchParams.has(key),false,'the Rome service URL excludes '+key);
+   await ticket.click();await page.waitForURL(url=>url.pathname===service.path);
+   assert.equal(page.url(),href.href,'the native ticket opens the existing service page without an intermediate funnel');
+   if(service.path==='/property-finding'){
+    await page.waitForFunction(()=>!!window.BoomJourneyHandoff);
+    assert.equal(await page.locator('#ckForm').count(),1,'the existing PFS check-in is the only form');
+    assert.equal(await page.locator('#ckBudget').inputValue(),'1500');assert.equal(await page.locator('#ckQuando').inputValue(),year+'-01');
+    const notes=await page.locator('#ckNote').inputValue();
+    assert.ok(notes.includes(arrival)&&notes.includes(departure)&&notes.includes('Luiss · Viale Romania'),'the original editable PFS notes preserve exact dates and public destination');
+    assert.ok((await page.locator('#ckVai').innerText()).includes(euro(service.price)),'the original PFS submission still displays its server fee');
+    assert.equal(await page.locator('#ckNome').inputValue(),'','opening the ticket never creates personal details');
+   }else{
+    await page.locator('button[onclick="openSheet(\'hero\')"]').click();
+    await page.locator('#ov.on').waitFor({state:'visible'});
+    assert.equal(await page.locator('#ov').count(),1,'the original service checkout sheet is reused');
+    assert.ok((await page.locator('#sGo').innerText()).includes(euro(service.price)),'the original service action keeps the actual fee');
+    assert.equal(await page.locator('#sName').inputValue(),'','the sheet requires the customer to provide their own details');
+    if(service.brief){
+     const notes=await page.locator('#sJourneyNotes').inputValue();
+     assert.ok(notes.includes(arrival)&&notes.includes(departure)&&notes.includes('Luiss · Viale Romania'),'the original Deal Assistance notes preserve the supported public brief');
+     assert.equal(await page.locator('#sJourneyNotes').isVisible(),true,'the customer can review the carried brief before checkout');
+    }
+    await page.keyboard.press('Escape');await page.locator('#ov').waitFor({state:'hidden'});
+   }
+   // No submit action is taken. The route guard also fails this scenario on
+   // any automatic lead, payment, analytics or other write attempted here.
+   await page.goBack();await page.waitForFunction(()=>document.body.dataset.experience==='panorama'&&document.body.dataset.europeCity==='rome');
+   await romeTicket(page,service.path).waitFor();
+  }
+  await page.locator('#services .service-foot a[href="/services"]').click();await page.waitForURL(url=>url.pathname==='/services');
+  assert.equal(await page.locator('#tenants .svc').count(),8,'All services opens the real complete tenant catalogue');
+  for(const label of ['Remote Move Pack','Deposit Recovery','Free Contract Check'])assert.equal(await page.getByRole('heading',{name:label,exact:true}).isVisible(),true,'the complete catalogue retains '+label);
+  await page.goBack();await page.waitForFunction(()=>document.body.dataset.experience==='panorama');
+  await page.locator('.europe-city-switch [data-europe-city="london"]').click();
+  await page.waitForFunction(()=>document.body.dataset.europeCity==='london');
+  for(const service of romeServices)assert.equal(await romeTicket(page,service.path).isVisible(),false,'London never presents a Rome ticket as a local offer');
+  await page.locator('#europeServicePass .europe-service-price strong').waitFor();
+  const manifest=JSON.parse(readFileSync(root+'assets/boom-desks-public.json','utf8')),search=manifest.cities.london.pricing.plans.find(plan=>plan.id==='full-search');
+  assert.equal(await page.locator('#europeServicePass .europe-service-price strong').innerText(),new Intl.NumberFormat('en-GB',{style:'currency',currency:'GBP',maximumFractionDigits:0}).format(search.price),'London keeps its own GBP service family');
+  await page.locator('.europe-city-switch [data-europe-city="rome"]').click();await page.waitForFunction(()=>document.body.dataset.europeCity==='rome');
+  await romeTickets(page);
+  assert.equal((await page.locator('#services .panorama-ticketing').innerText()).includes('£'),false,'returning to Rome cannot retain a desk currency');
+  assert.equal(await page.locator('#europeDeskStory').isVisible(),false,'foreign service choices leave the Rome home');
+  assert.equal(await page.locator('#nextMoveIn').inputValue(),arrival);assert.equal(await page.locator('#nextMoveOut').inputValue(),departure);
  });
  await check('London: globe and Solari share the canonical city, and GBP requires a new budget',390,async({page})=>{
   await start(page);await fillRome(page);
@@ -417,8 +542,21 @@ try{
   assert.equal(result.motions.length,0,'reduced-motion choices remain fully functional without movement');await offer('search');
  },'no-preference');
  await check('Studio: one preview retains the public London draft; invalid dates block switching and device changes never reload',1440,async({page})=>{
+  const config=JSON.parse(readFileSync(root+'vercel.json','utf8')),aliases=config.redirects.filter(rule=>rule.source==='/home-panorama');
+  assert.equal(aliases.length,1,'the alternate home has one explicit deployment redirect');
+  assert.equal(aliases[0].destination,'/flight-next?direction=club&edition=club&experience=panorama','the alternate home selects the actual Panorama route');
+  assert.equal(aliases[0].permanent,false,'the alternate home alias remains reversible');
+  assert.equal(config.redirects.some(rule=>rule.source==='/'&&rule.destination.includes('panorama')),false,'the second home does not replace the production homepage');
   const query=new URLSearchParams({city:'london',moveIn:arrival,moveOut:departure,budget:'3000',currency:'GBP',people:'couple',need:'application',privatePlace:'synthetic-office',lat:'41.9123',lng:'12.5123'});
   await page.goto(origin+'/flight-studio?'+query,{waitUntil:'domcontentloaded'});
+  const live=page.locator('#studioLive');
+  async function productionLink(){
+   assert.equal(await live.getAttribute('href'),'https://www.boomrome.com/','Home attuale points to the exact live homepage without carrying a preview draft');
+   assert.equal(await live.getAttribute('target'),'_blank','the live home opens separately from the comparison');
+   assert.ok((await live.getAttribute('rel')).split(/\s+/).includes('noopener'),'the live-home tab cannot control the comparison');
+  }
+  await productionLink();
+  for(const width of [320,390,900,1440]){await page.setViewportSize({width,height:900});await geometry(page,['#studioLive','#studioOpen','button[data-studio-experience]','button[data-studio-device]']);}
   assert.equal(await page.locator('iframe').count(),1,'the comparison owns exactly one iframe');
   const handle=await page.locator('#studioFrame').elementHandle(),frame=await handle.contentFrame();
   await frame.waitForFunction(()=>document.body.dataset.experience==='panorama'&&document.body.dataset.europeCity==='london'&&!!window.BoomFlightEurope);
@@ -475,7 +613,7 @@ try{
   await page.locator('button[data-studio-experience="panorama"]').click();await frame.waitForFunction(()=>document.body.dataset.experience==='panorama'&&document.body.dataset.europeCity==='rome');
   const freshPreview=new URL(frame.url());
   for(const [key,value] of Object.entries({moveIn:freshArrival,moveOut:freshDeparture,budget:'1500',people:'couple',place:'luiss'}))assert.equal(freshPreview.searchParams.get(key),value,'changing experience captures the unsubmitted Rome '+key);
-  assert.equal(await page.locator('iframe').count(),1);
+  assert.equal(await page.locator('iframe').count(),1);await productionLink();
  });
 }finally{if(browser)await browser.close();await new Promise(resolve=>server.close(resolve));}
 if(focus&&!passed&&!failed){failed++;console.log('  ✗ No scenario matched the requested focus');}
