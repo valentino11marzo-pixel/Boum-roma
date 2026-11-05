@@ -586,6 +586,30 @@ export function cityReplyText(lead = {}) {
   if (!lead.moveIn) asks.push('when do you land');
   if (!(lead.budgetBand || lead.budget)) asks.push("what's the monthly budget");
   if (!(lead.city && lead.city.situation)) asks.push("who's moving");
+  // v1.8 — a desk that charges at SIGNING (Paris, Berlin): an order there is
+  // BOOKED, never paid, until a lease is signed and the invoice is paid. These
+  // branches come BEFORE the six's paid one: a booking never reads «Payment
+  // received», and never a price (the fee is on the invoice, at signing).
+  if (k && chargeAtOf(k) === 'signing' && (lead.booked === true || lead.paid === true)) {
+    const hi = `Hi${first ? ' ' + first : ''}, Valentino here from BOOM ${c.label}.`;
+    if (lead.paid === true) {
+      return `${hi} Thank you — the fee is received; the invoice from Egidi Immobiliare S.r.l. is in your email.\n${c.url}`;
+    }
+    const bk = lead.city && typeof lead.city === 'object' ? lead.city : {};
+    const num = bk.order && typeof bk.order.number === 'string' ? bk.order.number : '';
+    if (lead.withdrawnAt || lead.closedAt) {
+      return `${hi} Your order${num ? ' ' + num : ''} is closed. Nothing was charged, and nothing is due.\n${c.url}`;
+    }
+    const sg = lead.signing && typeof lead.signing === 'object' ? lead.signing : {};
+    if (sg.status === 'invoiced') {
+      return `${hi} Congratulations on the lease. The invoice for your ${bk.serviceLabel || 'BOOM'} fee is in your email, with a secure payment link.\n${c.url}`;
+    }
+    const ref = [bk.file ? `file ${bk.file}` : '', num ? `order ${num}` : ''].filter(Boolean).join(', ');
+    return `${hi} Your ${bk.serviceLabel || 'BOOM'} order is in${ref ? ': ' + ref : ''}. Nothing is charged before you sign a lease. ` +
+      (k === 'berlin' ? "Please reply 'Confirmed' to our email so we can start. " : '') +
+      (bk.startNow === false && bk.workFromLabel ? `We start on ${bk.workFromLabel}; to start sooner, reply here. ` : '') +
+      `By phone or WhatsApp — which day and time suit you for a first call?\n${c.url}`;
+  }
   // A PAID order (the page's checkout, written by the SERVICE webhook with
   // market = the city): the money is in, the reply says so and names the next
   // step — never a second "thanks for your message".
@@ -629,9 +653,14 @@ export function cityReplyText(lead = {}) {
     // /<slug>#pay-full-search opens the till on Full Search (Start-now never
     // pre-ticked). Only here: never on a waitlist desk, never after a payment
     // or an abandoned checkout.
+    // v1.8: on a desk that charges at signing the second line ORDERS (the
+    // #order- alias of the page), and says what an order costs today: nothing.
+    const second = k && chargeAtOf(k) === 'signing'
+      ? `If you'd rather order now — nothing is charged before you sign a lease: ${c.url}#order-full-search`
+      : `If you'd rather start now: ${c.url}#pay-full-search`;
     return `Hi${first ? ' ' + first : ''}, Valentino here from BOOM 👋 ${opener}${file ? ` (your file ${file})` : ''}.\n` +
       `By phone or WhatsApp — which day and time suit you?\n${c.url}\n` +
-      `If you'd rather start now: ${c.url}#pay-full-search`;
+      second;
   }
   const q = asks.length
     ? `To set up the search properly: ${asks.join(', ')}? `

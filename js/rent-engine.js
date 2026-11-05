@@ -111,6 +111,17 @@
     return /^canone locazione(?: \d{4}-(?:0[1-9]|1[0-2]))?$/.test(key(i.service)) && /^ricevuta canone di locazione(?:\s*·|$)/.test(key(i.description));
   }
   function businessInvoices(invoices) { return list(invoices).filter(function (i) { return !isRentReceipt(i); }); }
+  // A fee invoiced for a desk abroad (v1.8: Paris and Berlin bill at the
+  // signing of a lease, `invoices/cityfee_*` with vatCountry 'FR'|'DE'): its
+  // VAT is the country's of the property, not Italy's (place of supply still
+  // with the accountant, spec §16 O13). It stays a company invoice, but the
+  // Italian IVA estimate must not count it: the readers (contabile,
+  // scadenzario) list it on its own line. An invoice without the field, or
+  // 'IT', is Italian as before.
+  function isForeignVat(invoice) {
+    var c = str((invoice || {}).vatCountry).toUpperCase();
+    return !!c && c !== 'IT';
+  }
 
   // BOOM acts as an agency: principal is separate from earned payment fees.
   // Only recorded settled fees/costs are used; no historical split is inferred.
@@ -344,7 +355,7 @@
     return isRentPayment(p) && !!monthOf(p.month) && p.month<=month && (monthOf(p.coversTo)||p.month)>=month;
   }
 
-  var API = { civilDay:day, contractRent:contractRent, inputMoney:inputMoney, paymentSnapshot:paymentSnapshot, contractSnapshot:contractSnapshot, sameSnapshot:sameSnapshot, editablePayment:editablePayment, contractSigned:contractSigned, installmentInput:installmentInput, bulkInstallments:bulkInstallments, coversMonth:coversMonth, amount: amount, paymentBlockReason: paymentBlockReason, paymentState: paymentState, canPay: canPay, canReviewReport: canReviewReport, isReceiptDocument: isReceiptDocument, isRentPayment: isRentPayment, isRentReceipt: isRentReceipt, businessInvoices: businessInvoices, agencyCollections: agencyCollections, overview: overview, rowsForMonth: rowsForMonth, timeline: timeline, nextAction: nextAction };
+  var API = { civilDay:day, contractRent:contractRent, inputMoney:inputMoney, paymentSnapshot:paymentSnapshot, contractSnapshot:contractSnapshot, sameSnapshot:sameSnapshot, editablePayment:editablePayment, contractSigned:contractSigned, installmentInput:installmentInput, bulkInstallments:bulkInstallments, coversMonth:coversMonth, amount: amount, paymentBlockReason: paymentBlockReason, paymentState: paymentState, canPay: canPay, canReviewReport: canReviewReport, isReceiptDocument: isReceiptDocument, isRentPayment: isRentPayment, isRentReceipt: isRentReceipt, businessInvoices: businessInvoices, isForeignVat: isForeignVat, agencyCollections: agencyCollections, overview: overview, rowsForMonth: rowsForMonth, timeline: timeline, nextAction: nextAction };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   if (root) root.BOOM_RENT = API;
 })(typeof window !== 'undefined' ? window : typeof globalThis !== 'undefined' ? globalThis : this);

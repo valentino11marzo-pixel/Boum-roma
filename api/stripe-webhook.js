@@ -938,6 +938,21 @@ async function handleRent(res, session, m) {
   return res.status(200).json({ received: true, rent: true, paymentId });
 }
 
+// The receipt of an English invoice: the amount as an English reader writes it
+// (never toLocaleString, which degrades in silence with a small ICU), and the
+// desk read back from the order number's prefix (PAR-…, BER-…) in the registry.
+function eurEn(n) {
+  const v = Math.round((Number(n) || 0) * 100) / 100;
+  const [i, d] = (Number.isInteger(v) ? String(v) : v.toFixed(2)).split('.');
+  return '€' + i.replace(/\B(?=(\d{3})+(?!\d))/g, ',') + (d ? '.' + d : '');
+}
+const escHtml = (x) => String(x == null ? '' : x).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+function deskOfOrderNumber(number) {
+  const prefix = String(number || '').split('-')[0];
+  if (!prefix) return null;
+  return Object.values(CITY_MARKETS).find((d) => d && d.order && d.order.prefix === prefix) || null;
+}
+
 // INVOICE — una fattura BOOM pagata con carta dal link mandato su WhatsApp.
 // Stessa disciplina del canone: idempotente sul retry di Stripe, e se il
 // documento risultava già saldato per altra via NON lo sovrascrive mai —
@@ -995,6 +1010,18 @@ async function handleInvoice(res, session, m) {
     } catch (err) { console.warn('[invoice] pa stamp:', err.message); }
   }
 
+  // The fee of a desk that charges at SIGNING (v1.8, invoices/cityfee_<id>
+  // from api/payments/_citysign.js): the order lead learns it is paid — the
+  // managed ticket, the bounce card, the brain and the ready reply read
+  // `paid` on the lead. Only on an order that exists (precondition), awaited,
+  // and an error is logged as a code, never with the client's data.
+  if (inv.cityLeadId) {
+    try {
+      await fsCommit([{ docPath: 'leads/' + String(inv.cityLeadId), precondition: { exists: true },
+        fields: { paid: true, paidAt: now, paidVia: 'link', paidInvoiceId: invoiceId } }]);
+    } catch (err) { console.warn('[invoice] city order stamp:', err && err.conflict ? 'no_order' : 'commit_failed'); }
+  }
+
   try {
     await writeDoc('agentNotifications', 'inv-' + invoiceId + '-' + session.id.slice(-8), {
       type: 'payment.invoice.paid',
@@ -1010,7 +1037,24 @@ async function handleInvoice(res, session, m) {
   // pagante — senza questo la ricevuta non partirebbe proprio a chi ha pagato.
   const email = (session.customer_details && session.customer_details.email)
     || session.customer_email || inv.recipientEmail || '';
-  if (email) {
+  if (email && inv.lang === 'en') {
+    // An English invoice (the desks abroad, v1.8) gets an English receipt:
+    // the payer is an expat who read the invoice and the pay page in English.
+    // The operator's copy below stays Italian.
+    const desk = deskOfOrderNumber(inv.cityOrderNumber);
+    try {
+      await sendEmail({
+        to: email,
+        ...(desk && process.env.GMAIL_USER ? { from: `BOOM ${desk.label} <${process.env.GMAIL_USER}>` } : {}),
+        subject: `Receipt — invoice ${inv.number || ''} ${eurEn(amount)} ✓`,
+        html: shell(
+          para(`Payment received ✓ — invoice <b>${escHtml(inv.number || invoiceId)}</b> for <b>${eurEn(amount)}</b> is settled. Thank you.`)
+          + (receiptUrl ? fine(`Stripe receipt: <a href="${receiptUrl}" style="color:#141414">open →</a>`, 'text-align:center') : '')
+          + fine('Questions? Reply to this email or <a href="https://wa.me/393313251961" style="color:#141414">write to us on WhatsApp</a>.', 'text-align:center'),
+          `Invoice ${eurEn(amount)} settled`, desk ? { tag: `BOOM ${desk.label} · tenant side` } : {}),
+      });
+    } catch (err) { console.error('[invoice] client email:', err.message); }
+  } else if (email) {
     try {
       await sendEmail({
         to: email,

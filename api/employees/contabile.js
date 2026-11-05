@@ -35,6 +35,14 @@ import {
 
 const EMPLOYEE = 'contabile';
 
+// «IVA estera — da definire: €976 (2 fatture · FR €500 · DE €476)» — the
+// fees of the desks abroad, kept OUT of the Italian IVA base (RENT.isForeignVat)
+// and said on their own line, never folded into the estimate.
+export function foreignVatLine(fv) {
+  const by = Object.entries(fv.byCountry || {}).map(([cc, n]) => `${cc} ${euro(n)}`).join(' · ');
+  return `IVA estera — da definire: ${euro(fv.total)} (${fv.count} fattur${fv.count === 1 ? 'a' : 'e'}${by ? ' · ' + by : ''})`;
+}
+
 export default async function handler(req, res) {
   const actor = await requireCronOrAdmin(req, res);
   if (!actor) return;
@@ -76,12 +84,25 @@ async function run({ dry, forceMonthly, yearOverride }) {
   // ── 1. Scadenze fiscali (landlord + company) ──────────────────────────
   const landlordObl = FISCAL.landlordObligations({ properties, contracts, fiscalYear });
   const revenueByQuarter = { 1: 0, 2: 0, 3: 0, 4: 0 };
+  // IVA estera (v1.8): le provvigioni dei desk che fatturano alla firma
+  // (Parigi, Berlino — invoices/cityfee_*, vatCountry FR|DE) non entrano
+  // nella base IVA italiana: il luogo della prestazione è del commercialista
+  // (spec §16 O13). Si elencano a parte, «IVA estera — da definire».
+  const foreignVat = { count: 0, total: 0, byCountry: {} };
   // BOOM è agenzia: le ricevute di canoni/depositi custoditi per i
   // proprietari non diventano ricavi aziendali né base IVA della società.
   for (const inv of RENT.businessInvoices(invoices)) {
     if (inv.status !== 'paid') continue;
     const d = new Date(inv.paidDate || inv.date || 0);
     if (d.getFullYear() !== fiscalYear) continue;
+    if (RENT.isForeignVat(inv)) {
+      const cc = String(inv.vatCountry).toUpperCase();
+      const amt = Number(inv.amount) || 0;
+      foreignVat.count++;
+      foreignVat.total = Math.round((foreignVat.total + amt) * 100) / 100;
+      foreignVat.byCountry[cc] = Math.round(((foreignVat.byCountry[cc] || 0) + amt) * 100) / 100;
+      continue;
+    }
     // l'imponibile quando la fattura lo dichiara (provvigione: amount è IVA
       // inclusa, netAmount no) — altrimenti l'IVA stimata contava l'IVA due volte
       revenueByQuarter[Math.floor(d.getMonth() / 3) + 1] += Number(inv.netAmount != null ? inv.netAmount : inv.amount) || 0;
@@ -171,7 +192,8 @@ async function run({ dry, forceMonthly, yearOverride }) {
     `Pacchetto: ${counts.packsReady}/${counts.packsTotal} pronti | ` +
     `Canoni/depositi per conto dei proprietari YTD ${euro(counts.incassatoYtd)} (da incassare ${euro(counts.outstandingYtd)}) | ` +
     `${counts.paymentsLate} in ritardo` +
-    (banca.accounts ? ` | Banca: ${banca.matchedLastRun} riconciliati · ${banca.toConfirm} da confermare` : '');
+    (banca.accounts ? ` | Banca: ${banca.matchedLastRun} riconciliati · ${banca.toConfirm} da confermare` : '') +
+    (foreignVat.count ? ` | ${foreignVatLine(foreignVat)}` : '');
 
   // ── Telegram: solo quando c'è da agire ───────────────────────────────
   const urgentSoon = dueSoon.filter(o => (o.days ?? 99) <= 7);
@@ -186,6 +208,7 @@ async function run({ dry, forceMonthly, yearOverride }) {
     if (banca.toConfirm) lines.push(`🏦 ${banca.toConfirm} bonifici da confermare come canoni: https://boomrome.com/banca`);
     if (daSmistare) lines.push(`📥 ${daSmistare} documenti archiviati ma senza immobile — assegnali dal portale`);
     if (banca.consentExpired) lines.push(`🏦 Consenso banca scaduto su ${banca.consentExpired} cont${banca.consentExpired === 1 ? 'o' : 'i'} — rinnova da /banca`);
+    if (foreignVat.count) lines.push(`🌍 ${esc(foreignVatLine(foreignVat))} (fuori dalla stima IVA italiana)`);
     lines.push(`\nConsole: https://boomrome.com/team`);
     notified = await tgNotify(lines.join('\n'));
   }
@@ -193,7 +216,7 @@ async function run({ dry, forceMonthly, yearOverride }) {
   // ── Chiusura mese (giorno 1, o ?monthly=1) ────────────────────────────
   let monthlyEmail = null;
   if ((now.getUTCDate() === 1 || forceMonthly) && !dry) {
-    monthlyEmail = await sendMonthlyClose({ now, payments, packs, overdue, dueSoon, propById });
+    monthlyEmail = await sendMonthlyClose({ now, payments, packs, overdue, dueSoon, propById, foreignVat });
   }
 
   const report = {
@@ -204,6 +227,7 @@ async function run({ dry, forceMonthly, yearOverride }) {
     packs: packs.slice(0, 20),
     late: late.slice(0, 15),
     banca,
+    foreignVat,
     notified,
   };
   if (!dry) {
@@ -215,7 +239,7 @@ async function run({ dry, forceMonthly, yearOverride }) {
 
 // "Chiusura mese": incassi del mese appena chiuso + prontezza del pacchetto
 // commercialista + prossime scadenze. Recipient override via ACCOUNTING_EMAIL.
-async function sendMonthlyClose({ now, payments, packs, overdue, dueSoon, propById }) {
+async function sendMonthlyClose({ now, payments, packs, overdue, dueSoon, propById, foreignVat }) {
   const to = process.env.ACCOUNTING_EMAIL || process.env.GMAIL_USER;
   if (!to) return { sent: false, error: 'no recipient configured' };
 
@@ -254,6 +278,7 @@ async function sendMonthlyClose({ now, payments, packs, overdue, dueSoon, propBy
       <p style="font-weight:bold;margin-top:18px">📁 Pacchetto commercialista (anno ${now.getUTCFullYear()})</p>
       <table style="border-collapse:collapse;font-size:13px;width:100%">${rows}</table>
       ${oblRows ? `<p style="font-weight:bold;margin-top:18px">🏛️ Scadenze fiscali</p><ul style="font-size:14px;line-height:1.7">${oblRows}</ul>` : ''}
+      ${foreignVat && foreignVat.count ? `<p style="font-size:14px;margin-top:18px">🌍 ${esc(foreignVatLine(foreignVat))} — fuori dalla stima IVA italiana, da definire col commercialista.</p>` : ''}
       <p style="font-size:12px;color:#999;margin-top:18px">Report automatico del Contabile — verifica col commercialista prima di versare. Console: https://boomrome.com/team</p>
     </div></div>`;
 

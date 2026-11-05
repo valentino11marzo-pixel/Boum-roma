@@ -41,12 +41,26 @@ export default async function handler(req, res) {
 
     // ── Company (this year + next year's carry-over deadlines) ──────────
     const revenueByQuarter = { 1: 0, 2: 0, 3: 0, 4: 0 };
+    // IVA estera (v1.8): le provvigioni dei desk che fatturano alla firma
+    // (invoices/cityfee_*, vatCountry FR|DE) restano FUORI dalla base IVA
+    // italiana e si elencano a parte («IVA estera — da definire»): il luogo
+    // della prestazione è del commercialista (spec §16 O13).
+    const foreignVat = { label: 'IVA estera — da definire', count: 0, total: 0, byCountry: {}, invoices: [] };
     // BOOM è agenzia: le ricevute di canoni/depositi custoditi per i
     // proprietari non diventano ricavi aziendali né base IVA della società.
     for (const inv of RENT.businessInvoices(invoices)) {
       if (inv.status !== 'paid') continue;
       const d = new Date(inv.paidDate || inv.date || 0);
       if (d.getFullYear() !== fiscalYear) continue;
+      if (RENT.isForeignVat(inv)) {
+        const cc = String(inv.vatCountry).toUpperCase();
+        const amt = Number(inv.amount) || 0;
+        foreignVat.count++;
+        foreignVat.total = Math.round((foreignVat.total + amt) * 100) / 100;
+        foreignVat.byCountry[cc] = Math.round(((foreignVat.byCountry[cc] || 0) + amt) * 100) / 100;
+        if (foreignVat.invoices.length < 50) foreignVat.invoices.push({ id: inv.id || null, number: inv.number || null, vatCountry: cc, amount: amt, paidDate: String(inv.paidDate || inv.date || '').slice(0, 10) || null });
+        continue;
+      }
       // l'imponibile quando la fattura lo dichiara (provvigione: amount è IVA
       // inclusa, netAmount no) — altrimenti l'IVA stimata contava l'IVA due volte
       revenueByQuarter[Math.floor(d.getMonth() / 3) + 1] += Number(inv.netAmount != null ? inv.netAmount : inv.amount) || 0;
@@ -107,7 +121,7 @@ export default async function handler(req, res) {
     };
 
     if (format === 'json') {
-      return res.status(200).json({ ok: true, fiscalYear, counts, company: companyOut, byClient: byClientOut });
+      return res.status(200).json({ ok: true, fiscalYear, counts, company: companyOut, byClient: byClientOut, foreignVat });
     }
 
     // ── ICS ──────────────────────────────────────────────────────────────

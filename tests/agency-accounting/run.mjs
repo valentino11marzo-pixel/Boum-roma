@@ -85,6 +85,35 @@ for(const [name,handler,isContabile] of [['scadenzario',scadenzario,false],['con
     const res=await drive(mutantHandler);assert.throws(()=>assert.equal(iva(res,isContabile),275));readOnly();
   });
 }
+// v1.8: the fees of the desks abroad (invoices/cityfee_*, vatCountry FR|DE,
+// netAmount null) are company invoices, but NOT Italian IVA base: listed on
+// their own line, «IVA estera — da definire» (spec §6.8, D16).
+function cityFees(){
+  store.set('invoices/cityfee_book_par1',{status:'paid',amount:500,netAmount:null,vatPct:null,vatAmount:null,vatCountry:'FR',currency:'eur',lang:'en',paidDate:'2026-03-12',number:'PAR-2026-0001-FS',service:'BOOM Paris — Full Search',source:'city-signing',cityLeadId:'book_par1'});
+  store.set('invoices/cityfee_book_ber1',{status:'paid',amount:476,netAmount:null,vatPct:null,vatAmount:null,vatCountry:'de',currency:'eur',lang:'en',paidDate:'2026-02-03',number:'BER-2026-0001-FS',service:'BOOM Berlin — Full Search',source:'city-signing',cityLeadId:'book_ber1'});
+  store.set('invoices/cityfee_book_par2',{status:'pending',amount:199,vatCountry:'FR',date:'2026-03-20',number:'PAR-2026-0002-AP',source:'city-signing'});
+  store.set('invoices/italian-explicit',{status:'paid',amount:100,vatCountry:'IT',paidDate:'2026-03-25',service:'Consulenza'});
+}
+for(const [name,handler,isContabile] of [['scadenzario',scadenzario,false],['contabile',contabile,true]]){
+  await test(name+': fees with a foreign VAT country stay out of the Italian IVA estimate and are listed apart',async()=>{
+    seed();cityFees();const res=await drive(handler);
+    // 1000 + 250 + 100 (vatCountry IT is Italian) = 1350 → IVA 22% = 297; the €500 + €476 abroad never in
+    assert.equal(iva(res,isContabile),297);
+    const fv=isContabile?res.body.report.foreignVat:res.body.foreignVat;
+    assert.equal(fv.count,2);assert.equal(fv.total,976);assert.deepEqual(fv.byCountry,{FR:500,DE:476});
+    if(isContabile)assert.match(res.body.summary,/IVA estera — da definire: €976 \(2 fatture · FR €500 · DE €476\)/);
+    else assert.equal(fv.label,'IVA estera — da definire');
+    readOnly();
+  });
+  await test(name+': removing the foreign-VAT exclusion makes the handler assertion fail (mutation)',async()=>{
+    seed();cityFees();
+    const file=new URL(isContabile?'../../api/employees/contabile.js':'../../api/accounting/scadenzario.js',import.meta.url);
+    const source=readFileSync(file,'utf8');assert.ok(source.includes('if (RENT.isForeignVat(inv)) {'));
+    const mutant=source.replace('if (RENT.isForeignVat(inv)) {','if (false) {').replace(/from (['"])(\.[^'"]+)\1/g,(_m,_q,s)=>'from '+JSON.stringify(new URL(s,file).href));
+    const mutantHandler=(await import('data:text/javascript;base64,'+Buffer.from(mutant).toString('base64'))).default;
+    const res=await drive(mutantHandler);assert.throws(()=>assert.equal(iva(res,isContabile),297));readOnly();
+  });
+}
 await test('landlord obligations and taxpack totals are identical with/without company rent receipts',async()=>{
   seed();const beforeS=await drive(scadenzario),beforeC=await drive(contabile);receipts();const afterS=await drive(scadenzario),afterC=await drive(contabile);
   assert.deepEqual(afterS.body.byClient,beforeS.body.byClient);assert.deepEqual(afterC.body.report.packs,beforeC.body.report.packs);

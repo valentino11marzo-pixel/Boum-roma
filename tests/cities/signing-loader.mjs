@@ -23,6 +23,19 @@ const MUTATIONS = {
   'blind-counter': ['/api/_cityorder.js', 'precondition: cnt ? { updateTime: cnt.updateTime } : { exists: false } },', 'precondition: cnt ? { exists: true } : { exists: false } },'],
   // the managed ticket that believes any token
   'any-token': ['/api/city-lead.js', 'if (!verifyOrderToken(id, token)) return', 'if (false) return'],
+  // ── the charge at signing (stage A2) ──
+  // the claim written without its version: two taps both go through
+  'blind-claim': ['/api/payments/_citysign.js', "const claim = { docPath: 'leads/' + leadId, fields: { signing: sg }, precondition: { updateTime: v.updateTime } };", "const claim = { docPath: 'leads/' + leadId, fields: { signing: sg }, precondition: { exists: true } };"],
+  // the withdrawal-window gate removed (CRD art. 14(4)(a)(ii))
+  'no-window': ['/api/payments/_citysign.js', 'if (c.startNow === false && c.withdrawalEndsOn && facts.signedOn <= c.withdrawalEndsOn && !facts.early) {', 'if (false) {'],
+  // Berlin's no-stacking gate removed (§3(3) WoVermRG)
+  'no-stacking': ['/api/payments/_citysign.js', "if (fs) return refuse('law', 'stacking'", "if (false) return refuse('law', 'stacking'"],
+  // the client email of the invoice not guarded on a resume
+  'resend-email': ['/api/payments/_citysign.js', 'if (!sg.clientEmailSentAt) {\n    const m = invoiceEmail(', 'if (true) {\n    const m = invoiceEmail('],
+  // the card's key not checked: an older card applies a newer draft
+  'no-key-check': ['/api/payments/_citysign.js', "if (key != null && key !== s.key) return { ok: false, error: 'stale_card', lead, signing: s };", "if (false) return { ok: false, error: 'stale_card', lead, signing: s };"],
+  // the INVOICE webhook without the order stamp
+  'no-city-stamp': ['/api/stripe-webhook.js', 'if (inv.cityLeadId) {', 'if (false) {'],
 };
 export async function load(url, context, nextLoad) {
   const out = await nextLoad(url, context);
