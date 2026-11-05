@@ -80,8 +80,10 @@
 }
 
 /* §2 the map (v1.7, the Horizon): boom-city.css draws it (.hz); here the box, the arcs lit from
-   Rome, the pins and their cards. A pin's first tap on a touch screen opens its card docked under
-   the map (boom-desks.js: .sel, .dock); the second tap, or the card, goes to the desk */
+   Rome, the pins and their cards. On a touch screen (or under 600px) the pins are links but not
+   targets (v1.8 option (b): two pins may stand closer than 44px there): the box takes the tap and
+   docks the nearest desk's card within 30px under the map (boom-desks.js: .sel, .dock); the second
+   tap, or the card, goes to the desk. From 600px with a mouse a pin is its own 44px target */
 .hmap-g{display:grid;gap:22px;margin-top:26px}
 .hmap{margin:0;min-width:0}
 .hmap-box{position:relative;border:1px solid var(--line-soft);background:#050506}
@@ -104,6 +106,7 @@
 @media (hover:hover){.pin:hover .pc{display:block}}
 .pc.dock{left:var(--dl);right:auto;top:var(--dt);width:var(--dw);max-width:none;transform:none;pointer-events:auto;padding:13px 16px;font-size:14px;background:#0B0B0E}
 .pc.dock .pc-go{display:flex;align-items:center;min-height:44px;margin:4px 0 -10px}
+@media (hover:none),(max-width:599px){.pin{pointer-events:none}.hmap-box{-webkit-tap-highlight-color:transparent}}
 .m-legend{margin-top:12px}
 .m-rail{display:grid;gap:14px;align-content:start}
 .m-card{padding:18px 18px 8px;border:1px solid var(--line-soft);background:linear-gradient(180deg,#0E0E11,#0A0A0C)}

@@ -33,7 +33,7 @@
     "strip": [
       { "k": "Paid by you", "v": "Never by landlords or their agents." },
       { "k": "First call", "v": "Free, before anything is paid." },
-      { "k": "14 days", "v": "To withdraw after paying: the model form.", "href": "/withdrawal" },
+      { "k": "14 days", "v": "Withdraw online, from the day you order.", "href": "/withdrawal#online" },
       { "k": "One company", "v": "{legalName}, registered in Rome." },
       { "k": "Languages", "v": "English at every desk; in {homeCity}, Italian too." },
       { "k": "One person", "v": "{person} answers at every desk." }

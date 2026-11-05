@@ -110,10 +110,11 @@ button.lnk{display:inline;font-size:inherit}
   -webkit-mask:radial-gradient(120% 130% at 0% 0%,#000 20%,transparent 62%);mask:radial-gradient(120% 130% at 0% 0%,#000 20%,transparent 62%)}
 /* the inner hairline at 6px */
 .pass::after{content:'';position:absolute;inset:6px;border:1px solid rgba(255,215,0,.13);border-radius:18px;pointer-events:none}
-/* the plane: parked at YOU; on tick 1 once the server opened the file or took the
-   payment; before tick 1 when the payer did not ask to start now */
-.pass[data-state=open],.pass[data-state=paid]{--at:.25}
-.pass[data-state=paid][data-hold]{--at:.125}
+/* the plane: parked at YOU; on tick 1 once the server opened the file, took the
+   payment or booked the order (v1.8, a desk that charges at signing: BOOKED is its own
+   state, a twin of PAID's every rule); before tick 1 when the payer did not ask to start now */
+.pass[data-state=open],.pass[data-state=paid],.pass[data-state=booked]{--at:.25}
+.pass[data-state=paid][data-hold],.pass[data-state=booked][data-hold]{--at:.125}
 .lamina,.seal,.route-s,.sside{display:none}
 .p-main{position:relative;padding:10px 20px 2px;container-type:inline-size}
 .p-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 12px;min-height:30px}
@@ -124,9 +125,9 @@ button.lnk{display:inline;font-size:inherit}
 .slot{display:inline-flex;align-items:center;min-height:28px;padding:0 11px;border-radius:999px;border:1px solid var(--line);
   font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--t2);white-space:nowrap}
 .slot .slot-b{display:none;font-size:16px;font-weight:400;color:var(--gold);line-height:1.26em}
-.pass[data-state=open] .slot,.pass[data-state=paid] .slot{border-color:transparent;padding:0}
-.pass[data-state=open] .slot .slot-t,.pass[data-state=paid] .slot .slot-t{display:none}
-.pass[data-state=open] .slot .slot-b,.pass[data-state=paid] .slot .slot-b{display:inline-block}
+.pass[data-state=open] .slot,.pass[data-state=paid] .slot,.pass[data-state=booked] .slot{border-color:transparent;padding:0}
+.pass[data-state=open] .slot .slot-t,.pass[data-state=paid] .slot .slot-t,.pass[data-state=booked] .slot .slot-t{display:none}
+.pass[data-state=open] .slot .slot-b,.pass[data-state=paid] .slot .slot-b,.pass[data-state=booked] .slot .slot-b{display:inline-block}
 .pass[data-state=confirming] .slot,.pass[data-state=unconfirmed] .slot{color:var(--gold);border-color:var(--gold-line)}
 
 h1{margin-top:10px;font-weight:300;line-height:1.06;letter-spacing:-.012em}
@@ -355,12 +356,13 @@ h1 .h1a{display:block;color:var(--t2);font-size:clamp(26px,7vw,50px);text-wrap:b
   @keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 }
 
-/* states printed where the door was: OPEN · confirming · PAID */
+/* states printed where the door was: OPEN · confirming · PAID · BOOKED (the managed ticket's DUE carries the pay link) */
 .card{position:relative;padding-top:4px}
 .card:focus{outline:none}
 .card h2{margin-top:6px;font-weight:300;font-size:24px;line-height:1.2}
 .card h2 em{font-style:normal;color:var(--gold)}
 .card p{margin-top:10px;font-size:14px;color:var(--t2)}
+.card a.pay{text-decoration:none}
 .card .fields{margin-top:12px}
 .card .stamp~h2,.card .stamp~.k{padding-right:96px}
 .card .next{list-style:none;margin-top:12px;border-top:1px solid var(--line-soft)}
@@ -736,7 +738,7 @@ dialog.till::backdrop{background:rgba(0,0,0,.74);-webkit-backdrop-filter:blur(6p
 .t-price span{display:block;margin-top:5px;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--t3)}
 .t-tag{margin-top:4px;font-size:14px;color:var(--t3)}
 .t-inc{margin-top:12px;padding-top:10px;border-top:1px solid var(--line)}
-.t-opt{margin-top:10px;font-size:13.5px;color:var(--t2)}
+.t-opt,.t-order{margin-top:10px;font-size:13.5px;color:var(--t2)}
 .till .fld:has(>#tName)::before{content:'';display:block;height:10px;margin:6px -20px 16px;background:var(--hole);background-size:11px 10px;background-repeat:repeat-x;background-position:center}
 .tick{display:grid;grid-template-columns:24px minmax(0,1fr);gap:12px;align-items:start;margin-top:16px;padding:12px 14px;border:1px solid var(--line);border-radius:14px;
   cursor:pointer;font-size:13.5px;line-height:1.45;color:var(--t2);transition:border-color .2s,background .2s}
