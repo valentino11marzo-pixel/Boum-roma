@@ -191,12 +191,19 @@ async function orderStatus(req, res, q) {
   if (o.expiresOn) out.expiresOn = o.expiresOn;
   const invPaid = !!(inv && inv.status === 'paid');
   const amount = inv && Number.isFinite(Number(inv.amount)) ? Number(inv.amount) : null;
+  // an invoice still owed is its own state until the operator acts on it
+  const owed = !!(inv && inv.status !== 'cancelled' && amount != null);
+  // a withdrawal statement WITHOUT withdrawnAt is what api/withdraw.js files once a lease was declared
+  // signed (spec §7: the map only, the right may have ended on full performance, the operator decides):
+  // it never hides an invoice still owed nor renames a closed order; with no live invoice the order goes
+  // no further (the signing gates refuse it), so it reads withdrawn
+  const statement = !!(lead.withdrawal && lead.withdrawal.at);
   if (lead.paid === true || invPaid) {
     out.state = 'paid';
     if (amount != null) out.amount = amount;
     const on = romeDayOf(lead.paidAt || (inv && (inv.paidAt || inv.paidDate)));
     if (on) out.paidOn = on;
-  } else if (lead.withdrawnAt || (lead.withdrawal && lead.withdrawal.at)) {
+  } else if (lead.withdrawnAt || (statement && !owed && !lead.closedAt)) {
     out.state = 'withdrawn';
     const on = romeDayOf(lead.withdrawnAt || lead.withdrawal.at);
     if (on) out.withdrawnOn = on;
@@ -204,7 +211,7 @@ async function orderStatus(req, res, q) {
     out.state = 'closed';
     const on = romeDayOf(lead.closedAt);
     if (on) out.closedOn = on;
-  } else if (inv && inv.status !== 'cancelled' && amount != null) {
+  } else if (owed) {
     out.state = 'due';
     out.amount = amount;
     out.payUrl = payLink('inv', lead.signing.invoiceId);

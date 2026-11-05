@@ -704,6 +704,26 @@ try {
       DB.set('leads/' + cid, { ...DB.get('leads/' + cid), closedAt: '2026-11-22T23:30:00.000Z', closeReason: 'stopped' }); bump('leads/' + cid);
       const gc = await getTicket({ order: cid, t: orderToken(cid), city: 'paris' });
       check(gc.body.state === 'closed' && gc.body.closedOn === '2026-11-23', 'CLOSED with its Rome day (23:30 UTC is already the 23rd in Rome)', JSON.stringify(gc.body));
+      // a withdrawal STATEMENT after a lease was declared signed: api/withdraw.js (stage W) writes the
+      // `withdrawal` map only, never withdrawnAt (spec §7: the right may have ended on full performance,
+      // the operator decides). The ticket does not decide for the operator: an invoice still owed stays
+      // DUE with its pay link, a closed order stays CLOSED; once the operator cancels the invoice, the
+      // statement on file reads WITHDRAWN (integration of A1's ticket with W)
+      const ls = order('paris', { email: 'late@example.com' });
+      await post(ls);
+      const lsid = 'book_' + ls.requestId;
+      DB.set('leads/' + lsid, { ...DB.get('leads/' + lsid), signing: { status: 'invoiced', invoiceId: 'cityfee_' + lsid }, withdrawal: { at: '2026-11-24T10:00:00.000Z', via: 'online', statementId: 'withdraw-x' } }); bump('leads/' + lsid);
+      DB.set('invoices/cityfee_' + lsid, { amount: 500, status: 'pending', recipientEmail: 'late@example.com' }); bump('invoices/cityfee_' + lsid);
+      const gls = await getTicket({ order: lsid, t: orderToken(lsid), city: 'paris' });
+      check(gls.body.state === 'due' && gls.body.amount === 500 && gls.body.payUrl === payLink('inv', 'cityfee_' + lsid) && !('withdrawnOn' in gls.body),
+        'a statement after signing (the map only) does not hide an invoice still owed: DUE with its pay link until the operator decides', JSON.stringify(gls.body));
+      DB.set('invoices/cityfee_' + lsid, { ...DB.get('invoices/cityfee_' + lsid), status: 'cancelled' }); bump('invoices/cityfee_' + lsid);
+      const gls2 = await getTicket({ order: lsid, t: orderToken(lsid), city: 'paris' });
+      check(gls2.body.state === 'withdrawn' && gls2.body.withdrawnOn === '2026-11-24' && !gls2.body.payUrl,
+        'the operator cancels the invoice: the statement on file reads WITHDRAWN, with its day', JSON.stringify(gls2.body));
+      DB.set('leads/' + cid, { ...DB.get('leads/' + cid), withdrawal: { at: '2026-11-24T10:00:00.000Z', via: 'online', statementId: 'withdraw-y' } }); bump('leads/' + cid);
+      const gc2 = await getTicket({ order: cid, t: orderToken(cid), city: 'paris' });
+      check(gc2.body.state === 'closed' && gc2.body.closedOn === '2026-11-23', 'a statement on a closed order (the map only): still CLOSED, on the day it closed', JSON.stringify(gc2.body));
       // a Berlin ticket has no expiry
       const bk = [...DB.entries()].find(([k, v]) => k.startsWith('leads/book_') && v.market === 'berlin');
       const gb = await getTicket({ order: bk[1].id || bk[0].slice(6), t: orderToken(bk[0].slice(6)), city: 'berlin' });
