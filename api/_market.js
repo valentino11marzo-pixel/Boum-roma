@@ -286,14 +286,47 @@ export function moneyOf(amount, currency) {
 }
 
 /**
+ * WHEN a desk charges (v1.8, spec §3.1): 'signing' for a desk whose registry
+ * entry says `chargeAt: 'signing'` (Paris and Berlin from the flip: the order
+ * is booked on BOOM's button and the fee is invoiced only when a lease is
+ * signed, so no payment session is ever opened at the order), 'checkout' for
+ * every other desk — the six sell through a Stripe Checkout at the order —
+ * and for a key the registry does not know. One word, read like `currency`:
+ * the till (service-checkout → _cityorder), the GET of /api/city-lead, the
+ * build (the JSON mirror must agree) and the readers downstream.
+ * @param {string} cityKey
+ * @returns {'signing'|'checkout'}
+ */
+export function chargeAtOf(cityKey) {
+  const k = String(cityKey || '').toLowerCase().trim();
+  const c = Object.prototype.hasOwnProperty.call(CITY_MARKETS, k) ? CITY_MARKETS[k] : null;
+  return c && c.chargeAt === 'signing' ? 'signing' : 'checkout';
+}
+
+/**
+ * Is this lead an order or a client of a desk that charges at signing? The
+ * lead's market (cityMarketOf: `market`, then `sourceRef` city-<slug>) read
+ * against the registry — never a field the lead carries about itself.
+ * @param {object} lead
+ * @returns {boolean}
+ */
+export function isSigningDesk(lead = {}) {
+  const k = cityMarketOf(lead);
+  return k !== null && chargeAtOf(k) === 'signing';
+}
+
+/**
  * What a city page may SELL right now, by plan id — or why not.
- * Returns { ok:true, city, plan, eur, currency, label, name, desc, url } or
+ * Returns { ok:true, city, plan, eur, currency, chargeAt, label, name, desc, url } or
  * { ok:false, error: 'unknown_city' | 'checkout_closed' | 'unknown_service' }.
  * `eur` is the amount in `currency` (lowercase, 'eur' when the desk names
  * none): London's 500 is £500.
  * 'checkout_closed' covers a waitlist desk and a search desk that has not
  * opened its checkout: in both cases the page shows the price and takes the
  * file, and nobody is charged.
+ * `chargeAt` is chargeAtOf(city): on a 'signing' desk the offer is BOOKED on
+ * BOOM's button (api/_cityorder.js) and never opens a payment session —
+ * api/service-checkout.js branches on it and its belt refuses the session.
  * @param {string} cityKey
  * @param {string} planId
  */
@@ -305,7 +338,7 @@ export function cityOffer(cityKey, planId) {
   const id = String(planId || '').toLowerCase().trim();
   const p = (c.plans || {})[id];
   if (!p) return { ok: false, error: 'unknown_service' };
-  return { ok: true, city: k, plan: id, eur: p.eur, currency: cityCurrency(k), label: p.label, per: p.per, desc: p.desc, name: `BOOM ${c.label} — ${p.label}`, url: c.url };
+  return { ok: true, city: k, plan: id, eur: p.eur, currency: cityCurrency(k), chargeAt: chargeAtOf(k), label: p.label, per: p.per, desc: p.desc, name: `BOOM ${c.label} — ${p.label}`, url: c.url };
 }
 
 /**

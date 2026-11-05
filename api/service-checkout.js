@@ -32,10 +32,20 @@
 // more: the webhook decides whether that lead exists in the SAME city
 // before reusing its file number. Anything else is ignored in silence (a
 // bad reference must never block a payment); Rome services ignore it.
+//
+// THE DESKS THAT CHARGE AT SIGNING (v1.8, Paris and Berlin from the flip):
+// cityOffer says `chargeAt: 'signing'` and the order goes to
+// api/_cityorder.js — BOOKED on our button, the email is the contract, the
+// fee is invoiced only when a lease is signed. Such a desk NEVER opens a
+// payment session here: the branch right after cityOffer hands the request
+// over, and THE BELT in front of the Stripe call refuses a signing offer
+// that ever reached it (tests/cities/signing.mjs removes the branch and
+// expects a 500, never a session).
 
 import Stripe from 'stripe';
 import { CATALOG } from './_catalog.js';
 import { cityOffer } from './_market.js';
+import { createCityOrder } from './_cityorder.js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
@@ -77,6 +87,9 @@ export default async function handler(req, res) {
   if (cityKey) {
     offer = cityOffer(cityKey, kind);
     if (!offer.ok) return res.status(400).json({ ok: false, error: offer.error });
+    // a desk that charges at signing books the order on our button: no
+    // payment session, no price from here on (api/_cityorder.js)
+    if (offer.chargeAt === 'signing') return createCityOrder(req, res, { offer, body, ip });
     // `eur` is the amount in the desk's currency (London: pounds) — see
     // CITY_PLANS in api/_market.js; the currency travels beside it
     svc = { eur: offer.eur, currency: offer.currency, label: offer.label, desc: offer.desc };
@@ -98,6 +111,9 @@ export default async function handler(req, res) {
   }
 
   try {
+    // THE BELT: a signing desk never opens a payment session — not even if
+    // the branch above were removed or bypassed (the catch answers 500)
+    if (offer && offer.chargeAt === 'signing') throw Object.assign(new Error('signing desk never opens a payment session'), { code: 'signing_desk' });
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       payment_method_types: ['card'],
@@ -152,6 +168,6 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true, url: session.url });
   } catch (err) {
     console.error('Service checkout error:', err);
-    return res.status(500).json({ ok: false, error: 'stripe_failed' });
+    return res.status(500).json({ ok: false, error: err && err.code === 'signing_desk' ? 'signing_desk' : 'stripe_failed' });
   }
 }

@@ -46,3 +46,26 @@ export function payLink(kind, id, origin) {
   const base = origin || 'https://www.boomrome.com';
   return `${base}/api/payments/link?k=${encodeURIComponent(kind)}&id=${encodeURIComponent(id)}&t=${payToken(kind, id)}`;
 }
+
+// ── Il biglietto dell'ordine di un desk che incassa alla firma (v1.8) ──────
+// L'email d'ordine di Parigi e Berlino porta «Manage your order»:
+// /<desk>?order=<book_…>&t=<token> → GET /api/city-lead?order= (lo stato
+// del biglietto: BOOKED, DUE col link di pagamento, PAID, CLOSED). Stesso
+// schema del payToken: DERIVATO dall'id + il segreto server, mai salvato,
+// confronto a tempo costante; ruotando HOMIE_SECRET si revocano tutti i
+// link di gestione. NON è un tipo di KINDS: /api/payments/link?k=ord resta
+// rifiutato (un biglietto d'ordine non apre mai una cassa).
+/** Token opaco del biglietto d'ordine. 24 hex = 96 bit. */
+export function orderToken(id) {
+  return crypto.createHash('sha256')
+    .update(`boom-city-order:${id}:${salt()}`)
+    .digest('hex').slice(0, 24);
+}
+
+/** Confronto a tempo costante, come verifyPayToken. */
+export function verifyOrderToken(id, token) {
+  const want = Buffer.from(orderToken(id));
+  const got = Buffer.from(String(token || ''));
+  if (want.length !== got.length) return false;
+  try { return crypto.timingSafeEqual(want, got); } catch (_) { return false; }
+}
