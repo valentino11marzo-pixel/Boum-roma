@@ -312,7 +312,7 @@
       var p = project(s.data.cities[city.slug].vector), selected = city.slug === selectedCity, label = s.labelPositions && s.labelPositions[city.slug];
       if (p[2] <= 0) return;
       var x = cx+p[0]*r, y = cy+p[1]*r, labelWidth = w < 430 ? 94 : 112;
-      if (!view.flight) {
+      if (!view.flight && (s.root.dataset.globeLabels!=='selected'||selected)) {
         var edge = label[0] < cx ? label[0]+labelWidth*.36 : label[0]-labelWidth*.36, elbow = edge+(x-edge)*.25;
         ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(elbow,label[1]); ctx.lineTo(edge,label[1]);
         ctx.lineWidth = selected ? 1 : .65; ctx.strokeStyle = selected ? 'rgba(255,215,0,.72)' : 'rgba(214,212,199,.3)'; ctx.stroke();

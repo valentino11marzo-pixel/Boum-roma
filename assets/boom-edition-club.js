@@ -24,7 +24,7 @@
   var bottom=hero.querySelector('.hero-bottom');bottom.querySelector('span').replaceWith(byId('europeCitySignature'));
   var compactHome=matchMedia('(max-width: 650px)');
   function arrangeHome(){
-    var localFirst=compactHome.matches&&document.body.dataset.europeCity==='rome';
+    var localFirst=compactHome.matches&&document.body.dataset.europeCity==='rome'&&new URLSearchParams(location.search).get('experience')!=='panorama';
     var focused=planner.contains(document.activeElement)?document.activeElement:null,moved=false;
     if(localFirst&&planner.parentElement!==ticket){ticket.insertBefore(planner,atlas);moved=true;}
     else if(!localFirst&&planner.parentElement!==hero){hero.insertBefore(planner,bottom);moved=true;}

@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="robots" content="noindex,nofollow"><meta name="theme-color" content="#08090b">
+  <title>BOOM — Club / Panorama</title>
+  <link rel="icon" href="/assets/icons/favicon-32.png">
+  <link rel="stylesheet" href="/assets/boom-flight-studio.css?v=20261105a">
+  <script src="/assets/boom-flight-studio.js?v=20261105a" defer></script>
+</head>
+<body>
+  <header class="studio-header"><a href="/flight-next?direction=club&amp;edition=club" aria-label="BOOM Club"><img src="/assets/boom-brand-lockup.svg" alt="BOOM" width="600" height="160"></a><div><p>BOOM / DESIGN STUDIO</p><h1>Club e Panorama.</h1></div><a id="studioOpen" href="/flight-next?direction=club&amp;edition=club&amp;experience=panorama" target="_blank" rel="noopener">Apri vista completa <span aria-hidden="true">↗</span></a></header>
+  <main>
+    <div class="studio-toolbar">
+      <div class="studio-controls" role="group" aria-label="Esperienza"><button type="button" data-studio-experience="club" aria-pressed="false">Club</button><button type="button" data-studio-experience="panorama" aria-pressed="true">Panorama</button></div>
+      <div class="studio-controls" role="group" aria-label="Formato"><button type="button" data-studio-device="desktop" aria-pressed="true">Desktop</button><button type="button" data-studio-device="mobile" aria-pressed="false">Telefono</button></div>
+      <p id="studioStatus" role="status">Apertura di Panorama…</p>
+    </div>
+    <p id="studioError" role="alert" hidden></p>
+    <div id="studioViewport" class="studio-viewport"><iframe id="studioFrame" title="BOOM Panorama — anteprima interattiva" allow="fullscreen"></iframe></div>
+    <p class="studio-note">Esplora case e servizi, poi cambia esperienza per confrontare la stessa vista. Date e preferenze pubbliche ti seguono; i luoghi privati restano nella vista in cui li scegli.</p>
+  </main>
+  <noscript><p>Il confronto richiede JavaScript. <a href="/flight-next?direction=club&amp;edition=club">Apri Club</a>.</p></noscript>
+</body>
+</html>

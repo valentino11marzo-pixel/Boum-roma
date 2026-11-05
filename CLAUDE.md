@@ -3390,6 +3390,12 @@ La rete footer riusa Europe e i confini EUR/GBP/brief pubblico; link servizi e l
 Il ritratto del fondatore ora compare una volta in Who answers del servizio, ricostruito col bisogno selezionato; guasto manifest non mostra tariffe inventate. Il vecchio slogan footer resta solo nelle altre edizioni.
 Test `flightclubcompanyui` e `flightclubjourneyui`: 320/390/1280, destinazioni da raccolta/scheda, persona unica, dati pubblici/privati, manifest guasto, rotta, date e Apply originali; regressioni media/edizioni/Europe/Flight.
 
+Flight Panorama 05/11: `edition=club&experience=panorama` apre una seconda regia, con globo prima del planner anche nel DOM mobile, superfici da cabina e grana statica locale. Club resta disponibile senza il parametro.
+Full view sposta lo stesso globo/canvas in un dialog, conserva camera/bozza e ripristina posizione/focus su Escape; sceglie la città tramite il controller originale. Pausa e reduced motion sono condivisi; entrata200ms solo da puntatore, nessun nuovo loop.
+Il parametro estetico accompagna la navigazione Flight tramite `editionURL`, mai l'Apply o il desk originali. Nessuna nuova dipendenza, API, archivio o operazione di invio.
+`/flight-studio` confronta Club/Panorama in un unico iframe, riusando il brief pubblico validato e offrendo desktop/mobile senza ricaricare; dati privati esclusi. Date non valide bloccano il cambio vista conservando i campi.
+Verifica `flightpanoramaui` e regressioni Europe/edizioni/globo/motion/Next/company/journey; direzione e tempi documentati in `design/flight-panorama-notes.md`.
+
 Flight Lab 31/10: `/flight-lab` confronta Atlas, Residence e Club sulle stesse viste reali di `/flight-next?direction=…`, senza cambiare il sito pubblico.
 Le composizioni riusano catalogo, Solari, iframe Skyline, salvataggi e Apply; nessun secondo catalogo o nuovo handler di invio.
 Residence usa una foto realmente restituita dal catalogo pubblico (fallback a una casa pubblica non chiusa); Atlas sposta la stessa mappa nel primo schermo.
