@@ -81,6 +81,22 @@
 // from the must-state; the words split into PROSE and INSTRUMENTS
 // ([data-instr]); the 24-word node rule; per-section caps; the onda canvas
 // script weighed in the total.
+//
+// v1.8 (stage B1, dark until the flip) — THE THIRD SHAPE: a desk that sells
+// and CHARGES AT SIGNING (spec v1.8 §3.2, §3.3, §3.7). The registry says it
+// (CITY_MARKETS.<slug>.chargeAt 'signing', read like the currency) and the
+// JSON repeats it ("chargeAt"): the build refuses the two apart, either way.
+// The till takes an ORDER under ONE label (never labelWait), states how long
+// the order runs (checkoutCopy.order) and links the online withdrawal
+// function ({online}); every fare says which signing earns it (trigger); the
+// signing rule (cities/_shared.json signing.rule) sits where the six print
+// the refund rule — under the closed €500, the Fees row, the Offers, the
+// fine print — and the order shows BOOKED (checkoutCopy.booked), never PAID:
+// paid and booked are exclusive. A page that charges at signing never says
+// "refunded in full" or "work already done", never PreOrder; a desk that
+// charges at the till never says it is paid at signing, nor prints the
+// signing rule. A French or German desk that sells charges at signing (loi
+// Hoguet art. 6, WoVermRG §2(4)). The spec's "SHIP-DATE" is refused.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -89,6 +105,9 @@ import zlib from 'node:zlib';
 import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
 import { CITY_MARKETS } from './api/_market.js';
+// v1.8: the order terms of the desks that charge at signing — the page posts their version, the server
+// refuses an older one with 409 terms_changed (ORDER_TERMS_V in the page config)
+import { ORDER_TERMS } from './api/_cityterms.js';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 // The model withdrawal form (Directive 2011/83/EU Annex I(B)), linked from the
@@ -755,7 +774,7 @@ export function feesRowOf(c, shared, extra = '') {
   const cur = currencyOf(c.slug);
   return plans.map((p) => `<b>${esc(p.label)} ${money(p.price, cur)}</b>${p.unit ? ' ' + esc(p.unit) : ''}${same ? '' : ` (${esc(p.conditionLong)})`}`).join(' · ')
     + '.' + (same ? ' ' + esc(plans[0].conditionLong) : '') + (extra ? ' ' + extra : '')
-    + (c.checkout === true ? ' ' + esc(shared.refund.rule) : '');
+    + (c.checkout === true ? ' ' + esc(ruleOf(c, shared)) : '');
 }
 
 // The calendar a desk's window reads: the webhook's own key (CITY_MARKETS
@@ -771,6 +790,23 @@ export function holidayKeyOf(slug) {
   const m = CITY_MARKETS[slug];
   return m ? (m.holidays || m.country || null) : null;
 }
+// v1.8 — WHEN a desk charges, from the server's registry (CITY_MARKETS.<slug>.chargeAt), read like the
+// currency: 'checkout' (the six: Stripe takes the fee at the till) or 'signing' (the till takes the ORDER;
+// the fee is invoiced when a lease is signed — loi Hoguet art. 6, WoVermRG §2). One word per desk, never
+// per plan; the desk JSON repeats it ("chargeAt") and the build refuses the two apart, either way.
+export function chargeAtOf(slug) {
+  const m = CITY_MARKETS[slug];
+  return m && m.chargeAt === 'signing' ? 'signing' : 'checkout';
+}
+export const isSigning = (c) => !!c && chargeAtOf(c.slug) === 'signing';
+// the ✓ sentence beside the €500 of a desk that sells: the refund policy where the till takes the fee, the
+// signing rule (cities/_shared.json signing.rule) where nothing is taken before the lease — a refund of a
+// sum never taken is not printed there (B19)
+export const ruleOf = (c, shared) => (isSigning(c) ? shared.signing.rule : shared.refund.rule);
+// the rule's signature in a block that shows €500: a sentence saying nothing is charged and naming the
+// signing (the signing rule, every fare's trigger); the six keep /refunded in full/ and their messages
+export const SIGN_RULE_RE = /\bNothing is charged\b[^.]*\bsign/;
+export const ruleReOf = (c) => (isSigning(c) ? SIGN_RULE_RE : /refunded in full/);
 
 // ── the words the hub and the desks derive (BOOM Desks, 03/11/2026) ───────
 // a count in words, one…twelve ("five desks"): a number the page states is
@@ -815,6 +851,8 @@ export function sealPhrase(c) {
     const first = String((c.hero && c.hero.lead) || '').split(/(?<=\.)\s/)[0].replace(/\.$/, '');
     return first.toUpperCase();
   }
+  // v1.8: a desk that charges at signing says when it is paid ("Paid only by you, and only when you sign.")
+  if (isSigning(c) && /only when you sign/i.test(ls)) return 'PAID ONLY WHEN YOU SIGN';
   if (/never paid by landlords/i.test(ls)) return 'NEVER PAID BY LANDLORDS';
   if (/we do not act for the landlord/i.test(ls)) return 'WE DO NOT ACT FOR THE LANDLORD';
   return '';
@@ -849,8 +887,12 @@ const R = {
     // same verbatim price/condition pair; each ticket is an <li>, so the €500
     // and its rule share one block; .bp-pay is where the pay button sits on a
     // DESK while the ticket is closed (one node, moved by the page).
+    // v1.8: on a desk that charges at signing the coupon under the closed €500
+    // says the signing rule, and EVERY open ticket says its own fare's trigger
+    // (which signing earns that fee, D4) where the six print the refund rule.
     const sell = c.checkout === true;
-    const rule = esc(shared.refund.rule);
+    const signing = isSigning(c);
+    const rule = esc(ruleOf(c, shared));
     const cur = currencyOf(c.slug);
     const rows = list(c, 'pricing.plans').map((p) => {
       const first = p.id === 'full-search', fs0 = sell && first;
@@ -866,7 +908,7 @@ const R = {
         '          <div class="tk">',
         first ? '' : `            <p class="tk-tag">${esc(p.name)}</p>`,
         `            <ul class="tk-inc">${p.includes.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>`,
-        fs0 ? `            <p class="refund">${rule}</p>` : '',
+        signing ? `            <p class="refund">${esc(p.trigger)}</p>` : fs0 ? `            <p class="refund">${rule}</p>` : '',
         '            <div class="tk-stub">',
         '            <div class="tk-slot" data-slot></div>',
         '            <i class="bars" aria-hidden="true"></i>',
@@ -934,7 +976,37 @@ const R = {
       `            <p>${esc(next[2][0])} ${esc(next[2][1]).replace('{email}', MAIL(contact))}</p>`,
       '          </div>'
     ];
-    if (sell) {
+    if (sell && isSigning(c)) {
+      // v1.8 — a desk that charges at signing takes an ORDER, never a payment.
+      // BOOKED (D9) is its own card and its own stamp, never the PAID card:
+      // nothing has been paid. Only the server's answer (the till's POST, or
+      // the managed view the email opens) shows it; while the page waits for
+      // that word it says the order is being confirmed — never "Payment".
+      const mail = MAIL(contact), b = k.booked;
+      out.push(
+        '',
+        `          <div id="cConfirm" class="card reveal" tabindex="-1" hidden data-unconfirmed="${esc(b.unconfirmed)}">`,
+        '            <p class="k">Order</p>',
+        `            <h2 id="cText">${esc(b.pending)}</h2>`,
+        `            <p>Questions? ${mail}</p>`,
+        '          </div>',
+        '',
+        '          <div id="cBooked" class="card reveal" tabindex="-1" hidden>',
+        `            ${R.stamp(c, 'booked')}`,
+        '            <p class="k">Booked</p>',
+        `            <h2>${esc(b.before)} <em>${esc(b.em)}</em></h2>`,
+        '            <dl class="fields">',
+        '              <div><dt>File</dt><dd id="bFile"></dd></div>',
+        '              <div><dt>Fare</dt><dd id="bFare"></dd></div>',
+        '              <div class="wide"><dt>Order</dt><dd id="bOrder"></dd></div>',
+        '              <div class="wide"><dt>Starts</dt><dd id="bStart"></dd></div>',
+        '            </dl>',
+        `            <ul class="next" id="bNext">${b.next.map(([x, y]) => `<li><b>${esc(x)}</b> ${esc(y)}</li>`).join('')}</ul>`,
+        `            <p id="bText">${esc(b.text)} ${mail}.</p>`,
+        `            <p id="bWait" hidden>${esc(b.wait).replace('{email}', mail)}</p>`,
+        '          </div>'
+      );
+    } else if (sell) {
       const mail = MAIL(contact);
       out.push(
         '',
@@ -986,12 +1058,15 @@ const R = {
   // THE INK STAMP of the OPEN and PAID cards: outer ring, dashed inner ring,
   // the ring text on #stampArc (r 36 around 46,46), the word in the middle.
   // Keeps class .stamp (the .hit strike reads it).
+  // v1.8: the BOOKED card of a desk that charges at signing has its own word;
+  // .st-w is 15 px (boom-city.css), so a word longer than four letters is
+  // fitted to 50 units, inside the dashed inner ring (r 29).
   stamp: (c, kind) => {
-    const paid = kind === 'paid';
-    const ring = `${paid ? 'PAID' : 'FILE OPEN'} · BOOM ${upperCity(c)} · TENANT SIDE · `;
+    const word = kind === 'paid' ? 'PAID' : kind === 'booked' ? 'BOOKED' : 'OPEN';
+    const ring = `${word === 'OPEN' ? 'FILE OPEN' : word} · BOOM ${upperCity(c)} · TENANT SIDE · `;
     return `<span class="stamp" aria-hidden="true"><svg viewBox="0 0 92 92" width="84" height="84" focusable="false"><circle class="st-o" cx="46" cy="46" r="44" fill="none"/><circle class="st-i" cx="46" cy="46" r="29" fill="none"/>`
       + `<text class="st-t"><textPath href="#stampArc" textLength="222" lengthAdjust="spacing">${esc(ring)}</textPath></text>`
-      + `<text class="st-w" x="46" y="50.5" text-anchor="middle">${paid ? 'PAID' : 'OPEN'}</text></svg></span>`;
+      + `<text class="st-w" x="46" y="50.5" text-anchor="middle"${word.length > 4 ? ' textLength="50" lengthAdjust="spacingAndGlyphs"' : ''}>${word}</text></svg></span>`;
   },
 
   // ── v1.6 §C: the terminal walk ──
@@ -1162,18 +1237,29 @@ const R = {
   till: (c, shared, contact) => {
     if (c.checkout !== true) return '';
     const k = c.checkoutCopy, f = c.form;
+    // v1.8: a desk that charges at signing has ONE label (the tick changes
+    // the sub-line, never the obligation, D6), says its fare's trigger in the
+    // ✓ line (the page fills it per plan from PLANS[id].trigger; served: Full
+    // Search's) and how long the order runs before the button (CRD art. 8(2));
+    // its 409 terms_changed has its own words (data-err-stale)
+    const signing = isSigning(c);
+    const labelWait = signing ? c.till.label : c.till.labelWait;
+    // {online}: the online withdrawal function (Dir. 2023/2673 art. 11a), a
+    // token every selling desk will carry from stage W; replaced where present
     const wd = esc(k.withdrawal)
       .replace('{email}', MAIL(contact))
+      .replace('{online}', `<a class="lnk" href="${WITHDRAWAL_PATH}?desk=${encodeURIComponent(c.city)}#online" target="_blank" rel="noopener">online</a>`)
       .replace('{form}', `<a class="lnk" href="${WITHDRAWAL_PATH}?desk=${encodeURIComponent(c.city)}" target="_blank" rel="noopener">model withdrawal form</a>`);
     return [
-      `<dialog class="till" id="till" aria-labelledby="tTitle" data-err-name="${esc(k.errors.name)}" data-err-email="${esc(k.errors.email)}" data-err-net="${esc(k.errors.net)}">`,
+      `<dialog class="till" id="till" aria-labelledby="tTitle" data-err-name="${esc(k.errors.name)}" data-err-email="${esc(k.errors.email)}" data-err-net="${esc(k.errors.net)}"${signing ? ` data-err-stale="${esc(k.errors.stale)}"` : ''}>`,
       '  <form class="tf" id="tillForm" novalidate action="#" data-analytics-manual data-analytics-kind="checkout" data-analytics-label="Till">',
       '    <button class="x" type="button" id="tillX" aria-label="Close">×</button>',
       `    <p class="k">Fare · BOOM ${esc(c.city)}</p>`,
       '    <div class="t-head"><h2 id="tTitle" tabindex="-1"></h2><p class="t-price"><b id="tPrice"></b><span id="tCond"></span></p></div>',
       '    <p class="t-tag" id="tTag"></p>',
       '    <ul class="t-inc" id="tInc"></ul>',
-      `    <p class="refund" id="tRule" hidden>${esc(shared.refund.rule)}</p>`,
+      `    <p class="refund" id="tRule" hidden>${esc(signing ? list(c, 'pricing.plans')[0].trigger : ruleOf(c, shared))}</p>`,
+      signing ? `    <p class="t-order" id="tOrder">${esc(k.order)}</p>` : '',
       c.pricing.sub ? `    <p class="t-opt">${esc(c.pricing.sub)}</p>` : '',
       `    <div class="fld"><label for="tName">${esc(f.name.label)}</label><input id="tName" autocomplete="name" placeholder="${esc(f.name.placeholder)}" aria-describedby="tNameErr"><p class="err" id="tNameErr" aria-live="polite"></p></div>`,
       '    <div class="fld"><label for="tEmail">Email <i>— the invoice and your file go there</i></label><input id="tEmail" type="email" autocomplete="email" inputmode="email" placeholder="anna@company.com" aria-describedby="tEmailErr"><p class="err" id="tEmailErr" aria-live="polite"></p></div>',
@@ -1182,7 +1268,7 @@ const R = {
       `    <label class="tick"><input type="checkbox" id="tStart"><span>${esc(k.startNow)}</span></label>`,
       `    <p class="wd">${wd}</p>`,
       '    <p class="err" id="tErr" role="alert"></p>',
-      `    <button class="pay" id="tGo" type="submit" data-label-now="${esc(c.till.label)}" data-label-wait="${esc(c.till.labelWait)}" data-sub-now="${esc(k.btnSubNow)}" data-sub-wait="${esc(k.btnSubWait)}"><span><b id="tGoL">${esc(c.till.labelWait)}</b><small id="tGoS">${esc(k.btnSubWait)}</small></span><span class="ar" aria-hidden="true">→</span></button>`,
+      `    <button class="pay" id="tGo" type="submit" data-label-now="${esc(c.till.label)}" data-label-wait="${esc(labelWait)}" data-sub-now="${esc(k.btnSubNow)}" data-sub-wait="${esc(k.btnSubWait)}"><span><b id="tGoL">${esc(labelWait)}</b><small id="tGoS">${esc(k.btnSubWait)}</small></span><span class="ar" aria-hidden="true">→</span></button>`,
       `    <p class="fine">${esc(k.fine)} <a class="lnk" href="${TERMS_PATH}" target="_blank" rel="noopener">Terms</a></p>`,
       `    <p class="alt">${esc(k.altLead)} <button type="button" class="lnk" id="tAlt">${esc(k.altLink)}</button></p>`,
       '  </form>',
@@ -1238,13 +1324,17 @@ export function serviceNode(c, shared, pageUrl, orgId) {
     // InStock where the desk takes searches, PreOrder where it opens
     // later — a list price whose Offer says in words when it is charged.
     // VAT is included on the page: the price specification states it.
+    // v1.8: a desk that charges at signing sells TODAY (the order is taken
+    // now, the fee invoiced at signing): InStock, never PreOrder, and every
+    // Offer carries the signing rule (it holds for every fare there), where
+    // the six carry the refund rule on Full Search alone.
     offers: c.pricing.plans.map((p) => {
       const unitWord = p.unit ? p.unit.replace(/^per\s+/i, '').trim() : '';
       return {
         '@type': 'Offer', name: p.label, price: String(p.price), priceCurrency: currencyOf(c.slug),
-        availability: waitlist ? 'https://schema.org/PreOrder' : 'https://schema.org/InStock',
+        availability: waitlist && !isSigning(c) ? 'https://schema.org/PreOrder' : 'https://schema.org/InStock',
         description: p.offerDescription + (p.unit ? ' Priced ' + p.unit + '.' : '') + ' ' + p.conditionLong
-          + (c.checkout === true && p.id === 'full-search' ? ' ' + shared.refund.rule : ''),
+          + (c.checkout === true && (isSigning(c) || p.id === 'full-search') ? ' ' + ruleOf(c, shared) : ''),
         priceSpecification: { '@type': 'UnitPriceSpecification', price: String(p.price), priceCurrency: currencyOf(c.slug), valueAddedTaxIncluded: true,
           ...(unitWord ? { unitText: unitWord, referenceQuantity: { '@type': 'QuantitativeValue', value: 1, unitText: unitWord } } : {}) },
         url: pageUrl + '#fare-' + p.id,
@@ -1614,8 +1704,12 @@ const LEFTOVERS = {
 
 // What the page READS, object by object. Anything else is refused: a key no
 // renderer prints is copy everybody believes is on the page.
+// v1.8 (the third shape, a desk that charges at signing): chargeAt, every
+// fare's trigger, the order line, the BOOKED card's block (in place of
+// `paid`) and the stale-page error — each refused on a desk that charges at
+// the till (renderCity), as `paid` is refused on a signing desk.
 const ALLOWED = {
-  '': ['slug', 'city', 'country', 'currency', 'iata', 'geo', 'live', 'mode', 'config', 'updated', 'word', 'meta', 'service', 'hero', 'pricing', 'stub', 'how', 'checks', 'papers', 'faq', 'bref', 'footer', 'desk', 'door', 'form', 'checkout', 'checkoutCopy', 'till'],
+  '': ['slug', 'city', 'country', 'currency', 'chargeAt', 'iata', 'geo', 'live', 'mode', 'config', 'updated', 'word', 'meta', 'service', 'hero', 'pricing', 'stub', 'how', 'checks', 'papers', 'faq', 'bref', 'footer', 'desk', 'door', 'form', 'checkout', 'checkoutCopy', 'till'],
   geo: ['lat', 'lon'],
   // v1.6: the items of every list are key-checked too (closing the gap where
   // a step, a check or a question could carry a key nobody prints — e.g. a
@@ -1629,16 +1723,18 @@ const ALLOWED = {
   hero: ['h1Before', 'lead', 'leadStrong', 'faresHead'],
   'hero.faresHead': ['b', 'span'],
   pricing: ['plans', 'sub'],
-  plan: ['id', 'label', 'unit', 'name', 'price', 'condition', 'conditionLong', 'includes', 'offerDescription', 'when'],
+  plan: ['id', 'label', 'unit', 'name', 'price', 'condition', 'conditionLong', 'includes', 'offerDescription', 'when', 'trigger'],
   stub: ['notSure'],
   how: ['h2', 'h2g', 'steps'], checks: ['h2', 'h2g', 'items'], papers: ['summary', 'at', 'items', 'tail'], faq: ['h2', 'items'],
   bref: ['h2', 'rows'], footer: ['statement'], door: ['label'],
   desk: ['person', 'role', 'timeZone', 'tzLabel', 'zoneName', 'hours', 'days'],
   form: ['name', 'contact', 'consentLead', 'consentAlt', 'errors', 'sending', 'sentNext', 'sentWhenDefault'],
   'form.errors': ['name', 'contact', 'email', 'net'],
-  checkoutCopy: ['noteLabel', 'notePlaceholder', 'btnSubNow', 'btnSubWait', 'altLead', 'altLink', 'startNow', 'withdrawal', 'fine', 'errors', 'paid'],
-  'checkoutCopy.errors': ['name', 'email', 'net'],
+  checkoutCopy: ['noteLabel', 'notePlaceholder', 'btnSubNow', 'btnSubWait', 'altLead', 'altLink', 'startNow', 'withdrawal', 'fine', 'errors', 'paid', 'booked', 'order'],
+  'checkoutCopy.errors': ['name', 'email', 'net', 'stale'],
   'checkoutCopy.paid': ['before', 'em', 'text', 'next', 'nextWait', 'wait', 'pending', 'unconfirmed', 'startsNow', 'startsWait'],
+  'checkoutCopy.booked': ['before', 'em', 'text', 'next', 'nextWait', 'wait', 'pending', 'unconfirmed', 'startsNow', 'startsWait',
+    'withdrawLink', 'paidText', 'dueText', 'payLabel', 'withdrawnText', 'closedText'],
   till: ['label', 'labelWait']
 };
 function allowOnly(obj, path, where) {
@@ -1691,6 +1787,20 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
   const CUR = currencyOf(city.slug);
   const pr = (n) => money(n, CUR);
   need(city.currency === undefined ? CUR === 'EUR' : String(city.currency).toUpperCase() === CUR, where, `"currency" must be the desk's own (${CUR}), as api/_market.js charges it`);
+  // v1.8 — WHEN the desk charges is the server's word (CITY_MARKETS.<slug>.
+  // chargeAt); the JSON repeats it, as a non-euro desk repeats its currency,
+  // and the build refuses the two apart EITHER WAY: a copy edit cannot make a
+  // page promise a timing the server does not keep, and the registry cannot
+  // flip under a page that still prints a till's payment (spec v1.8 §3.2)
+  const signing = chargeAtOf(city.slug) === 'signing';
+  need(city.chargeAt === undefined ? !signing : city.chargeAt === (signing ? 'signing' : 'checkout'), where,
+    `"chargeAt" must be the desk's own (${signing ? '"signing"' : 'absent or "checkout"'}), as api/_market.js charges it (CITY_MARKETS.${city.slug}.chargeAt)`);
+  need(!signing || (sell && city.mode === 'search'), where, 'a desk that charges at signing takes the order on its page: mode "search" and checkout true');
+  need(!signing || (Object.prototype.hasOwnProperty.call(ORDER_TERMS, city.slug) && str(ORDER_TERMS[city.slug].v)), where,
+    `a desk that charges at signing needs its order terms (api/_cityterms.js ORDER_TERMS.${city.slug}): the page posts their version, the server refuses an older one`);
+  // the spec's copies carry "SHIP-DATE" until the flip: a placeholder date is
+  // a WebPage dateModified and a sitemap <lastmod> nobody wrote
+  need(city.updated !== 'SHIP-DATE', where, '"updated" is still the spec\'s "SHIP-DATE" placeholder: write the ship date (YYYY-MM-DD, the sitemap <lastmod>)');
 
   // ── the shared file ──
   const site = shared.siteUrl;
@@ -1701,6 +1811,10 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
   for (const k of LEFTOVERS.shared) need(shared[k] === undefined, 'cities/_shared.json', `${k} is a v1.4 leftover (the month select and the menu left the page)`);
   need(shared.refund && typeof shared.refund.rule === 'string' && /refunded in full if we decline the search in the first call/.test(shared.refund.rule),
     'cities/_shared.json', 'refund.rule is the one sentence of the policy: "… refunded in full if we decline the search in the first call" (the founder, 15/10)');
+  // v1.8: the one sentence of a desk that charges at signing — under the closed
+  // €500, in the Fees row, in every Offer and in the till's fine print (§3.3)
+  if (signing) need(shared.signing && typeof shared.signing.rule === 'string' && /^Nothing is charged before you sign a lease\b/.test(shared.signing.rule) && /\bnothing if you never do\.$/.test(shared.signing.rule),
+    'cities/_shared.json', 'signing.rule is the one sentence of a desk that charges at signing: "Nothing is charged before you sign a lease, and nothing if you never do."');
   need(shared.rome && ['rating', 'reviews'].every((f) => str(shared.rome[f])) && typeof shared.rome.profileUrl === 'string',
     'cities/_shared.json', 'rome needs rating, reviews and profileUrl');
   need(!shared.rome.profileUrl || /^https:\/\//.test(shared.rome.profileUrl), 'cities/_shared.json', 'rome.profileUrl must be https');
@@ -1743,7 +1857,11 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
   need(leadWords <= BUDGET.lead, where, `hero.lead + leadStrong is ${leadWords} words, over ${BUDGET.lead}`);
   if (waitlist) need(/^Opening with/.test(city.hero.lead), where, 'a waitlist desk\'s lead opens with "Opening with" (what exists today)');
   // the brief §4 must-states, verbatim, in the lead (the first thing read)
-  if (sell) need(/never paid by landlords|we do not act for the landlord/.test(city.hero.leadStrong), where, 'a sell desk\'s leadStrong is its must-state (Amsterdam: "never paid by landlords"; Spain: "we do not act for the landlord")');
+  // v1.8: a desk that charges at signing may carry its own ("Paid only by
+  // you, and only when you sign."); a desk whose till takes the fee never
+  // says it is paid at signing (that would be a timing Stripe does not keep)
+  if (sell) need(/never paid by landlords|we do not act for the landlord/.test(city.hero.leadStrong) || (signing && /only when you sign/.test(city.hero.leadStrong)), where, 'a sell desk\'s leadStrong is its must-state (Amsterdam: "never paid by landlords"; Spain: "we do not act for the landlord")' + (signing ? '; a desk that charges at signing: "… only when you sign"' : ''));
+  if (sell && !signing) need(!/\bonly when you sign\b|\b(?:at|on) signing\b/i.test([city.hero.lead, city.hero.leadStrong, city.hero.faresHead && city.hero.faresHead.span].join(' ')), where, 'a desk whose till takes the fee never says, on its pass, that it is paid at signing (the registry charges it at the checkout: CITY_MARKETS.chargeAt)');
   if (ES && sell) need(city.hero.leadStrong === 'You hire us; we do not act for the landlord.', where, 'on a Spanish desk the must-state is verbatim: "You hire us; we do not act for the landlord."');
   if (city.slug === 'amsterdam') need(city.hero.leadStrong === 'We work exclusively for you; never paid by landlords.', where, 'Amsterdam\'s must-state is verbatim: "We work exclusively for you; never paid by landlords."');
   const fh = city.hero.faresHead;
@@ -1774,13 +1892,47 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
     need(/VAT/.test(p.condition), where, `plan "${p.id}": the short condition must say VAT (the total price is the price)`);
     if (waitlist) need(/opening|sign/i.test(p.condition) && /opens|sign/i.test(p.conditionLong), where, `plan "${p.id}": a waitlist plan says when it is charged ("at opening" or "on signing") in both strings`);
     else need(/VAT/.test(p.conditionLong) && !/opening|sign/i.test(p.condition), where, `plan "${p.id}": a sell desk's conditionLong says VAT and never "at opening"`);
+    // v1.8: WHEN a fare is charged, said where the price is read: on a desk
+    // that charges at signing every conditionLong says it ("… charged when you
+    // sign a lease"); on a desk whose till takes the fee, never
+    if (signing) need(/\bsign/i.test(p.conditionLong), where, `plan "${p.id}": on a desk that charges at signing, conditionLong says when ("VAT included, charged when you sign a lease…")`);
+    else if (sell) need(!/\bsign/i.test(p.conditionLong), where, `plan "${p.id}": a desk whose till takes the fee never says its fare is charged at signing (conditionLong)`);
+    // D4: each fare says WHICH signing earns it (the ✓ line of its ticket and
+    // of the till); only a desk that charges at signing has one
+    if (signing) need(str(p.trigger) && /^Nothing is charged\b/.test(p.trigger) && SIGN_RULE_RE.test(p.trigger) && !/[€£]\s?\d|refund/i.test(p.trigger), where, `plan "${p.id}": a fare charged at signing says which signing earns it — trigger "Nothing is charged … sign …", one sentence, no price, no refund`);
+    else need(p.trigger === undefined, where, `plan "${p.id}": a trigger belongs to a desk that charges at signing (CITY_MARKETS.chargeAt)`);
   }
   const fsPlan = plans[0];
   // Full Search's own words: one viewing included, more priced, no date
+  // (v1.8: not asked of a desk that charges at signing — Paris states its
+  // extra viewings by data, Berlin may state none: WoVermRG §3(3))
   const avPrice = pr(plans[2].price);
-  need(fsPlan.includes.some((x) => x.includes(`(more: ${avPrice} each)`)) || waitlist, where, `Full Search on a desk that sells says "(more: ${avPrice} each)": one viewing is included, the rest are priced at the Attended Viewing's own price`);
+  need(fsPlan.includes.some((x) => x.includes(`(more: ${avPrice} each)`)) || waitlist || signing, where, `Full Search on a desk that sells says "(more: ${avPrice} each)": one viewing is included, the rest are priced at the Attended Viewing's own price`);
   need(fsPlan.includes.some((x) => /Until you sign, or you say stop/.test(x)) || waitlist, where, 'Full Search says how long it runs: "Until you sign, or you say stop"');
-  if (city.slug === 'berlin') need(/sign/i.test(fsPlan.condition) && /sign/i.test(fsPlan.conditionLong), where, 'berlin: Full Search is due only once a lease is signed (WoVermRG §2–§3) — both condition strings must say "sign"');
+  // Berlin, a desk still opening: both condition strings say "sign" (the
+  // draft's pin). A desk that SELLS cannot ("a sell desk's condition never
+  // says sign", above): there the law is pinned by data, below.
+  if (city.slug === 'berlin' && waitlist) need(/sign/i.test(fsPlan.condition) && /sign/i.test(fsPlan.conditionLong), where, 'berlin: Full Search is due only once a lease is signed (WoVermRG §2–§3) — both condition strings must say "sign"');
+  // v1.8 — the law of the country, by data, on a desk that sells there:
+  // France (loi Hoguet art. 6: nothing is taken before the operation is
+  // concluded) and Germany (WoVermRG §2(4): no advance) charge at signing.
+  const FR = String(city.country || '').toUpperCase() === 'FR', DE = String(city.country || '').toUpperCase() === 'DE';
+  if (sell && (FR || DE)) need(signing, where, `${FR ? 'France: loi Hoguet art. 6' : 'Germany: WoVermRG §2(4)'} — a desk that sells there takes nothing before the lease: it charges at signing (CITY_MARKETS.${city.slug}.chargeAt "signing")`);
+  if (sell && FR) {
+    // loi Hoguet art. 7 (spec D5): a search mandate runs for a limited time
+    need(fsPlan.includes.some((x) => /\(six months at most\)/.test(x)), where, 'France: Full Search says how long the mandate runs, "(six months at most)" (loi Hoguet art. 7, spec D5)');
+    need(/six months at most/.test(String(city.checkoutCopy && city.checkoutCopy.order)), where, 'France: the order line before the button says the mandate runs "six months at most" (loi Hoguet art. 7, spec D5)');
+  }
+  if (sell && DE) {
+    // WoVermRG: every fee only once a lease is signed (§2: the shape above,
+    // every conditionLong says "sign"), nothing beside a Full Search (§3(3)),
+    // the fee never sold as "no percentage" (§3(1), D2), Full Search only for
+    // a home offered to the tenant alone (§2(1a), D3)
+    need(!fsPlan.includes.some((x) => /\(more:/.test(x)), where, 'Germany: no extra fee around a Full Search (WoVermRG §3(3)): no "(more: …)" in its lines');
+    need(!/No percentage/i.test(JSON.stringify(city)), where, 'Germany: never "No percentage" (WoVermRG §3(1) states the fee as a fraction or multiple of the rent; spec D2)');
+    const fees = list(city, 'checks.items').find((k) => /Bestellerprinzip/.test(k.at));
+    need(fees && /offered to you alone/.test(fees.text), where, 'Germany: the Bestellerprinzip check says a Full Search is paid only for a home "offered to you alone" (WoVermRG §2(1a), spec D3)');
+  }
 
   // ── the stub, the door, the desk ──
   need(city.stub && str(city.stub.notSure), where, 'stub.notSure is required: the line over the door (the free door is the neutral decline)');
@@ -1841,26 +1993,75 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
     need(k && typeof k === 'object', where, 'checkout:true needs "checkoutCopy"');
     for (const f of ['noteLabel', 'notePlaceholder', 'btnSubNow', 'btnSubWait', 'altLead', 'altLink', 'fine']) need(str(k[f]), where, `checkoutCopy.${f} is required`);
     need(k.altLink.startsWith(city.door.label) && !/open a file/i.test(JSON.stringify(k)), where, `checkoutCopy.altLink must start with door.label ("${city.door.label}"): the way out of the till is the page's one door`);
-    need(city.till && str(city.till.label) && !/[€£]|\d/.test(city.till.label) && str(city.till.labelWait) && !/[€£]|\d/.test(city.till.labelWait) && city.till.labelWait !== city.till.label && !/start/i.test(city.till.labelWait), where,
-      'till needs label (every pay control) and labelWait (the last button before the tick: never "start" — the work waits for the 14 days)');
+    if (signing) {
+      // v1.8 (D6): ONE label, "Order, pay on signing" — the order, the
+      // obligation to pay and when (CRD art. 8(2), §312j(3) BGB, L221-14);
+      // the tick changes the sub-line, never the obligation
+      need(city.till && str(city.till.label) && !/[€£]|\d/.test(city.till.label) && city.till.labelWait === undefined, where,
+        'on a desk that charges at signing the till has ONE label (till.label, no price): the tick changes the sub-line, never the obligation — till.labelWait is refused');
+      need(/\border\b/i.test(city.till.label) && /\bpay\b/i.test(city.till.label) && /\bsign/i.test(city.till.label) && !/start/i.test(city.till.label), where,
+        'the order button names the order, the obligation to pay and when: till.label says "order", "pay" and "sign" (CRD art. 8(2)), never "start"');
+    } else {
+      need(city.till && str(city.till.label) && !/[€£]|\d/.test(city.till.label) && str(city.till.labelWait) && !/[€£]|\d/.test(city.till.labelWait) && city.till.labelWait !== city.till.label && !/start/i.test(city.till.labelWait), where,
+        'till needs label (every pay control) and labelWait (the last button before the tick: never "start" — the work waits for the 14 days)');
+      // "pay" on every desk's labels; "order" and "sign" name a desk that
+      // charges at signing (spec v1.8 §13.2)
+      need(/\bpay\b/i.test(city.till.label) && /\bpay\b/i.test(city.till.labelWait) && !/\border\b|\bsign/i.test(city.till.label + ' ' + city.till.labelWait), where,
+        'a desk whose till takes the fee says "pay" on both labels and never "order" or "sign" (those name a desk that charges at signing)');
+    }
     need(/14 days/.test(k.btnSubWait) && !/today|same working day/i.test(k.btnSubNow), where, 'checkoutCopy.btnSubWait says the 14 days; btnSubNow never promises "today" or the same working day');
-    need(/refunded in full if we decline the search in the first call/i.test(k.fine), where, 'checkoutCopy.fine must state the refund policy (BOOM policy, 15/10)');
+    if (signing) need(k.fine.includes(shared.signing.rule) && /\bNo card\b/.test(k.fine) && !/Stripe|refund/i.test(k.fine), where, 'on a desk that charges at signing, checkoutCopy.fine says "No card", states the signing rule (cities/_shared.json signing.rule) and names no Stripe and no refund');
+    else need(/refunded in full if we decline the search in the first call/i.test(k.fine), where, 'checkoutCopy.fine must state the refund policy (BOOM policy, 15/10)');
     for (const f of ['name', 'email', 'net']) need(k.errors && str(k.errors[f]), where, `checkoutCopy.errors.${f} is required`);
+    // the order terms changed under an open page: the server answers 409 terms_changed
+    if (signing) need(str(k.errors.stale), where, 'checkoutCopy.errors.stale is required on a desk that charges at signing: the words of the 409 terms_changed ("reload to order with the current terms")');
+    else need(k.errors.stale === undefined, where, 'checkoutCopy.errors.stale belongs to a desk that charges at signing (its order terms have a version)');
     // A distance sale to a consumer (Directive 2011/83/EU arts. 6, 7(3), 16(a))
     need(str(k.startNow) && /start/i.test(k.startNow) && /withdraw/i.test(k.startNow) && /fully performed/i.test(k.startNow), where,
       'checkoutCopy.startNow is the payer\'s own request to start inside the withdrawal period, acknowledging the right ends once the service is fully performed');
     need(str(k.withdrawal) && /14 days/.test(k.withdrawal) && /\{email\}/.test(k.withdrawal) && /\{form\}/.test(k.withdrawal), where,
       'checkoutCopy.withdrawal states the 14-day withdrawal right, how to exercise it ({email}) and links the model withdrawal form ({form}) before the payment');
-    const pd = k.paid;
-    need(pd && ['before', 'em', 'text', 'wait', 'pending', 'unconfirmed', 'startsNow', 'startsWait'].every((f) => str(pd[f])), where, 'checkoutCopy.paid needs before, em, text, wait, pending, unconfirmed, startsNow and startsWait');
-    need(/\{date\}/.test(pd.startsWait) && /14-day|14 days/.test(pd.wait) && /\{email\}/.test(pd.wait) && /not confirmed yet/i.test(pd.unconfirmed) && !/[€£]|\d/.test(pd.pending + pd.unconfirmed), where,
-      'paid.startsWait carries {date}, paid.wait says the 14 days and {email}, paid.unconfirmed says "not confirmed yet"; no figure in the pending lines');
-    // {date} is the webhook's workFromLabel: the first working day AFTER the
-    // withdrawal period, never the day it ends (that would misstate the right)
-    need(/^From \{date\}/.test(pd.startsWait) && !/when your 14 days end|14 days end/i.test(pd.startsWait), where,
-      'paid.startsWait opens "From {date}" and never calls {date} the day the 14 days end: {date} is the first working day after them');
+    // v1.8: on a desk that charges at signing the 14 days run from the ORDER,
+    // the online function is linked ({online}; every selling desk from stage
+    // W), and withdrawing costs nothing — no refund, no "work already done"
+    if (signing) need(/\{online\}/.test(k.withdrawal) && /14 days from your order/.test(k.withdrawal) && /costs nothing/.test(k.withdrawal) && !/refund|work already done|minus/i.test(k.withdrawal), where,
+      'on a desk that charges at signing, checkoutCopy.withdrawal runs "14 days from your order", links the online function ({online}), says withdrawing "costs nothing", and never speaks of a refund, a minus or the work already done');
+    // the order line, before the button: how long the order runs (CRD art. 8(2))
+    if (signing) need(str(k.order) && /\border\b/i.test(k.order) && !/[€£]\s?\d/.test(k.order), where, 'checkoutCopy.order is required on a desk that charges at signing: the line before the button that says how long the order runs (no price)');
+    else need(k.order === undefined, where, 'checkoutCopy.order belongs to a desk that charges at signing (the order line before its button)');
     const three = (a) => Array.isArray(a) && a.length === 3 && a.every((x) => Array.isArray(x) && x.length === 2 && x.every(str));
-    need(three(pd.next) && three(pd.nextWait) && !pd.nextWait.flat().some((y) => /same working day|today/i.test(y)), where, 'paid.next and paid.nextWait are three [label, line] pairs; nextWait never "same working day" or "today"');
+    // PAID and BOOKED are exclusive (D9): a desk takes a payment at its till
+    // (the PAID card) or an order (the BOOKED card), never both
+    if (signing) {
+      need(k.paid === undefined, where, 'a desk that charges at signing has no PAID card: checkoutCopy.paid is refused (BOOKED is never PAID — checkoutCopy.booked)');
+      const b = k.booked;
+      need(b && ['before', 'em', 'text', 'wait', 'pending', 'unconfirmed', 'startsNow', 'startsWait', 'withdrawLink', 'paidText', 'dueText', 'payLabel', 'withdrawnText', 'closedText'].every((f) => str(b[f])), where,
+        'checkoutCopy.booked needs before, em, text, wait, pending, unconfirmed, startsNow, startsWait, withdrawLink, paidText, dueText, payLabel, withdrawnText and closedText');
+      need(/\{date\}/.test(b.startsWait) && /14-day|14 days/.test(b.wait) && /\{email\}/.test(b.wait) && /not confirmed yet/i.test(b.unconfirmed) && !/[€£]|\d/.test(b.pending + b.unconfirmed), where,
+        'booked.startsWait carries {date}, booked.wait says the 14 days and {email}, booked.unconfirmed says "not confirmed yet"; no figure in the pending lines');
+      need(/^From \{date\}/.test(b.startsWait) && !/when your 14 days end|14 days end/i.test(b.startsWait), where,
+        'booked.startsWait opens "From {date}" and never calls {date} the day the 14 days end: {date} is the first working day after them');
+      need(three(b.next) && three(b.nextWait) && !b.nextWait.flat().some((y) => /same working day|today/i.test(y)), where, 'booked.next and booked.nextWait are three [label, line] pairs; nextWait never "same working day" or "today"');
+      // BOOKED is never PAID: what the order shows says nothing was paid or refunded
+      const card = [b.before, b.em, b.text, b.wait, b.pending, b.unconfirmed, b.startsNow, b.startsWait, ...b.next.flat(), ...b.nextWait.flat()].join(' ');
+      need(!/\b(?:paid|payments?|refund\w*)\b/i.test(card), where, 'the BOOKED card never says paid, payment or refund: nothing has been paid (D9)');
+      // the managed view's states (spec §5.4): the statutory label, verbatim,
+      // and each state with the server's value it carries
+      need(b.withdrawLink === 'Withdraw from contract here', where, 'booked.withdrawLink is the statutory label, verbatim: "Withdraw from contract here" (Dir. 2023/2673 art. 11a)');
+      need(/\{amount\}/.test(b.dueText) && /VAT/.test(b.dueText) && /\bpay\b/i.test(b.payLabel) && !/[€£]|\d/.test(b.payLabel) && /\{date\}/.test(b.paidText) && /\{date\}/.test(b.withdrawnText) && /nothing was charged/i.test(b.withdrawnText) && /nothing was charged/i.test(b.closedText), where,
+        'booked: dueText carries {amount} with VAT, payLabel says "pay" with no figure, paidText and withdrawnText carry {date}, withdrawnText and closedText say nothing was charged');
+    } else {
+      need(k.booked === undefined, where, 'checkoutCopy.booked belongs to a desk that charges at signing (the BOOKED card): this desk takes the fee at its till (checkoutCopy.paid)');
+      const pd = k.paid;
+      need(pd && ['before', 'em', 'text', 'wait', 'pending', 'unconfirmed', 'startsNow', 'startsWait'].every((f) => str(pd[f])), where, 'checkoutCopy.paid needs before, em, text, wait, pending, unconfirmed, startsNow and startsWait');
+      need(/\{date\}/.test(pd.startsWait) && /14-day|14 days/.test(pd.wait) && /\{email\}/.test(pd.wait) && /not confirmed yet/i.test(pd.unconfirmed) && !/[€£]|\d/.test(pd.pending + pd.unconfirmed), where,
+        'paid.startsWait carries {date}, paid.wait says the 14 days and {email}, paid.unconfirmed says "not confirmed yet"; no figure in the pending lines');
+      // {date} is the webhook's workFromLabel: the first working day AFTER the
+      // withdrawal period, never the day it ends (that would misstate the right)
+      need(/^From \{date\}/.test(pd.startsWait) && !/when your 14 days end|14 days end/i.test(pd.startsWait), where,
+        'paid.startsWait opens "From {date}" and never calls {date} the day the 14 days end: {date} is the first working day after them');
+      need(three(pd.next) && three(pd.nextWait) && !pd.nextWait.flat().some((y) => /same working day|today/i.test(y)), where, 'paid.next and paid.nextWait are three [label, line] pairs; nextWait never "same working day" or "today"');
+    }
   } else {
     need(city.till === undefined && city.checkoutCopy === undefined, where, 'till and checkoutCopy belong only to a desk with the checkout open');
   }
@@ -1895,10 +2096,28 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
     SYMBOL: SYMBOL[CUR] || '€',
     PLANS: Object.fromEntries(plans.map((p) => [p.id, {
       label: p.label, eur: Number(p.price), condition: p.condition, name: p.name, includes: p.includes,
-      rule: sell && p.id === 'full-search'
+      // the till's ✓ line: the refund rule rides on Full Search at a desk
+      // whose till takes the fee; at a desk that charges at signing every
+      // fare shows its own trigger (B20a)
+      rule: sell && (signing || p.id === 'full-search'),
+      ...(signing ? { trigger: p.trigger } : {})
     }])),
-    TILL: sell ? { label: city.till.label, labelWait: city.till.labelWait } : null,
-    PAID: sell ? { startsNow: city.checkoutCopy.paid.startsNow, startsWait: city.checkoutCopy.paid.startsWait, nextWait: city.checkoutCopy.paid.nextWait, unconfirmed: city.checkoutCopy.paid.unconfirmed } : null,
+    TILL: sell ? (signing ? { label: city.till.label } : { label: city.till.label, labelWait: city.till.labelWait }) : null,
+    PAID: sell && !signing ? { startsNow: city.checkoutCopy.paid.startsNow, startsWait: city.checkoutCopy.paid.startsWait, nextWait: city.checkoutCopy.paid.nextWait, unconfirmed: city.checkoutCopy.paid.unconfirmed } : null,
+    // v1.8 — only a desk that charges at signing carries these keys (the six
+    // stay byte-identical, B20b): the word itself, the order terms' version
+    // the till posts (the server answers 409 terms_changed to an older one),
+    // the online withdrawal page and the BOOKED card's strings (D9), with the
+    // desk's email filled in, for the managed view
+    ...(signing ? {
+      CHARGE_AT: 'signing',
+      ORDER_TERMS_V: ORDER_TERMS[city.slug].v,
+      WITHDRAW_URL: WITHDRAWAL_PATH,
+      BOOKED: Object.fromEntries(Object.entries(city.checkoutCopy.booked).map(([key, v]) => {
+        const withEmail = (s) => (typeof s === 'string' ? s.split('{email}').join(contact.email) : Array.isArray(s) ? s.map(withEmail) : s);
+        return [key, withEmail(v)];
+      }))
+    } : {}),
     // v1.6 §D: the onda canvas script, injected by boom-city.js at ≥940px after load
     ONDA: `/assets/boom-onda.js?v=${(assetVersion && assetVersion.onda) || '0'}`,
     // v1.7: the Horizon's script, injected when the map nears the screen
@@ -2093,16 +2312,27 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
   // THE REFUND RULE BESIDE EVERY €500 (sell desks): the closed Full Search
   // row, its open ticket, the till, the fees row — every block that shows
   // the number carries the sentence. A €500 anywhere else is refused.
+  // v1.8: a desk that charges at signing says ITS rule in the same places
+  // (the signing rule: under the closed €500, in the till, in the fees row)
+  // and every open ticket says its own fare's trigger; the six keep the
+  // refund rule and their messages, word for word.
   if (sell) {
-    const rule = esc(shared.refund.rule);
+    const rule = esc(ruleOf(city, shared));
+    const ruleWord = signing ? 'signing' : 'refund';
+    const ruleRe = ruleReOf(city);
     const fsId = 'full-search';
     const fsRow = sliceOf(html, `<details class="fare" name="fare" id="fare-${fsId}"`, '<!-- /FARES -->');
     const ticket = sliceOf(fsRow, '<div class="tk">', '</details>');
     const outside = sliceOf(fsRow, '</details>', '<details');
-    need(ticket.includes(`<p class="refund">${rule}</p>`), where, 'the refund rule is missing from the Full Search ticket, which shows €500');
-    need(outside.includes(`<p class="refund fs">${rule}</p>`), where, 'the refund rule is missing under the closed Full Search row, which shows €500');
-    need(sliceOf(html, '<dialog class="till"', '</dialog>').includes(rule), where, 'the refund rule is missing from the till, which shows €500');
-    need(sliceOf(html, '<dt>Fees</dt>', '</dd>').includes(rule), where, 'the refund rule is missing from the fees row, which shows €500');
+    if (signing) {
+      for (const p of plans) {
+        const tk = sliceOf(fares, `id="fare-${p.id}"`, '</details>');
+        need(sliceOf(tk, '<div class="tk">', '<div class="tk-stub">').includes(`<p class="refund">${esc(p.trigger)}</p>`), where, `the ${p.label} ticket does not say its trigger (the ✓ line: which signing earns that fee)`);
+      }
+    } else need(ticket.includes(`<p class="refund">${rule}</p>`), where, 'the refund rule is missing from the Full Search ticket, which shows €500');
+    need(outside.includes(`<p class="refund fs">${rule}</p>`), where, `the ${ruleWord} rule is missing under the closed Full Search row, which shows €500`);
+    need(sliceOf(html, '<dialog class="till"', '</dialog>').includes(rule), where, `the ${ruleWord} rule is missing from the till, which shows €500`);
+    need(sliceOf(html, '<dt>Fees</dt>', '</dd>').includes(rule), where, `the ${ruleWord} rule is missing from the fees row, which shows €500`);
     // EVERY €500 sits inside a block that says the rule: its own <details>
     // (a fare row with its ticket, a FAQ answer), <li>, <dd> or the till's
     // <dialog> — never "somewhere nearby"; a meta attribute or a JSON-LD
@@ -2115,7 +2345,7 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
     for (const m of flat.matchAll(new RegExp(esc500, 'g'))) {
       if (m.index < bodyAt) {
         const attr = (flat.slice(flat.lastIndexOf('"', m.index - 1), flat.indexOf('"', m.index + 1) + 1));
-        need(/refunded in full/.test(attr), where, `a ${p500} in the head (a meta attribute) stands without the refund rule`);
+        need(ruleRe.test(attr), where, `a ${p500} in the head (a meta attribute) stands without the ${ruleWord} rule`);
         continue;
       }
       let box = null;
@@ -2127,12 +2357,12 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
         if (!box || open > box[0]) box = [open, close];
       }
       const inside = box ? flat.slice(box[0], box[1]) : '';
-      need(/refunded in full/.test(inside), where, `a ${p500} stands without the refund rule in its own block: "…${visibleText(flat.slice(Math.max(bodyAt, m.index - 120), m.index + 60)).trim()}…"`);
+      need(ruleRe.test(inside), where, `a ${p500} stands without the ${ruleWord} rule in its own block: "…${visibleText(flat.slice(Math.max(bodyAt, m.index - 120), m.index + 60)).trim()}…"`);
     }
     {
       const strs = (v) => (typeof v === 'string' ? [v] : v && typeof v === 'object' ? Object.values(v).flatMap(strs) : []);
       for (const t of [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].flatMap((x) => strs(JSON.parse(x[1])))) {
-        if (t.includes(p500)) need(/refunded in full/.test(t), where, `a ${p500} in the JSON-LD stands without the refund rule: "${t.slice(0, 120)}…"`);
+        if (t.includes(p500)) need(ruleRe.test(t), where, `a ${p500} in the JSON-LD stands without the ${ruleWord} rule: "${t.slice(0, 120)}…"`);
       }
     }
     // the till, in the order the law asks (CRD arts. 6(1)(h), 7(3), 8(2), 16(a))
@@ -2141,8 +2371,37 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
     need(at('id="tTitle"') > -1 && at('id="tTitle"') < at('id="tStart"') && at('id="tStart"') < at('class="wd"') && at('class="wd"') < at('id="tGo"'), where, 'the till says the plan and its price, then the start-now request, then the withdrawal line, then the pay button — in that order');
     need(/<input type="checkbox" id="tStart">/.test(till) && !/id="tStart"[^>]*checked/.test(till), where, 'the start-now box is never pre-ticked');
     need(till.includes(`href="${WITHDRAWAL_PATH}?desk=${encodeURIComponent(city.city)}"`), where, 'the withdrawal line links the model withdrawal form with the desk');
-    need(till.includes(`<b id="tGoL">${esc(city.till.labelWait)}</b>`) && till.includes(`data-label-now="${esc(city.till.label)}"`), where, 'the pay button reads labelWait until the box is ticked');
+    // every token of the withdrawal line is filled ({email}, {form} and, where present, {online})
+    need(!/\{(?:email|form|online)\}/.test(till), where, 'the till\'s withdrawal line keeps an unfilled token ({email}, {form} or {online}): each is said once');
+    if (signing) {
+      // ONE label (D6): the button reads till.label whatever the tick
+      need(till.includes(`<b id="tGoL">${esc(city.till.label)}</b>`) && till.includes(`data-label-now="${esc(city.till.label)}" data-label-wait="${esc(city.till.label)}"`), where, 'on a desk that charges at signing the order button reads till.label, ticked or not: the tick changes the sub-line, never the obligation');
+      // after the plan: its trigger (the ✓ line, Full Search's as served) and
+      // how long the order runs, before the start-now request
+      need(till.includes(`<p class="refund" id="tRule" hidden>${esc(fsPlan.trigger)}</p>`) && till.includes(`<p class="t-order" id="tOrder">${esc(city.checkoutCopy.order)}</p>`)
+        && at('id="tTitle"') < at('id="tRule"') && at('id="tRule"') < at('id="tOrder"') && at('id="tOrder"') < at('id="tStart"'), where,
+        'on a desk that charges at signing the till says the plan, its trigger, then how long the order runs (checkoutCopy.order), before the start-now request (CRD art. 8(2))');
+      need(till.includes(`href="${WITHDRAWAL_PATH}?desk=${encodeURIComponent(city.city)}#online"`) && at('#online"') < at('id="tGo"'), where, 'on a desk that charges at signing the withdrawal line links the online withdrawal function with the desk ({online}), before the order button');
+      need(/\bdata-err-stale="[^"]+"/.test(till), where, 'on a desk that charges at signing the till carries the words of a stale page (data-err-stale: 409 terms_changed)');
+    } else need(till.includes(`<b id="tGoL">${esc(city.till.labelWait)}</b>`) && till.includes(`data-label-now="${esc(city.till.label)}"`), where, 'the pay button reads labelWait until the box is ticked');
     if (ES) need(till.includes(`<p class="t-opt">${esc(city.pricing.sub)}</p>`) && at('class="t-opt"') < at('id="tGo"'), where, 'on a Spanish desk the till repeats "Optional, chosen in writing" before the pay button');
+  }
+  // v1.8 (B19) — a desk that charges at signing never promises to refund a
+  // sum it never took, nor to charge for "the work already done" (nothing is
+  // due before the lease: loi Hoguet art. 6, WoVermRG §2) — anywhere: text,
+  // attributes, JSON-LD, the config the page reads. It sells today (InStock,
+  // never PreOrder) and shows BOOKED, never PAID (D9). The six never print
+  // the signing rule, nor the BOOKED card.
+  if (signing) {
+    need(!/refunded in full|work already done|minus the work/i.test(html), where, 'a desk that charges at signing never says "refunded in full", "work already done" or "minus the work": nothing is taken before the lease');
+    need(!/schema\.org\/PreOrder/.test(html) && /schema\.org\/InStock/.test(html), where, 'a desk that charges at signing takes the order today: its Offers are InStock, never PreOrder');
+    need((html.match(/id="cBooked"/g) || []).length === 1 && !/id="cPaid"/.test(html), where, 'a desk that charges at signing shows the BOOKED card, once, and never the PAID card (D9)');
+    const bookedCard = visibleText(sliceOf(html, '<div id="cBooked"', '<!-- /THE DOOR -->'));
+    need(!/\b(?:paid|payments?)\b/i.test(bookedCard) && /\bBOOKED\b/.test(bookedCard), where, 'the BOOKED card says BOOKED and never "paid" or "payment": nothing has been paid (D9)');
+    need(html.includes('"CHARGE_AT": "signing"') && html.includes(`"ORDER_TERMS_V": ${JSON.stringify(ORDER_TERMS[city.slug].v)}`), where, 'the page config declares CHARGE_AT "signing" and the order terms version the server checks (api/_cityterms.js)');
+  } else {
+    need(!/id="cBooked"|"CHARGE_AT"|"ORDER_TERMS_V"|"BOOKED"/.test(html), where, 'the BOOKED card and the order config belong to a desk that charges at signing');
+    if (shared.signing && str(shared.signing.rule)) need(!html.includes(esc(shared.signing.rule)) && !html.includes(shared.signing.rule), where, 'the signing rule belongs to a desk that charges at signing: this desk takes the fee at its till');
   }
 
   // the visible words at load: short, by measure — v1.6 split into PROSE
