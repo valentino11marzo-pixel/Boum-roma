@@ -13,6 +13,8 @@
   var toolbar=document.createElement('div');toolbar.className='panorama-globe-toolbar';
   toolbar.innerHTML='<span>Explore the BOOM destinations</span><button type="button" data-panorama-expand aria-haspopup="dialog" aria-controls="panoramaGlobeDialog">Full view <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg></button>';
   atlas.prepend(toolbar);
+  // Europe keeps the city illustration and landmark in sync; show the original node.
+  atlas.prepend(byId('europeCitySignature'));
   var route=document.createElement('div');route.className='panorama-route';
   route.innerHTML='<span class="panorama-route-city"></span><span class="panorama-route-scope"></span>';
   atlas.querySelector('.boom-globe-caption').before(route);
@@ -24,7 +26,12 @@
   hero.querySelector('.edition-plan-link').after(proof);
   var actionArrow='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
   hero.querySelector('.edition-pass-arrow').innerHTML=actionArrow;
-  document.querySelectorAll('#services .ticket-stub b,#services .europe-service-proof>span[aria-hidden]').forEach(function(icon){icon.innerHTML=actionArrow;});
+  document.querySelectorAll('#services .ticket-stub b,#services .europe-service-proof>span[aria-hidden],#services .service-foot a>span').forEach(function(icon){icon.innerHTML=actionArrow;});
+  var serviceRoutes=[['Your brief','Search','Viewings'],['Home found','Checks','Signature support']];
+  document.querySelectorAll('#services .next-ticket .ticket-route').forEach(function(line,index){
+    line.classList.add('panorama-service-route');
+    line.innerHTML=serviceRoutes[index].map(function(step){return '<span>'+step+'</span>';}).join('<i aria-hidden="true"></i>');
+  });
   byId('nextSearchForm').querySelector('.search-submit').textContent='See matching homes';
   byId('nextSearchForm').querySelectorAll('label>span').forEach(function(label){label.textContent=label.textContent.replace(/^\d+\s*\/\s*/,'').toLowerCase().replace(/^./,function(c){return c.toUpperCase();});});
   var dialog=document.createElement('dialog');dialog.id='panoramaGlobeDialog';dialog.className='panorama-globe-dialog';
@@ -61,7 +68,7 @@
   function syncCity(){
     var city=document.body.dataset.europeCity||'rome',foreign=city!=='rome';
     var label={rome:'Rome',london:'London',milan:'Milan',amsterdam:'Amsterdam',madrid:'Madrid',barcelona:'Barcelona'}[city]||'Rome';
-    hero.querySelector('.hero-pretitle').textContent='A place to land.';
+    hero.querySelector('.hero-pretitle').textContent=foreign?'Make your move to':'Find your place in';
     hero.querySelector('.hero-promise').textContent=foreign?'Rental search and tenant-side support in '+label+'. See the scope and fee before you choose.':'Homes in Rome, with the neighbourhood and your everyday journey in view.';
     hero.querySelector('.edition-pass-action').textContent=foreign?'Explore '+label+' support':'Browse Rome homes';
     // The fee explanation is Rome-specific; international offers explain their own terms.

@@ -210,6 +210,71 @@ try{
   await page.keyboard.press('Tab');
   assert.equal(await outside(),true,'the skip link leaves the viewport again after focus moves on');
  });
+ await check('City signatures and aviation tickets follow all six destinations and each real desk offer',390,async({page})=>{
+  const manifest=JSON.parse(readFileSync(root+'assets/boom-desks-public.json','utf8'));
+  const cities={rome:'Rome',london:'London',amsterdam:'Amsterdam',madrid:'Madrid',barcelona:'Barcelona',milan:'Milan'};
+  const landmarks={rome:'The Colosseum',london:'Tower Bridge',amsterdam:'The canal houses',madrid:'Puerta de Alcalá',barcelona:'Sagrada Família',milan:'The Duomo'};
+  const plans={search:'full-search',application:'application-pack',viewing:'attended-viewing'},art=new Set(),captions=new Set();
+  await start(page);await fillRome(page);
+  for(const slug of [...Object.keys(cities),'rome']){
+   await page.locator('.europe-city-switch [data-europe-city="'+slug+'"]').click();
+   await page.waitForFunction(city=>document.body.dataset.europeCity===city,slug);
+   const signature=page.locator('#europeCitySignature');
+   assert.equal(await signature.count(),1,'changing city does not duplicate its signature');
+   assert.equal(await signature.isVisible(),true,'the selected city signature is visible');
+   assert.equal(await signature.evaluate(node=>document.getElementById('boomGlobeMount').contains(node)),true,'the city detail belongs to the globe');
+   const reference=await signature.locator('svg.europe-city-icon use').getAttribute('href'),caption=(await signature.innerText()).trim();
+   assert.equal(reference,'/assets/boom-city-icons.svg#city-'+slug,'the illustration follows the selected city');
+   assert.ok(caption.includes(landmarks[slug]),'the landmark caption matches its city illustration: '+caption);art.add(reference);captions.add(caption);
+   assert.equal(await page.locator('.panorama-route-city').innerText(),cities[slug],'the adjacent route names the selected city');
+   assert.equal((await page.locator('#nextDestinationBoard').getAttribute('aria-label')).toLowerCase(),slug,'the original Solari agrees with the city detail');
+   const fit=await signature.evaluate(node=>{const r=node.getBoundingClientRect(),g=document.getElementById('boomGlobeMount').getBoundingClientRect();return r.width>0&&r.height>0&&r.left>=g.left&&r.right<=g.right+1;});
+   assert.equal(fit,true,'the city signature stays inside the mobile globe');await geometry(page);
+   if(slug==='rome'){
+    for(const [selector,price,path] of [['.ticket-gold','€350','/property-finding'],['.ticket-dark','€249','/deal-assistance']]){
+     const ticket=page.locator('#services '+selector);
+     assert.equal(await ticket.locator('.ticket-stub strong').innerText(),price,'the Rome ticket preserves its published fee');
+     assert.equal(new URL(await ticket.getAttribute('href'),origin).pathname,path,'the Rome ticket keeps its original service');
+     assert.ok((await ticket.locator('.ticket-terms').innerText()).trim(),'the ticket keeps its service conditions beside the fee');
+     assert.equal(await ticket.locator('.panorama-service-route').isVisible(),true,'the service route is visible');
+    }
+    continue;
+   }
+   const currency=slug==='london'?'GBP':'EUR',symbol=currency==='GBP'?'£':'€';
+   for(const [need,planId] of Object.entries(plans)){
+    await page.locator('[data-europe-need="'+need+'"]').click();
+    await page.mouse.move(0,0);
+    await page.locator('#europeServicePass .europe-service-price strong').waitFor();
+    const plan=manifest.cities[slug].pricing.plans.find(item=>item.id===planId);
+    assert.ok(plan,'the selected city publishes the requested offer');
+    const expected=new Intl.NumberFormat('en-GB',{style:'currency',currency,maximumFractionDigits:0}).format(plan.price);
+    assert.equal(await page.locator('#europeServicePass .europe-service-price strong').innerText(),expected,'the selected ticket shows the published '+currency+' fare');
+    assert.equal(await page.locator('#europeServicePass .europe-service-price small').innerText(),plan.condition,'fee basis and VAT condition remain visible');
+    assert.deepEqual(await page.locator('#europeServicePass .europe-service-includes li').allTextContents(),plan.includes,'aviation styling preserves every included service');
+    const choice=page.locator('[data-europe-need="'+need+'"]');
+    assert.equal(await choice.getAttribute('aria-pressed'),'true','the chosen need is visibly selected');
+    assert.equal(await choice.evaluate(node=>getComputedStyle(node).backgroundColor),'rgb(255, 215, 0)','the selected support uses BOOM yellow');
+    assert.ok((await choice.locator('.europe-need-price').innerText()).startsWith(expected),'the choice and detailed ticket agree on price');
+    await primaryContrast(page,'[data-europe-need="'+need+'"] strong');
+    await primaryContrast(page,'[data-europe-need="'+need+'"] .europe-need-price');
+    assert.ok((await page.locator('#europeDeskContinue').innerText()).includes(plan.label),'the continuation names the selected paid service');
+    const actions=await page.locator('#europeServicePass [data-europe-desk-link]').evaluateAll(nodes=>nodes.map(node=>node.href));
+    assert.ok(actions.length,'the ticket retains a route to the original city desk');
+    for(const href of actions){
+     const action=new URL(href);
+     assert.equal(action.pathname,'/'+slug);assert.equal(action.searchParams.get('need'),need);assert.equal(action.searchParams.get('from'),'flight');
+     assert.equal(action.searchParams.get('moveIn'),arrival);assert.equal(action.searchParams.get('moveOut'),departure);assert.equal(action.searchParams.get('people'),'couple');
+     assert.equal(action.searchParams.has('experience'),false,'visual presentation does not enter the original service handoff');
+    }
+    const bottom=await page.locator('#europeServicePass .europe-service-bottom').innerText();
+    assert.equal(bottom.includes(manifest.refund.rule),need==='search','the Full Search refund rule stays with that offer only');
+    const otherSymbol=symbol==='£'?'€':'£';
+    assert.equal((await page.locator('#europeServicePass .europe-service-price').innerText()).includes(otherSymbol),false,'the ticket never keeps the previous city currency');
+    await geometry(page,['#europeDeskContinue']);
+   }
+  }
+  assert.equal(art.size,6,'each city has a distinct illustration');assert.equal(captions.size,6,'each city has its own caption');
+ });
  await check('London: globe and Solari share the canonical city, and GBP requires a new budget',390,async({page})=>{
   await start(page);await fillRome(page);
   await openGlobe(page);

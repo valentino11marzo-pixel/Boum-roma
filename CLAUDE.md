@@ -3402,6 +3402,12 @@ Il primo invito esplicita case di Roma o supporto della città; persona e costi 
 Tablet usa una griglia planner senza sovrapposizioni; reduced motion conserva le trasformazioni di posizionamento del globo. Nessuna nuova automazione, dato commerciale, invio o dipendenza.
 `flightpanoramaui` verifica font realmente caricati, contrasto CTA, dimensioni testo/controlli, planner900px e skip link; regressioni dei percorsi esistenti. Scelte/evidenze in `design/panorama-polish-notes.md`.
 
+Flight Panorama aviation 05/11: mandato corretto da Valentino: nero/giallo BOOM deciso, Solari protagonista, servizi come biglietti. La precedente superficie grigia è superata; leggibilità e famiglia UI restano.
+Il nome destinazione riusa la misura del Solari originale senza tetto riduttivo; il fondale torna visibile. `europeCitySignature` originale si sposta nel globo: sei architetture/didascalie aggiornate dal controller Europe, nascoste solo in Full view.
+Ticket Roma: corpo nero, linea delle attività reali, stacco giallo prezzo/azione e perforazione; servizi accessori hanno lo stesso invito riconoscibile. Desks: bisogno selezionato giallo, tariffa dal manifest e brief coerente, senza nuove condizioni o prezzi.
+La decorazione non duplica stato, nodi d’invio o offerte. Pause, reduced motion, città, date, disponibilità e handoff canonici restano autoritativi.
+`flightpanoramaui` aggiunge sei firme città e quindici combinazioni estere città/servizio, condizioni/valute/contrasto/handoff e ticket Roma. Direzione vincolante in `design/panorama-aviation-notes.md`.
+
 Flight Lab 31/10: `/flight-lab` confronta Atlas, Residence e Club sulle stesse viste reali di `/flight-next?direction=…`, senza cambiare il sito pubblico.
 Le composizioni riusano catalogo, Solari, iframe Skyline, salvataggi e Apply; nessun secondo catalogo o nuovo handler di invio.
 Residence usa una foto realmente restituita dal catalogo pubblico (fallback a una casa pubblica non chiusa); Atlas sposta la stessa mappa nel primo schermo.

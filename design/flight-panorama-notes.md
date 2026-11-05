@@ -18,13 +18,13 @@ Full view: title and controls → same globe with all six destinations → route
 |---|---|---|
 | Globe | All six callouts on the home | One current-city callout; all six in Full view |
 | Hierarchy | Destination-led editorial composition | Clear narrative headline and unframed geographic globe |
-| Materials | Predominantly flat black/yellow | Neutral graphite, warm white type, consistent action surfaces |
+| Materials | Predominantly flat black/yellow | Strong black/yellow, original city signatures and service tickets |
 | Phone | Rome planner before the globe | Explore the globe before the planner |
 | Comparison | Separate preview URL | One-frame switch preserving the validated public brief |
 
-The active visual system is documented in [Panorama polish](panorama-polish-notes.md):
+The active visual system is documented in [Aviation identity](panorama-aviation-notes.md), superseding the muted [Panorama polish](panorama-polish-notes.md):
 locally served Instrument Sans for the interface, original BOOM mark and Solari,
-neutral graphite surfaces, yellow for the active destination/action. The earlier
+black surfaces, prominent yellow selection/actions and perforated service tickets. The earlier
 arch and material grain were removed after visual review.
 
 ## Motion score
