@@ -27,6 +27,8 @@ const SUITES = [
   { name: 'smartlinkphoto', file: 'tests/smartlink/photo-diagnostics.mjs', what: 'handler foto reale: cause 422/502 distinte, risposte e fetch invariati, log chiusi senza URL o credenziali; mutazioni' },
   { name: 'smartlinkshare', file: 'tests/smartlink/share.mjs', what: 'condivisione Safari: identità annuncio, dati selezionati, galleria, limiti e nessun accesso a rete o sessioni' },
   { name: 'smartlinkmedia', file: 'tests/smartlink/media.mjs', what: 'foto locali condivise: limiti16MB/4MB/60, fonte/indice esatti, raster/base64 verificati e Blob senza rete' },
+  { name: 'smartlinkworkerbytes', file: 'tests/smartlink/worker-bytes.mjs', what: 'lettore centrale: byte per foto autenticati, ricevute private, 15/15 senza refetch fonte, lease/ACK/limiti e mutazioni' },
+  { name: 'smartlinkidealistaworker', file: 'tests/smartlink/idealista-worker.mjs', what: 'lettore Idealista: galleria osservata con motore condiviso, 15/60 foto ordinate, identità e caricamento; mutazioni senza rete' },
   { name: 'smartlinkgallery', file: 'tests/smartlink/gallery.mjs', what: 'protocollo galleria nativa: piano/frame/envelope, identità stabile, ordine 1..N, foto/contatto, prefissi e durata simulata' },
   { name: 'smartlinkstudiomutations', file: 'tests/smartlink/studio-mutations.mjs', what: 'difetti ripristinati solo in memoria: galleria incompleta, sessione durante condivisione e pubblicazione' },
   { name: 'smartlinkexperimental', file: 'tools/smartlink-shortcut/experimental-test.mjs', what: 'builder Mac sperimentale: full22, AST e subset equivalenti, wiring e galleria simulata, JSON ostile, output isolato e mutazioni; nessuna firma/rete' },

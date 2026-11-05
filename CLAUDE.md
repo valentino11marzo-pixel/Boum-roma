@@ -140,6 +140,19 @@ firebase.json             Firebase deploy config (firestore + storage rules)
 | `sw.js` | Service worker (network-first HTML, cache-first static). |
 
 ### SmartLink annunci esterni (BOOM Tools)
+Dal 5/11 il candidato centrale usa il motore SHARE anche per scorrere la galleria Idealista: contatore, identità e ordine devono provare tutte le foto, fino a 60.
+Per Idealista/Casafari il Mac invia i byte una foto alla volta all’endpoint worker autenticato (3 MB prima di base64); Sharp li valida e archivia. Vercel non riscarica quelle foto dalla fonte.
+Ricevute private nella richiesta Firestore, hash e lease rendono il retry idempotente; nuova assegnazione o galleria incompleta impediscono lo stato pronto. Gli altri lettori conservano il percorso URL precedente, senza inventare un totale ignoto né ripiegare dopo un errore del trasporto byte.
+`smartlinkworkerbytes` guida l’handler reale, Sharp, lease, ACK e sei mutazioni; `smartlinkidealistaworker` verifica il collettore condiviso su 15/60 foto e tre mutazioni. Le reti sono simulate nelle suite.
+Prova reale locale del 5/11: 15 URL della galleria osservata e 15 file distinti da 1500 px scaricati dal download nativo; il nuovo `readPhoto` Node scarica gli stessi 15 file in 1,1 s. Non certifica un annuncio nuovo, il runtime centrale, l’upload autenticato o iPhone; il servizio resta da collaudare e attivare.
+Lo Studio presenta due momenti: Annuncio, poi Rivedi e crea. Incollare esplicitamente un URL valido avvia l’importazione; digitare non avvia richieste, Invio/pulsante permettono il tentativo manuale. La fonte resta privata e richiesta.
+Paste ripetuti non duplicano lo stesso annuncio, un’importazione occupata mostra un messaggio; token e risposte tardive controllano fonte e sessione. `studio.mjs` e tre mutazioni nuove coprono avvio, doppio paste e cambio account; il collaudo browser/mobile resta distinto.
+Dettagli e foto locali restano un percorso alternativo nello stesso riepilogo, senza sostituire il flusso principale dal link.
+Il riquadro foto riceve file da selezione multipla, drop o paste locale; legge anche `DataTransfer.items` quando `files` è vuoto, senza scaricare URL/HTML trascinati.
+Un collegamento senza byte mostra istruzioni per salvare la foto. Il riordino usa un tipo dedicato, così un drop esterno non sposta per errore la copertina.
+Preparazione, limiti e upload restano comuni; una sessione cambiata scarta le elaborazioni tardive. `tests/smartlink/studio.mjs` copre file/appunti, ordine, errori e zero letture della fonte; non certifica il picker su iPhone.
+Il primo riferimento vuoto→valido conserva dati/foto locali solo in assenza di provenienza importata; cambiare annuncio continua a isolare la selezione.
+Dopo una condivisione Safari si può scartare esplicitamente la selezione e scegliere foto dal dispositivo: nessuna galleria incompleta viene marcata completa, i dettagli conservati restano storici/non verificati.
 Il manifest Shortcut v2 viene emesso solo dopo verifica AEA locale e confronto dell'intero plist signed/unsigned corrente; nome rimosso e quattro default osservati sono le sole normalizzazioni ammesse.
 Il decoder usa copie temporanee dei byte attestati, rifiuta percorsi estranei e fallisce se mancano tool macOS: nessun override, firma, installazione o rete. Il trust della catena Apple non viene dichiarato verificato.
 La CI confronta hash e attestazione registrata, senza fingere di ripetere il decoder; una prova scritta a mano non è autenticata dai digest. `release-test.mjs`, incluso in `smartlinkshortcut`, verifica mismatch, drift, errori nativi e mutazione del confronto; gli asset obsoleti restano bloccanti.

@@ -38,11 +38,21 @@ const incomplete="if (smartLinkShare && (smartLinkShare.failed || smartLinkShare
 const pasteGuard="read===smartLinkShareRead && version===smartLinkPollVersion && portalSessionCurrent(proof) && sourceInput===document.getElementById('sl_source')";
 const photoGuard="version===smartLinkPollVersion && smartLinkShare===state && portalSessionCurrent(proof) && sourceInput===document.getElementById('sl_source')";
 const createGuard="const current=()=>portalSessionCurrent(proof) && version===smartLinkPollVersion && draft===document.getElementById('sl_key') && draft?.isConnected;";
+const sourceImportGuard="const current=()=>portalSessionCurrent(proof) && version===smartLinkPollVersion && sourceInput===document.getElementById('sl_source') && sourceInput.isConnected && window.BOOM_SMARTLINK.normalizeUrl(sourceInput.value)?.url===source.url;";
 const incompleteAssertion='context.smartLinkShareReview(true);await context.smartLinkCreate();assert.equal(published,null);';
 const incompleteLine=studio.slice(0,studio.indexOf(incompleteAssertion)).split('\n').length;
 assert.ok(studio.includes(incompleteAssertion),'The known-incomplete gallery assertion must remain in the real matrix');
 
 const cases=[
+  {name:'source-paste-start',code:replaceOnce(portal,'return smartLinkExtract();','return;'),check(error){
+    assert.match(error.message,/Pasting a supported URL starts import immediately/);
+  }},
+  {name:'source-paste-duplicate',code:replaceOnce(portal,'if(sourceInput.dataset.pastedSource===source.url && sourceInput.dataset.draftSource===source.url) return;',''),check(error){
+    assert.match(error.message,/Pasting the same completed URL does not restart an import/);
+  }},
+  {name:'source-paste-session',code:replaceOnce(portal,sourceImportGuard,sourceImportGuard.replace('portalSessionCurrent(proof) && ','')),check(error){
+    assert.match(error.message,/Late URL-paste capability cannot import after account/);
+  }},
   {name:'incomplete-gallery',code:replaceOnce(portal,incomplete,'if (false)'),check(error){
     assert.equal(error.expected,null);
     assert.equal(error.actual?.images?.length,2,'The failure must be the two-photo incomplete gallery being published');
@@ -60,6 +70,20 @@ const cases=[
   }},
   {name:'media-no-network',code:replaceOnce(portal,'const localMedia=Array.isArray(shared.media);','const localMedia=false;'),check(error){
     assert.match(error.message,/Local image transport makes zero source\/import-photo requests/);
+  }},
+  {name:'manual-file-session',code:replaceOnce(portal,'if (generation!==smartLinkPhotoGeneration || !portalSessionCurrent(proof)) return;',
+    'if (generation!==smartLinkPhotoGeneration) return;'),check(error){
+    assert.match(error.message,/Late manual files cannot enter a changed draft\/session: account/);
+  }},
+  {name:'external-drop-cover',code:replaceOnce(portal,'if (/^\\d+$/.test(raw))','if (true)'),check(error){
+    assert.match(error.message,/An external link on a thumbnail cannot move the first photo/);
+  }},
+  {name:'manual-first-reference',code:replaceOnce(portal,'if(!keepLocal) {','if(true) {'),check(error){
+    assert.match(error.message,/Adding the first reference keeps locally chosen photos/);
+  }},
+  {name:'manual-retained-history',code:replaceOnce(portal,'if(value) smartLinkFieldSnapshots[key]={value,historical:true,manual:true};',
+    'if(value) smartLinkFieldSnapshots[key]={value,historical:false,manual:true};'),check(error){
+    assert.match(error.message,/Manual replacement retains the unverified age of imported data/);
   }},
 ];
 for(const scenario of cases) {

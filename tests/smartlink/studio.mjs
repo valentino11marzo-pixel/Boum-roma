@@ -6,11 +6,11 @@ import RULES from '../../js/smartlink-engine.js';
 import SHARE from '../../js/smartlink-share-engine.js';
 import MEDIA from '../../js/smartlink-media-engine.js';
 class Element {
-  constructor(){this.value='';this.dataset={};this.disabled=false;this.children=[];this.isConnected=true;this.classList={add(){},remove(){}};}
+  constructor(){this.value='';this.dataset={};this.disabled=false;this.children=[];this.listeners={};this.isConnected=true;this.classList={add(){},remove(){}};}
   set value(v){this._value=String(v);} get value(){return this._value || '';}
   replaceChildren(...children){this.children=children;}
   append(...children){this.children.push(...children);}
-  addEventListener(){} setAttribute(){} removeAttribute(){} focus(){} remove(){this.isConnected=false;}
+  addEventListener(type,fn){this.listeners[type]=fn;} setAttribute(){} removeAttribute(){} focus(){} click(){this.clicked=true;} remove(){this.isConnected=false;}
 }
 const nodes=new Map(),get=id=>{if(!nodes.has(id)) nodes.set(id,new Element());return nodes.get(id);};
 let submitted=0,published,finishPost,enabled=true,finishDirect,directCount=0,holdCapability=false,finishCapability,photoImports=0,directPayload;
@@ -19,7 +19,7 @@ let archiveOnlyCount=0,archiveOnlyPayload,archiveOnlyFailure=false,holdArchive=f
 let clipboardText='',clipboardReads=0,holdClipboard=false,finishClipboard,clipboardDenied=false;
 let holdPhoto=false,finishPhoto,holdBlob=false,finishBlob,holdPrepare=false,finishPrepare,failPhotoAt=0;
 let holdUpload=false,finishUpload,holdToken=false,finishToken,tokenReads=0,downloadLookups=0;
-let rejectPrepare=false;
+let rejectPrepare=false,failPrepareAt=0;
 const preparedBlobs=[];
 const requests=[],events=[];
 async function until(predicate) {for(let i=0;i<100&&!predicate();i++) await Promise.resolve();assert.ok(predicate(),'Expected request was not reached');}
@@ -28,7 +28,7 @@ const key=crypto.randomUUID(),photo=n=>`https://firebasestorage.googleapis.com/v
 const ready={id:'Abcd1234Efgh5678ijkl',sourceUrl:source,draftKey:key,status:'ready',data:{title:'Bilocale',zone:'Cipro',price:1500},images:[photo(1),photo(2)]};
 const getIdToken=async()=>{tokenReads++;events.push('token');if(holdToken) return new Promise(resolve=>{finishToken=()=>resolve('admin');});return 'admin';};
 const context={window:{crypto,BOOM_SMARTLINK:RULES,BOOM_SMARTLINK_SHARE:SHARE,BOOM_SMARTLINK_MEDIA:MEDIA,BOOM_SMARTLINK_PHOTO:{prepare:async blob=>{
-  preparedBlobs.push(blob);if(rejectPrepare) throw new Error('fixture decode failure');
+  preparedBlobs.push(blob);if(rejectPrepare || preparedBlobs.length===failPrepareAt) throw new Error('fixture decode failure');
   if(holdPrepare) return new Promise(resolve=>{finishPrepare=()=>resolve(blob);});return blob;
 }}},URL,Promise,console,encodeURIComponent,AbortSignal,setTimeout:()=>1,clearTimeout:()=>{},
   document:{getElementById:get,createElement:()=>new Element(),querySelector:()=>get('body'),documentElement:{dataset:{}}},
@@ -516,4 +516,198 @@ for(const change of ['source','close','account','same-account-new-session']) {
 }
 context.smartLinkClose();
 
-console.log('SmartLink Studio: Safari share/carrier/local media, real validation/Blob, zero media fetch, complete/incomplete galleries, source errors, 13 photos, session races, historical data and loss-safe publication ✓');
+// Manual fields and actual files are independent of every source importer.
+// Exercise the real drop/paste listeners and controller; decoding, auth and
+// Storage stay simulated, so this does not claim a native iPhone picker test.
+shareStudio();
+const manualBefore={requests:requests.length,uploads:uploadCount,reads:clipboardReads};
+get('sl_source').value='';context.smartLinkSourceChanged();
+delete get('sl_source').dataset.draftSource;
+get('sl_title').value='La casa scelta da BOOM';get('sl_price').value='1580';get('sl_zone').value='Cipro';
+const localFiles=[1,2,3].map(i=>Object.assign(new Blob([Buffer.from(tinyPng,'base64')],{type:'image/png'}),{name:`casa-${i}.png`}));
+function photoEvent(transfer,kind='dataTransfer',target=get('sl_photo_drop')) {
+  return {[kind]:transfer,currentTarget:target,prevented:false,stopped:false,preventDefault(){this.prevented=true;},stopPropagation(){this.stopped=true;}};
+}
+const fileDrop=photoEvent({files:localFiles.slice(0,2)});
+await context.smartLinkPhotoDrop(fileDrop);
+assert.equal(fileDrop.prevented,true);assert.equal(currentPhotoCount(),2);
+const filePaste=photoEvent({files:[],items:[{kind:'file',getAsFile:()=>localFiles[2]}]},'clipboardData');
+await context.smartLinkPhotoPaste(filePaste);
+assert.equal(filePaste.prevented,true);assert.equal(currentPhotoCount(),3);
+for(let i=0;i<=source.length;i++) {
+  get('sl_source').value=source.slice(0,i);context.smartLinkSourceChanged(true);
+  assert.equal(currentPhotoCount(),3,'Typing the first reference does not erase local photos');
+}
+context.smartLinkSourceChanged();
+assert.equal(currentPhotoCount(),3,'Adding the first reference keeps locally chosen photos');
+assert.equal(get('sl_title').value,'La casa scelta da BOOM','Adding the first reference keeps manually written data');
+assert.equal(requests.length,manualBefore.requests,'Manual files never request a source, a reader job or a remote photo');
+assert.equal(uploadCount,manualBefore.uploads,'Selecting or pasting files does not publish');
+assert.equal(clipboardReads,manualBefore.reads,'Photo paste uses only the explicit event, without reading the clipboard API');
+assert.equal(get('sl_price').value,'1580','Photo intake preserves manual price');
+const photos=()=>vm.runInNewContext('smartLinkPhotoItems.map(item=>item.url)',context);
+const originalOrder=Array.from(photos());
+const remoteTransfer={files:[],items:[{kind:'string',type:'text/uri-list'}],getData:()=>''};
+const linkDrop=photoEvent(remoteTransfer);
+await context.smartLinkPhotoDrop(linkDrop);
+assert.match(get('sl_photo_status').textContent,/collegamento, non una foto/);
+const lastCard=get('sl_photo_preview').children[2];
+lastCard.listeners.drop(photoEvent(remoteTransfer,'dataTransfer',lastCard));
+assert.deepEqual(Array.from(photos()),originalOrder,'An external link on a thumbnail cannot move the first photo');
+assert.equal(requests.length,manualBefore.requests,'A URL-only drop does not start a download');
+const textPaste=photoEvent({files:[],items:[{kind:'string',type:'text/plain'}]},'clipboardData');
+await context.smartLinkPhotoPaste(textPaste);
+assert.equal(textPaste.prevented,false,'Text paste is not captured as an image');
+assert.equal(currentPhotoCount(),3);assert.match(get('sl_photo_status').textContent,/non contengono una foto/);
+const dragData=new Map();
+get('sl_photo_preview').children[2].listeners.dragstart({dataTransfer:{setData:(key,value)=>dragData.set(key,value)}});
+const firstCard=get('sl_photo_preview').children[0];
+firstCard.listeners.drop(photoEvent({files:[],getData:key=>dragData.get(key) || ''},'dataTransfer',firstCard));
+assert.deepEqual(Array.from(photos()),[originalOrder[2],originalOrder[0],originalOrder[1]],'Only an internal image drag changes the cover');
+await context.smartLinkCreate();
+assert.equal(published.title,'La casa scelta da BOOM');assert.equal(published.price,'1580');assert.equal(published.images.length,3);
+assert.equal(uploadCount-manualBefore.uploads,3);
+assert.deepEqual(requests.slice(manualBefore.requests).map(r=>r.url),['/api/smartlink/create'],'Manual creation requires no source access');
+get('sl_source').value=source.replace('124483437','87654321');context.smartLinkSourceChanged();
+assert.equal(currentPhotoCount(),0,'A different listing still starts a separate photo selection');
+assert.equal(get('sl_title').value,'');
+context.smartLinkClose();
+
+// An incomplete source capture stays blocked until the operator explicitly
+// discards that selection. Replacement files do not certify old source data.
+shareStudio();await context.smartLinkPasteShare(JSON.stringify(sharePacket(1,3)));
+const incompleteKey=get('sl_key').value;
+context.smartLinkShareReview(true);await context.smartLinkCreate();assert.equal(published,null);
+context.smartLinkUseLocalPhotos();
+assert.equal(shareState(),null);assert.equal(currentPhotoCount(),0);
+assert.notEqual(get('sl_key').value,incompleteKey);assert.equal(get('sl_title').value,'Casa da Safari');
+assert.equal(get('sl_photos').clicked,true);assert.equal(get('sl_share_local').hidden,true);
+await context.smartLinkCreate();assert.equal(published,null,'Discarding an incomplete capture cannot publish a card without replacement photos');
+await context.smartLinkPhotosChanged(localFiles);
+await context.smartLinkCreate();
+assert.equal(published.images.length,3);assert.equal(published.historicalData,true,'Manual replacement retains the unverified age of imported data');
+context.smartLinkClose();
+
+// A bad file rolls back just its batch, preserving previously accepted photos.
+shareStudio();await context.smartLinkPhotosChanged([localFiles[0]]);
+const accepted=Array.from(photos());
+failPrepareAt=preparedBlobs.length+2;
+await context.smartLinkPhotoDrop(photoEvent({files:localFiles.slice(1)}));failPrepareAt=0;
+assert.deepEqual(Array.from(photos()),accepted,'A failed batch preserves the earlier selection without half-imported files');
+const preparedBeforeLimit=preparedBlobs.length;
+await context.smartLinkPhotosChanged(Array(RULES.MAX_PHOTOS).fill(localFiles[0]));
+assert.equal(preparedBlobs.length,preparedBeforeLimit);assert.equal(currentPhotoCount(),1);
+context.smartLinkClose();
+
+for(const change of ['source','close','account','same-account-new-session']) {
+  shareStudio();holdPrepare=true;
+  const preparedBefore=preparedBlobs.length;
+  const pending=context.smartLinkPhotoPaste(photoEvent({files:localFiles},'clipboardData'));await until(()=>finishPrepare);
+  if(change==='source') {get('sl_source').value=source.replace('124483437','87654321');context.smartLinkSourceChanged();}
+  if(change==='close') context.smartLinkClose();
+  if(change==='account') session('assistant','admin',false);
+  if(change==='same-account-new-session') session('admin','admin',false);
+  holdPrepare=false;finishPrepare();await pending;
+  assert.equal(currentPhotoCount(),0,'Late manual files cannot enter a changed draft/session: '+change);
+  assert.equal(preparedBlobs.length,preparedBefore+1,'A cancelled manual batch stops before its next file: '+change);
+  context.smartLinkClose();
+}
+session();context.smartLinkClose();
+
+// Explicit URL paste starts the real importer; ordinary input remains local.
+const sourceInputMarkup=sourceCode.match(/<input id="sl_source"[^>]+>/)?.[0];
+assert.ok(sourceInputMarkup);
+assert.equal(sourceInputMarkup.match(/onpaste="([^"]+)"/)?.[1],'smartLinkPasteSource(event)');
+const inputHandler=sourceInputMarkup.match(/oninput="([^"]+)"/)?.[1];
+assert.equal((sourceCode.slice(start,end).match(/class="sl-step"/g) || []).length,2,'Studio has two numbered stages');
+assert.match(sourceCode.slice(start,end),/1 <span>Annuncio<\/span>/);
+assert.match(sourceCode.slice(start,end),/2 <span>Rivedi e crea<\/span>/);
+function pasteStudio() {
+  shareStudio();holdCapability=false;holdArchive=false;archiveOnlyFailure=false;archiveOnlyPayload=null;
+  finishDirect=finishCapability=finishArchive=finishPost=null;
+  directPayload={ok:true,data:{title:'Casa dal link',price:1590},images:directPhotos};
+  get('sl_source').value='';context.smartLinkSourceChanged();
+}
+function sourcePaste(text,target=get('sl_source')) {
+  return {currentTarget:target,clipboardData:{getData(type){assert.equal(type,'text/plain');return text;}},prevented:false,preventDefault(){this.prevented=true;}};
+}
+pasteStudio();
+const typingBefore={requests:requests.length,tokens:tokenReads};
+for(let i=0;i<=source.length;i++) {
+  get('sl_source').value=source.slice(0,i);vm.runInNewContext(inputHandler,context);
+}
+await Promise.resolve();
+assert.deepEqual({requests:requests.length,tokens:tokenReads},typingBefore,'Typing a URL must not start the importer');
+context.smartLinkClose();
+
+pasteStudio();
+const pasteBefore={direct:directCount,clipboard:clipboardReads};
+const pasted=sourcePaste('  '+source+'?utm_source=share#foto2  ');
+const pastedImport=context.smartLinkPasteSource(pasted);
+assert.equal(pasted.prevented,true);assert.equal(get('sl_source').value,source);
+assert.equal(get('sl_import').disabled,true,'Pasting a supported URL starts import immediately');
+await until(()=>finishDirect);
+await context.smartLinkPasteSource(sourcePaste(source));
+await context.smartLinkExtract();
+assert.equal(directCount,pasteBefore.direct+1,'Repeated paste and Enter during import do not duplicate the request');
+finishDirect();await pastedImport;
+assert.equal(get('sl_title').value,'Casa dal link');assert.equal(currentPhotoCount(),1);
+assert.equal(clipboardReads,pasteBefore.clipboard,'URL paste only reads the explicit event, never the clipboard API');
+const completedRequests=requests.length;
+context.smartLinkPasteSource(sourcePaste(source));
+for(let i=0;i<10;i++) await Promise.resolve();
+assert.equal(requests.length,completedRequests,'Pasting the same completed URL does not restart an import');
+await directImport(directPayload);
+assert.equal(directCount,pasteBefore.direct+2,'The explicit import button can still refresh the same URL');
+context.smartLinkClose();
+
+for(const text of ['', 'not a URL', 'https://example.invalid/annunci/123/', 'https://www.immobiliare.it/']) {
+  pasteStudio();const before=requests.length,event=sourcePaste(text);
+  await context.smartLinkPasteSource(event);
+  assert.equal(event.prevented,false,'Unsupported text keeps normal paste behavior');
+  assert.equal(requests.length,before);assert.equal(get('sl_source').value,'');
+  context.smartLinkClose();
+}
+for(const busy of ['smartLinkBusy=true','smartLinkPhotoPreparing=true',"smartLinkJob={status:'reading'}","document.getElementById('sl_import').disabled=true"]) {
+  pasteStudio();get('sl_source').value=source;context.smartLinkSourceChanged();
+  const before=requests.length;vm.runInNewContext(busy,context);
+  const event=sourcePaste(source.replace('124483437','87654321'));await context.smartLinkPasteSource(event);
+  assert.equal(event.prevented,true);assert.equal(requests.length,before,'Busy paste cannot start another import');
+  assert.equal(get('sl_source').value,source,'Busy paste cannot replace the active source');
+  assert.match(get('sl_status').textContent,/Importazione in corso\. Attendi/);
+  context.smartLinkResetSession();context.smartLinkClose();
+}
+for(const change of ['source','close','account','same-account-new-session']) {
+  pasteStudio();holdCapability=true;
+  const beforeDirect=directCount;
+  const pending=context.smartLinkPasteSource(sourcePaste(source));await until(()=>finishCapability);
+  if(change==='source') {get('sl_source').value=source.replace('124483437','87654321');context.smartLinkSourceChanged();}
+  if(change==='close') context.smartLinkClose();
+  if(change==='account') session('assistant','admin',false);
+  if(change==='same-account-new-session') session('admin','admin',false);
+  holdCapability=false;finishCapability();for(let i=0;i<15;i++) await Promise.resolve();
+  assert.equal(directCount,beforeDirect,'Late URL-paste capability cannot import after '+change);
+  await pending;
+  assert.equal(currentPhotoCount(),0);context.smartLinkResetSession();context.smartLinkClose();
+}
+pasteStudio();holdToken=true;
+const beforeTokenRequests=requests.length;
+const tokenPaste=context.smartLinkPasteSource(sourcePaste(source));await until(()=>finishToken);
+session('assistant','admin',false);holdToken=false;finishToken();for(let i=0;i<15;i++) await Promise.resolve();
+assert.equal(requests.length,beforeTokenRequests,'A stale URL-paste auth token cannot start a network request');
+await tokenPaste;
+assert.equal(currentPhotoCount(),0);context.smartLinkResetSession();context.smartLinkClose();
+pasteStudio();
+const latePaste=context.smartLinkPasteSource(sourcePaste(source));await until(()=>finishDirect);
+get('sl_source').value=source.replace('124483437','87654321');context.smartLinkSourceChanged();
+finishDirect();await latePaste;
+assert.equal(currentPhotoCount(),0,'A late URL-paste result cannot populate another listing');
+assert.equal(get('sl_title').value,'');context.smartLinkClose();
+for(const [uid,role] of [[null,null],['client','tenant']]) {
+  pasteStudio();session(uid,role,false);const before=requests.length;
+  await context.smartLinkPasteSource(sourcePaste(source));
+  assert.equal(requests.length,before,'URL paste requires the current admin session');
+  context.smartLinkResetSession();context.smartLinkClose();
+}
+session();context.smartLinkClose();
+console.log('SmartLink Studio: explicit URL paste, duplicate/session guards, manual files, local media, galleries and loss-safe publication ✓');
