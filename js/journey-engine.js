@@ -8,7 +8,7 @@
   var people = ['solo', 'couple', 'family', 'flatmates'], types = ['__entire', '__rooms'];
   // Public route vocabulary only. Availability, prices and operating mode
   // remain in CITY_MARKETS / the generated BOOM_CITY configuration.
-  var desks = ['amsterdam','barcelona','berlin','london','madrid','milan','paris'];
+  var desks = ['amsterdam','barcelona','berlin','london','madrid','milan','paris','valencia'];
   var needs = ['search','application','viewing'];
   var sensitive = /^(privateplace|private_place|lat|lng|lon|latitude|longitude|coordinates|address|name|email|phone|contact|token)$/i;
   function destination(value) {

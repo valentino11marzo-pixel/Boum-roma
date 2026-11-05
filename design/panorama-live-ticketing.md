@@ -105,3 +105,13 @@ passes 1,330 assertions. Its global BOOM-asset claims scanner still covers every
 asset: empty CSS content is valid, and exact housing phrases and the verified Rome
 registered-office address are reviewed exceptions. Appended foreign-registration
 mutations remain rejected. No registration vocabulary is globally ignored.
+
+Merged-source browser validation: Panorama 12/12, Europe 11/11, editions 20/20,
+company 6/6, journey 5/5, motion 7/7, globe-flight 13/13 and Next 12/12: 86/86.
+City handoff passes 16/16, including the new Valencia route, actual Paris order-at-signing
+and an explicitly closed generated fixture. No assertion was weakened to keep Paris
+incorrectly closed. Flight 14/14, Stay generator 9/9 and Home truth 46/46 also pass.
+All outgoing writes are aborted in these browser checks. The legacy Google consent-mode
+ping is recognized only at its exact collection boundary with denied-consent flags;
+all other attempted writes remain failures. Final ticket captures were visually checked
+at 320/390/900/1440, with desktop/phone Studio views.

@@ -7,6 +7,8 @@ import {createServer} from 'node:http';
 import {fileURLToPath} from 'node:url';
 import vm from 'node:vm';
 import {loadChromium,launchOptions} from '../_browser.mjs';
+import {renderCity,fragments,loadClaims} from '../../build-cities.mjs';
+import {CITY_MARKETS,CITY_PLANS} from '../../api/_market.js';
 const require=createRequire(import.meta.url),J=require('../../js/journey-engine.js'),S=require('../../js/stay-engine.js');
 const root=fileURLToPath(new URL('../../',import.meta.url));
 const year=new Date().getFullYear()+1,arrival=year+'-02-01',departure=year+'-03-01';
@@ -51,9 +53,26 @@ await check('browser and Node agree; removing the city binding or currency veto 
 const chromium=await loadChromium();
 if(!chromium)console.log('SKIP: playwright unavailable — real city handoff checks did not run');
 else{
+  // Exercise the original no-checkout guarantee on a frozen closed desk,
+  // while the actual Paris configuration remains live and paid at signing.
+  function closedDeskFixture(){
+    const read=file=>JSON.parse(readFileSync(root+file,'utf8'));
+    const draft=read('tests/cities/fixtures/draft-paris.json'),claims=loadClaims(root);
+    claims.allowed=claims.allowed.concat(read('tests/cities/fixtures/draft-claims.json').allowed).sort((a,b)=>a.text<b.text?-1:a.text>b.text?1:0);
+    const actual=CITY_MARKETS.paris;
+    try{
+      CITY_MARKETS.paris={label:'Paris',flag:'🇫🇷',country:'fr',url:'https://www.boomrome.com/paris',mode:'waitlist',partner:'a licensed partner',plans:CITY_PLANS};
+      return renderCity({template:readFileSync(root+'cities/_template.html','utf8'),shared:read('cities/_shared.json'),city:draft,
+        assetVersion:{css:'fixture',js:'fixture',onda:'fixture',map:'fixture'},frags:fragments(root),root,weigh:false,claims}).html;
+    }finally{CITY_MARKETS.paris=actual;}
+  }
+  const closedParis=closedDeskFixture();
+  assert.equal(CITY_MARKETS.paris.checkout,true);assert.equal(CITY_MARKETS.paris.chargeAt,'signing');
   const server=createServer((req,res)=>{
     if(req.method!=='GET'){res.writeHead(405);return res.end('No real writes');}
-    const pathname=new URL(req.url,'http://localhost').pathname;let file=root+pathname.slice(1);
+    const request=new URL(req.url,'http://localhost'),pathname=request.pathname;
+    if(pathname==='/paris'&&request.searchParams.get('fixture')==='closed'){res.setHeader('content-type','text/html');return res.end(closedParis);}
+    let file=root+pathname.slice(1);
     if(!existsSync(file)&&existsSync(file+'.html'))file+='.html';
     if(!file.startsWith(root)||!existsSync(file)||statSync(file).isDirectory()){res.writeHead(404);return res.end();}
     res.setHeader('content-type',file.endsWith('.js')?'text/javascript':file.endsWith('.css')?'text/css':file.endsWith('.svg')?'image/svg+xml':'text/html');res.end(readFileSync(file));
@@ -134,7 +153,17 @@ else{
       await page.waitForFunction(()=>document.getElementById('fileForm').textContent.includes('plans could not load'));assert.equal(await page.locator('#boomJourneyBrief').count(),0);
       await identity(page);await page.locator('#door').click();await page.waitForFunction(()=>BOOM_TICKET.state()==='open');assert.equal(posts.length,1);assert.equal('budget'in posts[0].body,false);
     },{failAsset:true}));
-    await check('a not-open desk never acquires a till through the handoff query',()=>run(J.deskURL('paris',brief),async({page,posts})=>{
+    await check('Valencia retains the public brief in its original free-call form',()=>run(J.deskURL('valencia',brief),async({page,posts})=>{
+      await loaded(page);assert.equal(posts.length,0);await identity(page);await page.locator('#door').click();await page.waitForFunction(()=>BOOM_TICKET.state()==='open');
+      assert.equal(posts.length,1);assert.equal(posts[0].body.city,'valencia');assert.equal(posts[0].body.moveIn,arrival);assert.equal(posts[0].body.budget,'EUR 1500');assert.ok(posts[0].body.message.includes(departure));
+      assert.doesNotMatch(JSON.stringify(posts[0].body),/sapienza|Private office|private-reference|poi:/);
+    }));
+    await check('live Paris retains the handoff and its order paid at signing without an automatic order',()=>run(J.deskURL('paris',brief),async({page,posts})=>{
+      await loaded(page);assert.equal(await page.evaluate(()=>BOOM_CITY.CHARGE_AT),'signing');assert.equal(await page.locator('#till').count(),1);
+      await page.locator('#fare-application-pack [data-pay]').click();assert.equal(await page.locator('#till').isVisible(),true);
+      const note=await page.inputValue('#tNote');assert.ok(note.includes(arrival)&&note.includes(departure));assert.match(await page.locator('#tGo').innerText(),/Order.*signing/s);assert.equal(posts.length,0);
+    }));
+    await check('an explicitly closed desk fixture never acquires a till through the handoff query',()=>run(J.deskURL('paris',brief)+'&fixture=closed',async({page,posts})=>{
       await loaded(page);assert.equal(await page.locator('[data-pay],#till').count(),0);await identity(page);await page.locator('#door').click();await page.waitForFunction(()=>BOOM_TICKET.state()==='open');assert.equal(posts.length,1);assert.equal(posts[0].body.city,'paris');
     }));
     for(const width of [320,390,1280])await check(width+'px editor fits, readable inputs and original door remain usable',()=>run(J.deskURL('barcelona',brief),async({page,posts})=>{

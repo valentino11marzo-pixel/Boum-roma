@@ -4949,10 +4949,10 @@ Il generatore `costruisci-portale.py` applica Flight solo con `--flight`, produc
 Il brief dei servizi ora legge anche date/budget/persone modificati nel planner prima della ricerca: href nativi aggiornati, nessun commit durante la modifica. Solo il clic ordinario in uscita conserva il brief valido nella history per Back; nuova scheda non altera la pagina. Date incomplete/non valide escluse; luoghi privati mai serializzati.
 `flight`, `flightstay`, `flighthomeui`, `flightstaydates`, `listing` e `flightpanoramaui` coprono separazione, generatore e handoff; la parità del builder Your Rome riallinea solo il token della guida già pubblicato nella pagina.
 
-Flight integrazione 06/11: il merge f5b0b66a conserva i nuovi desk Parigi/Berlino/Valencia e il pagamento alla firma; il manifest pubblico proietta le otto configurazioni attive. Le sei scelte Flight restano curate, con `/desks` per la rete completa.
+Flight integrazione 06/11: il merge f5b0b66a conserva i nuovi desk Parigi/Berlino/Valencia e il pagamento alla firma; il manifest pubblico proietta le otto configurazioni attive. Le sei scelte Flight restano curate, con `/desks` per la rete completa; `journey-engine` riconosce anche Valencia.
 I due hook del brief estero vivono ora in `assets/src/boom-city.js` e sono rigenerati, insieme a pagine e date. `citiespublic` passa6 prove; `cities` passa1330, mantenendo il controllo di tutti gli asset e mutazioni sulle eccezioni testuali esatte.
 VV/DAS/CCE e `/services` caricano `boom-navigation-boundary.js` anche dalle basi sorgenti: solo verso Flight salta lo snapshot nativo che Chromium rifiuta al ritorno. Form, prezzi, navigazione e checkout restano originali.
-`flightpanoramaui` verifica il Back senza errori browser e senza invii; il solo ping Google di consenso negato è identificato e bloccato, insieme a ogni altra scrittura.
+Le otto suite UI principali passano86 scenari; `flightcityhandoff` passa16 prove, incluse Valencia, Parigi aperta con ordine alla firma e una fixture esplicita di desk chiuso. `flightpanoramaui` verifica il Back senza errori browser e senza invii; il solo ping Google di consenso negato è identificato e bloccato.
 
 Flight Lab 31/10: `/flight-lab` confronta Atlas, Residence e Club sulle stesse viste reali di `/flight-next?direction=…`, senza cambiare il sito pubblico.
 Le composizioni riusano catalogo, Solari, iframe Skyline, salvataggi e Apply; nessun secondo catalogo o nuovo handler di invio.
