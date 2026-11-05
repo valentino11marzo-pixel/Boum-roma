@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-04",
+  "updated": "2026-11-05",
   "meta": {
     "title": "Tenant-side rental agent in Europe for expats — BOOM Desks",
     "description": "Rental agents hired by the tenant in {cities}: flat fees, VAT included, nothing from landlords. Local rules compared.",
@@ -25,8 +25,9 @@
     "h2": "Three flat fares,",
     "h2g": "paid by you.",
     "spain": "In {esDesks} every fare is optional, chosen in writing (LAU art. 20).",
+    "signing": "In {signDesks} every fare is charged only when you sign a lease.",
     "plans": {
-      "full-search": { "who": "Haven't started yet", "lines": ["Local-format dossier and cover letter within one working day of your papers", "Applications sent as listings appear", "It runs until you sign or tell us to stop"] },
+      "full-search": { "who": "Haven't started yet", "lines": ["Local-format dossier and cover letter within one working day of your papers", "Contract checked before you sign", "It runs until you sign or tell us to stop"] },
       "application-pack": { "who": "Found one, or shortlisted and already there", "lines": ["Local format within one working day of your papers", "Cover letter, income and guarantor strategy", "Contract review before you sign"] },
       "attended-viewing": { "who": "Shortlisted, still abroad", "lines": ["A BOOM person attends the viewing in your place", "Live video walkthrough", "Written report (light, noise, damp, neighbours, commute) and a straight recommendation"] }
     },
@@ -34,9 +35,7 @@
       { "k": "Paid by you", "v": "Never by landlords or their agents." },
       { "k": "First call", "v": "Free, before anything is paid." },
       { "k": "14 days", "v": "Withdraw online, from the day you order.", "href": "/withdrawal#online" },
-      { "k": "One company", "v": "{legalName}, registered in Rome." },
-      { "k": "Languages", "v": "English at every desk; in {homeCity}, Italian too." },
-      { "k": "One person", "v": "{person} answers at every desk." }
+      { "k": "Languages", "v": "English at every desk; in {homeCity}, Italian too." }
     ],
     "gates": "Choose at your desk"
   },
@@ -45,8 +44,7 @@
     "h2": "Renting rules,",
     "h2g": "city by city.",
     "note": "BOOM is an agency, not a law firm.",
-    "caption": "What each desk checks before you sign, as on its page",
-    "heldNote": "A title alone: the check is on that desk's page.",
+    "caption": "As on each desk's page",
     "rows": [
       { "head": "Country", "country": true },
       { "head": "Who may charge you", "ids": ["fees"] },
@@ -68,7 +66,8 @@
       "valencia:rent": "not a declared stressed zone on 3/11/2026, read in press summaries (DOGV unreachable) and under political pressure: re-check before every update",
       "valencia:contract": "RDL 29/2026 convalidation pending (date unconfirmed): a lawyer confirms the temporada sentence",
       "milan:fees": "a market figure with no source",
-      "milan:registration": "\"Until it is registered, the lease is void\": a late registration cures the nullity retroactively (Cass. SS.UU. 23601/2017), a lawyer confirms the wording"
+      "milan:registration": "\"Until it is registered, the lease is void\": a late registration cures the nullity retroactively (Cass. SS.UU. 23601/2017), a lawyer confirms the wording",
+      "paris:rentcap": "the Paris rent-cap experiment was set to end about 24/11/2026 and its extension was not read from an official text: a lawyer confirms"
     },
     "cut": { "amsterdam:deposit": ["Agents still ask for three.", "We don't let them."] }
   },
@@ -77,11 +76,11 @@
     "h2": "Questions about BOOM Desks.",
     "items": [
       { "q": "What is a BOOM desk?", "a": "A tenant-side rental desk: an agent you hire to find and secure a home in a European city, paid by you only, never by the landlord or their agent. Each desk has its own page, its local checks and three flat fares." },
-      { "q": "Which cities have a BOOM desk?", "a": "{cities}. {drafts} are not open: we would open them only with a locally licensed partner, and nothing is sold there today. In Rome, BOOM is the agency itself, with homes to rent." },
-      { "q": "Do the fares change from city to city?", "a": "No. Full Search {price:full-search}, Application Pack {price:application-pack} and Attended Viewing {price:attended-viewing} per viewing, VAT included, at every desk; the {gbpDesks} desk charges the same figures in pounds. {refund}" },
+      { "q": "Which cities have a BOOM desk?", "a": "{cities}. In Rome, BOOM is the agency itself, with homes to rent." },
+      { "q": "Do the fares change from city to city?", "a": "No. The same three fares at every desk, VAT included; the {gbpDesks} desk charges the same figures in pounds. In {signDesks} every fare is charged only when you sign a lease." },
       { "q": "Who answers, and when?", "a": "{person}, on WhatsApp from each desk's page, or by email: {hours}. A reply comes the same working day." },
       { "q": "Is BOOM {homeCity} a real estate agency?", "a": "Yes. BOOM {homeCity} is a desk of {legalName}, an Italian real estate agency registered in Rome (REA {rea}), under the same Italian law as BOOM Rome. It works for the tenant only: you hire and pay it, never the landlord.", "home": true },
-      { "q": "Can I pay on this page?", "a": "No. Each desk takes its fares on its own page, with the 14-day right of withdrawal and the model form. Every desk starts with a free call, and nothing is charged for it." }
+      { "q": "Can I pay on this page?", "a": "No. Each desk takes its orders on its own page, with the 14-day right of withdrawal and the model form. Every desk starts with a free call, and nothing is charged for it." }
     ]
   },
   "brief": {
@@ -98,7 +97,6 @@
       { "dt": "Withdrawal", "derive": "withdrawal" },
       { "dt": "{homeCity}", "dd": "BOOM {homeCity} works under Italian law, the same law as BOOM Rome; a 3+2 lease there follows the bands of {homeCity}'s own local agreement.", "home": true },
       { "dt": "What we don't do", "dd": "List homes, represent landlords, or promise a move-in date." },
-      { "dt": "Rome", "derive": "rome" },
       { "dt": "Contact", "derive": "contact" },
       { "dt": "Updated", "derive": "updated" }
     ]

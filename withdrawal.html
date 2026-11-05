@@ -97,7 +97,7 @@
 <main>
     <a class="brand" href="/">BOOM</a>
     <h1>Withdraw from a BOOM service</h1>
-    <p class="soft">For services bought online from BOOM — the Amsterdam, Barcelona, London, Madrid, Milan and Valencia desks and the Rome Pacchetto canone concordato among them. You have 14 days from the day you paid; you don't need to give a reason.</p>
+    <p class="soft">For services bought or ordered online from BOOM — the Amsterdam, Barcelona, Berlin, London, Madrid, Milan, Paris and Valencia desks and the Rome Pacchetto canone concordato among them. You have 14 days from the day you paid, or on the Paris and Berlin desks from the day you ordered; you don't need to give a reason.</p>
     <p class="soft">For the London desk, the right to cancel follows the UK Consumer Contracts Regulations 2013, with the same 14 days; you can cancel with this form or any clear statement.</p>
 
     <section class="online noprint" id="online" aria-labelledby="oTitle">
@@ -192,9 +192,9 @@
 
     <h2>How it works</h2>
     <ol class="how">
-        <li>Withdraw online above (“Withdraw from contract here”), or send us the form below or any clear statement that you withdraw by email to <a href="mailto:hello@boom-rome.com">hello@boom-rome.com</a>, before the 14 days end. The day you paid does not count, and a period ending on a Saturday, Sunday or public holiday runs to the end of the next working day.</li>
-        <li>We refund within 14 days of receiving it, to the card you paid with.</li>
-        <li>If you asked us to start before the 14 days ended (with “Start now” at checkout, or later in writing), we deduct only the part of the work already done, in proportion to the price. Once the service is fully performed, the right to withdraw ends.</li>
+        <li>Withdraw online above (“Withdraw from contract here”), or send us the form below or any clear statement that you withdraw by email to <a href="mailto:hello@boom-rome.com">hello@boom-rome.com</a>, before the 14 days end. The day you paid (on the Paris and Berlin desks, the day you ordered) does not count, and a period ending on a Saturday, Sunday or public holiday runs to the end of the next working day.</li>
+        <li>We refund within 14 days of receiving it, to the card you paid with. On the Paris and Berlin desks nothing is charged before you sign a lease: withdrawing before then ends your order, and you owe nothing.</li>
+        <li>If you paid and asked us to start before the 14 days ended (with “Start now” at checkout, or later in writing), we deduct only the part of the work already done, in proportion to the price. Once the service is fully performed, the right to withdraw ends.</li>
     </ol>
 
     <h2>Model withdrawal form</h2>
@@ -249,7 +249,7 @@
         <label for="wAddress">Your address
             <input id="wAddress" autocomplete="street-address">
         </label>
-        <label for="wEmail">The email you paid with
+        <label for="wEmail">The email you paid or ordered with
             <input id="wEmail" type="email" autocomplete="email" inputmode="email">
         </label>
         <div><a class="btn" id="wSend" href="mailto:hello@boom-rome.com?subject=Withdrawal">Email the form</a></div>
@@ -496,7 +496,7 @@
                 'Ordered on: ' + (val('wDate') || '…'),
                 'Name: ' + (val('wName') || '…'),
                 'Address: ' + (val('wAddress') || '…'),
-                'Email used at payment: ' + (val('wEmail') || '…'),
+                'Email used for the order: ' + (val('wEmail') || '…'),
                 'Date: ' + today()
             ].join('\n');
             send.href = 'mailto:hello@boom-rome.com?subject=' + encodeURIComponent('Withdrawal' + (svc ? ' — ' + svc : '') + (desk ? ' ' + desk : ''))

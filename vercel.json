@@ -110,6 +110,16 @@
       "permanent": true
     },
     {
+      "source": "/parigi",
+      "destination": "/paris",
+      "permanent": true
+    },
+    {
+      "source": "/berlino",
+      "destination": "/berlin",
+      "permanent": true
+    },
+    {
       "source": "/(cities|boom-desks)",
       "destination": "/desks",
       "permanent": true

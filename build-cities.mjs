@@ -2525,7 +2525,7 @@ const HUB_ALLOWED = {
   map: ['eb', 'h2g', 'caption', 'rome', 'home'],
   'map.rome': ['h', 'p', 'link'],
   'map.home': ['h', 'p1', 'p2', 'link'],
-  fares: ['eb', 'h2', 'h2g', 'spain', 'plans', 'strip', 'gates'],
+  fares: ['eb', 'h2', 'h2g', 'spain', 'signing', 'plans', 'strip', 'gates'],
   'fares.plan': ['who', 'lines'],
   'fares.strip.item': ['k', 'v', 'href'],
   rules: ['eb', 'h2', 'h2g', 'note', 'caption', 'heldNote', 'rows', 'hold', 'cut'],
@@ -2538,7 +2538,7 @@ const HUB_ALLOWED = {
 };
 const HUB_DERIVE = ['open', 'fees', 'withdrawal', 'rome', 'contact', 'updated'];
 // the optional tokens: an item that uses one with no value is DROPPED (a warning)
-const HUB_OPTIONAL = new Set(['homeCity', 'esDesks', 'gbpDesks']);
+const HUB_OPTIONAL = new Set(['homeCity', 'esDesks', 'gbpDesks', 'signDesks']);
 // the literals hub copy may type with a digit in them; every other number is a token
 const HUB_DIGIT_OK = ['LAU art. 20', '14 days', '14-day', '3+2'];
 const STATUTE_RE = /\bart\.\s?\d+|§\s?\d+|\bLAU\b|\bLlei\b|\bL\.\s?\d+\/\d{4}|\bAct \d{4}\b/g;
@@ -3251,7 +3251,7 @@ export function hoursSentence(live) {
 
 // The hub's own tokens, single braces: {cities} {n} {N} {drafts} {legalName}
 // {rea} {vatID} {address} {person} {hours} {refund} {price:<plan>} and the
-// optional {homeCity} {esDesks} {gbpDesks}. Returns null when the string uses
+// optional {homeCity} {esDesks} {gbpDesks} {signDesks}. Returns null when the string uses
 // an optional token with no value (the caller drops the item, with a warning);
 // any other unknown or empty token is refused.
 export function hubText(s, tok, where) {
@@ -3419,7 +3419,9 @@ export function renderHub({ template, shared, hub, cities, assetVersion, frags, 
     drafts: listJoin(drafts.map((c) => c.city)), legalName: e.legalName, rea: e.rea, vatID: org.vatID, address: e.address,
     person: persons[0], hours: hoursSentence(live), refund: shared.refund.rule,
     prices: Object.fromEntries(plans.map((p) => [p.id, money(p.price, 'EUR')])),
-    homeCity: home ? home.city : '', esDesks: listJoin(es.map((c) => c.city)), gbpDesks: listJoin(gbp.map((c) => c.city))
+    homeCity: home ? home.city : '', esDesks: listJoin(es.map((c) => c.city)), gbpDesks: listJoin(gbp.map((c) => c.city)),
+    // v1.8 (H1, H9): the live desks that charge at signing (CITY_MARKETS.<slug>.chargeAt), named where the timing differs
+    signDesks: listJoin(live.filter(isSigning).map((c) => c.city))
   };
   const T = (s, w2 = where) => { const v = hubText(s, tok, w2); need(v !== null, w2, `"${String(s).slice(0, 60)}" uses an optional token with no value, where nothing can be dropped`); return v; };
   // an item that can be dropped: null when it names the home desk (or Spain, or London) and there is none
@@ -3482,7 +3484,7 @@ export function renderHub({ template, shared, hub, cities, assetVersion, frags, 
     [
       `        <tr class="db-r hub" id="db-${ROME_IATA.toLowerCase()}" role="row">`,
       `          ${codeCell(ROME_IATA)}`,
-      '          <td class="db-city" role="cell"><a class="db-go" href="/">Rome</a><span class="db-sub">The hub · homes to rent</span></td>',
+      '          <td class="db-city" role="cell"><a class="db-go" href="/">Rome</a></td>',
       '          <td class="db-st c-w" role="cell" data-instr>HUB</td><td class="db-t c-w" role="cell"></td><td class="db-now c-w" role="cell"></td><td class="db-fare c-w" role="cell"></td>',
       '          <td class="db-gate" role="cell" aria-hidden="true"><span class="db-pill">Go to BOOM Rome <i>→</i></span></td>',
       '        </tr>'
@@ -3542,6 +3544,9 @@ export function renderHub({ template, shared, hub, cities, assetVersion, frags, 
   // ── the fares ──
   const fr = hub.fares;
   const spain = fr.spain ? Topt(fr.spain, 'fares.spain note') : null;
+  // v1.8 (H1): the fares are the same at every desk, the TIMING is not — the desks that charge at signing are named
+  // before the first price (dropped, with a warning, when no live desk charges at signing)
+  const signNote = fr.signing ? Topt(fr.signing, 'fares.signing note') : null;
   const gbpDesk = gbp.length ? `at the ${listJoin(gbp.map((c) => c.city))} desk${gbp.length > 1 ? 's' : ''}` : '';
   const tickets = plans.map((p) => {
     const hp = fr.plans[p.id];
@@ -3572,10 +3577,12 @@ export function renderHub({ template, shared, hub, cities, assetVersion, frags, 
   const gates = T(fr.gates);
   authored.push(T(fr.eb), T(fr.h2), T(fr.h2g), gates);
   if (spain) authored.push(spain);
+  if (signNote) authored.push(signNote);
   const faresHtml = [
     `      <p class="eb" data-instr>${esc(T(fr.eb))}</p>`,
     `      <h2 id="faresH2">${esc(T(fr.h2))} <span class="g">${esc(T(fr.h2g))}</span></h2>`,
     spain ? `      <p class="hnote es">${esc(spain)}</p>` : '',
+    signNote ? `      <p class="hnote sign">${esc(signNote)}</p>` : '',
     '      <ol class="hfares">',
     ...tickets,
     '      </ol>',
@@ -3596,10 +3603,13 @@ export function renderHub({ template, shared, hub, cities, assetVersion, frags, 
       const cc = String(c.country || '').toUpperCase();
       // a country the hub cannot name is not invented: a dash, and a warning
       if (!COUNTRY_NAME[cc]) { warnings.push(`the ${c.city} desk's country "${cc}" has no name in COUNTRY_NAME: its cell reads "—"`); return `<span class="rc none" aria-hidden="true">—</span><span class="sr">Country not stated</span>`; }
-      return `${esc(COUNTRY_NAME[cc])}${c === home ? ' <span class="rc-tag" data-instr>same law as BOOM Rome</span>' : ''}`;
+      // v1.8 (H6): the country alone — the home desk's "same law as BOOM Rome" tag is cut (the board keeps
+      // "ITALIAN LAW · AS ROME", the founder's decision of 03/11, D13)
+      return `${esc(COUNTRY_NAME[cc])}`;
     }
     const ks = c.checks.items.filter((k) => row.ids.includes(k.id));
-    if (!ks.length) return `<span class="rc none" aria-hidden="true">—</span><span class="sr">Not one of the ${esc(c.city)} checks</span>`;
+    // v1.8 (H6): no place name beside a reviewed label ("Not one of the <City> checks" read as a claim to review)
+    if (!ks.length) return '<span class="rc none" aria-hidden="true">—</span><span class="sr">Not checked at this desk</span>';
     return ks.map((k) => (hold[`${c.slug}:${k.id}`]
       ? `<a class="rc held" href="/${esc(c.slug)}#check-${esc(k.id)}"><span class="rc-t">${esc(k.title)}</span></a>`
       : `<a class="rc" href="/${esc(c.slug)}#check-${esc(k.id)}"><span class="rc-at" data-instr>${esc(k.at)}</span></a>`)).join('');
@@ -3615,7 +3625,7 @@ export function renderHub({ template, shared, hub, cities, assetVersion, frags, 
       held.length ? `          <p>Also on the ${esc(c.city)} page: ${esc(listJoin(held.map((k) => k.title)))}.</p>` : ''
     ].filter(Boolean).join('\n');
   });
-  authored.push(T(ru.eb), T(ru.h2), T(ru.h2g), T(ru.note), T(ru.caption), T(ru.heldNote), ...rows.map((r) => T(r.head)));
+  authored.push(T(ru.eb), T(ru.h2), T(ru.h2g), T(ru.note), T(ru.caption), ...(ru.heldNote ? [T(ru.heldNote)] : []), ...rows.map((r) => T(r.head)));
   const rulesHtml = [
     `      <p class="eb" data-instr>${esc(T(ru.eb))}</p>`,
     `      <h2 id="rulesH">${esc(T(ru.h2))} <span class="g">${esc(T(ru.h2g))}</span></h2>`,
@@ -3627,7 +3637,7 @@ export function renderHub({ template, shared, hub, cities, assetVersion, frags, 
     ...rows.map((r) => `          <tr><th scope="row">${esc(T(r.head))}</th>${live.map((c) => `<td data-k="${esc(c.iata)}">${cellOf(c, r)}</td>`).join('')}</tr>`),
     '        </tbody>',
     '      </table>',
-    anyHeld ? `      <p class="r-held">${esc(T(ru.heldNote))}</p>` : '',
+    anyHeld && ru.heldNote ? `      <p class="r-held">${esc(T(ru.heldNote))}</p>` : '',
     '      <details class="sheet rfull"><summary>Every rule in full</summary>',
     '        <div class="rfull-in">',
     ...full,
@@ -3653,7 +3663,7 @@ export function renderHub({ template, shared, hub, cities, assetVersion, frags, 
   const derived = {
     open: () => `${listJoin(live.map((c) => `<a class="lnk" href="/${esc(c.slug)}">${esc(c.city)}</a>`))}.${drafts.length ? ` ${esc(listJoin(drafts.map((c) => c.city)))} desk${drafts.length > 1 ? 's are' : ' is'} not open.` : ''}`,
     fees: () => `The same three flat fees at every desk, VAT included: ${plans.map((p) => `<b>${esc(p.label)} ${money(p.price, 'EUR')}</b>${p.unit ? ' ' + esc(p.unit) : ''}`).join(' · ')}${gbpDesk ? `; ${esc(gbpDesk)} ${listJoin(plans.map((p) => money(p.price, 'GBP')))}` : ''}. ${ruleTxt}`,
-    withdrawal: () => `14 days from payment. Work starts inside them only if you ask: the “Start now” tick at checkout, or later in writing. <a class="lnk" href="${WITHDRAWAL_PATH}">Model withdrawal form</a>.`,
+    withdrawal: () => `14 days from your order. Work starts inside them only if you ask: the “Start now” tick at checkout, or later in writing. <a class="lnk" href="${WITHDRAWAL_PATH}#online">Withdraw online</a> or with the <a class="lnk" href="${WITHDRAWAL_PATH}">model form</a>.`,
     rome: () => 'In Rome, BOOM is the agency itself, with <a class="lnk" href="/apartments">homes to rent</a>.',
     contact: () => `<a class="lnk" href="mailto:${esc(shared.contact.email)}">${esc(shared.contact.email)}</a> · <a class="lnk" href="tel:+${esc(shared.contact.whatsapp)}">${esc(shared.contact.phoneDisplay)}</a>`,
     updated: () => `<time datetime="${esc(updatedIso)}">${esc(updatedLong)}</time>`
@@ -3832,6 +3842,14 @@ export function renderHub({ template, shared, hub, cities, assetVersion, frags, 
         need(/refunded in full/.test(boxOf(m.index, ['li', 'dd', 'details'])), where, `a ${p500} stands without the refund rule in its own block: "…${visibleText(flat.slice(Math.max(bodyAt, m.index - 100), m.index + 40)).trim()}…"`);
       }
       for (const t of ldAll) if (t.includes(p500)) need(/refunded in full/.test(t), where, `a ${p500} in the JSON-LD stands without the refund rule: "${t.slice(0, 100)}…"`);
+    }
+    {
+      // v1.8 (H1): the desks that charge at signing are named before the first price, exactly those, and only when there is one
+      const sd = live.filter(isSigning);
+      const fa = sliceOf(html, '<section class="sec" id="fares"', '</section>');
+      const note = fa.indexOf('class="hnote sign"'), first = fa.search(/[€£]\d/);
+      need(sd.length ? note > -1 && note < first && listJoin(sd.map((c) => c.city)) === tok.signDesks && (signNote || '').includes(tok.signDesks) : note < 0, where,
+        'the signing note names exactly the live desks that charge at signing, before the first price in #fares (and exists only with one)');
     }
     if (es.length) {
       const fa = sliceOf(html, '<section class="sec" id="fares"', '</section>');

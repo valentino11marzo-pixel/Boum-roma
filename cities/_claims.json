@@ -2,24 +2,9 @@
   "about": "The sentences about registration, licences, accreditation, regulation, membership or a public authority (or with a registration-number shape: 'Agent no. CV-1234', 'Reg. 123456') that the BOOM city desks (cities/*.json) and the hub /desks are allowed to print. The build (build-cities.mjs, reviewSentences + claimGuard) takes every sentence of every page that uses that vocabulary - visible text (entities decoded, NFKC, no zero-width characters), each meta, each JSON-LD string, every attribute that carries words, CSS content strings, inline-script strings - and refuses the page unless the sentence is listed here word for word (default deny). The only registration BOOM states is the company's: Egidi Immobiliare S.r.l., registered in Rome (REA RM-1710623, Viale Liegi 42); no desk holds a local licence, registration or membership (the Valencian RAICV, the Catalan AICAT and the UK redress scheme are open legal questions). Kinds: company-rome (the company in Rome), trade-mark (the EUTM), lease (a lease registered under local law), tenant (the tenant's own registrations or enrolments), deposit (where the landlord lodges the deposit), listing (an advertised home), law (what the law requires, or an honest negation), partner (a draft desk opening with a licensed partner; refused on a desk that sells), heading (a section name), context (a sentence with no such word that stands next to the company's Rome line and names a desk place: reviewed so the Rome registration is never continued elsewhere), follower (a plain sentence that stands next to a reviewed short label - 'Registration', 'Generalitat', 'fianza · INCASÒL' - and is read as its value: the build refuses an unreviewed value that names a place, an authority, a number or a code, speaks for us, or says yes, since, number, file or list; a follower may speak for us, nothing else of a value). To add a sentence: read it on the page; if it does not say that BOOM or the company holds a registration, licence or membership outside Rome, add {text, kind, note} here, in sorted order, with the note saying why; if it does, it cannot ship. The build lints this file (no named register, the company never the subject of a licence outside company-rome/law/partner, company-rome lands on Rome and names no other place after it) and the tests refuse an entry no page prints.",
   "allowed": [
     {
-      "text": "A chasseur immobilier needs a carte professionnelle",
-      "kind": "law",
-      "note": "Paris check row: what French law requires of a search agent; the desk does not hold it."
-    },
-    {
-      "text": "A chasseur immobilier needs a carte professionnelle (loi Hoguet)",
-      "kind": "law",
-      "note": "Paris departure row: what French law requires; the desk opens with a licensed partner."
-    },
-    {
       "text": "A landlord cannot forbid registration at the address",
       "kind": "tenant",
       "note": "Amsterdam: the tenant's own BRP registration at the municipality, a right the landlord cannot remove."
-    },
-    {
-      "text": "A licensed partner",
-      "kind": "partner",
-      "note": "Draft desks (Paris, Berlin): the departure row says the desk opens only WITH a licensed partner; BOOM claims no licence."
     },
     {
       "text": "A rental file within one working day of your papers, applications as listings appear, attended viewings with live video and written report, the agency fee asked in writing, negotiation, the lease checked against Italian law and explained in English, registration checked",
@@ -32,11 +17,6 @@
       "note": "Hub rules table: the names of two Milan check sections."
     },
     {
-      "text": "An agent you hire, who works only for you, is a different, licensed service",
-      "kind": "law",
-      "note": "Paris: says the law requires a licence for a tenant's agent; the same answer says the desk opens only with a licensed partner."
-    },
-    {
       "text": "BOOM Amsterdam, the tenant-side rental desk of BOOM — operated by Egidi Immobiliare S.r.l., an Italian real estate agency registered in Rome",
       "kind": "company-rome",
       "note": "The desk's identity line: the operating company is registered in Rome (Chamber of Commerce, REA RM-1710623); no local registration is claimed."
@@ -47,19 +27,9 @@
       "note": "The desk's identity line: the operating company is registered in Rome (Chamber of Commerce, REA RM-1710623); no local registration is claimed."
     },
     {
-      "text": "BOOM Berlin acts solely as a tenant-side desk: we do not list properties, represent landlords, or receive remuneration from landlords or their agents, and we do not broker a tenancy in Germany before the desk opens with its licensed partner",
-      "kind": "partner",
-      "note": "Berlin footer statement: nothing is brokered in Germany before the desk opens with a licensed partner; a negation, no licence claimed."
-    },
-    {
-      "text": "BOOM Berlin works only for the tenant and opens with a licensed partner",
-      "kind": "partner",
-      "note": "Berlin meta/description: the draft desk opens with a licensed partner; BOOM claims no licence."
-    },
-    {
-      "text": "BOOM Berlin, the tenant-side desk of BOOM — operated by Egidi Immobiliare S.r.l., an Italian real estate agency registered in Rome, opening with a licensed partner (§34c GewO)",
-      "kind": "partner",
-      "note": "Berlin fact sheet: the company registered in Rome, and the partner (not BOOM) holds the §34c GewO permit."
+      "text": "BOOM Berlin, the tenant-side rental desk of BOOM — operated by Egidi Immobiliare S.r.l., an Italian real estate agency registered in Rome",
+      "kind": "company-rome",
+      "note": "The desk's identity line, as on the six selling desks: the operating company is registered in Rome (REA RM-1710623); no registration, licence or partner in France or Germany is claimed."
     },
     {
       "text": "BOOM London, the tenant-side rental desk of BOOM — operated by Egidi Immobiliare S.r.l., an Italian real estate agency registered in Rome",
@@ -92,19 +62,9 @@
       "note": "The desk's identity line: the operating company is registered in Rome (Chamber of Commerce, REA RM-1710623); no local registration is claimed."
     },
     {
-      "text": "BOOM Paris acts solely as a tenant-side desk: we do not list properties, represent landlords, or receive remuneration from landlords or their agents, and we do not search on a client's behalf in France before the desk opens with its licensed partner",
-      "kind": "partner",
-      "note": "Paris footer statement: no search in France before the desk opens with a licensed partner; a negation, no licence claimed."
-    },
-    {
-      "text": "BOOM Paris works only for the tenant and opens with a licensed partner",
-      "kind": "partner",
-      "note": "Paris meta/description: the draft desk opens with a licensed partner; BOOM claims no licence."
-    },
-    {
-      "text": "BOOM Paris, the tenant-side desk of BOOM — operated by Egidi Immobiliare S.r.l., an Italian real estate agency registered in Rome, opening with a licensed partner (carte professionnelle)",
-      "kind": "partner",
-      "note": "Paris fact sheet: the company registered in Rome, and the partner (not BOOM) holds the carte professionnelle."
+      "text": "BOOM Paris, the tenant-side rental desk of BOOM — operated by Egidi Immobiliare S.r.l., an Italian real estate agency registered in Rome",
+      "kind": "company-rome",
+      "note": "The desk's identity line, as on the six selling desks: the operating company is registered in Rome (REA RM-1710623); no registration, licence or partner in France or Germany is claimed."
     },
     {
       "text": "BOOM Valencia, the tenant-side rental desk of BOOM — operated by Egidi Immobiliare S.r.l., an Italian real estate agency registered in Rome",
@@ -117,21 +77,6 @@
       "note": "Footer: the BOOM name is a registered EU trade mark; a trade mark, not an agent's registration."
     },
     {
-      "text": "Berlin and Paris are not open: we would open them only with a locally licensed partner, and nothing is sold there today",
-      "kind": "partner",
-      "note": "Hub: the two draft desks are not open and would open only with a licensed partner; nothing claimed for BOOM."
-    },
-    {
-      "text": "Brokering a flat in Germany needs a trade permit (§34c GewO)",
-      "kind": "law",
-      "note": "Berlin: what German law requires of an agent; the desk does not hold the permit and opens with a licensed partner."
-    },
-    {
-      "text": "Brokering a flat in Germany needs a trade permit (§34c GewO), and the law sets how a tenant-side agent is paid: only once you sign, within a cap",
-      "kind": "law",
-      "note": "Berlin FAQ: the German rule (permit, pay on signing within a cap); no permit is claimed for BOOM."
-    },
-    {
       "text": "Dutch-format dossier within one working day of your papers, applications as listings appear, attended viewings with live video and written report, negotiation, contract check against Dutch law, the right to register (BRP) at the address confirmed in writing",
       "kind": "tenant",
       "note": "Amsterdam fact sheet 'What we do': we confirm in writing that the tenant can register at the address (BRP); the gemeente registers, not us."
@@ -140,11 +85,6 @@
       "text": "Egidi Immobiliare S.r.l. is an Italian real estate agency, registered in Rome",
       "kind": "company-rome",
       "note": "Hub fact sheet: the company and its Rome registration."
-    },
-    {
-      "text": "Egidi Immobiliare S.r.l., registered in Rome",
-      "kind": "company-rome",
-      "note": "Hub, 'One company' row: the company and its Rome registration (the instrument label is read apart)."
     },
     {
       "text": "Egidi Immobiliare S.r.l., the Italian real estate agency behind BOOM Rome, registered in Rome: VAT IT17322991005, REA RM-1710623",
@@ -172,24 +112,9 @@
       "note": "Amsterdam fact sheet 'Who', next to the company's Rome line: names the Dutch role, does not continue the registration."
     },
     {
-      "text": "Launching with a licensed partner",
-      "kind": "partner",
-      "note": "Draft desks (Paris, Berlin) footer: the brief's must-state; BOOM claims no licence."
-    },
-    {
       "text": "Lease, deposit and registration checked before you sign",
       "kind": "lease",
       "note": "Milan: we check the lease registration with the Agenzia delle Entrate before signing."
-    },
-    {
-      "text": "OPENING WITH A LICENSED PARTNER",
-      "kind": "partner",
-      "note": "Draft desks' status board (Paris, Berlin): opening with a licensed partner."
-    },
-    {
-      "text": "Opening with a licensed partner",
-      "kind": "partner",
-      "note": "Draft desks' lead (Paris, Berlin): opening with a licensed partner."
     },
     {
       "text": "Operated by Egidi Immobiliare S.r.l., an Italian real estate agency registered in Rome",
@@ -230,41 +155,6 @@
       "text": "Rental search in Milan on the tenant's side only: rental file within one working day of the tenant's papers, applications sent as listings appear on Immobiliare.it, Idealista, Casa.it and agencies, attended viewings with live video and written report, the landlord's agency fee asked in writing before the viewing, negotiation, lease checked against Italian law and explained in English, registration checked",
       "kind": "lease",
       "note": "Milan Full Search (Offer): the lease registration is checked."
-    },
-    {
-      "text": "Searching on a client's behalf is regulated in France: a chasseur immobilier needs a carte professionnelle (loi Hoguet)",
-      "kind": "law",
-      "note": "Paris: what French law requires of a search agent; the desk does not hold it and opens with a licensed partner."
-    },
-    {
-      "text": "Tenant-side desk for internationals moving to Berlin, opening with a licensed partner",
-      "kind": "partner",
-      "note": "Berlin social description: opening with a licensed partner."
-    },
-    {
-      "text": "Tenant-side desk for internationals moving to Paris, opening with a licensed partner",
-      "kind": "partner",
-      "note": "Paris social description: opening with a licensed partner."
-    },
-    {
-      "text": "Tenant-side rental desk for Berlin, opening with a licensed partner (trade permit under §34c GewO)",
-      "kind": "partner",
-      "note": "Berlin Service (JSON-LD): the partner holds the §34c permit, not BOOM."
-    },
-    {
-      "text": "Tenant-side rental desk for Paris, opening with a licensed partner (carte professionnelle, loi Hoguet)",
-      "kind": "partner",
-      "note": "Paris Service (JSON-LD): the partner holds the carte professionnelle, not BOOM."
-    },
-    {
-      "text": "That is why we open with a licensed partner, and never take landlord money",
-      "kind": "partner",
-      "note": "Paris FAQ: the desk opens with a licensed partner."
-    },
-    {
-      "text": "The desk opens with a licensed partner, not around the rule",
-      "kind": "partner",
-      "note": "Paris departure row: the desk opens with a licensed partner."
     },
     {
       "text": "The landlord lodges it with INCASÒL",
@@ -327,21 +217,6 @@
       "note": "Amsterdam BRP check (and the hub's card), after its title 'Registration': we confirm in writing that the tenant can register at the address; a promise of a check, no registration of ours."
     },
     {
-      "text": "We open with a licensed partner",
-      "kind": "partner",
-      "note": "Draft desks (Paris, Berlin): the desk opens with a licensed partner."
-    },
-    {
-      "text": "We open with a licensed partner rather than work around the rule",
-      "kind": "partner",
-      "note": "Paris FAQ: the desk opens with a licensed partner."
-    },
-    {
-      "text": "We open with a licensed partner, not around the rule",
-      "kind": "partner",
-      "note": "Berlin departure row: the desk opens with a licensed partner."
-    },
-    {
       "text": "With Full Search or Application Pack we also check the contract, and confirm in writing that you can register (BRP) at the address, before you sign",
       "kind": "tenant",
       "note": "Amsterdam: we confirm the tenant can register at the address (BRP)."
@@ -365,11 +240,6 @@
       "text": "we ask for the receipt",
       "kind": "follower",
       "note": "Barcelona deposit check (and the hub's card), after its label 'fianza · INCASÒL': we ask the landlord for the receipt of the deposit lodged with INCASÒL; nothing of ours is lodged or registered."
-    },
-    {
-      "text": "§34c GewO",
-      "kind": "law",
-      "note": "Berlin check row: the instrument label, the statute that requires the permit."
     }
   ]
 }

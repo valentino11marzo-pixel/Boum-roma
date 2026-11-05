@@ -159,6 +159,39 @@ const center = (page, sel) => page.$eval(sel, (el) => el.scrollIntoView({ block:
 const tap = async (page, sel) => { await center(page, sel); await page.waitForTimeout(120); await page.click(sel); };
 const noHScroll = (page) => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1);
 const RULE = JSON.parse(fs.readFileSync(path.join(R, 'cities/_shared.json'), 'utf8')).refund.rule;
+// v1.8 FLIP (05/11/2026): Paris and Berlin are live and charge at signing (their fare's ✓ line is the signing rule, never
+// the refund rule) — no waitlist page is left on the site. The waitlist's browser pins keep their test on SYNTHETIC
+// pages served from memory (PAGES): the frozen drafts of tests/cities/fixtures (draft-paris.json, draft-berlin.json, the
+// two JSONs as they stood before the flip) rendered as waitlists — the registry patched back in try/finally, their
+// reviewed sentences (fixtures/draft-claims.json) merged — at /draft-paris and /draft-berlin; and London and Milan in a
+// family where Paris and Berlin are those drafts, at /london-drafts and /milan-drafts (the desks not open on the map).
+const SIGN_RULE = JSON.parse(fs.readFileSync(path.join(R, 'cities/_shared.json'), 'utf8')).signing.rule;
+const SIGNING = new Set(['paris', 'berlin']);
+{
+  const read = (f) => fs.readFileSync(path.join(R, f), 'utf8');
+  const { CITY_MARKETS: CM, CITY_PLANS } = await import('../../api/_market.js');
+  const SL = ['amsterdam', 'barcelona', 'berlin', 'london', 'madrid', 'milan', 'paris', 'valencia'];
+  const CITY = Object.fromEntries(SL.map((s) => [s, JSON.parse(read(`cities/${s}.json`))]));
+  const DRAFT = { paris: JSON.parse(read('tests/cities/fixtures/draft-paris.json')), berlin: JSON.parse(read('tests/cities/fixtures/draft-berlin.json')) };
+  const claims = loadClaims(R), fx = JSON.parse(read('tests/cities/fixtures/draft-claims.json'));
+  const merged = { about: claims.about, allowed: [...claims.allowed, ...fx.allowed].sort((a, b) => (a.text < b.text ? -1 : a.text > b.text ? 1 : 0)) };
+  const fam = SL.map((x) => DRAFT[x] || CITY[x]);
+  // the two registry entries as they stood before the flip (api/_market.js at 083d96b6)
+  const WAIT = {
+    paris: { label: 'Paris', flag: '🇫🇷', country: 'fr', url: 'https://www.boomrome.com/paris', mode: 'waitlist', partner: 'a licensed partner', plans: CITY_PLANS },
+    berlin: { label: 'Berlin', flag: '🇩🇪', country: 'de', url: 'https://www.boomrome.com/berlin', mode: 'waitlist', partner: 'a licensed partner', plans: CITY_PLANS }
+  };
+  const save = { paris: CM.paris, berlin: CM.berlin };
+  try {
+    Object.assign(CM, WAIT);
+    const page = (city) => renderCity({ template: read('cities/_template.html'), shared: JSON.parse(read('cities/_shared.json')), city, assetVersion: { css: 'ui', js: 'ui', onda: 'ui', map: 'ui' },
+      frags: fragments(R), root: R, weigh: false, cities: fam.map((x) => (x.slug === city.slug ? city : x)), claims: merged }).html;
+    PAGES.set('/draft-paris.html', page(DRAFT.paris)); PAGES.set('/draft-berlin.html', page(DRAFT.berlin));
+    PAGES.set('/london-drafts.html', page(CITY.london)); PAGES.set('/milan-drafts.html', page(CITY.milan));
+  } catch (e) { male(`the synthetic waitlist pages build (${String(e.message).slice(0, 300)})`); }
+  finally { Object.assign(CM, save); }
+  check(CM.paris === save.paris && CM.paris.chargeAt === 'signing' && CM.berlin.chargeAt === 'signing' && PAGES.size >= 4, 'the synthetic waitlist pages build from the frozen drafts, and the registry is restored (Paris and Berlin charge at signing)');
+}
 // the v1.6 review's guards alone (§12), e.g. to watch one bite under a mutation
 if (process.env.CITIES_UI_ONLY === 'review') { await reviewFixes(); await finish(); }
 if (process.env.CITIES_UI_ONLY === 'hub') { await hubUI(); await finish(); }
@@ -205,9 +238,11 @@ for (const slug of ['amsterdam', 'madrid', 'barcelona', 'london', 'milan', 'vale
       return { cond: [...document.querySelectorAll('#fares .f-cond')].map(vis), lead: vis(document.querySelector('.lead b')), head: vis(document.getElementById('faresH')) && vis(document.querySelector('.fares-h span')),
         rule: document.querySelector('#fares .refund.fs') ? [vis(document.querySelector('#fares .refund.fs')), document.querySelector('#fares .refund.fs').textContent] : null };
     });
-    const sells = slug !== 'paris' && slug !== 'berlin';
-    check(legal.cond.length === 3 && legal.cond.every(Boolean) && legal.lead && legal.head && (sells ? legal.rule && legal.rule[0] && legal.rule[1] === RULE : legal.rule === null),
-      `${slug} ${w}: every fare's condition, the must-state in bold, the line over the fares${sells ? ' and the refund rule under the closed €500' : ''} are on screen, not only in the HTML`, JSON.stringify(legal));
+    // v1.8 FLIP: this pin moved — Paris and Berlin had no coupon (waitlists); the eight sell, and the coupon under the
+    // closed €500 is the desk's own rule: the refund rule at the six, the signing rule at Paris and Berlin
+    const want = SIGNING.has(slug) ? SIGN_RULE : RULE;
+    check(legal.cond.length === 3 && legal.cond.every(Boolean) && legal.lead && legal.head && legal.rule && legal.rule[0] && legal.rule[1] === want,
+      `${slug} ${w}: every fare's condition, the must-state in bold, the line over the fares and ${SIGNING.has(slug) ? 'the signing rule' : 'the refund rule'} under the closed €500 are on screen, not only in the HTML`, JSON.stringify(legal));
     await ctx.close();
   }
 }
@@ -271,21 +306,25 @@ const probeDeep = (page) => page.evaluate(() => {
     focusPay: !!(document.activeElement && document.activeElement.hasAttribute('data-pay')), focusDoor: !!(document.activeElement && document.activeElement.id === 'door'),
     events: (window.dataLayer || []).map((a) => [].slice.call(a)).filter((a) => a[0] === 'event' && (a[1] === 'fare_open' || a[1] === 'pay_link')).map((a) => [a[1], a[2] && a[2].via, a[2] && a[2].plan]) };
 });
-for (const [slug, hash, w, h] of [['barcelona', '#fare-full-search', 390, 844], ['barcelona', '#full-search', 390, 664], ['london', '#fare-application-pack', 390, 844], ['madrid', '#fare-attended-viewing', 375, 812], ['london', '#fare-full-search', 1440, 900], ['paris', '#fare-full-search', 390, 844], ['berlin', '#pay-application-pack', 390, 844], ['amsterdam', '#fares', 390, 844], ['amsterdam', '#fare-nope', 390, 844], ['amsterdam', '#pay-constructor', 390, 844]]) {
+for (const [slug, hash, w, h] of [['barcelona', '#fare-full-search', 390, 844], ['barcelona', '#full-search', 390, 664], ['london', '#fare-application-pack', 390, 844], ['madrid', '#fare-attended-viewing', 375, 812], ['london', '#fare-full-search', 1440, 900], ['paris', '#fare-full-search', 390, 844], ['berlin', '#fare-application-pack', 390, 844], ['amsterdam', '#fares', 390, 844], ['amsterdam', '#fare-nope', 390, 844], ['amsterdam', '#pay-constructor', 390, 844]]) {
   const { ctx, page, st } = await open({ slug, width: w, height: h, query: hash });
   await page.waitForTimeout(800);
   const r = await probeDeep(page);
-  const m = /^#(?:fare-|pay-)?(full-search|application-pack|attended-viewing)$/.exec(hash), sells = !/paris|berlin/.test(slug);
+  // v1.8 FLIP: the eight sell (Paris and Berlin were waitlists here: the door focused); a waitlist's deep link is the
+  // synthetic draft's, below
+  const m = /^#(?:fare-|pay-)?(full-search|application-pack|attended-viewing)$/.exec(hash), sells = !/^draft-/.test(slug);
   if (!m) check(r.open.length === 0 && r.hash === hash && !r.till, `${slug}${hash}: not a fare — nothing opens, no till, the hash stays`, JSON.stringify(r));
   else check(r.open.length === 1 && r.open[0] === 'fare-' + m[1] && r.cardIn && r.ticketTop >= 0 && (sells ? r.pay && r.focusPay : r.door && r.focusDoor) && r.hash === '' && !r.till && st.errors.length === 0 && r.events.some((e) => e[0] === 'fare_open' && e[1] === 'link' && e[2] === m[1]),
     `${slug}${hash} at ${w}×${h}: that ticket alone, whole on screen, ${sells ? 'the pay button' : 'the door'} above the strip and focused, the hash folded, no till, fare_open via link`, JSON.stringify(r));
   await ctx.close();
 }
-for (const [slug, hash] of [['barcelona', '#pay-full-search'], ['london', '#pay-attended-viewing'], ['paris', '#pay-full-search']]) {
+// v1.8 FLIP: Paris and Berlin sell — their #pay-<plan> opens the till on that plan, unticked, like the six's; the
+// waitlist's #pay- (the door, no till) is pinned on the frozen draft Paris (/draft-paris)
+for (const [slug, hash] of [['barcelona', '#pay-full-search'], ['london', '#pay-attended-viewing'], ['paris', '#pay-full-search'], ['berlin', '#pay-application-pack'], ['draft-paris', '#pay-full-search']]) {
   const { ctx, page, st } = await open({ slug, query: hash });
   await page.waitForTimeout(900);
   const r = await probeDeep(page);
-  const sells = !/paris|berlin/.test(slug);
+  const sells = !/^draft-/.test(slug);
   if (sells) {
     check(r.till && !r.tick && r.hash === '' && r.tillPlan === hash.slice(5) && r.open[0] === 'fare-' + hash.slice(5) && st.errors.length === 0 && r.events.some((e) => e[0] === 'pay_link' && e[2] === hash.slice(5)),
       `${slug}${hash}: the till opens on ${hash.slice(5)}, Start-now unticked, the hash folded, pay_link tracked`, JSON.stringify(r));
@@ -628,7 +667,9 @@ const CLOCKS = [
   ['amsterdam', '2026-10-27T08:00:00Z', 'no card · desk open until 19:00 CET', 'a Tuesday at 09:00: the desk is open'],
   ['barcelona', '2026-09-11T08:00:00Z', 'no card · Monday from 09:00 CEST', 'the Diada (Friday 11 September) in Barcelona: Monday'],
   ['madrid', '2026-09-11T08:00:00Z', 'no card · desk open until 19:00 CEST', 'the same Friday in Madrid: open (the Diada is Catalan)'],
-  ['paris', '2026-12-24T19:00:00Z', 'free · replies Monday from 09:00 CET', 'Christmas Eve at 20:00 on a waitlist desk: Monday (Christmas, Santo Stefano, the weekend) — and a desk still opening says "replies", never "desk"'],
+  // v1.8 FLIP: Paris sells now (its door "no card · …", like the six); the waitlist's "replies" is the frozen draft's
+  ['paris', '2026-12-24T19:00:00Z', 'no card · Monday from 09:00 CET', 'Christmas Eve at 20:00 in Paris: Monday (Christmas, Santo Stefano, the weekend; the French calendar adds no day)'],
+  ['draft-paris', '2026-12-24T19:00:00Z', 'free · replies Monday from 09:00 CET', 'Christmas Eve at 20:00 on a waitlist desk (the frozen draft): Monday (Christmas, Santo Stefano, the weekend) — and a desk still opening says "replies", never "desk"'],
   ['london', '2026-08-31T10:00:00Z', 'no card · Tomorrow from 08:00 BST', 'the summer bank holiday in London: tomorrow, in London time'],
   ['london', '2026-12-24T18:30:00Z', 'no card · Tuesday from 08:00 GMT', 'Christmas Eve after hours in London: Tuesday (Christmas, the weekend, the Boxing Day substitute)'],
   ['milan', '2026-12-07T08:00:00Z', 'no card · Wednesday from 09:00 CET', "Sant'Ambrogio (Monday 7 December) and the Immacolata: Wednesday"],
@@ -763,7 +804,25 @@ for (const [slug, clock, want, what] of CLOCKS) {
   await ctx.close();
 }
 // ── 8 · the sisters ──────────────────────────────────────────────────────
+// v1.8 FLIP: this section moved — Paris and Berlin were waitlists ("Open my file", no pay button, no till); they sell
+// now, charged at signing: the free call at the door, three order buttons, a till, the Full Search ticket saying its
+// trigger (never the refund rule). The waitlist's pins run on the frozen drafts (/draft-paris, /draft-berlin)
 for (const slug of ['paris', 'berlin']) {
+  const { ctx, page, st } = await open({ slug });
+  await page.waitForTimeout(300);
+  check(await text(page, '#doorL') === 'Start with a free call' && await page.$$eval('[data-pay]', (b) => b.length) === 3 && !!(await page.$('#till')), `${slug}: "Start with a free call", three order buttons, a till`);
+  await page.click('#fare-full-search > summary');
+  await page.waitForTimeout(200);
+  const tkRule = await text(page, '#fare-full-search .tk .refund');
+  check(!!tkRule && /^Nothing is charged before you sign/.test(tkRule) && tkRule !== RULE, `${slug}: the Full Search ticket says its trigger ("${tkRule}"), never the refund rule`);
+  await tap(page, '#door');
+  await page.fill('#fName', 'Jean'); await page.fill('#fContact', 'jean@example.fr');
+  await page.click('#door');
+  await page.waitForTimeout(500);
+  check(st.posts.length === 1 && st.posts[0].city === slug && await page.getAttribute('#pass', 'data-state') === 'open', `${slug}: the free call's file opens`);
+  await ctx.close();
+}
+for (const slug of ['draft-paris', 'draft-berlin']) {
   const { ctx, page, st } = await open({ slug });
   await page.waitForTimeout(300);
   check(await text(page, '#doorL') === 'Open my file' && await page.$$eval('[data-pay]', (b) => b.length) === 0 && !(await page.$('#till')), `${slug}: "Open my file", no pay button, no till`);
@@ -774,7 +833,7 @@ for (const slug of ['paris', 'berlin']) {
   await page.fill('#fName', 'Jean'); await page.fill('#fContact', 'jean@example.fr');
   await page.click('#door');
   await page.waitForTimeout(500);
-  check(st.posts.length === 1 && st.posts[0].city === slug && await page.getAttribute('#pass', 'data-state') === 'open', `${slug}: the file opens`);
+  check(st.posts.length === 1 && st.posts[0].city === slug.slice(6) && await page.getAttribute('#pass', 'data-state') === 'open', `${slug}: the file opens`);
   await ctx.close();
 }
 {
@@ -791,18 +850,30 @@ for (const slug of ['paris', 'berlin']) {
 // ── 8b · BOOM Desks (03/11/2026) → the Horizon (v1.7): the Network shows EVERY desk ──
 // the desks not open as hollow dots with no arc and no link, the legend, Rome with
 // its ring, the map on a phone too; "Every BOOM desk" → /desks, last
+// v1.8 FLIP: the eight are live — London's map has no hollow dot and its list links Berlin and Paris; a desk not open
+// (a hollow dot, a "· not open" line, never linked) keeps its pin on /london-drafts (Paris and Berlin the frozen drafts)
+{
+  const { ctx, page, st } = await open({ slug: 'london-drafts', width: 1440 });
+  await center(page, '#network');
+  await page.waitForTimeout(500);
+  const offs = await page.$$eval('svg.hz circle.d.off', (cs) => cs.map((c) => ({ fill: getComputedStyle(c).fill, stroke: getComputedStyle(c).stroke })));
+  check(offs.length === 2 && offs.every((o) => o.fill === 'none' && o.stroke !== 'none'), 'london-drafts 1440: two hollow dots on the map (computed fill: none) — the draft Berlin and Paris, not open', JSON.stringify(offs));
+  check(await page.$$eval('ul.net li.off', (ls) => ls.map((l) => l.textContent.trim()).join('|')) === 'BER Berlin · not open|PAR Paris · not open' && await page.$$eval('ul.net li.off a, a[href="/paris"], a[href="/berlin"]', (a) => a.length) === 0,
+    'london-drafts 1440: the draft Berlin and Paris are named "not open" in the list, never linked');
+  check(st.errors.length === 0, 'london-drafts 1440: no JS error', st.errors.join(' | '));
+  await ctx.close();
+}
 {
   const { ctx, page, st } = await open({ slug: 'london', width: 1440 });
   await center(page, '#network');
   await page.waitForTimeout(500);
-  const offs = await page.$$eval('svg.hz circle.d.off', (cs) => cs.map((c) => ({ fill: getComputedStyle(c).fill, stroke: getComputedStyle(c).stroke })));
-  check(offs.length === 2 && offs.every((o) => o.fill === 'none' && o.stroke !== 'none'), 'london 1440: two hollow dots on the map (computed fill: none) — Berlin and Paris, not open', JSON.stringify(offs));
+  const offs = await page.$$eval('svg.hz circle.d.off', (cs) => cs.length);
+  check(offs === 0 && await page.$$eval('ul.net li.off', (ls) => ls.length) === 0 && await page.$$eval('ul.net a[href="/paris"], ul.net a[href="/berlin"]', (a) => a.length) === 2,
+    'london 1440: no hollow dot and no "not open" line since the flip — Berlin and Paris are linked in the list', JSON.stringify({ offs }));
   check(await page.$eval('svg.hz circle.hub-r', (c) => getComputedStyle(c).fill === 'none' && getComputedStyle(c).stroke !== 'none'), 'london 1440: Rome wears its ring');
   check(await shown(page, '.net-k') && await page.$eval('.net-k', (e) => getComputedStyle(e).display) === 'flex' && /live desk.*not open.*Rome, the hub/.test(await text(page, '.net-k')), 'london 1440: the legend is shown — live desk · not open · Rome, the hub');
   const mapR = await rect(page, 'svg.hz'), keyR = await rect(page, '.net-k'), ulR = await rect(page, 'ul.net');
   check(keyR.top >= mapR.bottom - 1 && keyR.left < mapR.left + 2 && ulR.left >= mapR.right - 1 && ulR.top < keyR.top, 'london 1440: the legend sits under the map, the list beside them (one grid)', JSON.stringify({ mapR, keyR, ulR }));
-  check(await page.$$eval('ul.net li.off', (ls) => ls.map((l) => l.textContent.trim()).join('|')) === 'BER Berlin · not open|PAR Paris · not open' && await page.$$eval('ul.net li.off a, a[href="/paris"], a[href="/berlin"]', (a) => a.length) === 0,
-    'london 1440: Berlin and Paris are named "not open" in the list, never linked');
   // the script, loaded on view: the night drawn, the two script-only key entries revealed
   await page.waitForTimeout(600);
   const alive = await page.evaluate(() => ({ map: !!window.BOOM_MAP, img: !!document.querySelector('svg.hz .hz-nite image[href^="data:image/png"]'), term: !!document.querySelector('svg.hz .hz-nite path.hz-term'), keys: [...document.querySelectorAll('.net-k .k-x')].map((k) => k.hidden).join() }));
@@ -837,9 +908,10 @@ for (const slug of ['paris', 'berlin']) {
   await page.clock.runFor(520);
   const v2 = await vis();
   // the exact counts (1, then 3) hold on an idle machine; under a starved suite the observer fires late against the paused clock, so the pin is the progression: some but not all after 200ms, more after 720ms (the 260ms stagger itself is read from the source in run.mjs)
-  check(n0 === 6 && v1 >= 1 && v1 < 6 && v2 > v1, `london 1440: on first view six planes leave Rome one after the other (visible after 200ms: ${v1}, after 720ms: ${v2})`, JSON.stringify({ n0, v1, v2 }));
+  // v1.8 FLIP: six planes and six glows moved to eight (Paris and Berlin are live sisters with their arc)
+  check(n0 === 8 && v1 >= 1 && v1 < 8 && v2 > v1, `london 1440: on first view eight planes leave Rome one after the other (visible after 200ms: ${v1}, after 720ms: ${v2})`, JSON.stringify({ n0, v1, v2 }));
   const glow = await page.$$eval('svg.hz g.dk.on', (x) => x.length);
-  check(glow === 6, `london 1440 (Monday 10:00 Rome): the six live desks glow — open now (${glow})`);
+  check(glow === 8, `london 1440 (Monday 10:00 Rome): the eight live desks glow — open now (${glow})`);
   await page.clock.runFor(5000);
   const after = await page.evaluate(() => ({ planes: document.querySelectorAll('g.hz-pl').length, drawn: [...document.querySelectorAll('svg.hz .arc')].every((a) => a.style.strokeDashoffset === '0' || a.style.strokeDashoffset === '') }));
   check(after.planes === 0 && after.drawn, 'london 1440: every plane has landed and every arc is fully drawn', JSON.stringify(after));
@@ -875,8 +947,16 @@ for (const slug of ['paris', 'berlin']) {
   await page.waitForTimeout(300);
   const all = await rect(page, 'ul.net li.all a');
   check(all.h >= 44 && await page.getAttribute('ul.net li.all a', 'href') === '/desks' && await text(page, 'ul.net li.all a') === 'ALL Every BOOM desk', `milan 320: "ALL · Every BOOM desk" is a ${Math.round(all.h)} px target linking /desks`);
-  check(await page.$$eval('ul.net li', (ls) => ls[ls.length - 1].classList.contains('all')) && (await rect(page, 'ul.net li.off')).h >= 44 && await noHScroll(page), 'milan 320: the "all" line is last; a "not open" line keeps the 48 px rhythm; no horizontal scroll');
+  // v1.8 FLIP: Milan's list has no "not open" line since the flip (the rhythm is pinned on /milan-drafts, below)
+  check(await page.$$eval('ul.net li', (ls) => ls[ls.length - 1].classList.contains('all')) && await page.$$eval('ul.net li.off', (ls) => ls.length) === 0 && await noHScroll(page), 'milan 320: the "all" line is last; no "not open" line; no horizontal scroll');
   check(/^Operated by Egidi Immobiliare S\.r\.l\., an Italian real estate agency, under the same Italian law as in Rome · /.test(await text(page, '.proof')), 'milan: the proof line says the home-country desk');
+  await ctx.close();
+}
+{
+  const { ctx, page } = await open({ slug: 'milan-drafts', width: 320, height: 568 });
+  await center(page, 'ul.net li.all a');
+  await page.waitForTimeout(300);
+  check(await page.$$eval('ul.net li', (ls) => ls[ls.length - 1].classList.contains('all')) && (await rect(page, 'ul.net li.off')).h >= 44 && await noHScroll(page), 'milan-drafts 320: the "all" line is last; a "not open" line keeps the 48 px rhythm; no horizontal scroll');
   await ctx.close();
 }
 
@@ -999,8 +1079,12 @@ for (const [slug, clock, flow, want, said, what] of [
   ['amsterdam', SAT_T, 'open', 'REPLY MON', 'reply Monday', 'OPEN on a Saturday: REPLY MON (the desk\'s next open day), heard as "reply Monday"'],
   ['amsterdam', OPEN_T, 'paid1', 'START TODAY', 'start today', 'PAID with "Start now" on an open desk: START TODAY'],
   ['london', SAT_T, 'paid1', 'START MON', 'start Monday', 'PAID with "Start now" on a Saturday: START MON, heard as "start Monday"'],
-  ['paris', OPEN_T, 'open', 'FILE OPEN', 'file open', 'Paris (a desk still opening): FILE OPEN — never a reply day'],
-  ['berlin', SAT_T, 'open', 'FILE OPEN', 'file open', 'Berlin on a Saturday: FILE OPEN']]) {
+  // v1.8 FLIP: Paris and Berlin sell (CHECKOUT true): a file opened there is a free call to set, so row 01 is
+  // REPLY <day> like the six; the waitlist's FILE OPEN keeps its pin on the frozen drafts (/draft-paris, /draft-berlin)
+  ['paris', OPEN_T, 'open', 'REPLY TODAY', 'reply today', 'Paris (sells, charged at signing): OPEN on an open desk is REPLY TODAY — the free call'],
+  ['berlin', SAT_T, 'open', 'REPLY MON', 'reply Monday', 'Berlin on a Saturday: REPLY MON (the desk\'s next open day)'],
+  ['draft-paris', OPEN_T, 'open', 'FILE OPEN', 'file open', 'the frozen draft Paris (a desk still opening): FILE OPEN — never a reply day'],
+  ['draft-berlin', SAT_T, 'open', 'FILE OPEN', 'file open', 'the frozen draft Berlin on a Saturday: FILE OPEN']]) {
   const PAID1 = { status: 200, body: { ok: true, paid: true, plan: 'application-pack', file: FILE, startNow: true } };
   const { ctx, page } = await open({ slug, clock, ...(flow === 'paid1' ? { query: `?paid=application-pack&start=1&session_id=${SID}`, paid: PAID1 } : {}) });
   await page.waitForTimeout(300);
@@ -1234,7 +1318,17 @@ for (const [w, h] of [[1440, 900], [1024, 800], [940, 800]]) {
 }
 
 // 11 · the waitlists: one label, four doors, no pay control, no "call"
+// v1.8 FLIP: the waitlist pins run on the frozen drafts; live Paris and Berlin read the selling desks' door and order
 for (const slug of ['paris', 'berlin']) {
+  const { ctx, page } = await open({ slug, width: 1440, clock: OPEN_T });
+  await page.waitForTimeout(500);
+  const labels = await page.$$eval('#topGo b, #deskGo b, #doorL, #stripGo', (es) => es.map((e) => e.textContent.trim()));
+  const pays = await page.$$eval('[data-pay]', (b) => b.map((x) => x.textContent.trim().replace(/\s+/g, ' ')));
+  check(labels.length === 4 && labels.every((x) => x === 'Start with a free call') && pays.length === 3 && pays.every((x) => /^Order, pay on signing · €(500|199|149)/.test(x)),
+    `${slug} (charged at signing): #topGo, #deskGo, the door and the strip read "Start with a free call"; the three tickets order, pay on signing`, JSON.stringify([labels, pays]));
+  await ctx.close();
+}
+for (const slug of ['draft-paris', 'draft-berlin']) {
   const { ctx, page } = await open({ slug, width: 1440, clock: OPEN_T });
   await page.waitForTimeout(500);
   const labels = await page.$$eval('#topGo b, #deskGo b, #doorL, #stripGo', (es) => es.map((e) => e.textContent.trim()));
@@ -1465,7 +1559,8 @@ async function reviewFixes() {
   // instruments speak of replies (REPLYING / OFFLINE, "replies until 19:00 CET"); the
   // selling desks keep DESK OPEN. ("Charged only when the desk opens" is a true sentence.)
   const DESK_OPEN = /\bdesk open\b(?!s)/i;
-  for (const slug of ['paris', 'berlin']) {
+  // v1.8 FLIP: the desks still opening are the frozen drafts now; live Paris and Berlin sell and read DESK OPEN (below)
+  for (const slug of ['draft-paris', 'draft-berlin']) {
     for (const [clock, opened] of [[R_OPEN, true], [R_SAT, false]]) {
       for (const w of [1440, 390]) {
         const { ctx, page } = await open({ slug, width: w, clock });
@@ -1485,10 +1580,10 @@ async function reviewFixes() {
       }
     }
   }
-  {
-    const { ctx, page } = await open({ slug: 'london', width: 1440, clock: R_OPEN });
+  for (const slug of ['london', 'paris', 'berlin']) {
+    const { ctx, page } = await open({ slug, width: 1440, clock: R_OPEN });
     await page.waitForTimeout(400);
-    check(await text(page, '#depPillT') === 'DESK OPEN' && DESK_OPEN.test(await page.evaluate(() => document.body.innerText)), 'london (a desk that sells): the pill still reads DESK OPEN');
+    check(await text(page, '#depPillT') === 'DESK OPEN' && DESK_OPEN.test(await page.evaluate(() => document.body.innerText)), `${slug} (a desk that sells${slug === 'london' ? '' : ', charged at signing'}): the pill reads DESK OPEN`);
     await ctx.close();
   }
 }
@@ -1513,7 +1608,8 @@ async function hubUI() {
     }
     return n;
   });
-  const LIVE = ['ams', 'bcn', 'lon', 'mad', 'mil', 'vlc'];
+  // v1.8 FLIP: eight live desks (Paris and Berlin sell, charged at signing) — the board, the clocks, the flaps, the pins
+  const LIVE = ['ams', 'bcn', 'ber', 'lon', 'mad', 'mil', 'par', 'vlc'];
   const nowOf = (page) => page.$$eval('.db-r.live', (rs) => Object.fromEntries(rs.map((r) => [r.id.slice(3), r.querySelector('.db-nb').textContent.trim()])));
   const subOf = (page) => page.$$eval('.db-r.live', (rs) => Object.fromEntries(rs.map((r) => [r.id.slice(3), r.querySelector('.db-sub').textContent.trim()])));
 
@@ -1540,32 +1636,33 @@ async function hubUI() {
 
   // the desk clocks, from the calendar the webhook reads (holidays included)
   for (const [t, want, label, extra] of [
-    ['2027-03-01T09:00:00Z', { ams: 'OPEN', bcn: 'OPEN', lon: 'OPEN', mad: 'OPEN', mil: 'OPEN', vlc: 'OPEN' }, 'Monday 1 March 2027, 10:00 Rome: every live desk OPEN, the pill shown', 'pill'],
-    ['2027-03-06T09:00:00Z', { ams: 'CLOSED', bcn: 'CLOSED', lon: 'CLOSED', mad: 'CLOSED', mil: 'CLOSED', vlc: 'CLOSED' }, 'Saturday: every desk CLOSED, "Monday from 09:00 CET" (London 08:00 GMT), the pill hidden', 'sat'],
-    ['2027-04-27T08:00:00Z', { ams: 'CLOSED', bcn: 'OPEN', lon: 'OPEN', mad: 'OPEN', mil: 'OPEN', vlc: 'OPEN' }, 'Koningsdag (Tuesday 27 April 2027, 10:00 Rome): Amsterdam CLOSED, the others OPEN', ''],
-    ['2027-08-30T08:00:00Z', { ams: 'OPEN', bcn: 'OPEN', lon: 'CLOSED', mad: 'OPEN', mil: 'OPEN', vlc: 'OPEN' }, 'the English summer bank holiday (Monday 30 August 2027, 10:00 Rome): London CLOSED', '']
+    ['2027-03-01T09:00:00Z', { ams: 'OPEN', bcn: 'OPEN', ber: 'OPEN', lon: 'OPEN', mad: 'OPEN', mil: 'OPEN', par: 'OPEN', vlc: 'OPEN' }, 'Monday 1 March 2027, 10:00 Rome: every live desk OPEN, the pill shown', 'pill'],
+    // v1.8 FLIP: Berlin's calendar is de-be — Monday 8 March 2027 is Internationaler Frauentag, a public holiday in Berlin
+    ['2027-03-06T09:00:00Z', { ams: 'CLOSED', bcn: 'CLOSED', ber: 'CLOSED', lon: 'CLOSED', mad: 'CLOSED', mil: 'CLOSED', par: 'CLOSED', vlc: 'CLOSED' }, 'Saturday: every desk CLOSED, "Monday from 09:00 CET" (London 08:00 GMT; Berlin "Tuesday": 8 March is Frauentag in Berlin), the pill hidden', 'sat'],
+    ['2027-04-27T08:00:00Z', { ams: 'CLOSED', bcn: 'OPEN', ber: 'OPEN', lon: 'OPEN', mad: 'OPEN', mil: 'OPEN', par: 'OPEN', vlc: 'OPEN' }, 'Koningsdag (Tuesday 27 April 2027, 10:00 Rome): Amsterdam CLOSED, the others OPEN', ''],
+    ['2027-08-30T08:00:00Z', { ams: 'OPEN', bcn: 'OPEN', ber: 'OPEN', lon: 'CLOSED', mad: 'OPEN', mil: 'OPEN', par: 'OPEN', vlc: 'OPEN' }, 'the English summer bank holiday (Monday 30 August 2027, 10:00 Rome): London CLOSED', '']
   ]) {
     const { ctx, page, st } = await open({ slug: 'desks', width: 1440, pwClock: t });
     await page.clock.runFor(1500);
     const now = await nowOf(page), sub = await subOf(page), pill = await shown(page, '#hubPill');
     const clk = await page.$$eval('.db-tv[data-clk]', (cs) => cs.map((c) => c.textContent.trim()));
-    let ok2 = JSON.stringify(now) === JSON.stringify(want) && clk.length === 6 && clk.every((c) => /^\d{2}:\d{2} (CET|CEST|GMT|BST)$/.test(c));
-    if (extra === 'pill') ok2 = ok2 && pill && sub.ams === 'Desk open until 19:00 CET' && sub.lon === 'Desk open until 18:00 GMT';
-    if (extra === 'sat') ok2 = ok2 && !pill && sub.ams === 'Monday from 09:00 CET' && sub.mil === 'Monday from 09:00 CET' && sub.lon === 'Monday from 08:00 GMT';
+    let ok2 = JSON.stringify(now) === JSON.stringify(want) && clk.length === 8 && clk.every((c) => /^\d{2}:\d{2} (CET|CEST|GMT|BST)$/.test(c));
+    if (extra === 'pill') ok2 = ok2 && pill && sub.ams === 'Desk open until 19:00 CET' && sub.lon === 'Desk open until 18:00 GMT' && sub.par === 'Desk open until 19:00 CET' && sub.ber === 'Desk open until 19:00 CET';
+    if (extra === 'sat') ok2 = ok2 && !pill && sub.ams === 'Monday from 09:00 CET' && sub.mil === 'Monday from 09:00 CET' && sub.lon === 'Monday from 08:00 GMT' && sub.par === 'Monday from 09:00 CET' && sub.ber === 'Tuesday from 09:00 CET';
     check(ok2 && st.errors.length === 0, `desks: ${label}`, JSON.stringify({ now, sub, pill, clk, e: st.errors }));
     if (extra) {
-      // DESK NOW as flaps (≥760): one 6-cell board per live desk, green ("on") only where the desk is open;
+      // DESK NOW as flaps (≥760): one 6-cell board per live desk (eight since the v1.8 flip), green ("on") only where the desk is open;
       // the onda (≥940) loops only while a desk is open — the Saturday field is one still frame
       await page.clock.runFor(3000);
       await page.waitForTimeout(400);
       await page.clock.runFor(2500);
       const fl = await page.$$eval('.db-r.live', (rs) => rs.map((r) => { const f = r.querySelector('.db-nf'); return f ? `${f.querySelectorAll('.fc2').length}${f.classList.contains('on') ? '+' : '-'}` : 'none'; }));
       const onda = await page.evaluate(() => !!(window.BOOM_ONDA && window.BOOM_ONDA.running));
-      const wantFl = extra === 'pill' ? '6+,6+,6+,6+,6+,6+' : '6-,6-,6-,6-,6-,6-';
+      const wantFl = extra === 'pill' ? '6+,6+,6+,6+,6+,6+,6+,6+' : '6-,6-,6-,6-,6-,6-,6-,6-';
       check(fl.join() === wantFl && onda === (extra === 'pill') && await page.evaluate(() => !!window.BOOM_ONDA),
         `desks 1440: DESK NOW is a flap board per live desk (${fl.join(' ')}); the onda ${extra === 'pill' ? 'loops while desks are open' : 'is one still frame when every desk is closed'}`, JSON.stringify({ fl, onda }));
       const clk2 = await page.$$eval('.pc-t[data-clk]', (cs) => cs.map((c) => c.textContent.trim()));
-      check(clk2.length === 6 && clk2.every((c) => /^\d{2}:\d{2} (CET|CEST|GMT|BST)$/.test(c)), `desks 1440: each pin card carries its desk's clock (${clk2.join(', ')})`);
+      check(clk2.length === 8 && clk2.every((c) => /^\d{2}:\d{2} (CET|CEST|GMT|BST)$/.test(c)), `desks 1440: each pin card carries its desk's clock (${clk2.join(', ')})`);
     }
     await ctx.close();
   }
@@ -1595,7 +1692,7 @@ async function hubUI() {
       return { rows: h('.db-r.live, .db-r.hub'), pins: h('.pin'), gates: [...document.querySelectorAll('.hgates a')].map((e) => e.getBoundingClientRect().height), faq: [...document.querySelectorAll('#faq summary')].map((e) => e.getBoundingClientRect().height) };
     });
     const all = [...sz.rows, ...sz.pins, ...sz.gates, ...sz.faq];
-    check(await noHScroll(page) && sz.rows.length === 7 && sz.pins.length === 6 && sz.gates.length === 6 && sz.faq.length === 6 && all.every((x) => x >= 44),
+    check(await noHScroll(page) && sz.rows.length === 9 && sz.pins.length === 8 && sz.gates.length === 8 && sz.faq.length === 6 && all.every((x) => x >= 44),
       `desks 320: no horizontal scroll; rows, pins, gates and questions ≥ 44 px (smallest ${Math.round(Math.min(...all))})`, JSON.stringify(sz));
     // v1.8 option (b), spec D12 — this pin moved in stage B3: it measured the closest two pins at 320 against the
     // 44px rule (44.6 px with the six; 24.2 px LON–PAR with eight live, which no 44px rule can hold). Under 600px a pin
@@ -1635,7 +1732,10 @@ async function hubUI() {
     const P = await page.$$eval('a.pin', (as) => as.map((a) => { const r = a.getBoundingClientRect(); return { id: a.id, x: r.left + r.width / 2, y: r.top + r.height / 2 }; }));
     let gap390 = 1e9, A = null, Bp = null;
     for (const a of P) for (const b of P) if (a.id < b.id) { const d = Math.hypot(a.x - b.x, a.y - b.y); if (d < gap390) { gap390 = d; A = a; Bp = b; } }
-    check(gap390 >= 52 && await page.$$eval('g.hz-pl', (x) => x.length) === 0, `desks 390: the closest two pins are ${gap390.toFixed(1)}px apart; the first view's planes have landed`);
+    // v1.8 FLIP: the pin moved — stage B3 wrote it with six live desks (the closest pair ≥ 52 px at 390); with eight
+    // live the closest pair is LON–PAR, 30.1 px at 390 (spec §8.4: under 44, which is why the map box takes the tap)
+    check(Math.abs(gap390 - 30.1) <= 1 && [A.id, Bp.id].join() === 'pin-lon,pin-par' && await page.$$eval('g.hz-pl', (x) => x.length) === 0,
+      `desks 390: the closest two pins are ${A.id.slice(4).toUpperCase()}–${Bp.id.slice(4).toUpperCase()}, ${gap390.toFixed(1)}px apart (LON–PAR 30.1 px with eight live, spec §8.4); the first view's planes have landed`);
     const selOf = () => page.evaluate(() => { const s = [...document.querySelectorAll('a.pin.sel')]; return s.map((x) => x.id + (x.querySelector('.pc.dock') ? '+dock' : '')).join(','); });
     const vlc = P.find((p) => p.id === 'pin-vlc');
     await page.touchscreen.tap(vlc.x, vlc.y);
@@ -1701,7 +1801,7 @@ async function hubUI() {
     await page.clock.runFor(800);
     await center(page, '#hmap');
     await page.clock.runFor(2500);
-    await page.clock.runFor(4000);   // the first view's six planes have landed
+    await page.clock.runFor(4000);   // the first view's eight planes have landed (v1.8 FLIP: eight live desks)
     const pl0 = await page.$$eval('g.hz-pl', (x) => x.length);
     const before = await page.$eval('#arc-lon', (a) => getComputedStyle(a).stroke);
     await page.hover('#pin-lon');
@@ -1716,7 +1816,7 @@ async function hubUI() {
     const pl2 = await page.$$eval('g.hz-pl', (x) => x.length);
     check(pl0 === 0 && pl1 === 1 && pl2 === 0, `desks 1440: the hover sends ONE plane along London's arc, once (${pl0} → ${pl1} → ${pl2})`);
     const glow = await page.$$eval('svg.hz g.dk.on', (x) => x.length), keys = await page.$$eval('.m-legend .k-x', (x) => x.map((k) => k.hidden).join());
-    check(glow === 6 && keys === 'false,false' && !!(await page.$('svg.hz .hz-nite image')), `desks 1440 (Monday 10:00 Rome): the six live desks glow, the night is drawn, the key's last two entries are revealed (${glow}, ${keys})`);
+    check(glow === 8 && keys === 'false,false' && !!(await page.$('svg.hz .hz-nite image')), `desks 1440 (Monday 10:00 Rome): the eight live desks glow, the night is drawn, the key's last two entries are revealed (${glow}, ${keys})`);
     const land = await page.evaluate(() => { const r = document.querySelector('.hmap svg.hz rect.land'); return r ? r.getBoundingClientRect().width > 300 && getComputedStyle(r).clipPath !== 'none' : false; });
     check(land, 'desks 1440: the land is drawn, clipped to the coast');
     const gap = await page.evaluate(() => {
@@ -1728,8 +1828,8 @@ async function hubUI() {
         return Math.min(...ds);
       });
     });
-    check(gap.length === 6 && gap.every((x) => x <= 2), `desks 1440: every pin sits on its dot (≤ 2 px: ${gap.map((x) => x.toFixed(1)).join(', ')})`);
-    check(await page.$eval('.rtab', (t) => getComputedStyle(t).display === 'table' && t.getBoundingClientRect().height > 100) && await page.$$eval('.rtab thead th', (t) => t.length) === 6,
+    check(gap.length === 8 && gap.every((x) => x <= 2), `desks 1440: every pin sits on its dot (≤ 2 px: ${gap.map((x) => x.toFixed(1)).join(', ')})`);
+    check(await page.$eval('.rtab', (t) => getComputedStyle(t).display === 'table' && t.getBoundingClientRect().height > 100) && await page.$$eval('.rtab thead th', (t) => t.length) === 8,
       'desks 1440: the rules are a visible table, one column per live desk');
     check(await page.$$eval('[data-pay], dialog', (x) => x.length) === 0 && st.errors.length === 0, 'desks 1440: no pay control, no dialog, no JS error', st.errors.join(' | '));
     await ctx.close();
@@ -1795,7 +1895,8 @@ async function v17Fixes() {
   }
 
   // R3b · forced colors at ≥940: First class (Full Search) is ONE closed frame on a waitlist desk and on a desk that sells
-  for (const slug of ['paris', 'amsterdam']) {
+  // (v1.8 FLIP: the waitlist is the frozen draft Paris; live Paris, charged at signing, joins the desks that sell)
+  for (const slug of ['draft-paris', 'paris', 'amsterdam']) {
     const x = await open({ slug, width: 1280, forced: true });
     const f = await x.page.$eval('.bp.eroe', (e) => { const s = getComputedStyle(e), fr = getComputedStyle(e.querySelector('.fare')); const r = e.getBoundingClientRect(), q = e.querySelector('.fare').getBoundingClientRect();
       return { b: [s.borderTopWidth, s.borderRightWidth, s.borderBottomWidth, s.borderLeftWidth, s.borderTopStyle].join(' '), fb: fr.borderBottomWidth + ' ' + fr.borderLeftWidth, inside: q.bottom <= r.bottom + 0.5 && q.top >= r.top - 0.5 }; });
@@ -2040,7 +2141,10 @@ async function signingUI() {
       frags: fragments(R), root: R, weigh: false, cities: SLUGS.map((s) => (s === 'paris' ? c : CITY[s])), claims: loadClaims(R) }).html;
   } catch (e) { male(`the scratch signing Paris builds (${String(e.message).slice(0, 300)})`); return; }
   finally { CM.paris = save; }
-  check(CM.paris === save && CM.paris.chargeAt !== 'signing', 'the registry is restored after the scratch build (Paris is not flipped)');
+  // v1.8 FLIP: the pin moved — stage B3 wrote it before the flip ("Paris is not flipped"); the registry now holds the
+  // flip's own Paris entry, and the scratch build hands it back untouched: the same object, still charged at signing
+  check(CM.paris === save && CM.paris.chargeAt === 'signing' && !!CM.paris.order && CM.paris.order.prefix === 'PAR',
+    'the registry is restored after the scratch build (the flip\'s own Paris entry, charged at signing)');
   PAGES.set('/paris.html', html);
   try {
     const OID = 'book_ui0000test1', TOK = '0123456789abcdef01234567', NUM = 'PAR-2026-0007';
