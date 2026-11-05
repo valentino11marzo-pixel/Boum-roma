@@ -1,23 +1,36 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <!-- The model withdrawal form of Directive 2011/83/EU (Annex I(B)), with the
-         trader's details filled in as the Annex requires. Linked from the
-         withdrawal line of the city desks' checkout and from the paid email
-         (api/stripe-webhook.js WITHDRAWAL_FORM_URL). No tracking on this page:
-         a person withdrawing owes us nothing, not even a page view. -->
+    <!-- Withdrawal from a BOOM service, two ways on one page:
+         · the ONLINE withdrawal function (CRD art. 11a as amended by Directive
+           2023/2673, in force 19/06/2026; art. 54-bis Cod. cons.): the button
+           "Withdraw from contract here" (#online) opens the statement, the
+           summary carries "Confirm withdrawal", and POST /api/withdraw files
+           it and emails the consumer a copy with the date and time. Italian
+           labels with ?desk=Roma (or Rome, the Pacchetto email's spelling) or
+           ?lang=it; an explicit ?lang=en keeps English.
+         · the model withdrawal form of Directive 2011/83/EU (Annex I(B)), with
+           the trader's details filled in as the Annex requires, and the mailto
+           helper that writes it into the visitor's email app.
+         Linked from the withdrawal line of the city desks' checkout, from the
+         Pacchetto's checkout (?desk=Roma&service=concordato-pack#online) and
+         from the paid email (api/stripe-webhook.js WITHDRAWAL_FORM_URL). No
+         tracking on this page: a person withdrawing owes us nothing, not even
+         a page view. tests/withdraw/ui.mjs drives it in Chromium. -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Model withdrawal form — BOOM</title>
-    <meta name="description" content="Withdraw from a BOOM service within 14 days of payment: the EU model withdrawal form with our details filled in, and how the refund works.">
+    <title>Withdrawal — BOOM</title>
+    <meta name="description" content="Withdraw from a BOOM service within 14 days: online in two steps with a copy by email, or with the EU model withdrawal form and our details filled in.">
     <meta name="robots" content="noindex, follow">
     <meta name="theme-color" content="#060607">
     <meta name="color-scheme" content="dark">
     <meta name="format-detection" content="telephone=no">
     <link rel="canonical" href="https://www.boomrome.com/withdrawal">
     <link rel="icon" href="/favicon.ico" sizes="any">
+    <noscript><style>.js-only { display: none !important; }</style></noscript>
     <style>
-        :root { --bg: #060607; --card: #0e0e10; --line: rgba(255,255,255,.1); --text: #f4f1ea; --soft: #a9a59c; --gold: #FFD700; }
+        [hidden] { display: none !important; }
+        :root { --bg: #060607; --card: #0e0e10; --line: rgba(255,255,255,.1); --text: #f4f1ea; --soft: #a9a59c; --gold: #FFD700; --err: #ff9a8f; }
         * { box-sizing: border-box; }
         html { -webkit-text-size-adjust: 100%; }
         body { margin: 0; background: var(--bg); color: var(--text); font: 300 16px/1.6 "Helvetica Neue", Inter, Arial, sans-serif; }
@@ -27,6 +40,7 @@
         h2 { font-weight: 400; font-size: 13px; letter-spacing: 3px; text-transform: uppercase; color: var(--gold); margin: 40px 0 12px; }
         p, li { color: var(--text); }
         .soft { color: var(--soft); }
+        .sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
         a { color: var(--gold); }
         ol.how { padding-left: 20px; margin: 0; }
         ol.how li { margin: 6px 0; }
@@ -40,10 +54,35 @@
         .helper { display: grid; gap: 14px; }
         .helper label { display: grid; gap: 6px; font-size: 14px; color: var(--soft); }
         .helper input, .helper select { width: 100%; min-height: 44px; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line); background: #141416; color: var(--text); font: inherit; font-size: 16px; }
-        .helper input:focus-visible, .helper select:focus-visible, .btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
-        .btn { display: inline-flex; align-items: center; justify-content: center; min-height: 48px; padding: 12px 22px; border-radius: 999px; border: 0; background: var(--gold); color: #000; font: 500 15px/1 "Helvetica Neue", Inter, Arial, sans-serif; letter-spacing: .5px; text-decoration: none; cursor: pointer; }
+        .helper input:focus-visible, .helper select:focus-visible, .btn:focus-visible, .btn2:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+        .btn { display: inline-flex; align-items: center; justify-content: center; min-height: 48px; padding: 12px 22px; border-radius: 999px; border: 0; background: var(--gold); color: #000; font: 500 15px/1.2 "Helvetica Neue", Inter, Arial, sans-serif; letter-spacing: .5px; text-decoration: none; text-align: center; cursor: pointer; }
+        .btn2 { min-height: 44px; padding: 10px 18px; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: var(--text); font: 400 15px/1.2 "Helvetica Neue", Inter, Arial, sans-serif; cursor: pointer; }
         .row2 { display: grid; gap: 14px; }
         @media (min-width: 600px) { .row2 { grid-template-columns: 1fr 1fr; } }
+        /* the online withdrawal function (#online): the first thing on the page */
+        .online { background: var(--card); border: 1px solid rgba(255,215,0,.32); border-radius: 12px; padding: 22px 18px; margin-top: 28px; }
+        .online h2 { margin: 0 0 8px; }
+        .online h3 { font-weight: 400; font-size: 19px; line-height: 1.3; margin: 0 0 10px; }
+        .online .lead { color: var(--soft); margin: 0 0 18px; }
+        .online .fld { display: grid; gap: 6px; }
+        .online .opt { font-size: 12.5px; opacity: .85; }
+        .online .hint { font-size: 13px; color: var(--soft); margin: 0; }
+        .online .ferr { color: var(--err); font-size: 14px; margin: 0; }
+        .online .ferr:empty { display: none; }
+        .online [aria-invalid="true"] { border-color: var(--err); }
+        .online .hp { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
+        .online .stmt { margin: 0 0 6px; }
+        .online dl.sum { margin: 6px 0 18px; }
+        .online .sum div { padding: 8px 0; border-top: 1px solid var(--line); }
+        .online .sum dt { color: var(--soft); font-size: 13px; }
+        .online .sum dd { margin: 0; overflow-wrap: anywhere; }
+        .online .acts { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+        .online .btn[aria-disabled="true"] { opacity: .6; cursor: progress; }
+        .online .status { color: var(--soft); font-size: 14px; margin: 10px 0 0; }
+        .online .serr { color: var(--err); font-size: 14px; margin: 8px 0 0; }
+        .online .done { margin: 0 0 6px; padding-left: 12px; border-left: 2px solid var(--gold); font-size: 18px; }
+        .online h3:focus, .online .done:focus { outline: none; }
+        .online h3:focus-visible, .online .done:focus-visible { outline: 2px solid var(--gold); outline-offset: 4px; }
         footer { margin-top: 48px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--soft); font-size: 13px; }
         @media print {
             body { background: #fff; color: #000; }
@@ -61,9 +100,99 @@
     <p class="soft">For services bought online from BOOM — the Amsterdam, Barcelona, London, Madrid, Milan and Valencia desks and the Rome Pacchetto canone concordato among them. You have 14 days from the day you paid; you don't need to give a reason.</p>
     <p class="soft">For the London desk, the right to cancel follows the UK Consumer Contracts Regulations 2013, with the same 14 days; you can cancel with this form or any clear statement.</p>
 
+    <section class="online noprint" id="online" aria-labelledby="oTitle">
+        <h2 id="oTitle" data-t="title">Withdraw online</h2>
+        <p class="lead" data-t="lead">Two steps: tell us who you are and what you bought, then confirm. We email you a copy with the date and time.</p>
+        <button type="button" class="btn js-only" id="oOpen" aria-controls="oForm" data-t="open">Withdraw from contract here</button>
+        <noscript><p class="soft" style="margin:0">This online function needs JavaScript. Without it, email <a href="mailto:hello@boom-rome.com">hello@boom-rome.com</a> or use the model form below: either is enough.</p></noscript>
+
+        <form class="helper" id="oForm" novalidate hidden>
+            <div class="fld">
+                <label for="oName"><span data-t="name">Your name</span>
+                    <input id="oName" name="name" autocomplete="name" maxlength="120" required aria-describedby="oNameErr">
+                </label>
+                <p class="ferr" id="oNameErr"></p>
+            </div>
+            <div class="fld">
+                <label for="oEmail"><span data-t="email">The email you used</span>
+                    <input id="oEmail" name="email" type="email" autocomplete="email" inputmode="email" maxlength="160" required aria-describedby="oEmailErr oEmailHint">
+                </label>
+                <p class="ferr" id="oEmailErr"></p>
+                <p class="hint" id="oEmailHint" data-t="emailHint">Your copy goes there.</p>
+            </div>
+            <div class="fld">
+                <label for="oRef"><span><span data-t="ref">Reference</span> <span class="opt" data-t="refOpt">(if you have it)</span></span>
+                    <input id="oRef" name="ref" maxlength="80" autocomplete="off" aria-describedby="oRefErr oRefHint">
+                </label>
+                <p class="ferr" id="oRefErr"></p>
+                <p class="hint" id="oRefHint" data-t="refHint">Your file (BM …), order (PAR-…, BER-…) or receipt number.</p>
+            </div>
+            <div class="row2">
+                <div class="fld">
+                    <label for="oDesk"><span data-t="desk">The desk</span>
+                        <select id="oDesk" name="desk" required aria-describedby="oDeskErr">
+                            <option value="" data-t="deskChoose">Choose the desk</option>
+                            <option value="Amsterdam">Amsterdam</option>
+                            <option value="Barcelona">Barcelona</option>
+                            <option value="Berlin">Berlin</option>
+                            <option value="London">London</option>
+                            <option value="Madrid">Madrid</option>
+                            <option value="Milan">Milan</option>
+                            <option value="Paris">Paris</option>
+                            <option value="Valencia">Valencia</option>
+                            <option value="Roma">Rome</option>
+                            <option value="other" data-t="deskOther">Other</option>
+                        </select>
+                    </label>
+                    <p class="ferr" id="oDeskErr"></p>
+                </div>
+                <div class="fld">
+                    <label for="oService"><span><span data-t="service">The service</span> <span class="opt" data-t="serviceOpt">(if you know it)</span></span>
+                        <select id="oService" name="service">
+                            <option value="" data-t="serviceChoose">Choose the service</option>
+                            <option value="full-search">Full Search</option>
+                            <option value="application-pack">Application Pack</option>
+                            <option value="attended-viewing">Attended Viewing</option>
+                            <option value="concordato-pack">Pacchetto canone concordato</option>
+                            <option value="other" data-t="serviceOther">Other BOOM service</option>
+                        </select>
+                    </label>
+                </div>
+            </div>
+            <!-- the honeypot: posted as `company`, but named so that no autofill
+                 heuristic takes it for "organization" and fills it for a real person -->
+            <input id="oHp" name="hp_x" type="text" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+            <p class="sr" id="oFormLive" aria-live="polite"></p>
+            <div><button type="submit" class="btn" id="oNext" data-t="next">Continue</button></div>
+        </form>
+
+        <div id="oReview" hidden>
+            <h3 id="oReviewH" tabindex="-1" data-t="reviewH">Check and confirm</h3>
+            <p class="stmt" id="oStmt"></p>
+            <dl class="sum">
+                <div><dt data-t="sName">Name</dt><dd id="oSumName"></dd></div>
+                <div><dt data-t="sEmail">Email for your copy</dt><dd id="oSumEmail"></dd></div>
+                <div><dt data-t="sRef">Reference</dt><dd id="oSumRef"></dd></div>
+                <div><dt data-t="sDesk">Desk</dt><dd id="oSumDesk"></dd></div>
+                <div><dt data-t="sService">Service</dt><dd id="oSumService"></dd></div>
+            </dl>
+            <div class="acts">
+                <button type="button" class="btn" id="oConfirm" data-t="confirm">Confirm withdrawal</button>
+                <button type="button" class="btn2" id="oEdit" data-t="edit">Edit</button>
+            </div>
+            <p class="status" id="oStatus" aria-live="polite"></p>
+            <p class="serr" id="oSendErr" role="alert"></p>
+        </div>
+
+        <div id="oDone" hidden>
+            <p class="done" id="oDoneMsg" tabindex="-1" data-t="done">Received. We emailed you a copy with the date and time.</p>
+            <p class="soft" style="margin:10px 0 0;font-size:14px" data-t="doneNote">No email? Check your spam folder, or write to hello@boom-rome.com.</p>
+        </div>
+    </section>
+
     <h2>How it works</h2>
     <ol class="how">
-        <li>Send us the form below, or any clear statement that you withdraw, by email to <a href="mailto:hello@boom-rome.com">hello@boom-rome.com</a> before the 14 days end. The day you paid does not count, and a period ending on a Saturday, Sunday or public holiday runs to the end of the next working day.</li>
+        <li>Withdraw online above (“Withdraw from contract here”), or send us the form below or any clear statement that you withdraw by email to <a href="mailto:hello@boom-rome.com">hello@boom-rome.com</a>, before the 14 days end. The day you paid does not count, and a period ending on a Saturday, Sunday or public holiday runs to the end of the next working day.</li>
         <li>We refund within 14 days of receiving it, to the card you paid with.</li>
         <li>If you asked us to start before the 14 days ended (with “Start now” at checkout, or later in writing), we deduct only the part of the work already done, in proportion to the price. Once the service is fully performed, the right to withdraw ends.</li>
     </ol>
@@ -83,7 +212,7 @@
         <p class="foot">(*) Delete as appropriate.</p>
     </div>
 
-    <h2 class="noprint">Fill it in here</h2>
+    <h2 class="noprint">Or send it by email</h2>
     <form class="helper noprint" id="wf" novalidate>
         <label for="wService">The service
             <select id="wService">
@@ -101,11 +230,13 @@
                     <option value="">Choose the desk</option>
                     <option value="Amsterdam">Amsterdam</option>
                     <option value="Barcelona">Barcelona</option>
+                    <option value="Berlin">Berlin</option>
                     <option value="London">London</option>
                     <option value="Madrid">Madrid</option>
                     <option value="Milan">Milan</option>
+                    <option value="Paris">Paris</option>
                     <option value="Valencia">Valencia</option>
-                    <option value="Rome">Rome</option>
+                    <option value="Roma">Rome</option>
                 </select>
             </label>
             <label for="wDate">Paid on
@@ -145,43 +276,239 @@
 <script>
 (function () {
     var $ = function (id) { return document.getElementById(id); };
-    var send = $('wSend');
-    if (!send) return;
-    /* the visitor's own calendar day, not UTC: at 00:30 in Rome toISOString is still yesterday */
-    function today() { var d = new Date(), p = function (n) { return (n < 10 ? '0' : '') + n; }; return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()); }
-    function val(id) { var el = $(id); return el ? String(el.value || '').trim() : ''; }
-    /* a select's visible text: the slug in the value is for the link, the email says the name */
-    function label(id) { var el = $(id); if (!el || !el.value) return ''; var o = el.options[el.selectedIndex]; return o ? o.text : ''; }
-    function paint() {
-        var svc = label('wService'), desk = label('wCity');
-        var what = svc ? svc + (desk ? ' (' + desk + ')' : '') : '…';
-        var body = [
-            'To Egidi Immobiliare S.r.l. (BOOM), Via dei Coronari 181/184, 00186 Roma, Italy — hello@boom-rome.com',
-            '',
-            'I hereby give notice that I withdraw from my contract for the provision of the following service: ' + what + '.',
-            'Ordered on: ' + (val('wDate') || '…'),
-            'Name: ' + (val('wName') || '…'),
-            'Address: ' + (val('wAddress') || '…'),
-            'Email used at payment: ' + (val('wEmail') || '…'),
-            'Date: ' + today()
-        ].join('\n');
-        send.href = 'mailto:hello@boom-rome.com?subject=' + encodeURIComponent('Withdrawal' + (svc ? ' — ' + svc : '') + (desk ? ' ' + desk : ''))
-            + '&body=' + encodeURIComponent(body);
+    var has = function (o, k) { return Object.prototype.hasOwnProperty.call(o, k); };
+    var Q = { get: function () { return null; } };
+    try { Q = new URLSearchParams(location.search); } catch (e) {}
+    var clean = function (v) { return String(v == null ? '' : v).replace(/[\u0000-\u001f\u007f]+/g, ' ').trim(); };
+
+    /* The link from a desk's checkout names the desk; the paid email names the
+       desk and the service; the Pacchetto says desk=Roma (its emails: Rome).
+       Nothing else is guessed: a select nobody chose stays on "Choose", and an
+       unknown value selects nothing. */
+    var ALIAS = { rome: 'Roma', roma: 'Roma', milano: 'Milan', londra: 'London', parigi: 'Paris', berlino: 'Berlin', barcellona: 'Barcelona', altro: 'other' };
+    function pick(el, want) {
+        want = clean(want).toLowerCase();
+        if (!el || !want) return;
+        var alias = has(ALIAS, want) ? ALIAS[want] : '';
+        [].forEach.call(el.options, function (o) {
+            if (o.value && (o.value.toLowerCase() === want || o.text.toLowerCase() === want || o.value === alias)) el.value = o.value;
+        });
     }
-    ['wService', 'wCity', 'wDate', 'wName', 'wAddress', 'wEmail'].forEach(function (id) {
-        var el = $(id); if (!el) return;
-        el.addEventListener('input', paint); el.addEventListener('change', paint);
-    });
-    /* the link from the checkout names the desk; the link in the paid email
-       names the desk and the service. Nothing else is guessed: a select
-       nobody chose stays on "Choose". */
-    function pick(id, want) {
-        var el = $(id); if (!el || !want) return;
-        want = want.toLowerCase();
-        [].forEach.call(el.options, function (o) { if (o.value && (o.value.toLowerCase() === want || o.text.toLowerCase() === want)) el.value = o.value; });
-    }
-    try { var q = new URLSearchParams(location.search); pick('wCity', q.get('desk')); pick('wService', q.get('service')); } catch (e) {}
-    paint();
+
+    /* ── the online withdrawal function (#online) ─────────────────────── */
+    (function () {
+        var sec = $('online'), open = $('oOpen'), form = $('oForm');
+        if (!sec || !open || !form) return;
+        var lang = clean(Q.get('lang')).toLowerCase();
+        /* art. 54-bis Cod. cons.: the Italian labels for the Rome desk (the
+           Pacchetto) or when asked; an explicit lang=en keeps English */
+        var IT = lang === 'it' || (lang !== 'en' && /^rom[ae]$/i.test(clean(Q.get('desk'))));
+        var S = {
+            en: {
+                stmt: 'I hereby give notice that I withdraw from my contract for the provision of the following service: {svc}{desk}.',
+                stmtNoSvc: 'I hereby give notice that I withdraw from my contract with BOOM{desk}.',
+                none: '—', sending: 'Sending…',
+                eName: 'Write your name.', eEmail: 'Write the email you used, in full.',
+                eDesk: 'Choose the desk, or Other.', eRef: '80 characters at most.',
+                eSend: 'It did not go through. Try again, or email hello@boom-rome.com: a clear email within the 14 days is enough.',
+                eRate: 'Too many tries from this connection. Wait a few minutes, or email hello@boom-rome.com.'
+            },
+            it: {
+                title: 'Recesso online',
+                lead: 'Due passi: ci dica chi è e che cosa ha acquistato, poi confermi. Le inviamo per email una copia con data e ora.',
+                open: 'Recedi dal contratto qui',
+                name: 'Nome e cognome', email: "L'email usata per l'acquisto", emailHint: 'La copia arriva lì.',
+                ref: 'Riferimento', refOpt: '(se lo ha)', refHint: 'Fascicolo (BM …), ordine (PAR-…, BER-…) o numero della ricevuta.',
+                desk: 'Il desk', deskChoose: 'Scelga il desk', deskOther: 'Altro',
+                service: 'Il servizio', serviceOpt: '(se lo sa)', serviceChoose: 'Scelga il servizio', serviceOther: 'Altro servizio BOOM',
+                next: 'Continua', reviewH: 'Controlli e confermi',
+                sName: 'Nome', sEmail: 'Email per la copia', sRef: 'Riferimento', sDesk: 'Desk', sService: 'Servizio',
+                confirm: 'Conferma recesso', edit: 'Modifica',
+                done: 'Ricevuto. Le abbiamo inviato per email una copia con data e ora.',
+                doneNote: "Non trova l'email? Guardi nello spam, oppure scriva a hello@boom-rome.com.",
+                stmt: 'Con la presente notifico il recesso dal mio contratto per il seguente servizio: {svc}{desk}.',
+                stmtNoSvc: 'Con la presente notifico il recesso dal mio contratto con BOOM{desk}.',
+                none: '—', sending: 'Invio in corso…',
+                eName: 'Scriva nome e cognome.', eEmail: "Scriva per intero l'email usata per l'acquisto.",
+                eDesk: 'Scelga il desk, oppure «Altro».', eRef: 'Al massimo 80 caratteri.',
+                eSend: 'Non è arrivato. Riprovi, oppure scriva a hello@boom-rome.com: basta una email chiara entro i 14 giorni.',
+                eRate: 'Troppi tentativi da questa connessione. Attenda qualche minuto, oppure scriva a hello@boom-rome.com.'
+            }
+        };
+        var T = IT ? S.it : S.en;
+        var DESK_IT = { Barcelona: 'Barcellona', Berlin: 'Berlino', London: 'Londra', Milan: 'Milano', Paris: 'Parigi', Roma: 'Roma' };
+        if (IT) {
+            sec.setAttribute('lang', 'it');
+            [].forEach.call(sec.querySelectorAll('[data-t]'), function (el) {
+                var k = el.getAttribute('data-t');
+                if (has(T, k)) el.textContent = T[k];
+            });
+            [].forEach.call($('oDesk').options, function (o) { if (has(DESK_IT, o.value)) o.text = DESK_IT[o.value]; });
+        }
+
+        var F = { name: $('oName'), email: $('oEmail'), ref: $('oRef'), desk: $('oDesk'), service: $('oService') };
+        var ERR = { name: $('oNameErr'), email: $('oEmailErr'), ref: $('oRefErr'), desk: $('oDeskErr') };
+        var MSG = { name: 'eName', email: 'eEmail', ref: 'eRef', desk: 'eDesk' };
+        var review = $('oReview'), done = $('oDone'), confirm = $('oConfirm'), status = $('oStatus'), sendErr = $('oSendErr'), live = $('oFormLive');
+
+        pick(F.desk, Q.get('desk'));
+        pick(F.service, Q.get('service'));
+        var ref = clean(Q.get('ref'));
+        if (ref) F.ref.value = ref.slice(0, 80);
+
+        /* one page load = one statement: a retry after a failed send carries
+           the same id, so the server answers it as the same statement */
+        var rid = (function () {
+            try { if (window.crypto && crypto.randomUUID) return crypto.randomUUID(); } catch (e) {}
+            var s = 'w' + Date.now().toString(36);
+            while (s.length < 24) s += Math.random().toString(36).slice(2);
+            return s.slice(0, 24);
+        })();
+        var busy = false, sent = false, frozen = null;
+
+        function setErr(k, msg) {
+            ERR[k].textContent = msg || '';
+            if (msg) F[k].setAttribute('aria-invalid', 'true'); else F[k].removeAttribute('aria-invalid');
+        }
+        /* the same rules as the server (api/withdraw.js normalizeStatement);
+           returns the first field in error, in the order of the form */
+        function validate() {
+            var e = {
+                name: clean(F.name.value).length < 2,
+                email: !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean(F.email.value)),
+                ref: clean(F.ref.value).length > 80,
+                desk: !F.desk.value
+            };
+            var first = '';
+            ['name', 'email', 'ref', 'desk'].forEach(function (k) {
+                setErr(k, e[k] ? T[MSG[k]] : '');
+                if (e[k] && !first) first = k;
+            });
+            return first;
+        }
+        /* the error is under its field (aria-describedby); the live line also
+           says it when the focus cannot move (Enter in the field in error) */
+        function flag(k) {
+            live.textContent = '';
+            setTimeout(function () { live.textContent = T[MSG[k]]; }, 30);
+            F[k].focus();
+        }
+        function text(sel) { var o = sel.options[sel.selectedIndex]; return sel.value && o ? o.text : ''; }
+        function showForm(k) {
+            review.hidden = true; form.hidden = false; open.hidden = true;
+            if (k) flag(k); else F.name.focus();
+        }
+
+        open.addEventListener('click', function () { if (!sent) showForm(''); });
+        Object.keys(ERR).forEach(function (k) {
+            F[k].addEventListener(F[k].tagName === 'SELECT' ? 'change' : 'input', function () { if (ERR[k].textContent) setErr(k, ''); });
+        });
+
+        /* step 1 → step 2: the summary, nothing sent yet */
+        form.addEventListener('submit', function (ev) {
+            ev.preventDefault();
+            if (sent || busy) return;
+            var bad = validate();
+            if (bad) { flag(bad); return; }
+            live.textContent = '';
+            frozen = {
+                name: clean(F.name.value), email: clean(F.email.value), ref: clean(F.ref.value),
+                desk: F.desk.value, service: F.service.value,
+                deskText: text(F.desk), serviceText: text(F.service)
+            };
+            var where = frozen.desk === 'other' ? '' : ' (' + frozen.deskText + ')';
+            $('oStmt').textContent = frozen.service
+                ? T.stmt.replace('{svc}', frozen.serviceText).replace('{desk}', where)
+                : T.stmtNoSvc.replace('{desk}', where);
+            $('oSumName').textContent = frozen.name;
+            $('oSumEmail').textContent = frozen.email;
+            $('oSumRef').textContent = frozen.ref || T.none;
+            $('oSumDesk').textContent = frozen.deskText;
+            $('oSumService').textContent = frozen.serviceText || T.none;
+            sendErr.textContent = ''; status.textContent = '';
+            form.hidden = true; review.hidden = false;
+            $('oReviewH').focus();
+        });
+        $('oEdit').addEventListener('click', function () { if (!busy && !sent) showForm(''); });
+
+        function post(body) {
+            if (typeof fetch !== 'function') return Promise.resolve({ ok: false, status: 0 });
+            var ctl = typeof AbortController === 'function' ? new AbortController() : null;
+            var timer = ctl ? setTimeout(function () { ctl.abort(); }, 20000) : null;
+            return fetch('/api/withdraw', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin',
+                body: JSON.stringify(body), signal: ctl ? ctl.signal : undefined
+            }).then(function (r) {
+                return r.json().catch(function () { return {}; }).then(function (j) {
+                    return { ok: r.ok && !!j && j.ok === true, status: r.status, error: j && j.error };
+                });
+            }).catch(function () { return { ok: false, status: 0 }; }).then(function (x) {
+                if (timer) clearTimeout(timer);
+                return x;
+            });
+        }
+
+        /* step 2: "Confirm withdrawal" — one tap, one statement: a second tap
+           while the first is in flight does nothing (aria-disabled, never
+           disabled, so the focus stays on the button) */
+        var FIELD = { name_required: 'name', email_required: 'email', ref_too_long: 'ref', unknown_desk: 'desk' };
+        confirm.addEventListener('click', function () {
+            if (busy || sent || !frozen) return;
+            busy = true;
+            confirm.setAttribute('aria-disabled', 'true');
+            sendErr.textContent = ''; status.textContent = T.sending;
+            post({
+                name: frozen.name, email: frozen.email, ref: frozen.ref, desk: frozen.desk, service: frozen.service,
+                requestId: rid, company: $('oHp').value, lang: IT ? 'it' : 'en'
+            }).then(function (res) {
+                busy = false; status.textContent = '';
+                confirm.removeAttribute('aria-disabled');
+                if (res.ok) {
+                    sent = true;
+                    review.hidden = true; form.hidden = true; open.hidden = true; done.hidden = false;
+                    $('oDoneMsg').focus();
+                    return;
+                }
+                /* the server's own check refused a field: back to it, said there */
+                var k = res.status === 400 && has(FIELD, res.error) ? FIELD[res.error] : '';
+                if (k) { setErr(k, T[MSG[k]]); showForm(k); return; }
+                sendErr.textContent = res.status === 429 ? T.eRate : T.eSend;
+            });
+        });
+    })();
+
+    /* ── the mailto helper below the model form ───────────────────────── */
+    (function () {
+        var send = $('wSend');
+        if (!send) return;
+        /* the visitor's own calendar day, not UTC: at 00:30 in Rome toISOString is still yesterday */
+        function today() { var d = new Date(), p = function (n) { return (n < 10 ? '0' : '') + n; }; return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()); }
+        function val(id) { var el = $(id); return el ? String(el.value || '').trim() : ''; }
+        /* a select's visible text: the slug in the value is for the link, the email says the name */
+        function label(id) { var el = $(id); if (!el || !el.value) return ''; var o = el.options[el.selectedIndex]; return o ? o.text : ''; }
+        function paint() {
+            var svc = label('wService'), desk = label('wCity');
+            var what = svc ? svc + (desk ? ' (' + desk + ')' : '') : '…';
+            var body = [
+                'To Egidi Immobiliare S.r.l. (BOOM), Via dei Coronari 181/184, 00186 Roma, Italy — hello@boom-rome.com',
+                '',
+                'I hereby give notice that I withdraw from my contract for the provision of the following service: ' + what + '.',
+                'Ordered on: ' + (val('wDate') || '…'),
+                'Name: ' + (val('wName') || '…'),
+                'Address: ' + (val('wAddress') || '…'),
+                'Email used at payment: ' + (val('wEmail') || '…'),
+                'Date: ' + today()
+            ].join('\n');
+            send.href = 'mailto:hello@boom-rome.com?subject=' + encodeURIComponent('Withdrawal' + (svc ? ' — ' + svc : '') + (desk ? ' ' + desk : ''))
+                + '&body=' + encodeURIComponent(body);
+        }
+        ['wService', 'wCity', 'wDate', 'wName', 'wAddress', 'wEmail'].forEach(function (id) {
+            var el = $(id); if (!el) return;
+            el.addEventListener('input', paint); el.addEventListener('change', paint);
+        });
+        pick($('wCity'), Q.get('desk')); pick($('wService'), Q.get('service'));
+        paint();
+    })();
 })();
 </script>
 </body>
