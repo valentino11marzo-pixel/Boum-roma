@@ -1,0 +1,207 @@
+/* ═══ assets/boom-desks.css — BOOM Desks, the hub (/desks). Loaded after
+   assets/boom-city.css (tokens, header, sections, eyebrows, quadro ticks,
+   folds, the fact sheet, the footer, the Solari cells). Here: the departures
+   board, the map lit from Rome, the three fare tickets, the rules table.
+   Static by default: the clock, the window and OPEN/CLOSED come from the
+   script; nothing loops while every desk is closed. ═══ */
+.hub-hero{position:relative;padding:28px 0 4px}
+.kicker{display:inline-block;padding:3px 9px;border-radius:6px;background:var(--leaf);color:#141005;font-size:10.5px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;
+  box-shadow:inset 0 1px 0 rgba(255,250,214,.6),inset 0 -1px 0 rgba(80,60,10,.35),0 2px 10px -4px rgba(255,215,0,.35)}
+.hub-hero .board{font-size:clamp(40px,calc((100vw - 48px) / 6.3),100px)}
+.hub-lead{margin-top:16px;max-width:54ch;color:var(--t2);font-size:clamp(15px,2vw,19px);line-height:1.5}
+/* ≥1100: the word and the lead side by side, the board a full-width slab under them */
+@media (min-width:1100px){
+  .hub-hero{display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:64px;align-items:end;padding-top:44px}
+  .hub-hero>.kicker,.hub-hero>h1{grid-column:1/-1;justify-self:start}
+  .hub-hero>.board-row{grid-column:1}
+  .hub-hero>.hub-lead{grid-column:2;margin:0 0 6px;padding-left:24px;border-left:1px solid var(--gold-line)}
+  .hub-hero>.dboard-w{grid-column:1/-1;margin-top:44px}
+}
+
+/* §1 the departures board: a table read as rows (grid), each live row one stretched link */
+.dboard-w{margin-top:24px;border:1px solid var(--line-soft);background:linear-gradient(180deg,#0B0B0D,var(--void))}
+.db-h{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 12px;min-height:50px;padding:10px 16px;border-bottom:1px solid var(--line-soft);
+  font:400 10.5px var(--mono);letter-spacing:.2em;text-transform:uppercase;color:var(--t3)}
+.db-h b{color:var(--gold);font-weight:600}
+.dboard,.dboard tbody{display:block;width:100%;border-collapse:collapse}
+.dboard thead{display:none}
+.db-r,.dboard thead tr{position:relative;display:grid;grid-template-columns:48px minmax(0,1fr) 24px;align-items:center;column-gap:12px;padding:9px 16px;text-align:left}
+.db-r{min-height:62px}
+.db-r+.db-r{border-top:1px solid var(--line-soft)}
+.db-r.live+.db-r.off{border-top-color:var(--line)}
+.db-r.hub{border-top:3px double var(--line)}
+.db-code{font:500 13px var(--mono);letter-spacing:.14em;color:var(--gold)}
+.db-b{display:none;font-size:15px;font-weight:400;height:1.26em;line-height:1.26em;color:var(--gold-hi);white-space:nowrap}
+.dboard.mounted .db-b{display:inline-block}
+.dboard.mounted .db-iata{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.db-city{display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-width:0}
+.db-go,.db-name{font-size:16px;font-weight:400;line-height:1.3;color:var(--ink);text-decoration:none}
+.db-go::after{content:'';position:absolute;inset:0;z-index:1}
+.db-go:focus-visible{outline:0}
+.db-r:has(.db-go:focus-visible){outline:2px solid var(--gold);outline-offset:-2px}
+.db-sub{font:400 11.5px var(--mono);letter-spacing:.03em;color:var(--t3)}
+.db-tag{margin-top:4px;padding:1px 7px;border:1px solid var(--gold-line);border-radius:999px;font:500 9.5px var(--mono);letter-spacing:.14em;color:var(--gold);white-space:nowrap}
+@media (max-width:939px){.db-tag{letter-spacing:.06em}}
+.c-w{display:none}
+.db-st{font:500 11px var(--mono);letter-spacing:.16em;color:var(--gold)}
+.db-tv,.db-nb{font:400 13px var(--mono);letter-spacing:.06em;color:var(--t2);white-space:nowrap}
+.db-tv:empty::before,.db-nb:empty::before{content:'—';color:var(--t5)}
+.db-nb{font-weight:500;letter-spacing:.16em}
+.db-nb.on{color:var(--open)}
+.db-nf{display:none}
+.db-fare{font-size:13.5px;color:var(--t2)}.db-fare b{color:var(--ink);font-weight:400}
+.db-gate{justify-self:end;color:var(--gold)}
+.db-pill{display:inline-flex;align-items:center;gap:8px;font-size:0}
+.db-pill i{font-size:18px;font-style:normal}
+.db-r.live:hover,.db-r.hub:hover{background:var(--gold-faint)}
+.db-r.off,.db-r.off .db-code,.db-r.off .db-name{color:var(--t3)}
+.db-r.off .db-st{color:rgba(255,255,255,.5)}
+.db-r.hub .db-st{color:var(--ink)}
+.hub .pill-st .dot{background:var(--open);box-shadow:0 0 8px rgba(92,255,174,.5)}
+@media (prefers-reduced-motion:no-preference){.hub .pill-st .dot{animation:dpulse 2.4s ease-in-out infinite}}
+@keyframes dpulse{50%{opacity:.35}}
+@media (min-width:760px){
+  .dboard thead{display:block}
+  .db-r,.dboard thead tr{grid-template-columns:58px minmax(0,1fr) 86px 104px 84px 100px 40px}
+  .dboard thead th{font:400 10px var(--mono);letter-spacing:.18em;text-transform:uppercase;color:var(--t3);text-align:left}
+  .dboard thead tr{border-bottom:1px solid var(--line-soft)}
+  .c-w{display:block}
+  /* DESK NOW as a flap board (the script mounts it; the text stays for whoever reads it) */
+  .db-nf{display:inline-block;font-size:14px;font-weight:500;--oro-flap:rgba(255,255,255,.5)}
+  .db-nf.on{--oro-flap:var(--open)}
+  .flapped .db-nb{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+}
+@media (min-width:1100px){
+  .db-r,.dboard thead tr{grid-template-columns:64px minmax(0,1fr) 96px 116px 92px 112px 176px}
+  .db-pill{font:500 10.5px var(--mono);letter-spacing:.16em;text-transform:uppercase;padding:9px 13px;border:1px solid var(--gold-line);border-radius:999px;color:var(--gold);transition:background .2s,box-shadow .2s}
+  .db-pill i{font-size:13px}
+  /* runway lights: only on hover and focus, never at rest */
+  .db-r:hover .db-pill,.db-r:focus-within .db-pill{background:var(--gold-faint);box-shadow:0 0 0 3px rgba(255,215,0,.08),0 0 18px -4px rgba(255,215,0,.6)}
+}
+
+/* §2 the map (v1.7, the Horizon): boom-city.css draws it (.hz); here the box, the arcs lit from
+   Rome, the pins and their cards. On a touch screen (or under 600px) the pins are links but not
+   targets (v1.8 option (b): two pins may stand closer than 44px there): the box takes the tap and
+   docks the nearest desk's card within 30px under the map (boom-desks.js: .sel, .dock); the second
+   tap, or the card, goes to the desk. From 600px with a mouse a pin is its own 44px target */
+.hmap-g{display:grid;gap:22px;margin-top:26px}
+.hmap{margin:0;min-width:0}
+.hmap-box{position:relative;border:1px solid var(--line-soft);background:#050506}
+.hmap .arc{stroke:var(--s,rgba(255,255,255,.3));stroke-width:1.3}
+@media (max-width:639px){.hmap .arc{stroke-width:2.2}}
+.pin{position:absolute;z-index:2;left:var(--x);top:var(--y);width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:50%;color:var(--ink);text-decoration:none;-webkit-tap-highlight-color:transparent}
+.pin-dot{position:absolute;inset:13px;border-radius:50%;border:1px solid transparent;transition:border-color .2s}
+.pin:hover .pin-dot,.pin:focus-visible .pin-dot,.pin.sel .pin-dot{border-color:var(--gold)}
+.pin:focus-visible{outline-offset:0}
+.pc{display:none;position:absolute;z-index:3;left:36px;top:50%;transform:translateY(-50%);width:max-content;min-width:196px;max-width:288px;padding:11px 13px;border:1px solid var(--gold-line);border-radius:10px;
+  background:rgba(8,8,10,.95);font-size:13px;line-height:1.45;color:var(--t2);pointer-events:none;box-shadow:0 20px 40px -20px #000}
+.pc-l .pc{left:auto;right:36px}
+.pc b{margin-right:6px;font:600 12px var(--mono);letter-spacing:.14em;color:var(--gold)}
+.pc-h{display:flex;align-items:baseline;color:var(--ink)}
+.pc-t{margin-left:auto;padding-left:12px;font:400 11px var(--mono);letter-spacing:.04em;color:var(--t2)}
+.pc-w,.pc-f,.pc-go{display:block}
+.pc-w{font:400 11px var(--mono);color:var(--t3)}
+.pc-go{margin-top:4px;color:var(--gold)}
+.pin:focus-visible .pc,.pin.sel .pc{display:block}
+@media (hover:hover){.pin:hover .pc{display:block}}
+.pc.dock{left:var(--dl);right:auto;top:var(--dt);width:var(--dw);max-width:none;transform:none;pointer-events:auto;padding:13px 16px;font-size:14px;background:#0B0B0E}
+.pc.dock .pc-go{display:flex;align-items:center;min-height:44px;margin:4px 0 -10px}
+@media (hover:none),(max-width:599px){.pin{pointer-events:none}.hmap-box{-webkit-tap-highlight-color:transparent}}
+.m-legend{margin-top:12px}
+.m-rail{display:grid;gap:14px;align-content:start}
+.m-card{padding:18px 18px 8px;border:1px solid var(--line-soft);background:linear-gradient(180deg,#0E0E11,#0A0A0C)}
+.m-card.home{border-color:var(--gold-line)}
+.m-card h3{font-size:16px;font-weight:400;line-height:1.35}
+.m-card h3 b{margin-right:8px;font:500 12px var(--mono);letter-spacing:.14em;color:var(--gold)}
+.m-card p{margin-top:8px;font-size:14.5px;color:var(--t2)}
+.m-card .lnk{display:inline-flex;align-items:center;min-height:44px;font-size:14px}
+@media (min-width:940px){.hmap-g{grid-template-columns:minmax(0,8fr) minmax(0,4fr);gap:32px;align-items:start}}
+
+/* §3 three fare tickets: a foil band, the security print, a punched perforation over the stub with the price */
+.hnote{margin-top:14px;max-width:66ch;padding-left:12px;border-left:2px solid var(--gold-line);font-size:14.5px;color:var(--t2)}
+.hfares{list-style:none;display:grid;gap:18px;margin-top:24px}
+.hft{position:relative;display:flex;flex-direction:column;overflow:hidden;padding-bottom:18px;border:1px solid var(--gold-line);border-radius:18px;
+  background:radial-gradient(90% 60% at 100% 0%,rgba(255,215,0,.07),transparent 60%),linear-gradient(180deg,#141417,#0C0C0F);box-shadow:0 30px 70px -40px rgba(0,0,0,.95),inset 0 1px 0 rgba(255,255,255,.06)}
+.hft::before{content:'';position:absolute;inset:0;pointer-events:none;opacity:.45;
+  background:repeating-linear-gradient(115deg,rgba(255,215,0,.12) 0 1px,transparent 1px 9px),repeating-linear-gradient(63deg,rgba(255,215,0,.12) 0 1px,transparent 1px 14px);
+  -webkit-mask:radial-gradient(120% 90% at 100% 0%,#000 10%,transparent 55%);mask:radial-gradient(120% 90% at 100% 0%,#000 10%,transparent 55%)}
+.hft-band{padding:9px 18px;background:var(--leaf);color:#141005;font-size:11px;font-weight:700;letter-spacing:.24em;text-transform:uppercase}
+.hft-who{text-wrap:balance;padding:16px 18px 0;font:400 11px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--t3)}
+.hft-price{position:relative;display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 12px;margin-top:16px;padding:18px 18px 4px;border-top:1px dashed rgba(255,215,0,.24)}
+.hft-price::before,.hft-price::after{content:'';position:absolute;top:-9px;width:18px;height:18px;border-radius:50%;background:var(--void);box-shadow:inset 0 0 0 1px var(--gold-line)}
+.hft-price::before{left:-10px}.hft-price::after{right:-10px}
+.hft-price b{font-size:46px;font-weight:200;line-height:1;color:var(--gold);text-shadow:0 0 22px rgba(255,215,0,.22)}
+.hft-price span{font:400 10.5px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--t3)}
+.hft-gbp{padding:2px 18px 0;font:400 12px var(--mono);color:var(--t3)}
+.hft-inc{list-style:none;display:grid;gap:8px;margin:16px 18px 0;font-size:14px;line-height:1.45;color:var(--t2)}
+.hft-inc li{position:relative;padding-left:16px}
+.hft-inc li::before{content:'';position:absolute;left:0;top:.7em;width:8px;height:1px;background:var(--gold)}
+.hft .refund{margin:16px 18px 0}
+.hrules{list-style:none;display:grid;margin-top:28px;border-top:1px solid var(--line-soft)}
+.hrules li{padding:12px 2px;border-bottom:1px solid var(--line-soft);font-size:14px;color:var(--t2)}
+.hrules b{display:block;margin-bottom:2px;font:500 10.5px var(--mono);letter-spacing:.2em;text-transform:uppercase;color:var(--gold)}
+.hgates{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:26px}
+.hgates p{width:100%;font:500 10.5px var(--mono);letter-spacing:.2em;text-transform:uppercase;color:var(--t3)}
+.hgates a{display:inline-flex;align-items:center;gap:10px;min-height:48px;padding:0 16px;border:1px solid var(--gold-line);border-radius:999px;font-size:14.5px;color:var(--t2);text-decoration:none;transition:background .2s,color .2s}
+.hgates a:hover{color:var(--ink);background:var(--gold-faint)}
+.hgates b,.rtab thead b,.rtab td::before{font:500 12px var(--mono);letter-spacing:.14em;color:var(--gold)}
+@media (min-width:640px){.hrules{grid-template-columns:repeat(2,minmax(0,1fr));column-gap:24px}}
+@media (min-width:760px){.hfares{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (min-width:940px){.hrules{grid-template-columns:repeat(3,minmax(0,1fr))}}
+
+/* §4 the rules: a table at ≥760, one card per row below (each cell prefixed by its desk's code) */
+.r-note{margin-top:14px;font-size:15px;color:var(--t2)}
+.rtab{width:100%;margin-top:24px;border-collapse:collapse;font-size:14px}
+.rtab caption{padding-bottom:10px;text-align:left;font:400 11px var(--mono);letter-spacing:.06em;color:var(--t3)}
+.rtab th,.rtab td{padding:12px 10px;border-top:1px solid var(--line-soft);text-align:left;vertical-align:top}
+.rtab thead th,.rtab thead td{border-top:0;font-weight:400}
+.rtab thead a{display:inline-flex;flex-direction:column;justify-content:center;min-height:44px;color:var(--t2);text-decoration:none;font-size:13.5px}
+.rtab tbody th{width:150px;font:500 10.5px var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--t3)}
+.rc{display:block;color:var(--t2);text-decoration:none}
+.rc+.rc{margin-top:8px}
+.rc-at{font:400 12.5px var(--mono);letter-spacing:.03em;color:var(--gold-hi)}
+.rc.held .rc-t{text-decoration:underline dotted var(--gold-line);text-underline-offset:3px}
+a.rc:hover>span{color:var(--ink)}
+.rc.none{color:var(--t5)}
+.rc-tag{display:inline-block;margin-left:6px;padding:1px 7px;border:1px solid var(--gold-line);border-radius:6px;font:500 9.5px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--gold);vertical-align:1px}
+.r-held{margin-top:12px;font-size:13px;color:var(--t3)}
+.rfull{margin-top:22px}
+.rfull-in{padding:4px 2px 18px;border-top:1px dashed var(--line)}
+.rfull h3{margin-top:18px;font-size:15px;font-weight:400}
+.rfull dl{margin-top:6px;font-size:14px;line-height:1.55}
+.rfull dt{margin-top:10px;color:var(--ink)}.rfull cite{margin-left:8px;font:400 11.5px var(--mono);font-style:normal;color:var(--gold)}
+.rfull dd,.rfull p{color:var(--t2)}.rfull p{margin-top:10px;font-size:13.5px}
+@media (max-width:759px){
+  .rtab,.rtab caption,.rtab tbody,.rtab tr,.rtab th,.rtab td{display:block}
+  .rtab thead{display:none}
+  .rtab tbody tr{margin-top:12px;padding:2px 14px;border:1px solid var(--line-soft)}
+  .rtab tbody th{width:auto;padding:12px 0 6px;border-top:0}
+  .rtab td{position:relative;padding:10px 0 10px 52px}
+  .rtab td::before{content:attr(data-k);position:absolute;left:0;top:11px}
+}
+
+/* §6 the fact sheet, open */
+.hub .brief .enbref{margin-top:22px;padding:6px 18px 14px;border:1px solid var(--line-soft);border-top-color:var(--gold-line);background:#0E0E11}
+@media (min-width:760px){
+  .hub .brief .enbref{gap:0;padding:4px 22px 6px;grid-template-columns:170px minmax(0,1fr)}
+  .hub .brief .enbref dd{padding-left:22px}
+  .hub .brief .enbref dt,.hub .brief .enbref dd{padding:13px 0;border-top:1px solid var(--line-soft)}
+  .hub .brief .enbref dt{padding-top:16px}
+  .hub .brief .enbref dt:first-of-type,.hub .brief .enbref dt:first-of-type+dd{border-top:0}
+  .hft-who{min-height:3.9em}
+}
+@media (min-width:760px) and (max-width:819px){.hft-who{min-height:5.1em}}
+/* under 380: the kicker on one line, the legend dots beside their words, the phone number whole */
+@media (max-width:379px){.kicker{font-size:10px;letter-spacing:.08em}.m-legend{letter-spacing:.04em;column-gap:12px}}
+.hub .enbref a[href^="tel:"]{white-space:nowrap}
+
+@media (forced-colors:active){
+  .kicker,.hft-band{background:Canvas;color:CanvasText;border:1px solid CanvasText}
+  .hft-price::before,.hft-price::after{display:none}
+  .m-legend i{forced-color-adjust:none;background:CanvasText}
+}
+@media print{
+  .hmap-box,.hgates,.db-gate,.pin,.m-legend{display:none!important}
+  .dboard-w,.hft,.m-card,.rtab tr,.hub .brief .enbref{background:#fff!important;box-shadow:none!important;border-color:#000!important}
+  .hub *{color:#000!important}
+}

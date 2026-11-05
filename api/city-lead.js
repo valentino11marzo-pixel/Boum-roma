@@ -1,7 +1,7 @@
 // api/city-lead.js
-// Public lead-capture for the BOOM city pages (/amsterdam, /madrid,
-// /barcelona, /london, /milan, /paris, /berlin — the closed list is
-// CITY_MARKETS in _market.js; BOOM_CITIES_BRIEF.md). The phone is stored in
+// Public lead-capture for the BOOM city pages (/amsterdam, /barcelona,
+// /london, /madrid, /milan, /valencia, /paris, /berlin — the closed list is
+// CITY_MARKETS in api/_market.js; BOOM_CITIES_BRIEF.md). The phone is stored in
 // E.164 read with the desk's country (cityPhone: a London '07700 900123' is
 // +447700900123, a Milan '02 1234 5678' keeps its 0: +390212345678). A city in
 // `mode: 'waitlist'` (Paris and Berlin: the desk opens with a licensed
@@ -57,10 +57,23 @@
 //        Response 200: { ok: true, paid: true, plan, file, startNow, workFromLabel }
 //                    | { ok: true, pending: true }
 //        400 bad_request · 429 rate_limited · 503 unavailable
+//        A desk that charges at signing has no Stripe session at the order:
+//        a ?paid= there is 400 (the page of such a desk ignores ?paid=).
+// GET    ?order=<book_…>&t=<token>&city=<signing desk> — THE MANAGED TICKET
+//        (v1.8, spec §5.4): the "Manage your order" link of the order email.
+//        The token is derived (api/payments/_token.js orderToken), never
+//        stored; a wrong token and an unknown order answer the SAME 404
+//        (no enumeration). Same per-IP budget as ?paid=, no-store.
+//        Response 200: { ok, state: 'booked'|'due'|'paid'|'withdrawn'|'closed',
+//          plan, file, number, startNow, workFromLabel, withdrawalEndsOn,
+//          expiresOn?, amount?, payUrl? (due), paidOn?, withdrawnOn?, closedOn? }
+//        — never a name, an email or a Stripe id.
+//        400 bad_request · 404 { ok:false } · 429 rate_limited · 503 unavailable
 
 import crypto from 'node:crypto';
 import { fsCreate, fsGet, logActivity } from './homie/_lib.js';
-import { CITY_MARKETS, cityPhone, serviceLeadId } from './_market.js';
+import { CITY_MARKETS, cityPhone, serviceLeadId, chargeAtOf } from './_market.js';
+import { verifyOrderToken, payLink } from './payments/_token.js';
 import { attributionFromReq } from './_attribution.js';
 import SCALO from '../js/scalo-codes.js';
 
@@ -99,7 +112,9 @@ async function paidStatus(req, res) {
   const sid = String((q && q.paid) || '');
   const cityKey = String((q && q.city) || '').toLowerCase().trim();
   const desk = Object.prototype.hasOwnProperty.call(CITY_MARKETS, cityKey) ? CITY_MARKETS[cityKey] : null;
-  if (!desk || desk.mode !== 'search' || desk.checkout !== true || !SESSION_RE.test(sid)) {
+  // a desk that charges at signing never has a session at the order (and a
+  // book_ id is not a session id): its ?paid= is a malformed request
+  if (!desk || desk.mode !== 'search' || desk.checkout !== true || chargeAtOf(cityKey) === 'signing' || !SESSION_RE.test(sid)) {
     return res.status(400).json({ ok: false, error: 'bad_request' });
   }
   const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'unknown';
@@ -120,6 +135,88 @@ async function paidStatus(req, res) {
     startNow: typeof c.startNow === 'boolean' ? c.startNow : null,
     workFromLabel: c.workFromLabel || null,
   });
+}
+
+const ORDER_RE = /^book_[a-z0-9_]{8,52}$/;
+const ROME_DAY = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Rome', year: 'numeric', month: '2-digit', day: '2-digit' });
+// a stored instant (ISO string, Firestore timestamp string, Date) → its Rome day
+function romeDayOf(v) {
+  const t = v instanceof Date ? v : new Date(String(v || ''));
+  if (Number.isNaN(t.getTime())) return null;
+  const p = {};
+  for (const x of ROME_DAY.formatToParts(t)) if (x.type !== 'literal') p[x.type] = x.value;
+  return `${p.year}-${p.month}-${p.day}`;
+}
+
+// GET ?order=<book_…>&t=<token>&city=<slug>: the order's state for the
+// managed ticket. Reads the order and, once a lease is declared signed
+// (signing.invoiceId), its invoice. PAID is the lead's paid:true OR the
+// invoice's status paid (a transfer marked in the portal shows PAID, never
+// DUE). Only the fields the ticket prints come back.
+async function orderStatus(req, res, q) {
+  res.setHeader('Cache-Control', 'no-store');
+  const id = String((q && q.order) || '');
+  const token = String((q && q.t) || '');
+  const cityKey = String((q && q.city) || '').toLowerCase().trim();
+  const known = Object.prototype.hasOwnProperty.call(CITY_MARKETS, cityKey);
+  if (!known || chargeAtOf(cityKey) !== 'signing' || !ORDER_RE.test(id)) {
+    return res.status(400).json({ ok: false, error: 'bad_request' });
+  }
+  const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'unknown';
+  if (paidRateLimited(ip)) return res.status(429).json({ ok: false, error: 'rate_limited' });
+  // a wrong token and an unknown order look the same from outside
+  if (!verifyOrderToken(id, token)) return res.status(404).json({ ok: false });
+  let lead, inv = null;
+  try {
+    lead = await fsGet('leads/' + id);
+    const s = lead && lead.signing && typeof lead.signing === 'object' ? lead.signing : null;
+    if (lead && s && typeof s.invoiceId === 'string' && /^[\w.-]{1,120}$/.test(s.invoiceId)) inv = await fsGet('invoices/' + s.invoiceId);
+  } catch (e) {
+    console.warn('[city-lead] order read failed:', e && e.message);
+    return res.status(503).json({ ok: false, error: 'unavailable' });
+  }
+  if (!lead || lead.market !== cityKey || lead.booked !== true) return res.status(404).json({ ok: false });
+  const c = lead.city && typeof lead.city === 'object' ? lead.city : {};
+  const o = c.order && typeof c.order === 'object' ? c.order : {};
+  const out = {
+    ok: true,
+    state: 'booked',
+    plan: c.service || null,
+    file: c.file || null,
+    number: o.number || null,
+    startNow: c.startNow === true,
+    workFromLabel: c.workFromLabel || null,
+    withdrawalEndsOn: c.withdrawalEndsOn || null,
+  };
+  if (o.expiresOn) out.expiresOn = o.expiresOn;
+  const invPaid = !!(inv && inv.status === 'paid');
+  const amount = inv && Number.isFinite(Number(inv.amount)) ? Number(inv.amount) : null;
+  // an invoice still owed is its own state until the operator acts on it
+  const owed = !!(inv && inv.status !== 'cancelled' && amount != null);
+  // a withdrawal statement WITHOUT withdrawnAt is what api/withdraw.js files once a lease was declared
+  // signed (spec §7: the map only, the right may have ended on full performance, the operator decides):
+  // it never hides an invoice still owed nor renames a closed order; with no live invoice the order goes
+  // no further (the signing gates refuse it), so it reads withdrawn
+  const statement = !!(lead.withdrawal && lead.withdrawal.at);
+  if (lead.paid === true || invPaid) {
+    out.state = 'paid';
+    if (amount != null) out.amount = amount;
+    const on = romeDayOf(lead.paidAt || (inv && (inv.paidAt || inv.paidDate)));
+    if (on) out.paidOn = on;
+  } else if (lead.withdrawnAt || (statement && !owed && !lead.closedAt)) {
+    out.state = 'withdrawn';
+    const on = romeDayOf(lead.withdrawnAt || lead.withdrawal.at);
+    if (on) out.withdrawnOn = on;
+  } else if (lead.closedAt) {
+    out.state = 'closed';
+    const on = romeDayOf(lead.closedAt);
+    if (on) out.closedOn = on;
+  } else if (owed) {
+    out.state = 'due';
+    out.amount = amount;
+    out.payUrl = payLink('inv', lead.signing.invoiceId);
+  }
+  return res.status(200).json(out);
 }
 
 const clip = (v, n = 200) => (v == null ? null : String(v).trim().slice(0, n) || null);
@@ -164,7 +261,10 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(204).end();
-  if (req.method === 'GET')     return paidStatus(req, res);
+  if (req.method === 'GET') {
+    const q = req.query || (() => { try { return Object.fromEntries(new URL(req.url || '', 'http://x').searchParams); } catch { return {}; } })();
+    return q && q.order != null ? orderStatus(req, res, q) : paidStatus(req, res);
+  }
   if (req.method !== 'POST')    return res.status(405).json({ ok: false, error: 'method_not_allowed' });
 
   let body = req.body;

@@ -50,6 +50,9 @@ const MUTATIONS = {
   no_blocklist_first: ["  if (DIAG_BLOCKLIST.test(d)) return { kind: 'rejected', subtype: null, hard: true };", ''],
   dns_is_domain: ['const DIAG_DOMAIN = /domain (?:name )?not found|nxdomain|host not found|no mx\\b|no such domain|unrouteable (?:mail )?domain/i;', 'const DIAG_DOMAIN = /domain (?:name )?not found|dns/i;'],
   confirmation_claim: ['if (d.clientEmailSentAt && tsOf(ctx.at || nowIso) >= tsOf(d.clientEmailSentAt) - 15 * 60e3) fields.emailBouncedAfterConfirmationAt = nowIso;', 'if (d.clientEmailSentAt) fields.clientEmailBouncedAt = nowIso;'],
+  // v1.8 (spec §6.8, E8): a booking is never «PAGATO», and its order email is a durable medium too
+  booked_as_paid: ["  : (p.doc && p.doc.paid === true) || /^(svc_|res_)/.test(String(p.id || '')));", "  : (p.doc && p.doc.paid === true) || /^(svc_|res_|book_)/.test(String(p.id || '')));"],
+  hint_svc_only: ["/^(svc_|book_)/.test(p.id) && isCityMarket(p.doc) && p.doc.clientEmailSentAt", "/^svc_/.test(p.id) && isCityMarket(p.doc) && p.doc.clientEmailSentAt"],
 };
 const MUTATION = process.env.BOOM_BOUNCE_MUTATION || '';
 if (MUTATION && !MUTATIONS[MUTATION]) throw new Error('Unknown mutation ' + MUTATION);
@@ -359,6 +362,15 @@ realOut('\n▸ 2. la card e il WhatsApp (puri)');
   ok(/^Ciao Marco, sono Valentino di BOOM/.test(it), 'WhatsApp Roma: la lingua delle SUE parole (italiano)');
   const sum = R.summaryText({ items: [{ rec, people: [{ coll: 'leads', id: 'svc_x', doc: lead }], also: [] }], reportingMta: dsn.reportingMta });
   ok(sum.length <= 600 && sum.includes(CLIENT) && sum.includes('leads/svc_x'), 'riassunto della notifica: testo semplice ≤600 con indirizzo e record');
+  // v1.8: un ORDINE di un desk che incassa alla firma (book_…): la sua email
+  // porta il recesso come quella dei sei, ma NON è pagato — mai «PAGATO»
+  const booked = { name: 'Anna Keller', email: CLIENT, market: 'paris', booked: true, paid: false, kind: 'full-search', city: { serviceLabel: 'Full Search', order: { number: 'PAR-2026-0007' } }, clientEmailSentAt: '2026-11-04T13:07:05.000Z', status: 'new' };
+  const bc = R.cardText({ items: [{ rec, people: [{ coll: 'leads', id: 'book_abcd1234', doc: booked }], also: [] }], original: dsn.original, reportingMta: dsn.reportingMta, partial: [] });
+  ok(!/PAGATO/.test(bc) && /📌 ORDINE PAR-2026-0007 Full Search · si paga alla firma, niente incassato/.test(bc), 'card ordine prenotato: «📌 ORDINE», mai «PAGATO» (isPaid resta sui soldi)', bc);
+  ok(/Se è la conferma dell'ordine, contiene il recesso/.test(bc), 'card ordine prenotato: la conferma d\'ordine porta il recesso → la riga del supporto durevole (book_ come svc_)', bc);
+  const inv = { ...booked, signing: { status: 'invoiced', clientEmailSentAt: '2026-12-10T10:00:00.000Z' } };
+  const ic = R.cardText({ items: [{ rec, people: [{ coll: 'leads', id: 'book_abcd1234', doc: inv }], also: [] }], original: dsn.original, reportingMta: dsn.reportingMta, partial: [] });
+  ok(!/PAGATO/.test(ic) && /fattura emessa, non pagata/.test(ic) && /Se è la fattura della firma/.test(ic), 'card ordine fatturato: «fattura emessa, non pagata» e la riga del link di pagamento', ic);
 }
 
 realOut('\n▸ 3. il giro vero: il caso del cliente pagante (Madrid)');

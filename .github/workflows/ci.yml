@@ -113,9 +113,20 @@ jobs:
           node-version: 22
       - name: Dipendenze runtime (sharp, pdf-lib, jspdf, nodemailer…)
         run: npm ci --omit=optional || npm install
+      # UNA versione, scritta qui (5/11/2026). Quel giorno playwright e
+      # playwright-core 1.65.0 hanno spostato il tag `latest` a 24 minuti di
+      # distanza (20:17 e 20:41 UTC). Installati insieme senza versione, in
+      # quella finestra il CLI (playwright 1.64.1, col suo core annidato) ha
+      # scaricato Chromium 1248, mentre le suite caricano il playwright-core di
+      # primo livello (1.65.0, che vuole il 1254): 75 suite browser rosse con
+      # «Looks like Playwright was just installed», nessuna per il codice.
+      # Stessa versione esatta per i due pacchetti = CLI e suite leggono lo
+      # stesso registro dei browser per costruzione. 1.64.1 è l'ambiente dei
+      # giri verdi precedenti; aggiornarla è cambiare PW, di proposito.
       - name: Playwright + Chromium (per le suite browser)
         run: |
-          npm install --no-save playwright-core playwright >/dev/null
+          PW=1.64.1
+          npm install --no-save "playwright-core@$PW" "playwright@$PW" >/dev/null
           npx playwright install --with-deps chromium
       - name: npm test — tutte le suite
         run: npm test

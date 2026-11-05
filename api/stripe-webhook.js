@@ -8,6 +8,7 @@ import { tgNotify } from './pfs/_health.js';
 import { CITY_MARKETS, CITY_PLANS, cityPhone, serviceLeadId, moneyOf } from './_market.js';
 import SCALO from '../js/scalo-codes.js';
 import DESK_CAL from '../js/desk-calendar.js';
+import { withdrawalWindow, WITHDRAWAL_FORM_URL, WITHDRAWAL_FORM_TEXT, WITHDRAWAL_FORM_TEXT_IT } from './_withdrawal.js';
 
 export const config = { api: { bodyParser: false } };
 
@@ -363,9 +364,11 @@ const CITY_SERVICE_META = {
   },
 };
 // The cover letter's language, where "the local language and English" reads
-// wrong: in London the local language IS English, in Milan it is Italian.
+// wrong: in London the local language IS English, in Milan it is Italian; in
+// Valencia two languages are local (Valencian is co-official) and the page
+// promises the letter in Spanish.
 // The desks not listed keep the line above, byte for byte.
-const CITY_LETTER_LANG = { london: 'in English', milan: 'in Italian and English' };
+const CITY_LETTER_LANG = { london: 'in English', milan: 'in Italian and English', valencia: 'in Spanish and English' };
 function cityServiceMeta(cityKey, kind) {
   const base = CITY_SERVICE_META[kind] || { emoji: '✓' };
   const lang = CITY_LETTER_LANG[cityKey];
@@ -373,39 +376,12 @@ function cityServiceMeta(cityKey, kind) {
   return { ...base, next2: [base.next2[0], `From your papers — local format, cover letter ${lang}`] };
 }
 
-// The 14-day withdrawal period of a service contract (Directive 2011/83/EU
-// art. 9), on the Rome calendar. The day the contract is concluded does not
-// count (Reg. 1182/71 art. 3(1), recital 41 of the Directive): paid on
-// Tuesday 20 October, the period runs to the END of 3 November and the first
-// day work may begin without a request is 4 November. Calendar days, never
-// 14×24h — that slips a day across the October and March clock changes.
-// A last day that falls on a Saturday, a Sunday or a public holiday moves to
-// the end of the next working day (Reg. 1182/71 art. 3(4)): paid on Saturday
-// 17 October, the period ends on Monday 2 November, not on Saturday 31.
-// Which holidays: the union of Italy's (the trader, in Rome) and the desk's
-// country — a day too many only lengthens the payer's right and delays our
-// start, a day too few would shorten a right the law gives them. The day
-// work begins is the next desk working day after the period. `concludedEpoch`
-// is the moment of payment (the Stripe event's time, stable across retries),
-// not the moment the Checkout page was opened.
-// The model withdrawal form (Annex I(B)), filled with the trader's details.
-// The page is the fillable copy; the TEXT travels inside the confirmation
-// email too, because the email is the durable medium (art. 8(7)) and the
-// form is part of the information it must carry (art. 6(1)(h)). One line,
-// the dashes of the Annex kept: the email template does not keep newlines.
-export const WITHDRAWAL_FORM_URL = 'https://www.boomrome.com/withdrawal';
-export const WITHDRAWAL_FORM_TEXT = 'MODEL WITHDRAWAL FORM (complete and return this form only if you wish to withdraw from the contract): '
-  + '— To Egidi Immobiliare S.r.l. (BOOM), Via dei Coronari 181/184, 00186 Roma, Italy, e-mail hello@boom-rome.com: '
-  + '— I/We (*) hereby give notice that I/We (*) withdraw from my/our (*) contract for the provision of the following service (*), '
-  + '— Ordered on (*)/received on (*), — Name of consumer(s), — Address of consumer(s), '
-  + '— Signature of consumer(s) (only if this form is notified on paper), — Date. (*) Delete as appropriate.';
-// the same form for the Rome Pacchetto, in Italian (Codice del consumo
-// art. 49(1)(h), Allegato I parte B)
-export const WITHDRAWAL_FORM_TEXT_IT = 'MODULO DI RECESSO TIPO (compilare e restituire il presente modulo solo se si desidera recedere dal contratto): '
-  + '— Destinatario: Egidi Immobiliare S.r.l. (BOOM), Via dei Coronari 181/184, 00186 Roma, e-mail hello@boom-rome.com: '
-  + '— Con la presente io/noi (*) notifichiamo il recesso dal mio/nostro (*) contratto di prestazione del seguente servizio (*), '
-  + '— Ordinato il (*)/ricevuto il (*), — Nome del/dei consumatore(i), — Indirizzo del/dei consumatore(i), '
-  + '— Firma del/dei consumatore(i) (solo se il presente modulo è notificato in versione cartacea), — Data. (*) Cancellare la dicitura inutile.';
+// The 14-day withdrawal window and the model withdrawal form live in
+// api/_withdrawal.js (moved there verbatim in v1.8: the order of a desk that
+// charges at signing counts the same window without loading this file).
+// Re-exported here, so every caller and test that imported them from the
+// webhook is unchanged.
+export { withdrawalWindow, withdrawalEnds, WITHDRAWAL_FORM_URL, WITHDRAWAL_FORM_TEXT, WITHDRAWAL_FORM_TEXT_IT } from './_withdrawal.js';
 
 // The desk calendar (Italy + the desk's own holidays) lives in ONE copy,
 // js/desk-calendar.js: the city pages print the desk window from the same
@@ -415,25 +391,6 @@ export const WITHDRAWAL_FORM_TEXT_IT = 'MODULO DI RECESSO TIPO (compilare e rest
 // an unknown key would silently fall back to Italy alone, so tests pin it
 export const HOLIDAY_KEYS = DESK_CAL.HOLIDAY_KEYS;
 export const isDeskHoliday = (date, country) => DESK_CAL.isDeskHoliday(date, country);
-const workingDay = (d, country) => DESK_CAL.workingDay(d, country);
-
-export function withdrawalWindow(concludedEpoch, country = null) {
-  const at = new Date((Number(concludedEpoch) || 0) * 1000);
-  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Rome', year: 'numeric', month: '2-digit', day: '2-digit' })
-    .formatToParts(at).filter((x) => x.type !== 'literal').map((x) => [x.type, Number(x.value)]));
-  const day = (n) => new Date(Date.UTC(parts.year, parts.month - 1, parts.day + n));
-  const iso = (d) => d.toISOString().slice(0, 10);
-  const label = (d) => new Intl.DateTimeFormat('en-GB', { timeZone: 'UTC', day: 'numeric', month: 'long', year: 'numeric' }).format(d);
-  let n = 14;
-  while (!workingDay(day(n), country)) n++;
-  const last = day(n);
-  let s = n + 1;
-  while (!workingDay(day(s), country)) s++;
-  const start = day(s);
-  return { lastDay: iso(last), lastLabel: label(last), startDay: iso(start), startLabel: label(start) };
-}
-// kept for callers that only want the last day of the period
-export const withdrawalEnds = (concludedEpoch) => withdrawalWindow(concludedEpoch).lastLabel;
 
 // The file number of a paid city order (v1.4): ONE number per person. The
 // checkout carries metadata.file_ref — the lead /api/city-lead opened for
@@ -981,6 +938,21 @@ async function handleRent(res, session, m) {
   return res.status(200).json({ received: true, rent: true, paymentId });
 }
 
+// The receipt of an English invoice: the amount as an English reader writes it
+// (never toLocaleString, which degrades in silence with a small ICU), and the
+// desk read back from the order number's prefix (PAR-…, BER-…) in the registry.
+function eurEn(n) {
+  const v = Math.round((Number(n) || 0) * 100) / 100;
+  const [i, d] = (Number.isInteger(v) ? String(v) : v.toFixed(2)).split('.');
+  return '€' + i.replace(/\B(?=(\d{3})+(?!\d))/g, ',') + (d ? '.' + d : '');
+}
+const escHtml = (x) => String(x == null ? '' : x).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+function deskOfOrderNumber(number) {
+  const prefix = String(number || '').split('-')[0];
+  if (!prefix) return null;
+  return Object.values(CITY_MARKETS).find((d) => d && d.order && d.order.prefix === prefix) || null;
+}
+
 // INVOICE — una fattura BOOM pagata con carta dal link mandato su WhatsApp.
 // Stessa disciplina del canone: idempotente sul retry di Stripe, e se il
 // documento risultava già saldato per altra via NON lo sovrascrive mai —
@@ -1038,6 +1010,18 @@ async function handleInvoice(res, session, m) {
     } catch (err) { console.warn('[invoice] pa stamp:', err.message); }
   }
 
+  // The fee of a desk that charges at SIGNING (v1.8, invoices/cityfee_<id>
+  // from api/payments/_citysign.js): the order lead learns it is paid — the
+  // managed ticket, the bounce card, the brain and the ready reply read
+  // `paid` on the lead. Only on an order that exists (precondition), awaited,
+  // and an error is logged as a code, never with the client's data.
+  if (inv.cityLeadId) {
+    try {
+      await fsCommit([{ docPath: 'leads/' + String(inv.cityLeadId), precondition: { exists: true },
+        fields: { paid: true, paidAt: now, paidVia: 'link', paidInvoiceId: invoiceId } }]);
+    } catch (err) { console.warn('[invoice] city order stamp:', err && err.conflict ? 'no_order' : 'commit_failed'); }
+  }
+
   try {
     await writeDoc('agentNotifications', 'inv-' + invoiceId + '-' + session.id.slice(-8), {
       type: 'payment.invoice.paid',
@@ -1053,7 +1037,24 @@ async function handleInvoice(res, session, m) {
   // pagante — senza questo la ricevuta non partirebbe proprio a chi ha pagato.
   const email = (session.customer_details && session.customer_details.email)
     || session.customer_email || inv.recipientEmail || '';
-  if (email) {
+  if (email && inv.lang === 'en') {
+    // An English invoice (the desks abroad, v1.8) gets an English receipt:
+    // the payer is an expat who read the invoice and the pay page in English.
+    // The operator's copy below stays Italian.
+    const desk = deskOfOrderNumber(inv.cityOrderNumber);
+    try {
+      await sendEmail({
+        to: email,
+        ...(desk && process.env.GMAIL_USER ? { from: `BOOM ${desk.label} <${process.env.GMAIL_USER}>` } : {}),
+        subject: `Receipt — invoice ${inv.number || ''} ${eurEn(amount)} ✓`,
+        html: shell(
+          para(`Payment received ✓ — invoice <b>${escHtml(inv.number || invoiceId)}</b> for <b>${eurEn(amount)}</b> is settled. Thank you.`)
+          + (receiptUrl ? fine(`Stripe receipt: <a href="${receiptUrl}" style="color:#141414">open →</a>`, 'text-align:center') : '')
+          + fine('Questions? Reply to this email or <a href="https://wa.me/393313251961" style="color:#141414">write to us on WhatsApp</a>.', 'text-align:center'),
+          `Invoice ${eurEn(amount)} settled`, desk ? { tag: `BOOM ${desk.label} · tenant side` } : {}),
+      });
+    } catch (err) { console.error('[invoice] client email:', err.message); }
+  } else if (email) {
     try {
       await sendEmail({
         to: email,

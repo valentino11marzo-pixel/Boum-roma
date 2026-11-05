@@ -70,6 +70,16 @@ def card(c):
     # the sentence the page carries ("charged only when the desk opens")
     da = min(p['price'] for p in c['pricing']['plans'])
     da_label = 'from' if c.get('mode') == 'search' else 'opening &middot; from'
+    # LAU art. 20 (the build refuses a Spanish price outside #fares without its
+    # own "optional", 03/11/2026): the card is a price outside the page too
+    if str(c.get('country', '')).upper() == 'ES':
+        da_label = 'optional &middot; ' + da_label
+    # v1.8 (05/11/2026): a desk charged at signing (Paris, Berlin) says WHEN
+    # the fare is paid next to the "from" — the card is a price outside the
+    # page too, and the page's must-state is "only when you sign". The JSON
+    # mirrors the registry's chargeAt (the build refuses a disagreement).
+    if c.get('chargeAt') == 'signing':
+        da_label = 'at signing &middot; ' + da_label
     sym = {'GBP': '&pound;'}.get(str(c.get('currency', 'EUR')).upper(), '&euro;')
     prezzo = f'<div class="prezzo"><u>{da_label}</u><s>{sym}{da}</s></div>'
     # the proof line says only what every desk page says too (the v1.2

@@ -14095,6 +14095,37 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function egidiPaymentBreakdown(year) {
         return window.BOOM_RENT.agencyCollections(S.payments || [], year);
     }
+    // The company's invoice base for a year, ONE copy of the invoice loop for the page and for «Salva nelle
+    // scadenze» (two loops had drifted: the fix of one did not reach the other): issued service invoices
+    // (rent/deposit receipts excluded) by quarter. v1.8 (D16): a fee invoiced for a desk abroad (Paris,
+    // Berlin — invoices/cityfee_*, vatCountry FR|DE) is BOOM revenue but NOT the Italian IVA base: it stays
+    // out of the quarters and is listed apart, «IVA estera — da definire», as the Contabile and the
+    // scadenzario do (RENT.isForeignVat; place of supply with the accountant, spec §16 O13).
+    function egidiInvoiceBase(year) {
+        const revByQ = { 1: 0, 2: 0, 3: 0, 4: 0 }, foreign = { count: 0, total: 0, byCountry: {} };
+        let total = 0;
+        boomBusinessInvoices().forEach(inv => {
+            const d = inv.date ? new Date(inv.date) : (inv.createdAt && inv.createdAt.toDate ? inv.createdAt.toDate() : null);
+            if (!d || d.getFullYear() !== Number(year)) return;
+            const amt = Number(inv.amount) || 0;
+            total += amt;
+            if (window.BOOM_RENT.isForeignVat(inv)) {
+                const cc = String(inv.vatCountry).toUpperCase();
+                foreign.count++;
+                foreign.total = Math.round((foreign.total + amt) * 100) / 100;
+                foreign.byCountry[cc] = Math.round(((foreign.byCountry[cc] || 0) + amt) * 100) / 100;
+                return;
+            }
+            revByQ[Math.floor(d.getMonth() / 3) + 1] += amt;
+        });
+        return { revByQ, total, foreign };
+    }
+    // «IVA estera — da definire: €976 (2 fatture · FR €500 · DE €476)» — the words of contabile.js foreignVatLine
+    function egidiForeignVatLine(fv) {
+        const euro = window.BOOM_FISCAL.fmtEuro;
+        const by = Object.entries(fv.byCountry).map(([cc, n]) => cc + ' ' + euro(n)).join(' · ');
+        return 'IVA estera — da definire: ' + euro(fv.total) + ' (' + fv.count + ' fattur' + (fv.count === 1 ? 'a' : 'e') + (by ? ' · ' + by : '') + ')';
+    }
     function egidiAgencyFundsBlock(year) {
         const b = egidiPaymentBreakdown(year), euro = window.BOOM_FISCAL.fmtEuro;
         return `<div class="card" style="margin-bottom:20px"><div class="card-body"><h3>Gestione per conto dei proprietari · ${year}</h3><p class="rent-note">BOOM opera come agenzia. Canoni e depositi cauzionali dei clienti non sono compensi dell’azienda.</p><table style="width:100%;font-size:14px"><tbody><tr><td>Canoni dei proprietari registrati come pagati</td><td style="text-align:right">${euro(b.ownerRent)}</td></tr><tr><td>Depositi cauzionali registrati come pagati</td><td style="text-align:right">${euro(b.deposits)}</td></tr>${b.otherCharges ? `<tr><td>Altri addebiti da classificare</td><td style="text-align:right">${euro(b.otherCharges)}</td></tr>` : ''}</tbody></table><p class="rent-note">Il riepilogo descrive pagamenti registrati; non ricostruisce somme ancora detenute, riversamenti o restituzioni.</p><h3>Compensi sui pagamenti incassati</h3><table style="width:100%;font-size:14px"><tbody><tr><td>Commissioni di servizio registrate</td><td style="text-align:right">${euro(b.fees)}</td></tr><tr><td>Di cui carta / SEPA</td><td style="text-align:right">${euro(b.cardFees)} / ${euro(b.sepaFees)}</td></tr><tr><td>Costi del gestore di pagamento rilevati</td><td style="text-align:right">${euro(b.knownCosts)}</td></tr><tr><td>Residuo sui soli incassi con costo noto</td><td style="text-align:right">${euro(b.knownMargin)}</td></tr></tbody></table><p class="rent-note">Le commissioni sono mostrate separatamente dalle fatture: senza un collegamento contabile certo non vengono sommate una seconda volta ai ricavi o alla stima IVA.${b.unknownFeeCount ? ` ${b.unknownFeeCount} pagamenti elettronici non hanno una commissione registrata.` : ''}${b.unknownCostCount ? ` Il costo manca su ${b.unknownCostCount} incassi: il residuo è parziale.` : ''}</p></div></div>`;
@@ -14102,16 +14133,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function commercialistaEgidiView() {
         const FX = window.BOOM_FISCAL;
         const year = _cmState.year || new Date().getFullYear();
-        // Revenue by quarter from issued invoices (paid + pending) for the year.
-        const revByQ = { 1: 0, 2: 0, 3: 0, 4: 0 };
-        let totalRev = 0;
-        boomBusinessInvoices().forEach(inv => {
-            const d = inv.date ? new Date(inv.date) : (inv.createdAt && inv.createdAt.toDate ? inv.createdAt.toDate() : null);
-            if (!d || d.getFullYear() !== Number(year)) return;
-            const q = Math.floor(d.getMonth() / 3) + 1;
-            const amt = Number(inv.amount) || 0;
-            revByQ[q] += amt; totalRev += amt;
-        });
+        // Revenue by quarter from issued invoices (paid + pending) for the year: the Italian IVA base by quarter;
+        // the fees abroad count as revenue (totalRev) but never in the quarters (egidiInvoiceBase, D16).
+        const base = egidiInvoiceBase(year), revByQ = base.revByQ, foreignVat = base.foreign;
+        let totalRev = base.total;
         // Paid PFS fees (Stripe) as additional revenue if dated this year.
         (S.pfsClients || []).forEach(c => {
             const paid = Number(c.amount_paid) || (c.amount_eur ? Number(c.amount_eur) * 100 : 0);
@@ -14153,6 +14178,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);padding:16px;gap:12px">
                     ${qCard(1)}${qCard(2)}${qCard(3)}${qCard(4)}
                 </div>
+                ${foreignVat.count ? `<div class="rent-note" id="egidiForeignVat" style="padding:0 18px 16px">🌍 ${esc(egidiForeignVatLine(foreignVat))} — nei compensi, fuori dai trimestri e dalla stima IVA italiana: il luogo della prestazione lo stabilisce il commercialista.</div>` : ''}
             </div>
 
             ${egidiAgencyFundsBlock(year)}
@@ -14174,7 +14200,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             </div>` : ''}
 
             <div style="font-size:12px;color:var(--text-muted);margin-top:16px;padding:12px 16px;background:var(--bg-elevated);border-radius:8px">
-                I compensi sono presi dalle fatture servizi BOOM e dai compensi PFS incassati via Stripe. Le ricevute dei canoni e dei depositi per conto dei proprietari sono escluse. Le commissioni sui pagamenti sono mostrate a parte per la riconciliazione. L'IVA è una stima al 22%: il calcolo definitivo (detraibile inclusa) resta al commercialista. Gli "estratti conto bancari" non sono in BOOM — questo è un riepilogo gestionale, non una contabilità sostitutiva.
+                I compensi sono presi dalle fatture servizi BOOM e dai compensi PFS incassati via Stripe. Le ricevute dei canoni e dei depositi per conto dei proprietari sono escluse. Le commissioni sui pagamenti sono mostrate a parte per la riconciliazione. L'IVA è una stima al 22% sui soli compensi italiani: le provvigioni dei desk all'estero (Parigi, Berlino) sono nei compensi ma restano fuori, su una riga a parte («IVA estera — da definire»). Il calcolo definitivo (detraibile inclusa) resta al commercialista. Gli "estratti conto bancari" non sono in BOOM — questo è un riepilogo gestionale, non una contabilità sostitutiva.
             </div>`;
     }
 
@@ -14327,9 +14353,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (!ok) return;
         let obligations = [];
         if (party === 'company') {
-            const revByQ = { 1:0, 2:0, 3:0, 4:0 };
-            boomBusinessInvoices().forEach(i => { const d = i.date ? new Date(i.date) : null; if (d && d.getFullYear() === Number(year)) revByQ[Math.floor(d.getMonth()/3)+1] += Number(i.amount)||0; });
-            obligations = FX.companyObligations(year, revByQ);
+            // the page's invoice base: the fees abroad (vatCountry FR|DE) never become an Italian IVA deadline (D16)
+            obligations = FX.companyObligations(year, egidiInvoiceBase(year).revByQ);
         } else {
             // landlord: passed property+year via _cmState
             const prop = (S.properties || []).find(p => p.id === _cmState.propertyId);

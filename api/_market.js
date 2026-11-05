@@ -171,8 +171,8 @@ export function b2bReplyText(lead = {}) {
 
 // ═══════════════════════════════════════════════════════════════════════════
 // IL TERZO MERCATO: LE CITTÀ (BOOM_CITIES_BRIEF.md — Amsterdam, Madrid,
-// Barcellona, Parigi, Berlino, e dal 02/11/2026 Londra e Milano: la lista
-// chiusa è CITY_MARKETS qui sotto). Stessa lezione della
+// Barcellona, Parigi, Berlino, dal 02/11/2026 Londra e Milano, dal 03/11/2026
+// Valencia: la lista chiusa è CITY_MARKETS qui sotto). Stessa lezione della
 // Réunion, in un'altra lingua: un lead che arriva da /amsterdam cerca casa ad
 // AMSTERDAM, e il Commerciale — con il suo SYSTEM prompt sul mercato romano,
 // il catalogo `listings` che consulta e il follow-up «stai ancora cercando
@@ -192,7 +192,8 @@ export function b2bReplyText(lead = {}) {
 // JSON carries the same word; tests/cities keeps the two from drifting.
 // `holidays` names the withdrawal calendar when the desk's region differs
 // from its country's default (api/stripe-webhook.js HOLIDAYS: Barcelona is
-// 'es-bcn', Madrid the 'es' default, London 'gb-eng', Milan 'it-mi');
+// 'es-bcn', Madrid the 'es' default, London 'gb-eng', Milan 'it-mi',
+// Valencia 'es-vlc' — never the 'es' default, which holds Madrid's local days);
 // `country` stays the ISO code because it also reads the national phone
 // format (cityPhone below).
 // Barcelona went live with the till on 22/10/2026 by the founder's decision,
@@ -253,10 +254,14 @@ export const CITY_MARKETS = {
   amsterdam: { label: 'Amsterdam', flag: '🇳🇱', country: 'nl', url: 'https://www.boomrome.com/amsterdam', mode: 'search', checkout: true, plans: CITY_PLANS },
   madrid:    { label: 'Madrid',    flag: '🇪🇸', country: 'es', url: 'https://www.boomrome.com/madrid',    mode: 'search', checkout: true, plans: CITY_PLANS },
   barcelona: { label: 'Barcelona', flag: '🇪🇸', country: 'es', holidays: 'es-bcn', url: 'https://www.boomrome.com/barcelona', mode: 'search', checkout: true, plans: CITY_PLANS },
-  paris:     { label: 'Paris',     flag: '🇫🇷', country: 'fr', url: 'https://www.boomrome.com/paris',     mode: 'waitlist', partner: 'a licensed partner', plans: CITY_PLANS },
-  berlin:    { label: 'Berlin',    flag: '🇩🇪', country: 'de', url: 'https://www.boomrome.com/berlin',    mode: 'waitlist', partner: 'a licensed partner', plans: CITY_PLANS },
+  paris:  { label: 'Paris',  labelIt: 'Parigi',  flag: '🇫🇷', country: 'fr', holidays: 'fr',    url: 'https://www.boomrome.com/paris',
+            mode: 'search', checkout: true, chargeAt: 'signing', order: { prefix: 'PAR', months: 6 }, cardStep: false, plans: CITY_PLANS },
+  berlin: { label: 'Berlin', labelIt: 'Berlino', flag: '🇩🇪', country: 'de', holidays: 'de-be', url: 'https://www.boomrome.com/berlin',
+            mode: 'search', checkout: true, chargeAt: 'signing', order: { prefix: 'BER', months: null },
+            feeCap: { months: 2, vatPct: 19 }, goAhead: true, noStacking: true, cardStep: false, plans: CITY_PLANS },
   london:    { label: 'London', labelIt: 'Londra', flag: '🇬🇧', country: 'gb', holidays: 'gb-eng', currency: 'gbp', hoursEn: 'Mon–Fri 08:00–18:00, London time', url: 'https://www.boomrome.com/london', mode: 'search', checkout: true, plans: CITY_PLANS },
   milan:     { label: 'Milan',  labelIt: 'Milano', flag: '🇮🇹', country: 'it', holidays: 'it-mi',  currency: 'eur', hoursEn: 'Mon–Fri 09:00–19:00, Italian time', url: 'https://www.boomrome.com/milan', mode: 'search', checkout: true, plans: CITY_PLANS },
+  valencia:  { label: 'Valencia',  flag: '🇪🇸', country: 'es', holidays: 'es-vlc', url: 'https://www.boomrome.com/valencia',  mode: 'search', checkout: true, plans: CITY_PLANS },
 };
 
 /**
@@ -284,14 +289,47 @@ export function moneyOf(amount, currency) {
 }
 
 /**
+ * WHEN a desk charges (v1.8, spec §3.1): 'signing' for a desk whose registry
+ * entry says `chargeAt: 'signing'` (Paris and Berlin from the flip: the order
+ * is booked on BOOM's button and the fee is invoiced only when a lease is
+ * signed, so no payment session is ever opened at the order), 'checkout' for
+ * every other desk — the six sell through a Stripe Checkout at the order —
+ * and for a key the registry does not know. One word, read like `currency`:
+ * the till (service-checkout → _cityorder), the GET of /api/city-lead, the
+ * build (the JSON mirror must agree) and the readers downstream.
+ * @param {string} cityKey
+ * @returns {'signing'|'checkout'}
+ */
+export function chargeAtOf(cityKey) {
+  const k = String(cityKey || '').toLowerCase().trim();
+  const c = Object.prototype.hasOwnProperty.call(CITY_MARKETS, k) ? CITY_MARKETS[k] : null;
+  return c && c.chargeAt === 'signing' ? 'signing' : 'checkout';
+}
+
+/**
+ * Is this lead an order or a client of a desk that charges at signing? The
+ * lead's market (cityMarketOf: `market`, then `sourceRef` city-<slug>) read
+ * against the registry — never a field the lead carries about itself.
+ * @param {object} lead
+ * @returns {boolean}
+ */
+export function isSigningDesk(lead = {}) {
+  const k = cityMarketOf(lead);
+  return k !== null && chargeAtOf(k) === 'signing';
+}
+
+/**
  * What a city page may SELL right now, by plan id — or why not.
- * Returns { ok:true, city, plan, eur, currency, label, name, desc, url } or
+ * Returns { ok:true, city, plan, eur, currency, chargeAt, label, name, desc, url } or
  * { ok:false, error: 'unknown_city' | 'checkout_closed' | 'unknown_service' }.
  * `eur` is the amount in `currency` (lowercase, 'eur' when the desk names
  * none): London's 500 is £500.
  * 'checkout_closed' covers a waitlist desk and a search desk that has not
  * opened its checkout: in both cases the page shows the price and takes the
  * file, and nobody is charged.
+ * `chargeAt` is chargeAtOf(city): on a 'signing' desk the offer is BOOKED on
+ * BOOM's button (api/_cityorder.js) and never opens a payment session —
+ * api/service-checkout.js branches on it and its belt refuses the session.
  * @param {string} cityKey
  * @param {string} planId
  */
@@ -303,7 +341,7 @@ export function cityOffer(cityKey, planId) {
   const id = String(planId || '').toLowerCase().trim();
   const p = (c.plans || {})[id];
   if (!p) return { ok: false, error: 'unknown_service' };
-  return { ok: true, city: k, plan: id, eur: p.eur, currency: cityCurrency(k), label: p.label, per: p.per, desc: p.desc, name: `BOOM ${c.label} — ${p.label}`, url: c.url };
+  return { ok: true, city: k, plan: id, eur: p.eur, currency: cityCurrency(k), chargeAt: chargeAtOf(k), label: p.label, per: p.per, desc: p.desc, name: `BOOM ${c.label} — ${p.label}`, url: c.url };
 }
 
 /**
@@ -551,6 +589,30 @@ export function cityReplyText(lead = {}) {
   if (!lead.moveIn) asks.push('when do you land');
   if (!(lead.budgetBand || lead.budget)) asks.push("what's the monthly budget");
   if (!(lead.city && lead.city.situation)) asks.push("who's moving");
+  // v1.8 — a desk that charges at SIGNING (Paris, Berlin): an order there is
+  // BOOKED, never paid, until a lease is signed and the invoice is paid. These
+  // branches come BEFORE the six's paid one: a booking never reads «Payment
+  // received», and never a price (the fee is on the invoice, at signing).
+  if (k && chargeAtOf(k) === 'signing' && (lead.booked === true || lead.paid === true)) {
+    const hi = `Hi${first ? ' ' + first : ''}, Valentino here from BOOM ${c.label}.`;
+    if (lead.paid === true) {
+      return `${hi} Thank you — the fee is received; the invoice from Egidi Immobiliare S.r.l. is in your email.\n${c.url}`;
+    }
+    const bk = lead.city && typeof lead.city === 'object' ? lead.city : {};
+    const num = bk.order && typeof bk.order.number === 'string' ? bk.order.number : '';
+    if (lead.withdrawnAt || lead.closedAt) {
+      return `${hi} Your order${num ? ' ' + num : ''} is closed. Nothing was charged, and nothing is due.\n${c.url}`;
+    }
+    const sg = lead.signing && typeof lead.signing === 'object' ? lead.signing : {};
+    if (sg.status === 'invoiced') {
+      return `${hi} Congratulations on the lease. The invoice for your ${bk.serviceLabel || 'BOOM'} fee is in your email, with a secure payment link.\n${c.url}`;
+    }
+    const ref = [bk.file ? `file ${bk.file}` : '', num ? `order ${num}` : ''].filter(Boolean).join(', ');
+    return `${hi} Your ${bk.serviceLabel || 'BOOM'} order is in${ref ? ': ' + ref : ''}. Nothing is charged before you sign a lease. ` +
+      (k === 'berlin' ? "Please reply 'Confirmed' to our email so we can start. " : '') +
+      (bk.startNow === false && bk.workFromLabel ? `We start on ${bk.workFromLabel}; to start sooner, reply here. ` : '') +
+      `By phone or WhatsApp — which day and time suit you for a first call?\n${c.url}`;
+  }
   // A PAID order (the page's checkout, written by the SERVICE webhook with
   // market = the city): the money is in, the reply says so and names the next
   // step — never a second "thanks for your message".
@@ -590,8 +652,18 @@ export function cityReplyText(lead = {}) {
       : `Thanks for your message about your move to ${c.label}. The first step is a free call`;
     // never "this week": the desk is Mon–Fri, and a reply sent on a Friday
     // evening or a weekend would offer a week already spent (review 22/10)
+    // v1.7 (04/11): a second line for the lead who has already decided —
+    // /<slug>#pay-full-search opens the till on Full Search (Start-now never
+    // pre-ticked). Only here: never on a waitlist desk, never after a payment
+    // or an abandoned checkout.
+    // v1.8: on a desk that charges at signing the second line ORDERS (the
+    // #order- alias of the page), and says what an order costs today: nothing.
+    const second = k && chargeAtOf(k) === 'signing'
+      ? `If you'd rather order now — nothing is charged before you sign a lease: ${c.url}#order-full-search`
+      : `If you'd rather start now: ${c.url}#pay-full-search`;
     return `Hi${first ? ' ' + first : ''}, Valentino here from BOOM 👋 ${opener}${file ? ` (your file ${file})` : ''}.\n` +
-      `By phone or WhatsApp — which day and time suit you?\n${c.url}`;
+      `By phone or WhatsApp — which day and time suit you?\n${c.url}\n` +
+      second;
   }
   const q = asks.length
     ? `To set up the search properly: ${asks.join(', ')}? `
