@@ -20,7 +20,13 @@
 //     3 October in Berlin);
 //   - a client email that failed without the operator knowing (book-mail);
 //   - the managed ticket answering a wrong token, leaking a name or an
-//     email, or saying DUE when the fee is paid; a ?paid= on a signing desk.
+//     email, or saying DUE when the fee is paid; a ?paid= on a signing desk;
+//   - the order PDF (the contract copy) deleting letters from the client's
+//     name — «Ayşe Yılmaz» printed «Aye Ylmaz» — or a name it cannot print
+//     (王伟) left as «?» without the operator knowing (book-pdf) (F4);
+//   - the monthly register calling DUE, or leaving out, a fee paid on its
+//     invoice only: a transfer marked in the portal, a webhook whose order
+//     stamp failed (F5).
 //
 // The registry is patched in try/finally with the flip's lines (spec §3.1)
 // until the flip commit writes them; production stays dark (cityOffer
@@ -176,7 +182,7 @@ const { ORDER_TERMS, termsHash } = await import('../../api/_cityterms.js');
 const { orderToken, verifyOrderToken, payLink, collectionFor } = await import('../../api/payments/_token.js');
 const { WITHDRAWAL_FORM_TEXT } = await import('../../api/_withdrawal.js');
 const SCALO = (await import('../../js/scalo-codes.js')).default;
-const { PDFDocument, PDFArray, PDFRawStream, decodePDFRawStream } = await import('pdf-lib');
+const { PDFDocument, PDFArray, PDFDict, PDFName, PDFRawStream, decodePDFRawStream } = await import('pdf-lib');
 // the charge at signing (stage A2) and its readers
 const SIGN = await import('../../api/payments/_citysign.js');
 const FIRMATO = await import('../../api/telegram/_firmato.js');
@@ -200,22 +206,52 @@ const PARIS_V = ORDER_TERMS.paris.v, BERLIN_V = ORDER_TERMS.berlin.v;
 const order = (city, extra = {}) => ({ city, kind: 'full-search', name: 'Anna Keller', email: 'anna@example.com', notes: '', startNow: false, requestId: rid(), termsV: city === 'paris' ? PARIS_V : BERLIN_V, company: '', ...extra });
 const mailsTo = (to) => globalThis.deliveryMails.filter((m) => m.to === to);
 const WINANSI = { 0x80: '€', 0x85: '…', 0x91: '‘', 0x92: '’', 0x93: '“', 0x94: '”', 0x96: '–', 0x97: '—' };
+// the text of a PDF as a reader gets it: every text run, decoded with the
+// font it is set in — WinAnsi bytes for the Helvetica of the masthead and the
+// heading, glyph ids through the font's own ToUnicode map for the embedded
+// body font (Type0, Identity-H). A glyph the map does not name reads U+FFFD:
+// a check on the client's name can only pass on the letters really drawn.
 async function pdfText(bytes) {
   const d = await PDFDocument.load(bytes);
-  let out = '';
+  const runs = [];
+  const fonts = new Set();
   for (const pg of d.getPages()) {
+    const decode = {};
+    const fd = pg.node.Resources().lookup(PDFName.of('Font'), PDFDict);
+    for (const [key, ref] of fd.entries()) {
+      const f = d.context.lookup(ref, PDFDict);
+      const base = String(f.get(PDFName.of('BaseFont')) || '').slice(1);
+      fonts.add(base);
+      if (f.get(PDFName.of('Subtype')) === PDFName.of('Type0')) {
+        const cm = Buffer.from(decodePDFRawStream(d.context.lookup(f.get(PDFName.of('ToUnicode')), PDFRawStream)).decode()).toString('latin1');
+        const map = new Map();
+        for (const block of cm.split('beginbfchar').slice(1)) {
+          for (const m of block.slice(0, block.indexOf('endbfchar')).matchAll(/<([0-9A-Fa-f]{4})>\s*<([0-9A-Fa-f]+)>/g)) {
+            map.set(parseInt(m[1], 16), String.fromCharCode(...m[2].match(/.{4}/g).map((h) => parseInt(h, 16))));
+          }
+        }
+        decode[key.asString()] = (hex) => (hex.match(/.{4}/g) || []).map((h) => map.get(parseInt(h, 16)) ?? '\uFFFD').join('');
+      } else {
+        decode[key.asString()] = (hex) => [...Buffer.from(hex, 'hex')].map((b) => WINANSI[b] || String.fromCharCode(b)).join('');
+      }
+    }
     const c = pg.node.Contents();
+    let src = '';
     for (const ref of (c instanceof PDFArray ? c.asArray() : [c])) {
       const st = d.context.lookup(ref);
-      if (st instanceof PDFRawStream) out += Buffer.from(decodePDFRawStream(st).decode()).toString('latin1') + '\n';
+      if (st instanceof PDFRawStream) src += Buffer.from(decodePDFRawStream(st).decode()).toString('latin1') + '\n';
+    }
+    let cur = null;
+    for (const m of src.matchAll(/(\/[^\s/\[\]<>()]+)\s+[\d.]+\s+Tf|<([0-9A-Fa-f]*)>\s*Tj/g)) {
+      if (m[1]) cur = m[1];
+      else runs.push({ font: cur, text: decode[cur] ? decode[cur](m[2]) : '\uFFFD' });
     }
   }
-  // every text run, decoded from WinAnsi; the legal footer and the page
-  // numbers (stamped on every page) are left out, so a paragraph that runs
-  // over a page reads whole
-  const text = [...out.matchAll(/<([0-9A-Fa-f]+)>\s*Tj/g)].map((m) => [...Buffer.from(m[1], 'hex')].map((b) => WINANSI[b] || String.fromCharCode(b)).join(''))
-    .filter((t) => !/^BOOM® è un marchio|^Egidi Immobiliare S\.r\.l\. — Via dei Coronari|^\d+ \/ \d+$/.test(t)).join(' ');
-  return { pages: d.getPageCount(), text, squashed: text.replace(/\s+/g, '') };
+  // the legal footer and the page numbers (stamped on every page) are left
+  // out, so a paragraph that runs over a page reads whole
+  const kept = runs.filter((r) => !/^BOOM® è un marchio|^Egidi Immobiliare S\.r\.l\. — Via dei Coronari|^\d+ \/ \d+$/.test(r.text));
+  const text = kept.map((r) => r.text).join(' ');
+  return { pages: d.getPageCount(), text, squashed: text.replace(/\s+/g, ''), fonts: [...fonts] };
 }
 const sq = (s) => String(s).replace(/\s+/g, '');
 // the email HTML as text: tags out, entities back, spaces folded
@@ -313,6 +349,32 @@ try {
         await stripeHook(paidEvent('cityfee_' + id, 'cs_test_probe1', 500, email));
         out.invoicePaid = (DB.get('invoices/cityfee_' + id) || {}).status === 'paid'; out.paid = DB.get('leads/' + id).paid === true;
       }
+    } else if (PROBE === 'astyped') {
+      // F4: the party line of the order PDF, for a name outside WinAnsi
+      const { buildOrderPdf } = await import('../../api/_cityorderpdf.js');
+      const b = await buildOrderPdf({ city: 'paris', plan: 'full-search', number: 'PAR-2026-0001', name: 'Ayşe Yılmaz', email: 'ayse@example.com', orderedAt: new FakeDate('2026-11-04T13:07:00Z'), withdrawalEndsOn: '2026-11-18', workFrom: '2026-11-19', expiresOn: '2027-05-04', startNow: false, deskLabel: 'Paris', planLabel: 'Full Search' });
+      out.name = ((await pdfText(b.bytes)).text.match(/Between (.*?) \(ayse@example\.com\)/) || [])[1] || null;
+    } else if (PROBE === 'cjkorder') {
+      // F4: an order whose PDF cannot print the name
+      at('2029-06-04T10:00:00Z');
+      const r = await post(order('paris', { name: '王伟', email: 'wang@example.com' }));
+      out.booked = r.body && r.body.booked === true;
+      out.alarm = DB.has('agentNotifications/book-pdf-' + (r.body && r.body.id));
+    } else if (PROBE === 'transfer') {
+      // F5: a fee paid by transfer (the invoice only) in the month's register
+      at('2029-06-01T10:00:00Z');
+      const r0 = await post(order('paris', { email: 'transfer@example.com', startNow: true }));
+      const id = r0.body.id;
+      at('2029-06-04T10:00:00Z');
+      const d = await SIGN.draftSigning({ leadId: id, facts: { signedOn: '2029-06-04' } });
+      await SIGN.chargeAtSigning({ leadId: id, key: d.signing.key });
+      at('2029-07-02T09:00:00Z');
+      DB.set('invoices/cityfee_' + id, { ...DB.get('invoices/cityfee_' + id), status: 'paid', paidDate: new FakeDate().toISOString() }); bump('invoices/cityfee_' + id);
+      const leads = [...DB.entries()].filter(([k]) => k.startsWith('leads/')).map(([k, v]) => ({ ...v, id: k.slice(6) }));
+      const invoices = [...DB.entries()].filter(([k]) => k.startsWith('invoices/')).map(([k, v]) => ({ ...v, id: k.slice(9) }));
+      const reg = orderRegisters(leads, '2029-07', CITY_MARKETS, invoices).find((x) => x.name === 'registre-PAR-2029-07.csv');
+      const row = reg ? reg.data.split('\r\n').find((x) => x.startsWith(DB.get('leads/' + id).city.order.number + ';')) : null;
+      out.state = row ? row.split(';')[7] : 'none';
     } else if (PROBE === 'window') {
       at('2029-06-04T10:00:00Z');
       const r0 = await post(order('paris', { email: 'window@example.com', startNow: false }));
@@ -453,6 +515,32 @@ try {
     const { buildOrderPdf } = await import('../../api/_cityorderpdf.js');
     const again = await buildOrderPdf({ city: 'paris', plan: 'full-search', number: 'PAR-2026-0001', name: 'Anna Keller', email: 'anna@example.com', orderedAt: new FakeDate('2026-11-04T13:07:00Z'), withdrawalEndsOn: '2026-11-18', workFrom: '2026-11-19', expiresOn: '2027-05-04', startNow: false, deskLabel: 'Paris', planLabel: 'Full Search' });
     check(again.sha256 === lead.orderPdf.sha256, 'pdf-lib with fixed dates is deterministic: rebuilding the order gives the bytes that were emailed');
+    // the client's name AS TYPED (finding F4): the body is set in the
+    // document font (api/_pdffont.js), never through wa(), which deleted every
+    // letter outside WinAnsi («Ayşe Yılmaz» came out «Aye Ylmaz»)
+    {
+      check(pdf.fonts.includes('BOOMDocSans-Regular') && again.unprinted.length === 0, 'the body is set in the embedded document font (BOOMDocSans-Regular); an ASCII name loses nothing', pdf.fonts.join(' '));
+      const pdfOf = (name, city = 'paris', email = 'client@example.com') => buildOrderPdf({ city, plan: 'full-search', number: city === 'paris' ? 'PAR-2026-0001' : 'BER-2026-0001', name, email, orderedAt: new FakeDate('2026-11-04T13:07:00Z'), withdrawalEndsOn: '2026-11-18', workFrom: '2026-11-19', expiresOn: city === 'paris' ? '2027-05-04' : undefined, startNow: false, deskLabel: city === 'paris' ? 'Paris' : 'Berlin', planLabel: 'Full Search' });
+      const NAMES = ['Ayşe Yılmaz', 'Łukasz Wiśniewski', 'Đorđe Petrović', 'Tomáš Dvořák', 'Ștefan Țăranu', 'Əli Məmmədov', 'Nguyễn Văn Ánh', 'Дмитрий Иванов', 'Ірина Ґрищенко', 'Νίκος Παπαδόπουλος', 'Søren Œhlenschläger'];
+      const wrong = [];
+      for (const name of NAMES) {
+        const b = await pdfOf(name);
+        const t = await pdfText(b.bytes);
+        const fr = t.squashed.includes(sq(`Entre ${name} (client@example.com), le mandant`)), en = t.squashed.includes(sq(`Between ${name} (client@example.com), the client`));
+        if (!fr || !en || b.unprinted.length) wrong.push(`${name}: fr ${fr} en ${en} unprinted ${b.unprinted.join('')} · ${(t.text.match(/Between (.*?) \(client@/) || [])[1]}`);
+      }
+      check(wrong.length === 0, `Paris: the party line prints the name as typed, in French and in English — Turkish, Polish, Serbian, Czech, Romanian, Azerbaijani, Vietnamese, Russian, Ukrainian, Greek, Danish (${NAMES.length} names)`, wrong.join(' | '));
+      const ber = await pdfText((await pdfOf('Дмитрий Иванов', 'berlin')).bytes);
+      check(ber.squashed.includes(sq('Between Дмитрий Иванов (client@example.com), the client')), 'Berlin: the Cyrillic name too (the order is English only)');
+      const cjk = await pdfOf('王伟', 'paris', 'wang@example.com'), cjkT = await pdfText(cjk.bytes);
+      check(JSON.stringify(cjk.unprinted) === JSON.stringify(['王', '伟']) && cjkT.squashed.includes(sq('Entre ?? (wang@example.com), le mandant')) && cjkT.squashed.includes(sq('Between ?? (wang@example.com), the client')),
+        'a name the font cannot print (王伟): «?» in its place, and the characters REPORTED (unprinted) — never deleted in silence', JSON.stringify(cjk.unprinted));
+      const emo = await pdfOf('Anna 🌸'), emoT = await pdfText(emo.bytes);
+      check(JSON.stringify(emo.unprinted) === JSON.stringify(['🌸']) && emoT.squashed.includes(sq('Between Anna ? (client@example.com)')), 'an emoji in a name: «?», reported', JSON.stringify(emo.unprinted));
+      const wide = await pdfOf('Ｊｏｈｎ Ｓｍｉｔｈ'), wideT = await pdfText(wide.bytes);
+      check(wide.unprinted.length === 0 && wideT.squashed.includes(sq('Between John Smith (client@example.com)')), 'a compatibility form (full-width letters) prints as its decomposition: the same text, nothing reported');
+      check(!/\uFFFD/.test(pdf.text + ber.text + cjkT.text), 'every glyph drawn reads back through the font\'s own ToUnicode map (nothing unmapped)');
+    }
     check(!JSON.stringify(lead).includes(CITY_PLANS['full-search'].desc.slice(-60)) && !JSON.stringify(globalThis.deliveryMails.slice(m0)).includes('Refunded in full if we decline'),
       'the Stripe product text of the six (CITY_PLANS desc, with its refund rule) never reaches a signing order');
 
@@ -1240,8 +1328,105 @@ try {
       const cv2 = mkRes2();
       await conservazione({ method: 'POST', headers: { authorization: 'Bearer cron-signing' }, query: { month: '2029-04' }, body: {} }, cv2);
       check(cv2.body.skipped === 'already_archived' && globalThis.deliveryMails.length === before, 'a rerun: already archived, nothing resent');
+      // the fee paid where only the INVOICE says so (finding F5): a transfer
+      // the operator marks paid in the portal («Segna pagata» writes the
+      // invoice: status paid, paidDate), and a webhook whose order stamp
+      // failed once (the event answered 200: Stripe never retries it). The
+      // register reads the invoice, like the managed ticket.
+      at('2029-05-06T09:30:00Z');
+      DB.set('invoices/cityfee_' + P2, { ...DB.get('invoices/cityfee_' + P2), status: 'paid', paidDate: new FakeDate().toISOString() }); bump('invoices/cityfee_' + P2);
+      at('2029-05-07T11:00:00Z');
+      const amountB1 = DB.get('invoices/cityfee_' + B1).amount;
+      fail.commit = 1;
+      const whB1 = await stripeHook(paidEvent('cityfee_' + B1, 'cs_test_jonas1', amountB1, 'jonas.becker@example.com'));
+      fail.commit = 0;
+      check(L(P2).paid !== true && whB1.code === 200 && DB.get('invoices/cityfee_' + B1).status === 'paid' && L(B1).paid !== true,
+        'the two cases, as they happen: P2 paid by transfer (the invoice only), B1 paid by link with the order stamp failed once (the invoice paid, the order not stamped, the event answered 200)');
+      const allLeads = () => [...DB.entries()].filter(([k]) => k.startsWith('leads/')).map(([k, v]) => ({ ...v, id: k.slice(6) }));
+      const allInvoices = () => [...DB.entries()].filter(([k]) => k.startsWith('invoices/')).map(([k, v]) => ({ ...v, id: k.slice(9) }));
+      const rowOf = (regs, file, id) => { const r = regs.find((x) => x.name === file); return r ? (r.data.split('\r\n').find((x) => x.startsWith(numOf(id) + ';')) || null) : null; };
+      const may = orderRegisters(allLeads(), '2029-05', CITY_MARKETS, allInvoices());
+      const mayP2 = rowOf(may, 'registre-PAR-2029-05.csv', P2), mayB1 = rowOf(may, 'orders-BER-2029-05.csv', B1);
+      check(!!mayP2 && mayP2.split(';')[7] === 'paid' && mayP2.split(';')[10] === '2029-05-06',
+        'May\'s register: the transfer is an event of the month — P2 is a row, state paid, paid on 6 May (the invoice\'s paidDate)', mayP2);
+      check(!!mayB1 && mayB1.split(';')[7] === 'paid' && mayB1.split(';')[10] === '2029-05-07',
+        'May\'s register: B1 paid on 7 May although its order stamp failed (the invoice\'s paidAt)', mayB1);
+      const aprP2 = rowOf(orderRegisters(allLeads(), '2029-04', CITY_MARKETS, allInvoices()), 'registre-PAR-2029-04.csv', P2);
+      check(!!aprP2 && aprP2.split(';')[7] === 'paid' && aprP2.split(';')[10] === '2029-05-06', 'April\'s register, read again, carries the state of today: paid on 6 May', aprP2);
+      check(!rowOf(orderRegisters(allLeads(), '2029-05', CITY_MARKETS), 'registre-PAR-2029-05.csv', P2), 'read without the invoices (the reading before the fix), the transfer is no event of May at all: the register needs them');
+      const gP2 = await getTicket({ order: P2, t: orderToken(P2), city: 'paris' }), gB1 = await getTicket({ order: B1, t: orderToken(B1), city: 'berlin' });
+      check(gP2.body.state === 'paid' && gP2.body.paidOn === '2029-05-06' && gB1.body.state === 'paid' && gB1.body.paidOn === '2029-05-07', 'the managed ticket says the same: PAID, on the same days');
+      // the conservation cron of May reads the invoices itself: the ZIP's registers say paid
+      const m5 = globalThis.deliveryMails.length;
+      const cv5 = mkRes2();
+      await conservazione({ method: 'POST', headers: { authorization: 'Bearer cron-signing' }, query: { month: '2029-05' }, body: {} }, cv5);
+      const arch5 = globalThis.deliveryMails.slice(m5).find((m) => /Conservazione 2029-05/.test(m.subject));
+      const zip5 = arch5 && arch5.attachments && arch5.attachments[0] && arch5.attachments[0].content;
+      const files5 = {};
+      for (let o = 0; zip5 && o + 30 <= zip5.length && zip5.readUInt32LE(o) === 0x04034b50;) { const nl = zip5.readUInt16LE(o + 26), el = zip5.readUInt16LE(o + 28), sz = zip5.readUInt32LE(o + 18); files5[zip5.slice(o + 30, o + 30 + nl).toString('utf8')] = zip5.slice(o + 30 + nl + el, o + 30 + nl + el + sz).toString('utf8'); o = o + 30 + nl + el + sz; }
+      const csvP = files5['2029-05/registre-PAR-2029-05.csv'] || '', csvB = files5['2029-05/orders-BER-2029-05.csv'] || '';
+      const zipRow = (csv, id) => csv.split('\r\n').find((x) => x.startsWith(numOf(id) + ';')) || '';
+      check(cv5.code === 200 && zipRow(csvP, P2).split(';')[7] === 'paid' && zipRow(csvP, P2).split(';')[10] === '2029-05-06' && zipRow(csvB, B1).split(';')[7] === 'paid',
+        'the conservation cron of May (the copy outside Firebase): it reads the fee invoices and its registers say paid', JSON.stringify(Object.keys(files5)));
+      // the register reads every order as the managed ticket does (closed and no_fee are one state on the ticket)
+      at('2029-05-20T09:00:00Z');
+      const PARITY = [
+        ['booked', {}, null],
+        ['due', { signing: { status: 'invoiced' } }, { status: 'pending' }],
+        ['paid by transfer', { signing: { status: 'invoiced' } }, { status: 'paid', paidDate: '2029-05-12T08:00:00.000Z' }],
+        ['paid, stamped', { paid: true, paidAt: '2029-05-12T08:00:00.000Z', signing: { status: 'invoiced' } }, { status: 'paid', paidAt: '2029-05-12T08:00:00.000Z' }],
+        ['withdrawn', { withdrawnAt: '2029-05-11T08:00:00.000Z', withdrawal: { at: '2029-05-11T08:00:00.000Z', via: 'online' } }, null],
+        ['statement on an invoice owed', { signing: { status: 'invoiced' }, withdrawal: { at: '2029-05-13T08:00:00.000Z', via: 'online' } }, { status: 'pending' }],
+        ['statement, the invoice cancelled', { signing: { status: 'invoiced' }, withdrawal: { at: '2029-05-13T08:00:00.000Z', via: 'online' } }, { status: 'cancelled' }],
+        ['closed', { closedAt: '2029-05-14T08:00:00.000Z', closeReason: 'stopped' }, null],
+        ['no fee', { closedAt: '2029-05-14T08:00:00.000Z', closeReason: 'no_fee', signing: { status: 'no_fee' } }, null],
+      ];
+      const parity = [];
+      for (const [i, [what, extra, inv]] of PARITY.entries()) {
+        const pid = `book_parity${String(i).padStart(4, '0')}`;
+        const signing = extra.signing ? { ...extra.signing, ...(inv ? { invoiceId: 'cityfee_' + pid } : {}) } : undefined;
+        DB.set('leads/' + pid, { type: 'service', market: 'paris', sourceRef: 'city-paris', intent: 'city_booking', booked: true, paid: false, name: 'Parity ' + i, email: `parity${i}@example.com`,
+          city: { key: 'paris', service: 'full-search', file: SCALO.fileCode(pid), startNow: true, orderedAt: '2029-05-10T10:00:00.000Z', withdrawalEndsOn: '2029-05-24', order: { number: `PAR-2029-09${String(i).padStart(2, '0')}`, expiresOn: '2029-11-10' } },
+          ...extra, ...(signing ? { signing } : {}) }); bump('leads/' + pid);
+        if (inv) { DB.set('invoices/cityfee_' + pid, { amount: 500, source: 'city-signing', cityLeadId: pid, ...inv }); bump('invoices/cityfee_' + pid); }
+        const tk = await getTicket({ order: pid, t: orderToken(pid), city: 'paris' });
+        const reg = orderRegisters(allLeads(), '2029-05', CITY_MARKETS, allInvoices()).find((x) => x.name === 'registre-PAR-2029-05.csv');
+        const row = reg ? reg.data.split('\r\n').find((x) => x.startsWith(`PAR-2029-09${String(i).padStart(2, '0')};`)) : null;
+        const st = row ? row.split(';')[7] : 'none';
+        if ((st === 'no_fee' ? 'closed' : st) !== tk.body.state) parity.push(`${what}: register ${st}, ticket ${tk.body.state}`);
+      }
+      check(parity.length === 0, `the register's state is the managed ticket's in every case (${PARITY.map((x) => x[0]).join(' · ')})`, parity.join(' | '));
       // the page's copy never carries the six's Stripe product text
       check(!JSON.stringify([...DB.entries()].filter(([k]) => k.startsWith('invoices/cityfee_'))).includes('Refunded in full'), 'no fee invoice ever carries the six desks\' refund rule (CITY_PLANS desc stays a Stripe text of the six)');
+    }
+
+    section('20b · the contract copy prints the client\'s name as typed (finding F4)');
+    {
+      at('2029-05-21T09:00:00Z');
+      const rT = await post(order('paris', { name: 'Ayşe Yılmaz', email: 'ayse@example.com' }));
+      const lT = L(rT.body.id) || {};
+      const attT = ((mailsTo('ayse@example.com').slice(-1)[0] || {}).attachments || [])[0];
+      const tT = attT ? await pdfText(attT.content) : { squashed: '' };
+      check(rT.code === 200 && lT.name === 'Ayşe Yılmaz' && tT.squashed.includes(sq('Entre Ayşe Yılmaz (ayse@example.com), le mandant')) && tT.squashed.includes(sq('Between Ayşe Yılmaz (ayse@example.com), the client'))
+        && !!attT && crypto.createHash('sha256').update(attT.content).digest('hex') === lT.orderPdf.sha256 && !('unprinted' in lT.orderPdf) && !DB.has('agentNotifications/book-pdf-' + rT.body.id),
+        'a Turkish name, through the real till: the emailed PDF — the copy whose SHA-256 the order keeps — prints «Ayşe Yılmaz» in French and English; nothing to report', tT.text && (tT.text.match(/Between (.*?) \(ayse@/) || [])[1]);
+      const m0 = globalThis.deliveryMails.length;
+      const bodyW = order('paris', { name: '王伟', email: 'wang@example.com' });
+      const rW = await post(bodyW);
+      const idW = rW.body.id, lW = L(idW) || {};
+      const alarm = DB.get('agentNotifications/book-pdf-' + idW);
+      const attW = ((mailsTo('wang@example.com').slice(-1)[0] || {}).attachments || [])[0];
+      const tW = attW ? await pdfText(attW.content) : { squashed: '' };
+      const opW = globalThis.deliveryMails.slice(m0).find((m) => m.to === 'valentino@boom-rome.com');
+      check(rW.code === 200 && rW.body.booked === true && lW.name === '王伟' && typeof lW.clientEmailSentAt === 'string' && tW.squashed.includes(sq('Between ?? (wang@example.com), the client')),
+        'a name the font cannot print (王伟): the order is booked and emailed as always, the record keeps the name, the PDF shows «??»');
+      check(JSON.stringify(lW.orderPdf && lW.orderPdf.unprinted) === JSON.stringify(['王', '伟']), 'the order RECORDS what its PDF could not print (orderPdf.unprinted)', JSON.stringify(lW.orderPdf));
+      check(!!alarm && alarm.type === 'city.order_pdf_unprinted' && alarm.priority === 'high' && alarm.status === 'pending' && alarm.summary.includes(numOf(idW)) && alarm.summary.includes('王 伟') && alarm.summary.includes('Nome registrato: 王伟') && alarm.ref && alarm.ref.id === idW,
+        'the operator is told (agentNotifications/book-pdf-<id>, high): which characters, the order number, the name as recorded', alarm && alarm.summary);
+      check(!!opW && htmlText(opW.html).includes('Nel PDF alcuni caratteri del nome o dell\'email non sono stampabili (王 伟): compaiono come «?»'), 'the operator\'s copy says it too, beside the PDF it carries');
+      const n0 = [...DB.keys()].filter((k) => k.startsWith('agentNotifications/book-pdf-')).length;
+      const rW2 = await post(bodyW);
+      check(rW2.body.duplicate === true && [...DB.keys()].filter((k) => k.startsWith('agentNotifications/book-pdf-')).length === n0, 'a retry of that order: the stored order, no second alarm');
     }
 
     section('21 · the joints, on the source (signing)');
@@ -1292,6 +1477,13 @@ try {
       check(a4u.emails === 1 && a4.emails === 2, 'mutation "email not guarded" is caught: a resumed charge — one email unmutated, a second one without the guard', JSON.stringify([a4u, a4]));
       const a5u = probe('stalekey', ''), a5 = probe('stalekey', 'no-key-check');
       check(a5u.error === 'stale_card' && a5u.invoice === false && a5.invoice === true && !a5.error, 'mutation "card key not checked" is caught: an older card — «Card superata» unmutated, the newer draft\'s invoice issued without the check', JSON.stringify([a5u, a5]));
+      // the client's name in the contract copy (F4) and the register of a fee paid on the invoice only (F5)
+      const f1u = probe('astyped', ''), f1 = probe('astyped', 'wa-body');
+      check(f1u.name === 'Ayşe Yılmaz' && f1.name === 'Aye Ylmaz', 'mutation "body through wa()" is caught: «Ayşe Yılmaz» unmutated, «Aye Ylmaz» when the body goes through the WinAnsi filter again', JSON.stringify([f1u, f1]));
+      const f2u = probe('cjkorder', ''), f2 = probe('cjkorder', 'no-pdf-alarm');
+      check(f2u.booked === true && f2u.alarm === true && f2.booked === true && f2.alarm === false, 'mutation "no alarm on an unprintable name" is caught: the operator is told unmutated, never without the guard', JSON.stringify([f2u, f2]));
+      const f3u = probe('transfer', ''), f3 = probe('transfer', 'register-lead-only');
+      check(f3u.state === 'paid' && f3.state === 'none', 'mutation "register reads the order only" is caught: the transfer of July is a paid row unmutated, no row at all without the invoice', JSON.stringify([f3u, f3]));
       const a6u = probe('citystamp', ''), a6 = probe('citystamp', 'no-city-stamp');
       check(a6u.paid === true && a6.invoicePaid === true && a6.paid === false, 'mutation "no order stamp" is caught: the invoice paid — the order stamped unmutated, still unpaid without the stamp', JSON.stringify([a6u, a6]));
     }

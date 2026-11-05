@@ -68,38 +68,59 @@ function signedOnOf(l) {
   const sg = l.signing && typeof l.signing === 'object' ? l.signing : {};
   return ['invoicing', 'invoiced', 'no_fee'].includes(sg.status) && sg.signedOn ? String(sg.signedOn) : '';
 }
-// the state of an order as the managed ticket reads it (api/city-lead.js)
-function orderState(l) {
+// the order's fee invoice (invoices/cityfee_<id>), when the run read it: a
+// fee paid by transfer is marked paid on the INVOICE only (the portal's
+// «Segna pagata»), and a webhook whose order stamp failed leaves the order
+// unpaid while its invoice is paid — so, like the managed ticket, the
+// register reads the invoice (finding F5)
+function invoiceOf(l, invoices) {
+  const id = l.signing && typeof l.signing === 'object' ? l.signing.invoiceId : null;
+  return typeof id === 'string' && invoices && invoices.has(id) ? invoices.get(id) : null;
+}
+// the day the fee was paid: the order's stamp, else the invoice's (the
+// webhook writes paidAt, the portal paidDate)
+const paidAtOf = (l, inv) => l.paidAt || (inv && (inv.paidAt || inv.paidDate)) || '';
+// the state of an order as the managed ticket reads it (api/city-lead.js
+// orderStatus): paid when the order OR its invoice says so; a withdrawal
+// statement never hides an invoice still owed; the register adds no_fee to
+// the ticket's closed. Without the invoice (none issued, or not read) the
+// order's own signing status says whether a fee is owed.
+function orderState(l, inv) {
   const sg = l.signing && typeof l.signing === 'object' ? l.signing : {};
-  if (l.paid === true) return 'paid';
-  if (l.withdrawnAt || (l.withdrawal && l.withdrawal.at)) return 'withdrawn';
+  const owed = inv ? inv.status !== 'cancelled' && Number.isFinite(Number(inv.amount)) : sg.status === 'invoiced';
+  const statement = !!(l.withdrawal && l.withdrawal.at);
+  if (l.paid === true || (inv && inv.status === 'paid')) return 'paid';
+  if (l.withdrawnAt || (statement && !owed && !l.closedAt)) return 'withdrawn';
   if (l.closedAt) return l.closeReason === 'no_fee' || sg.status === 'no_fee' ? 'no_fee' : 'closed';
-  if (sg.status === 'invoiced') return 'due';
+  if (owed) return 'due';
   return 'booked';
 }
 /**
  * The month's register extracts, pure: one CSV per signing desk with at
- * least one order born or changed in `month` (YYYY-MM, Rome). Exported for
- * the test. → [{ name, desk, rows, data }]
+ * least one order born or changed in `month` (YYYY-MM, Rome). `invoices`:
+ * the fee invoices the run read (a Map by id, or a list of { id, … }).
+ * Exported for the test. → [{ name, desk, rows, data }]
  */
-export function orderRegisters(leads, month, markets = CITY_MARKETS) {
+export function orderRegisters(leads, month, markets = CITY_MARKETS, invoices = null) {
+  const inv = invoices instanceof Map ? invoices
+    : new Map((Array.isArray(invoices) ? invoices : []).filter((d) => d && d.id).map((d) => [d.id, d]));
   const out = [];
   for (const [key, desk] of Object.entries(markets)) {
     if (chargeAtOf(key) !== 'signing' || !desk || !desk.order || !desk.order.prefix) continue;
     const rows = (leads || []).filter((l) => l && /^book_/.test(String(l.id || '')) && l.booked === true && l.market === key)
       .filter((l) => {
         const c = l.city || {};
-        return [c.orderedAt, signedOnOf(l), l.paidAt, l.withdrawnAt || (l.withdrawal && l.withdrawal.at), l.closedAt]
+        return [c.orderedAt, signedOnOf(l), paidAtOf(l, invoiceOf(l, inv)), l.withdrawnAt || (l.withdrawal && l.withdrawal.at), l.closedAt]
           .some((v) => romeDayOf(v).slice(0, 7) === month);
       })
       .sort((a, b) => String((a.city && a.city.order && a.city.order.number) || '').localeCompare(String((b.city && b.city.order && b.city.order.number) || '')));
     if (!rows.length) continue;
     const lines = [REG_COLS.join(';')];
     for (const l of rows) {
-      const c = l.city || {}, o = c.order || {}, sg = l.signing || {};
+      const c = l.city || {}, o = c.order || {}, sg = l.signing || {}, fee = invoiceOf(l, inv);
       lines.push([
         o.number || l.id, romeStamp(c.orderedAt), l.name, l.email, c.service, c.startNow === true ? 'yes' : 'no',
-        o.expiresOn || '', orderState(l), signedOnOf(l), sg.invoiceId || '', romeDayOf(l.paidAt),
+        o.expiresOn || '', orderState(l, fee), signedOnOf(l), sg.invoiceId || '', romeDayOf(paidAtOf(l, fee)),
         romeDayOf(l.withdrawnAt || (l.withdrawal && l.withdrawal.at)), romeDayOf(l.closedAt),
       ].map(csvCell).join(';'));
     }
@@ -107,6 +128,24 @@ export function orderRegisters(leads, month, markets = CITY_MARKETS) {
     out.push({ name, desk: key, rows: rows.length, data: '\uFEFF' + lines.join('\r\n') + '\r\n' });
   }
   return out;
+}
+
+// The fee invoices of the orders (invoices/cityfee_<id>, source
+// 'city-signing'): ONE query, then a direct read of any invoice an order
+// names that the query did not return. A failed read throws: the register
+// is never written from half the facts (the run fails, the heartbeat says so).
+async function orderInvoices(orders) {
+  const byId = new Map();
+  for (const d of await fsList('invoices', { filter: { field: 'source', op: 'EQUAL', value: 'city-signing' }, limit: 1000 })) {
+    if (d && d.id) byId.set(d.id, d);
+  }
+  const named = [...new Set((orders || []).map((l) => l && l.signing && typeof l.signing === 'object' ? l.signing.invoiceId : null)
+    .filter((id) => typeof id === 'string' && /^[\w.-]{1,120}$/.test(id) && !byId.has(id)))];
+  for (const id of named) {
+    const d = await fsGet('invoices/' + id);
+    if (d) byId.set(id, d);
+  }
+  return byId;
 }
 
 async function fetchPdf(url) {
@@ -154,7 +193,7 @@ async function run({ dry, monthOverride }) {
   // flip: nothing is read then)
   const signing = Object.keys(CITY_MARKETS).some((k) => chargeAtOf(k) === 'signing');
   const orders = signing ? await fsList('leads', { filter: { field: 'intent', op: 'EQUAL', value: 'city_booking' }, limit: 1000 }) : [];
-  const registers = orderRegisters(orders, month);
+  const registers = orderRegisters(orders, month, CITY_MARKETS, signing ? await orderInvoices(orders) : null);
   const counts = { month, contracts: done.length, files: 0, bytes: 0, emails: 0, missing: 0 };
   if (registers.length) counts.orders = registers.reduce((n, r) => n + r.rows, 0);
 

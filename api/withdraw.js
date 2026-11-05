@@ -51,7 +51,7 @@
 // 200 {ok:true} · 400 {ok:false,error} · 405 · 429 rate_limited · 503 unavailable
 
 import crypto from 'node:crypto';
-import { fsCreate, fsGetVersioned, fsList, fsCommit, logActivity } from './homie/_lib.js';
+import { fsCreate, fsGet, fsGetVersioned, fsList, fsCommit, logActivity } from './homie/_lib.js';
 import { sendEmail } from './agent/_lib.js';
 import { shell, para, fine, row, hero } from './preagreement/_notify.js';
 import { CITY_MARKETS, moneyOf } from './_market.js';
@@ -269,7 +269,20 @@ async function decide(st, found) {
   let v = null;
   try { v = await fsGetVersioned('leads/' + one.id); } catch (_) { v = null; }
   const lead = v ? v.data : one;
-  return { kind: classify(lead), leadId: one.id, lead, version: v ? v.updateTime : null, via: found.via, refMiss: !!found.refMiss };
+  return { kind: classify(lead), leadId: one.id, lead, version: v ? v.updateTime : null, via: found.via, refMiss: !!found.refMiss, feePaid: await feePaidOnInvoice(lead) };
+}
+
+// The fee of a signed book_ order paid on its INVOICE while the order does
+// not say so: a transfer the operator marked paid in the portal (it writes
+// the invoice only), or a webhook whose order stamp failed. The card must say
+// the fee is paid — the operator decides on a refund (finding F5). Read like
+// the managed ticket (api/city-lead.js); a failed read keeps the order's word.
+async function feePaidOnInvoice(lead) {
+  if (!lead || lead.paid === true || !/^book_/.test(String(lead.id || ''))) return false;
+  const id = lead.signing && typeof lead.signing === 'object' ? lead.signing.invoiceId : null;
+  if (typeof id !== 'string' || !/^[\w.-]{1,120}$/.test(id)) return false;
+  try { const inv = await fsGet('invoices/' + id); return !!(inv && inv.status === 'paid'); }
+  catch (_) { return false; }
 }
 
 // ── the operator's card (Italian; the Telegram card shows type + summary) ─
@@ -293,7 +306,7 @@ function cardOf(st, stamp, dec) {
       return `${head} — ${order}${viaNote} — nulla da rimborsare: niente è addebitato prima della firma. Ordine segnato come receduto.${at}`;
     case 'book_signed':
       return `${head} — ${order}${viaNote} — dopo la firma: finestra fino al ${itDay(c.withdrawalEndsOn) || 'non registrata'}, Start now ${startNowIt(c.startNow)} — decidi tu`
-        + ` (il diritto può essersi esaurito col servizio interamente eseguito)${lead.paid === true ? '; compenso già pagato' : lead.signing && lead.signing.status === 'invoiced' ? '; fattura emessa' : ''}`
+        + ` (il diritto può essersi esaurito col servizio interamente eseguito)${lead.paid === true || dec.feePaid === true ? '; compenso già pagato' : lead.signing && lead.signing.status === 'invoiced' ? '; fattura emessa' : ''}`
         + `${lead.withdrawal ? `; dichiarazione già ricevuta il ${itDay(romeDayOf(lead.withdrawal.at))}` : ''}. Nessuna modifica automatica.${at}`;
     case 'book_closed':
       return `${head} — ${order}${viaNote} — ordine già chiuso${lead.closeReason ? ` (${lead.closeReason})` : ''}${lead.closedAt ? ` il ${itDay(romeDayOf(lead.closedAt))}` : ''}: nulla da rimborsare.${at}`;

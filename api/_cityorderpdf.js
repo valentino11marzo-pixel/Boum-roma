@@ -21,12 +21,24 @@
 // the same order renders the same bytes (tests/cities/signing.mjs builds it
 // twice and compares the hashes; spec §18 asked for the test).
 //
+// The client's name is printed AS TYPED (review finding F4): the body — the
+// terms, whose party line carries the name and the email the client typed —
+// is set in the document font of api/_pdffont.js (Latin with every
+// extension, Greek, Cyrillic), never through api/_pdfbrand.js wa(), which
+// deleted every letter outside WinAnsi without a word («Ayşe Yılmaz» → «Aye
+// Ylmaz»). A character even that font cannot print (a Chinese name, an
+// emoji) becomes «?» and is returned in `unprinted`: the order records it and
+// tells the operator — a document never loses a letter in silence. The
+// masthead, the title, the language labels and the legal footer carry fixed
+// text and keep the Helvetica of _pdfbrand.js.
+//
 // pdf-lib is imported statically: a lazy `await import()` is not traced by
 // the Vercel bundler and is missing at runtime (the lesson of 22 July 2026).
 
 import crypto from 'node:crypto';
 import { PDFDocument } from 'pdf-lib';
 import { brandAssets, masthead, stampFooters, wa, INK, GREY, GOLD } from './_pdfbrand.js';
+import { DOC_FONTKIT, FONT_NAME, fontBytes, printable } from './_pdffont.js';
 import { renderOrderTerms } from './_cityterms.js';
 
 const W = 595.28, H = 841.89, M = 50;
@@ -61,7 +73,9 @@ function wrap(text, font, size, maxW) {
  * @param order the same object renderOrderTerms takes ({ city, plan, number,
  *   name, email, orderedAt, withdrawalEndsOn, workFrom, expiresOn, startNow })
  *   plus `deskLabel` ('Paris') and `planLabel` ('Full Search') for the heading.
- * @returns {Promise<{ bytes: Buffer, sha256: string, pages: number, filename: string, terms: object }>}
+ * @returns {Promise<{ bytes: Buffer, sha256: string, pages: number, filename: string, terms: object, unprinted: string[] }>}
+ *   `unprinted`: the distinct characters of the body the document font could
+ *   not print (each printed as «?»); empty when every letter is as typed.
  *   Throws (with `.code` from renderOrderTerms) on an order the terms cannot
  *   render truthfully — the caller records the failure, never a blank PDF.
  */
@@ -78,6 +92,16 @@ export async function buildOrderPdf(order = {}) {
   pdf.setCreationDate(at);
   pdf.setModificationDate(at);
   const b = await brandAssets(pdf);
+  // the body font, embedded whole (a pre-made subset, ~94 KB): every page
+  // prints the same glyphs the same way, and the bytes stay deterministic
+  pdf.registerFontkit(DOC_FONTKIT);
+  const body = await pdf.embedFont(fontBytes(), { subset: false, customName: FONT_NAME });
+  const unprinted = [];
+  const asTyped = (t) => {
+    const p = printable(t);
+    for (const ch of p.lost) if (!unprinted.includes(ch)) unprinted.push(ch);
+    return p.text;
+  };
 
   const day = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Rome', day: '2-digit', month: '2-digit', year: 'numeric' }).format(at);
   let page = pdf.addPage([W, H]);
@@ -85,8 +109,10 @@ export async function buildOrderPdf(order = {}) {
   const maxW = W - 2 * M;
   const newPage = () => { page = pdf.addPage([W, H]); y = H - 60; };
   const ensure = (h) => { if (y - h < BOTTOM) newPage(); };
+  // `text` arrives ready for its font: wa() for the Helvetica of the
+  // heading, asTyped() for the body font
   const lines = (text, font, size, lead, color) => {
-    for (const ln of wrap(wa(text), font, size, maxW)) {
+    for (const ln of wrap(text, font, size, maxW)) {
       ensure(lead);
       page.drawText(ln, { x: M, y: y - size, size, font, color });
       y -= lead;
@@ -94,9 +120,9 @@ export async function buildOrderPdf(order = {}) {
   };
 
   // the heading: the document's own title, then the desk, the fare, the number
-  lines(terms.title, b.bold, 14, 18, INK);
+  lines(wa(terms.title), b.bold, 14, 18, INK);
   y -= 2;
-  lines(`BOOM ${order.deskLabel || ''} — ${order.planLabel || order.plan} · ${number}`, b.font, 9, 13, GREY);
+  lines(wa(`BOOM ${order.deskLabel || ''} — ${order.planLabel || order.plan} · ${number}`), b.font, 9, 13, GREY);
   y -= 10;
 
   const LABEL = { fr: 'FRANÇAIS', en: 'ENGLISH' };
@@ -108,7 +134,7 @@ export async function buildOrderPdf(order = {}) {
     page.drawText(wa(LABEL[lang]), { x: M, y: y - 8, size: 8, font: b.bold, color: GOLD, characterSpacing: 1.6 });
     y -= 18;
     for (const p of terms[lang]) {
-      lines(p, b.font, SIZE, LEAD, INK);
+      lines(asTyped(p), body, SIZE, LEAD, INK);
       y -= GAP;
     }
     y -= 8;
@@ -122,5 +148,6 @@ export async function buildOrderPdf(order = {}) {
     pages: pdf.getPageCount(),
     filename: `BOOM-${number}.pdf`,
     terms,
+    unprinted,
   };
 }

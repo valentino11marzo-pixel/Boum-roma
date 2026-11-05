@@ -23,6 +23,8 @@ export const MUTATIONS = {
   'no-honeypot': ['/api/withdraw.js', '  if (body.company) return SAME(res);', '  if (false) return SAME(res);'],
   // no per-IP limit
   'no-rate-limit': ['/api/withdraw.js', '  if (rateLimited(ip)) return', '  if (false) return'],
+  // the fee paid on the invoice only (a transfer) read as unpaid: the card says «fattura emessa»
+  'fee-paid-lead-only': ['/api/withdraw.js', "  try { const inv = await fsGet('invoices/' + id); return !!(inv && inv.status === 'paid'); }", '  try { return false; }'],
   // a free file (no contract) counted as an order
   'free-file-is-order': ['/api/withdraw.js', 'export const isOrderLead = (d) => !!d && /^book_/', 'export const isOrderLead = (d) => !!d || /^book_/'],
 };

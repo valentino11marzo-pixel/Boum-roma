@@ -36,6 +36,13 @@ const MUTATIONS = {
   'no-key-check': ['/api/payments/_citysign.js', "if (key != null && key !== s.key) return { ok: false, error: 'stale_card', lead, signing: s };", "if (false) return { ok: false, error: 'stale_card', lead, signing: s };"],
   // the INVOICE webhook without the order stamp
   'no-city-stamp': ['/api/stripe-webhook.js', 'if (inv.cityLeadId) {', 'if (false) {'],
+  // ── the review of v1.8 ──
+  // F4: the order PDF's body through wa() again (every letter outside WinAnsi deleted)
+  'wa-body': ['/api/_cityorderpdf.js', 'lines(asTyped(p), body, SIZE, LEAD, INK);', 'lines(wa(p), body, SIZE, LEAD, INK);'],
+  // F4: a name the PDF cannot print, and nobody told
+  'no-pdf-alarm': ['/api/_cityorder.js', 'if (pdf && pdf.unprinted.length) {', 'if (false) {'],
+  // F5: the register reads the order only, never its fee invoice
+  'register-lead-only': ['/api/ops/conservazione.js', "return typeof id === 'string' && invoices && invoices.has(id) ? invoices.get(id) : null;", 'return null;'],
 };
 export async function load(url, context, nextLoad) {
   const out = await nextLoad(url, context);

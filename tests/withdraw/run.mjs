@@ -185,6 +185,11 @@ book('book_parisinv001', { email: 'bea@example.com', city: { order: { number: 'P
   signing: { status: 'invoiced', fare: 'full-search', signedOn: '2026-11-12', invoiceId: 'cityfee_book_parisinv001', amount: 500 } });
 book('book_berlinpaid1', { email: 'carl@example.com', market: 'berlin', city: { order: { number: 'BER-2026-0003', termsV: 'v', termsHash: 'h', expiresOn: null }, startNow: true, withdrawalEndsOn: '2026-11-19' },
   paid: true, paidAt: '2026-11-14T10:00:00.000Z', paidVia: 'link', signing: { status: 'invoiced', invoiceId: 'cityfee_book_berlinpaid1' } });
+// the fee paid by TRANSFER: the operator marked the invoice paid in the portal
+// («Segna pagata» writes the invoice only), so the order itself never says paid
+book('book_paristrf001', { email: 'uma@example.com', city: { order: { number: 'PAR-2026-0016', termsV: 'v', termsHash: 'h', expiresOn: '2027-05-05' } },
+  signing: { status: 'invoiced', fare: 'full-search', signedOn: '2026-11-12', invoiceId: 'cityfee_book_paristrf001', amount: 500 } });
+seed('invoices/cityfee_book_paristrf001', { status: 'paid', paidDate: '2026-11-16T09:30:00.000Z', amount: 500, number: 'PAR-2026-0016-FS', source: 'city-signing', cityLeadId: 'book_paristrf001' });
 book('book_berlinopen1', { email: 'dora@example.com', market: 'berlin', city: { order: { number: 'BER-2026-0004', termsV: 'v', termsHash: 'h', expiresOn: null } } });
 book('book_parisclosed', { email: 'eve@example.com', city: { order: { number: 'PAR-2026-0009', termsV: 'v', termsHash: 'h', expiresOn: '2027-05-05' } }, closedAt: '2026-11-04T15:00:00.000Z', closeReason: 'stopped' });
 book('book_ivyfs000001', { email: 'ivy@example.com', city: { service: 'full-search', order: { number: 'PAR-2026-0013', termsV: 'v', termsHash: 'h', expiresOn: '2027-05-05' } } });
@@ -364,6 +369,12 @@ const lastNotif = (st) => docOf('agentNotifications/' + W.statementId(W.normaliz
   lead = docOf('leads/book_berlinpaid1');
   ok('paid at signing → the map only, no withdrawnAt; the card: Start now sì, fee paid, you decide', lead.withdrawal && lead.withdrawnAt === undefined && lead.paid === true
     && /Start now sì — decidi tu/.test(lastNotif(s).summary) && /compenso già pagato/.test(lastNotif(s).summary) && /BERLINO/.test(lastNotif(s).summary), lastNotif(s).summary);
+
+  s = stmt({ name: 'Uma', email: 'uma@example.com', ref: 'PAR-2026-0016' });
+  await post(s);
+  lead = docOf('leads/book_paristrf001');
+  ok('the fee paid by transfer (the INVOICE paid, the order not stamped): the map only; the card says the fee is paid, never «fattura emessa» (finding F5)',
+    lead.withdrawal && lead.withdrawnAt === undefined && lead.paid === false && /compenso già pagato/.test(lastNotif(s).summary) && !/fattura emessa/.test(lastNotif(s).summary), lastNotif(s).summary);
 
   s = stmt({ name: 'Eve', email: 'eve@example.com', ref: 'PAR-2026-0009' });
   await post(s);

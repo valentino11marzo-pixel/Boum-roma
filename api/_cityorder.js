@@ -34,7 +34,11 @@
 //      12 attempts with 20–100 ms of jitter (ten writers at once need up to
 //      ten), then 503 busy;
 //   6. the order document is built IN MEMORY (api/_cityorderpdf.js; no
-//      Storage), after the commit — the number exists only then;
+//      Storage), after the commit — the number exists only then. The
+//      client's name prints as typed; a character the document font cannot
+//      print (a Chinese name, an emoji) prints as «?», is recorded on the
+//      order (orderPdf.unprinted) and raises agentNotifications/book-pdf-<id>:
+//      the contract copy never loses a letter in silence (finding F4);
 //   7. the client's email (Nodemailer, the shared design system) and the
 //      operator's copy (Italian), both with the PDF, under one 8 s cap; the
 //      outcome is RECORDED on the order (never assumed), and a failed client
@@ -252,6 +256,9 @@ function operatorEmail(o) {
       : para(`Parigi: è il mandato n. ${esc(o.number)} del registro dei mandati, in ordine di data.`),
     para(`Quando firma la locazione: <b>/firmato ${esc(o.file)} AAAA-MM-GG</b> su Telegram.`),
     fine(o.pdfOk ? `Il documento d'ordine è allegato (${esc(o.filename)}), lo stesso che riceve il cliente.` : '⚠ Il PDF dell\'ordine NON è stato generato: il cliente riceve i termini nel corpo dell\'email.'),
+    o.pdfOk && o.unprinted && o.unprinted.length
+      ? fine(`⚠ Nel PDF alcuni caratteri del nome o dell'email non sono stampabili (${esc(o.unprinted.join(' '))}): compaiono come «?». Il nome esatto è quello qui sopra.`)
+      : '',
   ].join('');
   return {
     subject: `📌 ${String(deskIt).toUpperCase()} — ORDINE ${o.number} · ${o.planLabel} ${o.price} alla firma (niente addebitato)`,
@@ -428,6 +435,7 @@ export async function createCityOrder(req, res, { offer, body = {}, ip = 'unknow
   try { pdf = await buildOrderPdf({ ...o, orderedAt: now }); }
   catch (e) { pdfError = String((e && (e.code || e.message)) || e).slice(0, 200); console.error('[city-order] pdf failed:', pdfError); }
   o.pdfOk = !!pdf;
+  o.unprinted = pdf ? pdf.unprinted : [];
   try { o.termsEn = (pdf ? pdf.terms : renderOrderTerms({ ...o, orderedAt: now })).en; }
   catch (_) { o.termsEn = []; }
   const attachments = pdf ? [{ filename: pdf.filename, content: pdf.bytes, contentType: 'application/pdf' }] : undefined;
@@ -453,12 +461,23 @@ export async function createCityOrder(req, res, { offer, body = {}, ip = 'unknow
   // the outcome, RECORDED on the order (top-level fields: the `city` map is never rewritten)
   const at = new Date().toISOString();
   const outcome = {
-    orderPdf: pdf ? { sha256: pdf.sha256, bytes: pdf.bytes.length, pages: pdf.pages, at } : { error: pdfError || 'failed', at },
+    orderPdf: pdf
+      ? { sha256: pdf.sha256, bytes: pdf.bytes.length, pages: pdf.pages, at, ...(pdf.unprinted.length ? { unprinted: pdf.unprinted } : {}) }
+      : { error: pdfError || 'failed', at },
     ...(cr.ok ? { clientEmailSentAt: at } : { clientEmailFailedAt: at, clientEmailError: cr.error }),
     ...(orr.ok ? { operatorEmailSentAt: at } : { operatorEmailError: orr.error }),
   };
   try { await fsCommit([{ docPath: `leads/${id}`, fields: outcome, precondition: { exists: true } }]); }
   catch (e) { console.warn('[city-order] outcome not recorded:', e && e.message); }
+  // the contract copy could not print the client's name (or email) as typed:
+  // the operator is told what the PDF shows instead; nothing is resent
+  if (pdf && pdf.unprinted.length) {
+    await raise('book-pdf-' + id, {
+      type: 'city.order_pdf_unprinted', priority: 'high',
+      ref: { collection: 'leads', id },
+      summary: `📄 Ordine ${number} (${desk.labelIt || desk.label}): nel PDF dell'ordine ${pdf.unprinted.length === 1 ? 'un carattere' : pdf.unprinted.length + ' caratteri'} del nome o dell'email del cliente (${pdf.unprinted.join(' ')}) non ${pdf.unprinted.length === 1 ? 'è stampabile e compare' : 'sono stampabili e compaiono'} come «?». Nome registrato: ${name}. Il resto del documento è giusto e l'email al cliente riporta il nome per intero: se serve, chiedigli come scriverlo in caratteri latini.`,
+    });
+  }
   if (!cr.ok) {
     await raise('book-mail-' + id, {
       type: 'city.order_email_failed', priority: 'high',
