@@ -696,6 +696,17 @@ const wp = graph.find((n) => n['@type'] === 'WebPage') || {};
 const svc = graph.find((n) => n['@type'] === 'Service') || {};
 const faqLd = graph.find((n) => n['@type'] === 'FAQPage') || {};
 check(ld.length === 2 && ld.some((b) => b['@type'] === 'BreadcrumbList' && b['@id'] === `${shared.siteUrl}/amsterdam#breadcrumb`), 'two JSON-LD blocks: the breadcrumb and the graph');
+// v1.8 (W1–W3): the JSON-LD goes out on ONE line, the compact form of its own parse, so nothing but the whitespace
+// between tokens differs from the pretty form every reader parses alike (the hub's 28 KB page cap rests on it)
+const ldRaw = (h) => [...h.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => m[1].trim());
+const ldCompact = (t) => { try { return t === JSON.stringify(JSON.parse(t)).replace(/</g, '\\u003c') && !t.includes('\n'); } catch { return false; } };
+check(SLUGS.every((s) => { const r = ldRaw(PAGE[s]); return r.length === 2 && r.every(ldCompact); }),
+  `every desk page's two JSON-LD blocks are one line each, the compact form of their own parse (${SLUGS.map((s) => `${s} ${ldRaw(PAGE[s]).map((t) => t.length).join('+')} B`).join(' · ')})`);
+{
+  const evil = clone(ams); evil.city = 'Ams</script>';
+  let r; try { r = ldRaw(render(evil).html); } catch (e) { r = [`the build refused: ${e.message}`]; }
+  check(r.length === 2 && r.every(ldCompact) && r.some((t) => t.includes('Ams\\u003c/script>')) && !r.some((t) => t.includes('</script')), 'the one-line JSON-LD keeps the < escape: a value cannot close its <script> tag');
+}
 check(org['@type'] === 'RealEstateAgent' && org.name === 'BOOM Rome' && org.alternateName === 'BOOM' && org.legalName === shared.entity.legalName && JSON.stringify(org.sameAs) === JSON.stringify([shared.rome.profileUrl]),
   'the #organization node is the one the rest of the site declares (RealEstateAgent "BOOM Rome"), sameAs the public profile behind the rating');
 check(JSON.stringify(org.areaServed) === JSON.stringify(['Rome', ...SLUGS.filter((s) => CITY[s].live).map((s) => CITY[s].city)]), `areaServed is derived: Rome and the live desks only (${org.areaServed})`);
@@ -2400,6 +2411,7 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
   const ldOf = (h) => [...h.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => JSON.parse(m[1])).flatMap((b) => b['@graph'] || [b]);
   check(blocks.length === 2 && crumb && crumb.itemListElement.length === 2 && crumb.itemListElement[1].item === 'https://www.boomrome.com/desks' && crumb.itemListElement[0].item === 'https://www.boomrome.com/',
     'JSON-LD: two blocks; the breadcrumb runs Home → BOOM Desks and ends on the canonical');
+  check(ldRaw(H).length === 2 && ldRaw(H).every(ldCompact), `desks.html: the two JSON-LD blocks are one line each, the compact form of their own parse (${ldRaw(H).map((t) => t.length).join('+')} B)`);
   const org = g.find((n) => n['@type'] === 'RealEstateAgent');
   const orgAms = ldOf(PAGE.amsterdam).find((n) => n['@type'] === 'RealEstateAgent');
   check(org && JSON.stringify(org) === JSON.stringify(orgAms) && JSON.stringify(org) === JSON.stringify(orgNode(shared, SLUGS.map((s) => CITY[s]))),
