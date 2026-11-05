@@ -11,9 +11,9 @@
  *
  * Le regole:
  *   - l'Italia vale sempre (il desk risponde da Roma), più il calendario del
- *     paese del desk (`nl`, `es`, `es-bcn`, `gb-eng`, `it-mi`, `es-vlc`); una chiave
- *     ignota vale l'Italia sola — i test fissano le chiavi che i desk
- *     nominano (HOLIDAY_KEYS);
+ *     paese del desk (`nl`, `es`, `es-bcn`, `gb-eng`, `it-mi`, `es-vlc`, `fr`,
+ *     `de-be`); una chiave ignota vale l'Italia sola — i test fissano le
+ *     chiavi che i desk nominano (HOLIDAY_KEYS);
  *   - date in UTC a mezzogiorno di calendario (mai 14×24h: il cambio d'ora);
  *   - la sigla del fuso è quella dell'ISTANTE in cui il desk apre.
  *
@@ -80,7 +80,11 @@
     // ever marks a Sunday. The Consell swaps days each spring (19/3, 24/6,
     // Jueves Santo) and the city picks its two each July: re-check yearly.
     // Keyed apart from `country` ('es' is Madrid's: 15/5, 9/11, Jueves Santo).
-    'es-vlc': { fixed: ['01-01', '01-06', '01-22', '03-19', '05-01', '08-15', '10-09', '10-12', '11-01', '12-06', '12-08', '12-25'], easter: [-2, 1, 8], dated: ['2026-06-24'] }
+    'es-vlc': { fixed: ['01-01', '01-06', '01-22', '03-19', '05-01', '08-15', '10-09', '10-12', '11-01', '12-06', '12-08', '12-25'], easter: [-2, 1, 8], dated: ['2026-06-24'] },
+    // the Paris desk: France, Code du travail art. L3133-1 (no Good Friday, no 26/12: Alsace-Moselle only)
+    fr: { fixed: ['01-01', '05-01', '05-08', '07-14', '08-15', '11-01', '11-11', '12-25'], easter: [1, 39, 50] },
+    // the Berlin desk: Feiertagsgesetz Berlin §1, 8 March since 2019; one-off 17 June 2028 (75 years since 1953, law of 2024; a Saturday)
+    'de-be': { fixed: ['01-01', '03-08', '05-01', '10-03', '12-25', '12-26'], easter: [-2, 1, 39, 50], dated: ['2028-06-17'] }
   };
   // the calendar keys a desk may name (CITY_MARKETS.<slug>.holidays || country):
   // an unknown key would silently fall back to Italy alone, so tests pin it

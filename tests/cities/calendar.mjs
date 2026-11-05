@@ -17,7 +17,10 @@
 //   - the copy the build inlines in a page drifts from the file the webhook
 //     imports;
 //   - a desk names a calendar that does not exist and silently falls back to
-//     Italy alone.
+//     Italy alone;
+//   - Paris or Berlin lose a day they keep (Whit Monday, Ascension, 14 July,
+//     8 March and the one-off 17 June 2028 in Berlin) or gain one they do not
+//     (26 December and Good Friday are not French).
 // Pure Node: no browser, no network.
 
 import fs from 'node:fs';
@@ -30,7 +33,7 @@ import { CITY_MARKETS } from '../../api/_market.js';
 const R = path.resolve(new URL('../..', import.meta.url).pathname);
 // the webhook builds a Stripe client at load: a dummy key, no request is ever made
 process.env.STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || 'sk_test_dummy_for_import';
-const { HOLIDAY_KEYS: WEBHOOK_KEYS, isDeskHoliday: webhookIsDeskHoliday } = await import('../../api/stripe-webhook.js');
+const { HOLIDAY_KEYS: WEBHOOK_KEYS, isDeskHoliday: webhookIsDeskHoliday, withdrawalWindow } = await import('../../api/stripe-webhook.js');
 let ok = 0, ko = 0;
 const check = (cond, t, why = '') => { if (cond) { ok++; console.log('  \x1b[32m✓\x1b[0m ' + t); } else { ko++; console.log('  \x1b[31m✗\x1b[0m ' + t + (why ? ` — ${why}` : '')); } };
 
@@ -93,7 +96,62 @@ check(!H(2026, 10, 12, 'gb-eng') && !H(2026, 5, 11, 'gb-eng') && !H(2026, 8, 24,
 check(H(2026, 12, 8, 'gb-eng') && H(2026, 6, 29, 'gb-eng'), 'London still reads Italy\'s days (the desk answers from Rome): 8 December, 29 June');
 check(H(2026, 12, 7, 'it-mi') && !H(2026, 12, 7, 'it') && H(2026, 12, 8, 'it-mi') && H(2026, 6, 29, 'it-mi'),
   'Milan: Sant\'Ambrogio (7 December) on top of Italy — and 7 December is NOT a holiday for the Rome calendar');
-check(H(2026, 8, 15, 'fr') && !H(2026, 7, 14, 'fr') && !H(2026, 10, 3, 'de'), 'an unknown key reads Italy alone (the desk answers from Rome), never an invented calendar');
+// Paris (fr): the jours fériés of the Code du travail (art. L3133-1). Berlin
+// (de-be): the Feiertagsgesetz Berlin §1. Each table alone (Italy set aside)
+// gives exactly its list, weekends included; the union then adds Italy.
+const FR = {
+  2026: ['01-01', '04-06', '05-01', '05-08', '05-14', '05-25', '07-14', '08-15', '11-01', '11-11', '12-25'],
+  2027: ['01-01', '03-29', '05-01', '05-06', '05-08', '05-17', '07-14', '08-15', '11-01', '11-11', '12-25'],
+  2028: ['01-01', '04-17', '05-01', '05-08', '05-25', '06-05', '07-14', '08-15', '11-01', '11-11', '12-25']
+};
+const BE = {
+  2026: ['01-01', '03-08', '04-03', '04-06', '05-01', '05-14', '05-25', '10-03', '12-25', '12-26'],
+  2027: ['01-01', '03-08', '03-26', '03-29', '05-01', '05-06', '05-17', '10-03', '12-25', '12-26'],
+  2028: ['01-01', '03-08', '04-14', '04-17', '05-01', '05-25', '06-05', '06-17', '10-03', '12-25', '12-26']
+};
+const deskAlone = vlcAlone; // the same move: Italy set aside for the length of fn
+const ymd = (y, md, plus = 0) => { const [m, d] = md.split('-').map(Number); return new Date(Date.UTC(+y, m - 1, d + plus)); };
+for (const [key, city, table] of [['fr', 'Paris', FR], ['de-be', 'Berlin', BE]]) {
+  for (const [y, days] of Object.entries(table)) {
+    const missing = days.filter((md) => !CAL.isDeskHoliday(ymd(y, md), key));
+    check(!missing.length, `${city} ${y}: every one of its ${days.length} holidays is a holiday (${key})`, missing.join(' '));
+    // the day after: a weekday that is neither on the list nor Italian is a working day
+    const after = days.map((md) => ymd(y, md, 1)).filter((x) => x.getUTCDay() % 6 && !days.includes(x.toISOString().slice(5, 10)) && !CAL.isDeskHoliday(x, 'it'));
+    const shut = after.filter((x) => !CAL.workingDay(x, key)).map((x) => x.toISOString().slice(0, 10));
+    check(after.length > 0 && !shut.length, `${city} ${y}: the weekday after each holiday is a working day (${after.length} days)`, shut.join(' '));
+    const only = deskAlone(() => { const a = []; for (let t = Date.UTC(+y, 0, 1); t < Date.UTC(+y + 1, 0, 1); t += 864e5) { const x = new Date(t); if (CAL.isDeskHoliday(x, key)) a.push(x.toISOString().slice(5, 10)); } return a; });
+    check(only.join() === days.join(), `${city} ${y}: the ${key} table alone gives exactly these ${days.length} days, nothing more`, only.join(' '));
+  }
+}
+check(H(2026, 5, 25, 'fr') && H(2026, 5, 25, 'de-be') && !H(2026, 5, 25, 'it'), 'Whit Monday 2026 (25 May): lundi de Pentecôte and Pfingstmontag — not an Italian holiday');
+check(H(2027, 5, 6, 'fr') && H(2027, 5, 6, 'de-be') && !H(2027, 5, 6, 'it'), 'Ascension 2027 (Thursday 6 May): Paris and Berlin, not Rome');
+check(H(2027, 3, 8, 'de-be') && !H(2027, 3, 8, 'fr') && !H(2027, 3, 8, 'it'), '8 March 2027 (Monday): the Internationaler Frauentag closes Berlin, not Paris or Rome');
+check(H(2028, 6, 17, 'de-be') && !H(2027, 6, 17, 'de-be') && !H(2029, 6, 17, 'de-be') && !H(2028, 6, 17, 'fr') && CAL.HOLIDAYS['de-be'].dated.join() === '2028-06-17',
+  '17 June 2028: Berlin\'s one-off holiday (75 years since the 1953 uprising, law of 2024) — that year only, never Paris; the one-off 8 May of 2020 and 2025 are past');
+check(H(2026, 11, 11, 'fr') && H(2027, 11, 11, 'fr') && !H(2026, 11, 11, 'de-be') && !H(2026, 11, 11, 'it'), '11 November: the Armistice closes Paris, not Berlin or Rome');
+check(deskAlone(() => !H(2026, 12, 26, 'fr') && !H(2027, 12, 26, 'fr') && !H(2028, 12, 26, 'fr') && H(2026, 12, 26, 'de-be')) && H(2026, 12, 26, 'fr'),
+  '26 December is NOT French (Alsace-Moselle only; Italy set aside) — the Paris desk still closes it, through Italy\'s Santo Stefano');
+check(!H(2026, 4, 3, 'fr') && !H(2027, 3, 26, 'fr') && !H(2028, 4, 14, 'fr') && H(2026, 4, 3, 'de-be') && H(2027, 3, 26, 'de-be') && H(2028, 4, 14, 'de-be'),
+  'Good Friday (3 April 2026, 26 March 2027, 14 April 2028): NOT a French holiday, a Berlin one (Karfreitag)');
+check(H(2026, 6, 2, 'fr') && H(2026, 6, 2, 'de-be') && deskAlone(() => !H(2026, 6, 2, 'fr') && !H(2026, 6, 2, 'de-be')),
+  'an Italian holiday (Tuesday 2 June 2026) still counts on both desks — through Italy (the desk answers from Rome), not through their own tables');
+{
+  const d14 = at('2026-07-14T12:00:00Z'), d3 = at('2028-10-03T12:00:00Z');
+  check(CAL.isDeskHoliday(d14, 'fr') && !CAL.isDeskHoliday(d14, 'de-be') && CAL.isDeskHoliday(d3, 'de-be') && !CAL.isDeskHoliday(d3, 'fr')
+    && webhookIsDeskHoliday(d14, 'fr') && webhookIsDeskHoliday(d3, 'de-be') && !CAL.workingDay(d14, 'fr') && CAL.workingDay(d14, 'de-be'),
+    'isDeskHoliday (the calendar and the webhook): 14 July is Paris\'s, not Berlin\'s; 3 October is Berlin\'s, not Paris\'s');
+  // the 14-day withdrawal over the two national days (Reg. 1182/71 art. 3(4))
+  const ww = (iso, k) => { const w = withdrawalWindow(Date.parse(iso) / 1000, k); return w.lastDay + '>' + w.startDay; };
+  check(ww('2026-06-30T10:00:00Z', 'fr') === '2026-07-15>2026-07-16' && ww('2026-06-30T10:00:00Z', 'de-be') === '2026-07-14>2026-07-15',
+    'withdrawal over 14 July: paid Tuesday 30 June 2026, the 14th day is the Fête nationale → Paris ends Wednesday 15, work from Thursday 16; Berlin ends on the 14th',
+    ww('2026-06-30T10:00:00Z', 'fr') + ' ' + ww('2026-06-30T10:00:00Z', 'de-be'));
+  check(ww('2028-09-19T10:00:00Z', 'de-be') === '2028-10-05>2028-10-06' && ww('2028-09-19T10:00:00Z', 'fr') === '2028-10-03>2028-10-05'
+    && ww('2028-09-18T10:00:00Z', 'de-be') === '2028-10-02>2028-10-05' && ww('2028-09-18T10:00:00Z', 'fr') === '2028-10-02>2028-10-03',
+    'withdrawal over 3 October 2028 (Tuesday; 4 October is Italy\'s): Berlin ends Thursday 5 (not on the Tag der Deutschen Einheit), and a period ending Monday 2 starts the work on Thursday 5, never on the 3rd; Paris keeps the 3rd',
+    [ww('2028-09-19T10:00:00Z', 'de-be'), ww('2028-09-19T10:00:00Z', 'fr'), ww('2028-09-18T10:00:00Z', 'de-be'), ww('2028-09-18T10:00:00Z', 'fr')].join(' '));
+}
+check(H(2026, 8, 15, 'xx') && !H(2026, 7, 14, 'xx') && !H(2026, 10, 3, 'de') && !H(2027, 3, 8, 'de'),
+  'an unknown key reads Italy alone (the desk answers from Rome), never an invented calendar — and \'de\' (Berlin\'s country) is not \'de-be\'');
 check(CAL.workingDay(at('2026-10-27T12:00:00Z'), 'nl') && !CAL.workingDay(at('2026-10-31T12:00:00Z'), 'nl') && !CAL.workingDay(at('2026-04-27T12:00:00Z'), 'nl'),
   'workingDay: a Tuesday yes, a Saturday no, Koningsdag no');
 
@@ -143,7 +201,7 @@ check(line('2026-12-31T19:00:00Z', 'it') === 'Monday from 09:00 CET', 'New Year\
 }
 
 // ── one copy: the webhook imports it, the page inlines it ─────────────────
-check(JSON.stringify(WEBHOOK_KEYS) === JSON.stringify(CAL.HOLIDAY_KEYS) && WEBHOOK_KEYS.join() === 'it,nl,es,es-bcn,gb-eng,it-mi,es-vlc', 'the webhook\'s calendar keys are the calendar\'s (it, nl, es, es-bcn, gb-eng, it-mi, es-vlc)');
+check(JSON.stringify(WEBHOOK_KEYS) === JSON.stringify(CAL.HOLIDAY_KEYS) && WEBHOOK_KEYS.join() === 'it,nl,es,es-bcn,gb-eng,it-mi,es-vlc,fr,de-be', 'the webhook\'s calendar keys are the calendar\'s (it, nl, es, es-bcn, gb-eng, it-mi, es-vlc, fr, de-be)');
 check(CAL.HOLIDAY_KEYS.every((k) => Array.isArray(CAL.HOLIDAYS[k].fixed) && Array.isArray(CAL.HOLIDAYS[k].easter) && (CAL.HOLIDAYS[k].dated === undefined || Array.isArray(CAL.HOLIDAYS[k].dated))), 'every calendar table carries its fixed and easter arrays (isHoliday reads both), and `dated` when it has one');
 {
   let same = true, n = 0;

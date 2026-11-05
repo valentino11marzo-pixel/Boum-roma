@@ -78,6 +78,31 @@
       agencyPolicy: 'flag', enabled: false,
       aliasTag: 'radar-valencia', cityTokens: ['valencia'],
       idealistaCity: 'valencia-valencia', idealistaRoot: 'valencia'
+    },
+    // Parigi e Berlino (05/11/2026): DICHIARATE ma spente, come Valencia — il
+    // Full Search si cerca a mano (SeLoger, PAP, Leboncoin · ImmoScout24,
+    // Immowelt, Kleinanzeigen: cities/paris.json, cities/berlin.json). Il
+    // cliente si salva sul SUO mercato (pfs-command #cm-market, «· radar
+    // spento») e clientMarket() lo tiene fuori da ogni mazzo. Niente chiavi
+    // idealista: idealista non copre Francia e Germania. Già oggi, a radar
+    // spento: nessun portale francese o tedesco è in marketOfUrl, quindi un
+    // loro URL aggiunto a mano («Aggiungi annuncio», mercato «dal link») finisce
+    // su Roma (admin/match-test dà Roma a un dominio che tace), come un
+    // Rightmove di Londra: serve la regola 'needs_city' dei portali spagnoli.
+    // Prima di accenderle anche le zone in radar-engine (MARKET_ZONES), le ricerche (api/pfs/_searchurls.js conosce solo
+    // idealista.com), gli alias +radar-paris/+radar-berlin con le ricerche
+    // salvate e i battiti inbox-<città> (api/pfs/health.js SOURCES). E
+    // «Carrer de París» (Barcellona) diventa 'paris' dopo fold(): la stessa
+    // maschera delle vie che aspetta Valencia.
+    paris: {
+      id: 'paris', labelIt: 'Parigi', labelEn: 'Paris', flag: '🇫🇷', currency: 'EUR',
+      agencyPolicy: 'flag', enabled: false,
+      aliasTag: 'radar-paris', cityTokens: ['paris']
+    },
+    berlin: {
+      id: 'berlin', labelIt: 'Berlino', labelEn: 'Berlin', flag: '🇩🇪', currency: 'EUR',
+      agencyPolicy: 'flag', enabled: false,
+      aliasTag: 'radar-berlin', cityTokens: ['berlin']
     }
   };
 

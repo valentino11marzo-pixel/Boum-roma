@@ -963,10 +963,11 @@ tplRefuses('<p class="proof">', '<p class="proof">Pay by bank transfer · ', /no
     check(c.pricing.plans.every((p) => CITY_PLANS[p.id] && CITY_PLANS[p.id].eur === Number(p.price) && CITY_PLANS[p.id].label === p.label),
       `${s}: the prices on the page are the prices the server charges (CITY_PLANS: ${c.pricing.plans.map((p) => p.label + ' ' + eur(p.price)).join(', ')})`);
     // a desk that sells counts the withdrawal on its own calendar: the page's
-    // window must read THAT one; a desk still opening (fr, de: no calendar
-    // yet) reads Italy's, where its desk sits — said, never guessed
+    // window must read THAT one; a desk still opening reads the same key the
+    // server would (its own calendar when one exists, fr since v1.8), always
+    // united with Italy's, where its desk sits — said, never guessed
     if (c.checkout === true) check(holidayKeyOf(s) === (m.holidays || m.country) && CAL.HOLIDAY_KEYS.includes(holidayKeyOf(s)), `${s}: the page's desk window reads the webhook's calendar (${holidayKeyOf(s)}), a calendar that exists`);
-    else check(holidayKeyOf(s) === m.country && !CAL.HOLIDAY_KEYS.includes(m.country) && CAL.isHoliday(2026, 8, 15, m.country) && CAL.isHoliday(2026, 12, 25, m.country), `${s}: a desk still opening reads the Italian calendar of the desk (key ${m.country} has no calendar of its own yet)`);
+    else check(holidayKeyOf(s) === (m.holidays || m.country) && CAL.isHoliday(2026, 8, 15, holidayKeyOf(s)) && CAL.isHoliday(2026, 12, 25, holidayKeyOf(s)), `${s}: a desk still opening reads the server's key (${holidayKeyOf(s)}${CAL.HOLIDAY_KEYS.includes(holidayKeyOf(s)) ? '' : ': no calendar of its own yet'}) united with Italy's`);
     check(c.pricing.plans.every((p) => h.includes(`data-plan-price="${p.id}">${money(p.price, currencyOf(s))}</span>`)), `${s}: every desk shows its list prices, in its own currency`);
     check(!/two months at most|extra guarantees two months/i.test(JSON.stringify(c)), `${s}: no "extra guarantees two months at most" (it waits for counsel after the 12/11 vote on RDL 29/2026)`);
   }
