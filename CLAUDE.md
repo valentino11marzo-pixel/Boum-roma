@@ -35,7 +35,12 @@ Premium rental management platform for Rome's apartment market. Serves tenants, 
                           versione, hash, testo reso (server E build).
   _cityorder.js           L'ordine di un desk che incassa alla firma:
                           book_ + contatore in un commit, email, card.
-  _cityorderpdf.js        Il PDF dell'ordine, in memoria (FR/EN a Parigi).
+  _cityorderpdf.js        Il PDF dell'ordine, in memoria (FR/EN a Parigi):
+                          il corpo in BOOM Doc Sans, il nome com'è scritto.
+  _pdffont.js             BOOM Doc Sans per pdf-lib senza fontkit npm:
+                          Liberation Sans 2.1 ridotto (latino, greco,
+                          cirillico; SIL OFL), dati in _pdffont-data.js da
+                          design/pages-deco/genera-font-pdf.py.
   payments/_citysign.js   L'addebito alla firma: cancelli, importo dal
                           listino, fattura cityfee_, email.
   telegram/_firmato.js    /firmato e /chiudi: la firma detta dall'operatore.
@@ -3976,7 +3981,8 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
      (Parigi: giorno dell'ordine + sei mesi di calendario), la finestra del recesso dal calendario del
      desk; `city` non si riscrive mai dopo (una maschera di primo livello rimpiazza la mappa intera).
      DOPO il commit il PDF in memoria (`api/_cityorderpdf.js`: pdf-lib importato staticamente,
-     `api/_pdfbrand.js`, date fissate all'ordine; Parigi FR poi EN), nessun prefisso Storage, e il suo
+     `api/_pdfbrand.js`, date fissate all'ordine; Parigi FR poi EN; il corpo in BOOM Doc Sans, che
+     stampa il nome com'è scritto, punto 14), nessun prefisso Storage, e il suo
      SHA-256 in `orderPdf`; l'email al cliente (Nodemailer, tetto 8 s) con numero e fascicolo, la
      tariffa e il suo trigger, i termini inglesi INTERI nel corpo (resta il supporto durevole anche
      se l'allegato si perde), il recesso (online, email, modulo tipo), «Manage your order» e il PDF
@@ -3987,8 +3993,9 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
      testo del recesso e il PDF dell'ordine»). La card `lead.new` (🇫🇷 PARIGI · ORDINE PAR-2026-0007 · Full Search €500
      alla firma · …) sotto 5 s; ogni scrittura attesa. Risposta
      `{ok, booked, id, file, number, plan, startNow, workFromLabel}`. Misurato: dieci ordini insieme → BER-2026-0001…0010 senza buchi né
-     doppioni (9 conflitti riletti); PDF di Parigi Full Search 3 pagine, 19.883 B, di Berlino 2 pagine,
-     15.589 B, ~80 ms, lo stesso ordine dà lo stesso SHA-256.
+     doppioni (9 conflitti riletti); PDF di Parigi Full Search 3 pagine, 86.865 B, di Berlino 2 pagine,
+     81.822 B (19.883 e 15.589 prima del font del corpo, punto 14), ~120–170 ms il primo di un processo
+     e 30–85 ms dopo, lo stesso ordine dà lo stesso SHA-256.
   4. **I termini dell'ordine** (`api/_cityterms.js`, puro, letto dal server E dal build).
      `ORDER_TERMS`: Parigi `par-2026-11-1` «Mandat de recherche non exclusif / Non-exclusive search
      mandate» (francese ed inglese), Berlino `ber-2026-11-1` «Suchauftrag / Search order» (inglese);
@@ -4036,7 +4043,9 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
      da pagare e CLOSED a ordine chiuso; WITHDRAWN solo senza fattura viva. Il bottone «Order, pay on
      signing · €500» misurato su un Parigi di prova, nei due font: 320 px due righe (cassa e
      biglietto), 360 una nella cassa e due nel biglietto, da 390 una. JS 11.011 → 12.606 B gz (tetto
-     14 KB): i cinque stati del biglietto.
+     14 KB): i cinque stati del biglietto; 12.742 con la revisione. Dalla revisione (punto 14) Invio
+     in un campo della cassa non ordina mai: cammina fino al bottone, e ordina solo il bottone; sul
+     biglietto DUE/PAID i campi tengono lo spazio del timbro.
   6. **L'addebito alla firma: lo dice l'operatore, mai un cron** (D7, solo Telegram).
      `api/telegram/_firmato.js`:
      `/firmato <BM XXXXX | book_…> <AAAA-MM-GG | oggi> [visite <n>] [kalt <euro>] [ok <AAAA-MM-GG>] [anticipo]`
@@ -4078,10 +4087,11 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
      «Confirmed»), quello fatturato e quello chiuso/ritirato, mai «Payment received» prima del
      pagamento né un prezzo, e la risposta di un desk alla firma chiude con `#order-full-search`;
      `RENT.isForeignVat` (`js/rent-engine.js`, una copia) tiene le fatture `vatCountry ≠ IT` FUORI
-     dalla base IVA italiana del Contabile e dello scadenzario («IVA estera — da definire»,
-     `foreignVat` nel JSON dello scadenzario); la Bonifica non cancella mai un lead prenotato, pagato
-     o numerato; la conservazione del mese aggiunge `registre-PAR-<AAAA-MM>.csv` e
-     `orders-BER-<AAAA-MM>.csv` (`;`, BOM, CRLF, celle protette dalle formule).
+     dalla base IVA italiana del Contabile, dello scadenzario e, dalla revisione, della pagina
+     fiscale Egidi del portal («IVA estera — da definire», `foreignVat` nel JSON dello scadenzario);
+     la Bonifica non cancella mai un lead prenotato, pagato o numerato; la conservazione del mese
+     aggiunge `registre-PAR-<AAAA-MM>.csv` e `orders-BER-<AAAA-MM>.csv` (`;`, BOM, CRLF, celle
+     protette dalle formule) e dice pagato anche un compenso pagato solo sulla fattura (punto 14).
   8. **La funzione di recesso online** (la direttiva 2023/2673, in vigore dal 19/06/2026: CRD art.
      11a, §356a BGB, L221-21, art. 54-bis Cod. cons.), su TUTTI gli otto desk e sul Pacchetto di Roma
      (D10). `POST /api/withdraw` (config di default: `vercel.json` resta a 50 regole):
@@ -4159,18 +4169,21 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
      Berlin e BOOM Paris; `vercel.json` `/parigi` → `/paris` e `/berlino` → `/berlin` (59 redirect,
      funzioni ancora 50); `og-paris.png` 94 KB, `og-berlin.png` 93 KB, `og-desks.png` 97 KB con gli
      otto codici.
-  12. **Le misure** (albero del flip, e819d034, dove non detto altro). Parigi 481 parole al
-     caricamento (prosa 431 · strumenti 50) e 78,9 KB, Berlino 468 (424 · 44) e 79,0 KB, prima del
-     link del recesso nel piede (+2); i sei con quel link 467 · 511 · 489 · 485 · 536 · 485 (Amsterdam,
-     Barcellona, Londra, Madrid, Milano, Valencia). Col JS di B3 (12,3 KB) e il recesso, nella copia
-     d'integrazione: Parigi 80,5 KB, Berlino 80,7, Milano 81,2 su 82 — 0,8 KB di margine: ogni
-     aggiunta a tutte le pagine desk libera byte prima. Primo schermo a 390×844: 122 e 122 (≤ 150);
-     piega nel font della CI: 390×844 porta 709 · chi 779, 375×812 715 · 785; in Inter 390×844 724 ·
-     794. Biglietti (sui JSON della specifica): Parigi 55/43/35, Berlino 50/46/35 parole (60);
-     tariffe chiuse 58 e 58 (70). Hub: 973 parole (prosa 698 · strumenti 275; board 119 · map 65 ·
-     fares 225 · rules 156 · faq 43 · brief 227) su 980, pagina 28.319 B gz su 28.672, totale 73,1
-     KB su 78; primo schermo 84 (≤ 120) nei due font. Un altro desk costa all'hub circa 31 parole
-     (la stima della v1.7) contro 7 di margine: resta una decisione strutturale.
+  12. **Le misure** (questo albero, dopo la revisione del punto 14: `node build-cities.mjs`, dove
+     non detto altro). Parigi 483 parole al caricamento (prosa 433 · strumenti 50) e 80,7 KB, Berlino
+     470 (426 · 44) e 80,8 KB, col link del recesso nel piede (+2; 481 e 468 senza, sull'albero del
+     flip e819d034); i sei 467 · 511 · 489 · 485 · 536 · 485 parole e 80,2 · 80,5 · 80,9 · 80,3 ·
+     81,3 · 80,3 KB (Amsterdam, Barcellona, Londra, Madrid, Milano, Valencia). Asset: JS 12,4 KB gz
+     (12.742 B, tetto 14), CSS 13,3 (15), onda 3,6 (4), mappa 3,0 (3,5). Milano 81,3 su 82 — 0,7 KB
+     di margine: ogni aggiunta a tutte le pagine desk libera byte prima. Primo schermo a 390×844:
+     122 e 122 (≤ 150); piega nel font della CI: 390×844 porta 709 · chi 779, 375×812 715 · 785; in
+     Inter 390×844 724 · 794. Biglietti (sui JSON della specifica): Parigi 55/43/35, Berlino 50/46/35
+     parole (60); tariffe chiuse 58 e 58 (70). Hub: 973 parole (prosa 698 · strumenti 275; board
+     119 · map 65 · fares 225 · rules 156 · faq 43 · brief 227) su 980, pagina 28.319 B gz su
+     28.672, totale 73,3 KB su 78; primo schermo 84 (≤ 120) nei due font. Claims 48 (company-rome
+     15 · tenant 9 · lease 7 · follower 6 · deposit 5 · heading 2 · context 2 · trade-mark 1 ·
+     listing 1). Un altro desk costa all'hub circa 31 parole (la stima della v1.7) contro 7 di
+     margine: resta una decisione strutturale.
   13. **L'integrazione.** Cinque merge senza conflitti di testo (A1+A2, il recesso lato server,
      B1+B3+il recesso lato desk, B2, il recesso lato pagina) e una correzione di significato
      (62a699de, il punto 5). Una prova di fine a fine in scratch, non committata, 19/19: la pagina di
@@ -4179,6 +4192,44 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
      dell'email; recesso online → `withdrawnAt` + conferma → WITHDRAWN; un secondo ordine con la
      spunta → fattura €199 → DUE col link stabile; una dichiarazione dopo la fattura → solo la
      mappa, il biglietto resta DUE.
+  14. **La revisione (05/11).** Una verifica avversaria su a5328926 in cinque lenti (diritto
+     francese, diritto tedesco, soldi, build e sito, pagina): 36 rilievi, cinque tenuti e corretti
+     (gli altri 31 restano fuori da questo giro; quelli già noti stanno in «Non fatto» qui sotto).
+     LFR-1 (L221-14 al. 2, C. civ. 1127-2, §312j(3) BGB): su `/paris` e `/berlin` l'invio implicito
+     del browser faceva di un Invio nel nome, nell'email o nella nota della cassa l'ordine (un POST,
+     il mandato numerato e la sua email) senza che il bottone, la spunta o la riga del recesso
+     fossero visti. Ora (`assets/src/boom-city.js`, solo sui desk alla firma) Invio cammina nome →
+     email → nota → spunta → bottone, un Invio ripetuto dal tasto tenuto premuto non fa niente, e
+     ordina SOLO un clic, Invio o Spazio SUL bottone «Order, pay on signing · €N»; i sei tengono Invio
+     verso Stripe (la pagina di Stripe conclude lì il contratto). F3: la pagina fiscale Egidi del
+     portal e «Salva nelle scadenze» sommavano le provvigioni di Parigi e Berlino (`vatCountry`
+     FR/DE) nei trimestri dell'IVA italiana al 22% e le avrebbero salvate come «IVA trimestrale»;
+     una base sola (`egidiInvoiceBase`, `js/portal-app.js`) alimenta pagina, consiglio e scadenze, e
+     le tiene fuori, elencate a parte con le parole di `contabile.js` (nel test: «IVA estera — da
+     definire: €976 (2 fatture · FR €500 · DE €476)»). F4: il PDF dell'ordine (il mandato di
+     Parigi, la sua sola copia francese; l'ordine di Berlino) passava il nome da `wa()`, che toglie
+     ogni lettera fuori dal WinAnsi («Ayşe Yılmaz» → «Aye Ylmaz», un nome cirillico → niente), e
+     l'ordine tiene lo SHA-256 di quel PDF come copia del contratto. Il corpo è ora in BOOM Doc Sans (`api/_pdffont.js` +
+     `api/_pdffont-data.js`, generati da `design/pages-deco/genera-font-pdf.py` con fontTools:
+     Liberation Sans 2.1 ridotto a latino con ogni estensione, greco e cirillico, metriche Arial,
+     rinominato come chiede la SIL OFL 1.1 per una versione modificata, licenza in testa e in
+     `design/pages-deco/fonts/OFL-Liberation.txt`), incorporato da pdf-lib attraverso un'interfaccia
+     fontkit scritta sulle metriche di fontTools: nessuna dipendenza npm (`@pdf-lib/fontkit` costa
+     ~145 ms di avvio a freddo alla funzione della cassa, questo modulo ~7) e il PDF resta
+     deterministico. Un carattere che il font non ha (un nome cinese, un'emoji) esce «?», resta su
+     `orderPdf.unprinted` e alza `agentNotifications/book-pdf-<id>`, e la copia all'operatore lo dice;
+     testata, titolo e piede restano in Helvetica. F5: un compenso pagato solo sulla FATTURA (un
+     bonifico segnato nel portal, un timbro del webhook caduto che ha risposto 200) risultava «due»
+     nel registro del mese; `api/ops/conservazione.js` legge le fatture `cityfee_` (una query per
+     sorgente, più una lettura diretta per quelle che un ordine nomina) e dice lo stato come il
+     biglietto gestito (pagato sull'ordine o sulla fattura, nel giorno della fattura; una
+     dichiarazione di recesso non nasconde mai una fattura ancora dovuta), e la card del recesso
+     (`api/withdraw.js`) dice «compenso già pagato». Webhook e portal invariati: la fattura resta il
+     registro di un bonifico (specifica §5.4 e §6.7). STAMP: sul biglietto gestito DUE/PAID la
+     testata sparisce e i campi salivano sotto il timbro da 84 px (sul PAID l'anello stava su
+     «€500», l'unico posto di quella pagina che lo stampa); ora tengono lo spazio del timbro, uno per
+     riga, e una colonna da 320 px non spezza mai «BM X7K2Q» né il compenso: 0 px² sovrapposti a
+     320, 375, 390 e 1440, Parigi e Berlino, nei due font. Le pagine cambiano solo il `?v=`.
   I Termini §12.5 dicono «due within 7 days of the signing»; la fattura scade 7 giorni dopo
   l'EMISSIONE (mai prima: a favore del cliente quando la firma è dichiarata in ritardo). Se il legale
   sceglie il ripiego del bottone (O9), cambiano anche i Termini §12.5 e `llms.txt`, che lo citano.
@@ -4190,8 +4241,9 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
   ferma un ordine aperto abbinato per email e desk anche senza riferimento — un terzo che conosce
   l'email del cliente può fermarglielo, il cliente lo sa per email (per il fondatore o il legale);
   la conferma di un recesso di Roma è sempre in italiano, anche con `?lang=en`; `chargeAtOf` esiste
-  in due copie con la stessa regola (`build-cities.mjs`, `api/_market.js`); il PDF dell'ordine perde
-  le lettere fuori dal Latin-1 (ő, ł, CJK) nel nome, l'email le tiene; `banca.html` non mostra ancora
+  in due copie con la stessa regola (`build-cities.mjs`, `api/_market.js`); un nome in una scrittura
+  che BOOM Doc Sans non ha (cinese, arabo, ebraico, un'emoji) esce «?» nel PDF dell'ordine — detto
+  all'operatore (`book-pdf`, punto 14), l'email lo tiene; `banca.html` non mostra ancora
   `foreignVat`; il Pacchetto ha il link del recesso online solo nella riga della cassa (un «Recesso»
   nel piede è suggerito, non fatto) e il suo honeypot si chiama ancora `company`;
   `api/service-checkout.js` gira col tetto di default di Vercel (commit fino a 12 tentativi, PDF, due
@@ -4243,14 +4295,19 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
   il 24 px di WCAG 2.2 SC 2.5.8; il francese dei termini. Verificato invece dal test: pdf-lib con le
   date fissate dà lo stesso SHA-256. Mancano due misure: un iPhone vero (Safari) e il p95 dell'ordine
   sulla Preview.
-  Test: `tests/cities/run.mjs` TBD-COUNTS, `ui.mjs` TBD-COUNTS (Inter e font della CI),
-  `checkout.mjs` TBD-COUNTS, `calendar.mjs` TBD-COUNTS, `signing.mjs` (citiessigning) TBD-COUNTS,
-  `tests/cityterms/run.mjs` TBD-COUNTS, `tests/withdraw/run.mjs` TBD-COUNTS, `tests/withdraw/ui.mjs`
-  (withdrawui) TBD-COUNTS; più paymentlinks, paexternal, money, rimbalzi, dataops, agencyaccounting,
-  conservazione, vercelfunctions, guasti, seo, crawl, llmstxt, verita, consentbanner, scroll, cielo,
-  markets. Al buio, prima del flip (62a699de): run 1222, ui 599 nei due font, checkout 117, calendar
-  126, signing 274, cityterms 142, withdraw 122, withdrawui 87 nei due font; `npm test` 296 suite,
-  rosse solo `portalnavigationui` in Inter (Oggi, il font) e `magicsigncustomui` /
+  Test (dopo la revisione, sull'albero integrato): `tests/cities/run.mjs` 1273, `ui.mjs` 644 in
+  Inter e 644 nel font della CI (ognuno da solo: lanciati insieme danno 643/1 in tutti e due, il
+  controllo «rotating a tablet past 940 px…», che aspetta 400 ms dopo il cambio di finestra, cede al
+  carico di quattro core occupati), `checkout.mjs` 118, `calendar.mjs` 128, `signing.mjs`
+  (citiessigning) 301, `tests/cityterms/run.mjs` 149, `tests/withdraw/run.mjs` 124,
+  `tests/withdraw/ui.mjs` (withdrawui) 87 nei due font; più paymentlinks 130, paexternal 16
+  scenari, money 77, rimbalzi 182, dataops 199, agencyaccounting 18, conservazione 9,
+  vercelfunctions (50 regole, 57 file), guasti 19, seo 21, crawl 60, llmstxt 12, verita 24,
+  consentbanner 27, scroll 4 e cielo 7 nei due font, markets 124, radici 8. Al flip (a5328926): run
+  1271, ui 621 nei due font, checkout 118, calendar 128, signing 277, cityterms 146, withdraw 122,
+  withdrawui 87. Al buio, prima del flip (62a699de): run 1222, ui 599 nei due font, checkout 117,
+  calendar 126, signing 274, cityterms 142, withdraw 122, withdrawui 87 nei due font; `npm test` 296
+  suite, rosse solo `portalnavigationui` in Inter (Oggi, il font) e `magicsigncustomui` /
   `magicsigncustomsigner` (cdn.jsdelivr.net irraggiungibile), preesistenti.
 - **IL DESK AVIAZIONE COMPLETO (v1.6, 03/11/2026 — il fondatore: «questo stile è
   troppo sintetizzato… itera lo stile del biglietto… anche per una pagina
@@ -4444,8 +4501,8 @@ pagine città).
   caricamento 980 (prosa 740, strumenti 280), primo schermo a 390 ≤ 120, lead 30,
   nodo 24, una risposta FAQ ≤ 42, una riga in brief ≤ 45; per sezione board 120 ·
   map 90 · fares 230 · rules 160 · faq 70 · brief 240. Con otto desk (v1.8, misurato
-  sull'albero del flip): 973 parole (prosa 698 · strumenti 275; board 119 · map 65 · fares 225 ·
-  rules 156 · faq 43 · brief 227), pagina 28.319 B gz su 28.672, totale 73,1 KB; primo schermo 84.
+  dopo la revisione del 05/11): 973 parole (prosa 698 · strumenti 275; board 119 · map 65 · fares 225 ·
+  rules 156 · faq 43 · brief 227), pagina 28.319 B gz su 28.672, totale 73,3 KB; primo schermo 84.
   Ci stanno perché il JSON-LD va su una riga (−386 B) e per i tagli H1–H13 della v1.8 (via «One
   company» e «One person» dalla striscia, la riga Rome della scheda, la riga sotto ROM, il tag del
   paese nella tabella; il tag di Milano resta). Un altro desk costa all'hub circa 31 parole contro 7
@@ -4761,7 +4818,8 @@ Vedi «IL BIGLIETTO v1.8», punto 8.
 
 **Fatture con `vatCountry` diverso da `'IT'`** (le `cityfee_` di Parigi e Berlino, v1.8):
 `RENT.isForeignVat` (`js/rent-engine.js`, una copia) le tiene FUORI dalla base IVA italiana del
-Contabile e dello scadenzario, elencate a parte («IVA estera — da definire») finché il
+Contabile, dello scadenzario e della pagina fiscale Egidi del portal (`egidiInvoiceBase`, anche
+per «Salva nelle scadenze»), elencate a parte («IVA estera — da definire») finché il
 commercialista non decide il luogo della prestazione.
 
 ### POST `/api/search/save`
