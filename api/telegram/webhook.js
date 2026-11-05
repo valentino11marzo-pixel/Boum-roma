@@ -20,6 +20,7 @@ import { tgSend, tgEdit, tgAckCallback, requireWebhookSecret, isAuthorizedChat, 
 import { handleViewingCallback, sendAgenda } from './_viewings.js';
 import { handleTaskCallback, handleTaskText, sendBrief } from '../regista/_telegram.js';
 import { handleRichiamoCallback, handleRichiamaCommand } from './_richiamo.js';
+import { handleFirmatoCallback, handleFirmatoCommand, handleChiudiCommand, VERBS as FIRMATO_VERBS } from './_firmato.js';
 import { handleScrivanoCallback } from './_scrivano.js';
 import { scrivanoEligible, offerKeyboard, offerLine } from '../scrivano/_offer.js';
 import crypto from 'node:crypto';
@@ -159,6 +160,17 @@ export default async function handler(req, res) {
       // Prima della lettura di action_queue: una campagna non vive lì.
       if (verb === 'rk' || verb === 'rx') {
         const handled = await handleRichiamoCallback(verb, actionId, {
+          chatId, messageId, callbackId: cq.id,
+        });
+        if (handled) return res.status(200).json({ ok: true });
+      }
+
+      // ── La firma di una locazione (cfy/cfx/cfn/cch/cfr) — Parigi, Berlino ──
+      // Prima della lettura di action_queue: un ordine vive in leads. Il tap
+      // è la firma sulla fattura (api/payments/_citysign.js); l'importo non
+      // viaggia mai nel bottone.
+      if (FIRMATO_VERBS.includes(verb)) {
+        const handled = await handleFirmatoCallback(verb, data.slice(verb.length + 1), {
           chatId, messageId, callbackId: cq.id,
         });
         if (handled) return res.status(200).json({ ok: true });
@@ -356,6 +368,7 @@ export default async function handler(req, res) {
           '• /fiducia — quali bozze possono partire da sole (coi numeri e gli interruttori)',
           '• /segretaria — le chat in mano alla Segretaria (🤖 sulla card del lead per consegnargliene una)',
           '• /vendi — manda a un cliente il link di pagamento di un servizio',
+          '• /firmato — un ordine di Parigi o Berlino ha firmato: la fattura con un tap · /chiudi per chiuderlo',
           '• /recensione — chi ringraziare oggi, con il messaggio già pronto',
           '• /visite — agenda dei prossimi 7 giorni + richieste da confermare',
           '• /giornata — il Foglio di Chiamata di oggi (visite, viaggi, task)',
@@ -562,6 +575,18 @@ export default async function handler(req, res) {
       // anteprima con esclusi e motivo, poi UN tap (✅) e parte tutto.
       if (text === '/richiama' || text.startsWith('/richiama ')) {
         await handleRichiamaCommand(chatId, text.slice(9).trim());
+        return res.status(200).json({ ok: true });
+      }
+
+      // /firmato — un ordine di Parigi o Berlino ha firmato una locazione: una
+      // domanda, un tap, la fattura Egidi col link di pagamento. /chiudi —
+      // l'ordine si chiude senza nulla di dovuto.
+      if (text === '/firmato' || text.startsWith('/firmato ')) {
+        await handleFirmatoCommand(chatId, text.slice(8).trim());
+        return res.status(200).json({ ok: true });
+      }
+      if (text === '/chiudi' || text.startsWith('/chiudi ')) {
+        await handleChiudiCommand(chatId, text.slice(7).trim());
         return res.status(200).json({ ok: true });
       }
 

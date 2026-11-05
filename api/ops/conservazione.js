@@ -23,12 +23,91 @@ import {
 } from '../employees/_lib.js';
 import { sendEmail } from '../agent/_lib.js';
 import { buildZip } from '../_zip.js';
+import { CITY_MARKETS, chargeAtOf } from '../_market.js';
 
 const EMPLOYEE = 'conservazione';
 const ADMIN_NOTIFY = process.env.ADMIN_NOTIFY_EMAIL || 'valentino@boom-rome.com';
 const MAX_ZIP = 20 * 1024 * 1024;
 const clip = (v, n = 80) => String(v == null ? '' : v).trim().slice(0, n);
 const safe = (s) => clip(s, 60).replace(/[^a-zA-Z0-9._-]/g, '_') || 'doc';
+
+// ── I registri degli ordini dei desk che incassano alla firma (v1.8) ─────
+// Parigi: il registro dei mandati (décret 72-678 art. 72 — numerato, in
+// ordine di data, senza buchi; che un registro tenuto così basti è da
+// confermare col legale, spec §16 O5); Berlino: il registro degli ordini.
+// Ogni mese la conservazione porta UN CSV per desk con le righe del registro
+// NATE o CAMBIATE nel mese (ordine, firma, pagamento, recesso, chiusura) e lo
+// stato di oggi: la copia fuori da Firebase. Separatore «;» e BOM per Excel
+// in italiano; date ISO; un campo che comincia con = + - @ prende un apice
+// (niente formule da un nome scritto dal cliente).
+const REG_COLS = ['number', 'orderedAt', 'name', 'email', 'plan', 'startNow', 'expiresOn', 'status', 'signedOn', 'invoice', 'paidAt', 'withdrawnAt', 'closedAt'];
+const ROME_DAY = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Rome', year: 'numeric', month: '2-digit', day: '2-digit' });
+const ROME_TIME = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Rome', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+function romeDayOf(v) {
+  if (v == null || v === '') return '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(String(v))) return String(v);
+  const t = Date.parse(String(v));
+  if (!Number.isFinite(t)) return '';
+  const p = {};
+  for (const x of ROME_DAY.formatToParts(new Date(t))) if (x.type !== 'literal') p[x.type] = x.value;
+  return `${p.year}-${p.month}-${p.day}`;
+}
+function romeStamp(v) {
+  const d = romeDayOf(v);
+  if (!d || /^\d{4}-\d{2}-\d{2}$/.test(String(v))) return d;
+  return `${d} ${ROME_TIME.format(new Date(Date.parse(String(v))))}`;
+}
+const csvCell = (v) => {
+  let x = v == null ? '' : String(v);
+  if (/^[=+\-@]/.test(x)) x = "'" + x;
+  return /[;"\r\n]/.test(x) ? '"' + x.replace(/"/g, '""') + '"' : x;
+};
+// the signing day once the operator has CONFIRMED it (invoice or no fee): a
+// draft of /firmato is not yet a fact of the register
+function signedOnOf(l) {
+  const sg = l.signing && typeof l.signing === 'object' ? l.signing : {};
+  return ['invoicing', 'invoiced', 'no_fee'].includes(sg.status) && sg.signedOn ? String(sg.signedOn) : '';
+}
+// the state of an order as the managed ticket reads it (api/city-lead.js)
+function orderState(l) {
+  const sg = l.signing && typeof l.signing === 'object' ? l.signing : {};
+  if (l.paid === true) return 'paid';
+  if (l.withdrawnAt || (l.withdrawal && l.withdrawal.at)) return 'withdrawn';
+  if (l.closedAt) return l.closeReason === 'no_fee' || sg.status === 'no_fee' ? 'no_fee' : 'closed';
+  if (sg.status === 'invoiced') return 'due';
+  return 'booked';
+}
+/**
+ * The month's register extracts, pure: one CSV per signing desk with at
+ * least one order born or changed in `month` (YYYY-MM, Rome). Exported for
+ * the test. → [{ name, desk, rows, data }]
+ */
+export function orderRegisters(leads, month, markets = CITY_MARKETS) {
+  const out = [];
+  for (const [key, desk] of Object.entries(markets)) {
+    if (chargeAtOf(key) !== 'signing' || !desk || !desk.order || !desk.order.prefix) continue;
+    const rows = (leads || []).filter((l) => l && /^book_/.test(String(l.id || '')) && l.booked === true && l.market === key)
+      .filter((l) => {
+        const c = l.city || {};
+        return [c.orderedAt, signedOnOf(l), l.paidAt, l.withdrawnAt || (l.withdrawal && l.withdrawal.at), l.closedAt]
+          .some((v) => romeDayOf(v).slice(0, 7) === month);
+      })
+      .sort((a, b) => String((a.city && a.city.order && a.city.order.number) || '').localeCompare(String((b.city && b.city.order && b.city.order.number) || '')));
+    if (!rows.length) continue;
+    const lines = [REG_COLS.join(';')];
+    for (const l of rows) {
+      const c = l.city || {}, o = c.order || {}, sg = l.signing || {};
+      lines.push([
+        o.number || l.id, romeStamp(c.orderedAt), l.name, l.email, c.service, c.startNow === true ? 'yes' : 'no',
+        o.expiresOn || '', orderState(l), signedOnOf(l), sg.invoiceId || '', romeDayOf(l.paidAt),
+        romeDayOf(l.withdrawnAt || (l.withdrawal && l.withdrawal.at)), romeDayOf(l.closedAt),
+      ].map(csvCell).join(';'));
+    }
+    const name = `${desk.country === 'fr' ? 'registre' : 'orders'}-${desk.order.prefix}-${month}.csv`;
+    out.push({ name, desk: key, rows: rows.length, data: '\uFEFF' + lines.join('\r\n') + '\r\n' });
+  }
+  return out;
+}
 
 async function fetchPdf(url) {
   if (!url) return null;
@@ -71,11 +150,18 @@ async function run({ dry, monthOverride }) {
 
   const contracts = await fsList('contracts', { limit: 800 });
   const done = contracts.filter((c) => String(c.finalizedAt || '').slice(0, 7) === month);
+  // the order registers of the desks that charge at signing (none until the
+  // flip: nothing is read then)
+  const signing = Object.keys(CITY_MARKETS).some((k) => chargeAtOf(k) === 'signing');
+  const orders = signing ? await fsList('leads', { filter: { field: 'intent', op: 'EQUAL', value: 'city_booking' }, limit: 1000 }) : [];
+  const registers = orderRegisters(orders, month);
   const counts = { month, contracts: done.length, files: 0, bytes: 0, emails: 0, missing: 0 };
+  if (registers.length) counts.orders = registers.reduce((n, r) => n + r.rows, 0);
 
-  if (!done.length) return { counts, note: 'nessun contratto finalizzato nel mese' };
+  if (!done.length && !registers.length) return { counts, note: 'nessun contratto finalizzato nel mese' };
   if (dry) {
-    return { counts, contracts: done.map((c) => ({ id: c.id, tenant: c.tenantName, finalizedAt: c.finalizedAt })) };
+    return { counts, contracts: done.map((c) => ({ id: c.id, tenant: c.tenantName, finalizedAt: c.finalizedAt })),
+      ...(registers.length ? { registers: registers.map((r) => ({ name: r.name, rows: r.rows })) } : {}) };
   }
 
   // Idempotenza per mese: heartbeat/ è già admin-only nelle rules DEPLOYATE.
@@ -105,6 +191,12 @@ async function run({ dry, monthOverride }) {
     }
     indice.push('');
   }
+  for (const r of registers) {
+    const bytes = Buffer.from(r.data, 'utf8');
+    files.push({ name: `${month}/${r.name}`, data: bytes });
+    counts.files++; counts.bytes += bytes.length;
+    indice.push(`── Registro ordini ${CITY_MARKETS[r.desk].label}: ${r.name} (${r.rows} ${r.rows === 1 ? 'riga' : 'righe'}, nati o cambiati nel mese)`);
+  }
   if (!files.length) return { counts, note: 'nessun file scaricabile' };
   files.unshift({ name: `${month}/00_INDICE.txt`, data: indice.join('\n') });
 
@@ -123,7 +215,7 @@ async function run({ dry, monthOverride }) {
     await sendEmail({
       to: ADMIN_NOTIFY,
       subject: `🗄️ Conservazione ${month}${part} — ${counts.contracts} contratti, ${counts.files} file`,
-      html: `<p>In allegato l'archivio di conservazione del mese <strong>${month}</strong>${part}: contratti firmati, certificati FES, fascicoli e marche temporali dei contratti finalizzati nel mese.</p><p>Conserva questa email: è la copia FUORI da Firebase dell'archivio legale.</p>${counts.missing ? `<p>⚠️ ${counts.missing} file non scaricabili — dettagli in 00_INDICE.txt</p>` : ''}`,
+      html: `<p>In allegato l'archivio di conservazione del mese <strong>${month}</strong>${part}: contratti firmati, certificati FES, fascicoli e marche temporali dei contratti finalizzati nel mese.</p>${registers.length ? `<p>Dentro c'è anche il registro degli ordini dei desk che incassano alla firma: ${registers.map((r) => r.name).join(', ')}.</p>` : ''}<p>Conserva questa email: è la copia FUORI da Firebase dell'archivio legale.</p>${counts.missing ? `<p>⚠️ ${counts.missing} file non scaricabili — dettagli in 00_INDICE.txt</p>` : ''}`,
       attachments: [{ filename: `BOOM_conservazione_${month}${volumes.length > 1 ? '_vol' + (i + 1) : ''}.zip`, content: zip, contentType: 'application/zip' }],
     });
     counts.emails++;

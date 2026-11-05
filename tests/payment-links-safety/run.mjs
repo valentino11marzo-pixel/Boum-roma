@@ -195,6 +195,32 @@ before = stripe.calls.length;
 r = await call(link, get('inv-draft', {}, 'inv'));
 check('draft invoice needs verification rather than being charged', r.code === 200 && r.body.includes('Pagamento da verificare') && stripe.calls.length === before);
 
+// v1.8: the fee invoice of a desk abroad (lang 'en') speaks English end to
+// end — the page, the Stripe product — and stays Italian for every other doc.
+store.set('invoices/cityfee_book_en1', { status: 'pending', amount: 476, number: 'BER-2026-0001-FS', lang: 'en', vatCountry: 'DE',
+  service: 'BOOM Berlin — Full Search', description: 'BOOM Berlin — Full Search · order BER-2026-0001 · lease signed 10 Dec 2026', dueDate: '2026-12-17' });
+r = await call(link, get('cityfee_book_en1', {}, 'inv'));
+const enCall = stripe.calls.at(-1);
+check('English invoice: Stripe product "BOOM invoice · <number>", the invoice description, INVOICE metadata, no card fee',
+  r.code === 303 && enCall.line_items.length === 1 && enCall.line_items[0].price_data.product_data.name === 'BOOM invoice · BER-2026-0001-FS'
+  && enCall.line_items[0].price_data.product_data.description === 'BOOM Berlin — Full Search · order BER-2026-0001 · lease signed 10 Dec 2026'
+  && enCall.metadata.service === 'INVOICE' && enCall.line_items[0].price_data.unit_amount === 47600);
+r = await call(link, get('cityfee_book_en1', { return: 'success' }, 'inv'));
+check('English invoice page: <html lang="en">, brand, title, labels and amount in English, no Italian',
+  r.body.includes('<html lang="en">') && r.body.includes('BOOM · PAYMENTS') && r.body.includes('Confirmation on its way') && r.body.includes('BOOM invoice · BER-2026-0001-FS')
+  && r.body.includes('<dt>Due</dt><dd>17 December 2026</dd>') && r.body.includes('<strong>€476.00</strong>') && r.body.includes('Invoice amount') && r.body.includes('Refresh the status')
+  && !/Fattura|Scadenza|Importo|Pagamento|PAGAMENTI|Aggiorna/.test(r.body));
+store.set('invoices/cityfee_book_en2', { status: 'paid', amount: 500, number: 'PAR-2026-0001-FS', lang: 'en', paidDate: '2026-12-12', receiptUrl: 'https://stripe.test/receipt' });
+r = await call(link, get('cityfee_book_en2', {}, 'inv'));
+check('English invoice already paid: "Payment confirmed" with the day in English and the receipt',
+  r.body.includes('Payment confirmed') && r.body.includes('recorded on 12 December 2026') && r.body.includes('See the receipt') && !r.body.includes('Vedi la ricevuta'));
+r = await call(link, { method: 'GET', query: { k: 'inv', id: 'cityfee_book_en1', t: 'f'.repeat(24) } });
+check('a wrong token on a city fee link: the refusal in English (cityfee_ is English by construction)', r.code === 404 && r.body.includes('Invalid link') && r.body.includes('<html lang="en">'));
+r = await call(link, { method: 'GET', query: { k: 'inv', id: 'inv1', t: 'f'.repeat(24) } });
+check('a wrong token on any other link: the refusal stays Italian', r.code === 404 && r.body.includes('Link non valido') && r.body.includes('<html lang="it">'));
+r = await call(link, { method: 'GET', query: { k: 'ord', id: 'book_en1', t: payToken('inv', 'book_en1') } });
+check('k=ord is not a pay-link kind: refused (an order ticket never opens a till)', r.code === 404 && stripe.calls.at(-1) === enCall);
+
 // Inspect the provider payload from BOTH real handlers, so UI-only labels
 // cannot conceal a utility bill being described as rent at checkout.
 for (const route of ['pay', 'link']) {
