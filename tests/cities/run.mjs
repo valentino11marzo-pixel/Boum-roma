@@ -19,7 +19,9 @@
 //     "Who pays the agent · LAU art. 20" check is not the first one;
 //   - the till out of the order the law asks (CRD): the plan, the UNTICKED
 //     start-now box, the withdrawal line with the model form, the pay button
-//     that follows the tick;
+//     that follows the tick; v1.8 stage W: a selling desk whose withdrawal
+//     line, footer or hub strip does not link the online withdrawal function
+//     (/withdrawal?desk=<City>#online, "Withdraw from contract here");
 //   - the quiz pages coming back (Check-in, meter, shared pass, #checkin=,
 //     the v1.4 hero, the priced pay bar, U+2708) or their JSON keys;
 //   - v1.6: the walk out of order (Departures, Pre-flight, Baggage, Gate,
@@ -62,7 +64,7 @@ import zlib from 'node:zlib';
 import { spawnSync } from 'node:child_process';
 import {
   buildAll, renderCity, writeAll, fill, findPlaceholders, fragments, familyFor, BuildError, esc, eur, money, currencyOf, GENERATED_MARK, WEIGHT_KB, BUDGET,
-  daysLabel, deskHoursText, feesRowOf, holidayKeyOf, visibleAtLoad, visibleText, sliceOf, words, waHref, WITHDRAWAL_PATH, TERMS_PATH,
+  daysLabel, deskHoursText, feesRowOf, holidayKeyOf, visibleAtLoad, visibleText, sliceOf, words, waHref, WITHDRAWAL_PATH, WITHDRAW_LABEL, TERMS_PATH,
   stripComments, emittedAssets, emitAssets, SERVED_ASSETS,
   atLoadParts, longNodes, weightOf, validGeo, sealText, sealPhrase, STATUS_RE, STATUS_BANNED_RE, AVIATION_BAN_RE,
   ARC_CLEAR, ARC_DOT_R, ARC_ME_R, MAP_KB, HZ_CAM, HZ_LIFT, HZ_LEAN, HZ_KEY, HUB_MAP_PX, horizon, hzViolations, hzPathPts, hzCal, holidayKeyOf as hkOf,
@@ -641,10 +643,18 @@ tplRefuses('<p class="proof">', '<p class="proof">REA RM-9999999 · ', /"REA RM-
 
 check(/<details class="sheet">\s*<summary>BOOM Amsterdam — fact sheet<\/summary>\s*<dl class="enbref" id="enbref">/.test(html) && /<section class="sec brief" id="enbref-wrap"[^>]*>\s*<span class="corner" aria-hidden="true">Conditions<\/span>/.test(html),
   'the fact sheet is folded for people and whole in the DOM for machines (GEO), on the back of the ticket (CONDITIONS, decorative)');
-check(html.includes(`<a href="${WITHDRAWAL_PATH}?desk=Amsterdam">Withdrawal form</a>`) && html.includes(`<a href="/terms#city-desks">Terms</a>`) && html.includes('<a href="/privacy">Privacy</a>')
-  && /<nav aria-label="Legal"><h3>Legal<\/h3> <a href="\/terms#city-desks">Terms<\/a> <a href="\/privacy">Privacy<\/a> <a href="\/withdrawal\?desk=Amsterdam">Withdrawal form<\/a><\/nav>/.test(html)
+// v1.8 stage W (spec §4.5): the pin moved — the footer link of a selling
+// desk was "Withdrawal form" → /withdrawal?desk=<City>; it is now the online
+// withdrawal function under its statutory label (Dir. 2023/2673, CRD art.
+// 11a), "Withdraw from contract here" → /withdrawal?desk=<City>#online; the
+// model form stays on that page and in the till (+2 words at load)
+check(WITHDRAW_LABEL === 'Withdraw from contract here' && html.includes(`<a href="${WITHDRAWAL_PATH}?desk=Amsterdam#online">Withdraw from contract here</a>`) && html.includes(`<a href="/terms#city-desks">Terms</a>`) && html.includes('<a href="/privacy">Privacy</a>')
+  && /<nav aria-label="Legal"><h3>Legal<\/h3> <a href="\/terms#city-desks">Terms<\/a> <a href="\/privacy">Privacy<\/a> <a href="\/withdrawal\?desk=Amsterdam#online">Withdraw from contract here<\/a><\/nav>/.test(html)
+  && !html.includes('>Withdrawal form</a>')
   && /<nav aria-label="Legal"><h3>Legal<\/h3> <a href="\/terms#city-desks">Terms<\/a> <a href="\/privacy">Privacy<\/a><\/nav>/.test(PAGE.paris),
-  'the footer\'s Legal column links the Terms §12, the privacy notice and — where the desk sells — the withdrawal form with the desk');
+  'the footer\'s Legal column links the Terms §12, the privacy notice and — where the desk sells — the online withdrawal function with the desk, under its statutory label ("Withdraw from contract here" → #online)');
+check(SLUGS.filter((s) => CITY[s].checkout === true).length === 6 && SLUGS.filter((s) => CITY[s].checkout === true).every((s) => sliceOf(PAGE[s], '<nav aria-label="Legal">', '</nav>').endsWith(` <a href="${WITHDRAWAL_PATH}?desk=${encodeURIComponent(CITY[s].city)}#online">${WITHDRAW_LABEL}</a>`)),
+  'every selling desk (the six) carries the online withdrawal link with its own desk in the footer\'s Legal column');
 check(html.includes(`<p class="stmt">${esc(ams.footer.statement)}</p>`) && html.includes(`P.IVA ${shared.entity.vat}`) && html.includes(`© ${shared.copyrightYear} BOOM`) && html.includes(`<p class="tm">${esc(shared.entity.trademark)}</p>`),
   'the tenant-side statement, the entity with its VAT number, the trademark, the year from data (never the clock)');
 check(/<nav aria-label="This desk"><h3>This desk<\/h3> <a href="mailto:hello@boom-rome\.com">/.test(html) && sliceOf(html, '<nav aria-label="This desk">', '</nav>').includes('<p>Mon–Fri <span class="nw">09:00–19:00</span>, Rome time</p>'),
@@ -832,6 +842,11 @@ refuses((c) => { c.checkoutCopy.btnSubNow = 'Starts today'; }, /never promises "
 refuses((c) => { c.checkoutCopy.fine = 'Secure card payment by Stripe.'; }, /must state the refund policy/, 'the fine print must state the refund policy');
 refuses((c) => { c.checkoutCopy.startNow = 'Start now.'; }, /payer's own request to start/, 'the start-now line must be the payer\'s request, with the right that ends once fully performed');
 refuses((c) => { c.checkoutCopy.withdrawal = 'You can withdraw within 14 days.'; }, /14-day withdrawal right/, 'the withdrawal line must name the email and link the model form');
+// v1.8 stage W: from now every selling desk links the online withdrawal function (the six as Paris and Berlin)
+for (const s of ['amsterdam', 'london']) {
+  refuses((c) => { c.checkoutCopy.withdrawal = c.checkoutCopy.withdrawal.replace(' — {online},', ','); check(!c.checkoutCopy.withdrawal.includes('{online}'), `(the mutation drops {online} from ${s})`); },
+    /links the online function \(\{online\}\) on every selling desk/, `${s}: a selling desk whose withdrawal line does not link the online function ({online}) is refused (stage W)`, s);
+}
 refuses((c) => { c.checkoutCopy.paid.startsWait = 'When your 14 days end'; }, /paid\.startsWait carries \{date\}/, 'the PAID start date for a payer who waits is the server\'s date ({date})');
 refuses((c) => { c.checkoutCopy.paid.startsWait = '{date}, when your 14 days end'; }, /never calls \{date\} the day the 14 days end/, 'the PAID card never calls the work\'s first day the end of the 14 days (the webhook\'s date is the first working day AFTER them: the right to withdraw would read days longer than it is)');
 refuses((c) => { c.checkoutCopy.paid.nextWait[0][1] = 'the desk writes the same working day'; }, /nextWait never "same working day"/, 'the steps of a payer who waits never promise the same working day');
@@ -954,6 +969,26 @@ tplRefuses('<p class="proof">', '<p class="proof">Pay by bank transfer · ', /no
     'the till, in the order the law asks: the plan and its price, the start-now request, the withdrawal line, the pay button, the fine print, the way back to the free door');
   check(/<input type="checkbox" id="tStart">/.test(till) && !/id="tStart"[^>]*checked/.test(till), 'the start-now box is never pre-ticked');
   check(till.includes(`href="${WITHDRAWAL_PATH}?desk=Amsterdam" target="_blank" rel="noopener">model withdrawal form</a>`) && till.includes(`href="${TERMS_PATH}"`), 'the withdrawal line links the model form with the desk; the fine print links the Terms §12');
+  // v1.8 stage W: the online withdrawal function, first in the line, on the six as on Paris and Berlin
+  {
+    const wdLine = sliceOf(till, '<p class="wd">', '</p>');
+    check(wdLine.startsWith('<p class="wd">Withdrawal: 14 days from payment — <a class="lnk" href="/withdrawal?desk=Amsterdam#online" target="_blank" rel="noopener">online</a>, by email to <a class="lnk" href="mailto:')
+      && wdLine.indexOf('#online"') < wdLine.indexOf('model withdrawal form</a>') && !/\{(?:online|email|form)\}/.test(till),
+      'the six\'s withdrawal line links the online withdrawal function with the desk (/withdrawal?desk=Amsterdam#online), then the email, then the model form; no token left');
+    check(SLUGS.filter((s) => CITY[s].checkout === true).every((s) => /^Withdrawal: 14 days from payment — \{online\}, by email to \{email\} or with the \{form\}\. /.test(CITY[s].checkoutCopy.withdrawal)
+      && sliceOf(sliceOf(PAGE[s], '<dialog class="till"', '</dialog>'), '<p class="wd">', '</p>').includes(`href="${WITHDRAWAL_PATH}?desk=${encodeURIComponent(CITY[s].city)}#online" target="_blank" rel="noopener">online</a>`)),
+      'every one of the six carries {online} after "14 days from payment" (spec §4.5) and its till links the online function with its own desk');
+    // the two output guards, each proven by putting the pre-W markup back
+    // through the template (a function replacement: the markup holds no $-patterns to expand)
+    const tplTill = template.includes('{{{tillHtml}}}'), tplFoot = template.includes('{{{footHtml}}}');
+    const oldTill = till.replace(' — <a class="lnk" href="/withdrawal?desk=Amsterdam#online" target="_blank" rel="noopener">online</a>,', ',');
+    const r1 = throws(() => render(CITY.amsterdam, shared, template.replace('{{{tillHtml}}}', () => oldTill + '</dialog>')), /the withdrawal line links the online withdrawal function with the desk \(\{online\}\), before the pay or order button/);
+    check(tplTill && oldTill !== till && r1 === true, 'a till whose withdrawal line does not link the online function is refused (stage W)', r1 === true ? '' : r1);
+    const foot = sliceOf(out, '    <footer class="foot">', '</footer>');
+    const oldFoot = foot.replace('<a href="/withdrawal?desk=Amsterdam#online">Withdraw from contract here</a>', '<a href="/withdrawal?desk=Amsterdam">Withdrawal form</a>');
+    const r2 = throws(() => render(CITY.amsterdam, shared, template.replace('{{{footHtml}}}', () => oldFoot + '</footer>')), /the footer of a selling desk links the online withdrawal function under its statutory label: "Withdraw from contract here"/);
+    check(tplFoot && oldFoot !== foot && r2 === true, 'a selling desk\'s footer with the old "Withdrawal form" link (no #online, no statutory label) is refused (stage W, §4.5)', r2 === true ? '' : r2);
+  }
   check(till.includes('<b id="tGoL">Pay and book</b><small id="tGoS">Starts when your 14 days end · Stripe</small>') && till.includes('data-label-now="Pay and start"'), 'the pay button reads "Pay and book" until the box is ticked');
   check(till.includes(`<p class="refund" id="tRule" hidden>${esc(shared.refund.rule)}</p>`), 'the till carries the refund rule (shown on Full Search)');
   const madTill = sliceOf(PAGE.madrid, '<dialog class="till"', '</dialog>');
@@ -2484,7 +2519,12 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
     check(sliceOf(fa, 'id="hf-full-search"', '</li>\n').includes(`<p class="refund">${esc(shared.refund.rule)}</p>`) && !/data-pay|<button/.test(fa), 'the refund rule sits inside the Full Search ticket; no button, no data-pay');
     check(fa.indexOf('class="hnote es"') > -1 && fa.indexOf('class="hnote es"') < fa.search(/[€£]\d/) && /In Barcelona, Madrid and Valencia every fare is optional, chosen in writing \(LAU art\. 20\)\./.test(fa),
       'the Spain note (LAU art. 20) names exactly the Spanish live desks and comes before the first price');
-    check(LIVE.every((s) => fa.includes(`<a href="/${s}#fares"><b data-instr>${CITY[s].iata}</b> ${CITY[s].city}</a>`)) && fa.includes('<a class="lnk" href="/withdrawal">'), 'the gates send each reader to /<slug>#fares; the 14-day strip item links the model form');
+    // v1.8 stage W (spec §8.2 H3): the pin moved — the 14-day strip item was
+    // "To withdraw after paying: the model form." → /withdrawal; it now links
+    // the online withdrawal function (same seven words, the hub stays at 975)
+    check(LIVE.every((s) => fa.includes(`<a href="/${s}#fares"><b data-instr>${CITY[s].iata}</b> ${CITY[s].city}</a>`))
+      && fa.includes('<li><b data-instr>14 days</b> <a class="lnk" href="/withdrawal#online">Withdraw online, from the day you order.</a></li>') && !fa.includes('<a class="lnk" href="/withdrawal">'),
+      'the gates send each reader to /<slug>#fares; the 14-day strip item links the online withdrawal function (/withdrawal#online)');
   }
 
   // the rules
@@ -2543,6 +2583,9 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
   hubRefuses((h) => { h.map.caption = 'We have 40 clients a month.'; }, /types a number/, 'a number typed in hub copy is refused (numbers come from tokens)');
   hubRefuses((h) => { h.faq.items[0].a = 'Ask {unknown}.'; }, /unknown or empty token \{unknown\}/, 'an unknown token is refused');
   hubRefuses((h) => { h.meta.extra = 'x'; }, /meta\.extra is a key the hub does not read/, 'a key the hub does not read is refused');
+  // v1.8 stage W: the strip keeps its link to the online withdrawal function
+  hubRefuses((h) => { const x = h.fares.strip.find((i) => i.href === '/withdrawal#online'); check(!!x, '(the hub strip carries the /withdrawal#online item)'); if (x) x.href = '/withdrawal'; },
+    /fares\.strip links the online withdrawal function \(an item with href "\/withdrawal#online"\)/, 'a hub strip whose 14-day item no longer links /withdrawal#online is refused (stage W)');
   hubRefuses((h) => { h.map.caption = 'Paris: book a call.'; }, /a sentence that names a desk not open promises a call/, 'a sentence naming Paris with a call is refused');
   hubRefuses((h) => { h.map.caption = 'Every desk answers from Rome, our office in Madrid too.'; }, /a presence claim outside Rome/, 'a presence claim outside Rome is refused');
   hubRefuses((h) => { h.map.caption = 'Every desk answers from Rome; RAICV listed.'; }, /a licence the desks do not hold/, 'a Valencian registry claim (RAICV) on the hub is refused');

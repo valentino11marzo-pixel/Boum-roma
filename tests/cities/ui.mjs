@@ -480,6 +480,10 @@ for (const [w, h] of [[390, 844], [320, 568], [430, 932]]) {
   await page.waitForTimeout(250);
   check(await page.$eval('#till', (d) => d.open) && await text(page, '#tTitle') === 'Full Search' && await text(page, '#tPrice') === '€500', 'the till opens on THAT plan, with its price');
   check(await shown(page, '#tRule') && await text(page, '#tRule') === RULE, 'the refund rule is in the till, beside the €500');
+  // v1.8 stage W: the withdrawal line, shown in the open till, links the online function first
+  const wdA = await page.$eval('#till .wd', (p) => [...p.querySelectorAll('a')].map((a) => ({ t: a.textContent, h: a.getAttribute('href'), seen: a.getBoundingClientRect().height > 0 })));
+  check(wdA.length === 3 && wdA[0].t === 'online' && wdA[0].h === '/withdrawal?desk=Amsterdam#online' && wdA[0].seen && wdA[2].h === '/withdrawal?desk=Amsterdam' && /^Withdrawal: 14 days from payment — online, by email to /.test(await text(page, '#till .wd')),
+    'the open till\'s withdrawal line links the online withdrawal function first ("online" → /withdrawal?desk=Amsterdam#online), then the email, then the model form (stage W)', JSON.stringify(wdA));
   check(!(await page.$eval('#tStart', (c) => c.checked)) && await text(page, '#tGoL') === 'Pay and book · €500' && /14 days end/.test(await text(page, '#tGoS')), 'unticked: "Pay and book · €500", starts when the 14 days end');
   check(await page.inputValue('#tName') === 'Anna Keller' && await page.inputValue('#tEmail') === 'anna@example.com', 'the till fills itself from what the visitor already typed');
   await page.focus('#tStart');
@@ -676,6 +680,10 @@ for (const [slug, clock, want, what] of CLOCKS) {
   const small = await page.evaluate(() => [...document.querySelectorAll('#fares summary, #door, .pill, .folds summary, .lane > summary, .net a, #deskGo')]
     .filter((e) => e.offsetParent).map((e) => ({ id: e.id || e.className || e.tagName, h: e.getBoundingClientRect().height })).filter((x) => x.h < 44));
   check(small.length === 0, '320: every fare row, the door, the WhatsApp pill, every fold, every Pre-flight lane, every Network link and the Gate door are ≥ 44 px tall', JSON.stringify(small.slice(0, 4)));
+  // v1.8 stage W (§4.5): the footer's statutory label is longer than "Withdrawal form": still one target, inside the page
+  const wdF = await page.$eval('.foot nav[aria-label="Legal"] a[href$="#online"]', (a) => { const r = a.getBoundingClientRect(); return { t: a.textContent, href: a.getAttribute('href'), h: r.height, l: r.left, r: r.right, vw: document.documentElement.clientWidth }; });
+  check(wdF.t === 'Withdraw from contract here' && wdF.href === '/withdrawal?desk=Amsterdam#online' && wdF.h >= 44 && wdF.l >= 0 && wdF.r <= wdF.vw,
+    `320: the footer's "Withdraw from contract here" (→ /withdrawal?desk=Amsterdam#online) is a ${Math.round(wdF.h)} px target inside the page (stage W)`, JSON.stringify(wdF));
   await page.click('#fare-full-search > summary');
   await page.waitForTimeout(200);
   check(await noHScroll(page) && (await rect(page, '#fare-full-search [data-pay]')).h >= 44, '320: an open ticket fits, its pay button ≥ 44 px');

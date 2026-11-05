@@ -291,7 +291,7 @@
     "altLead": "Prefer to talk first?",
     "altLink": "Start with a free call, no card",
     "startNow": "Start now: I ask BOOM to begin before my 14-day withdrawal period ends, and I understand that once the service is fully performed I can no longer withdraw.",
-    "withdrawal": "Withdrawal: 14 days from payment, by email to {email} or with the {form}. If you asked us to start and then withdraw, we refund the price minus the work already done. Without the tick, we start when the 14 days end.",
+    "withdrawal": "Withdrawal: 14 days from payment — {online}, by email to {email} or with the {form}. If you asked us to start and then withdraw, we refund the price minus the work already done. Without the tick, we start when the 14 days end.",
     "fine": "Secure card payment by Stripe. Invoice from Egidi Immobiliare S.r.l., VAT included. Full Search is refunded in full if we decline the search in the first call. Order, terms and invoice in Catalan or Spanish on request.",
     "errors": {
       "name": "Your name, so we know who we're working for.",
