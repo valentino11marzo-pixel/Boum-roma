@@ -135,11 +135,12 @@ try{
     await readable(page,['.next-ticket .ticket-top span','.next-ticket .ticket-stub>span','.next-ticket .ticket-stub small','.next-ticket .ticket-stub>strong','.next-ticket .ticket-terms','.service-foot a']);
     const tickets=await page.locator('.next-ticket').evaluateAll(cards=>cards.map(card=>{const outer=card.getBoundingClientRect();return Array.from(card.querySelectorAll('.ticket-stub>span,.ticket-stub>strong')).map(node=>{const box=node.getBoundingClientRect();return {left:box.left-outer.left,right:outer.right-box.right};});}).flat());
     assert.equal(tickets.length,4);assert.ok(tickets.every(box=>box.left>=16&&box.right>=16),'service price and action stay comfortably inside their ticket: '+JSON.stringify(tickets));
-    await page.evaluate(()=>scrollTo(0,0));const before=await page.evaluate(()=>scrollY);
+    await page.evaluate(()=>scrollTo(0,0));
     await geometry(page,['.edition-plan-link']);await page.locator('.edition-plan-link').click();
-    await page.waitForFunction(()=>{const form=document.getElementById('nextSearch').getBoundingClientRect(),nav=document.querySelector('.next-nav').getBoundingClientRect();return form.top>=nav.bottom-1&&form.top<innerHeight/2;});
-    assert.ok(await page.evaluate(()=>scrollY)>before,'Plan your move brings the form into view');
-    assert.equal(new URL(page.url()).hash,'#nextSearch');assert.equal(new URL(page.url()).searchParams.get('edition'),'club');await geometry(page);
+    await page.locator('#nextApartments').waitFor({state:'visible'});
+    assert.equal(new URL(page.url()).searchParams.get('view'),'apartments','the destination pass enters the real collection');
+    assert.equal(new URL(page.url()).searchParams.get('edition'),'club');
+    await page.goBack();await page.locator('#nextHome').waitFor({state:'visible'});await geometry(page);
     await page.locator('#nextMoveIn').fill(arrival);await page.locator('#nextMoveOut').fill(departure);await page.locator('#nextBudget').selectOption('1500');await page.locator('#nextPeople').selectOption('couple');
     await page.evaluate(()=>{window.__originalPlannerForm=document.getElementById('nextSearchForm');});
     await page.locator('#nextMoveOut').focus();

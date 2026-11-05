@@ -17,7 +17,8 @@
   var mast=document.createElement('div');mast.className='edition-runway-head';
   mast.innerHTML='<span>Your arrival plan</span><span>Dates. Place. Possibilities.</span>';planner.prepend(mast);
   var atlas=document.createElement('div');atlas.className='edition-atlas';atlas.id='boomGlobeMount';ticket.appendChild(atlas);
-  var planLink=document.createElement('a');planLink.className='edition-plan-link';planLink.href='#nextSearch';planLink.innerHTML='Plan your move <span aria-hidden="true">↓</span>';
+  var planLink=document.createElement('a');planLink.className='edition-plan-link';planLink.href='#nextSearch';planLink.innerHTML='<span class="edition-pass-top"><span>Your destination</span><b class="edition-pass-code"></b></span><span class="edition-pass-action"></span><span class="edition-pass-detail"></span><span class="edition-pass-arrow" aria-hidden="true">↗</span>';
+  planLink.addEventListener('click',function(event){event.preventDefault();window.dispatchEvent(new CustomEvent('boom-globe-city',{detail:{slug:document.body.dataset.europeCity||'rome'}}));});
   hero.querySelector('.hero-promise').insertAdjacentElement('afterend',planLink);
   var globe=window.BoomFlightGlobe;if(globe)globe.mount(atlas);
   var bottom=hero.querySelector('.hero-bottom');bottom.querySelector('span').replaceWith(byId('europeCitySignature'));
@@ -93,10 +94,14 @@
   function syncCity(){
     var city=document.body.dataset.europeCity||'rome',foreign=city!=='rome';
     arrangeHome();
-    hero.querySelector('.hero-pretitle').textContent=foreign?'Your BOOM desk in':'Find your place in';
-    hero.querySelector('.hero-centre .eyebrow').textContent=foreign?'BOOM Desks · Your agent, on your side.':'BOOM Rome · Homes & Skyline';
-    hero.querySelector('.hero-promise').textContent=foreign?'Rental search, applications and viewings. Clear scope, clear fees, a person to guide your move.':'Explore the homes. Compare your everyday journey. Find the place that fits your life.';
+    hero.querySelector('.hero-pretitle').textContent=foreign?'Make your move to':'Find your place in';
+    hero.querySelector('.hero-centre .eyebrow').textContent=foreign?'BOOM DESKS / ON YOUR SIDE':'BOOM ROME / HOMES & SKYLINE';
+    hero.querySelector('.hero-promise').textContent=foreign?'A new city. Someone on your side. Rental search, applications and viewings, with the work and fee clear before you start.':'A home is more than an address. Explore the spaces, compare your everyday journey and find your place in Rome.';
     planLink.href=foreign?'#europeDeskStory':'#nextSearch';
+    var cityName=city.charAt(0).toUpperCase()+city.slice(1);
+    planLink.querySelector('.edition-pass-code').textContent={rome:'ROM',london:'LON',amsterdam:'AMS',barcelona:'BCN',madrid:'MAD',milan:'MIL'}[city];
+    planLink.querySelector('.edition-pass-action').textContent=foreign?'Explore '+cityName+' support':'Enter the Rome collection';
+    planLink.querySelector('.edition-pass-detail').textContent=foreign?'Choose a service. See the scope & fee.':'Homes, neighbourhoods & your everyday journey.';
     byId('europeStoryCity').textContent='Your '+city.charAt(0).toUpperCase()+city.slice(1)+' move.';
     if(window.BoomFlightEurope)window.BoomFlightEurope.refreshBrief();
     var homeStop=flightline.querySelector('[data-flight-stop="homes"]');homeStop.href=foreign?'#europeStoryCity':'#nextSkyTitle';homeStop.innerHTML='<span>02</span> '+(foreign?'Your service':'Homes & Skyline');

@@ -65,6 +65,8 @@ try{
  browser=await chromium.launch(await launchOptions());
  for(const width of [320,390,1280])await check(width+': catalogue photographs, arrows, keyboard and detail return stay together',width,async(page,homes)=>{
   await ready(page);await geometry(page);
+  assert.equal(await page.locator('#directionClubTicket .club-media, #directionClubTicket .club-desk-person').count(),0,'orientation contains no portrait or photo rail');
+  assert.equal(await page.locator('#clubHomes #clubMedia').count(),1,'home photographs belong to Rome exploration');
   const source=homes[0],photos=await page.locator('.club-media-rail img').evaluateAll(nodes=>nodes.map(node=>node.getAttribute('src')));
   assert.deepEqual(photos,[source.images[0],source.images[2],source.images[4],...source.images.filter((_,index)=>![0,2,4].includes(index))],'all media come from the same catalogue home, with the editorial order');
   assert.equal(await page.locator('.club-media-name').innerText(),source.name);
@@ -81,17 +83,18 @@ try{
   await page.goBack();await page.locator('#nextHome').waitFor({state:'visible'});await ready(page);assert.equal(await page.locator('.club-media-name').getAttribute('data-home'),source.id);await geometry(page);
  });
  await check('failed photograph explains the gap and preserves the same home link',390,async page=>{
-  await ready(page);await page.locator('.club-media-rail figure').first().locator('figcaption:not([hidden])').waitFor();
+  await ready(page);await page.locator('.club-media-rail').scrollIntoViewIfNeeded();await page.locator('.club-media-rail figure').first().locator('figcaption:not([hidden])').waitFor();
   assert.equal(await page.locator('.club-media-rail img').first().isVisible(),false);
   assert.match(await page.locator('.club-media-rail figure').first().innerText(),/Photograph unavailable/);
   assert.equal(await page.locator('.club-media-open').getAttribute('data-home'),featuredId);
   await page.locator('[data-media-step="1"]').click();await count(page,'02 / 10');assert.equal(await page.locator('.club-media-rail img').nth(1).isVisible(),true);
   await page.locator('.club-media-open').click();await page.locator('#nextDetailTitle').waitFor();assert.equal(await page.locator('#nextDetailTitle').innerText(),'Fixture portrait home');
  },{broken:'/media-fixture-0.svg'});
- for(const width of [320,390])await check(width+': Barcelona replaces Rome photographs with the explicitly Rome-based founder',width,async page=>{
+ for(const width of [320,390])await check(width+': Barcelona hides Rome photographs and places the Rome-based founder beside the service',width,async page=>{
   await ready(page);await page.locator('.europe-city-switch [data-europe-city="barcelona"]').click();
   await page.waitForFunction(()=>document.body.dataset.europeCity==='barcelona');
   assert.equal(await page.locator('.club-home-story').isVisible(),false);assert.equal(await page.locator('.club-desk-person').isVisible(),true);
+  assert.equal(await page.locator('#europeDeskStory .club-desk-person').count(),1,'the founder belongs to the service decision');
   assert.match(await page.locator('.club-desk-person').innerText(),/Founder of BOOM\s+Based in Rome/);
   assert.match(await page.locator('.club-desk-person>img').getAttribute('alt'),/founder.*Rome/);
   const size=await page.evaluate(()=>({width:innerWidth,scroll:document.documentElement.scrollWidth}));assert.ok(size.scroll<=size.width+1,'desk has no horizontal overflow');

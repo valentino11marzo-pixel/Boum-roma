@@ -3376,6 +3376,13 @@ Su mobile la fotografia precede il planner, che mantiene i suoi nodi e resta pri
 Il clic Home→Detail valida e conserva la bozza con `readHome` e history canonici; l’arrivo estero dal globo si riallinea dopo l’assestamento del contenuto. Nessun nuovo submit, lead o pagamento; ingressi pubblici e post-submit invariati.
 Verifica `flightclubmediaui`: foto/ID, ordine e proporzioni, 320/390/1280, tastiera, guasti, casa chiusa/vuoto, cambio città e brief; regressioni `flighteditionsui`, `flightclubflight`, `flightclubmotion`, `flighteuropeui`, `flightnextui`. Audit pubblico: 48 record/265 immagini al 04/11, soltanto due Shorts in schede non libere; nessun video aggiunto o foto estera inventata.
 
+
+Flight Club regia 05/11: il globo guida l’apertura con Solari e pass della destinazione; il pass entra tramite lo stesso evento/validazione del globo. Fotografie complete nel capitolo Roma, ritratto piccolo accanto al servizio: nessuna foto estera inventata.
+La sfera proietta coordinate 3D reali con luce/ombra e connessioni rialzate; trascinamento diretto, inerzia finita420ms e Reset650ms cambiano solo la camera. Entrata1100ms, avvicinamento1220ms; nessun loop aggiunto a riposo.
+Pointer capture viene rilasciato su cancel/pausa/fuori vista; pan-y conserva lo scroll touch. Reduced-motion mantiene il gesto diretto, senza inerzia/entrata/zoom; pulsanti città e Reset coprono tastiera e fallback.
+Foto e ritratto caricati lazy; canvas con budget pixel esistente, niente dipendenze. Pass/prospettiva hover solo mouse, titoli/prezzi/moduli fermi e utilizzabili subito. Clock Solari invariato.
+Verifiche aggiunte a `flightclubflight`: drag senza navigazione, reset, quiete, pausa durante gesto, scroll touch e ingresso dal pass; `flightclubmediaui` controlla le nuove collocazioni e guasti foto lazy.
+
 Flight Lab 31/10: `/flight-lab` confronta Atlas, Residence e Club sulle stesse viste reali di `/flight-next?direction=…`, senza cambiare il sito pubblico.
 Le composizioni riusano catalogo, Solari, iframe Skyline, salvataggi e Apply; nessun secondo catalogo o nuovo handler di invio.
 Residence usa una foto realmente restituita dal catalogo pubblico (fallback a una casa pubblica non chiusa); Atlas sposta la stessa mappa nel primo schermo.

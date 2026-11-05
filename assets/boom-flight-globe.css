@@ -31,3 +31,14 @@
 .boom-globe-flight [data-globe-skip]:hover{border-color:#ffd700;color:#ffd700}
 @media(max-width:640px){.boom-globe-stage{min-height:250px}.boom-globe-caption{font-size:11px;padding:0 2px;gap:5px}.boom-globe-flight-label{bottom:max(32px,7vh);gap:8px}}
 @media(prefers-reduced-motion:reduce){.boom-globe-cities button{transition:none}}
+/* The canvas owns gestures; HTML city controls remain above it and fully operable. */
+.boom-flight-globe-canvas{pointer-events:auto;touch-action:pan-y;cursor:grab}
+.boom-globe-cities{pointer-events:none}
+.boom-globe-cities button{pointer-events:auto}
+.boom-flight-globe[data-globe-dragging="true"] .boom-flight-globe-canvas{cursor:grabbing}
+.boom-globe-reset{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 9px;background:none;color:#b7b8af;font:inherit;border:0;text-decoration:underline;text-underline-offset:4px;cursor:pointer;white-space:nowrap}
+.boom-globe-reset:hover{color:#ffd700}
+.boom-globe-reset:focus-visible{outline:2px solid #ffd700;outline-offset:2px}
+.boom-globe-caption{font-size:10px;gap:6px;flex-wrap:wrap;justify-content:center}
+.boom-globe-caption>a{font-size:9px;color:#898d88}
+.boom-flight-globe[data-globe-state="loading"] .boom-globe-reset,.boom-flight-globe[data-globe-state="error"] .boom-globe-reset{display:none}

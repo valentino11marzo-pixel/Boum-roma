@@ -77,6 +77,39 @@ async function arrivedRome(page){await page.locator('#nextApartments').waitFor({
 async function singleArrival(page,before){assert.equal(await page.evaluate(()=>history.length),before+1,'one intentional arrival, one history entry');assert.equal(await page.evaluate(()=>__flightPushes.filter(url=>new URL(url,location.origin).searchParams.get('view')==='apartments').length),1,'one Apartments navigation');}
 try{
  browser=await chromium.launch(await launchOptions());
+ await check('Globe drag rotates the real sphere without navigation, resets and stops rendering at rest',1280,async({page})=>{
+  await start(page);await page.waitForFunction(()=>!BoomFlightGlobe.state().rafPending);
+  const before=await page.evaluate(()=>({angle:BoomFlightGlobe.state().angle,url:location.href,history:history.length}));
+  const canvas=await page.locator('.boom-flight-globe-canvas').boundingBox(),x=canvas.x+canvas.width*.5,y=canvas.y+canvas.height*.75;
+  await page.mouse.move(x,y);await page.mouse.down();await page.mouse.move(x+100,y-20,{steps:12});await page.mouse.up();
+  await page.waitForFunction(()=>!BoomFlightGlobe.state().rafPending);
+  const after=await page.evaluate(()=>({angle:BoomFlightGlobe.state().angle,url:location.href,history:history.length,dragging:BoomFlightGlobe.state().dragging}));
+  assert.ok(Math.abs(after.angle[0]-before.angle[0])>15,'direct manipulation rotates geographically projected land');assert.equal(after.url,before.url);assert.equal(after.history,before.history);assert.equal(after.dragging,false);
+  await page.getByRole('button',{name:'Reset globe to selected city'}).click();await page.waitForFunction(()=>!BoomFlightGlobe.state().rafPending);
+  const reset=await page.evaluate(()=>BoomFlightGlobe.state());assert.ok(Math.abs(reset.angle[0]-before.angle[0])<.1);
+  await page.waitForTimeout(300);assert.equal(await page.evaluate(()=>BoomFlightGlobe.state().frames),reset.frames,'no continuous globe loop at rest');
+  await page.locator('.edition-plan-link').press('Enter');await page.locator('#nextApartments').waitFor({state:'visible'});await clean(page);
+ });
+ await check('Reduced motion keeps direct drag and instant reset; Pause cancels an active gesture',1280,async({page})=>{
+  await start(page);await page.waitForFunction(()=>!BoomFlightGlobe.state().rafPending);
+  const canvas=await page.locator('.boom-flight-globe-canvas').boundingBox(),x=canvas.x+canvas.width*.5,y=canvas.y+canvas.height*.8;
+  await page.mouse.move(x,y);await page.mouse.down();await page.mouse.move(x+70,y,{steps:8});
+  assert.equal(await page.evaluate(()=>BoomFlightGlobe.state().dragging),true);
+  await page.evaluate(()=>BoomFlightGlobe.setPaused(true));assert.equal(await page.evaluate(()=>BoomFlightGlobe.state().dragging),false);await page.mouse.up();
+  await page.evaluate(()=>BoomFlightGlobe.setPaused(false));
+  await page.getByRole('button',{name:'Reset globe to selected city'}).press('Enter');await page.waitForFunction(()=>!BoomFlightGlobe.state().rafPending);
+  assert.equal(await page.locator('#boomGlobeMount').getAttribute('data-globe-motion'),'still');
+ },'reduce');
+ await check('Touch canvas retains vertical page scrolling and a cancelled drag releases capture',390,async({page})=>{
+  await start(page);
+  assert.equal(await page.locator('.boom-flight-globe-canvas').evaluate(el=>getComputedStyle(el).touchAction),'pan-y');
+  const canvas=await page.locator('.boom-flight-globe-canvas').boundingBox(),x=canvas.x+canvas.width*.5,y=canvas.y+canvas.height*.7;
+  const cdp=await page.context().newCDPSession(page);const before=await page.evaluate(()=>scrollY);
+  await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x,y}]});
+  for(let n=1;n<=6;n++)await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x,y:y-n*18}]});
+  await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+  await page.waitForFunction(value=>scrollY>value+30,before);assert.equal(await page.evaluate(()=>BoomFlightGlobe.state().dragging),false);await cdp.detach();
+ });
  for(const width of [390,1280])await check('Rome '+width+': selected globe opens real Skyline, keeps the draft and returns focus on Back',width,async({page})=>{
   await start(page);
   if(artifacts&&width===390){await page.evaluate(()=>scrollTo(0,0));await page.screenshot({path:artifacts+'/club-night-home-390.png'});}

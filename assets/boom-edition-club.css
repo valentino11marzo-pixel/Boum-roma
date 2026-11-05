@@ -400,7 +400,6 @@ body[data-direction="club"][data-edition="club"].europe-ready{
  & #nextHero #nextDestinationBoard{font-size:var(--europe-board-size,85px)}
  & .hero-promise{font-size:15px;line-height:1.5;margin-top:19px;max-width:315px}
  & .edition-plan-link{display:inline-flex;justify-content:space-between;align-items:center;gap:30px;min-height:44px;margin:10px 0 0;color:#bbbcb6;font-size:13px;border-bottom:1px solid #99802e}
- & .edition-plan-link>span{font-size:20px}
  & .europe-city-signature{display:none}
  & .edition-atlas{height:330px;width:calc(100% + 40px);margin:0 -20px;align-self:stretch}
  & .europe-planner.edition-club-runway{margin:0 auto 6px;border-radius:5px;box-shadow:0 8px 20px #19190009}
@@ -549,7 +548,6 @@ body[data-direction="club"][data-edition="club"].europe-ready{
 /* The arrival desk: one decision surface, with the original brief beside the actual scope. */
 body[data-direction="club"][data-edition="club"].europe-ready{
  &:not([data-europe-city="rome"]) :is(.edition-club-runway,.europe-trustbar,.next-signoff){display:none}
- &:not([data-europe-city="rome"]) .edition-plan-link{display:inline-flex;align-items:center;gap:36px;min-height:48px;margin-top:19px;border-bottom:1px solid #99802e;font-size:15px;color:#e8ce75}
  & #europeDeskStory{max-width:1320px;margin:0 auto;padding:60px 4.2vw 88px;scroll-margin-top:135px}
  & #europeDeskStory .europe-story-lead{grid-template-columns:1.2fr 1fr;gap:16px 70px;margin-bottom:38px;align-items:end}
  & #europeDeskStory .europe-story-lead>.eyebrow{margin:0;color:#cbbb8b;font-size:10px;letter-spacing:.1em}
@@ -695,3 +693,43 @@ body[data-direction="club"][data-edition="club"].europe-ready{
 @media(prefers-reduced-motion:reduce){body[data-direction="club"][data-edition="club"].europe-ready{
  & :is(.next-ticket,.next-card-image img,.route-line>span,.button,.search-submit,.card-save,.next-view-switch button,.photo-controls button,.europe-home-controls button){transform:none!important;transition:none}
 }}
+
+/* Observatory: one spatial object leads; the destination pass explains its consequence. */
+body[data-direction="club"][data-edition="club"].europe-ready{
+ & #directionClubTicket{grid-template-columns:minmax(0,.86fr) minmax(0,1.14fr);min-height:570px;gap:clamp(24px,4vw,70px);padding:16px 0 10px;align-items:center;perspective:1400px}
+ & .hero-centre{padding:28px 0 35px;position:relative}
+ & .hero-centre>.eyebrow{font-size:10px;letter-spacing:.15em;margin-bottom:28px;color:#c2bda9}
+ & .hero-pretitle{font-size:clamp(27px,3.2vw,46px)}
+ & .hero-promise{font-size:16px;line-height:1.6;max-width:375px;margin-top:24px;color:#c9c9c3}
+ & .edition-atlas{height:560px;max-width:none;margin:0;align-self:center}
+ & #nextSolariField{mask-image:linear-gradient(90deg,#000 0%,#0009 36%,transparent 65%);-webkit-mask-image:linear-gradient(90deg,#000 0%,#0009 36%,transparent 65%)}
+ & .edition-plan-link{position:relative;display:flex;flex-direction:column;align-items:stretch;justify-content:center;gap:10px;max-width:380px;width:100%;min-height:132px;padding:19px 57px 19px 22px;margin:28px 0 0;border:1px solid #555447;border-left:3px solid #ffd700;border-radius:3px;color:#f3f2ec;background:linear-gradient(120deg,#22231e,#101210 80%);box-shadow:0 15px 35px #0005;transform-origin:left center;transition:transform .24s var(--edition-ease),border-color .16s;text-decoration:none}
+ & .edition-pass-top{display:flex;align-items:center;justify-content:space-between;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#aaa99b}
+ & .edition-pass-code{font-family:"Courier New",monospace;font-size:12px;font-weight:400;letter-spacing:.08em;color:#ffd700}
+ & .edition-pass-action{font-size:20px;font-weight:300;line-height:1.15;letter-spacing:-.03em;color:#f3f2ec}
+ & .edition-pass-detail{font-size:11px;line-height:1.4;color:#b7b8af}
+ & .edition-pass-arrow{position:absolute;right:0;top:0;bottom:0;width:42px;display:grid;place-items:center;border-left:1px dashed #555447;color:#ffd700;font-size:24px}
+ & .europe-planner.edition-club-runway{margin-top:10px}
+ & .button.gold{color:#16160b}
+ & .edition-flightline a[aria-current]>span{color:#16160b}
+ & .boom-globe-stage:before{content:"";position:absolute;inset:3%;border-radius:50%;background:radial-gradient(ellipse at 50% 45%,#b9a15d12,transparent 68%);pointer-events:none}
+}
+@media(hover:hover) and (pointer:fine){body[data-direction="club"][data-edition="club"] .edition-plan-link:hover{transform:perspective(900px) rotateY(-3deg) translateY(-2px);border-color:#bda349}}
+@media(min-width:1600px){body[data-direction="club"][data-edition="club"].europe-ready{& .edition-atlas{height:650px}& #directionClubTicket{min-height:660px}}}
+@media(max-width:1050px) and (min-width:651px){body[data-direction="club"][data-edition="club"].europe-ready{& #directionClubTicket{gap:25px;min-height:500px;grid-template-columns:minmax(0,1fr) minmax(0,1fr)}& .edition-atlas{height:460px}& .edition-plan-link{padding-left:16px;padding-right:48px}& .edition-pass-action{font-size:18px}}}
+@media(max-width:650px){body[data-direction="club"][data-edition="club"].europe-ready{
+ & #directionClubTicket{display:flex;flex-direction:column;gap:0;min-height:0;padding:0}
+ & .hero-centre{padding:27px 0 14px}
+ & .hero-centre>.eyebrow{margin-bottom:19px;font-size:9px}
+ & .hero-pretitle{font-size:29px}
+ & .hero-centre h1{gap:12px}
+ & .hero-promise{font-size:14px;line-height:1.55;margin-top:18px;max-width:350px}
+ & .edition-plan-link{max-width:none;min-height:113px;margin-top:21px;padding-top:15px;padding-bottom:15px;gap:8px}
+ & .edition-pass-action{font-size:20px}
+ & .edition-atlas{height:390px;width:calc(100% + 28px);margin:0 -14px;max-width:none}
+ & #nextSolariField{mask-image:linear-gradient(#0009,transparent 55%);-webkit-mask-image:linear-gradient(#0009,transparent 55%)}
+ & .europe-planner.edition-club-runway{margin:15px 0 10px}
+ & .europe-switch-label{font-size:10px}
+}}
+@media(prefers-reduced-motion:reduce){body[data-direction="club"][data-edition="club"].europe-ready .edition-plan-link{transition:none;transform:none}}
+body[data-direction="club"][data-edition="club"][data-edition-motion="still"] .edition-plan-link{transition:none;transform:none}

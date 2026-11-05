@@ -67,7 +67,7 @@
     };
     root.classList.add('boom-flight-globe');
     root.dataset.globeState = 'loading';
-    root.innerHTML = '<div class="boom-globe-stage"><canvas class="boom-flight-globe-canvas" aria-hidden="true"></canvas><nav class="boom-globe-cities" aria-label="Step inside a BOOM destination"></nav><p class="boom-globe-status" role="status">Connecting the cities…</p></div><div class="boom-globe-caption"><span class="boom-globe-caption-label">Choose a city. Step inside.</span><a href="https://www.naturalearthdata.com/about/terms-of-use/" target="_blank" rel="noopener noreferrer" aria-label="Geography: Natural Earth, public domain"><span class="boom-globe-credit-icon" aria-hidden="true">i</span> Natural Earth</a></div>';
+    root.innerHTML = '<div class="boom-globe-stage"><canvas class="boom-flight-globe-canvas" aria-hidden="true"></canvas><nav class="boom-globe-cities" aria-label="Step inside a BOOM destination"></nav><p class="boom-globe-status" role="status">Connecting the cities…</p></div><div class="boom-globe-caption"><span class="boom-globe-caption-label">Drag the globe. Choose a city.</span><button type="button" class="boom-globe-reset" aria-label="Reset globe to selected city">Reset view</button><a href="https://www.naturalearthdata.com/about/terms-of-use/" target="_blank" rel="noopener noreferrer" aria-label="Geography: Natural Earth, public domain"><span class="boom-globe-credit-icon" aria-hidden="true">i</span> Natural Earth</a></div>';
     s.stage = root.querySelector('.boom-globe-stage');
     s.canvas = root.querySelector('canvas');
     s.context = s.canvas.getContext('2d');
@@ -88,6 +88,42 @@
       if (!button || !nav.contains(button)) return;
       // The owning city controller decides whether to accept the request. No private or form state here.
       global.dispatchEvent(new CustomEvent('boom-globe-city', { detail: { slug: button.dataset.globeCity } }));
+    });
+    // Direct manipulation changes only the camera. City buttons retain keyboard navigation.
+    var drag=null;
+    function endDrag(event){
+      if(!drag || (event && event.pointerId!==drag.id))return;
+      var prior=drag;drag=null;s.dragging=false;root.dataset.globeDragging='false';
+      if(s.canvas.hasPointerCapture(prior.id))s.canvas.releasePointerCapture(prior.id);
+      if(prior.moved && canMove(s) && event && event.type==='pointerup'){
+        var carry=performance.now()-prior.time<90?clamp(prior.velocity*100,-12,12):0;
+        s.target=[s.angle[0]-carry,s.angle[1]];
+        s.transition={from:s.angle.slice(),to:s.target.slice(),start:performance.now(),duration:420};
+      }
+      requestDraw(s);
+    }
+    s.cancelDrag=function(){endDrag();};
+    listen(s.canvas,'pointerdown',function(event){
+      if(!s.ready || flight || paused(s) || event.button!==0 || drag)return;
+      s.transition=null;
+      drag={id:event.pointerId,x:event.clientX,y:event.clientY,angle:s.angle.slice(),lastX:event.clientX,time:performance.now(),velocity:0,moved:false};
+    });
+    listen(s.canvas,'pointermove',function(event){
+      if(!drag || event.pointerId!==drag.id)return;
+      var dx=event.clientX-drag.x,dy=event.clientY-drag.y;
+      if(!drag.moved && Math.abs(dx)<5)return;
+      // pan-y remains native on touch; the browser cancels this gesture for vertical scrolling.
+      if(!drag.moved){drag.moved=true;s.dragging=true;root.dataset.globeDragging='true';s.canvas.setPointerCapture(event.pointerId);}
+      var now=performance.now();drag.velocity=(event.clientX-drag.lastX)/Math.max(1,now-drag.time);drag.lastX=event.clientX;drag.time=now;
+      s.angle=[drag.angle[0]-dx*.24,clamp(drag.angle[1]+dy*.18,-65,75)];s.target=s.angle.slice();s.scroll=0;requestDraw(s);
+    });
+    listen(s.canvas,'pointerup',endDrag);listen(s.canvas,'pointercancel',endDrag);listen(s.canvas,'lostpointercapture',endDrag);
+    listen(global,'pointerup',endDrag);
+    listen(root.querySelector('.boom-globe-reset'),'click',function(){
+      endDrag();s.target=orientation(s,s.city);
+      if(canMove(s))s.transition={from:s.angle.slice(),to:s.target.slice(),start:performance.now(),duration:650};
+      else{s.angle=s.target.slice();s.transition=null;}
+      requestDraw(s);
     });
     s.pauseButton = document.getElementById('nextMotionToggle');
     if (s.pauseButton) {
@@ -136,7 +172,9 @@
   function accept(s, data) {
     clearTimeout(s.timeout); s.data = data; s.ready = true; s.root.dataset.globeState = 'ready';
     s.status.textContent = ''; s.status.hidden = true;
-    s.target = orientation(s, s.city); s.angle = s.target.slice(); requestDraw(s);
+    s.target = orientation(s, s.city); s.angle = s.target.slice();
+    if(canMove(s)){s.angle=[s.target[0]-32,s.target[1]+12];s.transition={from:s.angle.slice(),to:s.target.slice(),start:performance.now(),duration:1100};}
+    requestDraw(s);
   }
   function orientation(s, city) {
     if (!s.data) return [8, 43];
@@ -147,6 +185,7 @@
   function paused(s) { return s.apiPaused || !!(s.pauseButton && s.pauseButton.getAttribute('aria-pressed') === 'true'); }
   function canMove(s) { return !paused(s) && !s.reduced.matches && !document.hidden && s.visible; }
   function settle(s) {
+    if(s.cancelDrag)s.cancelDrag();
     if (s.raf) cancelAnimationFrame(s.raf);
     s.raf = 0; s.transition = null; s.angle = s.target.slice(); s.dirty = true;
     s.root.dataset.globeMotion = 'still';
@@ -160,6 +199,7 @@
     var s = instance;
     if (!s || s.destroyed || !allowed(slug)) return false;
     if (s.city === slug) return true;
+    if(s.cancelDrag)s.cancelDrag();
     s.city = slug; updateButtons(s); s.target = orientation(s, slug);
     if (s.ready && canMove(s)) s.transition = { from: s.angle.slice(), to: s.target.slice(), start: performance.now(), duration: 850 };
     else { s.transition = null; s.angle = s.target.slice(); }
@@ -209,7 +249,7 @@
     }
     if (s.scrollDirty) {
       s.scrollDirty = false;
-      if (canMove(s)) { var rect = s.root.getBoundingClientRect(); s.scroll = clamp((innerHeight*.45-rect.top-rect.height*.5)/Math.max(1, innerHeight), -1, 1)*4; }
+      if (canMove(s) && !s.dragging) { var rect = s.root.getBoundingClientRect(); s.scroll = clamp((innerHeight*.45-rect.top-rect.height*.5)/Math.max(1, innerHeight), -1, 1)*4; }
     }
     s.root.dataset.globeMotion = s.transition ? 'transition' : 'still';
     paint(s); s.frames++; s.dirty = false;
@@ -245,26 +285,28 @@
     }
     // The globe has no generated or guessed outlines: every coastline and land dot is Natural Earth.
     ctx.save();
-    ctx.shadowColor = 'rgba(174,189,223,.13)'; ctx.shadowBlur = Math.min(32,r*.10);
+    ctx.shadowColor = 'rgba(174,189,223,.24)'; ctx.shadowBlur = Math.min(40,r*.12);
     ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.fillStyle = '#08090b'; ctx.fill(); ctx.restore();
     ctx.save(); ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.clip();
     var globeFill = ctx.createRadialGradient(cx-r*.4, cy-r*.48, r*.1, cx+r*.18, cy+r*.15, r*1.25);
-    globeFill.addColorStop(0, '#20242b'); globeFill.addColorStop(.58, '#12161b'); globeFill.addColorStop(1, '#050607');
+    globeFill.addColorStop(0, '#343b40'); globeFill.addColorStop(.42, '#1a2025'); globeFill.addColorStop(.8, '#0a0e12'); globeFill.addColorStop(1, '#020304');
     ctx.fillStyle = globeFill; ctx.fillRect(cx-r, cy-r, r*2, r*2);
     if (s.data) {
       ctx.beginPath(); s.data.grid.forEach(function (points) { path(points, 0); }); ctx.lineWidth = .65; ctx.strokeStyle = 'rgba(197,208,224,.13)'; ctx.stroke();
       ctx.beginPath();
       s.data.dots.forEach(function (point) { var p = project(point); if (p[2] > .025) { var size = (.55 + p[2]*.19)*zoom; ctx.moveTo(cx+p[0]*r+size, cy+p[1]*r); ctx.arc(cx+p[0]*r, cy+p[1]*r, size, 0, Math.PI*2); } });
-      ctx.fillStyle = 'rgba(223,205,161,.53)'; ctx.fill();
-      ctx.beginPath(); s.data.rings.forEach(function (ring) { path(ring, 0); }); ctx.lineWidth = .8; ctx.strokeStyle = 'rgba(224,220,201,.48)'; ctx.stroke();
-      Object.keys(s.data.routes).forEach(function (slug) {
-        ctx.save(); ctx.beginPath(); path(s.data.routes[slug], .06); ctx.lineWidth = slug === selectedCity ? 1.8 : .8;
-        if (slug === selectedCity) { ctx.shadowColor = '#ffd700'; ctx.shadowBlur = 10; }
-        ctx.strokeStyle = slug === selectedCity ? '#ffd700' : 'rgba(207,191,139,.35)'; ctx.stroke(); ctx.restore();
-      });
+      ctx.fillStyle = 'rgba(236,219,173,.70)'; ctx.fill();
+      ctx.beginPath(); s.data.rings.forEach(function (ring) { path(ring, 0); }); ctx.lineWidth = .8; ctx.strokeStyle = 'rgba(224,220,201,.55)'; ctx.stroke();
     }
-    ctx.restore();
-    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.lineWidth = .7; ctx.strokeStyle = 'rgba(203,214,231,.3)'; ctx.stroke();
+    var shade=ctx.createRadialGradient(cx-r*.38,cy-r*.36,r*.12,cx-r*.12,cy-r*.12,r*1.12);
+    shade.addColorStop(0,'rgba(0,0,0,0)');shade.addColorStop(.65,'rgba(0,0,0,.08)');shade.addColorStop(1,'rgba(0,0,0,.88)');
+    ctx.fillStyle=shade;ctx.fillRect(cx-r,cy-r,r*2,r*2);ctx.restore();
+    ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.lineWidth=1;ctx.strokeStyle='rgba(203,214,231,.4)';ctx.stroke();
+    if(s.data)Object.keys(s.data.routes).forEach(function(slug){
+      ctx.save();ctx.beginPath();path(s.data.routes[slug],.12);ctx.lineWidth=slug===selectedCity?2:.7;
+      if(slug===selectedCity){ctx.shadowColor='#ffd700';ctx.shadowBlur=12;}
+      ctx.strokeStyle=slug===selectedCity?'#ffd700':'rgba(207,191,139,.24)';ctx.stroke();ctx.restore();
+    });
     if (!s.data || (!view.flight && !s.labelPositions)) return;
     CITIES.forEach(function (city) {
       var p = project(s.data.cities[city.slug].vector), selected = city.slug === selectedCity, label = s.labelPositions && s.labelPositions[city.slug];
@@ -399,7 +441,7 @@
   function setPaused(value) { if (instance) { instance.apiPaused = !!value; syncMotion(instance); } }
   function state() {
     var s = instance;
-    var current = s ? { city:s.city, ready:s.ready, visible:s.visible, paused:paused(s), reducedMotion:s.reduced.matches, rafPending:!!s.raf, frames:s.frames, error:s.failed } : { ready:false, visible:false, paused:false, reducedMotion:false, rafPending:false, frames:0 };
+    var current = s ? { city:s.city, ready:s.ready, visible:s.visible, paused:paused(s), reducedMotion:s.reduced.matches, rafPending:!!s.raf, frames:s.frames, error:s.failed, dragging:!!s.dragging, angle:s.angle.slice() } : { ready:false, visible:false, paused:false, reducedMotion:false, rafPending:false, frames:0 };
     current.flying = !!flight; current.flightCity = flight ? flight.city : null; current.flightCovered = !!(flight && flight.covered);
     current.flightRafPending = !!(flight && flight.raf); current.flightFrames = flight ? flight.frames : 0;
     return current;
@@ -407,6 +449,7 @@
   function destroy() {
     cancelFlight();
     var s = instance; if (!s) return;
+    if(s.cancelDrag)s.cancelDrag();
     s.destroyed = true; if (s.raf) cancelAnimationFrame(s.raf); if (s.abort) s.abort.abort(); clearTimeout(s.timeout);
     s.observers.forEach(function (observer) { observer.disconnect(); }); s.listeners.forEach(function (remove) { remove(); });
     s.root.replaceChildren(); s.root.classList.remove('boom-flight-globe');
