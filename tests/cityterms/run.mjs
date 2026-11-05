@@ -22,7 +22,7 @@
 //   - one order's document prints the wrong fare, the wrong Start-now choice,
 //     a date in the wrong time zone, or a {placeholder} left unfilled;
 //   - the PDF font would drop a character (api/_pdfbrand.js wa() keeps every
-//     one).
+//     one, and the body font of api/_pdffont.js prints every one).
 // Pure Node: no browser, no network.
 
 import fs from 'node:fs';
@@ -33,6 +33,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { ORDER_TERMS, termsCanonical, termsHash, renderOrderTerms, orderExpiresOn } from '../../api/_cityterms.js';
 import { CITY_PLANS, CITY_MARKETS } from '../../api/_market.js';
 import { wa } from '../../api/_pdfbrand.js';
+import { printsChar } from '../../api/_pdffont.js';
 
 const R = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const MOD = path.join(R, 'api/_cityterms.js');
@@ -96,6 +97,9 @@ for (const city of CITIES) for (const lang of ['en', 'fr']) {
   check(unknown.length === 0, `${tag}: placeholders only from {number} {name} {email} {orderedAt} {expiresOn} {withdrawalEndsOn} {workFrom}`, unknown.join(', '));
   const dropped = texts.filter((t) => wa(t) !== t);
   check(dropped.length === 0, `${tag}: every character survives the PDF font (wa() keeps it: no «œ», no narrow space)`, dropped.map((t) => t.slice(0, 60)).join(' | '));
+  // the body of the order PDF is set in BOOM Doc Sans (api/_pdffont.js, finding F4): a character it lacks would print «?»
+  const unfont = [...new Set(texts.join('').replace(/\{\w+\}/g, ''))].filter((c) => !printsChar(c.codePointAt(0)));
+  check(unfont.length === 0, `${tag}: every character prints in the order PDF's body font (BOOM Doc Sans) — none would come out «?»`, unfont.join(' '));
   const need = city === 'berlin' ? 3 : 2;
   for (const plan of PLAN_IDS) {
     const n = items.filter((p) => p.plan === plan).length;
