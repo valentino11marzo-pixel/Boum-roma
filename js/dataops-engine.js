@@ -106,6 +106,13 @@
                 return d.role === 'admin';
             case 'preAgreements':
                 return d.status === 'accepted' || d.status === 'paid';
+            case 'leads':
+                // v1.8: un ordine di un desk che incassa alla firma (Parigi,
+                // Berlino) è il registro dei mandati — numerato, senza buchi
+                // (décret 72-678 art. 72, spec §16 O5): mai cancellato in
+                // blocco. Anche un lead pagato porta traccia di denaro.
+                return d.booked === true || d.paid === true
+                    || !!(d.city && d.city.order && d.city.order.number);
             default:
                 return false;
         }

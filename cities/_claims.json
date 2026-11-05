@@ -1,0 +1,245 @@
+{
+  "about": "The sentences about registration, licences, accreditation, regulation, membership or a public authority (or with a registration-number shape: 'Agent no. CV-1234', 'Reg. 123456') that the BOOM city desks (cities/*.json) and the hub /desks are allowed to print. The build (build-cities.mjs, reviewSentences + claimGuard) takes every sentence of every page that uses that vocabulary - visible text (entities decoded, NFKC, no zero-width characters), each meta, each JSON-LD string, every attribute that carries words, CSS content strings, inline-script strings - and refuses the page unless the sentence is listed here word for word (default deny). The only registration BOOM states is the company's: Egidi Immobiliare S.r.l., registered in Rome (REA RM-1710623, Viale Liegi 42); no desk holds a local licence, registration or membership (the Valencian RAICV, the Catalan AICAT and the UK redress scheme are open legal questions). Kinds: company-rome (the company in Rome), trade-mark (the EUTM), lease (a lease registered under local law), tenant (the tenant's own registrations or enrolments), deposit (where the landlord lodges the deposit), listing (an advertised home), law (what the law requires, or an honest negation), partner (a draft desk opening with a licensed partner; refused on a desk that sells), heading (a section name), context (a sentence with no such word that stands next to the company's Rome line and names a desk place: reviewed so the Rome registration is never continued elsewhere), follower (a plain sentence that stands next to a reviewed short label - 'Registration', 'Generalitat', 'fianza · INCASÒL' - and is read as its value: the build refuses an unreviewed value that names a place, an authority, a number or a code, speaks for us, or says yes, since, number, file or list; a follower may speak for us, nothing else of a value). To add a sentence: read it on the page; if it does not say that BOOM or the company holds a registration, licence or membership outside Rome, add {text, kind, note} here, in sorted order, with the note saying why; if it does, it cannot ship. The build lints this file (no named register, the company never the subject of a licence outside company-rome/law/partner, company-rome lands on Rome and names no other place after it) and the tests refuse an entry no page prints.",
+  "allowed": [
+    {
+      "text": "A landlord cannot forbid registration at the address",
+      "kind": "tenant",
+      "note": "Amsterdam: the tenant's own BRP registration at the municipality, a right the landlord cannot remove."
+    },
+    {
+      "text": "A rental file within one working day of your papers, applications as listings appear, attended viewings with live video and written report, the agency fee asked in writing, negotiation, the lease checked against Italian law and explained in English, registration checked",
+      "kind": "lease",
+      "note": "Milan Full Search: we check that the lease gets registered with the Agenzia delle Entrate; nothing about our own registration."
+    },
+    {
+      "text": "Also on the Milan page: Who pays the agency and Registration",
+      "kind": "heading",
+      "note": "Hub rules table: the names of two Milan check sections."
+    },
+    {
+      "text": "BOOM Amsterdam, the tenant-side rental desk of BOOM — operated by Egidi Immobiliare S.r.l., an Italian real estate agency registered in Rome",
+      "kind": "company-rome",
+      "note": "The desk's identity line: the operating company is registered in Rome (Chamber of Commerce, REA RM-1710623); no local registration is claimed."
+    },
+    {
+      "text": "BOOM Barcelona, the tenant-side rental desk of BOOM — operated by Egidi Immobiliare S.r.l., an Italian real estate agency registered in Rome",
+      "kind": "company-rome",
+      "note": "The desk's identity line: the operating company is registered in Rome (Chamber of Commerce, REA RM-1710623); no local registration is claimed."
+    },
+    {
+      "text": "BOOM Berlin, the tenant-side rental desk of BOOM — operated by Egidi Immobiliare S.r.l., an Italian real estate agency registered in Rome",
+      "kind": "company-rome",
+      "note": "The desk's identity line, as on the six selling desks: the operating company is registered in Rome (REA RM-1710623); no registration, licence or partner in France or Germany is claimed."
+    },
+    {
+      "text": "BOOM London, the tenant-side rental desk of BOOM — operated by Egidi Immobiliare S.r.l., an Italian real estate agency registered in Rome",
+      "kind": "company-rome",
+      "note": "The desk's identity line: the operating company is registered in Rome (Chamber of Commerce, REA RM-1710623); no local registration is claimed."
+    },
+    {
+      "text": "BOOM Madrid, the tenant-side rental desk of BOOM — operated by Egidi Immobiliare S.r.l., an Italian real estate agency registered in Rome",
+      "kind": "company-rome",
+      "note": "The desk's identity line: the operating company is registered in Rome (Chamber of Commerce, REA RM-1710623); no local registration is claimed."
+    },
+    {
+      "text": "BOOM Milan is a desk of Egidi Immobiliare S.r.l., an Italian real estate agency registered in Rome (REA RM-1710623), under the same Italian law as BOOM Rome",
+      "kind": "company-rome",
+      "note": "Hub: the home-country desk is run by the company registered in Rome; no Milan registration is claimed."
+    },
+    {
+      "text": "BOOM Milan is a desk of Egidi Immobiliare S.r.l., an Italian real estate agency registered in Rome (REA RM-1710623), under the same Italian law as in Rome",
+      "kind": "company-rome",
+      "note": "Milan: the desk belongs to the company registered in Rome; no Milan office or registration is claimed."
+    },
+    {
+      "text": "BOOM Milan is a desk of Egidi Immobiliare S.r.l., an Italian real estate agency registered with the Rome Chamber of Commerce (REA RM-1710623), under the same Italian law as our agency in Rome",
+      "kind": "company-rome",
+      "note": "Milan FAQ: the company's Rome Chamber of Commerce registration; no Milan registration is claimed."
+    },
+    {
+      "text": "BOOM Milan, the tenant-side desk of Egidi Immobiliare S.r.l., an Italian real estate agency registered with the Rome Chamber of Commerce (REA RM-1710623)",
+      "kind": "company-rome",
+      "note": "The desk's identity line: the operating company is registered in Rome (Chamber of Commerce, REA RM-1710623); no local registration is claimed."
+    },
+    {
+      "text": "BOOM Paris, the tenant-side rental desk of BOOM — operated by Egidi Immobiliare S.r.l., an Italian real estate agency registered in Rome",
+      "kind": "company-rome",
+      "note": "The desk's identity line, as on the six selling desks: the operating company is registered in Rome (REA RM-1710623); no registration, licence or partner in France or Germany is claimed."
+    },
+    {
+      "text": "BOOM Valencia, the tenant-side rental desk of BOOM — operated by Egidi Immobiliare S.r.l., an Italian real estate agency registered in Rome",
+      "kind": "company-rome",
+      "note": "The desk's identity line: the operating company is registered in Rome (Chamber of Commerce, REA RM-1710623); no local registration is claimed."
+    },
+    {
+      "text": "BOOM® is a registered European Union trade mark (EUTM 019317594) of Egidi Immobiliare S.r.l.",
+      "kind": "trade-mark",
+      "note": "Footer: the BOOM name is a registered EU trade mark; a trade mark, not an agent's registration."
+    },
+    {
+      "text": "Dutch-format dossier within one working day of your papers, applications as listings appear, attended viewings with live video and written report, negotiation, contract check against Dutch law, the right to register (BRP) at the address confirmed in writing",
+      "kind": "tenant",
+      "note": "Amsterdam fact sheet 'What we do': we confirm in writing that the tenant can register at the address (BRP); the gemeente registers, not us."
+    },
+    {
+      "text": "Egidi Immobiliare S.r.l. is an Italian real estate agency, registered in Rome",
+      "kind": "company-rome",
+      "note": "Hub fact sheet: the company and its Rome registration."
+    },
+    {
+      "text": "Egidi Immobiliare S.r.l., the Italian real estate agency behind BOOM Rome, registered in Rome: VAT IT17322991005, REA RM-1710623",
+      "kind": "company-rome",
+      "note": "Hub: the company's Rome registration, VAT number and REA number."
+    },
+    {
+      "text": "Generalitat",
+      "kind": "deposit",
+      "note": "Valencia deposit check label 'fianza · Generalitat': the public body where the LANDLORD lodges the deposit; no registration of ours."
+    },
+    {
+      "text": "INCASÒL",
+      "kind": "deposit",
+      "note": "Barcelona deposit check label 'fianza · INCASÒL': the Catalan body where the LANDLORD lodges the deposit (Llei 13/1996); no registration of ours."
+    },
+    {
+      "text": "In Milan it works under the same Italian law as our agency in Rome",
+      "kind": "context",
+      "note": "Milan fact sheet 'Who', next to the company's Rome line: the Milan desk works under Italian law; it does not continue the registration to Milan."
+    },
+    {
+      "text": "In the Netherlands the role is called aanhuurmakelaar: hired by the tenant, paid by the tenant only",
+      "kind": "context",
+      "note": "Amsterdam fact sheet 'Who', next to the company's Rome line: names the Dutch role, does not continue the registration."
+    },
+    {
+      "text": "Lease, deposit and registration checked before you sign",
+      "kind": "lease",
+      "note": "Milan: we check the lease registration with the Agenzia delle Entrate before signing."
+    },
+    {
+      "text": "Operated by Egidi Immobiliare S.r.l., an Italian real estate agency registered in Rome",
+      "kind": "company-rome",
+      "note": "The proof line under the pass and the hub: the operator's Rome registration."
+    },
+    {
+      "text": "Registered at the town hall with your contract: health card and school place hang on it",
+      "kind": "tenant",
+      "note": "Madrid: the tenant's padrón registration at the town hall."
+    },
+    {
+      "text": "Registered at the town hall with your lease: the SIP health card and a school place hang on it",
+      "kind": "tenant",
+      "note": "Valencia: the tenant's padrón registration at the town hall."
+    },
+    {
+      "text": "Registered office: Viale Liegi 42, 00198 Roma",
+      "kind": "company-rome",
+      "note": "Footer: the company's registered office in Rome."
+    },
+    {
+      "text": "Registration",
+      "kind": "heading",
+      "note": "A section name: the check title on the lease or the tenant's own registration (Amsterdam BRP, Madrid/Barcelona/Valencia padrón, Milan lease) on the desk pages and the hub's cards, and the hub rules table row head (BRP · BSN, padrón · NIE, Anagrafe · codice fiscale)."
+    },
+    {
+      "text": "Rental file within one working day of your papers, presentation letter in Italian and English, income and guarantor strategy, lease, deposit and registration checked and explained in English before signing",
+      "kind": "lease",
+      "note": "Milan Application Pack (Offer): the lease registration is checked; nothing about our own registration."
+    },
+    {
+      "text": "Rental search in Amsterdam on the tenant's side only: Dutch-format application dossier within one working day of the tenant's papers, applications sent as listings appear, attended viewings with live video and written report, negotiation of rent, deposit and service costs, contract check against Dutch law, the right to register (BRP) at the address confirmed in writing",
+      "kind": "tenant",
+      "note": "Amsterdam Full Search (Offer): we confirm in writing that the tenant can register at the address (BRP); the gemeente does the registration, not us."
+    },
+    {
+      "text": "Rental search in Milan on the tenant's side only: rental file within one working day of the tenant's papers, applications sent as listings appear on Immobiliare.it, Idealista, Casa.it and agencies, attended viewings with live video and written report, the landlord's agency fee asked in writing before the viewing, negotiation, lease checked against Italian law and explained in English, registration checked",
+      "kind": "lease",
+      "note": "Milan Full Search (Offer): the lease registration is checked."
+    },
+    {
+      "text": "The landlord lodges it with INCASÒL",
+      "kind": "deposit",
+      "note": "Barcelona: the landlord lodges the deposit with INCASÒL and we ask for the receipt; the subject is the landlord, not us."
+    },
+    {
+      "text": "The landlord lodges it with the Generalitat Valenciana",
+      "kind": "deposit",
+      "note": "Valencia: the landlord lodges the deposit with the Generalitat Valenciana and we ask for the receipt; the subject is the landlord, not us."
+    },
+    {
+      "text": "The lease must be registered within 30 days of signing, or of the start if earlier",
+      "kind": "lease",
+      "note": "Milan: the Italian rule on lease registration with the Agenzia delle Entrate."
+    },
+    {
+      "text": "The listed rent is often cold",
+      "kind": "listing",
+      "note": "Berlin: 'listed' is the advertised rent of a home (Kaltmiete); nothing about a register."
+    },
+    {
+      "text": "The rest we go through on the free call",
+      "kind": "follower",
+      "note": "Milan papers list: the sentence after the last paper ('University enrolment, for students'); the free first call with the tenant, no registration of ours."
+    },
+    {
+      "text": "There is a lease made for it: the student lease, 6 to 36 months, for students enrolled at a university away from home, rent within the bands of Milan's local agreement",
+      "kind": "tenant",
+      "note": "Milan: the student lease is for students enrolled at a university away from home."
+    },
+    {
+      "text": "University enrolment, for students",
+      "kind": "tenant",
+      "note": "Milan papers row: the student's own university enrolment (for the student lease); the row code MIL 08 is a label, read apart."
+    },
+    {
+      "text": "Until it is registered, the lease is void under Italian law: a weak title for your residence",
+      "kind": "lease",
+      "note": "Milan registration check: the lease's registration with the Agenzia delle Entrate (30-day term: DPR 131/86 art. 17; nullity under L. 311/2004 art. 1 c. 346); a late registration cures the nullity retroactively (Cass. SS.UU. 23601/2017), hence 'until'. Nothing about our own registration."
+    },
+    {
+      "text": "We ask for the receipt",
+      "kind": "follower",
+      "note": "Milan registration check, after its title 'Registration': we ask the landlord for the receipt of the lease's registration with the Agenzia delle Entrate; nothing of ours is registered."
+    },
+    {
+      "text": "We check which one it is, and that it gets registered",
+      "kind": "lease",
+      "note": "Milan: we check the lease type and that the lease gets registered."
+    },
+    {
+      "text": "We confirm it before you sign",
+      "kind": "follower",
+      "note": "Madrid and Valencia padrón checks (and the hub's cards), after their title 'Registration': we confirm that the lease lets the tenant register on the padrón; a promise of a check, no registration of ours."
+    },
+    {
+      "text": "We confirm it in writing before you sign",
+      "kind": "follower",
+      "note": "Amsterdam BRP check (and the hub's card), after its title 'Registration': we confirm in writing that the tenant can register at the address; a promise of a check, no registration of ours."
+    },
+    {
+      "text": "With Full Search or Application Pack we also check the contract, and confirm in writing that you can register (BRP) at the address, before you sign",
+      "kind": "tenant",
+      "note": "Amsterdam: we confirm the tenant can register at the address (BRP)."
+    },
+    {
+      "text": "With Full Search or Application Pack we also check the contract, and that you can register on the padrón with it, before you sign",
+      "kind": "tenant",
+      "note": "Spanish desks: we check the tenant can register on the padrón with the lease."
+    },
+    {
+      "text": "Within 30 days the landlord lodges it in a government-approved scheme (DPS, TDS or mydeposits) and sends you its details",
+      "kind": "deposit",
+      "note": "London: the deposit protection schemes are approved by the government and run for the LANDLORD's deposit; not a membership of ours."
+    },
+    {
+      "text": "we ask for the deposit receipt",
+      "kind": "follower",
+      "note": "Valencia deposit check (and the hub's card), after its label 'fianza · Generalitat': we ask the landlord for the receipt of the deposit lodged with the Generalitat; nothing of ours is lodged or registered."
+    },
+    {
+      "text": "we ask for the receipt",
+      "kind": "follower",
+      "note": "Barcelona deposit check (and the hub's card), after its label 'fianza · INCASÒL': we ask the landlord for the receipt of the deposit lodged with INCASÒL; nothing of ours is lodged or registered."
+    }
+  ]
+}

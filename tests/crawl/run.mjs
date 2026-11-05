@@ -372,7 +372,7 @@ check(haHeaderNoindex('/deals') && haHeaderNoindex('/deals.html') && !haHeaderNo
 // 4 · .vercelignore — sorgenti e copie storiche non si servono
 // ════════════════════════════════════════════════════════════════════════
 const ignore = leggi('.vercelignore').split(/\r?\n/).map((l) => l.trim()).filter((l) => l && !l.startsWith('#'));
-const CARTELLE = ['scripts', 'design', 'tests', 'bot', 'homie-bridge', 'reference', 'docs'];
+const CARTELLE = ['scripts', 'design', 'tests', 'bot', 'homie-bridge', 'reference', 'docs', 'assets/src'];
 const FILE = ['index-classic.html', 'apartments-classic.html', 'apartment-detail-classic.html',
   'property-finding-classic.html', 'header.html', '.journey-preview.html'];
 const mancanti = [...CARTELLE.map((d) => `/${d}/`), ...FILE].filter((x) => !ignore.includes(x));

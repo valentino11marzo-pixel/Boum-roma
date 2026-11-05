@@ -2,34 +2,35 @@
   "slug": "paris",
   "city": "Paris",
   "country": "FR",
+  "chargeAt": "signing",
   "iata": "PAR",
   "geo": {
     "lat": 48.8566,
     "lon": 2.3522
   },
-  "live": false,
-  "mode": "waitlist",
+  "live": true,
+  "mode": "search",
   "config": {},
-  "updated": "2026-11-03",
+  "updated": "2026-11-06",
   "meta": {
-    "title": "Tenant-side rental agent in Paris — BOOM",
-    "description": "BOOM Paris works only for the tenant and opens with a licensed partner. Open your file today: rent-cap check, lease read, French-format dossier, attended viewings.",
+    "title": "Tenant-side rental agent for expats in Paris — BOOM",
+    "description": "Apartment search for expats in Paris, tenant side only: French-format dossier, applications as listings appear, viewings attended. Paid only when you sign.",
     "ogTitle": "BOOM Paris — an agent on your side of the table",
-    "ogDescription": "Tenant-side desk for internationals moving to Paris, opening with a licensed partner. Rent-cap check, lease read, French-format dossier, attended viewings. Paid by you — never by landlords."
+    "ogDescription": "Tenant-side rental search for expats and internationals moving to Paris. French-format dossier within one working day of your papers, applications sent as listings appear, attended viewings, rent cap and lease checked. Flat fees, paid by you only when you sign a lease — never by landlords."
   },
   "service": {
-    "name": "BOOM Paris — tenant-side rental desk (chasseur immobilier)",
+    "name": "BOOM Paris — tenant-side rental search (chasseur immobilier)",
     "serviceType": "Tenant-side rental search agent",
-    "audience": "Internationals relocating to Paris",
-    "description": "Tenant-side rental desk for Paris, opening with a licensed partner (carte professionnelle, loi Hoguet). On the tenant's side only: rent checked against the encadrement des loyers, lease read before signing, French-format dossier locatif, attended viewings with live video and written report, proof of address from day one. Flat fees set and shown, charged only when the desk opens; nothing from landlords or platforms, ever."
+    "audience": "Expats and internationals relocating to Paris",
+    "description": "Rental search in Paris on the tenant's side only: French-format dossier locatif within one working day of the tenant's papers, applications sent as listings appear, attended viewings with live video and written report, rent checked against the encadrement des loyers, lease read before signing. Flat fees paid by the tenant, charged only when a lease is signed; nothing from landlords or platforms."
   },
   "hero": {
     "h1Before": "Your home in",
-    "lead": "Opening with a licensed partner. Today: your file, opened and kept ready.",
-    "leadStrong": "Paid by you, never by landlords.",
+    "lead": "We search, apply, attend the viewings and check the lease.",
+    "leadStrong": "Paid only by you, and only when you sign.",
     "faresHead": {
-      "b": "List prices",
-      "span": "Nothing charged today"
+      "b": "Flat fees",
+      "span": "No percentage of your rent"
     }
   },
   "pricing": {
@@ -39,24 +40,26 @@
         "label": "Full Search",
         "name": "We search. You choose.",
         "price": 500,
-        "condition": "flat · incl. VAT · at opening",
-        "conditionLong": "List price. Charged only when the desk opens.",
+        "condition": "flat · incl. VAT",
+        "conditionLong": "VAT included, charged when you sign a lease. Invoice from Egidi Immobiliare S.r.l.",
         "includes": [
-          "Search every working day: SeLoger, PAP, Leboncoin, agencies",
+          "Every working day: SeLoger, PAP, Leboncoin, agencies",
           "One-page presentation, applications as listings appear",
-          "Attended viewing, live video + report",
-          "Rent cap and lease checked, charges read"
+          "One attended viewing (more: €149 each)",
+          "Rent cap and lease checked, charges read",
+          "Until you sign, or you say stop (six months at most)"
         ],
-        "offerDescription": "Search every working day on SeLoger, PAP, Leboncoin and agencies, a one-page presentation, applications as listings appear, an attended viewing with live video and a report, rent cap and lease checked.",
-        "when": "Haven't started yet"
+        "offerDescription": "Search, French-format dossier and one-page presentation, applications as listings appear, one attended viewing, rent cap and lease check, until the tenant signs or stops the search.",
+        "when": "Haven't started yet",
+        "trigger": "Nothing is charged before you sign the lease we helped you get, and nothing if you never do."
       },
       {
         "id": "application-pack",
         "label": "Application Pack",
         "name": "You search. We make you win.",
         "price": 199,
-        "condition": "flat · incl. VAT · at opening",
-        "conditionLong": "List price. Charged only when the desk opens.",
+        "condition": "flat · incl. VAT",
+        "conditionLong": "VAT included, charged when you sign a lease. Invoice from Egidi Immobiliare S.r.l.",
         "includes": [
           "French-format dossier locatif, one working day from your papers",
           "Guarantor or Visale strategy",
@@ -64,7 +67,8 @@
           "Lease review before you sign"
         ],
         "offerDescription": "French-format rental dossier within one working day of your papers, a guarantor or Visale strategy, a one-page presentation in French, lease review before you sign.",
-        "when": "Found one, or shortlisted and already in Paris"
+        "when": "Found one, or shortlisted and already in Paris",
+        "trigger": "Nothing is charged unless you sign for a home you applied to with our dossier."
       },
       {
         "id": "attended-viewing",
@@ -72,8 +76,8 @@
         "unit": "per viewing",
         "name": "Eyes on the ground.",
         "price": 149,
-        "condition": "per viewing · incl. VAT · at opening",
-        "conditionLong": "List price. Charged only when the desk opens.",
+        "condition": "per viewing · incl. VAT",
+        "conditionLong": "VAT included, charged when you sign a lease. Invoice from Egidi Immobiliare S.r.l.",
         "includes": [
           "A BOOM person attends in your place",
           "Live video walkthrough",
@@ -81,34 +85,35 @@
           "A straight recommendation"
         ],
         "offerDescription": "A BOOM person attends the viewing in your place, with live video and a written report.",
-        "when": "Shortlisted, still abroad"
+        "when": "Shortlisted, still abroad",
+        "trigger": "Nothing is charged unless you sign for the home we viewed."
       }
     ]
   },
   "stub": {
-    "notSure": "Not sure which fare? Opening your file is free."
+    "notSure": "Not sure which fare? On a free call we say which fits, or that none does."
   },
   "how": {
-    "h2": "From your file",
+    "h2": "From the first call",
     "h2g": "to the keys.",
     "steps": [
       {
-        "k": "1 · File",
-        "h": "Open it today",
-        "p": "Budget, move-in date, arrondissements, who's moving. We reply the same working day with what your budget buys.",
+        "k": "1 · Brief",
+        "h": "A free call",
+        "p": "Dates, budget, arrondissements, who's moving. We say what your budget buys today.",
         "status": "FREE"
       },
       {
-        "k": "2 · Opening",
-        "h": "A licensed partner",
-        "p": "A chasseur immobilier needs a carte professionnelle (loi Hoguet). The desk opens with a licensed partner, not around the rule.",
-        "status": "WITH PARTNER"
+        "k": "2 · Your file",
+        "h": "French-format, one working day",
+        "p": "Dossier and one-page presentation from your papers. Applications as listings appear.",
+        "status": "1 WORK DAY"
       },
       {
-        "k": "3 · The search",
-        "h": "Then as in every BOOM city",
-        "p": "French-format dossier, applications as listings appear, a BOOM person at the viewing, rent cap and lease checked before you sign.",
-        "status": "AT OPENING"
+        "k": "3 · Viewing & lease",
+        "h": "A BOOM person in the room",
+        "p": "Live video and a written report. Rent cap and lease checked before you sign.",
+        "status": "IN PERSON"
       }
     ]
   },
@@ -120,7 +125,7 @@
         "id": "fees",
         "title": "Who may charge you",
         "at": "loi Hoguet · ALUR",
-        "text": "A chasseur immobilier needs a carte professionnelle; agent fees to tenants are capped by law. We open with a licensed partner."
+        "text": "The landlord's agent may charge you only a capped share of the visit, file, lease and inventory costs. An agent you hire is paid once the lease is signed, never before."
       },
       {
         "id": "rentcap",
@@ -155,22 +160,26 @@
       "A guarantor, or Visale",
       "A one-page presentation"
     ],
-    "tail": "We tell you which ones to start gathering first."
+    "tail": "The rest we go through on the free call."
   },
   "faq": {
     "h2": "Questions.",
     "items": [
       {
-        "q": "Why isn't BOOM taking searches in Paris yet?",
-        "a": "Searching on a client's behalf is regulated in France: a chasseur immobilier needs a carte professionnelle (loi Hoguet). We open with a licensed partner rather than work around the rule. Your file waits, ready."
+        "q": "When do I pay a rental agent in Paris?",
+        "a": "Only when you sign the lease we helped you get: in France an agent may take nothing before. BOOM Paris works that way on every fare, and if you never sign, you pay nothing."
       },
       {
-        "q": "What can you do for me today?",
-        "a": "Open your file, answer your questions the same working day, and tell you honestly what your budget buys in Paris. The prices on this page are set; nothing is charged until the desk opens and the work starts."
+        "q": "What happens on the free call?",
+        "a": "A call with Valentino, by phone or WhatsApp, at a time that suits you both. We hear your dates, budget and who is moving, say which service fits, or that none does, and which papers you are missing. Nothing is charged for the call, or before you sign a lease."
       },
       {
-        "q": "What does an agent legally charge a tenant in France?",
-        "a": "The fees a letting agent may charge a tenant are capped by law, per square metre. An agent you hire, who works only for you, is a different, licensed service. That is why we open with a licensed partner, and never take landlord money."
+        "q": "How do I avoid a rental scam in Paris from abroad?",
+        "a": "Never pay a deposit or first rent for a home nobody on your side has seen, and no agent before the lease is signed. With Attended Viewing (€149) a BOOM person visits it in your place, with live video and a written report, charged only if you sign. With Full Search or Application Pack we also check the lease and the rent cap before you sign."
+      },
+      {
+        "q": "What if you don't find anything?",
+        "a": "Then you pay nothing: every fare is charged only when you sign the lease we helped you get. We tell you in the first call if your budget and timeline don't fit the market. Once we take it on, the search runs until you sign or stop it, six months at most."
       }
     ]
   },
@@ -179,24 +188,28 @@
     "rows": [
       {
         "dt": "Who",
-        "ddHtml": "BOOM Paris, the tenant-side desk of BOOM — operated by <b>Egidi Immobiliare S.r.l.</b>, a registered Italian agency, opening with a <b>licensed partner (carte professionnelle)</b>. Hired and paid by the tenant only."
+        "ddHtml": "BOOM Paris, the tenant-side rental desk of BOOM — operated by <b>Egidi Immobiliare S.r.l.</b>, an Italian real estate agency registered in Rome. Hired and paid by the tenant only, <b>when the lease is signed, never before</b>."
       },
       {
         "dt": "For whom",
-        "ddHtml": "Internationals relocating to Paris — employees, researchers, couples and families — from abroad or already in the city."
+        "ddHtml": "Expats and internationals relocating to Paris — employees, researchers, couples and families — from abroad or already in the city."
+      },
+      {
+        "dt": "Language",
+        "ddHtml": "English; the one-page presentation goes in French."
       },
       {
         "dt": "Fees",
-        "ddHtml": "VAT included. No percentage of the rent, nothing from landlords or platforms.",
-        "fees": true
+        "fees": true,
+        "ddHtml": "No percentage of the rent, nothing from landlords or platforms."
       },
       {
         "dt": "What we do",
-        "ddHtml": "Today: your file, opened and kept ready. When the desk opens: French-format dossier within <b>one working day</b> of your papers, applications <b>as listings appear</b>, attended viewings, rent cap and lease checked, proof of address from day one."
+        "ddHtml": "French-format dossier within <b>one working day</b> of your papers, applications <b>as listings appear</b>, attended viewings with live video and written report, rent cap and lease checked before you sign."
       },
       {
         "dt": "What we don't do",
-        "ddHtml": "We don't list homes, we don't represent landlords, we don't promise a date, and we don't search on your behalf in France before the desk opens."
+        "ddHtml": "We don't list homes, we don't represent landlords, we don't collect your rent or deposit, we don't promise a date, and we charge nothing before you sign."
       },
       {
         "dt": "Reply time",
@@ -210,7 +223,7 @@
     ]
   },
   "footer": {
-    "statement": "Launching with a licensed partner. BOOM Paris acts solely as a tenant-side desk: we do not list properties, represent landlords, or receive remuneration from landlords or their agents, and we do not search on a client's behalf in France before the desk opens with its licensed partner."
+    "statement": "BOOM Paris acts solely as a tenant-side search agent. We do not list properties, represent landlords, or receive remuneration from landlords or their agents, and we charge nothing before your lease is signed."
   },
   "desk": {
     "person": "Valentino Egidi",
@@ -230,7 +243,7 @@
     ]
   },
   "door": {
-    "label": "Open my file"
+    "label": "Start with a free call"
   },
   "form": {
     "name": {
@@ -253,11 +266,11 @@
     "sentNext": [
       [
         "{when}",
-        "Valentino writes back by email, or WhatsApp if you left a number."
+        "Valentino writes to set your free call."
       ],
       [
         "Nothing to prepare",
-        "We tell you which papers to start gathering."
+        "On the call we say which papers matter."
       ],
       [
         "Nothing by then?",
@@ -265,5 +278,71 @@
       ]
     ],
     "sentWhenDefault": "Same working day"
+  },
+  "checkout": true,
+  "checkoutCopy": {
+    "noteLabel": "A listing you already found, or anything we should know",
+    "notePlaceholder": "https://www.seloger.com/… · move-in 1 February",
+    "btnSubNow": "Starts in the desk’s first open hour · no card",
+    "btnSubWait": "Starts when your 14 days end · no card",
+    "altLead": "Prefer to talk first?",
+    "altLink": "Start with a free call, no card",
+    "startNow": "Start now: I ask BOOM to begin before my 14-day withdrawal period ends, and I understand that once the service is fully performed I can no longer withdraw.",
+    "withdrawal": "Withdrawal: 14 days from your order — {online}, by email to {email} or with the {form}. Nothing is charged before you sign, so withdrawing costs nothing. Without the tick, we start when the 14 days end.",
+    "fine": "No card today. Invoice from Egidi Immobiliare S.r.l., VAT included, with a secure payment link when you sign. Nothing is charged before you sign a lease, and nothing if you never do.",
+    "errors": {
+      "name": "Your name, so we know who we're working for.",
+      "email": "A valid email — your order and, when you sign, the invoice go there.",
+      "net": "The order did not reach us — try again, or start with a free call instead.",
+      "stale": "This page was just updated — reload it to order with the current terms."
+    },
+    "booked": {
+      "before": "Booked — your file",
+      "em": "is open.",
+      "text": "Nothing is charged until you sign. The Paris desk writes by email, or on WhatsApp if you left a number. Questions? Write to",
+      "next": [
+        [
+          "First desk hour",
+          "your order by email, with what we need"
+        ],
+        [
+          "Same working day",
+          "your brief: dates, budget, who’s moving"
+        ],
+        [
+          "When you sign",
+          "the fee, once, with the invoice"
+        ]
+      ],
+      "nextWait": [
+        [
+          "First desk hour",
+          "your order by email, with your start date"
+        ],
+        [
+          "When the 14 days end",
+          "your brief: dates, budget, who’s moving"
+        ],
+        [
+          "When you sign",
+          "the fee, once, with the invoice"
+        ]
+      ],
+      "wait": "You did not tick “Start now”: we start when your 14 days end. Sooner? Write to {email}.",
+      "pending": "Order being confirmed. Your copy comes by email.",
+      "unconfirmed": "Not confirmed yet. If no email reaches you, write to the desk.",
+      "startsNow": "The desk’s first open hour",
+      "startsWait": "From {date}, after your 14-day withdrawal period",
+      "withdrawLink": "Withdraw from contract here",
+      "paidText": "Paid on {date}. Invoice from Egidi Immobiliare S.r.l.",
+      "dueText": "Your lease is signed. The BOOM fee: {amount}, VAT included, invoice from Egidi Immobiliare S.r.l.",
+      "payLabel": "Pay the fee securely",
+      "withdrawnText": "Withdrawn on {date}. Nothing was charged.",
+      "closedText": "Closed. Nothing was charged."
+    },
+    "order": "Your order runs six months at most; your copy comes by email."
+  },
+  "till": {
+    "label": "Order, pay on signing"
   }
 }

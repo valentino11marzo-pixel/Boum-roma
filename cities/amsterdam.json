@@ -10,7 +10,7 @@
   "live": true,
   "mode": "search",
   "config": {},
-  "updated": "2026-11-03",
+  "updated": "2026-11-06",
   "meta": {
     "title": "Tenant-side rental agent for expats in Amsterdam — BOOM",
     "description": "Apartment search for expats in Amsterdam, tenant side only: a Dutch-format dossier, applications sent as listings appear, viewings attended, contract checked.",
@@ -21,7 +21,7 @@
     "name": "BOOM Amsterdam — tenant-side rental search (aanhuurmakelaar)",
     "serviceType": "Tenant-side rental search agent",
     "audience": "Expats and internationals relocating to Amsterdam",
-    "description": "Rental search in Amsterdam on the tenant's side only: Dutch-format application dossier within one working day of the tenant's papers, applications sent as listings appear, attended viewings with live video and written report, negotiation of rent, deposit and service costs, contract check against Dutch law, BRP registration confirmed in writing. Flat fees paid by the tenant, nothing from landlords or platforms."
+    "description": "Rental search in Amsterdam on the tenant's side only: Dutch-format application dossier within one working day of the tenant's papers, applications sent as listings appear, attended viewings with live video and written report, negotiation of rent, deposit and service costs, contract check against Dutch law, the right to register (BRP) at the address confirmed in writing. Flat fees paid by the tenant, nothing from landlords or platforms."
   },
   "hero": {
     "h1Before": "Your home in",
@@ -184,7 +184,7 @@
     "rows": [
       {
         "dt": "Who",
-        "ddHtml": "BOOM Amsterdam, the tenant-side rental desk of BOOM — operated by <b>Egidi Immobiliare S.r.l.</b>, a registered Italian agency. In the Netherlands the role is called <b>aanhuurmakelaar</b>: hired by the tenant, paid by the tenant only."
+        "ddHtml": "BOOM Amsterdam, the tenant-side rental desk of BOOM — operated by <b>Egidi Immobiliare S.r.l.</b>, an Italian real estate agency registered in Rome. In the Netherlands the role is called <b>aanhuurmakelaar</b>: hired by the tenant, paid by the tenant only."
       },
       {
         "dt": "For whom",
@@ -201,7 +201,7 @@
       },
       {
         "dt": "What we do",
-        "ddHtml": "Dutch-format dossier within <b>one working day</b> of your papers, applications <b>as listings appear</b>, attended viewings with live video and written report, negotiation, contract check against Dutch law, BRP confirmed in writing."
+        "ddHtml": "Dutch-format dossier within <b>one working day</b> of your papers, applications <b>as listings appear</b>, attended viewings with live video and written report, negotiation, contract check against Dutch law, the right to register (BRP) at the address confirmed in writing."
       },
       {
         "dt": "What we don't do",
@@ -284,7 +284,7 @@
     "altLead": "Prefer to talk first?",
     "altLink": "Start with a free call, no card",
     "startNow": "Start now: I ask BOOM to begin before my 14-day withdrawal period ends, and I understand that once the service is fully performed I can no longer withdraw.",
-    "withdrawal": "Withdrawal: 14 days from payment, by email to {email} or with the {form}. If you asked us to start and then withdraw, we refund the price minus the work already done. Without the tick, we start when the 14 days end.",
+    "withdrawal": "Withdrawal: 14 days from payment — {online}, by email to {email} or with the {form}. If you asked us to start and then withdraw, we refund the price minus the work already done. Without the tick, we start when the 14 days end.",
     "fine": "Secure card payment by Stripe. Invoice from Egidi Immobiliare S.r.l., VAT included. Full Search is refunded in full if we decline the search in the first call.",
     "errors": {
       "name": "Your name, so we know who we're working for.",

@@ -98,6 +98,13 @@ const DATA = {
   pfsClients: [
     ['cl_rome', { name: 'Giulia Roma', stage: 'searching', budget: 1500, zone: 'centro', portalEnabled: true, portalProperties: [], portalActivity: [] }],
     ['cl_mad', { name: 'Lucía Madrid', market: 'madrid', stage: 'searching', budget: 1500, zone: 'Chamberí', portalEnabled: true, portalProperties: [], portalActivity: [] }],
+    // desk città LIVE senza radar (v1.7 review): il modale deve conservarne il mercato, mai 'roma'
+    ['cl_lon', { name: 'Lucy London', market: 'london', stage: 'searching', budget: 2000, zone: 'Islington', portalEnabled: true, portalProperties: [], portalActivity: [] }],
+    ['cl_mil', { name: 'Marta Milano', market: 'milan', stage: 'searching', budget: 1400, zone: 'Isola', portalEnabled: true, portalProperties: [], portalActivity: [] }],
+    ['cl_ams', { name: 'Anna Amsterdam', market: 'amsterdam', stage: 'searching', budget: 1800, zone: 'De Pijp', portalEnabled: true, portalProperties: [], portalActivity: [] }],
+    // Parigi e Berlino (05/11): dichiarate nel radar ma spente, come Valencia — stessa regola del modale
+    ['cl_par', { name: 'Paul Paris', market: 'paris', stage: 'searching', budget: 1600, zone: 'Le Marais', portalEnabled: true, portalProperties: [], portalActivity: [] }],
+    ['cl_ber', { name: 'Bea Berlin', market: 'berlin', stage: 'searching', budget: 1500, zone: 'Kreuzberg', portalEnabled: true, portalProperties: [], portalActivity: [] }],
   ],
   pfsProperties: [
     ['pmad', { sourceUrl: 'https://www.idealista.com/inmueble/100000001/', source: 'idealista_es', market: 'madrid', price: 1400, title: 'Piso en Calle X, Chamberí, Madrid', zone: 'Madrid · Chamberí', advertiser: 'unknown', scrapedAt: now, lastSeenAt: now, matchSummary: { pushedTo: [{ clientId: 'cl_mad', name: 'Lucía Madrid', score: 82 }] } }],
@@ -199,6 +206,21 @@ async function newPage() {
   await page.waitForTimeout(300);
   const w = await page.evaluate(() => window.__writes.filter((x) => x.name === 'pfsClients'));
   ok(w.length === 1 && w[0].op === 'add' && w[0].d.market === 'barcelona', 'il modale cliente salva il mercato scelto (barcelona)', w);
+  // un cliente di un desk senza radar (Londra, Milano, Amsterdam, Parigi, Berlino): il modale apre sulla SUA voce con la nota
+  // «Radar spento», e salvare riscrive lo stesso mercato — mai 'roma' (gli arriverebbero le case romane)
+  for (const [id, mk] of [['cl_lon', 'london'], ['cl_mil', 'milan'], ['cl_ams', 'amsterdam'], ['cl_par', 'paris'], ['cl_ber', 'berlin']]) {
+    // dalla pipeline al fascicolo, poi ✎ Modifica (i click sui nodi: gli overlay restano disegnati, vedi sopra)
+    await page.evaluate((cid) => { const ch = document.querySelector('.pipe-chip[data-cid="' + cid + '"]'); if (ch) ch.click(); }, id);
+    await page.waitForTimeout(80);
+    await page.evaluate(() => { const b = document.querySelector('#client-drawer [data-daction="edit"]'); if (b) b.click(); });
+    await page.waitForTimeout(80);
+    const m = await page.evaluate(() => ({ v: document.getElementById('cm-market').value, note: document.getElementById('cm-note').textContent, label: (document.querySelector('#cm-market option:checked') || {}).textContent || '' }));
+    ok(m.v === mk && /Radar spento/.test(m.note) && /radar spento/.test(m.label), `modale cliente: ${mk} apre su «${m.label}» con la nota «Radar spento»`, m);
+    await page.evaluate(() => document.getElementById('cm-save').click());
+    await page.waitForTimeout(250);
+    const sv = await page.evaluate((cid) => window.__writes.filter((x) => x.name === 'pfsClients' && x.id === cid), id);
+    ok(sv.length === 1 && sv[0].d.market === mk, `modale cliente: salvare ${id} riscrive market «${mk}», mai «roma»`, sv);
+  }
   ok(errors.length === 0, 'zero errori JS in pfs-command', errors.slice(0, 3));
   await page.context().close();
 }

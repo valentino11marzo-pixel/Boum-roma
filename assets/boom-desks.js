@@ -1,12 +1,3 @@
-/* assets/boom-desks.js — BOOM Desks, the hub (/desks). Reads
-   window.BOOM_DESKS (the build's config: the live desks' hours and holiday
-   calendars) and window.BOOM_DESK_CAL (the desk calendar, inlined). Never
-   fetches. The static HTML carries the hours only: the clock, the window
-   and OPEN/CLOSED are written here, from the calendar, and change only when
-   a fact changes (the DESK NOW flaps flip only when a desk opens or
-   closes). At ≥940 it loads the onda (assets/boom-onda.js) after load; it
-   loops only while a desk is open. Without JS, or without the calendar,
-   the page stays as served. */
 (function () {
   'use strict';
   var D = window.BOOM_DESKS || {};
@@ -18,7 +9,6 @@
   var wide = mq('(min-width: 760px)');
   var root = document.documentElement, IO = 'IntersectionObserver' in window;
 
-  /* the curtain: a section gets .in once it comes into view */
   if (IO) {
     var secIO = new IntersectionObserver(function (es) {
       es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('in'); secIO.unobserve(e.target); } });
@@ -27,13 +17,11 @@
     root.setAttribute('data-armed', '');
   }
 
-  /* the filament: where you are on the page */
   var filo = $('filo'), fq = 0;
   function fil() { fq = 0; var h = document.documentElement.scrollHeight - innerHeight; if (filo) filo.style.setProperty('--p', h > 0 ? Math.min(1, scrollY / h).toFixed(4) : '0'); }
   addEventListener('scroll', function () { if (!fq) fq = requestAnimationFrame(fil); }, { passive: true });
   fil();
 
-  /* the boards: EUROPE settles once; at ≥760 each row's code flips in, 90 ms apart */
   var DRUM = ' ABCDEFGHIJKLMNOPQRSTUVWXYZ';
   function mount(host, word, spin) {
     if (!host || !window.BoomSolari) return null;
@@ -61,9 +49,6 @@
   codes();
   if (wide.addEventListener) wide.addEventListener('change', codes); else if (wide.addListener) wide.addListener(codes);
 
-  /* DESK NOW at ≥760: a 6-cell flap board beside the text the script keeps
-     (the text is what a reader without the board, and a test, reads). It
-     flips only when the desk opens or closes; green glyphs while open. */
   var flaps = {};
   function flapOf(nb, slug) {
     if (flaps[slug] || !wide.matches || !window.BoomSolari) return flaps[slug] || null;
@@ -88,8 +73,6 @@
     else f.b.update(pad6);
   }
 
-  /* the tick: the desk clock, the window and OPEN/CLOSED for every live desk.
-     At load, then on the minute, only while the tab is visible. */
   var pad = function (n) { return (n < 10 ? '0' : '') + n; };
   var set = function (n, v) { if (n && n.textContent !== v) n.textContent = v; };
   var cap = function (s) { return s.charAt(0).toUpperCase() + s.slice(1); };
@@ -124,26 +107,55 @@
   tick();
   plan();
   document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') tick(); plan(); });
-  /* a phone turned to a desktop width mounts the flaps it skipped */
   var reflap = function () { if (wide.matches) tick(); };
   if (wide.addEventListener) wide.addEventListener('change', reflap); else if (wide.addListener) wide.addListener(reflap);
 
-  /* the onda behind the board (≥940): after load, when idle. Its heartbeat
-     rises from ROM, the hub's row; it loops only while a desk is open. */
-  var ondaIn = false, big = mq('(min-width: 940px)');
+  var hzMap = document.querySelector('svg.hz'), hzIn = false;
+  function hzGo() { if (hzIn || !hzMap || !D.MAP) return; hzIn = true; var e = document.createElement('script'); e.src = D.MAP; e.async = true; document.head.appendChild(e); }
+  if (hzMap && IO) { var hzIO = new IntersectionObserver(function (es) { if (es.some(function (e) { return e.isIntersecting; })) { hzIO.disconnect(); hzGo(); } }, { rootMargin: '600px 0px' }); hzIO.observe(hzMap); } else addEventListener('load', hzGo);
+
+  var touch = mq('(hover: none), (max-width: 599px)'), sel = null, hm = $('hmap'), box = hm && hm.querySelector('.hmap-box');
+  function unsel() { if (sel) { sel.classList.toggle('sel', false); sel.querySelector('.pc').classList.toggle('dock', false); box.style.marginBottom = ''; sel = null; } }
+  function dock(p) {
+    unsel();
+    var b = box.getBoundingClientRect(), r = p.getBoundingClientRect(), pc = p.querySelector('.pc');
+    pc.style.setProperty('--dl', (b.left - r.left) + 'px');
+    pc.style.setProperty('--dt', (b.bottom - r.top + 8) + 'px');
+    pc.style.setProperty('--dw', b.width + 'px');
+    pc.classList.add('dock');
+    p.classList.add('sel');
+    sel = p;
+    box.style.marginBottom = (pc.offsetHeight + 16) + 'px';
+    if (window.BOOM_MAP) window.BOOM_MAP.fly(p.id.slice(4));
+  }
+  $$('a.pin').forEach(function (p) {
+    p.addEventListener('click', function (e) {
+      if (!touch.matches || sel === p) return;
+      e.preventDefault();
+      dock(p);
+    });
+  });
+  if (box) box.addEventListener('click', function (e) {
+    if (!touch.matches || e.target.closest('a.pin')) return;
+    var best = null, bd = 30;
+    $$('a.pin', box).forEach(function (p) { var r = p.getBoundingClientRect(), d = Math.hypot(r.left + r.width / 2 - e.clientX, r.top + r.height / 2 - e.clientY); if (d <= bd) { bd = d; best = p; } });
+    if (!best) unsel(); else if (best === sel) best.click(); else dock(best);
+  });
+  document.addEventListener('click', function (e) { if (sel && !sel.contains(e.target) && !box.contains(e.target)) unsel(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') unsel(); });
+
+  var ondaIn = false;
   function onda() {
     var cv = $('onda');
-    if (ondaIn || !D.ONDA || !cv || !big.matches) return;
+    if (ondaIn || !D.ONDA || !cv) return;
     ondaIn = true;
     var s = document.createElement('script');
     s.src = D.ONDA; s.async = true;
     s.onload = function () {
-      if (window.BOOM_ONDA && window.BOOM_ONDA.start) window.BOOM_ONDA.start(cv, { origin: document.querySelector('#db-rom .db-code'), open: anyOpen });
+      if (window.BOOM_ONDA && window.BOOM_ONDA.start) window.BOOM_ONDA.start(cv, { origin: function () { return $('hubBoard'); }, open: anyOpen });
     };
     document.head.appendChild(s);
   }
   function ondaLater() { if (window.requestIdleCallback) requestIdleCallback(onda, { timeout: 2000 }); else setTimeout(onda, 200); }
   if (document.readyState === 'complete') ondaLater(); else addEventListener('load', ondaLater, { once: true });
-  var bigOnda = function () { if (big.matches && document.readyState === 'complete') ondaLater(); };
-  if (big.addEventListener) big.addEventListener('change', bigOnda); else if (big.addListener) big.addListener(bigOnda);
 })();

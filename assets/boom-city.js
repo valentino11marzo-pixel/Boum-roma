@@ -1,11 +1,3 @@
-/* assets/boom-city.js — the city desks (v1.6, «the complete aviation desk»).
-   Reads window.BOOM_CITY (the build's config) and window.BOOM_DESK_CAL (the
-   desk calendar, inlined from js/desk-calendar.js); posts only to our own
-   API. The pass: blank → open (a 200 from /api/city-lead, the SERVER's file
-   number) → paid (GET /api/city-lead?paid= says paid:true). The page never
-   computes a file number or a payment state on its own. Every instrument
-   below shows a fact the page already holds; motion only when a fact
-   changes, the desk is open, or the reader moves. */
 (function () {
   'use strict';
   var C = window.BOOM_CITY || {};
@@ -18,9 +10,6 @@
   var pass = $('pass');
   if (!pass) return;
   var root = document.documentElement, IO = 'IntersectionObserver' in window;
-  /* §C the walk's entrances: a section gets .in once it comes into view.
-     html[data-armed] tells the head's curtain the script is here (without
-     it in 3 s, html.vivo comes off and nothing waits hidden). */
   if (IO) {
     var secIO = new IntersectionObserver(function (es) {
       es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('in'); secIO.unobserve(e.target); } });
@@ -29,21 +18,20 @@
     root.setAttribute('data-armed', '');
   }
   var sell = C.CHECKOUT === true;
-  /* a desk still opening (Paris, Berlin) is never "open": its instruments
-     say when a reply comes, never "desk open" (loi Hoguet, §34c GewO) */
   var waitlist = C.MODE === 'waitlist';
+  var SIGN = C.CHARGE_AT === 'signing', BK = C.BOOKED || {};
   function track(name, params) { try { if (typeof gtag === 'function') gtag('event', name, params || {}); } catch (e) {} }
   function convert(label) { try { window.dispatchEvent(new CustomEvent('boom-conversion', { detail: { label: label, section: 'pass' } })); } catch (e) {} }
   var CUR = C.CURRENCY || 'EUR', eur = function (n) { return (C.SYMBOL || '€') + String(Math.round(Number(n))).replace(/\B(?=(\d{3})+(?!\d))/g, ','); };
+  var amt = function (n) { var x = Math.round(n * 100) / 100; return x % 1 ? (C.SYMBOL || '€') + x.toFixed(2) : eur(x); };
+  var MON = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  var dayOf = function (v) { var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v || ''); return m && MON[m[2] - 1] ? +m[3] + ' ' + MON[m[2] - 1] + ' ' + m[1] : ''; };
   var txt = function (id, v) { var n = $(id); if (n) { var s = v == null ? '' : String(v); if (n.textContent !== s) n.textContent = s; } };
-  /* PLANS is plain data: an inherited key (?paid=constructor) is not a plan */
   var planOf = function (id) { return id && Object.prototype.hasOwnProperty.call(PLANS, id) ? PLANS[id] : null; };
   var store = {
     get: function (k) { try { return sessionStorage.getItem(k); } catch (e) { return null; } },
     set: function (k, v) { try { sessionStorage.setItem(k, v); } catch (e) {} }
   };
-  /* a POST that never answers must not lock a button for the tab's life:
-     20 s, then the send fails in place and the button comes back */
   function postJson(url, body, ms) {
     var ctl = window.AbortController ? new AbortController() : null;
     var to = setTimeout(function () { if (ctl) ctl.abort(); }, ms || 20000);
@@ -51,7 +39,6 @@
       .then(function (r) { clearTimeout(to); return r.json(); }, function (e) { clearTimeout(to); throw e; });
   }
 
-  /* ── Solari: the city settles once; the status flips only when a fact changes ── */
   var DRUM = ' ABCDEFGHIJKLMNOPQRSTUVWXYZ';
   function mount(host, word, spin) {
     if (!host || !window.BoomSolari) { if (host) host.textContent = word; return null; }
@@ -74,16 +61,11 @@
     txt('slotSr', sr);
   }
 
-  /* ── the desk window: hours, said in words, from the desk calendar (the
-     webhook's own holidays), the zone name of the OPENING instant ── */
   function win() { return CAL && C.DESK ? CAL.deskWindow(new Date(), C.DESK, C.HOLIDAYS) : null; }
   function nextLine() {
     var w = win();
     return !w ? '' : w.open ? 'By ' + w.until + (w.tz ? ' ' + w.tz : '') + ' today' : w.line;
   }
-  /* the window said where the reader acts (data-window: the door, the strip)
-     and on the instruments (data-gate: the header chip, its door twin, the
-     Departures foot, the gate, the outlined door) — one line, one source */
   function sayLine(w) {
     if (!waitlist) return w.line;
     var z = w.tz ? ' ' + w.tz : '';
@@ -100,7 +82,6 @@
     if (w) {
       var line = sayLine(w);
       fill('data-window', line); fill('data-gate', line);
-      /* the one hook for every "open" dot (the chip, the pill, the gate's pulse) */
       root.setAttribute('data-desk', w.open ? 'open' : 'closed');
       var pl = $('depPill');
       if (pl) { pl.hidden = false; txt('depPillT', waitlist ? (w.open ? 'REPLYING' : 'OFFLINE') : w.open ? 'DESK OPEN' : 'DESK CLOSED'); }
@@ -108,16 +89,11 @@
       if (window.BOOM_ONDA && BOOM_ONDA.setOpen) BOOM_ONDA.setOpen(w.open);
     }
     gate(now);
-    /* row 01 follows the desk's clock: "REPLY TODAY" never outlives closing time */
-    if (lastS === 'open' || lastS === 'paid') depFact(lastS, lastD);
+    if (lastS === 'open' || lastS === 'paid' || lastS === 'booked') depFact(lastS, lastD);
     if (pass.getAttribute('data-state') === 'open') txt('oNext', nextLine());
-    /* the next minute boundary, never a countdown */
     setTimeout(refreshClock, 60000 - (Date.now() % 60000) + 50);
   }
 
-  /* ── §C.4 the gate: the desk's clock (a Solari board, the desk's zone),
-     the reader's own clock (computed here, never sent), and the desk's
-     real week (desk days minus the webhook's holidays — never a name) ── */
   var two = function (n) { return (n < 10 ? '0' : '') + n; };
   var DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   var ckB = null, ckIO = null, ckSeen = !IO, weekKey = '';
@@ -126,18 +102,13 @@
     if (!p || !box) return;
     var hm = two(Math.floor(p.min / 60)) + ':' + two(p.min % 60), fresh = false;
     box.hidden = false;
-    /* the board where it is seen: in the stub (≥940, the first screen) at
-       once; below, plain text until the Gate comes within a screen (no
-       Solari calibration in the boot task) */
     if (!ckB && !ckSeen && !ckIO && h && !wide.matches) {
       ckIO = new IntersectionObserver(function (es) { if (es[es.length - 1].isIntersecting) { ckSeen = true; ckIO.disconnect(); gate(new Date()); } }, { rootMargin: '100% 0px' });
       ckIO.observe(box);
     }
     if (!ckB && window.BoomSolari && h && (ckSeen || wide.matches)) { ckB = new window.BoomSolari.Board(h, 5, ' 0123456789:'); h.classList.add('live'); fresh = true; }
-    /* a minute later only the changed cells flip; never a countdown */
     if (!ckB) txt('ckDesk', hm); else if (fresh || reduce) ckB.show(hm, 60, fresh && !reduce); else ckB.update(hm);
     txt('ckZone', p.tz);
-    /* said with the clock's own label (its zone: the desk answers from Rome) */
     var lab = box.querySelector('.ck-l');
     txt('ckDeskSr', (lab ? lab.textContent : 'Desk time') + ': ' + hm + (p.tz ? ' ' + p.tz : ''));
     var same = now.getFullYear() === p.y && now.getMonth() + 1 === p.m && now.getDate() === p.d && now.getHours() * 60 + now.getMinutes() === p.min;
@@ -152,7 +123,6 @@
     for (var i = 0; i < 7; i++) {
       var li = ol.children[i];
       if (!li) { li = document.createElement('li'); li.style.setProperty('--i', i); ol.appendChild(li); }
-      /* a calendar day in UTC at noon, the webhook's own form */
       var dt = new Date(Date.UTC(p.y, p.m - 1, p.d + i, 12)), wd = dt.getUTCDay(), n = dt.getUTCDate();
       var open = D.days.indexOf(wd) >= 0 && !CAL.isDeskHoliday(dt, C.HOLIDAYS);
       li.className = (open ? 'open' : 'closed') + (i ? '' : ' today');
@@ -167,10 +137,6 @@
     ol.hidden = false;
   }
 
-  /* ── §C.1 Departures: the statuses mount once, when the board comes into
-     view (one flip in, staggered); row 01 changes only on a server event
-     (setState), and its flap waits until the board is on screen — the
-     screen-reader twin and #depLive say it at once ── */
   var dep = { hosts: $$('.dep .st-b'), b: [], want: [], go: [], mounted: false, seen: !IO };
   dep.hosts.forEach(function (h, i) { dep.want[i] = h.getAttribute('data-word') || h.textContent; });
   function depMount() {
@@ -180,7 +146,6 @@
       var b = dep.b[i] = new window.BoomSolari.Board(h, 12, ' ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789');
       h.classList.add('live');
       if (reduce || !IO) { b.show(dep.want[i]); dep.go[i] = 1; return; }
-      /* the first fill reads the word wanted THEN (a fact may have come meanwhile) */
       setTimeout(function () { dep.go[i] = 1; b.show(dep.want[i], 60, true); }, 500 + i * 90);
     });
   }
@@ -193,7 +158,6 @@
   if (dep.hosts.length) {
     var depBox = dep.hosts[0].closest('.dep') || dep.hosts[0];
     if (IO) new IntersectionObserver(function (es) {
-      /* the ratio, not isIntersecting: a sliver at the edge is not "in view" */
       var e = es[es.length - 1];
       dep.seen = e.isIntersecting && e.intersectionRatio >= .35;
       if (!dep.seen) return;
@@ -205,15 +169,10 @@
   function depFact(s, d) {
     lastS = s; lastD = d;
     var w = win(), today = !!w && (w.open || w.day === 'Today'), when = !w ? '' : today ? 'TODAY' : DAY3[w.wd] || '', word = '', say = '';
-    /* the board takes the drum's three letters; its screen-reader twin and
-       #depLive say the words ("reply Monday", "from 4 November") */
     var day = today ? 'today' : w ? DAYS[w.wd] : '';
-    /* sell: "Valentino writes to set your free call" — REPLY on the desk's
-       next open day; a waitlist: the file is open, nothing more is promised */
     if (s === 'open') { word = sell ? (when && 'REPLY ' + when) : 'FILE OPEN'; say = sell ? 'reply ' + day : 'file open'; }
-    else if (s === 'paid' && sell) {
+    else if ((s === 'paid' || (s === 'booked' && !d.st)) && sell) {
       if (d.startNow === false) {
-        /* the payer did not tick Start now: the server's first working day */
         var m = /^(\d{1,2}) ([A-Za-z]{3,9})/.exec(String(d.workFromLabel || ''));
         word = m ? 'FROM ' + m[1] + ' ' + m[2].slice(0, 3).toUpperCase() : '';
         say = m ? 'from ' + m[1] + ' ' + m[2] : '';
@@ -226,13 +185,6 @@
     if (dep.seen && dep.mounted) depFlip();
   }
 
-  /* ── the fares: a row opens ITS ticket in place; the tapped row stays put.
-     Without JS the rows are an exclusive accordion (<details name>); with
-     JS the page opens and closes them itself, in the tap, so the layout is
-     final before the next frame and the row is put back under the finger
-     in the same task (Safari has no native scroll anchoring). A ticket
-     ABOVE the tapped row is closed only when the page can scroll back by
-     its height; otherwise it stays open and nothing jumps. ── */
   var fares = $$('details.fare');
   var faresBox = $('fares');
   var last = null;
@@ -252,14 +204,11 @@
     sync();
     var dy = s.getBoundingClientRect().top - y0;
     if (dy < -1 && scrollY + dy < -1) {
-      /* not enough page above to scroll back: the tickets above stay open */
       var back = closed.filter(function (o) { return !!(o.compareDocumentPosition(d) & 4); });
       if (back.length) {
         back.forEach(function (o) { o.open = true; });
         sync();
         dy = s.getBoundingClientRect().top - y0;
-        /* the door leaving the ticket above still pulls the row up: it stays
-           where it was (the strip offers it while it is off the screen) */
         if (dy < -1 && scrollY + dy < -1 && was && was !== act.parentNode && was.closest('details.fare')) {
           pinned = was;
           sync();
@@ -268,29 +217,26 @@
       }
     }
     if (Math.abs(dy) > 1) scrollByY(dy);
-    if (opening) track('fare_open', { plan: d.getAttribute('data-plan'), market: C.SLUG });
+    if (opening) { track('fare_open', { plan: d.getAttribute('data-plan'), market: C.SLUG }); ping(d.querySelector('.f-price'), 's'); }
   }
   fares.forEach(function (d) {
     d.removeAttribute('name');
     d.querySelector('summary').addEventListener('click', function (e) { e.preventDefault(); toggleFare(d); });
-    /* an open set by anyone else (the paid return, the browser's find-in-page) */
     d.addEventListener('toggle', function () { sync(); });
   });
 
-  /* ── the action: ONE node (the door, its form, the states). It sits in the
-     stub — or, on a phone, inside the open ticket. Never two doors. ── */
   var act = $('act'), stubSlot = $('stubSlot'), pinned = null;
   function currentSlot() {
     if (wide.matches) return stubSlot;
-    /* pinned: the door stays in a ticket above that the page could not scroll past */
     if (pinned && pinned.closest('details.fare') && pinned.closest('details.fare').open) return pinned;
     pinned = null;
     var o = openFare();
     return (o && o.querySelector('[data-slot]')) || stubSlot;
   }
   function place() {
-    /* the ONE clocks node: in the stub's gate on a desktop pass, in the Gate section below */
     var ck = $('clocks'), to = $(wide.matches ? 'stubGate' : 'deskClocks');
+    var cv = $('onda'), home = wide.matches ? document.body : pass;
+    if (cv && cv.parentNode !== home) home.insertBefore(cv, home.firstChild);
     if (ck && to && ck.parentNode !== to) { to.appendChild(ck); if (ckB) window.BoomSolari.calibrate($('ckDesk'), ' 0123456789:'); }
     var s = currentSlot();
     if (!s || !act || act.parentNode === s) return;
@@ -299,14 +245,23 @@
     if (had) {
       try { had.focus({ preventScroll: true }); } catch (e) {}
       var hr = had.getBoundingClientRect();
-      if (hr.top < topLim() || hr.bottom > innerHeight - stripH()) had.scrollIntoView({ block: 'center', behavior: 'auto' });
+      if (hr.top < topLim() || hr.bottom > innerHeight - stripH()) had.scrollIntoView({ block: 'center', behavior: 'instant' });
     }
+  }
+  var fsPay = $$('[data-pay="full-search"]')[0], fsBp = fsPay && fsPay.closest('.bp'), fsSlot = fsBp && fsBp.querySelector('.bp-pay'), fsHome = fsPay && fsPay.parentNode;
+  function placePay() {
+    if (!fsPay || !fsSlot) return;
+    var fs = $('fare-full-search'), to = wide.matches && fs && !fs.open ? fsSlot : fsHome;
+    if (fsPay.parentNode !== to) to.appendChild(fsPay);
   }
   var plan = '';
   function sync() {
     var o = openFare();
     if (faresBox) faresBox.classList.toggle('fs-open', !!(o && o.hasAttribute('data-fs')));
+    var bps = faresBox && faresBox.querySelector('.bps');
+    if (bps) bps.classList.toggle('pair-open', !!(o && !o.parentNode.classList.contains('eroe')));
     place();
+    placePay();
     plan = o ? o.getAttribute('data-plan') : '';
     if (state() === 'blank') {
       var p = planOf(plan);
@@ -319,7 +274,6 @@
   else if (wide.addListener) wide.addListener(sync);
   function state() { return pass.getAttribute('data-state') || 'blank'; }
 
-  /* ── errors said in place, gone as soon as the visitor fixes them ── */
   function setErr(input, msg) {
     var e = $(input.getAttribute('aria-describedby'));
     if (msg) input.setAttribute('aria-invalid', 'true'); else input.removeAttribute('aria-invalid');
@@ -333,13 +287,10 @@
   function splitContact(v) {
     v = String(v || '').trim();
     if (/@/.test(v)) return EMAIL.test(v) ? { email: v } : { bad: 'email' };
-    /* as typed: the server reads "+31 (0)6 …" with the desk's country (cityPhone) */
     return (v.match(/\d/g) || []).length >= 7 ? { phone: v.slice(0, 40) } : { bad: 'contact' };
   }
 
-  /* ── the free door: the first tap reveals two fields, the second sends ── */
   var form = $('fileForm'), door = $('door'), opened = false, sending = false;
-  /* one request id per load: a retried send files the same lead */
   var requestId = (Date.now().toString(36) + Math.random().toString(36).slice(2, 12)).replace(/[^a-z0-9]/g, '');
   function openForm(focus) {
     var box = $('fFields');
@@ -353,7 +304,6 @@
       var nm = $('fName');
       var r = act.getBoundingClientRect();
       if (r.top < topLim() || r.top > innerHeight * 0.6) act.scrollIntoView({ block: 'start', behavior: reduce ? 'auto' : 'smooth' });
-      /* any focus the visitor moves in the meantime wins over ours */
       var movedOn = false, mark = function () { movedOn = true; };
       document.addEventListener('focusin', mark, true);
       setTimeout(function () {
@@ -373,8 +323,6 @@
       var okC = setErr(ct, c.bad === 'email' ? form.getAttribute('data-err-email') : c.bad ? form.getAttribute('data-err-contact') : '');
       if (!okN) { nm.focus(); track('form_error', { form: 'file', field: 'name', market: C.SLUG }); return; }
       if (!okC) { ct.focus(); track('form_error', { form: 'file', field: 'contact', market: C.SLUG }); return; }
-      /* the plan the visitor was reading when they asked for the call (their
-         tap; nothing pre-selected otherwise: the server reads "to decide") */
       var picked = planOf(plan) ? plan : '';
       var body = { city: C.SLUG, name: name, service: picked, requestId: requestId, company: ($('fCompany') || {}).value || '' };
       if (window.BoomJourneyHandoff) Object.assign(body, BoomJourneyHandoff.cityLead());
@@ -395,14 +343,11 @@
         track('form_error', { form: 'file', field: 'net', market: C.SLUG });
       });
     });
-    /* the door is served disabled: without this script a submit would be a
-       GET to the page with the contact data in the address bar */
     door.disabled = false;
   }
 
-  /* ── the states, printed where the door was ── */
   function show(id) {
-    ['cOpen', 'cConfirm', 'cPaid'].forEach(function (k) { var n = $(k); if (n) n.hidden = k !== id; });
+    ['cOpen', 'cConfirm', 'cPaid', 'cBooked'].forEach(function (k) { var n = $(k); if (n) n.hidden = k !== id; });
     var n = $(id); if (!n) return;
     n.classList.remove('in'); void n.offsetWidth; n.classList.add('in');
     var st = n.querySelector('.stamp'); if (st) { st.classList.remove('hit'); void st.offsetWidth; st.classList.add('hit'); }
@@ -418,18 +363,15 @@
   function setState(s, d) {
     d = d || {};
     pass.setAttribute('data-state', s);
-    /* the issue (OPEN, PAID): the foil flashes once (.struck: remove, reflow,
-       add), the plane moves (the CSS reads data-state; data-hold parks it
-       before leg 1 when the payer did not tick Start now), and the code line
-       prints the SERVER's file code — "—" without one, never one of ours */
-    var issued = s === 'open' || s === 'paid', I = C.IATA || '', f = d.file || '—';
+    var issued = s === 'open' || s === 'paid' || s === 'booked', I = C.IATA || '', f = d.file || '—';
+    var ms = s === 'booked' ? { due: 'DUE', paid: 'PAID', withdrawn: 'CLOSED', closed: 'CLOSED' }[d.st] || 'BOOKED' : '';
     pass.classList.remove('struck');
-    if (s === 'paid' && d.startNow === false) pass.setAttribute('data-hold', ''); else pass.removeAttribute('data-hold');
+    if ((s === 'paid' || ms === 'BOOKED') && d.startNow === false) pass.setAttribute('data-hold', ''); else pass.removeAttribute('data-hold');
     if (issued) { void pass.offsetWidth; pass.classList.add('struck'); }
     if (s === 'open') txt('codeLine', 'FILE ' + f + ' · ' + I + ' · TENANT SIDE');
     else if (s === 'paid') txt('codeLine', 'PAID · FILE ' + f + ' · ' + I);
+    else if (ms) txt('codeLine', ms + ' · FILE ' + f + ' · ' + I);
     depFact(s, d);
-    /* no second till, and no money asked right after a free door was promised */
     $$('[data-pay]').forEach(function (b) { b.hidden = s !== 'blank'; });
     if (s !== 'blank') closeTill();
     if (form) form.hidden = s !== 'blank';
@@ -441,10 +383,10 @@
       txt('oName', String(d.name || '').slice(0, 40) || '—');
       txt('oFile', d.file || '—');
       txt('oNext', nextLine() || ($('oNext') || {}).textContent);
-      show('cOpen'); land($('cOpen'));
+      show('cOpen'); ping($('cOpen').querySelector('.stamp'), 'l'); land($('cOpen'));
     } else if (s === 'confirming' || s === 'unconfirmed') {
       if (st) st.textContent = s === 'confirming' ? 'Confirming' : 'Not confirmed';
-      txt('slotSr', s === 'confirming' ? 'Payment being confirmed' : 'Payment not confirmed yet');
+      txt('slotSr', (SIGN ? 'Order' : 'Payment') + (s === 'confirming' ? ' being confirmed' : ' not confirmed yet'));
       if (s === 'unconfirmed' && $('cConfirm')) txt('cText', $('cConfirm').getAttribute('data-unconfirmed'));
       show('cConfirm');
     } else if (s === 'paid') {
@@ -452,24 +394,49 @@
       slot('PAID', 'Paid');
       txt('pFile', d.file || '—');
       txt('pFare', (p.label || '') + ' · ' + eur(p.eur || 0));
-      var P = C.PAID || {};
-      var waits = d.startNow === false;
-      txt('pStart', !waits ? (P.startsNow || '') : d.workFromLabel ? String(P.startsWait || '{date}').replace('{date}', d.workFromLabel) : ((P.nextWait || [])[1] || [''])[0]);
-      /* a payer who did not tick "Start now": the three steps of the wait,
-         never "same working day"; the wait note in place of the generic one */
-      if (waits) {
-        var li = $$('#pNext li');
-        (P.nextWait || []).forEach(function (pair, i) { if (li[i]) { li[i].textContent = ''; var b = document.createElement('b'); b.textContent = pair[0]; li[i].appendChild(b); li[i].appendChild(document.createTextNode(' ' + pair[1])); } });
-        if ($('pWait')) $('pWait').hidden = false;
-        if ($('pText')) $('pText').hidden = true;
-      }
-      show('cPaid');
-    }
+      starts('p', C.PAID || {}, d);
+      show('cPaid'); ping($('cPaid').querySelector('.stamp'), 'p');
+    } else if (ms) booked(ms, d);
     doorTwins();
   }
+  function starts(k, P, d) {
+    var waits = d.startNow === false;
+    txt(k + 'Start', !waits ? (P.startsNow || '') : d.workFromLabel ? String(P.startsWait || '{date}').replace('{date}', d.workFromLabel) : ((P.nextWait || [])[1] || [''])[0]);
+    if (!waits) return;
+    var li = $$('#' + k + 'Next li');
+    (P.nextWait || []).forEach(function (pair, i) { if (li[i]) { li[i].textContent = ''; var b = document.createElement('b'); b.textContent = pair[0]; li[i].appendChild(b); li[i].appendChild(document.createTextNode(' ' + pair[1])); } });
+    if ($(k + 'Wait')) $(k + 'Wait').hidden = false;
+    if ($(k + 'Text')) $(k + 'Text').hidden = true;
+  }
+  function booked(ms, d) {
+    var p = planOf(d.plan) || {}, c = $('cBooked'), M = ms !== 'BOOKED', w = d.st, B = BK, word = ms.charAt(0) + ms.slice(1).toLowerCase(), x = c.querySelector('.st-w'), a = null;
+    slot(ms, word);
+    c.querySelector('.k').textContent = word;
+    txt('bFile', d.file || '—');
+    txt('bFare', p.label ? p.label + ' · ' + (d.amount != null ? amt(d.amount) : eur(p.eur) + (M ? '' : ' when you sign')) : '—');
+    txt('bOrder', d.number || '—');
+    starts('b', B, d);
+    if (M) c.querySelector('h2').hidden = $('bStart').parentNode.hidden = $('bNext').hidden = $('bText').hidden = $('bWait').hidden = true;
+    if (ms === 'PAID') { x.textContent = 'PAID'; x.removeAttribute('textLength'); x = c.querySelector('textPath'); x.textContent = x.textContent.replace('BOOKED', 'PAID'); }
+    c.querySelector('.stamp').hidden = ms === 'CLOSED';
+    if (w) {
+      if (w === 'booked') {
+        a = document.createElement('a'); a.className = 'lnk'; a.textContent = B.withdrawLink;
+        a.href = C.WITHDRAW_URL + '?desk=' + encodeURIComponent(C.CITY) + (d.number ? '&ref=' + encodeURIComponent(d.number) : '') + '#online';
+      } else if (w === 'due' && /^https:\/\/(?:www\.)?boomrome\.com\/api\/payments\/link\?/.test(d.payUrl)) {
+        a = document.createElement('a'); a.className = 'pay'; a.href = d.payUrl;
+        a.innerHTML = '<span><b></b></span><span class="ar" aria-hidden="true">→</span>';
+        a.firstChild.firstChild.textContent = B.payLabel;
+      }
+      x = c.appendChild(document.createElement('p')); x.id = 'bLine';
+      x.textContent = w === 'due' ? String(B.dueText).replace('{amount}', amt(d.amount)) : w === 'paid' ? on(B.paidText, d.paidOn) : w === 'withdrawn' ? on(B.withdrawnText, d.withdrawnOn) : w === 'closed' ? B.closedText : '';
+      if (a) x.appendChild(a);
+    }
+    show('cBooked');
+    if (!w) ping(c.querySelector('.stamp'), 'l');
+  }
+  function on(s, v) { var x = dayOf(v); return String(s).replace(/ on \{date\}/, x ? ' on ' + x : '').replace('{date}', x); }
 
-  /* ── the till: only from an explicit pay button; the plan is already chosen ── */
-  /* the till exists only where the build opened the checkout (a waitlist page has none) */
   var till = sell ? $('till') : null, tf = sell ? $('tillForm') : null, opener = null, paying = false;
   function payLabels() {
     var p = planOf(tf.getAttribute('data-plan')), now = $('tStart').checked, go = $('tGo');
@@ -482,12 +449,13 @@
     if (!p || !till || state() !== 'blank' || sending) return;
     if (window.BoomJourneyHandoff && !BoomJourneyHandoff.cityCheckout()) return;
     opener = from || null;
+    tillX = scrollX; tillY = scrollY;
     tf.setAttribute('data-plan', id);
     txt('tTitle', p.label); txt('tPrice', eur(p.eur)); txt('tCond', p.condition); txt('tTag', p.name);
     var ul = $('tInc'); ul.textContent = '';
     p.includes.forEach(function (t) { var li = document.createElement('li'); li.textContent = t; ul.appendChild(li); });
     $('tRule').hidden = !p.rule;
-    /* the till fills itself from what the visitor already typed, never the other way round */
+    if (p.trigger) txt('tRule', p.trigger);
     var fn = $('fName'), c = splitContact(($('fContact') || {}).value);
     if (fn && fn.value && !$('tName').value) $('tName').value = fn.value.trim();
     if (c.email && !$('tEmail').value) $('tEmail').value = c.email;
@@ -500,7 +468,7 @@
     track('begin_checkout', { currency: CUR, value: p.eur, items: [{ item_id: 'city_' + C.SLUG + '_' + id, item_name: p.label }], market: C.SLUG });
     try { $('tTitle').focus({ preventScroll: true }); } catch (e) {}
   }
-  var payTok = 0;
+  var payTok = 0, tillX = 0, tillY = 0;
   function closeTill() {
     payTok++;
     if (till && till.open) { if (typeof till.close === 'function') till.close(); else till.removeAttribute('open'); }
@@ -508,17 +476,22 @@
   if (till && tf) {
     $$('[data-pay]').forEach(function (b) {
       b.addEventListener('click', function () {
-        /* a payment being confirmed, or paid, is never paid twice; nor is a
-           till opened while the free door is filing (it promised no card) */
         if (state() !== 'blank' || sending) { land(act, true); return; }
         openTill(b.getAttribute('data-pay'), b);
       });
     });
     $('tStart').addEventListener('change', payLabels);
-    /* Enter on the tick does not pay */
-    tf.addEventListener('keydown', function (e) { if (e.key === 'Enter' && e.target && e.target.type === 'checkbox') e.preventDefault(); });
+    var WALK = ['tName', 'tEmail', 'tNote', 'tStart', 'tGo'];
+    tf.addEventListener('keydown', function (e) {
+      var t = e.target, i;
+      if (e.key !== 'Enter' || !t || e.isComposing || e.keyCode === 229) return;
+      if (SIGN && e.repeat) { e.preventDefault(); return; }
+      if (t.type !== 'checkbox' && !(SIGN && t.tagName === 'INPUT')) return;
+      e.preventDefault();
+      i = SIGN ? WALK.indexOf(t.id) : -1;
+      if (i > -1 && $(WALK[i + 1])) $(WALK[i + 1]).focus();
+    });
     $('tillX').addEventListener('click', closeTill);
-    /* a tap on the backdrop closes: the backdrop is the dialog's own box outside its content */
     till.addEventListener('click', function (e) {
       if (e.target !== till) return;
       var r = till.getBoundingClientRect();
@@ -526,10 +499,15 @@
     });
     till.addEventListener('close', function () {
       document.documentElement.style.overflow = '';
-      if (opener && document.contains(opener) && !opener.hidden) { try { opener.focus({ preventScroll: true }); } catch (e) {} }
+      var fd = opener && opener.closest && opener.closest('details.fare');
+      if (fd && !fd.open && document.contains(fd)) { fares.forEach(function (o) { o.open = o === fd; }); last = fd; sync(); }
+      if (opener && document.contains(opener) && !opener.hidden) {
+        try { opener.focus({ preventScroll: true }); } catch (e) {}
+        var or = opener.getBoundingClientRect();
+        if (or.top < topLim() || or.bottom > innerHeight - stripH()) opener.scrollIntoView({ block: 'center', behavior: 'instant' });
+      }
       doorTwins();
     });
-    /* "Prefer to talk first?" — the free door, in the same ticket */
     $('tAlt').addEventListener('click', function () { opener = null; closeTill(); openForm(true); });
     tf.addEventListener('submit', function (e) {
       e.preventDefault();
@@ -542,26 +520,27 @@
       if (!p) return;
       paying = true; $('tGo').setAttribute('aria-disabled', 'true'); txt('tErr', '');
       var tok = payTok;
-      track('add_payment_info', { currency: CUR, value: p.eur, market: C.SLUG });
-      postJson(C.CHECKOUT_ENDPOINT || '/api/service-checkout', {
+      track(SIGN ? 'booking_submit' : 'add_payment_info', { currency: CUR, value: p.eur, market: C.SLUG });
+      var body = {
         city: C.SLUG, kind: id, name: n.value.trim(), email: m.value.trim(),
         notes: ($('tNote').value || '').trim(),
-        /* the payer's own request to start inside the 14-day withdrawal
-           period — never pre-ticked; without it the desk starts when the
-           14 days end (Directive 2011/83/EU art. 7(3)) */
         startNow: $('tStart').checked === true,
         company: ($('tCompany').value || '').trim()
-      }).then(function (r) {
-        /* the visitor closed the till (or the page moved on) while it flew: stay */
+      };
+      if (SIGN) { body.requestId = requestId; body.termsV = C.ORDER_TERMS_V || ''; }
+      postJson(C.CHECKOUT_ENDPOINT || '/api/service-checkout', body).then(function (r) {
+        if (SIGN && r && r.ok && r.booked) { paying = false; confirmed(r, id); return; }
         if (tok !== payTok || !till.open) { paying = false; $('tGo').removeAttribute('aria-disabled'); return; }
         if (r && r.ok && r.url) { location.href = r.url; return; }
-        throw new Error((r && r.error) || 'failed');
-      }).catch(function () {
+        throw r || new Error('failed');
+      }).catch(function (r) {
         paying = false; $('tGo').removeAttribute('aria-disabled'); payLabels();
-        if (tok === payTok) txt('tErr', till.getAttribute('data-err-net'));
+        if (tok !== payTok) return;
+        var er = SIGN && r ? r.error : '', fd = er === 'name' ? n : er === 'email' ? m : null;
+        if (fd) { setErr(fd, till.getAttribute('data-err-' + er)); fd.focus(); return; }
+        txt('tErr', till.getAttribute(er === 'terms_changed' ? 'data-err-stale' : 'data-err-net'));
       });
     });
-    /* back from Stripe via the bfcache: the till starts clean */
     addEventListener('pageshow', function (e) {
       if (!e.persisted) return;
       paying = false; $('tGo').removeAttribute('aria-disabled');
@@ -570,18 +549,14 @@
     });
   }
 
-  /* ── the return from checkout: PAID only on the server's word.
-     ?paid=<plan>&start=<0|1>&session_id=cs_… → "being confirmed", then GET
-     /api/city-lead?paid= at 0/1.5/3/6/12 s; only paid:true stamps PAID and
-     counts ONE purchase (sessionStorage). The address bar proves nothing. ── */
   function handleReturn() {
     if (!sell) return;
+    if (SIGN) return;
     var q; try { q = new URLSearchParams(location.search); } catch (e) { return; }
     var id = q.get('paid'), sid = q.get('session_id') || '';
     if (!id) return;
     var clean = function () { try { history.replaceState(null, '', location.pathname); } catch (e) {} };
     if (!planOf(id) || !/^cs_(test|live)_[A-Za-z0-9]{8,200}$/.test(sid)) { clean(); return; }
-    /* a legacy #contact fragment: the browser would scroll there at load */
     if (location.hash) { try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {} }
     var row = $('fare-' + id);
     if (row && !row.open) { row.open = true; sync(); }
@@ -607,7 +582,6 @@
               var key = 'boom-paid-' + sid;
               if (!store.get(key)) {
                 store.set(key, '1');
-                /* the Stripe session id names a payer: GA gets an opaque hash (FNV-1a), never the id */
                 var h = 0x811c9dc5;
                 for (var i = 0; i < sid.length; i++) { h ^= sid.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
                 track('purchase', { transaction_id: 'city_' + C.SLUG + '_' + ('0000000' + h.toString(16)).slice(-8), currency: CUR, value: p.eur, items: [{ item_id: 'city_' + C.SLUG + '_' + vp, item_name: p.label, price: p.eur, quantity: 1 }], market: C.SLUG });
@@ -622,16 +596,34 @@
     })();
   }
 
-  /* ── the door's twins: one door, always one tap away. While no door is on
-     the screen (the pass's door, or the outlined one at the Gate) and the
-     pass is blank: the strip on a phone (<760), the header's gold twin
-     (#topGo) from 760, where the desk chip takes turns with it in one slot
-     (.off: visibility only, the header never moves). ── */
+  function confirmed(r, id) {
+    var k = 'boom-booked-' + r.id;
+    if (!planOf(r.plan)) r.plan = id;
+    setState('booked', r);
+    land($('cBooked'));
+    if (!store.get(k)) { store.set(k, '1'); track('booking', { currency: CUR, value: PLANS[r.plan].eur, plan: r.plan, market: C.SLUG }); convert('City order booked'); }
+  }
+  function handleOrder() {
+    if (!SIGN) return;
+    var q; try { q = new URLSearchParams(location.search); } catch (e) { return; }
+    var oid = q.get('order') || '', t = q.get('t') || '', n = 0;
+    if (!oid && !t) return;
+    try { history.replaceState(null, '', location.pathname); } catch (e) {}
+    if (!/^book_[a-z0-9_]{8,52}$/.test(oid) || !/^[a-f0-9]{24}$/.test(t)) return;
+    setState('confirming');
+    (function ask() {
+      fetch((C.LEAD_URL || '/api/city-lead') + '?order=' + oid + '&t=' + t + '&city=' + C.SLUG, { cache: 'no-store' }).then(function (r) {
+        return r.json().then(function (v) {
+          if (v && v.ok && /^(booked|due|paid|withdrawn|closed)$/.test(v.state)) { v.st = v.state; setState('booked', v); if (!moved) land($('cBooked'), true); return; }
+          throw r.status < 500 && r.status !== 429 ? 0 : 1;
+        });
+      }).catch(function (e) { if (e !== 0 && ++n < 3) setTimeout(ask, 1500 * n); else { setState('unconfirmed'); if (!moved) land($('cConfirm'), true); } });
+    })();
+  }
+
   var strip = $('strip'), topGo = $('topGo'), chip = $('topChip'), deskGo = $('deskGo'), filo = $('filo');
   var seen = { door: true, desk: false };
   function stripH() { return strip && strip.classList.contains('on') ? strip.offsetHeight : 0; }
-  /* the reading area's top: the html's scroll-padding-top (under the sticky
-     header from 760) — where scrollIntoView lands a node too */
   function topLim() { return parseFloat(getComputedStyle(root).scrollPaddingTop) || 0; }
   function doorTwins() {
     var tillOpen = !!(till && till.open), blank = state() === 'blank';
@@ -653,14 +645,9 @@
     strip.classList.toggle('on', on);
     if (on) strip.removeAttribute('inert'); else strip.setAttribute('inert', '');
     strip.setAttribute('aria-hidden', on ? 'false' : 'true');
-    /* --strip-h is the strip's alone: the header twin covers no content */
     root.style.setProperty('--strip-h', on ? strip.offsetHeight + 'px' : '0px');
   }
   if (IO && (door || deskGo)) {
-    /* the gold button itself, half of it at least: the "not sure" line
-       peeking in at the foot of the screen is not a door, nor is a door
-       under the sticky header (≥760: the root starts below it; rebuilt at
-       the 760 crossing, read in a frame, never in the boot task) */
     var twinIO = null, mq760 = window.matchMedia ? matchMedia('(min-width: 760px)') : null;
     var twinWatch = function () {
       if (twinIO) twinIO.disconnect();
@@ -680,9 +667,6 @@
     if (x[0]) x[0].addEventListener('click', function () { track(x[1], { location: x[0].id, market: C.SLUG }); openForm(true); });
   });
 
-  /* ── where you are: the filament (scroll, rAF-throttled) and the header's
-     wayfinding (the section under the top 40% of the screen; none past the
-     last one, the Network and below) ── */
   var way = $$('.wayf a'), wayT = way.map(function (a) { return $(a.getAttribute('href').slice(1)); }), wayEnd = $('network'), wayOn = null, tick = false;
   function where() {
     tick = false;
@@ -700,27 +684,29 @@
   addEventListener('scroll', onScroll, { passive: true });
   addEventListener('resize', onScroll, { passive: true });
 
-  /* ── §D the onda: after load, when idle, only on a desktop pass (≥940).
-     It loops only while the desk is open (refreshClock tells it each minute). ── */
-  var ondaIn = false;
+  var ondaIn = false, ondaQ = [];
+  function ping(n, s) { if (window.BOOM_ONDA && BOOM_ONDA.pulse) BOOM_ONDA.pulse(n, s, 220); else if (n) ondaQ.push([n, s]); }
   function onda() {
     var cv = $('onda');
-    if (ondaIn || !C.ONDA || !cv || innerWidth < 940) return;
+    if (ondaIn || !C.ONDA || !cv) return;
     ondaIn = true;
     var s = document.createElement('script');
     s.src = C.ONDA; s.async = true;
     s.onload = function () {
-      var w = win();
-      if (window.BOOM_ONDA && BOOM_ONDA.start) BOOM_ONDA.start(cv, { origin: document.querySelector('.route-s .rb'), open: !!(w && w.open) });
+      var w = win(), O = window.BOOM_ONDA;
+      if (!O || !O.start) return;
+      O.start(cv, { origin: function () { return wide.matches ? document.querySelector('.route-s .rb') : $('placeBoard'); }, calm: faresBox, hero: $('placeBoard'), open: !!(w && w.open) });
+      ondaQ.splice(0).forEach(function (x) { O.pulse(x[0], x[1], 220); });
     };
     document.head.appendChild(s);
   }
   function ondaLater() { if (window.requestIdleCallback) requestIdleCallback(onda, { timeout: 2000 }); else setTimeout(onda, 200); }
   if (document.readyState === 'complete') ondaLater(); else addEventListener('load', ondaLater, { once: true });
-  var wideOnda = function () { if (wide.matches && document.readyState === 'complete') ondaLater(); };
-  if (wide.addEventListener) wide.addEventListener('change', wideOnda); else if (wide.addListener) wide.addListener(wideOnda);
 
-  /* ── small things: the WhatsApp links, the questions ── */
+  var hzMap = document.querySelector('svg.hz'), hzIn = false;
+  function hzGo() { if (hzIn || !hzMap || !C.MAP) return; hzIn = true; var e = document.createElement('script'); e.src = C.MAP; e.async = true; document.head.appendChild(e); }
+  if (hzMap && IO) { var hzIO = new IntersectionObserver(function (es) { if (es.some(function (e) { return e.isIntersecting; })) { hzIO.disconnect(); hzGo(); } }, { rootMargin: '600px 0px' }); hzIO.observe(hzMap); } else addEventListener('load', hzGo);
+
   $$('a[href^="https://wa.me/"]').forEach(function (a) {
     a.addEventListener('click', function () { track('wa_open', { location: a.id || 'link', plan: plan || 'none', market: C.SLUG }); });
   });
@@ -728,9 +714,32 @@
 
   sync();
   refreshClock();
-  /* the first read of where you are waits for a frame (no forced layout in the boot task) */
   onScroll();
+  handleOrder();
   handleReturn();
+  function deep() {
+    if (till && till.open) {
+      scrollTo({ left: tillX, top: tillY, behavior: 'instant' });
+      if (!till.contains(document.activeElement)) { try { $('tTitle').focus({ preventScroll: true }); } catch (e) {} }
+      return;
+    }
+    var m = /^#(fare-|pay-|order-)?([a-z-]+)$/.exec(location.hash);
+    if (m && m[1] === 'order-' && !SIGN) m = null;
+    var id = m && m[2], d = id && planOf(id) && $('fare-' + id);
+    if (!d || (!SIGN && /[?&]paid=/.test(location.search)) || state() !== 'blank') return;
+    try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
+    var was = d.open;
+    fares.forEach(function (o) { o.open = o === d; });
+    last = d; sync();
+    var t = d.querySelector('[data-pay]') || $('door');
+    var go = function () { if (moved) return; t.scrollIntoView({ block: 'end', behavior: 'instant' }); try { t.focus({ preventScroll: true }); } catch (e) {} };
+    go();
+    if (document.readyState !== 'complete') addEventListener('load', go, { once: true });
+    if (!was) track('fare_open', { plan: id, market: C.SLUG, via: 'link' });
+    if ((m[1] === 'pay-' || m[1] === 'order-') && sell) { track(m[1] === 'pay-' ? 'pay_link' : 'order_link', { plan: id, market: C.SLUG }); openTill(id, t); }
+  }
+  deep();
+  addEventListener('hashchange', deep);
   track('page_view_market', { market: C.SLUG });
   window.BOOM_TICKET = { state: state, setState: setState, openTill: openTill, nextLine: nextLine };
 })();

@@ -46,12 +46,17 @@ let browser,passed=0,failed=0;
 async function check(name,width,fn,motion='reduce'){
  if(focus&&!name.includes(focus))return;
  const page=await browser.newPage({viewport:{width,height:900},isMobile:width<500,hasTouch:width<500,reducedMotion:motion});
- const errors=[],writes=[],missing=[],privateReads=[];let catalogueReads=0;
+ const errors=[],writes=[],blockedAnalytics=[],missing=[],privateReads=[];let catalogueReads=0;
  page.setDefaultTimeout(10000);page.on('pageerror',error=>errors.push(error.message));
  page.context().on('page',opened=>opened.on('pageerror',error=>errors.push(error.message)));
  page.on('response',response=>{if(response.url().startsWith(origin+'/assets/')&&response.status()>=400)missing.push(new URL(response.url()).pathname);});
  await page.context().route('**/*',route=>{
   const request=route.request(),url=new URL(request.url());
+  // The original PFS popup can emit Google's denied-consent page-view ping.
+  // Abort that exact remote boundary too; it is not a BOOM form submission.
+  if(request.method()==='POST'&&url.origin==='https://region1.google-analytics.com'&&url.pathname==='/g/collect'){
+   blockedAnalytics.push({consent:url.searchParams.get('gcs'),storage:url.searchParams.get('pscdl')});return route.abort();
+  }
   if(request.method()!=='GET'){writes.push(request.method()+' '+url.pathname);return route.abort();}
   if(url.origin!==origin)return route.abort();
   if(url.pathname.startsWith('/cities/')){privateReads.push(url.pathname);return route.abort();}
@@ -63,6 +68,7 @@ async function check(name,width,fn,motion='reduce'){
  try{
   await fn({page,catalogueReads:()=>catalogueReads});
   assert.deepEqual(errors,[],'no unhandled browser errors');assert.deepEqual(writes,[],'no application, lead or payment write');
+  for(const ping of blockedAnalytics)assert.deepEqual(ping,{consent:'G100',storage:'denied'},'the blocked legacy analytics ping never claims granted consent');
   assert.deepEqual(missing,[],'all actual assets loaded');assert.deepEqual(privateReads,[],'no private city configuration read');
   passed++;console.log('  ✓ '+name);
  }catch(error){failed++;console.log('  ✗ '+name+' — '+error.message);}

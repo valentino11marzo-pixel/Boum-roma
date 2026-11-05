@@ -13,10 +13,11 @@ const cities=fs.readdirSync(path.join(root,'cities')).filter(f=>f.endsWith('.jso
 let passed=0,failed=0;
 function check(name,fn){try{fn();passed++;console.log('  ✓ '+name);}catch(error){failed++;console.log('  ✗ '+name+' — '+error.message);}}
 console.log('\n▸ public desks  One generated public projection, private city sources stay private');
-check('committed projection contains the five active selling desks and equals the current source projection',()=>{
+check('committed projection contains every active selling desk in the current source configuration',()=>{
   const actual=read(PUBLIC_DESKS_FILE),expected=publicDeskProjection(shared,cities);
-  assert.deepEqual(actual,expected);assert.deepEqual(Object.keys(actual.cities),['amsterdam','barcelona','london','madrid','milan']);
-  assert.equal(actual.refund.rule,shared.refund.rule);assert.equal('paris'in actual.cities,false);assert.equal('berlin'in actual.cities,false);
+  const activeSlugs=cities.filter(city=>city.live===true&&city.mode==='search'&&city.checkout===true).map(city=>city.slug).sort();
+  assert.ok(activeSlugs.length>0);assert.deepEqual(actual,expected);assert.deepEqual(Object.keys(actual.cities),activeSlugs);
+  assert.equal(actual.refund.rule,shared.refund.rule);
   assert.equal(fs.readFileSync(path.join(root,PUBLIC_DESKS_FILE),'utf8'),JSON.stringify(expected,null,2)+'\n');
 });
 function contract(projection){
@@ -45,7 +46,8 @@ check('new private fields cannot leak; ordering is deterministic and non-selling
 check('privacy and not-open filtering regressions are caught by mutations of the real projection',()=>{
   const source=publicDeskProjection.toString();
   const poisoned=structuredClone(cities);poisoned.forEach(c=>c.internalNotes='PRIVATE_NOTE_CITY');
-  function prove(fn){const result=fn(shared,poisoned);contract(result);assert.equal('paris'in result.cities,false);assert.doesNotMatch(JSON.stringify(result),/PRIVATE_NOTE/);}
+  const draft=structuredClone(cities[0]);Object.assign(draft,{slug:'not-open-fixture',live:false,mode:'waitlist',checkout:false});poisoned.push(draft);
+  function prove(fn){const result=fn(shared,poisoned);contract(result);assert.equal('not-open-fixture'in result.cities,false);assert.doesNotMatch(JSON.stringify(result),/PRIVATE_NOTE/);}
   prove(publicDeskProjection);
   prove(vm.runInNewContext('('+source+')'));
   for(const [before,after] of [
@@ -56,9 +58,9 @@ check('privacy and not-open filtering regressions are caught by mutations of the
 check('writeAll generates the manifest, --check rejects missing or stale content, and rebuild restores it',()=>{
   const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'boom-desks-public-'));
   try{
-    const files=['cities/_template.html','cities/_shared.json','cities/paris.json','assets/boom-city.css','assets/boom-city.js','assets/boom-onda.js','css/boom-scroll.css','js/boom-scroll.js','js/boom-consent.js','js/boom-track.js','js/desk-calendar.js','design/pages-deco/solari-engine.html','og-paris.png'];
+    const files=['cities/_template.html','cities/_shared.json','cities/paris.json','cities/_claims.json','assets/src/boom-city.css','assets/src/boom-city.js','assets/src/boom-onda.js','assets/src/boom-map.js','css/boom-scroll.css','js/boom-scroll.js','js/boom-consent.js','js/boom-track.js','js/desk-calendar.js','design/pages-deco/solari-engine.html','og-paris.png','withdrawal.html'];
     for(const file of files){fs.mkdirSync(path.dirname(path.join(tmp,file)),{recursive:true});fs.copyFileSync(path.join(root,file),path.join(tmp,file));}
-    writeAll({root:tmp});assert.deepEqual(JSON.parse(fs.readFileSync(path.join(tmp,PUBLIC_DESKS_FILE),'utf8')).cities,{});
+    writeAll({root:tmp});assert.deepEqual(JSON.parse(fs.readFileSync(path.join(tmp,PUBLIC_DESKS_FILE),'utf8')),publicDeskProjection(shared,[read('cities/paris.json')]));
     assert.doesNotThrow(()=>writeAll({root:tmp,check:true}));
     fs.writeFileSync(path.join(tmp,PUBLIC_DESKS_FILE),'{}\n');assert.throws(()=>writeAll({root:tmp,check:true}),/boom-desks-public.json is stale/);
     writeAll({root:tmp});assert.doesNotThrow(()=>writeAll({root:tmp,check:true}));

@@ -37,6 +37,11 @@
 //     leaves the screen, no price, never with the till open;
 //   - the waitlists (Paris, Berlin): "Open my file", no pay button, no till;
 //     Madrid's till repeats "Optional, chosen in writing";
+//   - v1.8 review LFR-1: on live Paris and Berlin (charged at signing) Enter
+//     in the till's name, email, note or tick never orders — it walks to the
+//     next field, then the button; a held Enter walks one step; one click on
+//     the labelled button makes ONE order; the six keep Enter to checkout;
+//     STAMP: the managed DUE/PAID fields never sit under the stamp;
 //   - v1.6, the complete aviation desk: ≤ 150 words on the first phone
 //     screen and nothing on it still moving after 1.6 s; the plane on the
 //     route parked by the SERVER's state (--at 0 · .25 · .125 with the hold),
@@ -55,12 +60,24 @@
 //     chain through tab hide/show; the door under the header brings the twin;
 //     row 01 follows the desk across closing time; Paris and Berlin never say
 //     "desk open" (REPLYING / OFFLINE). `CITIES_UI_ONLY=review` runs §12 alone;
+//   - v1.8 stage B3 (dark): a desk that charges at signing, a scratch Paris
+//     built here from Amsterdam with the registry patched in try/finally and
+//     served at /paris (§15): the order (the POST carries requestId, termsV,
+//     startNow false → BOOKED, never PAID, ONE booking, no purchase), its
+//     refusals (400 fields, 409 stale, a retry on the same requestId), the
+//     managed ticket (?order=&t=: BOOKED with the online withdrawal, DUE
+//     with the pay link, PAID, CLOSED; a wrong link asks once and says "not
+//     confirmed yet"), #order-<plan>, a ?paid= that means nothing there —
+//     and the six unchanged. The hub (§13): under 600px the map box takes
+//     the tap and docks the nearest desk within 30px (option (b));
+//     `CITIES_UI_ONLY=signing` runs §15 alone;
 //   - zero JS errors, no request to a host we did not stub.
 
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { loadChromium, launchOptions } from '../_browser.mjs';
+import { BUDGET, HUB_BUDGET, HUB_MAP_PX, renderCity, fragments, loadClaims } from '../../build-cities.mjs';
 
 const R = path.resolve(new URL('../..', import.meta.url).pathname);
 let ok = 0, ko = 0;
@@ -77,9 +94,12 @@ if (!chromium) {
 }
 
 const TYPES = { '.html': 'text/html; charset=utf-8', '.css': 'text/css', '.js': 'text/javascript', '.png': 'image/png', '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.webmanifest': 'application/manifest+json' };
+// a scratch page served at its path for one section (v1.8: the signing Paris of §15, at /paris)
+const PAGES = new Map();
 const srv = http.createServer((req, res) => {
   let p = decodeURIComponent(new URL(req.url, 'http://x').pathname);
   if (!path.extname(p)) p += '.html';                       // cleanUrls, as on Vercel
+  if (PAGES.has(p)) { res.writeHead(200, { 'content-type': TYPES['.html'] }); return res.end(PAGES.get(p)); }
   const f = path.join(R, path.normalize(p));
   if (!f.startsWith(R) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) { res.writeHead(404); return res.end(); }
   res.writeHead(200, { 'content-type': TYPES[path.extname(f)] || 'application/octet-stream' });
@@ -124,7 +144,7 @@ async function open({ js = true, width = 390, height = null, api = LEAD_OK, paid
     }
     if (u.startsWith(base + '/api/service-checkout')) {
       st.checkouts.push(JSON.parse(r.request().postData() || '{}'));
-      const res = checkout || { status: 200, body: { ok: true, url: `${base}/${slug}?paid=full-search&start=0&session_id=${SID}` } };
+      const res = typeof checkout === 'function' ? checkout(st.checkouts.length) : checkout || { status: 200, body: { ok: true, url: `${base}/${slug}?paid=full-search&start=0&session_id=${SID}` } };
       if (res.delay) await new Promise((x) => setTimeout(x, res.delay));
       return r.fulfill({ status: res.status, contentType: 'application/json', body: JSON.stringify(res.body) });
     }
@@ -137,16 +157,51 @@ async function open({ js = true, width = 390, height = null, api = LEAD_OK, paid
 }
 const events = (page) => page.evaluate(() => (window.dataLayer || []).map((a) => [].slice.call(a)).filter((a) => a[0] === 'event').map((a) => ({ name: a[1], p: a[2] || {} })));
 const rect = (page, sel) => page.$eval(sel, (e) => { const r = e.getBoundingClientRect(); return { top: r.top, bottom: r.bottom, left: r.left, right: r.right, h: r.height, w: r.width }; });
-const shown = (page, sel) => page.$eval(sel, (e) => !e.hidden && !!e.offsetParent && getComputedStyle(e).visibility !== 'hidden').catch(() => false);
+const shown = (page, sel) => page.$eval(sel, (e) => { if (e.hidden || getComputedStyle(e).visibility === 'hidden' || getComputedStyle(e).display === 'none') return false; if (e instanceof SVGElement) { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; } return !!e.offsetParent; }).catch(() => false);
 const text = (page, sel) => page.$eval(sel, (e) => e.textContent.trim().replace(/\s+/g, ' ')).catch(() => null);
 const boardWord = (page, sel) => page.$eval(sel, (e) => [...e.querySelectorAll('.st b')].map((b) => b.textContent).join('').trim()).catch(() => '');
 const center = (page, sel) => page.$eval(sel, (el) => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
 const tap = async (page, sel) => { await center(page, sel); await page.waitForTimeout(120); await page.click(sel); };
 const noHScroll = (page) => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1);
 const RULE = JSON.parse(fs.readFileSync(path.join(R, 'cities/_shared.json'), 'utf8')).refund.rule;
+// v1.8 FLIP (05/11/2026): Paris and Berlin are live and charge at signing (their fare's ✓ line is the signing rule, never
+// the refund rule) — no waitlist page is left on the site. The waitlist's browser pins keep their test on SYNTHETIC
+// pages served from memory (PAGES): the frozen drafts of tests/cities/fixtures (draft-paris.json, draft-berlin.json, the
+// two JSONs as they stood before the flip) rendered as waitlists — the registry patched back in try/finally, their
+// reviewed sentences (fixtures/draft-claims.json) merged — at /draft-paris and /draft-berlin; and London and Milan in a
+// family where Paris and Berlin are those drafts, at /london-drafts and /milan-drafts (the desks not open on the map).
+const SIGN_RULE = JSON.parse(fs.readFileSync(path.join(R, 'cities/_shared.json'), 'utf8')).signing.rule;
+const SIGNING = new Set(['paris', 'berlin']);
+{
+  const read = (f) => fs.readFileSync(path.join(R, f), 'utf8');
+  const { CITY_MARKETS: CM, CITY_PLANS } = await import('../../api/_market.js');
+  const SL = ['amsterdam', 'barcelona', 'berlin', 'london', 'madrid', 'milan', 'paris', 'valencia'];
+  const CITY = Object.fromEntries(SL.map((s) => [s, JSON.parse(read(`cities/${s}.json`))]));
+  const DRAFT = { paris: JSON.parse(read('tests/cities/fixtures/draft-paris.json')), berlin: JSON.parse(read('tests/cities/fixtures/draft-berlin.json')) };
+  const claims = loadClaims(R), fx = JSON.parse(read('tests/cities/fixtures/draft-claims.json'));
+  const merged = { about: claims.about, allowed: [...claims.allowed, ...fx.allowed].sort((a, b) => (a.text < b.text ? -1 : a.text > b.text ? 1 : 0)) };
+  const fam = SL.map((x) => DRAFT[x] || CITY[x]);
+  // the two registry entries as they stood before the flip (api/_market.js at 083d96b6)
+  const WAIT = {
+    paris: { label: 'Paris', flag: '🇫🇷', country: 'fr', url: 'https://www.boomrome.com/paris', mode: 'waitlist', partner: 'a licensed partner', plans: CITY_PLANS },
+    berlin: { label: 'Berlin', flag: '🇩🇪', country: 'de', url: 'https://www.boomrome.com/berlin', mode: 'waitlist', partner: 'a licensed partner', plans: CITY_PLANS }
+  };
+  const save = { paris: CM.paris, berlin: CM.berlin };
+  try {
+    Object.assign(CM, WAIT);
+    const page = (city) => renderCity({ template: read('cities/_template.html'), shared: JSON.parse(read('cities/_shared.json')), city, assetVersion: { css: 'ui', js: 'ui', onda: 'ui', map: 'ui' },
+      frags: fragments(R), root: R, weigh: false, cities: fam.map((x) => (x.slug === city.slug ? city : x)), claims: merged }).html;
+    PAGES.set('/draft-paris.html', page(DRAFT.paris)); PAGES.set('/draft-berlin.html', page(DRAFT.berlin));
+    PAGES.set('/london-drafts.html', page(CITY.london)); PAGES.set('/milan-drafts.html', page(CITY.milan));
+  } catch (e) { male(`the synthetic waitlist pages build (${String(e.message).slice(0, 300)})`); }
+  finally { Object.assign(CM, save); }
+  check(CM.paris === save.paris && CM.paris.chargeAt === 'signing' && CM.berlin.chargeAt === 'signing' && PAGES.size >= 4, 'the synthetic waitlist pages build from the frozen drafts, and the registry is restored (Paris and Berlin charge at signing)');
+}
 // the v1.6 review's guards alone (§12), e.g. to watch one bite under a mutation
 if (process.env.CITIES_UI_ONLY === 'review') { await reviewFixes(); await finish(); }
 if (process.env.CITIES_UI_ONLY === 'hub') { await hubUI(); await finish(); }
+if (process.env.CITIES_UI_ONLY === 'v17') { await v17Fixes(); await finish(); }
+if (process.env.CITIES_UI_ONLY === 'signing') { await signingUI(); await finish(); }
 
 // ── 1 · the first phone screen is one pass ───────────────────────────────
 {
@@ -157,37 +212,76 @@ if (process.env.CITIES_UI_ONLY === 'hub') { await hubUI(); await finish(); }
   const fold = 844;
   const doorR = await rect(page, '#door'), lastRow = await rect(page, '#fare-attended-viewing > summary');
   check(lastRow.bottom <= fold && doorR.bottom <= fold, `at 390×844 the three fares (bottom ${Math.round(lastRow.bottom)}) and the gold door (bottom ${Math.round(doorR.bottom)}) are on the first screen`);
-  const order = await page.evaluate(() => ['#h1', '.lead', '#fare-full-search', '#fare-application-pack', '#fare-attended-viewing', '#door', '.fields.desk'].map((s) => document.querySelector(s).getBoundingClientRect().top));
-  check(order.every((v, i) => i === 0 || v > order[i - 1]), 'reading order at 390: title · sentence · three fares · door · who answers');
+  // v1.7 (card-S): Full Search lies down alone; Application Pack and Attended Viewing are a pair side by side (AV to the right)
+  const o = await page.evaluate(() => ['#h1', '.lead', '#fare-full-search', '#fare-application-pack', '#fare-attended-viewing', '#door', '.fields.desk'].map((s) => { const r = document.querySelector(s).getBoundingClientRect(); return [r.top, r.left]; }));
+  check(o[0][0] < o[1][0] && o[1][0] < o[2][0] && o[2][0] < o[3][0] && Math.abs(o[3][0] - o[4][0]) <= 1 && o[4][1] > o[3][1] && o[4][0] < o[5][0] && o[5][0] < o[6][0],
+    'reading order at 390: title · sentence · Full Search lying · the economy pair side by side (Attended Viewing to the right) · door · who answers', JSON.stringify(o));
   check(JSON.stringify(await page.$$eval('.fields.desk dd', (d) => d.map((x) => x.textContent.trim()))) === JSON.stringify(['Valentino Egidi', 'Mon–Fri 09:00–19:00, Rome time']) && await shown(page, '.fields.desk'), 'who answers and when, said on the pass');
   check(await page.$$eval('#fares details[open]', (d) => d.length) === 0 && await shown(page, '#notSure') && !(await shown(page, '#planLn')), 'nothing pre-selected: no fare open, the "not sure" line over the door');
-  check(await shown(page, '#fares > .refund.fs') && await text(page, '#fares > .refund.fs') === RULE, 'the refund rule is rendered under the closed Full Search row');
+  const cp = await page.evaluate(() => { const r = document.querySelector('#fares .refund.fs').getBoundingClientRect(), f = document.getElementById('fare-full-search').getBoundingClientRect(); return { rt: r.top, rb: r.bottom, rl: r.left, rr: r.right, fb: f.bottom, fl: f.left, fr: f.right }; });
+  check(await shown(page, '#fares .refund.fs') && await text(page, '#fares .refund.fs') === RULE && cp.rt >= cp.fb - 2 && cp.rt <= cp.fb + 2 && cp.rl >= cp.fl - 1 && cp.rr <= cp.fr + 1,
+    'the refund rule is a coupon torn under the closed Full Search ticket, within its width', JSON.stringify(cp));
   check(await noHScroll(page), 'no horizontal scroll at 390');
   check(st.errors.length === 0 && st.foreign.length === 0, 'no JS error, no request to a foreign host', st.errors.concat(st.foreign).join(' | '));
   await ctx.close();
 }
 
-for (const slug of ['amsterdam', 'madrid', 'barcelona', 'london', 'milan', 'paris', 'berlin']) {
+for (const slug of ['amsterdam', 'madrid', 'barcelona', 'london', 'milan', 'valencia', 'paris', 'berlin']) {
   for (const [w, h] of [[390, 844], [1440, 900]]) {
     const { ctx, page } = await open({ slug, width: w, height: h });
     await page.waitForTimeout(400);
     if (w === 390) {
       const b = await page.evaluate(() => ['#door', '.fields.desk', '#fare-attended-viewing > summary'].map((q) => Math.round(document.querySelector(q).getBoundingClientRect().bottom)));
       check(b.every((x) => x <= 844), `${slug} 390×844: the three fares, the gold door and who answers are all above the fold (${b.join(', ')})`);
+    } else {
+      const t = await page.evaluate(() => ['#fare-full-search', '#fare-application-pack', '#fare-attended-viewing'].map((q) => document.querySelector(q).getBoundingClientRect().top));
+      check(t[0] < t[1] && t[1] < t[2], `${slug} 1440: the three tickets lie down one under the other`, t.join(', '));
     }
     // the legally load-bearing first-screen text is RENDERED, not only written
     const legal = await page.evaluate(() => {
       const vis = (e) => !!e && !!e.offsetParent && getComputedStyle(e).visibility !== 'hidden' && e.getBoundingClientRect().height > 0;
       return { cond: [...document.querySelectorAll('#fares .f-cond')].map(vis), lead: vis(document.querySelector('.lead b')), head: vis(document.getElementById('faresH')) && vis(document.querySelector('.fares-h span')),
-        rule: document.querySelector('#fares > .refund.fs') ? [vis(document.querySelector('#fares > .refund.fs')), document.querySelector('#fares > .refund.fs').textContent] : null };
+        rule: document.querySelector('#fares .refund.fs') ? [vis(document.querySelector('#fares .refund.fs')), document.querySelector('#fares .refund.fs').textContent] : null };
     });
-    const sells = slug !== 'paris' && slug !== 'berlin';
-    check(legal.cond.length === 3 && legal.cond.every(Boolean) && legal.lead && legal.head && (sells ? legal.rule && legal.rule[0] && legal.rule[1] === RULE : legal.rule === null),
-      `${slug} ${w}: every fare's condition, the must-state in bold, the line over the fares${sells ? ' and the refund rule under the closed €500' : ''} are on screen, not only in the HTML`, JSON.stringify(legal));
+    // v1.8 FLIP: this pin moved — Paris and Berlin had no coupon (waitlists); the eight sell, and the coupon under the
+    // closed €500 is the desk's own rule: the refund rule at the six, the signing rule at Paris and Berlin
+    const want = SIGNING.has(slug) ? SIGN_RULE : RULE;
+    check(legal.cond.length === 3 && legal.cond.every(Boolean) && legal.lead && legal.head && legal.rule && legal.rule[0] && legal.rule[1] === want,
+      `${slug} ${w}: every fare's condition, the must-state in bold, the line over the fares and ${SIGNING.has(slug) ? 'the signing rule' : 'the refund rule'} under the closed €500 are on screen, not only in the HTML`, JSON.stringify(legal));
     await ctx.close();
   }
 }
-for (const slug of ['amsterdam', 'madrid', 'barcelona', 'london', 'milan']) {
+// v1.7 (card-S, the lead's hard pins): on EVERY desk, at 390×664, 375×812 and
+// 390×844, each price and its condition are READABLE — the box inside the
+// viewport side to side and its bottom above the strip when the strip is on;
+// at 375×812 the door and who-answers are above the fold too (the founder's
+// promise that v1.6 missed by 19–22 px on every desk).
+for (const slug of ['amsterdam', 'madrid', 'barcelona', 'london', 'milan', 'valencia', 'paris', 'berlin']) {
+  for (const [w, h] of [[390, 664], [375, 812], [390, 844]]) {
+    const { ctx, page } = await open({ slug, width: w, height: h });
+    await page.waitForTimeout(700);
+    const g = await page.evaluate(() => {
+      const s = document.getElementById('strip'), lim = innerHeight - (s && s.classList.contains('on') ? s.offsetHeight : 0);
+      const box = (e) => { const r = e.getBoundingClientRect(); return { t: Math.round(r.top), b: Math.round(r.bottom), l: Math.round(r.left), r: Math.round(r.right) }; };
+      const ok = (b) => b.t >= 0 && b.l >= 0 && b.r <= innerWidth && b.b <= lim;
+      const bad = [];
+      for (const d of document.querySelectorAll('details.fare')) for (const k of ['.f-price', '.f-cond']) { const b = box(d.querySelector(k)); if (!ok(b)) bad.push(`${d.id} ${k} ${JSON.stringify(b)}`); }
+      return { lim, bad, door: box(document.getElementById('door')).b, who: box(document.querySelector('.fields.desk')).b, n: document.querySelectorAll('details.fare .f-price').length };
+    });
+    check(g.n === 3 && g.bad.length === 0, `${slug} ${w}×${h}: the three prices and their conditions are readable (inside the viewport, above the strip: lim ${g.lim})`, g.bad.join(' | '));
+    if (h === 812) check(g.door <= 812 && g.who <= 812, `${slug} 375×812: the gold door (${g.door}) and who answers (${g.who}) are above the fold`);
+    await ctx.close();
+  }
+}
+{
+  // ≤359: the pair's rule does not apply — all three tickets lie down, one under the other
+  const { ctx, page } = await open({ slug: 'amsterdam', width: 320, height: 568 });
+  await page.waitForTimeout(500);
+  const t = await page.evaluate(() => ['#fare-full-search', '#fare-application-pack', '#fare-attended-viewing', '#door'].map((q) => document.querySelector(q).getBoundingClientRect().top));
+  check(t[0] < t[1] && t[1] < t[2] && t[2] < t[3] && await noHScroll(page), 'at 320 the three tickets lie down one under the other, then the door; no horizontal scroll', t.join(', '));
+  await ctx.close();
+}
+for (const slug of ['amsterdam', 'madrid', 'barcelona', 'london', 'milan', 'valencia']) {
   // L1: an iPhone's visible height in Safari (~664): the first screen always
   // has an action — the gold door, or the strip when the door is under the fold
   const { ctx, page } = await open({ slug, width: 390, height: 664 });
@@ -197,6 +291,77 @@ for (const slug of ['amsterdam', 'madrid', 'barcelona', 'london', 'milan']) {
     return { doorIn: d.top >= 0 && d.bottom <= innerHeight, half: d.top + d.height / 2 <= innerHeight, strip: s.classList.contains('on') };
   });
   check(a.doorIn || a.strip, `${slug} 390×664 (Safari's visible height): the gold door or the strip is on the first screen`, JSON.stringify(a));
+  await ctx.close();
+}
+
+// ── 1b · deep links (v1.7): /<slug>#fare-<plan>, #<plan>, #pay-<plan> ───────
+// The ticket opens alone and lands whole, its pay button (the door on a
+// waitlist desk) at the bottom edge and focused; the hash folds; #pay- then
+// opens the till on that plan with Start-now unticked. Guards: an unknown
+// plan does nothing and keeps its hash; a paid return and a pass that is not
+// blank are left alone. A hashchange to #fare-… makes the BROWSER jump before
+// the handler folds: the fold and the ticket are asserted, never scrollY.
+const probeDeep = (page) => page.evaluate(() => {
+  const open = [...document.querySelectorAll('details.fare')].filter((d) => d.open).map((d) => d.id);
+  const d = open.length ? document.getElementById(open[0]) : null, pay = d && d.querySelector('[data-pay]'), door = document.getElementById('door');
+  const on = (e) => { if (!e) return null; const b = e.getBoundingClientRect(); const s = document.getElementById('strip'); const lim = innerHeight - (s && s.classList.contains('on') ? s.offsetHeight : 0); return b.top >= 0 && b.bottom <= lim; };
+  const card = d && d.getBoundingClientRect();
+  return { open, pay: on(pay), door: on(door), ticketTop: card ? Math.round(card.top) : null, cardIn: card ? card.left >= 0 && card.right <= innerWidth : null, hash: location.hash, till: !!(document.getElementById('till') || {}).open,
+    tick: !!(document.getElementById('tStart') || {}).checked, tillPlan: (document.getElementById('tillForm') || { getAttribute: () => null }).getAttribute('data-plan'),
+    focusPay: !!(document.activeElement && document.activeElement.hasAttribute('data-pay')), focusDoor: !!(document.activeElement && document.activeElement.id === 'door'),
+    events: (window.dataLayer || []).map((a) => [].slice.call(a)).filter((a) => a[0] === 'event' && (a[1] === 'fare_open' || a[1] === 'pay_link')).map((a) => [a[1], a[2] && a[2].via, a[2] && a[2].plan]) };
+});
+for (const [slug, hash, w, h] of [['barcelona', '#fare-full-search', 390, 844], ['barcelona', '#full-search', 390, 664], ['london', '#fare-application-pack', 390, 844], ['madrid', '#fare-attended-viewing', 375, 812], ['london', '#fare-full-search', 1440, 900], ['paris', '#fare-full-search', 390, 844], ['berlin', '#fare-application-pack', 390, 844], ['amsterdam', '#fares', 390, 844], ['amsterdam', '#fare-nope', 390, 844], ['amsterdam', '#pay-constructor', 390, 844]]) {
+  const { ctx, page, st } = await open({ slug, width: w, height: h, query: hash });
+  await page.waitForTimeout(800);
+  const r = await probeDeep(page);
+  // v1.8 FLIP: the eight sell (Paris and Berlin were waitlists here: the door focused); a waitlist's deep link is the
+  // synthetic draft's, below
+  const m = /^#(?:fare-|pay-)?(full-search|application-pack|attended-viewing)$/.exec(hash), sells = !/^draft-/.test(slug);
+  if (!m) check(r.open.length === 0 && r.hash === hash && !r.till, `${slug}${hash}: not a fare — nothing opens, no till, the hash stays`, JSON.stringify(r));
+  else check(r.open.length === 1 && r.open[0] === 'fare-' + m[1] && r.cardIn && r.ticketTop >= 0 && (sells ? r.pay && r.focusPay : r.door && r.focusDoor) && r.hash === '' && !r.till && st.errors.length === 0 && r.events.some((e) => e[0] === 'fare_open' && e[1] === 'link' && e[2] === m[1]),
+    `${slug}${hash} at ${w}×${h}: that ticket alone, whole on screen, ${sells ? 'the pay button' : 'the door'} above the strip and focused, the hash folded, no till, fare_open via link`, JSON.stringify(r));
+  await ctx.close();
+}
+// v1.8 FLIP: Paris and Berlin sell — their #pay-<plan> opens the till on that plan, unticked, like the six's; the
+// waitlist's #pay- (the door, no till) is pinned on the frozen draft Paris (/draft-paris)
+for (const [slug, hash] of [['barcelona', '#pay-full-search'], ['london', '#pay-attended-viewing'], ['paris', '#pay-full-search'], ['berlin', '#pay-application-pack'], ['draft-paris', '#pay-full-search']]) {
+  const { ctx, page, st } = await open({ slug, query: hash });
+  await page.waitForTimeout(900);
+  const r = await probeDeep(page);
+  const sells = !/^draft-/.test(slug);
+  if (sells) {
+    check(r.till && !r.tick && r.hash === '' && r.tillPlan === hash.slice(5) && r.open[0] === 'fare-' + hash.slice(5) && st.errors.length === 0 && r.events.some((e) => e[0] === 'pay_link' && e[2] === hash.slice(5)),
+      `${slug}${hash}: the till opens on ${hash.slice(5)}, Start-now unticked, the hash folded, pay_link tracked`, JSON.stringify(r));
+    await page.keyboard.press('Escape'); await page.waitForTimeout(300);
+    check(await page.evaluate(() => !document.getElementById('till').open && !!document.activeElement && document.activeElement.hasAttribute('data-pay')), `${slug}${hash}: Escape closes the till and the focus returns to the pay button that opened it`);
+  } else check(!r.till && r.door && r.focusDoor && r.hash === '' && r.open[0] === 'fare-full-search', `${slug}${hash}: a waitlist desk has no till — the ticket opens and the door comes into view, focused`, JSON.stringify(r));
+  await ctx.close();
+}
+{
+  const { ctx, page } = await open({ slug: 'london' });
+  await page.waitForTimeout(500);
+  await page.evaluate(() => { location.hash = '#fare-application-pack'; });
+  await page.waitForTimeout(600);
+  const r = await probeDeep(page);
+  check(r.open.length === 1 && r.open[0] === 'fare-application-pack' && r.pay && r.hash === '' && !r.till, 'a hashchange after load opens Application Pack alone and lands its pay button, the hash folded', JSON.stringify(r));
+  await ctx.close();
+}
+{
+  const { ctx, page } = await open({ slug: 'london', query: `?paid=full-search&start=0&session_id=${SID}#fare-attended-viewing` });
+  await page.waitForTimeout(900);
+  const r = await probeDeep(page);
+  check(!r.open.includes('fare-attended-viewing') && r.hash === '' && await page.getAttribute('#pass', 'data-state') !== 'blank', 'a paid return ignores the fare fragment: the pass is not blank, no ticket is forced open', JSON.stringify(r));
+  await ctx.close();
+}
+{
+  const { ctx, page } = await open({ slug: 'london', query: '#full-search' });
+  await page.waitForTimeout(600);
+  await page.evaluate(() => { scrollTo(0, 0); dispatchEvent(new WheelEvent('wheel')); });
+  await page.evaluate(() => { location.hash = '#fare-full-search'; });
+  await page.waitForTimeout(500);
+  const r = await probeDeep(page);
+  check(r.open.length === 1 && r.open[0] === 'fare-full-search' && r.hash === '', 'a repeated fare link after the reader moved: the ticket stays open and the hash folds (where the page sits is the browser\'s fragment jump, not asserted)');
   await ctx.close();
 }
 
@@ -359,6 +524,10 @@ for (const [w, h] of [[390, 844], [320, 568], [430, 932]]) {
   await page.waitForTimeout(250);
   check(await page.$eval('#till', (d) => d.open) && await text(page, '#tTitle') === 'Full Search' && await text(page, '#tPrice') === '€500', 'the till opens on THAT plan, with its price');
   check(await shown(page, '#tRule') && await text(page, '#tRule') === RULE, 'the refund rule is in the till, beside the €500');
+  // v1.8 stage W: the withdrawal line, shown in the open till, links the online function first
+  const wdA = await page.$eval('#till .wd', (p) => [...p.querySelectorAll('a')].map((a) => ({ t: a.textContent, h: a.getAttribute('href'), seen: a.getBoundingClientRect().height > 0 })));
+  check(wdA.length === 3 && wdA[0].t === 'online' && wdA[0].h === '/withdrawal?desk=Amsterdam#online' && wdA[0].seen && wdA[2].h === '/withdrawal?desk=Amsterdam' && /^Withdrawal: 14 days from payment — online, by email to /.test(await text(page, '#till .wd')),
+    'the open till\'s withdrawal line links the online withdrawal function first ("online" → /withdrawal?desk=Amsterdam#online), then the email, then the model form (stage W)', JSON.stringify(wdA));
   check(!(await page.$eval('#tStart', (c) => c.checked)) && await text(page, '#tGoL') === 'Pay and book · €500' && /14 days end/.test(await text(page, '#tGoS')), 'unticked: "Pay and book · €500", starts when the 14 days end');
   check(await page.inputValue('#tName') === 'Anna Keller' && await page.inputValue('#tEmail') === 'anna@example.com', 'the till fills itself from what the visitor already typed');
   await page.focus('#tStart');
@@ -503,10 +672,15 @@ const CLOCKS = [
   ['amsterdam', '2026-10-27T08:00:00Z', 'no card · desk open until 19:00 CET', 'a Tuesday at 09:00: the desk is open'],
   ['barcelona', '2026-09-11T08:00:00Z', 'no card · Monday from 09:00 CEST', 'the Diada (Friday 11 September) in Barcelona: Monday'],
   ['madrid', '2026-09-11T08:00:00Z', 'no card · desk open until 19:00 CEST', 'the same Friday in Madrid: open (the Diada is Catalan)'],
-  ['paris', '2026-12-24T19:00:00Z', 'free · replies Monday from 09:00 CET', 'Christmas Eve at 20:00 on a waitlist desk: Monday (Christmas, Santo Stefano, the weekend) — and a desk still opening says "replies", never "desk"'],
+  // v1.8 FLIP: Paris sells now (its door "no card · …", like the six); the waitlist's "replies" is the frozen draft's
+  ['paris', '2026-12-24T19:00:00Z', 'no card · Monday from 09:00 CET', 'Christmas Eve at 20:00 in Paris: Monday (Christmas, Santo Stefano, the weekend; the French calendar adds no day)'],
+  ['draft-paris', '2026-12-24T19:00:00Z', 'free · replies Monday from 09:00 CET', 'Christmas Eve at 20:00 on a waitlist desk (the frozen draft): Monday (Christmas, Santo Stefano, the weekend) — and a desk still opening says "replies", never "desk"'],
   ['london', '2026-08-31T10:00:00Z', 'no card · Tomorrow from 08:00 BST', 'the summer bank holiday in London: tomorrow, in London time'],
   ['london', '2026-12-24T18:30:00Z', 'no card · Tuesday from 08:00 GMT', 'Christmas Eve after hours in London: Tuesday (Christmas, the weekend, the Boxing Day substitute)'],
-  ['milan', '2026-12-07T08:00:00Z', 'no card · Wednesday from 09:00 CET', "Sant'Ambrogio (Monday 7 December) and the Immacolata: Wednesday"]
+  ['milan', '2026-12-07T08:00:00Z', 'no card · Wednesday from 09:00 CET', "Sant'Ambrogio (Monday 7 December) and the Immacolata: Wednesday"],
+  ['valencia', '2026-03-19T08:00:00Z', 'no card · Tomorrow from 09:00 CET', 'Sant Josep (Thursday 19 March) in Valencia: tomorrow (Madrid is open)'],
+  ['valencia', '2026-10-09T08:00:00Z', 'no card · Tuesday from 09:00 CEST', 'the Dia de la Comunitat (Friday 9 October) and the 12 October: Tuesday'],
+  ['valencia', '2027-06-24T08:00:00Z', 'no card · desk open until 19:00 CEST', '24 June 2027 is a working day in Valencia (Sant Joan was 2026 only)']
 ];
 for (const [slug, clock, want, what] of CLOCKS) {
   const { ctx, page } = await open({ slug, clock });
@@ -552,6 +726,10 @@ for (const [slug, clock, want, what] of CLOCKS) {
   const small = await page.evaluate(() => [...document.querySelectorAll('#fares summary, #door, .pill, .folds summary, .lane > summary, .net a, #deskGo')]
     .filter((e) => e.offsetParent).map((e) => ({ id: e.id || e.className || e.tagName, h: e.getBoundingClientRect().height })).filter((x) => x.h < 44));
   check(small.length === 0, '320: every fare row, the door, the WhatsApp pill, every fold, every Pre-flight lane, every Network link and the Gate door are ≥ 44 px tall', JSON.stringify(small.slice(0, 4)));
+  // v1.8 stage W (§4.5): the footer's statutory label is longer than "Withdrawal form": still one target, inside the page
+  const wdF = await page.$eval('.foot nav[aria-label="Legal"] a[href$="#online"]', (a) => { const r = a.getBoundingClientRect(); return { t: a.textContent, href: a.getAttribute('href'), h: r.height, l: r.left, r: r.right, vw: document.documentElement.clientWidth }; });
+  check(wdF.t === 'Withdraw from contract here' && wdF.href === '/withdrawal?desk=Amsterdam#online' && wdF.h >= 44 && wdF.l >= 0 && wdF.r <= wdF.vw,
+    `320: the footer's "Withdraw from contract here" (→ /withdrawal?desk=Amsterdam#online) is a ${Math.round(wdF.h)} px target inside the page (stage W)`, JSON.stringify(wdF));
   await page.click('#fare-full-search > summary');
   await page.waitForTimeout(200);
   check(await noHScroll(page) && (await rect(page, '#fare-full-search [data-pay]')).h >= 44, '320: an open ticket fits, its pay button ≥ 44 px');
@@ -631,7 +809,69 @@ for (const [slug, clock, want, what] of CLOCKS) {
   await ctx.close();
 }
 // ── 8 · the sisters ──────────────────────────────────────────────────────
+// v1.8 FLIP: this section moved — Paris and Berlin were waitlists ("Open my file", no pay button, no till); they sell
+// now, charged at signing: the free call at the door, three order buttons, a till, the Full Search ticket saying its
+// trigger (never the refund rule). The waitlist's pins run on the frozen drafts (/draft-paris, /draft-berlin)
 for (const slug of ['paris', 'berlin']) {
+  const { ctx, page, st } = await open({ slug });
+  await page.waitForTimeout(300);
+  check(await text(page, '#doorL') === 'Start with a free call' && await page.$$eval('[data-pay]', (b) => b.length) === 3 && !!(await page.$('#till')), `${slug}: "Start with a free call", three order buttons, a till`);
+  await page.click('#fare-full-search > summary');
+  await page.waitForTimeout(200);
+  const tkRule = await text(page, '#fare-full-search .tk .refund');
+  check(!!tkRule && /^Nothing is charged before you sign/.test(tkRule) && tkRule !== RULE, `${slug}: the Full Search ticket says its trigger ("${tkRule}"), never the refund rule`);
+  await tap(page, '#door');
+  await page.fill('#fName', 'Jean'); await page.fill('#fContact', 'jean@example.fr');
+  await page.click('#door');
+  await page.waitForTimeout(500);
+  check(st.posts.length === 1 && st.posts[0].city === slug && await page.getAttribute('#pass', 'data-state') === 'open', `${slug}: the free call's file opens`);
+  await ctx.close();
+}
+// v1.8 review LFR-1 (L221-14 al. 2, C. civ. 1127-2, §312j(3) BGB): on a desk that charges at signing the labelled
+// button IS the order. Enter in a field never places it — the browser's implicit submission used to click #tGo unseen,
+// below the tick, the withdrawal line and the button's words (one POST, a numbered mandate and its email from an Enter
+// in the email or the note). It walks name → email → note → the tick → the button; a held Enter walks one step and its
+// auto-repeat never presses the button; only the button orders. The six are unchanged (Stripe's page concludes there).
+for (const slug of ['paris', 'berlin']) {
+  const BOOK = { status: 200, body: { ok: true, booked: true, id: 'book_ui0000enter1', file: FILE, number: (slug === 'paris' ? 'PAR' : 'BER') + '-2026-0001', plan: 'full-search', startNow: false, workFromLabel: '19 November 2026' } };
+  const { ctx, page, st } = await open({ slug, query: '#order-full-search', checkout: BOOK });
+  await page.waitForTimeout(600);
+  const at = () => page.evaluate(() => document.activeElement && document.activeElement.id);
+  await page.fill('#tName', 'Anne Dupont'); await page.fill('#tEmail', 'anne@example.fr'); await page.fill('#tNote', 'https://www.seloger.com/annonces/123');
+  const walk = [];
+  for (const id of ['tName', 'tEmail', 'tNote', 'tStart']) { await page.focus('#' + id); await page.keyboard.press('Enter'); await page.waitForTimeout(150); walk.push(await at()); }
+  await page.waitForTimeout(500);
+  const goSeen = await page.$eval('#tGo', (b) => { const r = b.getBoundingClientRect(); return r.top >= -1 && r.bottom <= innerHeight + 1; });
+  check(await page.$eval('#till', (d) => d.open) && st.checkouts.length === 0 && await page.getAttribute('#pass', 'data-state') === 'blank' && !(await page.$eval('#tStart', (c) => c.checked)) && walk.join() === 'tEmail,tNote,tStart,tGo' && goSeen,
+    `${slug}: Enter in the name, the email, the note and on the tick orders nothing (0 POSTs) — it walks to the next field, then to the button, seen on the screen (${walk.join(' → ')})`);
+  for (const from of ['tNote', 'tStart']) {
+    await page.focus('#' + from);
+    await page.keyboard.down('Enter'); await page.keyboard.down('Enter'); await page.keyboard.down('Enter'); await page.keyboard.up('Enter');
+    await page.waitForTimeout(400);
+    check(st.checkouts.length === 0 && await at() === (from === 'tNote' ? 'tStart' : 'tGo'), `${slug}: a held Enter from ${from === 'tNote' ? 'the note' : 'the tick'} walks one step (${await at()}) and its auto-repeat never orders`);
+  }
+  await page.click('#tGo');
+  await page.waitForFunction(() => document.getElementById('pass').getAttribute('data-state') === 'booked', null, { timeout: 5000 }).catch(() => {});
+  check(st.checkouts.length === 1 && st.checkouts[0].city === slug && st.checkouts[0].kind === 'full-search' && st.checkouts[0].startNow === false && await page.getAttribute('#pass', 'data-state') === 'booked',
+    `${slug}: a click on the button "Order, pay on signing · €500" makes ONE order (BOOKED)`);
+  check(st.errors.length === 0, `${slug}: no JS error`, st.errors.join(' | '));
+  await ctx.close();
+}
+{
+  // the six are unchanged: Enter in the till's email field still goes to checkout (Stripe's own page concludes the contract)
+  const { ctx, page, st } = await open({ slug: 'amsterdam', checkout: { status: 200, body: { ok: false, error: 'stripe_down' } } });
+  await page.waitForTimeout(300);
+  await page.click('#fare-full-search > summary');
+  await page.waitForTimeout(200);
+  await tap(page, '#fare-full-search [data-pay]');
+  await page.waitForTimeout(250);
+  await page.fill('#tName', 'Anna Keller'); await page.fill('#tEmail', 'anna@example.com');
+  await page.focus('#tEmail'); await page.keyboard.press('Enter');
+  await page.waitForTimeout(500);
+  check(st.checkouts.length === 1 && st.checkouts[0].city === 'amsterdam' && !('requestId' in st.checkouts[0]), 'amsterdam (the six, Stripe concludes): Enter in the till\'s email still goes to checkout, unchanged');
+  await ctx.close();
+}
+for (const slug of ['draft-paris', 'draft-berlin']) {
   const { ctx, page, st } = await open({ slug });
   await page.waitForTimeout(300);
   check(await text(page, '#doorL') === 'Open my file' && await page.$$eval('[data-pay]', (b) => b.length) === 0 && !(await page.$('#till')), `${slug}: "Open my file", no pay button, no till`);
@@ -642,7 +882,7 @@ for (const slug of ['paris', 'berlin']) {
   await page.fill('#fName', 'Jean'); await page.fill('#fContact', 'jean@example.fr');
   await page.click('#door');
   await page.waitForTimeout(500);
-  check(st.posts.length === 1 && st.posts[0].city === slug && await page.getAttribute('#pass', 'data-state') === 'open', `${slug}: the file opens`);
+  check(st.posts.length === 1 && st.posts[0].city === slug.slice(6) && await page.getAttribute('#pass', 'data-state') === 'open', `${slug}: the file opens`);
   await ctx.close();
 }
 {
@@ -656,28 +896,98 @@ for (const slug of ['paris', 'berlin']) {
   await ctx.close();
 }
 
-// ── 8b · BOOM Desks (03/11/2026): the Network shows EVERY desk ───────────
-// the desks not open as hollow dots with no arc and no link, the legend from
-// 640px, Rome with its ring; "Every BOOM desk" → /desks, last
+// ── 8b · BOOM Desks (03/11/2026) → the Horizon (v1.7): the Network shows EVERY desk ──
+// the desks not open as hollow dots with no arc and no link, the legend, Rome with
+// its ring, the map on a phone too; "Every BOOM desk" → /desks, last
+// v1.8 FLIP: the eight are live — London's map has no hollow dot and its list links Berlin and Paris; a desk not open
+// (a hollow dot, a "· not open" line, never linked) keeps its pin on /london-drafts (Paris and Berlin the frozen drafts)
+{
+  const { ctx, page, st } = await open({ slug: 'london-drafts', width: 1440 });
+  await center(page, '#network');
+  await page.waitForTimeout(500);
+  const offs = await page.$$eval('svg.hz circle.d.off', (cs) => cs.map((c) => ({ fill: getComputedStyle(c).fill, stroke: getComputedStyle(c).stroke })));
+  check(offs.length === 2 && offs.every((o) => o.fill === 'none' && o.stroke !== 'none'), 'london-drafts 1440: two hollow dots on the map (computed fill: none) — the draft Berlin and Paris, not open', JSON.stringify(offs));
+  check(await page.$$eval('ul.net li.off', (ls) => ls.map((l) => l.textContent.trim()).join('|')) === 'BER Berlin · not open|PAR Paris · not open' && await page.$$eval('ul.net li.off a, a[href="/paris"], a[href="/berlin"]', (a) => a.length) === 0,
+    'london-drafts 1440: the draft Berlin and Paris are named "not open" in the list, never linked');
+  check(st.errors.length === 0, 'london-drafts 1440: no JS error', st.errors.join(' | '));
+  await ctx.close();
+}
 {
   const { ctx, page, st } = await open({ slug: 'london', width: 1440 });
   await center(page, '#network');
   await page.waitForTimeout(500);
-  const offs = await page.$$eval('svg.map circle.d.off', (cs) => cs.map((c) => ({ fill: getComputedStyle(c).fill, stroke: getComputedStyle(c).stroke })));
-  check(offs.length === 2 && offs.every((o) => o.fill === 'none' && o.stroke !== 'none'), 'london 1440: two hollow dots on the map (computed fill: none) — Berlin and Paris, not open', JSON.stringify(offs));
-  check(await page.$eval('svg.map circle.hub-r', (c) => getComputedStyle(c).fill === 'none' && getComputedStyle(c).stroke !== 'none'), 'london 1440: Rome wears its ring');
+  const offs = await page.$$eval('svg.hz circle.d.off', (cs) => cs.length);
+  check(offs === 0 && await page.$$eval('ul.net li.off', (ls) => ls.length) === 0 && await page.$$eval('ul.net a[href="/paris"], ul.net a[href="/berlin"]', (a) => a.length) === 2,
+    'london 1440: no hollow dot and no "not open" line since the flip — Berlin and Paris are linked in the list', JSON.stringify({ offs }));
+  check(await page.$eval('svg.hz circle.hub-r', (c) => getComputedStyle(c).fill === 'none' && getComputedStyle(c).stroke !== 'none'), 'london 1440: Rome wears its ring');
   check(await shown(page, '.net-k') && await page.$eval('.net-k', (e) => getComputedStyle(e).display) === 'flex' && /live desk.*not open.*Rome, the hub/.test(await text(page, '.net-k')), 'london 1440: the legend is shown — live desk · not open · Rome, the hub');
-  const mapR = await rect(page, 'svg.map'), keyR = await rect(page, '.net-k'), ulR = await rect(page, 'ul.net');
+  const mapR = await rect(page, 'svg.hz'), keyR = await rect(page, '.net-k'), ulR = await rect(page, 'ul.net');
   check(keyR.top >= mapR.bottom - 1 && keyR.left < mapR.left + 2 && ulR.left >= mapR.right - 1 && ulR.top < keyR.top, 'london 1440: the legend sits under the map, the list beside them (one grid)', JSON.stringify({ mapR, keyR, ulR }));
-  check(await page.$$eval('ul.net li.off', (ls) => ls.map((l) => l.textContent.trim()).join('|')) === 'BER Berlin · not open|PAR Paris · not open' && await page.$$eval('ul.net li.off a, a[href="/paris"], a[href="/berlin"]', (a) => a.length) === 0,
-    'london 1440: Berlin and Paris are named "not open" in the list, never linked');
+  // the script, loaded on view: the night drawn, the two script-only key entries revealed
+  await page.waitForTimeout(600);
+  const alive = await page.evaluate(() => ({ map: !!window.BOOM_MAP, img: !!document.querySelector('svg.hz .hz-nite image[href^="data:image/png"]'), term: !!document.querySelector('svg.hz .hz-nite path.hz-term'), keys: [...document.querySelectorAll('.net-k .k-x')].map((k) => k.hidden).join() }));
+  check(alive.map && alive.img && alive.term && alive.keys === 'false,false', 'london 1440: once in view the script draws the night (an image under a terminator line) and reveals "open now · night, now" in the key', JSON.stringify(alive));
   check(st.errors.length === 0, 'london 1440: no JS error', st.errors.join(' | '));
   await ctx.close();
 }
+// v1.7: the map is shown on a phone too (v1.6 hid it under 640px), as wide as the column; its script arrives on view
 {
   const { ctx, page } = await open({ slug: 'london', width: 390 });
   await page.waitForTimeout(300);
-  check(!(await shown(page, '.net-k')) && !(await shown(page, 'svg.map')), 'london 390: no map and no legend on a phone (the list navigates)');
+  const before = await page.evaluate(() => !!window.BOOM_MAP);
+  await center(page, '#network');
+  await page.waitForTimeout(700);
+  const r = await rect(page, 'svg.hz');
+  check(await shown(page, '.net-k') && await shown(page, 'svg.hz') && Math.abs(r.w - 358) <= 1 && r.h > 150 && await noHScroll(page), `london 390: the map AND the legend are shown on a phone (map ${Math.round(r.w)}×${Math.round(r.h)}, the column's width)`);
+  check(!before && await page.evaluate(() => !!window.BOOM_MAP), 'london 390: the map\'s script is not loaded at the top of the page; it arrives when the map nears the screen');
+  await ctx.close();
+}
+// the planes: once on first view, 260ms apart, each on its own arc; again on a Network line's focus; never two on one arc
+{
+  const { ctx, page, st } = await open({ slug: 'london', width: 1440, pwClock: '2027-03-01T09:00:00Z' });
+  // the installed clock also ticks in real time: paused here, only runFor moves the planes (the script, its observer and the CSS transitions still run on real time)
+  await page.clock.pauseAt(new Date('2027-03-01T09:00:10Z'));
+  check(await page.$$eval('g.hz-pl', (x) => x.length) === 0 && await page.$eval('svg.hz .hz-nite', (g) => g.children.length) === 0, 'london 1440: before the map is in view, no plane and no night');
+  await center(page, '#network');
+  await page.waitForTimeout(600);
+  const vis = () => page.$$eval('g.hz-pl', (gs) => gs.filter((g) => +g.getAttribute('opacity') > 0).length);
+  const n0 = await page.$$eval('g.hz-pl', (x) => x.length);
+  await page.clock.runFor(200);
+  const v1 = await vis();
+  await page.clock.runFor(520);
+  const v2 = await vis();
+  // the exact counts (1, then 3) hold on an idle machine; under a starved suite the observer fires late against the paused clock, so the pin is the progression: some but not all after 200ms, more after 720ms (the 260ms stagger itself is read from the source in run.mjs)
+  // v1.8 FLIP: six planes and six glows moved to eight (Paris and Berlin are live sisters with their arc)
+  check(n0 === 8 && v1 >= 1 && v1 < 8 && v2 > v1, `london 1440: on first view eight planes leave Rome one after the other (visible after 200ms: ${v1}, after 720ms: ${v2})`, JSON.stringify({ n0, v1, v2 }));
+  const glow = await page.$$eval('svg.hz g.dk.on', (x) => x.length);
+  check(glow === 8, `london 1440 (Monday 10:00 Rome): the eight live desks glow — open now (${glow})`);
+  await page.clock.runFor(5000);
+  const after = await page.evaluate(() => ({ planes: document.querySelectorAll('g.hz-pl').length, drawn: [...document.querySelectorAll('svg.hz .arc')].every((a) => a.style.strokeDashoffset === '0' || a.style.strokeDashoffset === '') }));
+  check(after.planes === 0 && after.drawn, 'london 1440: every plane has landed and every arc is fully drawn', JSON.stringify(after));
+  await page.focus('ul.net a[href="/barcelona"]');
+  await page.clock.runFor(300);
+  // the stroke's .2s transition runs on the real clock: wait for it (a starved suite can take longer than the transition)
+  const hi = await page.waitForFunction(() => { const a = document.querySelector('svg.hz .arc[data-k="bcn"]'); return a && a.classList.contains('hi') && getComputedStyle(a).stroke === 'rgb(255, 215, 0)'; }, null, { timeout: 4000 }).then(() => true).catch(() => false);
+  const f1 = await page.$$eval('g.hz-pl', (x) => x.length);
+  await page.hover('ul.net a[href="/barcelona"]');
+  await page.clock.runFor(300);
+  const f2 = await page.$$eval('g.hz-pl', (x) => x.length);
+  await page.clock.runFor(5000);
+  const f3 = await page.$$eval('g.hz-pl', (x) => x.length);
+  check(f1 === 1 && hi && f2 === 1 && f3 === 0, `london 1440: focusing the Barcelona line flies ONE plane along its arc, lit gold; hovering it meanwhile adds no second one (${f1} → ${f2} → ${f3})`);
+  check(st.errors.length === 0, 'london 1440 planes: no JS error', st.errors.join(' | '));
+  await ctx.close();
+}
+// reduced motion: no plane on view nor on focus, no arc drawn in; the night is still drawn (a fact of the hour, not motion)
+{
+  const { ctx, page } = await open({ slug: 'london', width: 1440, reducedMotion: 'reduce', pwClock: '2027-03-01T17:30:00Z' });
+  await center(page, '#network');
+  await page.waitForTimeout(500);
+  await page.clock.runFor(1500);
+  await page.focus('ul.net a[href="/barcelona"]');
+  await page.clock.runFor(800);
+  const g = await page.evaluate(() => ({ planes: document.querySelectorAll('g.hz-pl').length, dashed: [...document.querySelectorAll('svg.hz .arc')].some((a) => a.style.strokeDasharray), night: !!document.querySelector('svg.hz .hz-nite image'), term: /^M[\d.]+ [\d.]+L/.test((document.querySelector('svg.hz .hz-term') || { getAttribute: () => '' }).getAttribute('d') || ''), inf: document.getAnimations().filter((x) => x.effect && x.effect.getTiming().iterations === Infinity).length }));
+  check(g.planes === 0 && !g.dashed && g.night && g.term && g.inf === 0, 'london 1440, reduced motion (a March dusk): no plane on view nor on focus, no arc drawn in, no loop — the night veil and the terminator still drawn', JSON.stringify(g));
   await ctx.close();
 }
 {
@@ -686,13 +996,21 @@ for (const slug of ['paris', 'berlin']) {
   await page.waitForTimeout(300);
   const all = await rect(page, 'ul.net li.all a');
   check(all.h >= 44 && await page.getAttribute('ul.net li.all a', 'href') === '/desks' && await text(page, 'ul.net li.all a') === 'ALL Every BOOM desk', `milan 320: "ALL · Every BOOM desk" is a ${Math.round(all.h)} px target linking /desks`);
-  check(await page.$$eval('ul.net li', (ls) => ls[ls.length - 1].classList.contains('all')) && (await rect(page, 'ul.net li.off')).h >= 44 && await noHScroll(page), 'milan 320: the "all" line is last; a "not open" line keeps the 48 px rhythm; no horizontal scroll');
+  // v1.8 FLIP: Milan's list has no "not open" line since the flip (the rhythm is pinned on /milan-drafts, below)
+  check(await page.$$eval('ul.net li', (ls) => ls[ls.length - 1].classList.contains('all')) && await page.$$eval('ul.net li.off', (ls) => ls.length) === 0 && await noHScroll(page), 'milan 320: the "all" line is last; no "not open" line; no horizontal scroll');
   check(/^Operated by Egidi Immobiliare S\.r\.l\., an Italian real estate agency, under the same Italian law as in Rome · /.test(await text(page, '.proof')), 'milan: the proof line says the home-country desk');
+  await ctx.close();
+}
+{
+  const { ctx, page } = await open({ slug: 'milan-drafts', width: 320, height: 568 });
+  await center(page, 'ul.net li.all a');
+  await page.waitForTimeout(300);
+  check(await page.$$eval('ul.net li', (ls) => ls[ls.length - 1].classList.contains('all')) && (await rect(page, 'ul.net li.off')).h >= 44 && await noHScroll(page), 'milan-drafts 320: the "all" line is last; a "not open" line keeps the 48 px rhythm; no horizontal scroll');
   await ctx.close();
 }
 
 // ── 9 · v1.6 «the complete aviation desk» ────────────────────────────────
-const SLUGS7 = ['amsterdam', 'madrid', 'barcelona', 'london', 'milan', 'paris', 'berlin'];
+const SLUGS7 = ['amsterdam', 'madrid', 'barcelona', 'london', 'milan', 'valencia', 'paris', 'berlin'];
 const OPEN_T = '2026-11-03T10:00:00Z';    // a Tuesday: London 10:00 GMT, Amsterdam 11:00 CET — every desk open
 const SAT_T = '2026-10-31T09:00:00Z';     // a Saturday: every desk closed, next open Monday
 // the words a reader SEES on the first screen: text nodes inside the viewport,
@@ -743,11 +1061,15 @@ for (const slug of SLUGS7) {
   const { ctx, page, st } = await open({ slug, clock: OPEN_T });
   await page.waitForTimeout(1600);
   const n = await firstScreenWords(page);
-  check(n <= 150 && n >= 60, `${slug} 390×844: ${n} words on the first screen (≤ 150: the pass, not a page of copy)`);
+  check(n <= BUDGET.first && n >= 60, `${slug} 390×844: ${n} words on the first screen (≤ ${BUDGET.first}, BUDGET.first: the pass, not a page of copy)`);
   const moving = await runningInView(page);
   check(moving.length === 0, `${slug} 390: after 1.6 s nothing on the first screen is still animating (an open desk)`, moving.slice(0, 4).join(' | '));
   check(!(await shown(page, '.seal')) && await page.$eval('.seal', (e) => getComputedStyle(e).display === 'none') && !(await shown(page, '.lamina')), `${slug} 390: no seal, no foil band on a phone (the chip says the desk)`);
-  check(await page.$eval('#clocks', (c) => !!c.closest('#deskClocks')) && !(await shown(page, '.onda')), `${slug} 390: the clocks live in the Gate section; no onda canvas below 940`);
+  // v1.7 (S4): the onda lives INSIDE the pass on a phone — the card's living security print, .6 open — not "no onda below 940"
+  await page.waitForFunction(() => window.BOOM_ONDA && document.getElementById('onda').style.opacity !== '', null, { timeout: 8000 }).catch(() => {});
+  const ondaIn = await page.evaluate(() => { const c = document.getElementById('onda'); return { parent: c.parentNode.id, op: getComputedStyle(c).opacity, disp: getComputedStyle(c).display, run: !!(window.BOOM_ONDA && window.BOOM_ONDA.running) }; });
+  check(await page.$eval('#clocks', (c) => !!c.closest('#deskClocks')) && ondaIn.parent === 'pass' && ondaIn.op === '0.6' && ondaIn.disp === 'block',
+    `${slug} 390: the onda lives inside the pass (#onda parent #pass, opacity .6 with the desk open); the clocks live in the Gate`, JSON.stringify(ondaIn));
   check(st.errors.length === 0, `${slug} 390: no JS error`, st.errors.join(' | '));
   await ctx.close();
 }
@@ -806,8 +1128,12 @@ for (const [slug, clock, flow, want, said, what] of [
   ['amsterdam', SAT_T, 'open', 'REPLY MON', 'reply Monday', 'OPEN on a Saturday: REPLY MON (the desk\'s next open day), heard as "reply Monday"'],
   ['amsterdam', OPEN_T, 'paid1', 'START TODAY', 'start today', 'PAID with "Start now" on an open desk: START TODAY'],
   ['london', SAT_T, 'paid1', 'START MON', 'start Monday', 'PAID with "Start now" on a Saturday: START MON, heard as "start Monday"'],
-  ['paris', OPEN_T, 'open', 'FILE OPEN', 'file open', 'Paris (a desk still opening): FILE OPEN — never a reply day'],
-  ['berlin', SAT_T, 'open', 'FILE OPEN', 'file open', 'Berlin on a Saturday: FILE OPEN']]) {
+  // v1.8 FLIP: Paris and Berlin sell (CHECKOUT true): a file opened there is a free call to set, so row 01 is
+  // REPLY <day> like the six; the waitlist's FILE OPEN keeps its pin on the frozen drafts (/draft-paris, /draft-berlin)
+  ['paris', OPEN_T, 'open', 'REPLY TODAY', 'reply today', 'Paris (sells, charged at signing): OPEN on an open desk is REPLY TODAY — the free call'],
+  ['berlin', SAT_T, 'open', 'REPLY MON', 'reply Monday', 'Berlin on a Saturday: REPLY MON (the desk\'s next open day)'],
+  ['draft-paris', OPEN_T, 'open', 'FILE OPEN', 'file open', 'the frozen draft Paris (a desk still opening): FILE OPEN — never a reply day'],
+  ['draft-berlin', SAT_T, 'open', 'FILE OPEN', 'file open', 'the frozen draft Berlin on a Saturday: FILE OPEN']]) {
   const PAID1 = { status: 200, body: { ok: true, paid: true, plan: 'application-pack', file: FILE, startNow: true } };
   const { ctx, page } = await open({ slug, clock, ...(flow === 'paid1' ? { query: `?paid=application-pack&start=1&session_id=${SID}`, paid: PAID1 } : {}) });
   await page.waitForTimeout(300);
@@ -912,6 +1238,79 @@ for (const [slug, clock] of [['amsterdam', SAT_T], ['london', OPEN_T], ['paris',
   await ctx.close();
 }
 
+// 9b · v1.7 (S4) the onda's facts: OPEN, PAID and a fare opened pulse the field ONCE from where they
+// happen; a PAID that confirms before the engine loads is queued and fires when it does; nothing
+// under reduced motion; crossing 940 moves the one canvas between the pass and the body
+{
+  // a setter trap on window.BOOM_ONDA wraps pulse() the moment the engine installs itself
+  const trap = () => {
+    window.__pulses = [];
+    Object.defineProperty(window, 'BOOM_ONDA', { configurable: true, get() { return undefined; }, set(v) {
+      const p = v.pulse; v.pulse = function (n, s, ms) { window.__pulses.push(s + ':' + (n && n.className || '?')); return p.apply(this, arguments); };
+      Object.defineProperty(window, 'BOOM_ONDA', { value: v, writable: true, configurable: true });
+    } });
+  };
+  const pulses = (page) => page.evaluate(() => window.__pulses || []);
+  {
+    const { ctx, page, st } = await open({ slug: 'london', clock: SAT_T, init: trap });
+    await page.waitForFunction(() => window.BOOM_ONDA, null, { timeout: 8000 }).catch(() => {});
+    await page.waitForTimeout(400);
+    check(await page.evaluate(() => ({ r: window.BOOM_ONDA.running, op: getComputedStyle(document.getElementById('onda')).opacity })).then((o) => !o.r && o.op === '0.36'), 'london 390, Saturday: the onda in the pass is one dim still frame (opacity .36, not running)');
+    await tap(page, '#fare-full-search summary');
+    await page.waitForTimeout(500);
+    check((await pulses(page)).join() === 's:f-price', `a fare opened: ONE small pulse from its price (${(await pulses(page)).join()})`);
+    check(await page.evaluate(() => window.BOOM_ONDA.running), 'a fact on a closed desk runs its wave');
+    await fileOpen(page);
+    await page.waitForTimeout(600);
+    const after = await pulses(page);
+    check(after.filter((x) => x.startsWith('l:')).length === 1 && /^l:stamp/.test(after[after.length - 1]), `OPEN: ONE strong pulse from the OPEN stamp (${after.join(' · ')})`);
+    // the OPEN wave (2.4 s × life ≤ 1.4, after the stamp's 220 ms) and its row cascade, then the glow's decay
+    await page.waitForFunction(() => !window.BOOM_ONDA.running, null, { timeout: 9000 }).catch(() => {});
+    check(await page.evaluate(() => !window.BOOM_ONDA.running), 'and the closed desk rests again on its still frame once the wave is spent');
+    check(st.errors.length === 0, 'the facts on a closed desk: no JS error', st.errors.join(' | '));
+    await ctx.close();
+  }
+  {
+    // the paid return confirms (GET ?paid → paid:true) BEFORE the engine arrives: the pulse waits for it
+    const { ctx, page, st } = await open({ slug: 'london', clock: SAT_T, init: trap, query: `?paid=full-search&start=1&session_id=${SID}`, paid: { status: 200, body: { ok: true, paid: true, plan: 'full-search', file: FILE, startNow: true } } });
+    await page.waitForFunction(() => document.getElementById('pass').getAttribute('data-state') === 'paid', null, { timeout: 8000 }).catch(() => {});
+    const early = await page.evaluate(() => !!window.BOOM_ONDA);
+    await page.waitForFunction(() => window.BOOM_ONDA && (window.__pulses || []).length, null, { timeout: 9000 }).catch(() => {});
+    await page.waitForTimeout(400);
+    const pp = await pulses(page);
+    check(pp.filter((x) => x.startsWith('p:')).length === 1 && /^p:stamp/.test(pp[0]) && await page.evaluate(() => window.BOOM_ONDA.running),
+      `PAID: ONE doubled pulse from the PAID stamp${early ? '' : ', queued until the engine loaded'} (${pp.join(' · ')})`);
+    check(st.errors.length === 0, 'the PAID pulse: no JS error', st.errors.join(' | '));
+    await ctx.close();
+  }
+  {
+    const { ctx, page, st } = await open({ slug: 'london', clock: OPEN_T, init: trap, reducedMotion: 'reduce' });
+    await page.waitForFunction(() => window.BOOM_ONDA, null, { timeout: 8000 }).catch(() => {});
+    await tap(page, '#fare-full-search summary');
+    await fileOpen(page);
+    await page.waitForTimeout(700);
+    check(await page.evaluate(() => !window.BOOM_ONDA.running) && (await pulses(page)).length === 2, 'reduced motion: a fare opened and OPEN never set the field in motion (one still frame)');
+    check(st.errors.length === 0, 'reduced motion facts: no JS error', st.errors.join(' | '));
+    await ctx.close();
+  }
+  {
+    const { ctx, page, st } = await open({ slug: 'london', clock: OPEN_T });
+    await page.waitForFunction(() => window.BOOM_ONDA && window.BOOM_ONDA.running, null, { timeout: 8000 }).catch(() => {});
+    const parentOf = () => page.evaluate(() => document.getElementById('onda').parentNode.id || document.getElementById('onda').parentNode.tagName);
+    const a = await parentOf();
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.waitForTimeout(700);
+    const b = await parentOf(), bw = await page.evaluate(() => document.getElementById('onda').width);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.waitForTimeout(700);
+    const c = await parentOf(), cw = await page.evaluate(() => document.getElementById('onda').width);
+    check(a === 'pass' && b === 'BODY' && c === 'pass' && bw >= 1440 && cw < 400 && await page.evaluate(() => window.BOOM_ONDA.running),
+      `crossing 940 both ways moves the one canvas (pass → body ${bw}px wide → pass ${cw}px) and re-measures it; still running`, [a, b, c, bw, cw].join());
+    check(st.errors.length === 0, 'crossing 940: no JS error', st.errors.join(' | '));
+    await ctx.close();
+  }
+}
+
 // 10 · the loops: only while the desk is open; never with reduced motion
 {
   const { ctx, page, st } = await open({ width: 1440, clock: OPEN_T });
@@ -968,7 +1367,17 @@ for (const [w, h] of [[1440, 900], [1024, 800], [940, 800]]) {
 }
 
 // 11 · the waitlists: one label, four doors, no pay control, no "call"
+// v1.8 FLIP: the waitlist pins run on the frozen drafts; live Paris and Berlin read the selling desks' door and order
 for (const slug of ['paris', 'berlin']) {
+  const { ctx, page } = await open({ slug, width: 1440, clock: OPEN_T });
+  await page.waitForTimeout(500);
+  const labels = await page.$$eval('#topGo b, #deskGo b, #doorL, #stripGo', (es) => es.map((e) => e.textContent.trim()));
+  const pays = await page.$$eval('[data-pay]', (b) => b.map((x) => x.textContent.trim().replace(/\s+/g, ' ')));
+  check(labels.length === 4 && labels.every((x) => x === 'Start with a free call') && pays.length === 3 && pays.every((x) => /^Order, pay on signing · €(500|199|149)/.test(x)),
+    `${slug} (charged at signing): #topGo, #deskGo, the door and the strip read "Start with a free call"; the three tickets order, pay on signing`, JSON.stringify([labels, pays]));
+  await ctx.close();
+}
+for (const slug of ['draft-paris', 'draft-berlin']) {
   const { ctx, page } = await open({ slug, width: 1440, clock: OPEN_T });
   await page.waitForTimeout(500);
   const labels = await page.$$eval('#topGo b, #deskGo b, #doorL, #stripGo', (es) => es.map((e) => e.textContent.trim()));
@@ -980,6 +1389,8 @@ for (const slug of ['paris', 'berlin']) {
 
 await hubUI();
 await reviewFixes();
+await v17Fixes();
+await signingUI();
 await finish();
 
 // ── 12 · the v1.6 review (03/11/2026): one guard per confirmed finding ────
@@ -988,7 +1399,7 @@ await finish();
 // `CITIES_UI_ONLY=review node tests/cities/ui.mjs` runs this section alone.
 async function reviewFixes() {
   const R_OPEN = '2026-11-03T10:00:00Z', R_SAT = '2026-10-31T09:00:00Z';
-  const LIVE5 = ['amsterdam', 'madrid', 'barcelona', 'london', 'milan'];
+  const LIVE5 = ['amsterdam', 'madrid', 'barcelona', 'london', 'milan', 'valencia'];
   const dep1 = (page) => page.$eval('#dep-1 .st-b', (e) => {
     const cells = e.querySelectorAll(':scope > .fc2 > .st > b');
     return (cells.length ? [...cells].map((b) => b.textContent || ' ').join('') : e.textContent).replace(/ /g, ' ').replace(/\s+/g, ' ').trim();
@@ -1180,6 +1591,10 @@ async function reviewFixes() {
     await page.clock.runFor(3 * 60 * 1000);
     await page.waitForTimeout(200);
     await center(page, '.dep');
+    // the board mounts from an IntersectionObserver, which fires on a RENDERING frame the fake clock
+    // cannot advance: wait for the mount (its 500ms fill timer is then inside the next runFor), or the
+    // read races a frame — green or blank by a few ms (S4: seen blank with the onda asleep at 18:01)
+    await page.waitForFunction(() => document.querySelector('#dep-1 .st-b.live'), null, { timeout: 3000 }).catch(() => {});
     await page.clock.runFor(3000);
     await page.waitForTimeout(300);
     const z = { sr: await text(page, '#dep-1-sr'), live: await text(page, '#depLive'), pill: await text(page, '#depPillT'), next: await text(page, '#oNext'), word: await dep1(page) };
@@ -1193,7 +1608,8 @@ async function reviewFixes() {
   // instruments speak of replies (REPLYING / OFFLINE, "replies until 19:00 CET"); the
   // selling desks keep DESK OPEN. ("Charged only when the desk opens" is a true sentence.)
   const DESK_OPEN = /\bdesk open\b(?!s)/i;
-  for (const slug of ['paris', 'berlin']) {
+  // v1.8 FLIP: the desks still opening are the frozen drafts now; live Paris and Berlin sell and read DESK OPEN (below)
+  for (const slug of ['draft-paris', 'draft-berlin']) {
     for (const [clock, opened] of [[R_OPEN, true], [R_SAT, false]]) {
       for (const w of [1440, 390]) {
         const { ctx, page } = await open({ slug, width: w, clock });
@@ -1213,10 +1629,10 @@ async function reviewFixes() {
       }
     }
   }
-  {
-    const { ctx, page } = await open({ slug: 'london', width: 1440, clock: R_OPEN });
+  for (const slug of ['london', 'paris', 'berlin']) {
+    const { ctx, page } = await open({ slug, width: 1440, clock: R_OPEN });
     await page.waitForTimeout(400);
-    check(await text(page, '#depPillT') === 'DESK OPEN' && DESK_OPEN.test(await page.evaluate(() => document.body.innerText)), 'london (a desk that sells): the pill still reads DESK OPEN');
+    check(await text(page, '#depPillT') === 'DESK OPEN' && DESK_OPEN.test(await page.evaluate(() => document.body.innerText)), `${slug} (a desk that sells${slug === 'london' ? '' : ', charged at signing'}): the pill reads DESK OPEN`);
     await ctx.close();
   }
 }
@@ -1241,16 +1657,17 @@ async function hubUI() {
     }
     return n;
   });
-  const LIVE = ['ams', 'bcn', 'lon', 'mad', 'mil'];
+  // v1.8 FLIP: eight live desks (Paris and Berlin sell, charged at signing) — the board, the clocks, the flaps, the pins
+  const LIVE = ['ams', 'bcn', 'ber', 'lon', 'mad', 'mil', 'par', 'vlc'];
   const nowOf = (page) => page.$$eval('.db-r.live', (rs) => Object.fromEntries(rs.map((r) => [r.id.slice(3), r.querySelector('.db-nb').textContent.trim()])));
   const subOf = (page) => page.$$eval('.db-r.live', (rs) => Object.fromEntries(rs.map((r) => [r.id.slice(3), r.querySelector('.db-sub').textContent.trim()])));
 
   // 390×844: the first screen
   {
-    const { ctx, page, st } = await open({ slug: 'desks', clock: '2027-03-01T09:00:00Z' });
+    const { ctx, page, st } = await open({ slug: 'desks', clock: '2027-03-01T09:00:00Z', init: () => { window.__beats = 0; addEventListener('boom:beat', () => { window.__beats++; }); } });
     await page.waitForTimeout(1800);
     const n = await words(page);
-    check(n <= 120 && n >= 40, `desks 390×844: ${n} words on the first screen (≤ 120)`);
+    check(n <= HUB_BUDGET.first && n >= 40, `desks 390×844: ${n} words on the first screen (≤ ${HUB_BUDGET.first}, HUB_BUDGET.first)`);
     const fold = 844;
     const on = await page.evaluate((ids) => ids.every((s) => { const e = document.querySelector(s); const r = e && e.getBoundingClientRect(); return r && r.bottom <= innerHeight && r.top >= 0; }), ['#h1', '.hub-lead', '.db-h', '#db-ams', '#db-bcn', '#db-lon']);
     check(on, `desks 390: the H1, the lead, the board head and the AMS, BCN and LON rows are on the first screen (${fold}px)`);
@@ -1258,39 +1675,43 @@ async function hubUI() {
       'desks 390: EUROPE settles on its board and the H1 still reads "A rental agent on your side, in Europe"');
     check(await noHScroll(page) && st.errors.length === 0, 'desks 390: no horizontal scroll, no JS error', st.errors.join(' | '));
     await page.waitForTimeout(2600);
-    check(await page.$$eval('.db-nf', (x) => x.length) === 0 && await page.evaluate(() => !window.BOOM_ONDA && !document.querySelector('script[src*="boom-onda"]')),
-      'desks 390: no DESK NOW flaps and no onda (the phone shows the text and loads nothing more)');
+    // v1.7 (S4): the phone hub loads the onda too (page mode, after load when idle) and it beats from the EUROPE board
+    await page.waitForFunction(() => window.BOOM_ONDA && window.BOOM_ONDA.running, null, { timeout: 8000 }).catch(() => {});
+    const hubOnda = await page.evaluate(() => ({ run: !!(window.BOOM_ONDA && window.BOOM_ONDA.running), parent: document.getElementById('onda').parentNode.tagName, beats: window.__beats || 0, board: !!document.getElementById('hubBoard') }));
+    check(await page.$$eval('.db-nf', (x) => x.length) === 0 && hubOnda.run && hubOnda.parent === 'BODY' && hubOnda.beats >= 1 && hubOnda.board,
+      `desks 390: no DESK NOW flaps; the onda runs behind the page (a desk is open) and beats from EUROPE (${hubOnda.beats} beat)`, JSON.stringify(hubOnda));
     await ctx.close();
   }
 
   // the desk clocks, from the calendar the webhook reads (holidays included)
   for (const [t, want, label, extra] of [
-    ['2027-03-01T09:00:00Z', { ams: 'OPEN', bcn: 'OPEN', lon: 'OPEN', mad: 'OPEN', mil: 'OPEN' }, 'Monday 1 March 2027, 10:00 Rome: every live desk OPEN, the pill shown', 'pill'],
-    ['2027-03-06T09:00:00Z', { ams: 'CLOSED', bcn: 'CLOSED', lon: 'CLOSED', mad: 'CLOSED', mil: 'CLOSED' }, 'Saturday: every desk CLOSED, "Monday from 09:00 CET" (London 08:00 GMT), the pill hidden', 'sat'],
-    ['2027-04-27T08:00:00Z', { ams: 'CLOSED', bcn: 'OPEN', lon: 'OPEN', mad: 'OPEN', mil: 'OPEN' }, 'Koningsdag (Tuesday 27 April 2027, 10:00 Rome): Amsterdam CLOSED, the others OPEN', ''],
-    ['2027-08-30T08:00:00Z', { ams: 'OPEN', bcn: 'OPEN', lon: 'CLOSED', mad: 'OPEN', mil: 'OPEN' }, 'the English summer bank holiday (Monday 30 August 2027, 10:00 Rome): London CLOSED', '']
+    ['2027-03-01T09:00:00Z', { ams: 'OPEN', bcn: 'OPEN', ber: 'OPEN', lon: 'OPEN', mad: 'OPEN', mil: 'OPEN', par: 'OPEN', vlc: 'OPEN' }, 'Monday 1 March 2027, 10:00 Rome: every live desk OPEN, the pill shown', 'pill'],
+    // v1.8 FLIP: Berlin's calendar is de-be — Monday 8 March 2027 is Internationaler Frauentag, a public holiday in Berlin
+    ['2027-03-06T09:00:00Z', { ams: 'CLOSED', bcn: 'CLOSED', ber: 'CLOSED', lon: 'CLOSED', mad: 'CLOSED', mil: 'CLOSED', par: 'CLOSED', vlc: 'CLOSED' }, 'Saturday: every desk CLOSED, "Monday from 09:00 CET" (London 08:00 GMT; Berlin "Tuesday": 8 March is Frauentag in Berlin), the pill hidden', 'sat'],
+    ['2027-04-27T08:00:00Z', { ams: 'CLOSED', bcn: 'OPEN', ber: 'OPEN', lon: 'OPEN', mad: 'OPEN', mil: 'OPEN', par: 'OPEN', vlc: 'OPEN' }, 'Koningsdag (Tuesday 27 April 2027, 10:00 Rome): Amsterdam CLOSED, the others OPEN', ''],
+    ['2027-08-30T08:00:00Z', { ams: 'OPEN', bcn: 'OPEN', ber: 'OPEN', lon: 'CLOSED', mad: 'OPEN', mil: 'OPEN', par: 'OPEN', vlc: 'OPEN' }, 'the English summer bank holiday (Monday 30 August 2027, 10:00 Rome): London CLOSED', '']
   ]) {
     const { ctx, page, st } = await open({ slug: 'desks', width: 1440, pwClock: t });
     await page.clock.runFor(1500);
     const now = await nowOf(page), sub = await subOf(page), pill = await shown(page, '#hubPill');
     const clk = await page.$$eval('.db-tv[data-clk]', (cs) => cs.map((c) => c.textContent.trim()));
-    let ok2 = JSON.stringify(now) === JSON.stringify(want) && clk.length === 5 && clk.every((c) => /^\d{2}:\d{2} (CET|CEST|GMT|BST)$/.test(c));
-    if (extra === 'pill') ok2 = ok2 && pill && sub.ams === 'Desk open until 19:00 CET' && sub.lon === 'Desk open until 18:00 GMT';
-    if (extra === 'sat') ok2 = ok2 && !pill && sub.ams === 'Monday from 09:00 CET' && sub.mil === 'Monday from 09:00 CET' && sub.lon === 'Monday from 08:00 GMT';
+    let ok2 = JSON.stringify(now) === JSON.stringify(want) && clk.length === 8 && clk.every((c) => /^\d{2}:\d{2} (CET|CEST|GMT|BST)$/.test(c));
+    if (extra === 'pill') ok2 = ok2 && pill && sub.ams === 'Desk open until 19:00 CET' && sub.lon === 'Desk open until 18:00 GMT' && sub.par === 'Desk open until 19:00 CET' && sub.ber === 'Desk open until 19:00 CET';
+    if (extra === 'sat') ok2 = ok2 && !pill && sub.ams === 'Monday from 09:00 CET' && sub.mil === 'Monday from 09:00 CET' && sub.lon === 'Monday from 08:00 GMT' && sub.par === 'Monday from 09:00 CET' && sub.ber === 'Tuesday from 09:00 CET';
     check(ok2 && st.errors.length === 0, `desks: ${label}`, JSON.stringify({ now, sub, pill, clk, e: st.errors }));
     if (extra) {
-      // DESK NOW as flaps (≥760): one 6-cell board per live desk, green ("on") only where the desk is open;
+      // DESK NOW as flaps (≥760): one 6-cell board per live desk (eight since the v1.8 flip), green ("on") only where the desk is open;
       // the onda (≥940) loops only while a desk is open — the Saturday field is one still frame
       await page.clock.runFor(3000);
       await page.waitForTimeout(400);
       await page.clock.runFor(2500);
       const fl = await page.$$eval('.db-r.live', (rs) => rs.map((r) => { const f = r.querySelector('.db-nf'); return f ? `${f.querySelectorAll('.fc2').length}${f.classList.contains('on') ? '+' : '-'}` : 'none'; }));
       const onda = await page.evaluate(() => !!(window.BOOM_ONDA && window.BOOM_ONDA.running));
-      const wantFl = extra === 'pill' ? '6+,6+,6+,6+,6+' : '6-,6-,6-,6-,6-';
+      const wantFl = extra === 'pill' ? '6+,6+,6+,6+,6+,6+,6+,6+' : '6-,6-,6-,6-,6-,6-,6-,6-';
       check(fl.join() === wantFl && onda === (extra === 'pill') && await page.evaluate(() => !!window.BOOM_ONDA),
         `desks 1440: DESK NOW is a flap board per live desk (${fl.join(' ')}); the onda ${extra === 'pill' ? 'loops while desks are open' : 'is one still frame when every desk is closed'}`, JSON.stringify({ fl, onda }));
       const clk2 = await page.$$eval('.pc-t[data-clk]', (cs) => cs.map((c) => c.textContent.trim()));
-      check(clk2.length === 5 && clk2.every((c) => /^\d{2}:\d{2} (CET|CEST|GMT|BST)$/.test(c)), `desks 1440: each pin card carries its desk's clock (${clk2.join(', ')})`);
+      check(clk2.length === 8 && clk2.every((c) => /^\d{2}:\d{2} (CET|CEST|GMT|BST)$/.test(c)), `desks 1440: each pin card carries its desk's clock (${clk2.join(', ')})`);
     }
     await ctx.close();
   }
@@ -1306,8 +1727,8 @@ async function hubUI() {
       over: [...document.querySelectorAll('.db-r')].some((r) => r.scrollWidth > r.clientWidth + 1),
       board: document.getElementById('hubBoard').textContent, word: getComputedStyle(document.getElementById('hubBoard'), '::before').content
     }));
-    check(g.rows.length === 8 && g.sub === 'Mon–Fri 08:00–18:00, London time' && g.dash === '"—"' && g.now === '"—"' && !g.over && g.board === '' && g.word === '"EUROPE"' && await noHScroll(page),
-      'desks without JS: eight rows, the static hours, "—" for the clock and the status, EUROPE drawn by CSS, nothing overflows', JSON.stringify(g));
+    check(g.rows.length === 9 && g.sub === 'Mon–Fri 08:00–18:00, London time' && g.dash === '"—"' && g.now === '"—"' && !g.over && g.board === '' && g.word === '"EUROPE"' && await noHScroll(page),
+      'desks without JS: nine rows, the static hours, "—" for the clock and the status, EUROPE drawn by CSS, nothing overflows', JSON.stringify(g));
     await ctx.close();
   }
 
@@ -1320,8 +1741,106 @@ async function hubUI() {
       return { rows: h('.db-r.live, .db-r.hub'), pins: h('.pin'), gates: [...document.querySelectorAll('.hgates a')].map((e) => e.getBoundingClientRect().height), faq: [...document.querySelectorAll('#faq summary')].map((e) => e.getBoundingClientRect().height) };
     });
     const all = [...sz.rows, ...sz.pins, ...sz.gates, ...sz.faq];
-    check(await noHScroll(page) && sz.rows.length === 6 && sz.pins.length === 5 && sz.gates.length === 5 && sz.faq.length === 6 && all.every((x) => x >= 44),
+    check(await noHScroll(page) && sz.rows.length === 9 && sz.pins.length === 8 && sz.gates.length === 8 && sz.faq.length === 6 && all.every((x) => x >= 44),
       `desks 320: no horizontal scroll; rows, pins, gates and questions ≥ 44 px (smallest ${Math.round(Math.min(...all))})`, JSON.stringify(sz));
+    // v1.8 option (b), spec D12 — this pin moved in stage B3: it measured the closest two pins at 320 against the
+    // 44px rule (44.6 px with the six; 24.2 px LON–PAR with eight live, which no 44px rule can hold). Under 600px a pin
+    // is a link but not a target: the map box under it takes the tap (the nearest desk within 30px, below)
+    await center(page, '#hmap');
+    const pe = await page.evaluate(() => { const a = document.getElementById('pin-ams'), r = a.getBoundingClientRect(), hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return { pe: getComputedStyle(a).pointerEvents, box: !!hit && !a.contains(hit) && !!hit.closest('.hmap-box'), tab: a.tabIndex, href: a.getAttribute('href') }; });
+    check(pe.pe === 'none' && pe.box && pe.tab === 0 && pe.href === '/amsterdam', 'desks 320: the pins take no pointer (the map box under them takes the tap) and stay links in the tab order', JSON.stringify(pe));
+    await ctx.close();
+  }
+  // from 600px with a mouse a pin is its own target again: the map is drawn at least HUB_MAP_PX wide (the build's
+  // figure: 566 at 600, 559 at 940 — Chromium draws 582 there) and no two pins stand closer than 44 px
+  for (const w of [600, 940]) {
+    const { ctx, page } = await open({ slug: 'desks', width: w, height: 900 });
+    await page.waitForTimeout(300);
+    await center(page, '#hmap');
+    await page.waitForTimeout(200);
+    const g = await page.evaluate(() => {
+      const ps = [...document.querySelectorAll('a.pin')].map((a) => { const r = a.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; });
+      let m = 1e9; for (let i = 0; i < ps.length; i++) for (let j = i + 1; j < ps.length; j++) m = Math.min(m, Math.hypot(ps[i][0] - ps[j][0], ps[i][1] - ps[j][1]));
+      const a = document.getElementById('pin-lon'), r = a.getBoundingClientRect(), hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      return { inner: document.querySelector('.hmap-box').clientWidth, min: m, pe: getComputedStyle(a).pointerEvents, hit: !!hit && a.contains(hit) };
+    });
+    check(g.pe === 'auto' && g.hit && g.inner >= HUB_MAP_PX[w] && g.min >= 44,
+      `desks ${w}: a pin is its own target (the map drawn ${g.inner}px, HUB_MAP_PX ${HUB_MAP_PX[w]}); the closest two pins are ${g.min.toFixed(1)}px apart (≥ 44)`, JSON.stringify(g));
+    await ctx.close();
+  }
+
+  // a touch screen (or under 600px), v1.8 option (b): the map box takes the tap and docks the NEAREST desk within
+  // 30 px under the map, flying its plane; a tap farther than 30 px from every pin docks nothing (and closes the
+  // card); a second tap on the same desk, or a tap on its card, goes there; Escape closes the card
+  {
+    const { ctx, page, st } = await open({ slug: 'desks', width: 390, touch: true, pwClock: '2027-03-01T09:00:00Z' });
+    await page.clock.runFor(500);
+    await center(page, '#hmap');
+    await page.waitForTimeout(500);
+    await page.clock.runFor(6000);
+    const P = await page.$$eval('a.pin', (as) => as.map((a) => { const r = a.getBoundingClientRect(); return { id: a.id, x: r.left + r.width / 2, y: r.top + r.height / 2 }; }));
+    let gap390 = 1e9, A = null, Bp = null;
+    for (const a of P) for (const b of P) if (a.id < b.id) { const d = Math.hypot(a.x - b.x, a.y - b.y); if (d < gap390) { gap390 = d; A = a; Bp = b; } }
+    // v1.8 FLIP: the pin moved — stage B3 wrote it with six live desks (the closest pair ≥ 52 px at 390); with eight
+    // live the closest pair is LON–PAR, 30.1 px at 390 (spec §8.4: under 44, which is why the map box takes the tap)
+    check(Math.abs(gap390 - 30.1) <= 1 && [A.id, Bp.id].join() === 'pin-lon,pin-par' && await page.$$eval('g.hz-pl', (x) => x.length) === 0,
+      `desks 390: the closest two pins are ${A.id.slice(4).toUpperCase()}–${Bp.id.slice(4).toUpperCase()}, ${gap390.toFixed(1)}px apart (LON–PAR 30.1 px with eight live, spec §8.4); the first view's planes have landed`);
+    const selOf = () => page.evaluate(() => { const s = [...document.querySelectorAll('a.pin.sel')]; return s.map((x) => x.id + (x.querySelector('.pc.dock') ? '+dock' : '')).join(','); });
+    const vlc = P.find((p) => p.id === 'pin-vlc');
+    await page.touchscreen.tap(vlc.x, vlc.y);
+    await page.clock.runFor(300);
+    const docked = await page.evaluate(() => { const p = document.getElementById('pin-vlc'), pc = p.querySelector('.pc'), box = document.querySelector('.hmap-box').getBoundingClientRect(), r = pc.getBoundingClientRect(); return { sel: p.classList.contains('sel'), dock: pc.classList.contains('dock'), shown: r.width > 0 && getComputedStyle(pc).display !== 'none', under: r.top >= box.bottom && Math.abs(r.left - box.left) <= 1 && Math.abs(r.width - box.width) <= 1, clear: r.bottom <= document.querySelector('#hmap .m-legend').getBoundingClientRect().top, text: pc.textContent.replace(/\s+/g, ' ').trim(), planes: document.querySelectorAll('g.hz-pl').length, path: location.pathname }; });
+    check(docked.sel && docked.dock && docked.shown && docked.under && docked.clear && /VLC Valencia · Live/.test(docked.text) && docked.planes === 1 && docked.path === '/desks', 'desks 390 (touch): a tap on the Valencia dot docks its card under the map (the key and the cards step down, nothing is covered), lights its pin and flies its plane; the page stays', JSON.stringify(docked));
+    await page.keyboard.press('Escape');
+    check(await page.evaluate(() => !document.getElementById('pin-vlc').classList.contains('sel') && !document.querySelector('#pin-vlc .pc').classList.contains('dock') && document.querySelector('.hmap-box').style.marginBottom === ''), 'desks 390 (touch): Escape closes the docked card and gives its room back');
+    // between the closest pair, 40% of the way from the first: the nearest docks (with eight live: LON–PAR, 30.1 px)
+    await page.touchscreen.tap(A.x + (Bp.x - A.x) * 0.4, A.y + (Bp.y - A.y) * 0.4);
+    await page.clock.runFor(300);
+    check(await selOf() === A.id + '+dock', `desks 390 (touch): a tap between ${A.id} and ${Bp.id}, ${(gap390 * 0.4).toFixed(1)}px from the first, docks the nearest (${A.id})`, await selOf());
+    // 28 px off the Valencia dot, where no other pin is near: still Valencia's (within 30 px)
+    const near = await page.evaluate(([v, ps]) => { const b = document.querySelector('.hmap-box').getBoundingClientRect(); for (let t = 0; t < 360; t += 15) { const x = v.x + 28 * Math.cos(t * Math.PI / 180), y = v.y + 28 * Math.sin(t * Math.PI / 180); if (x > b.left + 4 && x < b.right - 4 && y > b.top + 4 && y < b.bottom - 4 && ps.every((p) => p.id === v.id || Math.hypot(p.x - x, p.y - y) > 40)) return { x, y }; } return null; }, [vlc, P]);
+    if (near) { await page.touchscreen.tap(near.x, near.y); await page.clock.runFor(300); }
+    check(!!near && await selOf() === 'pin-vlc+dock', 'desks 390 (touch): a tap 28 px off the Valencia dot docks Valencia (the nearest desk within 30 px)', JSON.stringify(near));
+    // farther than 30 px from every pin (31–34 px from the nearest): nothing docks, the open card closes
+    const far = await page.evaluate((ps) => { const b = document.querySelector('.hmap-box').getBoundingClientRect(); for (let y = b.top + 8; y < b.bottom - 8; y += 3) for (let x = b.left + 8; x < b.right - 8; x += 3) { const m = Math.min(...ps.map((p) => Math.hypot(p.x - x, p.y - y))); if (m > 31 && m < 34) return { x, y, m }; } return null; }, P);
+    if (far) { await page.touchscreen.tap(far.x, far.y); await page.clock.runFor(300); }
+    check(!!far && await selOf() === '' && await page.evaluate(() => location.pathname === '/desks'), `desks 390 (touch): a tap ${far ? far.m.toFixed(1) : '?'} px from the nearest pin docks nothing and closes the card`, JSON.stringify(far));
+    // the card itself goes to its desk
+    await page.touchscreen.tap(vlc.x, vlc.y);
+    await page.clock.runFor(300);
+    const card = await page.$eval('#pin-vlc .pc.dock', (pc) => { const r = pc.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; }).catch(() => null);
+    await Promise.all([page.waitForURL(/\/valencia$/, { timeout: 5000 }).catch(() => {}), card ? page.touchscreen.tap(card.x, card.y) : Promise.resolve()]);
+    check(!!card && /\/valencia$/.test(page.url()), 'desks 390 (touch): a tap on the docked card goes to the Valencia desk');
+    check(st.errors.length === 0, 'desks 390 (touch): no JS error', st.errors.join(' | '));
+    await ctx.close();
+  }
+  {
+    // the second tap on the same desk (within 30 px of it) goes there
+    const { ctx, page, st } = await open({ slug: 'desks', width: 390, touch: true, pwClock: '2027-03-01T09:00:00Z' });
+    await page.clock.runFor(500);
+    await center(page, '#hmap');
+    await page.waitForTimeout(400);
+    const lon = await page.$eval('#pin-lon', (a) => { const r = a.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
+    await page.touchscreen.tap(lon.x, lon.y);
+    await page.clock.runFor(300);
+    await Promise.all([page.waitForURL(/\/london$/, { timeout: 5000 }).catch(() => {}), page.touchscreen.tap(lon.x + 6, lon.y - 4)]);
+    check(/\/london$/.test(page.url()) && st.errors.length === 0, 'desks 390 (touch): the second tap on the same desk goes to the London desk');
+    await ctx.close();
+  }
+  {
+    // the keyboard: the pins stay links, reached with Tab, ring and card shown; Enter docks, Enter again goes
+    const { ctx, page } = await open({ slug: 'desks', width: 390 });
+    await page.waitForTimeout(400);
+    let id = '';
+    for (let i = 0; i < 90 && !/^pin-/.test(id); i++) { await page.keyboard.press('Tab'); id = await page.evaluate(() => (document.activeElement && document.activeElement.id) || ''); }
+    const f = await page.evaluate(() => { const a = document.activeElement; return { id: a.id, fv: a.matches(':focus-visible'), card: getComputedStyle(a.querySelector('.pc')).display }; });
+    check(/^pin-/.test(f.id) && f.fv && f.card === 'block', `desks 390: a pin is reached with the keyboard (${f.id}), its ring and its card shown — the pins stay links`, JSON.stringify(f));
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(200);
+    check(await page.evaluate((x) => { const p = document.getElementById(x); return p.classList.contains('sel') && p.querySelector('.pc').classList.contains('dock') && location.pathname === '/desks'; }, f.id), `desks 390: Enter on ${f.id} docks its card; the page stays`);
+    const to = new RegExp('/' + (await page.getAttribute('#' + f.id, 'href')).slice(1) + '$');
+    await Promise.all([page.waitForURL(to, { timeout: 5000 }).catch(() => {}), page.keyboard.press('Enter')]);
+    check(to.test(page.url()), `desks 390: Enter again goes to the desk (${page.url().replace(base, '')})`);
     await ctx.close();
   }
 
@@ -1331,6 +1850,8 @@ async function hubUI() {
     await page.clock.runFor(800);
     await center(page, '#hmap');
     await page.clock.runFor(2500);
+    await page.clock.runFor(4000);   // the first view's eight planes have landed (v1.8 FLIP: eight live desks)
+    const pl0 = await page.$$eval('g.hz-pl', (x) => x.length);
     const before = await page.$eval('#arc-lon', (a) => getComputedStyle(a).stroke);
     await page.hover('#pin-lon');
     await page.clock.runFor(500);
@@ -1339,12 +1860,16 @@ async function hubUI() {
     const other = await page.$eval('#arc-ams', (a) => getComputedStyle(a).stroke);
     check(after.stroke === 'rgb(255, 215, 0)' && before !== after.stroke && other !== after.stroke && await shown(page, '#pin-lon .pc') && /London · Live/.test(await text(page, '#pin-lon .pc')),
       'desks 1440: hovering the London pin strokes ITS arc gold (computed) and shows its card', JSON.stringify({ before, after, other }));
-    const comet = await page.evaluate(() => document.getAnimations().filter((a) => a.animationName === 'comet').map((a) => `${a.effect.target.id}:${a.effect.getTiming().iterations}`));
-    check(comet.join() === 'cm-lon:1', `desks 1440: the hover sends ONE comet along London's arc, once (${comet.join(', ') || 'none'})`);
-    const land = await page.evaluate(() => { const r = document.querySelector('.hmap-svg rect.land'); return r ? r.getBoundingClientRect().width > 300 && getComputedStyle(r).clipPath !== 'none' : false; });
+    const pl1 = await page.$$eval('g.hz-pl', (x) => x.length);
+    await page.clock.runFor(4000);
+    const pl2 = await page.$$eval('g.hz-pl', (x) => x.length);
+    check(pl0 === 0 && pl1 === 1 && pl2 === 0, `desks 1440: the hover sends ONE plane along London's arc, once (${pl0} → ${pl1} → ${pl2})`);
+    const glow = await page.$$eval('svg.hz g.dk.on', (x) => x.length), keys = await page.$$eval('.m-legend .k-x', (x) => x.map((k) => k.hidden).join());
+    check(glow === 8 && keys === 'false,false' && !!(await page.$('svg.hz .hz-nite image')), `desks 1440 (Monday 10:00 Rome): the eight live desks glow, the night is drawn, the key's last two entries are revealed (${glow}, ${keys})`);
+    const land = await page.evaluate(() => { const r = document.querySelector('.hmap svg.hz rect.land'); return r ? r.getBoundingClientRect().width > 300 && getComputedStyle(r).clipPath !== 'none' : false; });
     check(land, 'desks 1440: the land is drawn, clipped to the coast');
     const gap = await page.evaluate(() => {
-      const svg = document.querySelector('.hmap-svg');
+      const svg = document.querySelector('.hmap svg.hz');
       const m = svg.getScreenCTM();
       return [...document.querySelectorAll('.pin')].map((p) => {
         const r = p.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
@@ -1352,8 +1877,8 @@ async function hubUI() {
         return Math.min(...ds);
       });
     });
-    check(gap.length === 5 && gap.every((x) => x <= 2), `desks 1440: every pin sits on its dot (≤ 2 px: ${gap.map((x) => x.toFixed(1)).join(', ')})`);
-    check(await page.$eval('.rtab', (t) => getComputedStyle(t).display === 'table' && t.getBoundingClientRect().height > 100) && await page.$$eval('.rtab thead th', (t) => t.length) === 5,
+    check(gap.length === 8 && gap.every((x) => x <= 2), `desks 1440: every pin sits on its dot (≤ 2 px: ${gap.map((x) => x.toFixed(1)).join(', ')})`);
+    check(await page.$eval('.rtab', (t) => getComputedStyle(t).display === 'table' && t.getBoundingClientRect().height > 100) && await page.$$eval('.rtab thead th', (t) => t.length) === 8,
       'desks 1440: the rules are a visible table, one column per live desk');
     check(await page.$$eval('[data-pay], dialog', (x) => x.length) === 0 && st.errors.length === 0, 'desks 1440: no pay control, no dialog, no JS error', st.errors.join(' | '));
     await ctx.close();
@@ -1375,11 +1900,606 @@ async function hubUI() {
     await center(page, '#hmap');
     await page.hover('#pin-ams');
     await page.waitForTimeout(300);
-    const rmComet = await page.evaluate(() => document.getAnimations().filter((a) => a.animationName === 'comet').length);
+    const rmPlanes = await page.$$eval('g.hz-pl', (x) => x.length);
     await page.waitForTimeout(2200);
-    check(rmComet === 0 && await page.evaluate(() => !window.BOOM_ONDA || !window.BOOM_ONDA.running), 'desks, reduced motion: no comet on hover, and the onda never loops');
+    check(rmPlanes === 0 && await page.$$eval('g.hz-pl', (x) => x.length) === 0 && await page.evaluate(() => !!window.BOOM_MAP && (!window.BOOM_ONDA || !window.BOOM_ONDA.running)), 'desks, reduced motion: the map script is there but no plane flies on hover, and the onda never loops');
     await ctx.close();
   }
+}
+
+// ── 14 · the v1.7 review (04/11/2026): one guard per confirmed finding ────
+// `CITIES_UI_ONLY=v17 node tests/cities/ui.mjs` runs this section alone;
+// CITIES_UI_SHOTS=<dir> saves the review's screenshots there.
+async function v17Fixes() {
+  const SHOTS = process.env.CITIES_UI_SHOTS || '';
+  if (SHOTS) fs.mkdirSync(SHOTS, { recursive: true });
+  const shot = (page, name, opt = {}) => (SHOTS ? page.screenshot({ path: path.join(SHOTS, name), ...opt }) : null);
+
+  // R1 · LAU art. 20 is an order: "Optional, chosen in writing" sits above the first price, phone and desk
+  for (const slug of ['madrid', 'barcelona', 'valencia']) {
+    for (const [w, h] of [[390, 844], [1440, 900]]) {
+      const { ctx, page } = await open({ slug, width: w, height: h });
+      await page.waitForTimeout(300);
+      const a = await rect(page, '#faresH'), b = await rect(page, '#fare-full-search .f-price');
+      check(a.bottom <= b.top && await text(page, '#faresH') === 'Optional, chosen in writing', `${slug} ${w}×${h}: "Optional, chosen in writing" is read above the €500 (LAU art. 20)`, JSON.stringify({ head: a.bottom, price: b.top }));
+      await ctx.close();
+    }
+  }
+
+  // R3 · forced colors: the economy tear is the standing dashed line wherever the economy tickets lie down
+  {
+    const tear = (page) => page.$eval('#fare-application-pack .f-r', (e) => { const s = getComputedStyle(e, '::before'); return { l: s.borderLeftStyle + ' ' + s.borderLeftWidth, t: s.borderTopStyle + ' ' + s.borderTopWidth }; });
+    let x = await open({ width: 1440, forced: true });
+    const lie = await tear(x.page);
+    check(lie.l === 'dashed 1px', 'forced colors, 1440: the economy tear stands, a 1px dashed line on its left (not a 10px dash on top)', JSON.stringify(lie));
+    await x.ctx.close();
+    x = await open({ width: 390, forced: true });
+    const pair = await tear(x.page);
+    check(pair.t === 'dashed 1px' && /^none|0px/.test(pair.l.replace('none ', 'none')), 'forced colors, 390 pair closed: the economy tear lies across the stub (dashed top)', JSON.stringify(pair));
+    await x.page.click('#fare-application-pack > summary');
+    await x.page.waitForTimeout(250);
+    const openPair = await tear(x.page);
+    check(openPair.l === 'dashed 1px', 'forced colors, 390 with Application Pack open: the economy tickets lie down and the tear stands again (dashed left)', JSON.stringify(openPair));
+    await x.ctx.close();
+  }
+
+  // R3b · forced colors at ≥940: First class (Full Search) is ONE closed frame on a waitlist desk and on a desk that sells
+  // (v1.8 FLIP: the waitlist is the frozen draft Paris; live Paris, charged at signing, joins the desks that sell)
+  for (const slug of ['draft-paris', 'paris', 'amsterdam']) {
+    const x = await open({ slug, width: 1280, forced: true });
+    const f = await x.page.$eval('.bp.eroe', (e) => { const s = getComputedStyle(e), fr = getComputedStyle(e.querySelector('.fare')); const r = e.getBoundingClientRect(), q = e.querySelector('.fare').getBoundingClientRect();
+      return { b: [s.borderTopWidth, s.borderRightWidth, s.borderBottomWidth, s.borderLeftWidth, s.borderTopStyle].join(' '), fb: fr.borderBottomWidth + ' ' + fr.borderLeftWidth, inside: q.bottom <= r.bottom + 0.5 && q.top >= r.top - 0.5 }; });
+    check(f.b === '1px 1px 1px 1px solid' && f.fb === '0px 0px' && f.inside, `${slug}, forced colors at 1280: First class is one frame (the ticket's 1px border all round, no second border on the fare inside it)`, JSON.stringify(f));
+    await x.ctx.close();
+  }
+
+  // R4 · the hub's heartbeat rises from the EUROPE board, inside the canvas, on a desktop
+  {
+    const { ctx, page, st } = await open({ slug: 'desks', width: 1440, height: 900, clock: '2027-03-01T10:00:00Z', init: () => {
+      window.__beat = null;
+      addEventListener('boom:beat', () => {
+        if (window.__beat) return;
+        const t0 = performance.now(), probe = () => {
+          const cv = document.getElementById('onda'), b = document.getElementById('hubBoard');
+          if (!cv || !b) return 0;
+          const r = cv.getBoundingClientRect(), br = b.getBoundingClientRect(), D = cv.width / r.width;
+          const cx = br.left + br.width / 2 - r.left, cy = br.top + br.height / 2 - r.top;
+          const x0 = Math.max(0, Math.floor((cx - 250) * D)), y0 = Math.max(0, Math.floor((cy - 250) * D));
+          const w = Math.min(cv.width - x0, Math.ceil(500 * D)), h = Math.min(cv.height - y0, Math.ceil(500 * D));
+          if (w <= 0 || h <= 0) return -1;
+          const px = cv.getContext('2d').getImageData(x0, y0, w, h).data;
+          let n = 0;
+          for (let y = 0; y < h; y += 3) for (let x = 0; x < w; x += 3) {
+            const dx = (x0 + x) / D - cx, dy = (y0 + y) / D - cy, k = 4 * (y * w + x);
+            if (dx * dx + dy * dy <= 250 * 250 && px[k] > 180 && px[k + 1] > 130 && px[k + 2] < 90 && px[k + 3] >= 8) n++;
+          }
+          return n;
+        };
+        window.__beat = { samples: [] };
+        [150, 350, 600].forEach((ms) => setTimeout(() => { window.__beat.samples.push({ ms: Math.round(performance.now() - t0), gold: probe() }); }, ms));
+      });
+    } });
+    await page.waitForFunction(() => window.__beat && window.__beat.samples.length >= 1, null, { timeout: 15000 }).catch(() => {});
+    await shot(page, 'desks-1440-beat.png');
+    await page.waitForFunction(() => window.__beat && window.__beat.samples.length === 3, null, { timeout: 3000 }).catch(() => {});
+    const beat = await page.evaluate(() => window.__beat);
+    check(!!beat && beat.samples.some((x) => x.gold > 0), 'desks 1440: within 700 ms of a heartbeat the canvas has gold pixels within 250 px of the EUROPE board (the ring is born on screen)', JSON.stringify(beat));
+    check(st.errors.length === 0, 'desks 1440 heartbeat: no JS error', st.errors.join(' | '));
+    await ctx.close();
+  }
+
+  // the band a focused control must sit in to be SEEN: under the sticky header (scroll-padding-top), above the strip
+  const band = (page, sel) => page.evaluate((q) => {
+    const a = q ? document.querySelector(q) : document.activeElement, s = document.getElementById('strip');
+    const r = a.getBoundingClientRect(), top = parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop) || 0;
+    const bottom = innerHeight - (s && s.classList.contains('on') ? s.offsetHeight : 0);
+    return { t: Math.round(r.top), b: Math.round(r.bottom), top, bottom, in: r.top >= top - 1 && r.bottom <= bottom + 1 };
+  }, sel || null);
+
+  // R6 · the till opened from the pay button under the stub, the window shrunk below 940, Escape: the focus goes back to it,
+  // and (second round, G2) the focused button is ON SCREEN — under the header, above the strip — at 390×844 and 390×664
+  for (const h of [844, 664]) {
+    const { ctx, page } = await open({ width: 1440, height: 900 });
+    await page.waitForTimeout(300);
+    check(await page.$eval('#fare-full-search', (d) => !d.open) && await page.$eval('.bp-pay [data-pay="full-search"]', () => true).catch(() => false), '1440: Full Search closed, its pay button rides under the stub');
+    await tap(page, '.bp-pay [data-pay="full-search"]');
+    await page.waitForTimeout(300);
+    const opened = await page.$eval('#till', (d) => d.open);
+    await page.setViewportSize({ width: 390, height: h });
+    await page.waitForTimeout(400);
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(350);
+    const f = await page.evaluate(() => { const a = document.activeElement; return { pay: a && a.getAttribute('data-pay'), fs: document.getElementById('fare-full-search').open, till: document.getElementById('till').open, body: a === document.body }; });
+    check(opened && f.pay === 'full-search' && f.fs === true && f.till === false, `till opened at 1440 from under the stub, window shrunk to 390×${h}, Escape: Full Search opens and the focus is back on its pay button (never <body>)`, JSON.stringify(f));
+    const v = await band(page);
+    check(v.in, `390×${h} after the resize and Escape: the focused pay button lies inside the visible band [${v.top}, ${v.bottom}] (WCAG 2.4.7 / 2.4.11)`, JSON.stringify(v));
+    if (h === 844) await shot(page, 'till-resize-escape-390.png');
+    await ctx.close();
+  }
+
+  // R7 · a link followed while the till is open does not re-target the tickets behind it; (second round, G3) the page behind
+  // the modal does not move either, and after Escape the focused opener is on screen (G2's band) — at 1440 and 390
+  for (const [w, h] of [[1440, 900], [390, 844]]) {
+    const { ctx, page } = await open({ slug: 'barcelona', query: '#pay-full-search', width: w, height: h });
+    await page.waitForTimeout(500);
+    const before = await page.evaluate(() => ({ till: document.getElementById('till').open, plan: document.getElementById('tillForm').getAttribute('data-plan'), fs: document.getElementById('fare-full-search').open, ap: document.getElementById('fare-application-pack').open, y: scrollY }));
+    await page.evaluate(() => { location.hash = '#fare-application-pack'; });
+    await page.waitForTimeout(400);
+    const after = await page.evaluate(() => ({ till: document.getElementById('till').open, plan: document.getElementById('tillForm').getAttribute('data-plan'), fs: document.getElementById('fare-full-search').open, ap: document.getElementById('fare-application-pack').open, inTill: document.getElementById('till').contains(document.activeElement), y: scrollY }));
+    check(before.till && before.plan === 'full-search' && after.till && after.plan === 'full-search' && after.fs === before.fs && after.ap === before.ap && after.inTill,
+      `barcelona#pay-full-search ${w}: then #fare-application-pack with the till open: the till stays on Full Search, the tickets behind do not move, the focus stays in the till`, JSON.stringify({ before, after }));
+    check(Math.abs(after.y - before.y) <= 1, `barcelona ${w}: the hash change with the till open does not scroll the page behind the modal (scrollY ${before.y} → ${after.y})`);
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(350);
+    const v = await band(page), pay = await page.evaluate(() => document.activeElement && document.activeElement.getAttribute('data-pay'));
+    check(pay === 'full-search' && v.in, `barcelona ${w} after Escape: the focus is back on the Full Search pay button, inside the visible band [${v.top}, ${v.bottom}]`, JSON.stringify({ pay, v }));
+    await ctx.close();
+  }
+
+  // G4 · the closed economy pair: the two tickets as tall as their row, both stubs on one line (every desk, 360 to 480 px),
+  // in the page's own font AND in Arial/Helvetica metrics (Liberation Sans, the font CI renders with: at 360 'per viewing ·
+  // incl. VAT' wrapped there and the stubs stood 11.7 px apart; at 430–480 Paris and Berlin had one condition on one line
+  // and the other on two)
+  for (const font of ['page', 'liberation']) {
+    for (const slug of ['amsterdam', 'madrid', 'barcelona', 'london', 'milan', 'valencia', 'paris', 'berlin']) {
+      for (const [w, h] of [[390, 844], [360, 780], [375, 812], [430, 932], [480, 900]]) {
+        const { ctx, page } = await open({ slug, width: w, height: h });
+        if (font === 'liberation') await page.addStyleTag({ content: ":root{--sans:'Liberation Sans',Arial,sans-serif}" });
+        await page.waitForTimeout(300);
+        const m = await page.evaluate(() => { const q = (x) => document.querySelector(x).getBoundingClientRect();
+          const lines = (x) => { const c = document.querySelector(x + ' .f-cond'); return Math.round(c.getBoundingClientRect().height / parseFloat(getComputedStyle(c).lineHeight)); };
+          return { ap: q('#fare-application-pack').bottom, av: q('#fare-attended-viewing').bottom, apR: q('#fare-application-pack .f-r').top, avR: q('#fare-attended-viewing .f-r').top, apT: q('#fare-application-pack').top, avT: q('#fare-attended-viewing').top, apLines: lines('#fare-application-pack'), avLines: lines('#fare-attended-viewing') }; });
+        check(Math.abs(m.apT - m.avT) <= 1 && Math.abs(m.ap - m.av) <= 1 && Math.abs(m.apR - m.avR) <= 1 && m.apLines === m.avLines, `${slug} ${w}×${h} (${font} font): the closed economy pair, side by side, ends on one line, its two conditions take the same lines and its two stubs start on one line`, JSON.stringify(m));
+        if (font === 'page' && w === 390 && ['london', 'valencia', 'paris', 'milan'].includes(slug)) await shot(page, `first-${slug}-390.png`);
+        await ctx.close();
+      }
+    }
+  }
+
+  // G5 · an economy ticket lying down below 940 (a pair member open, or under 360): the price clears the pip by ≥ 4px
+  for (const slug of ['london', 'valencia', 'paris']) {
+    for (const w of [390, 320]) {
+      const { ctx, page } = await open({ slug, width: w, height: 844 });
+      await page.waitForTimeout(300);
+      await tap(page, '#fare-application-pack > summary');
+      await page.waitForTimeout(350);
+      const gap = await page.evaluate(() => ['#fare-application-pack', '#fare-attended-viewing'].map((id) => {
+        const d = document.querySelector(id), p = d.querySelector('.f-price'), rg = document.createRange(); rg.selectNodeContents(p);
+        return Math.round((d.querySelector('.f-tog').getBoundingClientRect().left - rg.getBoundingClientRect().right) * 10) / 10; }));
+      check(gap.every((g) => g >= 4), `${slug} ${w} with Application Pack open: the price clears the +/− pip (gaps ${gap.join(' / ')} px ≥ 4)`);
+      if (slug === 'london' && w === 390) await shot(page, 'london-390-ap-open.png');
+      await ctx.close();
+    }
+  }
+
+  // R8 · the keyboard ring on a fare row is whole: gold on its four sides, above the stub
+  {
+    const ring = async (page, sel) => {
+      await page.keyboard.press('Tab');
+      await page.$eval(sel, (e) => { e.scrollIntoView({ block: 'center', behavior: 'instant' }); e.focus(); });
+      await page.waitForTimeout(150);
+      const r = await page.$eval(sel, (e) => { const b = e.getBoundingClientRect(); return { x: Math.round(b.left), y: Math.round(b.top), w: Math.round(b.width), h: Math.round(b.height), fv: e.matches(':focus-visible') }; });
+      const png = await page.screenshot({ clip: { x: r.x, y: r.y, width: r.w, height: r.h } });
+      const sides = await page.evaluate(async ({ b64, w, h }) => {
+        const im = new Image(); im.src = 'data:image/png;base64,' + b64; await im.decode();
+        const c = document.createElement('canvas'); c.width = im.width; c.height = im.height;
+        const g = c.getContext('2d'); g.drawImage(im, 0, 0);
+        const d = g.getImageData(0, 0, c.width, c.height).data, W = c.width, H = c.height;
+        const gold = (x, y) => { const k = 4 * (y * W + x); return d[k] > 190 && d[k + 1] > 160 && d[k + 2] < 90; };
+        const band = (x, y, horiz) => [0, 1, 2, 3, 4].some((o) => horiz ? gold(x, Math.min(H - 1, Math.max(0, y + o))) : gold(Math.min(W - 1, Math.max(0, x + o)), y));
+        const frac = (pts) => pts.filter(Boolean).length / Math.max(1, pts.length);
+        const xs = [], ys = [];
+        for (let x = 20; x < W - 20; x += 2) xs.push(x);
+        for (let y = 20; y < H - 20; y += 2) ys.push(y);
+        return { top: frac(xs.map((x) => band(x, 0, true))), bottom: frac(xs.map((x) => band(x, H - 5, true))), left: frac(ys.map((y) => band(0, y, false))), right: frac(ys.map((y) => band(W - 5, y, false))) };
+      }, { b64: png.toString('base64'), w: r.w, h: r.h });
+      return { fv: r.fv, sides };
+    };
+    for (const [w, h] of [[390, 844], [1440, 900]]) {
+      for (const id of ['fare-full-search', 'fare-application-pack']) {
+        const { ctx, page } = await open({ width: w, height: h });
+        await page.waitForTimeout(300);
+        const res = await ring(page, `#${id} > summary`);
+        const s = res.sides;
+        await shot(page, `ring-${w}-${id}.png`);
+        check(res.fv && s.top > 0.9 && s.bottom > 0.9 && s.left > 0.9 && s.right > 0.9, `${w}: the keyboard ring on #${id} is gold on all four sides (the stub no longer paints over it)`, JSON.stringify(res));
+        await ctx.close();
+      }
+    }
+    const { ctx, page } = await open({ width: 390, forced: true });
+    await page.keyboard.press('Tab');
+    await page.$eval('#fare-full-search > summary', (e) => e.focus());
+    const fc = await page.$eval('#fare-full-search > summary', (e) => { const s = getComputedStyle(e, '::after'); return { c: s.content, b: s.borderTopStyle + ' ' + s.borderTopWidth, z: s.zIndex }; });
+    check(fc.c !== 'none' && fc.b === 'solid 2px' && fc.z === '2', 'forced colors: the fare row\'s focus ring is the ::after above the stub (2px, z-index 2, Highlight)', JSON.stringify(fc));
+    await ctx.close();
+  }
+
+  // R9 · the map's key says "night, now" only when a night is drawn
+  for (const [clock, night] of [['2027-06-21T11:00:00Z', false], ['2027-03-01T17:30:00Z', true]]) {
+    const { ctx, page } = await open({ width: 1440, height: 900, clock });
+    await center(page, 'svg.hz');
+    await page.waitForFunction(() => !!window.BOOM_MAP, null, { timeout: 8000 }).catch(() => {});
+    await page.waitForTimeout(300);
+    const k = await page.evaluate(() => [...document.querySelectorAll('.k-x')].map((x) => ({ night: !!x.querySelector('.k-n'), hidden: x.hidden })));
+    const n = k.find((x) => x.night), o = k.find((x) => !x.night);
+    check(!!n && !!o && n.hidden === !night && o.hidden === false, `${clock}: the "night, now" key is ${night ? 'shown (a night is drawn on the frame)' : 'hidden (the whole frame is in daylight)'}; "open now" always`, JSON.stringify(k));
+    await ctx.close();
+  }
+}
+
+// ── 15 · v1.8 stage B3: a desk that charges at signing (dark) ────────────
+// No desk uses the shape yet: Paris is built here as tests/cities/run.mjs §14
+// builds it — Amsterdam (its sentences reviewed) made into a signing Paris
+// with the spec's words (spec v1.8 §4.1, §5) — with the registry flipped
+// inside try/finally (spec §3.1), and served at /paris for this section only.
+// The order's answer and the managed ticket's GET are the server's (A1) shapes,
+// stubbed. `CITIES_UI_ONLY=signing node tests/cities/ui.mjs` runs it alone.
+async function signingUI() {
+  console.log('\n\x1b[1m▸ v1.8 B3\x1b[0m  a desk that charges at signing: the order, BOOKED, the managed ticket (a scratch Paris, the registry patched in try/finally)');
+  const read = (f) => fs.readFileSync(path.join(R, f), 'utf8');
+  const clone = (o) => JSON.parse(JSON.stringify(o));
+  const { CITY_MARKETS: CM } = await import('../../api/_market.js');
+  const { ORDER_TERMS } = await import('../../api/_cityterms.js');
+  const SLUGS = fs.readdirSync(path.join(R, 'cities')).filter((f) => f.endsWith('.json') && !f.startsWith('_')).map((f) => f.slice(0, -5)).sort();
+  const CITY = Object.fromEntries(SLUGS.map((s) => [s, JSON.parse(read(`cities/${s}.json`))]));
+  const shared = JSON.parse(read('cities/_shared.json'));
+  const SIGN_RULE = 'Nothing is charged before you sign a lease, and nothing if you never do.';
+  const TRIG = {
+    'full-search': 'Nothing is charged before you sign the lease we helped you get, and nothing if you never do.',
+    'application-pack': 'Nothing is charged unless you sign for a home you applied to with our dossier.',
+    'attended-viewing': 'Nothing is charged unless you sign for the home we viewed.'
+  };
+  const STALE = 'This page was just updated — reload it to order with the current terms.';
+  // Amsterdam made into the signing Paris (the spec's shared words, design/spec.paris.json)
+  const c = clone(CITY.amsterdam);
+  Object.assign(c, { slug: 'paris', city: 'Paris', iata: 'PAR', country: 'FR', geo: clone(CITY.paris.geo), live: false, chargeAt: 'signing' });
+  c.hero.leadStrong = 'Paid only by you, and only when you sign.';
+  c.hero.faresHead = { b: 'Flat fees', span: 'No percentage of your rent' };
+  for (const p of c.pricing.plans) { p.conditionLong = 'VAT included, charged when you sign a lease. Invoice from Egidi Immobiliare S.r.l.'; p.trigger = TRIG[p.id]; }
+  c.pricing.plans[0].includes = c.pricing.plans[0].includes.map((x) => (/^Until you sign/.test(x) ? 'Until you sign, or you say stop (six months at most)' : x));
+  c.faq.items[1].a = c.faq.items[1].a.replace(/ Full Search is refunded in full[^.]*\./, ' Nothing is charged before you sign a lease.');
+  c.faq.items[3].a = 'Then you pay nothing: every fare is charged only when you sign the lease we helped you get. We tell you in the first call if your budget and timeline don\'t fit the market.';
+  c.till = { label: 'Order, pay on signing' };
+  const k = c.checkoutCopy;
+  Object.assign(k, {
+    btnSubNow: 'Starts in the desk’s first open hour · no card', btnSubWait: 'Starts when your 14 days end · no card', altLink: 'Start with a free call, no card',
+    withdrawal: 'Withdrawal: 14 days from your order — {online}, by email to {email} or with the {form}. Nothing is charged before you sign, so withdrawing costs nothing. Without the tick, we start when the 14 days end.',
+    fine: 'No card today. Invoice from Egidi Immobiliare S.r.l., VAT included, with a secure payment link when you sign. ' + SIGN_RULE,
+    order: 'Your order runs six months at most; your copy comes by email.'
+  });
+  k.errors.stale = STALE;
+  delete k.paid;
+  k.booked = {
+    before: 'Booked — your file', em: 'is open.',
+    text: 'Nothing is charged until you sign. The Paris desk writes by email, or on WhatsApp if you left a number. Questions? Write to',
+    next: [['First desk hour', 'your order by email, with what we need'], ['Same working day', 'your brief: dates, budget, who’s moving'], ['When you sign', 'the fee, once, with the invoice']],
+    nextWait: [['First desk hour', 'your order by email, with your start date'], ['When the 14 days end', 'your brief: dates, budget, who’s moving'], ['When you sign', 'the fee, once, with the invoice']],
+    wait: 'You did not tick “Start now”: we start when your 14 days end. Sooner? Write to {email}.',
+    pending: 'Order being confirmed. Your copy comes by email.', unconfirmed: 'Not confirmed yet. If no email reaches you, write to the desk.',
+    startsNow: 'The desk’s first open hour', startsWait: 'From {date}, after your 14-day withdrawal period',
+    withdrawLink: 'Withdraw from contract here', paidText: 'Paid on {date}. Invoice from Egidi Immobiliare S.r.l.',
+    dueText: 'Your lease is signed. The BOOM fee: {amount}, VAT included, invoice from Egidi Immobiliare S.r.l.', payLabel: 'Pay the fee securely',
+    withdrawnText: 'Withdrawn on {date}. Nothing was charged.', closedText: 'Closed. Nothing was charged.'
+  };
+  const save = CM.paris;
+  let html = '';
+  try {
+    const { partner, ...m } = CM.paris;
+    CM.paris = { ...m, mode: 'search', checkout: true, chargeAt: 'signing', holidays: 'fr' };
+    html = renderCity({ template: read('cities/_template.html'), shared: { ...shared, signing: { rule: SIGN_RULE } }, city: c, assetVersion: { css: 'ui', js: 'ui', onda: 'ui', map: 'ui' },
+      frags: fragments(R), root: R, weigh: false, cities: SLUGS.map((s) => (s === 'paris' ? c : CITY[s])), claims: loadClaims(R) }).html;
+  } catch (e) { male(`the scratch signing Paris builds (${String(e.message).slice(0, 300)})`); return; }
+  finally { CM.paris = save; }
+  // v1.8 FLIP: the pin moved — stage B3 wrote it before the flip ("Paris is not flipped"); the registry now holds the
+  // flip's own Paris entry, and the scratch build hands it back untouched: the same object, still charged at signing
+  check(CM.paris === save && CM.paris.chargeAt === 'signing' && !!CM.paris.order && CM.paris.order.prefix === 'PAR',
+    'the registry is restored after the scratch build (the flip\'s own Paris entry, charged at signing)');
+  PAGES.set('/paris.html', html);
+  try {
+    const OID = 'book_ui0000test1', TOK = '0123456789abcdef01234567', NUM = 'PAR-2026-0007';
+    const BOOKED_OK = { status: 200, body: { ok: true, booked: true, id: OID, file: FILE, number: NUM, plan: 'full-search', startNow: false, workFromLabel: '18 November 2026' } };
+    const evs = async (page, name) => (await events(page)).filter((e) => e.name === name);
+    const fillTill = async (page) => { await page.fill('#tName', 'Anna Keller'); await page.fill('#tEmail', 'anna@example.com'); };
+    const toTill = async (page, plan = 'full-search') => {
+      await page.click(`#fare-${plan} > summary`);
+      await page.waitForTimeout(200);
+      await tap(page, `#fare-${plan} [data-pay]`);
+      await page.waitForTimeout(250);
+    };
+    const stateOf = (page) => page.getAttribute('#pass', 'data-state');
+    // the slot board settles on its word (a Solari flip of up to six letters)
+    const slotIs = (page, word) => page.waitForFunction((w) => [...document.querySelectorAll('.slot .slot-b .st b')].map((b) => b.textContent).join('').trim() === w, word, { timeout: 4000 }).then(() => true, () => false);
+
+    // the page carries the order's config; the till says the order, its trigger and how long it runs
+    {
+      const { ctx, page, st } = await open({ slug: 'paris' });
+      await page.waitForTimeout(300);
+      const cfg = await page.evaluate(() => window.BOOM_CITY);
+      check(cfg.CHARGE_AT === 'signing' && cfg.ORDER_TERMS_V === ORDER_TERMS.paris.v && cfg.WITHDRAW_URL === '/withdrawal' && cfg.BOOKED && cfg.BOOKED.withdrawLink === 'Withdraw from contract here' && cfg.PAID === null && cfg.PLANS['attended-viewing'].trigger === TRIG['attended-viewing'],
+        'the scratch Paris is a desk that charges at signing: CHARGE_AT, the order terms\' version, the online withdrawal, the BOOKED strings, no PAID strings, every fare\'s trigger');
+      await toTill(page);
+      check(await page.$eval('#till', (d) => d.open) && await text(page, '#tTitle') === 'Full Search' && await text(page, '#tPrice') === '€500' && await shown(page, '#tRule') && await text(page, '#tRule') === TRIG['full-search']
+        && await shown(page, '#tOrder') && await text(page, '#tOrder') === k.order,
+        'the till opens on Full Search with its own trigger on the ✓ line, then how long the order runs');
+      check(await text(page, '#tGoL') === 'Order, pay on signing · €500' && await text(page, '#tGoS') === k.btnSubWait, 'unticked: "Order, pay on signing · €500", starts when the 14 days end, no card');
+      await page.focus('#tStart');
+      await page.keyboard.press('Space');
+      check(await text(page, '#tGoL') === 'Order, pay on signing · €500' && await text(page, '#tGoS') === k.btnSubNow, 'ticked: the SAME label (the tick changes the sub-line, never the obligation, D6)');
+      check(st.checkouts.length === 0 && (await evs(page, 'begin_checkout')).length === 1, 'opening the till posts nothing and counts one begin_checkout (D19)');
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(250);
+      await toTill(page, 'application-pack');
+      check(await text(page, '#tRule') === TRIG['application-pack'] && await text(page, '#tGoL') === 'Order, pay on signing · €199', 'the Application Pack till says ITS trigger (the ✓ line follows the plan)');
+      check(st.errors.length === 0, 'no JS error', st.errors.join(' | '));
+      await ctx.close();
+    }
+
+    // the order: the POST carries the request id and the terms' version; the server's answer stamps BOOKED
+    {
+      const { ctx, page, st } = await open({ slug: 'paris', checkout: BOOKED_OK });
+      await page.waitForTimeout(300);
+      await toTill(page);
+      await fillTill(page);
+      await page.fill('#tNote', 'seloger.com/123 · move-in 1 February');
+      await page.click('#tGo');
+      await page.waitForFunction(() => document.getElementById('pass').getAttribute('data-state') === 'booked', null, { timeout: 5000 }).catch(() => {});
+      await page.waitForTimeout(700);
+      const b = st.checkouts[0] || {};
+      check(st.checkouts.length === 1 && JSON.stringify(Object.keys(b)) === JSON.stringify(['city', 'kind', 'name', 'email', 'notes', 'startNow', 'company', 'requestId', 'termsV'])
+        && b.city === 'paris' && b.kind === 'full-search' && b.startNow === false && b.notes === 'seloger.com/123 · move-in 1 February' && /^[a-z0-9]{8,40}$/.test(b.requestId) && b.termsV === ORDER_TERMS.paris.v,
+        'the order POST is the six\'s till body plus the load\'s requestId and the terms\' version (startNow false, never a price)', JSON.stringify(b));
+      check(await stateOf(page) === 'booked' && await page.getAttribute('#pass', 'data-hold') === '' && await slotIs(page, 'BOOKED') && await text(page, '#slotSr') === 'Booked'
+        && await text(page, '#codeLine') === `BOOKED · FILE ${FILE} · PAR`,
+        'BOOKED: its own state (the plane held before tick 1: Start now not ticked), the slot board, the code line with the SERVER\'s file');
+      check(await shown(page, '#cBooked') && !(await shown(page, '#cPaid')) && !(await page.$eval('#till', (d) => d.open)) && await page.evaluate(() => document.activeElement && document.activeElement.id === 'cBooked'),
+        'the till closes and the page lands on the BOOKED card (focused)');
+      check(await text(page, '#cBooked .k') === 'Booked' && await text(page, '#cBooked h2') === 'Booked — your file is open.' && await text(page, '#bFile') === FILE && await text(page, '#bFare') === 'Full Search · €500 when you sign'
+        && await text(page, '#bOrder') === NUM && await text(page, '#bStart') === 'From 18 November 2026, after your 14-day withdrawal period',
+        'the card: File, "Full Search · €500 when you sign", the server\'s order number, the start the server gave (after the 14 days)');
+      check(/When the 14 days end/.test(await text(page, '#bNext')) && await shown(page, '#bWait') && !(await shown(page, '#bText')) && !(await page.$('#bLine')),
+        'not ticked: the wait\'s steps and the wait note in place of the generic line; no managed-ticket line');
+      const card = await text(page, '#cBooked');
+      check(!/\b(?:paid|payments?|refund\w*)\b/i.test(card) && !(await page.$('#cBooked a[href*="#online"]')), 'nothing on the fresh BOOKED card says paid, payment or refund, and it carries no withdraw link (D9, D11)', card);
+      const stamp = await page.$eval('#cBooked .stamp', (s) => { const w = s.querySelector('.st-w'), r = w.getBBox(), i = s.querySelector('.st-i'), cx = +i.getAttribute('cx'), rr = +i.getAttribute('r');
+        return { word: w.textContent, tl: w.getAttribute('textLength'), ring: s.querySelector('textPath').textContent, inside: r.x >= cx - rr && r.x + r.width <= cx + rr, w: r.width }; });
+      check(stamp.word === 'BOOKED' && stamp.tl === '50' && /^BOOKED · BOOM PARIS/.test(stamp.ring) && stamp.inside, `the stamp says BOOKED, fitted inside the dashed inner ring (${stamp.w.toFixed(1)} units wide)`, JSON.stringify(stamp));
+      check(await page.$$eval('[data-pay]', (bs) => bs.every((x) => x.hidden)) && !(await shown(page, '#fileForm')), 'after BOOKED no order button and no door remain (never a second order)');
+      check((await evs(page, 'booking')).length === 1 && (await evs(page, 'booking'))[0].p.value === 500 && (await evs(page, 'booking'))[0].p.plan === 'full-search' && (await evs(page, 'booking'))[0].p.currency === 'EUR'
+        && (await evs(page, 'booking_submit')).length === 1 && (await evs(page, 'purchase')).length === 0 && (await evs(page, 'add_payment_info')).length === 0,
+        'analytics: booking_submit on the press, ONE booking (EUR 500, the plan), never a purchase nor add_payment_info (D19)');
+      // a reload is the blank page (the email is the record); the same order answered again counts nothing twice
+      await page.reload({ waitUntil: 'load' });
+      await page.waitForTimeout(300);
+      check(await stateOf(page) === 'blank' && await shown(page, '#door'), 'a reload returns to the blank page: the email is the record');
+      await toTill(page);
+      await fillTill(page);
+      await page.click('#tGo');
+      await page.waitForFunction(() => document.getElementById('pass').getAttribute('data-state') === 'booked', null, { timeout: 5000 }).catch(() => {});
+      check(await stateOf(page) === 'booked' && (await evs(page, 'booking')).length === 0 && st.checkouts.length === 2, 'the same order answered again after the reload is BOOKED again and counts no second booking (one per order id)');
+      check(st.errors.length === 0, 'no JS error', st.errors.join(' | '));
+      await ctx.close();
+    }
+
+    // ticked: the start is the desk's first open hour, the plane on tick 1
+    {
+      const { ctx, page, st } = await open({ slug: 'paris', checkout: { status: 200, body: { ...BOOKED_OK.body, id: 'book_ui0000test2', plan: 'attended-viewing', startNow: true, workFromLabel: null } } });
+      await page.waitForTimeout(300);
+      await toTill(page, 'application-pack');
+      await fillTill(page);
+      await page.click('#tStart');
+      await page.click('#tGo');
+      await page.waitForFunction(() => document.getElementById('pass').getAttribute('data-state') === 'booked', null, { timeout: 5000 }).catch(() => {});
+      check(st.checkouts[0] && st.checkouts[0].startNow === true && await page.getAttribute('#pass', 'data-hold') === null && await text(page, '#bStart') === 'The desk’s first open hour'
+        && await text(page, '#bFare') === 'Attended Viewing · €149 when you sign' && await shown(page, '#bText') && !(await shown(page, '#bWait')),
+        'ticked: startNow true; BOOKED prints the plan the SERVER booked (Attended Viewing, not the till\'s), the desk\'s first open hour and the generic line');
+      await ctx.close();
+    }
+
+    // Escape while the order flies: the server booked it (its email is on the way), so the page says BOOKED anyway
+    {
+      const { ctx, page, st } = await open({ slug: 'paris', checkout: { ...BOOKED_OK, delay: 1200 } });
+      await page.waitForTimeout(300);
+      await toTill(page);
+      await fillTill(page);
+      await page.click('#tGo');
+      await page.waitForTimeout(150);
+      await page.keyboard.press('Escape');
+      await page.waitForFunction(() => document.getElementById('pass').getAttribute('data-state') === 'booked', null, { timeout: 5000 }).catch(() => {});
+      await page.waitForTimeout(300);
+      check(st.checkouts.length === 1 && await stateOf(page) === 'booked' && await shown(page, '#cBooked') && !(await page.$eval('#till', (d) => d.open)) && (await evs(page, 'booking')).length === 1,
+        'Escape while the order flies: the order exists, so the page says BOOKED anyway (never a silent order), one booking');
+      await ctx.close();
+    }
+
+    // the order buttons' lines (spec §4.6), measured on this scratch Paris in the font of the run (the suite runs in
+    // the system font and in the CI's): the till's "Order, pay on signing · €500" takes two lines at most at 320 and
+    // 360 and one from 390; a ticket's order button two lines at most at 320, one from 390
+    {
+      const lines = (page, sel) => page.$eval(sel, (el) => { const r = document.createRange(); r.selectNodeContents(el); return new Set([...r.getClientRects()].filter((q) => q.width > 0).map((q) => Math.round(q.top))).size; });
+      const out = {};
+      for (const w of [320, 360, 390, 430]) {
+        const { ctx, page } = await open({ slug: 'paris', width: w });
+        await page.waitForTimeout(300);
+        await page.click('#fare-full-search > summary');
+        await page.waitForTimeout(200);
+        const ticket = await lines(page, '#fare-full-search [data-pay] > span');
+        await tap(page, '#fare-full-search [data-pay]');
+        await page.waitForTimeout(250);
+        out[w] = { ticket, till: await lines(page, '#tGoL') };
+        await ctx.close();
+      }
+      check(out[320].till <= 2 && out[360].till <= 2 && out[390].till === 1 && out[430].till === 1 && out[320].ticket <= 2 && out[360].ticket <= 2 && out[390].ticket === 1 && out[430].ticket === 1,
+        `the order button keeps to two lines at most at 320 and 360 and to one from 390, in the till and in the ticket (${Object.entries(out).map(([w, x]) => `${w}: till ${x.till} · ticket ${x.ticket}`).join(' · ')})`, JSON.stringify(out));
+    }
+
+    // the refusals: a field (400), a stale page (409 terms_changed), the network — and the retry lands on one order
+    {
+      const { ctx, page, st } = await open({ slug: 'paris', checkout: (n) => (n === 1 ? { status: 400, body: { ok: false, error: 'email' } } : n === 2 ? { status: 409, body: { ok: false, error: 'terms_changed', termsV: 'par-2026-11-9' } } : n === 3 ? { status: 503, body: { ok: false, error: 'busy' } } : BOOKED_OK) });
+      await page.waitForTimeout(300);
+      await toTill(page);
+      await fillTill(page);
+      await page.click('#tGo');
+      await page.waitForTimeout(400);
+      check(await text(page, '#tEmailErr') === k.errors.email && await page.getAttribute('#tEmail', 'aria-invalid') === 'true' && await page.evaluate(() => document.activeElement && document.activeElement.id === 'tEmail') && await text(page, '#tErr') === '' && await stateOf(page) === 'blank',
+        'a 400 "email" from the order is said on the email field (focused), the till stays open');
+      await page.fill('#tEmail', 'anna@example.com');
+      await page.click('#tGo');
+      await page.waitForTimeout(400);
+      check(await text(page, '#tErr') === STALE && await page.$eval('#till', (d) => d.open) && await page.getAttribute('#tGo', 'aria-disabled') === null && await stateOf(page) === 'blank',
+        'a 409 terms_changed says the page was just updated (reload to order with the current terms); nothing is booked');
+      await page.click('#tGo');
+      await page.waitForTimeout(400);
+      check(await text(page, '#tErr') === k.errors.net && await stateOf(page) === 'blank', 'a 503 says the order did not reach us — the button comes back');
+      await page.click('#tGo');
+      await page.waitForFunction(() => document.getElementById('pass').getAttribute('data-state') === 'booked', null, { timeout: 5000 }).catch(() => {});
+      const ids = [...new Set(st.checkouts.map((x) => x.requestId))];
+      check(await stateOf(page) === 'booked' && st.checkouts.length === 4 && ids.length === 1 && (await evs(page, 'booking')).length === 1,
+        'the retry carries the SAME requestId (the server answers the stored order): one BOOKED, one booking', JSON.stringify(ids));
+      check(st.errors.length === 0, 'no JS error', st.errors.join(' | '));
+      await ctx.close();
+    }
+
+    // the managed ticket: ?order=&t= → ONE GET, the address line folded, the server's state only
+    const managed = (body, status = 200) => open({ slug: 'paris', query: `?order=${OID}&t=${TOK}`, paid: { status, body } });
+    const base0 = { ok: true, plan: 'full-search', file: FILE, number: NUM, startNow: true, workFromLabel: null, withdrawalEndsOn: '2026-11-19', expiresOn: '2027-05-05' };
+    {
+      const { ctx, page, st } = await managed({ ...base0, state: 'booked' });
+      await page.waitForFunction(() => document.getElementById('pass').getAttribute('data-state') === 'booked', null, { timeout: 5000 }).catch(() => {});
+      await page.waitForTimeout(400);
+      const href = await page.$eval('#bLine a', (a) => a.getAttribute('href')).catch(() => null);
+      check(st.gets.length === 1 && st.gets[0].endsWith(`/api/city-lead?order=${OID}&t=${TOK}&city=paris`) && await page.evaluate(() => location.search === '' && location.hash === ''),
+        'the managed link asks the server once (order, token, desk) and folds the address line at once', st.gets.join(' '));
+      check(await stateOf(page) === 'booked' && await slotIs(page, 'BOOKED') && await text(page, '#cBooked h2') === 'Booked — your file is open.' && await text(page, '#bOrder') === NUM
+        && href === `/withdrawal?desk=Paris&ref=${NUM}#online` && await text(page, '#bLine a') === 'Withdraw from contract here',
+        'BOOKED (managed): the card, the order number and the statutory withdraw link to the online function with the reference', String(href));
+      check((await evs(page, 'booking')).length === 0 && (await evs(page, 'purchase')).length === 0, 'reading the ticket counts nothing (no booking, no purchase)');
+      await ctx.close();
+    }
+    {
+      const payUrl = 'https://www.boomrome.com/api/payments/link?k=inv&id=cityfee_book_ui0000test1&t=abc123';
+      const { ctx, page } = await managed({ ...base0, state: 'due', amount: 476.19, payUrl });
+      await page.waitForFunction(() => document.getElementById('pass').getAttribute('data-state') === 'booked', null, { timeout: 5000 }).catch(() => {});
+      await page.waitForTimeout(400);
+      check(await slotIs(page, 'DUE') && await text(page, '#cBooked .k') === 'Due' && await text(page, '#codeLine') === `DUE · FILE ${FILE} · PAR`
+        && (await text(page, '#bLine')).startsWith('Your lease is signed. The BOOM fee: €476.19, VAT included, invoice from Egidi Immobiliare S.r.l.')
+        && await page.$eval('#bLine a.pay', (a) => a.href) === payUrl && await text(page, '#bLine a.pay b') === 'Pay the fee securely' && await text(page, '#bFare') === 'Full Search · €476.19',
+        'DUE: the slot says DUE, the fee with its cents, the secure pay button IS the server\'s payUrl');
+      check(!(await shown(page, '#cBooked h2')) && !(await shown(page, '#bNext')) && !(await shown(page, '#bText')) && !(await shown(page, '#bStart')) && await page.$$eval('[data-pay]', (bs) => bs.every((x) => x.hidden)),
+        'past BOOKED the heading, the start, the steps and the line step aside; no order button');
+      await ctx.close();
+    }
+    {
+      const { ctx, page } = await managed({ ...base0, state: 'due', amount: 500, payUrl: 'https://evil.example/api/payments/link?k=inv&id=x&t=y' });
+      await page.waitForFunction(() => document.getElementById('pass').getAttribute('data-state') === 'booked', null, { timeout: 5000 }).catch(() => {});
+      check(!(await page.$('#bLine a')) && /€500, VAT included/.test(await text(page, '#bLine')), 'a pay address that is not our stable pay link is never offered');
+      await ctx.close();
+    }
+    {
+      const { ctx, page } = await managed({ ...base0, state: 'paid', amount: 500, paidOn: '2026-12-10' });
+      await page.waitForFunction(() => document.getElementById('pass').getAttribute('data-state') === 'booked', null, { timeout: 5000 }).catch(() => {});
+      await page.waitForTimeout(400);
+      const stp = await page.$eval('#cBooked .stamp', (s) => ({ word: s.querySelector('.st-w').textContent, tl: s.querySelector('.st-w').getAttribute('textLength'), ring: s.querySelector('textPath').textContent, hidden: s.hidden }));
+      check(await slotIs(page, 'PAID') && stp.word === 'PAID' && stp.tl === null && /^PAID · BOOM PARIS/.test(stp.ring) && !stp.hidden
+        && await text(page, '#bLine') === 'Paid on 10 December 2026. Invoice from Egidi Immobiliare S.r.l.' && await text(page, '#bFare') === 'Full Search · €500' && !(await page.$('#bLine a')),
+        'PAID (managed, the only place a signing page says it): the stamp\'s word and ring swap to PAID, "Paid on 10 December 2026"', JSON.stringify(stp));
+      await ctx.close();
+    }
+    // v1.8 review STAMP: DUE and PAID hide the heading, and the fields rose under the stamp — on PAID the ring sat on
+    // "€500", the only place that page prints the amount. They keep the stamp's room, one per line: no glyph of File,
+    // Fare or Order under the stamp's box, each value on ONE line, at 320, 390 and 1440 (in the font of the run), on this
+    // scratch Paris and on the live Berlin page
+    for (const [slug, w] of [320, 390, 1440].flatMap((x) => [['paris', x], ['berlin', x]])) {
+      for (const [st0, extra] of [['due', { amount: 476.19, payUrl: 'https://www.boomrome.com/api/payments/link?k=inv&id=cityfee_book_ui0000test1&t=abc123' }], ['paid', { amount: 500, paidOn: '2026-12-10' }]]) {
+        const { ctx, page } = await open({ slug, query: `?order=${OID}&t=${TOK}`, paid: { status: 200, body: { ...base0, state: st0, ...extra } }, width: w });
+        await page.waitForFunction(() => document.getElementById('pass').getAttribute('data-state') === 'booked', null, { timeout: 5000 }).catch(() => {});
+        await page.waitForTimeout(400);
+        await center(page, '#cBooked');
+        await page.waitForTimeout(150);
+        const m = await page.evaluate(() => {
+          const s = document.querySelector('#cBooked .stamp'), sr = s.getBoundingClientRect(), out = { area: 0, lines: {}, shown: !s.hidden && sr.width > 0 };
+          for (const id of ['bFile', 'bFare', 'bOrder']) {
+            const el = document.getElementById(id), tn = el.firstChild, all = document.createRange();
+            all.selectNodeContents(el);
+            out.lines[id] = new Set([...all.getClientRects()].filter((q) => q.width > 0).map((q) => Math.round(q.top))).size;
+            for (let i = 0; tn && i < tn.textContent.length; i++) {
+              const r = document.createRange(); r.setStart(tn, i); r.setEnd(tn, i + 1);
+              for (const q of r.getClientRects()) out.area += Math.max(0, Math.min(q.right, sr.right) - Math.max(q.left, sr.left)) * Math.max(0, Math.min(q.bottom, sr.bottom) - Math.max(q.top, sr.top));
+            }
+          }
+          out.area = Math.round(out.area);
+          return out;
+        });
+        check(m.shown && m.area === 0 && Object.values(m.lines).every((n) => n === 1),
+          `${slug} ${st0.toUpperCase()} (managed) at ${w}: no glyph of File, Fare or Order under the stamp (${m.area} px²), each on one line (${JSON.stringify(m.lines)})`);
+        await ctx.close();
+      }
+    }
+    for (const [st0, extra, line] of [['withdrawn', { withdrawnOn: '2026-11-12' }, 'Withdrawn on 12 November 2026. Nothing was charged.'], ['closed', { closedOn: '2026-12-01' }, 'Closed. Nothing was charged.']]) {
+      const { ctx, page } = await managed({ ...base0, state: st0, ...extra });
+      await page.waitForFunction(() => document.getElementById('pass').getAttribute('data-state') === 'booked', null, { timeout: 5000 }).catch(() => {});
+      await page.waitForTimeout(300);
+      check(await slotIs(page, 'CLOSED') && await text(page, '#cBooked .k') === 'Closed' && await text(page, '#bLine') === line && !(await shown(page, '#cBooked .stamp')) && !(await page.$('#bLine a')),
+        `CLOSED (${st0}): "${line}", no stamp, no action`);
+      await ctx.close();
+    }
+    {
+      // a wrong token and an unknown order are the same 404: asked once, "not confirmed yet", never a state
+      const { ctx, page, st } = await managed({ ok: false }, 404);
+      await page.waitForFunction(() => document.getElementById('pass').getAttribute('data-state') === 'unconfirmed', null, { timeout: 5000 }).catch(() => {});
+      await page.waitForTimeout(1800);
+      check(await stateOf(page) === 'unconfirmed' && st.gets.length === 1 && await text(page, '#cText') === k.booked.unconfirmed && await text(page, '#slotSr') === 'Order not confirmed yet',
+        'a 404 (wrong token, unknown order) asks once and says "Not confirmed yet" — never a state, never a retry', `${st.gets.length} asks`);
+      await ctx.close();
+    }
+    {
+      // the network or the server failing: twice more, then the state
+      const { ctx, page, st } = await open({ slug: 'paris', query: `?order=${OID}&t=${TOK}`, paid: (n) => (n < 3 ? { status: 503, body: { ok: false, error: 'unavailable' } } : { status: 200, body: { ...base0, state: 'booked' } }) });
+      await page.waitForFunction(() => document.getElementById('pass').getAttribute('data-state') === 'booked', null, { timeout: 9000 }).catch(() => {});
+      check(await stateOf(page) === 'booked' && st.gets.length === 3, 'a 503 is asked again (1.5 s, 3 s): the third answer prints the ticket', `${st.gets.length} asks`);
+      await ctx.close();
+    }
+    for (const q of [`?order=${OID}&t=zz`, `?order=../../x&t=${TOK}`, `?t=${TOK}`]) {
+      const { ctx, page, st } = await open({ slug: 'paris', query: q });
+      await page.waitForTimeout(600);
+      check(await stateOf(page) === 'blank' && st.gets.length === 0 && await page.evaluate(() => location.search === ''), `a malformed managed link (${q}) asks nothing, changes nothing and folds the address line`);
+      await ctx.close();
+    }
+
+    // #order-<plan> opens the till on that plan (the operator's replies on a signing desk); ?paid= means nothing here
+    {
+      const { ctx, page, st } = await open({ slug: 'paris', query: '#order-full-search' });
+      await page.waitForTimeout(600);
+      check(await page.$eval('#till', (d) => d.open) && await text(page, '#tTitle') === 'Full Search' && !(await page.$eval('#tStart', (x) => x.checked)) && await page.evaluate(() => location.hash === '')
+        && (await evs(page, 'order_link')).length === 1 && st.checkouts.length === 0,
+        '#order-full-search opens the till on Full Search (Start now never pre-ticked), the hash folds, order_link counted');
+      await ctx.close();
+    }
+    {
+      const { ctx, page, st } = await open({ slug: 'paris', query: `?paid=full-search&session_id=${SID}`, paid: { status: 200, body: { ok: true, paid: true, plan: 'full-search', file: FILE } } });
+      await page.waitForTimeout(800);
+      check(await stateOf(page) === 'blank' && st.gets.length === 0 && (await evs(page, 'purchase')).length === 0, 'a ?paid= on a signing page is ignored: no ask, no PAID, no purchase');
+      await ctx.close();
+    }
+
+    // the six unchanged (SIGN false): no order config, the six's till body, ?order= and #order- mean nothing
+    {
+      const { ctx, page, st } = await open({ slug: 'amsterdam', query: `?order=${OID}&t=${TOK}#order-full-search`, checkout: { status: 200, body: { ok: false, error: 'stripe_down' } } });
+      await page.waitForTimeout(700);
+      const cfg = await page.evaluate(() => window.BOOM_CITY);
+      check(!('CHARGE_AT' in cfg) && !('BOOKED' in cfg) && !('ORDER_TERMS_V' in cfg) && !(await page.$('#cBooked')), 'Amsterdam carries no order config and no BOOKED card');
+      check(st.gets.length === 0 && await stateOf(page) === 'blank' && await page.evaluate(() => location.search.includes('order=') && location.hash === '#order-full-search') && !(await page.$eval('#till', (d) => d.open)),
+        'on Amsterdam ?order=&t= asks nothing and #order-full-search opens nothing (the address line untouched)');
+      await toTill(page);
+      await fillTill(page);
+      await page.click('#tGo');
+      await page.waitForTimeout(400);
+      const b = st.checkouts[0] || {};
+      check(JSON.stringify(Object.keys(b)) === JSON.stringify(['city', 'kind', 'name', 'email', 'notes', 'startNow', 'company']) && (await evs(page, 'add_payment_info')).length === 1 && (await evs(page, 'booking_submit')).length === 0
+        && await text(page, '#tRule') === RULE && await text(page, '#tErr') === await page.$eval('#till', (d) => d.getAttribute('data-err-net')),
+        'Amsterdam\'s till body is the six\'s, unchanged (no requestId, no termsV), add_payment_info as before, the refund rule on its ✓ line', JSON.stringify(b));
+      await ctx.close();
+    }
+  } finally { PAGES.delete('/paris.html'); }
 }
 
 async function finish() {

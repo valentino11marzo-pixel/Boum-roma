@@ -65,13 +65,20 @@ framing; it is not cloned or mislabelled as Club. The single comparison iframe,
 validated public preferences and private-place boundary remain.
 
 The earlier Flight homepage is preserved at `/home-flight` with noindex/nofollow;
-`index.html` is restored byte-for-byte to current `origin/main` (2d211327, also the
+`index.html` is restored byte-for-byte to current `origin/main` (f5b0b66a, also the
 verified production commit). The old Flight preview and its tests now use the
 explicit alternative. The homepage generator defaults to the canonical composition;
 `--flight` produces a separate file instead of replacing the main entrance. This
 protects the homepage, not every route: the larger Flight PR still contains earlier
 catalogue, listing, Skyline, international service and API work requiring normal review.
-No original service-page source was edited in this iteration.
+The latest main integration retains the new Paris, Berlin and Valencia desks, their
+order/withdrawal logic and canonical footer links. Flight still offers its six curated
+destinations; the existing /desks links open the complete live network. The two
+original city handoff hooks follow the new source-assets generator instead of
+editing only its emitted JavaScript. Rome forms and checkout logic remain unchanged. VV/DA/CC and /services load a
+small navigation-boundary helper (also kept in the three service source templates):
+it skips only the native outgoing snapshot toward Flight, preventing Chromium
+rejections when Back reaches the application. Native navigation remains in control.
 
 ## Craft and verification
 
@@ -92,3 +99,9 @@ remain unmeasured.
 Sources inspected: https://www.boomrome.com/ , /services , /property-finding ,
 /virtual-viewing , /deal-assistance , /contract-check-express ; local api/_catalog.js,
 api/create-checkout.js and the original service-page adapters.
+
+Integration checks: build-cities --check and citiespublic (6/6) pass; cities
+passes 1,330 assertions. Its global BOOM-asset claims scanner still covers every
+asset: empty CSS content is valid, and exact housing phrases and the verified Rome
+registered-office address are reviewed exceptions. Appended foreign-registration
+mutations remain rejected. No registration vocabulary is globally ignored.

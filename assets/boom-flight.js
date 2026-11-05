@@ -16,7 +16,7 @@
       var destination;
       try { destination = new URL(event.activation.entry.url); } catch (_) {}
       if (!destination || destination.origin !== location.origin ||
-          !/^\/(?:|index(?:\.html)?|apartments(?:\.html)?|apartment-detail(?:\.html)?|skyline(?:\.html)?|your-rome(?:\.html)?|listing\/[A-Za-z0-9_-]+)\/?$/.test(destination.pathname))
+          !/^\/(?:home-flight(?:\.html)?|apartments(?:\.html)?|apartment-detail(?:\.html)?|skyline(?:\.html)?|your-rome(?:\.html)?|listing\/[A-Za-z0-9_-]+)\/?$/.test(destination.pathname))
         transition.skipTransition();
     }
     transition.finished.then(function () {
