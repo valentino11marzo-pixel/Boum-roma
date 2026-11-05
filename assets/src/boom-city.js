@@ -2,7 +2,9 @@
    Reads window.BOOM_CITY (the build's config) and window.BOOM_DESK_CAL (the
    desk calendar, inlined from js/desk-calendar.js); posts only to our own
    API. The pass: blank → open (a 200 from /api/city-lead, the SERVER's file
-   number) → paid (GET /api/city-lead?paid= says paid:true). The page never
+   number) → paid (GET /api/city-lead?paid= says paid:true); on a desk that
+   charges at signing (v1.8) → booked (the order's answer, or the managed
+   ticket's GET ?order=: booked · due · paid · closed). The page never
    computes a file number or a payment state on its own. Every instrument
    below shows a fact the page already holds; motion only when a fact
    changes, the desk is open, or the reader moves. */
@@ -32,9 +34,18 @@
   /* a desk still opening (Paris, Berlin) is never "open": its instruments
      say when a reply comes, never "desk open" (loi Hoguet, §34c GewO) */
   var waitlist = C.MODE === 'waitlist';
+  /* v1.8: a desk that charges at signing (Paris, Berlin) takes an ORDER at its till, never a payment: the
+     server's answer stamps BOOKED (its own state, never PAID, never a purchase) and the email's link opens
+     the managed ticket (?order=&t=). The six carry no CHARGE_AT: none of it reaches them */
+  var SIGN = C.CHARGE_AT === 'signing', BK = C.BOOKED || {};
   function track(name, params) { try { if (typeof gtag === 'function') gtag('event', name, params || {}); } catch (e) {} }
   function convert(label) { try { window.dispatchEvent(new CustomEvent('boom-conversion', { detail: { label: label, section: 'pass' } })); } catch (e) {} }
   var CUR = C.CURRENCY || 'EUR', eur = function (n) { return (C.SYMBOL || '€') + String(Math.round(Number(n))).replace(/\B(?=(\d{3})+(?!\d))/g, ','); };
+  /* an invoice amount keeps its cents (a fee under its cap: €476.19; a fee never reaches the thousands); a
+     day from the server (YYYY-MM-DD) in words, from a fixed table (never toLocaleString) */
+  var amt = function (n) { var x = Math.round(n * 100) / 100; return x % 1 ? (C.SYMBOL || '€') + x.toFixed(2) : eur(x); };
+  var MON = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  var dayOf = function (v) { var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v || ''); return m && MON[m[2] - 1] ? +m[3] + ' ' + MON[m[2] - 1] + ' ' + m[1] : ''; };
   var txt = function (id, v) { var n = $(id); if (n) { var s = v == null ? '' : String(v); if (n.textContent !== s) n.textContent = s; } };
   /* PLANS is plain data: an inherited key (?paid=constructor) is not a plan */
   var planOf = function (id) { return id && Object.prototype.hasOwnProperty.call(PLANS, id) ? PLANS[id] : null; };
@@ -109,7 +120,7 @@
     }
     gate(now);
     /* row 01 follows the desk's clock: "REPLY TODAY" never outlives closing time */
-    if (lastS === 'open' || lastS === 'paid') depFact(lastS, lastD);
+    if (lastS === 'open' || lastS === 'paid' || lastS === 'booked') depFact(lastS, lastD);
     if (pass.getAttribute('data-state') === 'open') txt('oNext', nextLine());
     /* the next minute boundary, never a countdown */
     setTimeout(refreshClock, 60000 - (Date.now() % 60000) + 50);
@@ -211,7 +222,9 @@
     /* sell: "Valentino writes to set your free call" — REPLY on the desk's
        next open day; a waitlist: the file is open, nothing more is promised */
     if (s === 'open') { word = sell ? (when && 'REPLY ' + when) : 'FILE OPEN'; say = sell ? 'reply ' + day : 'file open'; }
-    else if (s === 'paid' && sell) {
+    /* an order just BOOKED (a desk that charges at signing) starts the work as a payment does; the managed
+       ticket (d.st, read days later) says nothing here */
+    else if ((s === 'paid' || (s === 'booked' && !d.st)) && sell) {
       if (d.startNow === false) {
         /* the payer did not tick Start now: the server's first working day */
         var m = /^(\d{1,2}) ([A-Za-z]{3,9})/.exec(String(d.workFromLabel || ''));
@@ -416,7 +429,7 @@
 
   /* ── the states, printed where the door was ── */
   function show(id) {
-    ['cOpen', 'cConfirm', 'cPaid'].forEach(function (k) { var n = $(k); if (n) n.hidden = k !== id; });
+    ['cOpen', 'cConfirm', 'cPaid', 'cBooked'].forEach(function (k) { var n = $(k); if (n) n.hidden = k !== id; });
     var n = $(id); if (!n) return;
     n.classList.remove('in'); void n.offsetWidth; n.classList.add('in');
     var st = n.querySelector('.stamp'); if (st) { st.classList.remove('hit'); void st.offsetWidth; st.classList.add('hit'); }
@@ -436,12 +449,15 @@
        add), the plane moves (the CSS reads data-state; data-hold parks it
        before leg 1 when the payer did not tick Start now), and the code line
        prints the SERVER's file code — "—" without one, never one of ours */
-    var issued = s === 'open' || s === 'paid', I = C.IATA || '', f = d.file || '—';
+    var issued = s === 'open' || s === 'paid' || s === 'booked', I = C.IATA || '', f = d.file || '—';
+    /* BOOKED (v1.8): the word of the order, or of the managed ticket after it — DUE, PAID, CLOSED */
+    var ms = s === 'booked' ? { due: 'DUE', paid: 'PAID', withdrawn: 'CLOSED', closed: 'CLOSED' }[d.st] || 'BOOKED' : '';
     pass.classList.remove('struck');
-    if (s === 'paid' && d.startNow === false) pass.setAttribute('data-hold', ''); else pass.removeAttribute('data-hold');
+    if ((s === 'paid' || ms === 'BOOKED') && d.startNow === false) pass.setAttribute('data-hold', ''); else pass.removeAttribute('data-hold');
     if (issued) { void pass.offsetWidth; pass.classList.add('struck'); }
     if (s === 'open') txt('codeLine', 'FILE ' + f + ' · ' + I + ' · TENANT SIDE');
     else if (s === 'paid') txt('codeLine', 'PAID · FILE ' + f + ' · ' + I);
+    else if (ms) txt('codeLine', ms + ' · FILE ' + f + ' · ' + I);
     depFact(s, d);
     /* no second till, and no money asked right after a free door was promised */
     $$('[data-pay]').forEach(function (b) { b.hidden = s !== 'blank'; });
@@ -458,7 +474,7 @@
       show('cOpen'); ping($('cOpen').querySelector('.stamp'), 'l'); land($('cOpen'));
     } else if (s === 'confirming' || s === 'unconfirmed') {
       if (st) st.textContent = s === 'confirming' ? 'Confirming' : 'Not confirmed';
-      txt('slotSr', s === 'confirming' ? 'Payment being confirmed' : 'Payment not confirmed yet');
+      txt('slotSr', (SIGN ? 'Order' : 'Payment') + (s === 'confirming' ? ' being confirmed' : ' not confirmed yet'));
       if (s === 'unconfirmed' && $('cConfirm')) txt('cText', $('cConfirm').getAttribute('data-unconfirmed'));
       show('cConfirm');
     } else if (s === 'paid') {
@@ -466,21 +482,60 @@
       slot('PAID', 'Paid');
       txt('pFile', d.file || '—');
       txt('pFare', (p.label || '') + ' · ' + eur(p.eur || 0));
-      var P = C.PAID || {};
-      var waits = d.startNow === false;
-      txt('pStart', !waits ? (P.startsNow || '') : d.workFromLabel ? String(P.startsWait || '{date}').replace('{date}', d.workFromLabel) : ((P.nextWait || [])[1] || [''])[0]);
-      /* a payer who did not tick "Start now": the three steps of the wait,
-         never "same working day"; the wait note in place of the generic one */
-      if (waits) {
-        var li = $$('#pNext li');
-        (P.nextWait || []).forEach(function (pair, i) { if (li[i]) { li[i].textContent = ''; var b = document.createElement('b'); b.textContent = pair[0]; li[i].appendChild(b); li[i].appendChild(document.createTextNode(' ' + pair[1])); } });
-        if ($('pWait')) $('pWait').hidden = false;
-        if ($('pText')) $('pText').hidden = true;
-      }
+      starts('p', C.PAID || {}, d);
       show('cPaid'); ping($('cPaid').querySelector('.stamp'), 'p');
-    }
+    } else if (ms) booked(ms, d);
     doorTwins();
   }
+  /* the start and the steps of a PAID or BOOKED card (k: its ids' prefix): ticked, the desk's first open
+     hour; a payer who did not tick "Start now" gets the server's first working day after the 14 days, the
+     three steps of the wait (never "same working day") and the wait note in place of the generic one */
+  function starts(k, P, d) {
+    var waits = d.startNow === false;
+    txt(k + 'Start', !waits ? (P.startsNow || '') : d.workFromLabel ? String(P.startsWait || '{date}').replace('{date}', d.workFromLabel) : ((P.nextWait || [])[1] || [''])[0]);
+    if (!waits) return;
+    var li = $$('#' + k + 'Next li');
+    (P.nextWait || []).forEach(function (pair, i) { if (li[i]) { li[i].textContent = ''; var b = document.createElement('b'); b.textContent = pair[0]; li[i].appendChild(b); li[i].appendChild(document.createTextNode(' ' + pair[1])); } });
+    if ($(k + 'Wait')) $(k + 'Wait').hidden = false;
+    if ($(k + 'Text')) $(k + 'Text').hidden = true;
+  }
+  /* ── BOOKED (v1.8, D9): the card #cBooked, the strings C.BOOKED (BK). Nothing on it says paid: a fresh
+     order shows File · Fare "… €500 when you sign" · Order (the server's number) · Starts, the steps and
+     the line. The managed ticket (d.st) prints only the server's state: BOOKED with the online withdrawal
+     (D11: never on the fresh card), DUE with the secure pay link, PAID (the stamp says PAID), CLOSED; past
+     BOOKED the heading, the start, the steps and the line step aside ── */
+  function booked(ms, d) {
+    var p = planOf(d.plan) || {}, c = $('cBooked'), M = ms !== 'BOOKED', w = d.st, B = BK, word = ms.charAt(0) + ms.slice(1).toLowerCase(), x = c.querySelector('.st-w'), a = null;
+    slot(ms, word);
+    c.querySelector('.k').textContent = word;
+    txt('bFile', d.file || '—');
+    txt('bFare', p.label ? p.label + ' · ' + (d.amount != null ? amt(d.amount) : eur(p.eur) + (M ? '' : ' when you sign')) : '—');
+    txt('bOrder', d.number || '—');
+    starts('b', B, d);
+    if (M) c.querySelector('h2').hidden = $('bStart').parentNode.hidden = $('bNext').hidden = $('bText').hidden = $('bWait').hidden = true;
+    /* the stamp says PAID only once the server says paid; a closed order has none */
+    if (ms === 'PAID') { x.textContent = 'PAID'; x.removeAttribute('textLength'); x = c.querySelector('textPath'); x.textContent = x.textContent.replace('BOOKED', 'PAID'); }
+    c.querySelector('.stamp').hidden = ms === 'CLOSED';
+    if (w) {
+      if (w === 'booked') {
+        a = document.createElement('a'); a.className = 'lnk'; a.textContent = B.withdrawLink;
+        a.href = C.WITHDRAW_URL + '?desk=' + encodeURIComponent(C.CITY) + (d.number ? '&ref=' + encodeURIComponent(d.number) : '') + '#online';
+      } else if (w === 'due' && /^https:\/\/(?:www\.)?boomrome\.com\/api\/payments\/link\?/.test(d.payUrl)) {
+        /* the stable pay link of the invoice (api/payments/link): ours, https, never another address */
+        a = document.createElement('a'); a.className = 'pay'; a.href = d.payUrl;
+        a.innerHTML = '<span><b></b></span><span class="ar" aria-hidden="true">→</span>';
+        a.firstChild.firstChild.textContent = B.payLabel;
+      }
+      /* the line and its one action, built from the build's strings once the server has answered */
+      x = c.appendChild(document.createElement('p')); x.id = 'bLine';
+      x.textContent = w === 'due' ? String(B.dueText).replace('{amount}', amt(d.amount)) : w === 'paid' ? on(B.paidText, d.paidOn) : w === 'withdrawn' ? on(B.withdrawnText, d.withdrawnOn) : w === 'closed' ? B.closedText : '';
+      if (a) x.appendChild(a);
+    }
+    show('cBooked');
+    if (!w) ping(c.querySelector('.stamp'), 'l');
+  }
+  /* "Paid on {date}." — without the server's day the sentence drops "on {date}", never prints a blank */
+  function on(s, v) { var x = dayOf(v); return String(s).replace(/ on \{date\}/, x ? ' on ' + x : '').replace('{date}', x); }
 
   /* ── the till: only from an explicit pay button; the plan is already chosen ── */
   /* the till exists only where the build opened the checkout (a waitlist page has none) */
@@ -502,6 +557,8 @@
     var ul = $('tInc'); ul.textContent = '';
     p.includes.forEach(function (t) { var li = document.createElement('li'); li.textContent = t; ul.appendChild(li); });
     $('tRule').hidden = !p.rule;
+    /* a desk that charges at signing: the ✓ line is THIS fare's trigger (which signing earns its fee) */
+    if (p.trigger) txt('tRule', p.trigger);
     /* the till fills itself from what the visitor already typed, never the other way round */
     var fn = $('fName'), c = splitContact(($('fContact') || {}).value);
     if (fn && fn.value && !$('tName').value) $('tName').value = fn.value.trim();
@@ -567,8 +624,9 @@
       if (!p) return;
       paying = true; $('tGo').setAttribute('aria-disabled', 'true'); txt('tErr', '');
       var tok = payTok;
-      track('add_payment_info', { currency: CUR, value: p.eur, market: C.SLUG });
-      postJson(C.CHECKOUT_ENDPOINT || '/api/service-checkout', {
+      /* D19: an order takes no payment information — booking_submit, never add_payment_info */
+      track(SIGN ? 'booking_submit' : 'add_payment_info', { currency: CUR, value: p.eur, market: C.SLUG });
+      var body = {
         city: C.SLUG, kind: id, name: n.value.trim(), email: m.value.trim(),
         notes: ($('tNote').value || '').trim(),
         /* the payer's own request to start inside the 14-day withdrawal
@@ -576,14 +634,25 @@
            14 days end (Directive 2011/83/EU art. 7(3)) */
         startNow: $('tStart').checked === true,
         company: ($('tCompany').value || '').trim()
-      }).then(function (r) {
+      };
+      /* an order also carries the load's request id (a retry lands on the stored order: one order, one number,
+         one email) and the version of the terms it was taken under (an older page: 409 terms_changed) */
+      if (SIGN) { body.requestId = requestId; body.termsV = C.ORDER_TERMS_V || ''; }
+      postJson(C.CHECKOUT_ENDPOINT || '/api/service-checkout', body).then(function (r) {
+        /* BOOKED is the server's word: the order exists, the email is on its way — shown even if the till was
+           closed while it flew (an order taken and not said would be the surprise) */
+        if (SIGN && r && r.ok && r.booked) { paying = false; confirmed(r, id); return; }
         /* the visitor closed the till (or the page moved on) while it flew: stay */
         if (tok !== payTok || !till.open) { paying = false; $('tGo').removeAttribute('aria-disabled'); return; }
         if (r && r.ok && r.url) { location.href = r.url; return; }
-        throw new Error((r && r.error) || 'failed');
-      }).catch(function () {
+        throw r || new Error('failed');
+      }).catch(function (r) {
         paying = false; $('tGo').removeAttribute('aria-disabled'); payLabels();
-        if (tok === payTok) txt('tErr', till.getAttribute('data-err-net'));
+        if (tok !== payTok) return;
+        /* an order refused for a field says it on the field; a stale page asks for a reload */
+        var er = SIGN && r ? r.error : '', fd = er === 'name' ? n : er === 'email' ? m : null;
+        if (fd) { setErr(fd, till.getAttribute('data-err-' + er)); fd.focus(); return; }
+        txt('tErr', till.getAttribute(er === 'terms_changed' ? 'data-err-stale' : 'data-err-net'));
       });
     });
     /* back from Stripe via the bfcache: the till starts clean */
@@ -601,6 +670,8 @@
      counts ONE purchase (sessionStorage). The address bar proves nothing. ── */
   function handleReturn() {
     if (!sell) return;
+    /* a desk that charges at signing never has a payment to return from: its ?paid= is ignored */
+    if (SIGN) return;
     var q; try { q = new URLSearchParams(location.search); } catch (e) { return; }
     var id = q.get('paid'), sid = q.get('session_id') || '';
     if (!id) return;
@@ -644,6 +715,39 @@
             ask();
           }, ask);
       }, wait);
+    })();
+  }
+
+  /* ── the order's answer (the till's POST, v1.8): BOOKED with the server's file, number, plan and start;
+     ONE booking per order id (sessionStorage), never a purchase: nothing was paid ── */
+  function confirmed(r, id) {
+    var k = 'boom-booked-' + r.id;
+    if (!planOf(r.plan)) r.plan = id;
+    setState('booked', r);
+    land($('cBooked'));
+    if (!store.get(k)) { store.set(k, '1'); track('booking', { currency: CUR, value: PLANS[r.plan].eur, plan: r.plan, market: C.SLUG }); convert('City order booked'); }
+  }
+  /* ── the managed ticket (v1.8 §5.4): the order email's "Manage your order", ?order=<book_…>&t=<token>.
+     The address line folds at once (GA never had them: the template strips order and t from
+     page_location); ONE ask, GET /api/city-lead?order=&t=&city= (twice more if the network or the server
+     fails), and the page prints only the server's state. A reload is the blank page: the email is the
+     record. A wrong link says "not confirmed yet", never a state ── */
+  function handleOrder() {
+    if (!SIGN) return;
+    var q; try { q = new URLSearchParams(location.search); } catch (e) { return; }
+    var oid = q.get('order') || '', t = q.get('t') || '', n = 0;
+    if (!oid && !t) return;
+    try { history.replaceState(null, '', location.pathname); } catch (e) {}
+    if (!/^book_[a-z0-9_]{8,52}$/.test(oid) || !/^[a-f0-9]{24}$/.test(t)) return;
+    setState('confirming');
+    (function ask() {
+      fetch((C.LEAD_URL || '/api/city-lead') + '?order=' + oid + '&t=' + t + '&city=' + C.SLUG, { cache: 'no-store' }).then(function (r) {
+        return r.json().then(function (v) {
+          if (v && v.ok && /^(booked|due|paid|withdrawn|closed)$/.test(v.state)) { v.st = v.state; setState('booked', v); if (!moved) land($('cBooked'), true); return; }
+          /* a wrong token and an unknown order are the same 404: no retry; the network or a 5xx: retry */
+          throw r.status < 500 && r.status !== 429 ? 0 : 1;
+        });
+      }).catch(function (e) { if (e !== 0 && ++n < 3) setTimeout(ask, 1500 * n); else { setState('unconfirmed'); if (!moved) land($('cConfirm'), true); } });
     })();
   }
 
@@ -766,12 +870,16 @@
   refreshClock();
   /* the first read of where you are waits for a frame (no forced layout in the boot task) */
   onScroll();
+  /* the managed ticket first (a desk that charges at signing): it reads the address bar before a return would */
+  handleOrder();
   handleReturn();
   /* ── links to one fare: /<slug>#fare-<plan> (or #<plan>) opens that ticket and lands it whole — the pay button
      (the door on a desk still opening) at the bottom edge, focused without a jump; /<slug>#pay-<plan> then opens
      the till on that plan (the Start-now tick never pre-ticked): the operator's link for a lead who has decided.
      Skipped on a paid return and on a pass that is not blank; the hash folds back; again once at load (the browser
-     re-applies a fragment) unless the reader has moved; fare_open {via:'link'} counts it. ── */
+     re-applies a fragment) unless the reader has moved; fare_open {via:'link'} counts it. v1.8: on a desk that
+     charges at signing #order-<plan> is #pay-<plan> (the operator's replies say "order"), and a ?paid= means
+     nothing there; the six never read #order-. ── */
   function deep() {
     /* a link followed while the till is open never re-targets the tickets behind the modal; the browser's own
        fragment jump has started to scroll the page behind it (smoothly: at this point it may not have moved yet) —
@@ -782,8 +890,10 @@
       if (!till.contains(document.activeElement)) { try { $('tTitle').focus({ preventScroll: true }); } catch (e) {} }
       return;
     }
-    var m = /^#(fare-|pay-)?([a-z-]+)$/.exec(location.hash), id = m && m[2], d = id && planOf(id) && $('fare-' + id);
-    if (!d || /[?&]paid=/.test(location.search) || state() !== 'blank') return;
+    var m = /^#(fare-|pay-|order-)?([a-z-]+)$/.exec(location.hash);
+    if (m && m[1] === 'order-' && !SIGN) m = null;
+    var id = m && m[2], d = id && planOf(id) && $('fare-' + id);
+    if (!d || (!SIGN && /[?&]paid=/.test(location.search)) || state() !== 'blank') return;
     try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
     var was = d.open;
     fares.forEach(function (o) { o.open = o === d; });
@@ -793,7 +903,7 @@
     go();
     if (document.readyState !== 'complete') addEventListener('load', go, { once: true });
     if (!was) track('fare_open', { plan: id, market: C.SLUG, via: 'link' });
-    if (m[1] === 'pay-' && sell) { track('pay_link', { plan: id, market: C.SLUG }); openTill(id, t); }
+    if ((m[1] === 'pay-' || m[1] === 'order-') && sell) { track(m[1] === 'pay-' ? 'pay_link' : 'order_link', { plan: id, market: C.SLUG }); openTill(id, t); }
   }
   deep();
   addEventListener('hashchange', deep);

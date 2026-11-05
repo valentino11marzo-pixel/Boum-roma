@@ -55,13 +55,24 @@
 //     chain through tab hide/show; the door under the header brings the twin;
 //     row 01 follows the desk across closing time; Paris and Berlin never say
 //     "desk open" (REPLYING / OFFLINE). `CITIES_UI_ONLY=review` runs §12 alone;
+//   - v1.8 stage B3 (dark): a desk that charges at signing, a scratch Paris
+//     built here from Amsterdam with the registry patched in try/finally and
+//     served at /paris (§15): the order (the POST carries requestId, termsV,
+//     startNow false → BOOKED, never PAID, ONE booking, no purchase), its
+//     refusals (400 fields, 409 stale, a retry on the same requestId), the
+//     managed ticket (?order=&t=: BOOKED with the online withdrawal, DUE
+//     with the pay link, PAID, CLOSED; a wrong link asks once and says "not
+//     confirmed yet"), #order-<plan>, a ?paid= that means nothing there —
+//     and the six unchanged. The hub (§13): under 600px the map box takes
+//     the tap and docks the nearest desk within 30px (option (b));
+//     `CITIES_UI_ONLY=signing` runs §15 alone;
 //   - zero JS errors, no request to a host we did not stub.
 
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { loadChromium, launchOptions } from '../_browser.mjs';
-import { BUDGET, HUB_BUDGET } from '../../build-cities.mjs';
+import { BUDGET, HUB_BUDGET, HUB_MAP_PX, renderCity, fragments, loadClaims } from '../../build-cities.mjs';
 
 const R = path.resolve(new URL('../..', import.meta.url).pathname);
 let ok = 0, ko = 0;
@@ -78,9 +89,12 @@ if (!chromium) {
 }
 
 const TYPES = { '.html': 'text/html; charset=utf-8', '.css': 'text/css', '.js': 'text/javascript', '.png': 'image/png', '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.webmanifest': 'application/manifest+json' };
+// a scratch page served at its path for one section (v1.8: the signing Paris of §15, at /paris)
+const PAGES = new Map();
 const srv = http.createServer((req, res) => {
   let p = decodeURIComponent(new URL(req.url, 'http://x').pathname);
   if (!path.extname(p)) p += '.html';                       // cleanUrls, as on Vercel
+  if (PAGES.has(p)) { res.writeHead(200, { 'content-type': TYPES['.html'] }); return res.end(PAGES.get(p)); }
   const f = path.join(R, path.normalize(p));
   if (!f.startsWith(R) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) { res.writeHead(404); return res.end(); }
   res.writeHead(200, { 'content-type': TYPES[path.extname(f)] || 'application/octet-stream' });
@@ -125,7 +139,7 @@ async function open({ js = true, width = 390, height = null, api = LEAD_OK, paid
     }
     if (u.startsWith(base + '/api/service-checkout')) {
       st.checkouts.push(JSON.parse(r.request().postData() || '{}'));
-      const res = checkout || { status: 200, body: { ok: true, url: `${base}/${slug}?paid=full-search&start=0&session_id=${SID}` } };
+      const res = typeof checkout === 'function' ? checkout(st.checkouts.length) : checkout || { status: 200, body: { ok: true, url: `${base}/${slug}?paid=full-search&start=0&session_id=${SID}` } };
       if (res.delay) await new Promise((x) => setTimeout(x, res.delay));
       return r.fulfill({ status: res.status, contentType: 'application/json', body: JSON.stringify(res.body) });
     }
@@ -149,6 +163,7 @@ const RULE = JSON.parse(fs.readFileSync(path.join(R, 'cities/_shared.json'), 'ut
 if (process.env.CITIES_UI_ONLY === 'review') { await reviewFixes(); await finish(); }
 if (process.env.CITIES_UI_ONLY === 'hub') { await hubUI(); await finish(); }
 if (process.env.CITIES_UI_ONLY === 'v17') { await v17Fixes(); await finish(); }
+if (process.env.CITIES_UI_ONLY === 'signing') { await signingUI(); await finish(); }
 
 // ── 1 · the first phone screen is one pass ───────────────────────────────
 {
@@ -1224,6 +1239,7 @@ for (const slug of ['paris', 'berlin']) {
 await hubUI();
 await reviewFixes();
 await v17Fixes();
+await signingUI();
 await finish();
 
 // ── 12 · the v1.6 review (03/11/2026): one guard per confirmed finding ────
@@ -1573,32 +1589,101 @@ async function hubUI() {
     const all = [...sz.rows, ...sz.pins, ...sz.gates, ...sz.faq];
     check(await noHScroll(page) && sz.rows.length === 7 && sz.pins.length === 6 && sz.gates.length === 6 && sz.faq.length === 6 && all.every((x) => x >= 44),
       `desks 320: no horizontal scroll; rows, pins, gates and questions ≥ 44 px (smallest ${Math.round(Math.min(...all))})`, JSON.stringify(sz));
-    const gapPx = await page.evaluate(() => { const ps = [...document.querySelectorAll('a.pin')].map((a) => { const r = a.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; }); let m = 1e9; for (let i = 0; i < ps.length; i++) for (let j = i + 1; j < ps.length; j++) m = Math.min(m, Math.hypot(ps[i][0] - ps[j][0], ps[i][1] - ps[j][1])); return m; });
-    check(gapPx >= 44, `desks 320: the closest two pins are ${gapPx.toFixed(1)}px apart — 44px targets never overlap (v1.7: 42.3 before the camera's side paddings moved)`);
+    // v1.8 option (b), spec D12 — this pin moved in stage B3: it measured the closest two pins at 320 against the
+    // 44px rule (44.6 px with the six; 24.2 px LON–PAR with eight live, which no 44px rule can hold). Under 600px a pin
+    // is a link but not a target: the map box under it takes the tap (the nearest desk within 30px, below)
+    await center(page, '#hmap');
+    const pe = await page.evaluate(() => { const a = document.getElementById('pin-ams'), r = a.getBoundingClientRect(), hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return { pe: getComputedStyle(a).pointerEvents, box: !!hit && !a.contains(hit) && !!hit.closest('.hmap-box'), tab: a.tabIndex, href: a.getAttribute('href') }; });
+    check(pe.pe === 'none' && pe.box && pe.tab === 0 && pe.href === '/amsterdam', 'desks 320: the pins take no pointer (the map box under them takes the tap) and stay links in the tab order', JSON.stringify(pe));
+    await ctx.close();
+  }
+  // from 600px with a mouse a pin is its own target again: the map is drawn at least HUB_MAP_PX wide (the build's
+  // figure: 566 at 600, 559 at 940 — Chromium draws 582 there) and no two pins stand closer than 44 px
+  for (const w of [600, 940]) {
+    const { ctx, page } = await open({ slug: 'desks', width: w, height: 900 });
+    await page.waitForTimeout(300);
+    await center(page, '#hmap');
+    await page.waitForTimeout(200);
+    const g = await page.evaluate(() => {
+      const ps = [...document.querySelectorAll('a.pin')].map((a) => { const r = a.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; });
+      let m = 1e9; for (let i = 0; i < ps.length; i++) for (let j = i + 1; j < ps.length; j++) m = Math.min(m, Math.hypot(ps[i][0] - ps[j][0], ps[i][1] - ps[j][1]));
+      const a = document.getElementById('pin-lon'), r = a.getBoundingClientRect(), hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      return { inner: document.querySelector('.hmap-box').clientWidth, min: m, pe: getComputedStyle(a).pointerEvents, hit: !!hit && a.contains(hit) };
+    });
+    check(g.pe === 'auto' && g.hit && g.inner >= HUB_MAP_PX[w] && g.min >= 44,
+      `desks ${w}: a pin is its own target (the map drawn ${g.inner}px, HUB_MAP_PX ${HUB_MAP_PX[w]}); the closest two pins are ${g.min.toFixed(1)}px apart (≥ 44)`, JSON.stringify(g));
     await ctx.close();
   }
 
-  // a touch screen (or under 600px): the first tap on a pin docks its card under the map and flies its
-  // plane; the second tap goes to the desk; Escape closes the card; the pins at 390 are ≥ 52px apart
+  // a touch screen (or under 600px), v1.8 option (b): the map box takes the tap and docks the NEAREST desk within
+  // 30 px under the map, flying its plane; a tap farther than 30 px from every pin docks nothing (and closes the
+  // card); a second tap on the same desk, or a tap on its card, goes there; Escape closes the card
   {
     const { ctx, page, st } = await open({ slug: 'desks', width: 390, touch: true, pwClock: '2027-03-01T09:00:00Z' });
     await page.clock.runFor(500);
     await center(page, '#hmap');
     await page.waitForTimeout(500);
     await page.clock.runFor(6000);
-    const gap390 = await page.evaluate(() => { const ps = [...document.querySelectorAll('a.pin')].map((a) => { const r = a.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; }); let m = 1e9; for (let i = 0; i < ps.length; i++) for (let j = i + 1; j < ps.length; j++) m = Math.min(m, Math.hypot(ps[i][0] - ps[j][0], ps[i][1] - ps[j][1])); return m; });
+    const P = await page.$$eval('a.pin', (as) => as.map((a) => { const r = a.getBoundingClientRect(); return { id: a.id, x: r.left + r.width / 2, y: r.top + r.height / 2 }; }));
+    let gap390 = 1e9, A = null, Bp = null;
+    for (const a of P) for (const b of P) if (a.id < b.id) { const d = Math.hypot(a.x - b.x, a.y - b.y); if (d < gap390) { gap390 = d; A = a; Bp = b; } }
     check(gap390 >= 52 && await page.$$eval('g.hz-pl', (x) => x.length) === 0, `desks 390: the closest two pins are ${gap390.toFixed(1)}px apart; the first view's planes have landed`);
-    await page.click('#pin-vlc');
+    const selOf = () => page.evaluate(() => { const s = [...document.querySelectorAll('a.pin.sel')]; return s.map((x) => x.id + (x.querySelector('.pc.dock') ? '+dock' : '')).join(','); });
+    const vlc = P.find((p) => p.id === 'pin-vlc');
+    await page.touchscreen.tap(vlc.x, vlc.y);
     await page.clock.runFor(300);
     const docked = await page.evaluate(() => { const p = document.getElementById('pin-vlc'), pc = p.querySelector('.pc'), box = document.querySelector('.hmap-box').getBoundingClientRect(), r = pc.getBoundingClientRect(); return { sel: p.classList.contains('sel'), dock: pc.classList.contains('dock'), shown: r.width > 0 && getComputedStyle(pc).display !== 'none', under: r.top >= box.bottom && Math.abs(r.left - box.left) <= 1 && Math.abs(r.width - box.width) <= 1, clear: r.bottom <= document.querySelector('#hmap .m-legend').getBoundingClientRect().top, text: pc.textContent.replace(/\s+/g, ' ').trim(), planes: document.querySelectorAll('g.hz-pl').length, path: location.pathname }; });
-    check(docked.sel && docked.dock && docked.shown && docked.under && docked.clear && /VLC Valencia · Live/.test(docked.text) && docked.planes === 1 && docked.path === '/desks', 'desks 390 (touch): the first tap docks the Valencia card under the map (the key and the cards step down, nothing is covered), lights its pin and flies its plane; the page stays', JSON.stringify(docked));
+    check(docked.sel && docked.dock && docked.shown && docked.under && docked.clear && /VLC Valencia · Live/.test(docked.text) && docked.planes === 1 && docked.path === '/desks', 'desks 390 (touch): a tap on the Valencia dot docks its card under the map (the key and the cards step down, nothing is covered), lights its pin and flies its plane; the page stays', JSON.stringify(docked));
     await page.keyboard.press('Escape');
     check(await page.evaluate(() => !document.getElementById('pin-vlc').classList.contains('sel') && !document.querySelector('#pin-vlc .pc').classList.contains('dock') && document.querySelector('.hmap-box').style.marginBottom === ''), 'desks 390 (touch): Escape closes the docked card and gives its room back');
-    await page.click('#pin-vlc');
-    await page.clock.runFor(200);
-    await Promise.all([page.waitForURL(/\/valencia$/, { timeout: 5000 }).catch(() => {}), page.click('#pin-vlc')]);
-    check(/\/valencia$/.test(page.url()), 'desks 390 (touch): the second tap goes to the Valencia desk');
+    // between the closest pair, 40% of the way from the first: the nearest docks (with eight live: LON–PAR, 30.1 px)
+    await page.touchscreen.tap(A.x + (Bp.x - A.x) * 0.4, A.y + (Bp.y - A.y) * 0.4);
+    await page.clock.runFor(300);
+    check(await selOf() === A.id + '+dock', `desks 390 (touch): a tap between ${A.id} and ${Bp.id}, ${(gap390 * 0.4).toFixed(1)}px from the first, docks the nearest (${A.id})`, await selOf());
+    // 28 px off the Valencia dot, where no other pin is near: still Valencia's (within 30 px)
+    const near = await page.evaluate(([v, ps]) => { const b = document.querySelector('.hmap-box').getBoundingClientRect(); for (let t = 0; t < 360; t += 15) { const x = v.x + 28 * Math.cos(t * Math.PI / 180), y = v.y + 28 * Math.sin(t * Math.PI / 180); if (x > b.left + 4 && x < b.right - 4 && y > b.top + 4 && y < b.bottom - 4 && ps.every((p) => p.id === v.id || Math.hypot(p.x - x, p.y - y) > 40)) return { x, y }; } return null; }, [vlc, P]);
+    if (near) { await page.touchscreen.tap(near.x, near.y); await page.clock.runFor(300); }
+    check(!!near && await selOf() === 'pin-vlc+dock', 'desks 390 (touch): a tap 28 px off the Valencia dot docks Valencia (the nearest desk within 30 px)', JSON.stringify(near));
+    // farther than 30 px from every pin (31–34 px from the nearest): nothing docks, the open card closes
+    const far = await page.evaluate((ps) => { const b = document.querySelector('.hmap-box').getBoundingClientRect(); for (let y = b.top + 8; y < b.bottom - 8; y += 3) for (let x = b.left + 8; x < b.right - 8; x += 3) { const m = Math.min(...ps.map((p) => Math.hypot(p.x - x, p.y - y))); if (m > 31 && m < 34) return { x, y, m }; } return null; }, P);
+    if (far) { await page.touchscreen.tap(far.x, far.y); await page.clock.runFor(300); }
+    check(!!far && await selOf() === '' && await page.evaluate(() => location.pathname === '/desks'), `desks 390 (touch): a tap ${far ? far.m.toFixed(1) : '?'} px from the nearest pin docks nothing and closes the card`, JSON.stringify(far));
+    // the card itself goes to its desk
+    await page.touchscreen.tap(vlc.x, vlc.y);
+    await page.clock.runFor(300);
+    const card = await page.$eval('#pin-vlc .pc.dock', (pc) => { const r = pc.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; }).catch(() => null);
+    await Promise.all([page.waitForURL(/\/valencia$/, { timeout: 5000 }).catch(() => {}), card ? page.touchscreen.tap(card.x, card.y) : Promise.resolve()]);
+    check(!!card && /\/valencia$/.test(page.url()), 'desks 390 (touch): a tap on the docked card goes to the Valencia desk');
     check(st.errors.length === 0, 'desks 390 (touch): no JS error', st.errors.join(' | '));
+    await ctx.close();
+  }
+  {
+    // the second tap on the same desk (within 30 px of it) goes there
+    const { ctx, page, st } = await open({ slug: 'desks', width: 390, touch: true, pwClock: '2027-03-01T09:00:00Z' });
+    await page.clock.runFor(500);
+    await center(page, '#hmap');
+    await page.waitForTimeout(400);
+    const lon = await page.$eval('#pin-lon', (a) => { const r = a.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
+    await page.touchscreen.tap(lon.x, lon.y);
+    await page.clock.runFor(300);
+    await Promise.all([page.waitForURL(/\/london$/, { timeout: 5000 }).catch(() => {}), page.touchscreen.tap(lon.x + 6, lon.y - 4)]);
+    check(/\/london$/.test(page.url()) && st.errors.length === 0, 'desks 390 (touch): the second tap on the same desk goes to the London desk');
+    await ctx.close();
+  }
+  {
+    // the keyboard: the pins stay links, reached with Tab, ring and card shown; Enter docks, Enter again goes
+    const { ctx, page } = await open({ slug: 'desks', width: 390 });
+    await page.waitForTimeout(400);
+    let id = '';
+    for (let i = 0; i < 90 && !/^pin-/.test(id); i++) { await page.keyboard.press('Tab'); id = await page.evaluate(() => (document.activeElement && document.activeElement.id) || ''); }
+    const f = await page.evaluate(() => { const a = document.activeElement; return { id: a.id, fv: a.matches(':focus-visible'), card: getComputedStyle(a.querySelector('.pc')).display }; });
+    check(/^pin-/.test(f.id) && f.fv && f.card === 'block', `desks 390: a pin is reached with the keyboard (${f.id}), its ring and its card shown — the pins stay links`, JSON.stringify(f));
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(200);
+    check(await page.evaluate((x) => { const p = document.getElementById(x); return p.classList.contains('sel') && p.querySelector('.pc').classList.contains('dock') && location.pathname === '/desks'; }, f.id), `desks 390: Enter on ${f.id} docks its card; the page stays`);
+    const to = new RegExp('/' + (await page.getAttribute('#' + f.id, 'href')).slice(1) + '$');
+    await Promise.all([page.waitForURL(to, { timeout: 5000 }).catch(() => {}), page.keyboard.press('Enter')]);
+    check(to.test(page.url()), `desks 390: Enter again goes to the desk (${page.url().replace(base, '')})`);
     await ctx.close();
   }
 
@@ -1882,6 +1967,348 @@ async function v17Fixes() {
     check(!!n && !!o && n.hidden === !night && o.hidden === false, `${clock}: the "night, now" key is ${night ? 'shown (a night is drawn on the frame)' : 'hidden (the whole frame is in daylight)'}; "open now" always`, JSON.stringify(k));
     await ctx.close();
   }
+}
+
+// ── 15 · v1.8 stage B3: a desk that charges at signing (dark) ────────────
+// No desk uses the shape yet: Paris is built here as tests/cities/run.mjs §14
+// builds it — Amsterdam (its sentences reviewed) made into a signing Paris
+// with the spec's words (spec v1.8 §4.1, §5) — with the registry flipped
+// inside try/finally (spec §3.1), and served at /paris for this section only.
+// The order's answer and the managed ticket's GET are the server's (A1) shapes,
+// stubbed. `CITIES_UI_ONLY=signing node tests/cities/ui.mjs` runs it alone.
+async function signingUI() {
+  console.log('\n\x1b[1m▸ v1.8 B3\x1b[0m  a desk that charges at signing: the order, BOOKED, the managed ticket (a scratch Paris, the registry patched in try/finally)');
+  const read = (f) => fs.readFileSync(path.join(R, f), 'utf8');
+  const clone = (o) => JSON.parse(JSON.stringify(o));
+  const { CITY_MARKETS: CM } = await import('../../api/_market.js');
+  const { ORDER_TERMS } = await import('../../api/_cityterms.js');
+  const SLUGS = fs.readdirSync(path.join(R, 'cities')).filter((f) => f.endsWith('.json') && !f.startsWith('_')).map((f) => f.slice(0, -5)).sort();
+  const CITY = Object.fromEntries(SLUGS.map((s) => [s, JSON.parse(read(`cities/${s}.json`))]));
+  const shared = JSON.parse(read('cities/_shared.json'));
+  const SIGN_RULE = 'Nothing is charged before you sign a lease, and nothing if you never do.';
+  const TRIG = {
+    'full-search': 'Nothing is charged before you sign the lease we helped you get, and nothing if you never do.',
+    'application-pack': 'Nothing is charged unless you sign for a home you applied to with our dossier.',
+    'attended-viewing': 'Nothing is charged unless you sign for the home we viewed.'
+  };
+  const STALE = 'This page was just updated — reload it to order with the current terms.';
+  // Amsterdam made into the signing Paris (the spec's shared words, design/spec.paris.json)
+  const c = clone(CITY.amsterdam);
+  Object.assign(c, { slug: 'paris', city: 'Paris', iata: 'PAR', country: 'FR', geo: clone(CITY.paris.geo), live: false, chargeAt: 'signing' });
+  c.hero.leadStrong = 'Paid only by you, and only when you sign.';
+  c.hero.faresHead = { b: 'Flat fees', span: 'No percentage of your rent' };
+  for (const p of c.pricing.plans) { p.conditionLong = 'VAT included, charged when you sign a lease. Invoice from Egidi Immobiliare S.r.l.'; p.trigger = TRIG[p.id]; }
+  c.pricing.plans[0].includes = c.pricing.plans[0].includes.map((x) => (/^Until you sign/.test(x) ? 'Until you sign, or you say stop (six months at most)' : x));
+  c.faq.items[1].a = c.faq.items[1].a.replace(/ Full Search is refunded in full[^.]*\./, ' Nothing is charged before you sign a lease.');
+  c.faq.items[3].a = 'Then you pay nothing: every fare is charged only when you sign the lease we helped you get. We tell you in the first call if your budget and timeline don\'t fit the market.';
+  c.till = { label: 'Order, pay on signing' };
+  const k = c.checkoutCopy;
+  Object.assign(k, {
+    btnSubNow: 'Starts in the desk’s first open hour · no card', btnSubWait: 'Starts when your 14 days end · no card', altLink: 'Start with a free call, no card',
+    withdrawal: 'Withdrawal: 14 days from your order — {online}, by email to {email} or with the {form}. Nothing is charged before you sign, so withdrawing costs nothing. Without the tick, we start when the 14 days end.',
+    fine: 'No card today. Invoice from Egidi Immobiliare S.r.l., VAT included, with a secure payment link when you sign. ' + SIGN_RULE,
+    order: 'Your order runs six months at most; your copy comes by email.'
+  });
+  k.errors.stale = STALE;
+  delete k.paid;
+  k.booked = {
+    before: 'Booked — your file', em: 'is open.',
+    text: 'Nothing is charged until you sign. The Paris desk writes by email, or on WhatsApp if you left a number. Questions? Write to',
+    next: [['First desk hour', 'your order by email, with what we need'], ['Same working day', 'your brief: dates, budget, who’s moving'], ['When you sign', 'the fee, once, with the invoice']],
+    nextWait: [['First desk hour', 'your order by email, with your start date'], ['When the 14 days end', 'your brief: dates, budget, who’s moving'], ['When you sign', 'the fee, once, with the invoice']],
+    wait: 'You did not tick “Start now”: we start when your 14 days end. Sooner? Write to {email}.',
+    pending: 'Order being confirmed. Your copy comes by email.', unconfirmed: 'Not confirmed yet. If no email reaches you, write to the desk.',
+    startsNow: 'The desk’s first open hour', startsWait: 'From {date}, after your 14-day withdrawal period',
+    withdrawLink: 'Withdraw from contract here', paidText: 'Paid on {date}. Invoice from Egidi Immobiliare S.r.l.',
+    dueText: 'Your lease is signed. The BOOM fee: {amount}, VAT included, invoice from Egidi Immobiliare S.r.l.', payLabel: 'Pay the fee securely',
+    withdrawnText: 'Withdrawn on {date}. Nothing was charged.', closedText: 'Closed. Nothing was charged.'
+  };
+  const save = CM.paris;
+  let html = '';
+  try {
+    const { partner, ...m } = CM.paris;
+    CM.paris = { ...m, mode: 'search', checkout: true, chargeAt: 'signing', holidays: 'fr' };
+    html = renderCity({ template: read('cities/_template.html'), shared: { ...shared, signing: { rule: SIGN_RULE } }, city: c, assetVersion: { css: 'ui', js: 'ui', onda: 'ui', map: 'ui' },
+      frags: fragments(R), root: R, weigh: false, cities: SLUGS.map((s) => (s === 'paris' ? c : CITY[s])), claims: loadClaims(R) }).html;
+  } catch (e) { male(`the scratch signing Paris builds (${String(e.message).slice(0, 300)})`); return; }
+  finally { CM.paris = save; }
+  check(CM.paris === save && CM.paris.chargeAt !== 'signing', 'the registry is restored after the scratch build (Paris is not flipped)');
+  PAGES.set('/paris.html', html);
+  try {
+    const OID = 'book_ui0000test1', TOK = '0123456789abcdef01234567', NUM = 'PAR-2026-0007';
+    const BOOKED_OK = { status: 200, body: { ok: true, booked: true, id: OID, file: FILE, number: NUM, plan: 'full-search', startNow: false, workFromLabel: '18 November 2026' } };
+    const evs = async (page, name) => (await events(page)).filter((e) => e.name === name);
+    const fillTill = async (page) => { await page.fill('#tName', 'Anna Keller'); await page.fill('#tEmail', 'anna@example.com'); };
+    const toTill = async (page, plan = 'full-search') => {
+      await page.click(`#fare-${plan} > summary`);
+      await page.waitForTimeout(200);
+      await tap(page, `#fare-${plan} [data-pay]`);
+      await page.waitForTimeout(250);
+    };
+    const stateOf = (page) => page.getAttribute('#pass', 'data-state');
+    // the slot board settles on its word (a Solari flip of up to six letters)
+    const slotIs = (page, word) => page.waitForFunction((w) => [...document.querySelectorAll('.slot .slot-b .st b')].map((b) => b.textContent).join('').trim() === w, word, { timeout: 4000 }).then(() => true, () => false);
+
+    // the page carries the order's config; the till says the order, its trigger and how long it runs
+    {
+      const { ctx, page, st } = await open({ slug: 'paris' });
+      await page.waitForTimeout(300);
+      const cfg = await page.evaluate(() => window.BOOM_CITY);
+      check(cfg.CHARGE_AT === 'signing' && cfg.ORDER_TERMS_V === ORDER_TERMS.paris.v && cfg.WITHDRAW_URL === '/withdrawal' && cfg.BOOKED && cfg.BOOKED.withdrawLink === 'Withdraw from contract here' && cfg.PAID === null && cfg.PLANS['attended-viewing'].trigger === TRIG['attended-viewing'],
+        'the scratch Paris is a desk that charges at signing: CHARGE_AT, the order terms\' version, the online withdrawal, the BOOKED strings, no PAID strings, every fare\'s trigger');
+      await toTill(page);
+      check(await page.$eval('#till', (d) => d.open) && await text(page, '#tTitle') === 'Full Search' && await text(page, '#tPrice') === '€500' && await shown(page, '#tRule') && await text(page, '#tRule') === TRIG['full-search']
+        && await shown(page, '#tOrder') && await text(page, '#tOrder') === k.order,
+        'the till opens on Full Search with its own trigger on the ✓ line, then how long the order runs');
+      check(await text(page, '#tGoL') === 'Order, pay on signing · €500' && await text(page, '#tGoS') === k.btnSubWait, 'unticked: "Order, pay on signing · €500", starts when the 14 days end, no card');
+      await page.focus('#tStart');
+      await page.keyboard.press('Space');
+      check(await text(page, '#tGoL') === 'Order, pay on signing · €500' && await text(page, '#tGoS') === k.btnSubNow, 'ticked: the SAME label (the tick changes the sub-line, never the obligation, D6)');
+      check(st.checkouts.length === 0 && (await evs(page, 'begin_checkout')).length === 1, 'opening the till posts nothing and counts one begin_checkout (D19)');
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(250);
+      await toTill(page, 'application-pack');
+      check(await text(page, '#tRule') === TRIG['application-pack'] && await text(page, '#tGoL') === 'Order, pay on signing · €199', 'the Application Pack till says ITS trigger (the ✓ line follows the plan)');
+      check(st.errors.length === 0, 'no JS error', st.errors.join(' | '));
+      await ctx.close();
+    }
+
+    // the order: the POST carries the request id and the terms' version; the server's answer stamps BOOKED
+    {
+      const { ctx, page, st } = await open({ slug: 'paris', checkout: BOOKED_OK });
+      await page.waitForTimeout(300);
+      await toTill(page);
+      await fillTill(page);
+      await page.fill('#tNote', 'seloger.com/123 · move-in 1 February');
+      await page.click('#tGo');
+      await page.waitForFunction(() => document.getElementById('pass').getAttribute('data-state') === 'booked', null, { timeout: 5000 }).catch(() => {});
+      await page.waitForTimeout(700);
+      const b = st.checkouts[0] || {};
+      check(st.checkouts.length === 1 && JSON.stringify(Object.keys(b)) === JSON.stringify(['city', 'kind', 'name', 'email', 'notes', 'startNow', 'company', 'requestId', 'termsV'])
+        && b.city === 'paris' && b.kind === 'full-search' && b.startNow === false && b.notes === 'seloger.com/123 · move-in 1 February' && /^[a-z0-9]{8,40}$/.test(b.requestId) && b.termsV === ORDER_TERMS.paris.v,
+        'the order POST is the six\'s till body plus the load\'s requestId and the terms\' version (startNow false, never a price)', JSON.stringify(b));
+      check(await stateOf(page) === 'booked' && await page.getAttribute('#pass', 'data-hold') === '' && await slotIs(page, 'BOOKED') && await text(page, '#slotSr') === 'Booked'
+        && await text(page, '#codeLine') === `BOOKED · FILE ${FILE} · PAR`,
+        'BOOKED: its own state (the plane held before tick 1: Start now not ticked), the slot board, the code line with the SERVER\'s file');
+      check(await shown(page, '#cBooked') && !(await shown(page, '#cPaid')) && !(await page.$eval('#till', (d) => d.open)) && await page.evaluate(() => document.activeElement && document.activeElement.id === 'cBooked'),
+        'the till closes and the page lands on the BOOKED card (focused)');
+      check(await text(page, '#cBooked .k') === 'Booked' && await text(page, '#cBooked h2') === 'Booked — your file is open.' && await text(page, '#bFile') === FILE && await text(page, '#bFare') === 'Full Search · €500 when you sign'
+        && await text(page, '#bOrder') === NUM && await text(page, '#bStart') === 'From 18 November 2026, after your 14-day withdrawal period',
+        'the card: File, "Full Search · €500 when you sign", the server\'s order number, the start the server gave (after the 14 days)');
+      check(/When the 14 days end/.test(await text(page, '#bNext')) && await shown(page, '#bWait') && !(await shown(page, '#bText')) && !(await page.$('#bLine')),
+        'not ticked: the wait\'s steps and the wait note in place of the generic line; no managed-ticket line');
+      const card = await text(page, '#cBooked');
+      check(!/\b(?:paid|payments?|refund\w*)\b/i.test(card) && !(await page.$('#cBooked a[href*="#online"]')), 'nothing on the fresh BOOKED card says paid, payment or refund, and it carries no withdraw link (D9, D11)', card);
+      const stamp = await page.$eval('#cBooked .stamp', (s) => { const w = s.querySelector('.st-w'), r = w.getBBox(), i = s.querySelector('.st-i'), cx = +i.getAttribute('cx'), rr = +i.getAttribute('r');
+        return { word: w.textContent, tl: w.getAttribute('textLength'), ring: s.querySelector('textPath').textContent, inside: r.x >= cx - rr && r.x + r.width <= cx + rr, w: r.width }; });
+      check(stamp.word === 'BOOKED' && stamp.tl === '50' && /^BOOKED · BOOM PARIS/.test(stamp.ring) && stamp.inside, `the stamp says BOOKED, fitted inside the dashed inner ring (${stamp.w.toFixed(1)} units wide)`, JSON.stringify(stamp));
+      check(await page.$$eval('[data-pay]', (bs) => bs.every((x) => x.hidden)) && !(await shown(page, '#fileForm')), 'after BOOKED no order button and no door remain (never a second order)');
+      check((await evs(page, 'booking')).length === 1 && (await evs(page, 'booking'))[0].p.value === 500 && (await evs(page, 'booking'))[0].p.plan === 'full-search' && (await evs(page, 'booking'))[0].p.currency === 'EUR'
+        && (await evs(page, 'booking_submit')).length === 1 && (await evs(page, 'purchase')).length === 0 && (await evs(page, 'add_payment_info')).length === 0,
+        'analytics: booking_submit on the press, ONE booking (EUR 500, the plan), never a purchase nor add_payment_info (D19)');
+      // a reload is the blank page (the email is the record); the same order answered again counts nothing twice
+      await page.reload({ waitUntil: 'load' });
+      await page.waitForTimeout(300);
+      check(await stateOf(page) === 'blank' && await shown(page, '#door'), 'a reload returns to the blank page: the email is the record');
+      await toTill(page);
+      await fillTill(page);
+      await page.click('#tGo');
+      await page.waitForFunction(() => document.getElementById('pass').getAttribute('data-state') === 'booked', null, { timeout: 5000 }).catch(() => {});
+      check(await stateOf(page) === 'booked' && (await evs(page, 'booking')).length === 0 && st.checkouts.length === 2, 'the same order answered again after the reload is BOOKED again and counts no second booking (one per order id)');
+      check(st.errors.length === 0, 'no JS error', st.errors.join(' | '));
+      await ctx.close();
+    }
+
+    // ticked: the start is the desk's first open hour, the plane on tick 1
+    {
+      const { ctx, page, st } = await open({ slug: 'paris', checkout: { status: 200, body: { ...BOOKED_OK.body, id: 'book_ui0000test2', plan: 'attended-viewing', startNow: true, workFromLabel: null } } });
+      await page.waitForTimeout(300);
+      await toTill(page, 'application-pack');
+      await fillTill(page);
+      await page.click('#tStart');
+      await page.click('#tGo');
+      await page.waitForFunction(() => document.getElementById('pass').getAttribute('data-state') === 'booked', null, { timeout: 5000 }).catch(() => {});
+      check(st.checkouts[0] && st.checkouts[0].startNow === true && await page.getAttribute('#pass', 'data-hold') === null && await text(page, '#bStart') === 'The desk’s first open hour'
+        && await text(page, '#bFare') === 'Attended Viewing · €149 when you sign' && await shown(page, '#bText') && !(await shown(page, '#bWait')),
+        'ticked: startNow true; BOOKED prints the plan the SERVER booked (Attended Viewing, not the till\'s), the desk\'s first open hour and the generic line');
+      await ctx.close();
+    }
+
+    // Escape while the order flies: the server booked it (its email is on the way), so the page says BOOKED anyway
+    {
+      const { ctx, page, st } = await open({ slug: 'paris', checkout: { ...BOOKED_OK, delay: 1200 } });
+      await page.waitForTimeout(300);
+      await toTill(page);
+      await fillTill(page);
+      await page.click('#tGo');
+      await page.waitForTimeout(150);
+      await page.keyboard.press('Escape');
+      await page.waitForFunction(() => document.getElementById('pass').getAttribute('data-state') === 'booked', null, { timeout: 5000 }).catch(() => {});
+      await page.waitForTimeout(300);
+      check(st.checkouts.length === 1 && await stateOf(page) === 'booked' && await shown(page, '#cBooked') && !(await page.$eval('#till', (d) => d.open)) && (await evs(page, 'booking')).length === 1,
+        'Escape while the order flies: the order exists, so the page says BOOKED anyway (never a silent order), one booking');
+      await ctx.close();
+    }
+
+    // the order buttons' lines (spec §4.6), measured on this scratch Paris in the font of the run (the suite runs in
+    // the system font and in the CI's): the till's "Order, pay on signing · €500" takes two lines at most at 320 and
+    // 360 and one from 390; a ticket's order button two lines at most at 320, one from 390
+    {
+      const lines = (page, sel) => page.$eval(sel, (el) => { const r = document.createRange(); r.selectNodeContents(el); return new Set([...r.getClientRects()].filter((q) => q.width > 0).map((q) => Math.round(q.top))).size; });
+      const out = {};
+      for (const w of [320, 360, 390, 430]) {
+        const { ctx, page } = await open({ slug: 'paris', width: w });
+        await page.waitForTimeout(300);
+        await page.click('#fare-full-search > summary');
+        await page.waitForTimeout(200);
+        const ticket = await lines(page, '#fare-full-search [data-pay] > span');
+        await tap(page, '#fare-full-search [data-pay]');
+        await page.waitForTimeout(250);
+        out[w] = { ticket, till: await lines(page, '#tGoL') };
+        await ctx.close();
+      }
+      check(out[320].till <= 2 && out[360].till <= 2 && out[390].till === 1 && out[430].till === 1 && out[320].ticket <= 2 && out[360].ticket <= 2 && out[390].ticket === 1 && out[430].ticket === 1,
+        `the order button keeps to two lines at most at 320 and 360 and to one from 390, in the till and in the ticket (${Object.entries(out).map(([w, x]) => `${w}: till ${x.till} · ticket ${x.ticket}`).join(' · ')})`, JSON.stringify(out));
+    }
+
+    // the refusals: a field (400), a stale page (409 terms_changed), the network — and the retry lands on one order
+    {
+      const { ctx, page, st } = await open({ slug: 'paris', checkout: (n) => (n === 1 ? { status: 400, body: { ok: false, error: 'email' } } : n === 2 ? { status: 409, body: { ok: false, error: 'terms_changed', termsV: 'par-2026-11-9' } } : n === 3 ? { status: 503, body: { ok: false, error: 'busy' } } : BOOKED_OK) });
+      await page.waitForTimeout(300);
+      await toTill(page);
+      await fillTill(page);
+      await page.click('#tGo');
+      await page.waitForTimeout(400);
+      check(await text(page, '#tEmailErr') === k.errors.email && await page.getAttribute('#tEmail', 'aria-invalid') === 'true' && await page.evaluate(() => document.activeElement && document.activeElement.id === 'tEmail') && await text(page, '#tErr') === '' && await stateOf(page) === 'blank',
+        'a 400 "email" from the order is said on the email field (focused), the till stays open');
+      await page.fill('#tEmail', 'anna@example.com');
+      await page.click('#tGo');
+      await page.waitForTimeout(400);
+      check(await text(page, '#tErr') === STALE && await page.$eval('#till', (d) => d.open) && await page.getAttribute('#tGo', 'aria-disabled') === null && await stateOf(page) === 'blank',
+        'a 409 terms_changed says the page was just updated (reload to order with the current terms); nothing is booked');
+      await page.click('#tGo');
+      await page.waitForTimeout(400);
+      check(await text(page, '#tErr') === k.errors.net && await stateOf(page) === 'blank', 'a 503 says the order did not reach us — the button comes back');
+      await page.click('#tGo');
+      await page.waitForFunction(() => document.getElementById('pass').getAttribute('data-state') === 'booked', null, { timeout: 5000 }).catch(() => {});
+      const ids = [...new Set(st.checkouts.map((x) => x.requestId))];
+      check(await stateOf(page) === 'booked' && st.checkouts.length === 4 && ids.length === 1 && (await evs(page, 'booking')).length === 1,
+        'the retry carries the SAME requestId (the server answers the stored order): one BOOKED, one booking', JSON.stringify(ids));
+      check(st.errors.length === 0, 'no JS error', st.errors.join(' | '));
+      await ctx.close();
+    }
+
+    // the managed ticket: ?order=&t= → ONE GET, the address line folded, the server's state only
+    const managed = (body, status = 200) => open({ slug: 'paris', query: `?order=${OID}&t=${TOK}`, paid: { status, body } });
+    const base0 = { ok: true, plan: 'full-search', file: FILE, number: NUM, startNow: true, workFromLabel: null, withdrawalEndsOn: '2026-11-19', expiresOn: '2027-05-05' };
+    {
+      const { ctx, page, st } = await managed({ ...base0, state: 'booked' });
+      await page.waitForFunction(() => document.getElementById('pass').getAttribute('data-state') === 'booked', null, { timeout: 5000 }).catch(() => {});
+      await page.waitForTimeout(400);
+      const href = await page.$eval('#bLine a', (a) => a.getAttribute('href')).catch(() => null);
+      check(st.gets.length === 1 && st.gets[0].endsWith(`/api/city-lead?order=${OID}&t=${TOK}&city=paris`) && await page.evaluate(() => location.search === '' && location.hash === ''),
+        'the managed link asks the server once (order, token, desk) and folds the address line at once', st.gets.join(' '));
+      check(await stateOf(page) === 'booked' && await slotIs(page, 'BOOKED') && await text(page, '#cBooked h2') === 'Booked — your file is open.' && await text(page, '#bOrder') === NUM
+        && href === `/withdrawal?desk=Paris&ref=${NUM}#online` && await text(page, '#bLine a') === 'Withdraw from contract here',
+        'BOOKED (managed): the card, the order number and the statutory withdraw link to the online function with the reference', String(href));
+      check((await evs(page, 'booking')).length === 0 && (await evs(page, 'purchase')).length === 0, 'reading the ticket counts nothing (no booking, no purchase)');
+      await ctx.close();
+    }
+    {
+      const payUrl = 'https://www.boomrome.com/api/payments/link?k=inv&id=cityfee_book_ui0000test1&t=abc123';
+      const { ctx, page } = await managed({ ...base0, state: 'due', amount: 476.19, payUrl });
+      await page.waitForFunction(() => document.getElementById('pass').getAttribute('data-state') === 'booked', null, { timeout: 5000 }).catch(() => {});
+      await page.waitForTimeout(400);
+      check(await slotIs(page, 'DUE') && await text(page, '#cBooked .k') === 'Due' && await text(page, '#codeLine') === `DUE · FILE ${FILE} · PAR`
+        && (await text(page, '#bLine')).startsWith('Your lease is signed. The BOOM fee: €476.19, VAT included, invoice from Egidi Immobiliare S.r.l.')
+        && await page.$eval('#bLine a.pay', (a) => a.href) === payUrl && await text(page, '#bLine a.pay b') === 'Pay the fee securely' && await text(page, '#bFare') === 'Full Search · €476.19',
+        'DUE: the slot says DUE, the fee with its cents, the secure pay button IS the server\'s payUrl');
+      check(!(await shown(page, '#cBooked h2')) && !(await shown(page, '#bNext')) && !(await shown(page, '#bText')) && !(await shown(page, '#bStart')) && await page.$$eval('[data-pay]', (bs) => bs.every((x) => x.hidden)),
+        'past BOOKED the heading, the start, the steps and the line step aside; no order button');
+      await ctx.close();
+    }
+    {
+      const { ctx, page } = await managed({ ...base0, state: 'due', amount: 500, payUrl: 'https://evil.example/api/payments/link?k=inv&id=x&t=y' });
+      await page.waitForFunction(() => document.getElementById('pass').getAttribute('data-state') === 'booked', null, { timeout: 5000 }).catch(() => {});
+      check(!(await page.$('#bLine a')) && /€500, VAT included/.test(await text(page, '#bLine')), 'a pay address that is not our stable pay link is never offered');
+      await ctx.close();
+    }
+    {
+      const { ctx, page } = await managed({ ...base0, state: 'paid', amount: 500, paidOn: '2026-12-10' });
+      await page.waitForFunction(() => document.getElementById('pass').getAttribute('data-state') === 'booked', null, { timeout: 5000 }).catch(() => {});
+      await page.waitForTimeout(400);
+      const stp = await page.$eval('#cBooked .stamp', (s) => ({ word: s.querySelector('.st-w').textContent, tl: s.querySelector('.st-w').getAttribute('textLength'), ring: s.querySelector('textPath').textContent, hidden: s.hidden }));
+      check(await slotIs(page, 'PAID') && stp.word === 'PAID' && stp.tl === null && /^PAID · BOOM PARIS/.test(stp.ring) && !stp.hidden
+        && await text(page, '#bLine') === 'Paid on 10 December 2026. Invoice from Egidi Immobiliare S.r.l.' && await text(page, '#bFare') === 'Full Search · €500' && !(await page.$('#bLine a')),
+        'PAID (managed, the only place a signing page says it): the stamp\'s word and ring swap to PAID, "Paid on 10 December 2026"', JSON.stringify(stp));
+      await ctx.close();
+    }
+    for (const [st0, extra, line] of [['withdrawn', { withdrawnOn: '2026-11-12' }, 'Withdrawn on 12 November 2026. Nothing was charged.'], ['closed', { closedOn: '2026-12-01' }, 'Closed. Nothing was charged.']]) {
+      const { ctx, page } = await managed({ ...base0, state: st0, ...extra });
+      await page.waitForFunction(() => document.getElementById('pass').getAttribute('data-state') === 'booked', null, { timeout: 5000 }).catch(() => {});
+      await page.waitForTimeout(300);
+      check(await slotIs(page, 'CLOSED') && await text(page, '#cBooked .k') === 'Closed' && await text(page, '#bLine') === line && !(await shown(page, '#cBooked .stamp')) && !(await page.$('#bLine a')),
+        `CLOSED (${st0}): "${line}", no stamp, no action`);
+      await ctx.close();
+    }
+    {
+      // a wrong token and an unknown order are the same 404: asked once, "not confirmed yet", never a state
+      const { ctx, page, st } = await managed({ ok: false }, 404);
+      await page.waitForFunction(() => document.getElementById('pass').getAttribute('data-state') === 'unconfirmed', null, { timeout: 5000 }).catch(() => {});
+      await page.waitForTimeout(1800);
+      check(await stateOf(page) === 'unconfirmed' && st.gets.length === 1 && await text(page, '#cText') === k.booked.unconfirmed && await text(page, '#slotSr') === 'Order not confirmed yet',
+        'a 404 (wrong token, unknown order) asks once and says "Not confirmed yet" — never a state, never a retry', `${st.gets.length} asks`);
+      await ctx.close();
+    }
+    {
+      // the network or the server failing: twice more, then the state
+      const { ctx, page, st } = await open({ slug: 'paris', query: `?order=${OID}&t=${TOK}`, paid: (n) => (n < 3 ? { status: 503, body: { ok: false, error: 'unavailable' } } : { status: 200, body: { ...base0, state: 'booked' } }) });
+      await page.waitForFunction(() => document.getElementById('pass').getAttribute('data-state') === 'booked', null, { timeout: 9000 }).catch(() => {});
+      check(await stateOf(page) === 'booked' && st.gets.length === 3, 'a 503 is asked again (1.5 s, 3 s): the third answer prints the ticket', `${st.gets.length} asks`);
+      await ctx.close();
+    }
+    for (const q of [`?order=${OID}&t=zz`, `?order=../../x&t=${TOK}`, `?t=${TOK}`]) {
+      const { ctx, page, st } = await open({ slug: 'paris', query: q });
+      await page.waitForTimeout(600);
+      check(await stateOf(page) === 'blank' && st.gets.length === 0 && await page.evaluate(() => location.search === ''), `a malformed managed link (${q}) asks nothing, changes nothing and folds the address line`);
+      await ctx.close();
+    }
+
+    // #order-<plan> opens the till on that plan (the operator's replies on a signing desk); ?paid= means nothing here
+    {
+      const { ctx, page, st } = await open({ slug: 'paris', query: '#order-full-search' });
+      await page.waitForTimeout(600);
+      check(await page.$eval('#till', (d) => d.open) && await text(page, '#tTitle') === 'Full Search' && !(await page.$eval('#tStart', (x) => x.checked)) && await page.evaluate(() => location.hash === '')
+        && (await evs(page, 'order_link')).length === 1 && st.checkouts.length === 0,
+        '#order-full-search opens the till on Full Search (Start now never pre-ticked), the hash folds, order_link counted');
+      await ctx.close();
+    }
+    {
+      const { ctx, page, st } = await open({ slug: 'paris', query: `?paid=full-search&session_id=${SID}`, paid: { status: 200, body: { ok: true, paid: true, plan: 'full-search', file: FILE } } });
+      await page.waitForTimeout(800);
+      check(await stateOf(page) === 'blank' && st.gets.length === 0 && (await evs(page, 'purchase')).length === 0, 'a ?paid= on a signing page is ignored: no ask, no PAID, no purchase');
+      await ctx.close();
+    }
+
+    // the six unchanged (SIGN false): no order config, the six's till body, ?order= and #order- mean nothing
+    {
+      const { ctx, page, st } = await open({ slug: 'amsterdam', query: `?order=${OID}&t=${TOK}#order-full-search`, checkout: { status: 200, body: { ok: false, error: 'stripe_down' } } });
+      await page.waitForTimeout(700);
+      const cfg = await page.evaluate(() => window.BOOM_CITY);
+      check(!('CHARGE_AT' in cfg) && !('BOOKED' in cfg) && !('ORDER_TERMS_V' in cfg) && !(await page.$('#cBooked')), 'Amsterdam carries no order config and no BOOKED card');
+      check(st.gets.length === 0 && await stateOf(page) === 'blank' && await page.evaluate(() => location.search.includes('order=') && location.hash === '#order-full-search') && !(await page.$eval('#till', (d) => d.open)),
+        'on Amsterdam ?order=&t= asks nothing and #order-full-search opens nothing (the address line untouched)');
+      await toTill(page);
+      await fillTill(page);
+      await page.click('#tGo');
+      await page.waitForTimeout(400);
+      const b = st.checkouts[0] || {};
+      check(JSON.stringify(Object.keys(b)) === JSON.stringify(['city', 'kind', 'name', 'email', 'notes', 'startNow', 'company']) && (await evs(page, 'add_payment_info')).length === 1 && (await evs(page, 'booking_submit')).length === 0
+        && await text(page, '#tRule') === RULE && await text(page, '#tErr') === await page.$eval('#till', (d) => d.getAttribute('data-err-net')),
+        'Amsterdam\'s till body is the six\'s, unchanged (no requestId, no termsV), add_payment_info as before, the refund rule on its ✓ line', JSON.stringify(b));
+      await ctx.close();
+    }
+  } finally { PAGES.delete('/paris.html'); }
 }
 
 async function finish() {

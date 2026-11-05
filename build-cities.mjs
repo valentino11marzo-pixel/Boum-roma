@@ -235,7 +235,8 @@ export const HZ_W = 640, HZ_H = 520, HZ_VIEWBOX = `0 0 ${HZ_W} ${HZ_H}`;
 // taken from the right, where Rome's label sits under its ring anyway, and a
 // little from the left, where Madrid's label needs the margin: with the
 // eight desks of 04/11/2026 AMS–LON measure 44.7px at 320px and 55.6px at
-// 390px (HUB_MAP_PX, asserted by the hub build).
+// 390px. Since v1.8 the hub build asserts the 44px spacing only where a pin
+// is a target, from 600px (HUB_MAP_PX); a phone taps the map box (option (b)).
 export const HZ_CAM = { lon: 5, lat: 29, dist: 1.3, tlon: 5, tlat: 51, pad: { l: 0.09, r: 0.06, t: 0.25, b: 0.08 } };
 // THE FIT NEVER ZOOMS IN PAST THIS SCALE (frame units per unit of the pinhole
 // plane; today's eight desks fit at 981). A far desk zooms the map OUT and
@@ -2477,10 +2478,17 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
 export const HUB_FILE = 'desks.html';
 // the hub's caps, set once with the hub; never raised to fit
 export const HUB_WEIGHT_KB = { total: 78, page: 28, css: 6, js: 6 };
-// the map's drawn width on a phone (the column — the viewport minus the two
-// 16px gutters — minus the box's two 1px borders), where the build measures
-// the distance between two pins (44px targets, centred on their dots)
-export const HUB_MAP_PX = { 390: 356, 320: 286 };
+// the map's drawn width where its pins are TARGETS (44px, centred on their
+// dots), at which the build measures the distance between two pins: from
+// 600px with a mouse — 566 at 600 (the column, the viewport minus the two 16px
+// gutters, minus the box's two 1px borders), 559 at 940 beside its rail (the
+// spec's figure: Chromium draws 582 there without a classic scrollbar; the
+// narrower width is the stricter check). v1.8 option (b), spec D12: under
+// 600px, or without hover, the pins are links but not targets — the map box
+// takes the tap and resolves the nearest desk within 30px
+// (assets/src/boom-desks.js); with eight live desks two pins stand 24–30px
+// apart on a phone, which no 44px rule can hold
+export const HUB_MAP_PX = { 600: 566, 940: 559 };
 export const HUB_BUDGET = { body: 980, prose: 740, instr: 280, first: 120, lead: 30, node: 24, dd: 45, faqA: 42,
   board: 120, map: 90, fares: 230, rules: 160, faq: 70, brief: 240 };
 export const COUNTRY_NAME = { NL: 'Netherlands', ES: 'Spain', GB: 'United Kingdom', IT: 'Italy', FR: 'France', DE: 'Germany' };
@@ -3416,14 +3424,14 @@ export function renderHub({ template, shared, hub, cities, assetVersion, frags, 
     const bad = hzViolations(arcs, [...arcs.map((a) => ({ key: a.key, xy: a.to, r: ARC_DOT_R })), ...offs.map((o) => ({ key: o.key, xy: o.to, r: ARC_DOT_R }))]);
     need(!bad.length, where, `the hub map draws an arc over a desk: ${bad.join('; ')}`);
   }
-  // a pin is a 44px target: on a phone the map is as wide as the column (HUB_MAP_PX:
-  // 356px drawn on the founder's 390px phone, 286px at 320px) and no two live desks'
-  // pins may overlap
+  // a pin is a 44px target where it is one — from 600px with a mouse (HUB_MAP_PX: the
+  // map drawn 566px wide at 600, 559 at 940) — and no two live desks' pins may overlap
+  // there; under 600px the map box is the one target (v1.8 option (b), spec D12)
   for (const [w, px] of Object.entries(HUB_MAP_PX)) {
     const unit = px / HZ.view[2];
     for (const x of arcs) for (const y of arcs) if (x.key < y.key) {
       const d = Math.hypot(x.to[0] - y.to[0], x.to[1] - y.to[1]) * unit;
-      need(d >= 44, where, `the map's pins for ${x.key} and ${y.key} are ${d.toFixed(1)}px apart on a ${w}px phone: they overlap (44px targets)`);
+      need(d >= 44, where, `the map's pins for ${x.key} and ${y.key} are ${d.toFixed(1)}px apart at ${w}px, where a pin is its own target: they overlap (44px targets)`);
     }
   }
 

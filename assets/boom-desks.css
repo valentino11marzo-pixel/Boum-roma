@@ -91,6 +91,7 @@
 @media (hover:hover){.pin:hover .pc{display:block}}
 .pc.dock{left:var(--dl);right:auto;top:var(--dt);width:var(--dw);max-width:none;transform:none;pointer-events:auto;padding:13px 16px;font-size:14px;background:#0B0B0E}
 .pc.dock .pc-go{display:flex;align-items:center;min-height:44px;margin:4px 0 -10px}
+@media (hover:none),(max-width:599px){.pin{pointer-events:none}.hmap-box{-webkit-tap-highlight-color:transparent}}
 .m-legend{margin-top:12px}
 .m-rail{display:grid;gap:14px;align-content:start}
 .m-card{padding:18px 18px 8px;border:1px solid var(--line-soft);background:linear-gradient(180deg,#0E0E11,#0A0A0C)}

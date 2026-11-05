@@ -19,9 +19,13 @@
   }
   var sell = C.CHECKOUT === true;
   var waitlist = C.MODE === 'waitlist';
+  var SIGN = C.CHARGE_AT === 'signing', BK = C.BOOKED || {};
   function track(name, params) { try { if (typeof gtag === 'function') gtag('event', name, params || {}); } catch (e) {} }
   function convert(label) { try { window.dispatchEvent(new CustomEvent('boom-conversion', { detail: { label: label, section: 'pass' } })); } catch (e) {} }
   var CUR = C.CURRENCY || 'EUR', eur = function (n) { return (C.SYMBOL || '€') + String(Math.round(Number(n))).replace(/\B(?=(\d{3})+(?!\d))/g, ','); };
+  var amt = function (n) { var x = Math.round(n * 100) / 100; return x % 1 ? (C.SYMBOL || '€') + x.toFixed(2) : eur(x); };
+  var MON = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  var dayOf = function (v) { var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v || ''); return m && MON[m[2] - 1] ? +m[3] + ' ' + MON[m[2] - 1] + ' ' + m[1] : ''; };
   var txt = function (id, v) { var n = $(id); if (n) { var s = v == null ? '' : String(v); if (n.textContent !== s) n.textContent = s; } };
   var planOf = function (id) { return id && Object.prototype.hasOwnProperty.call(PLANS, id) ? PLANS[id] : null; };
   var store = {
@@ -85,7 +89,7 @@
       if (window.BOOM_ONDA && BOOM_ONDA.setOpen) BOOM_ONDA.setOpen(w.open);
     }
     gate(now);
-    if (lastS === 'open' || lastS === 'paid') depFact(lastS, lastD);
+    if (lastS === 'open' || lastS === 'paid' || lastS === 'booked') depFact(lastS, lastD);
     if (pass.getAttribute('data-state') === 'open') txt('oNext', nextLine());
     setTimeout(refreshClock, 60000 - (Date.now() % 60000) + 50);
   }
@@ -167,7 +171,7 @@
     var w = win(), today = !!w && (w.open || w.day === 'Today'), when = !w ? '' : today ? 'TODAY' : DAY3[w.wd] || '', word = '', say = '';
     var day = today ? 'today' : w ? DAYS[w.wd] : '';
     if (s === 'open') { word = sell ? (when && 'REPLY ' + when) : 'FILE OPEN'; say = sell ? 'reply ' + day : 'file open'; }
-    else if (s === 'paid' && sell) {
+    else if ((s === 'paid' || (s === 'booked' && !d.st)) && sell) {
       if (d.startNow === false) {
         var m = /^(\d{1,2}) ([A-Za-z]{3,9})/.exec(String(d.workFromLabel || ''));
         word = m ? 'FROM ' + m[1] + ' ' + m[2].slice(0, 3).toUpperCase() : '';
@@ -342,7 +346,7 @@
   }
 
   function show(id) {
-    ['cOpen', 'cConfirm', 'cPaid'].forEach(function (k) { var n = $(k); if (n) n.hidden = k !== id; });
+    ['cOpen', 'cConfirm', 'cPaid', 'cBooked'].forEach(function (k) { var n = $(k); if (n) n.hidden = k !== id; });
     var n = $(id); if (!n) return;
     n.classList.remove('in'); void n.offsetWidth; n.classList.add('in');
     var st = n.querySelector('.stamp'); if (st) { st.classList.remove('hit'); void st.offsetWidth; st.classList.add('hit'); }
@@ -358,12 +362,14 @@
   function setState(s, d) {
     d = d || {};
     pass.setAttribute('data-state', s);
-    var issued = s === 'open' || s === 'paid', I = C.IATA || '', f = d.file || '—';
+    var issued = s === 'open' || s === 'paid' || s === 'booked', I = C.IATA || '', f = d.file || '—';
+    var ms = s === 'booked' ? { due: 'DUE', paid: 'PAID', withdrawn: 'CLOSED', closed: 'CLOSED' }[d.st] || 'BOOKED' : '';
     pass.classList.remove('struck');
-    if (s === 'paid' && d.startNow === false) pass.setAttribute('data-hold', ''); else pass.removeAttribute('data-hold');
+    if ((s === 'paid' || ms === 'BOOKED') && d.startNow === false) pass.setAttribute('data-hold', ''); else pass.removeAttribute('data-hold');
     if (issued) { void pass.offsetWidth; pass.classList.add('struck'); }
     if (s === 'open') txt('codeLine', 'FILE ' + f + ' · ' + I + ' · TENANT SIDE');
     else if (s === 'paid') txt('codeLine', 'PAID · FILE ' + f + ' · ' + I);
+    else if (ms) txt('codeLine', ms + ' · FILE ' + f + ' · ' + I);
     depFact(s, d);
     $$('[data-pay]').forEach(function (b) { b.hidden = s !== 'blank'; });
     if (s !== 'blank') closeTill();
@@ -379,7 +385,7 @@
       show('cOpen'); ping($('cOpen').querySelector('.stamp'), 'l'); land($('cOpen'));
     } else if (s === 'confirming' || s === 'unconfirmed') {
       if (st) st.textContent = s === 'confirming' ? 'Confirming' : 'Not confirmed';
-      txt('slotSr', s === 'confirming' ? 'Payment being confirmed' : 'Payment not confirmed yet');
+      txt('slotSr', (SIGN ? 'Order' : 'Payment') + (s === 'confirming' ? ' being confirmed' : ' not confirmed yet'));
       if (s === 'unconfirmed' && $('cConfirm')) txt('cText', $('cConfirm').getAttribute('data-unconfirmed'));
       show('cConfirm');
     } else if (s === 'paid') {
@@ -387,19 +393,48 @@
       slot('PAID', 'Paid');
       txt('pFile', d.file || '—');
       txt('pFare', (p.label || '') + ' · ' + eur(p.eur || 0));
-      var P = C.PAID || {};
-      var waits = d.startNow === false;
-      txt('pStart', !waits ? (P.startsNow || '') : d.workFromLabel ? String(P.startsWait || '{date}').replace('{date}', d.workFromLabel) : ((P.nextWait || [])[1] || [''])[0]);
-      if (waits) {
-        var li = $$('#pNext li');
-        (P.nextWait || []).forEach(function (pair, i) { if (li[i]) { li[i].textContent = ''; var b = document.createElement('b'); b.textContent = pair[0]; li[i].appendChild(b); li[i].appendChild(document.createTextNode(' ' + pair[1])); } });
-        if ($('pWait')) $('pWait').hidden = false;
-        if ($('pText')) $('pText').hidden = true;
-      }
+      starts('p', C.PAID || {}, d);
       show('cPaid'); ping($('cPaid').querySelector('.stamp'), 'p');
-    }
+    } else if (ms) booked(ms, d);
     doorTwins();
   }
+  function starts(k, P, d) {
+    var waits = d.startNow === false;
+    txt(k + 'Start', !waits ? (P.startsNow || '') : d.workFromLabel ? String(P.startsWait || '{date}').replace('{date}', d.workFromLabel) : ((P.nextWait || [])[1] || [''])[0]);
+    if (!waits) return;
+    var li = $$('#' + k + 'Next li');
+    (P.nextWait || []).forEach(function (pair, i) { if (li[i]) { li[i].textContent = ''; var b = document.createElement('b'); b.textContent = pair[0]; li[i].appendChild(b); li[i].appendChild(document.createTextNode(' ' + pair[1])); } });
+    if ($(k + 'Wait')) $(k + 'Wait').hidden = false;
+    if ($(k + 'Text')) $(k + 'Text').hidden = true;
+  }
+  function booked(ms, d) {
+    var p = planOf(d.plan) || {}, c = $('cBooked'), M = ms !== 'BOOKED', w = d.st, B = BK, word = ms.charAt(0) + ms.slice(1).toLowerCase(), x = c.querySelector('.st-w'), a = null;
+    slot(ms, word);
+    c.querySelector('.k').textContent = word;
+    txt('bFile', d.file || '—');
+    txt('bFare', p.label ? p.label + ' · ' + (d.amount != null ? amt(d.amount) : eur(p.eur) + (M ? '' : ' when you sign')) : '—');
+    txt('bOrder', d.number || '—');
+    starts('b', B, d);
+    if (M) c.querySelector('h2').hidden = $('bStart').parentNode.hidden = $('bNext').hidden = $('bText').hidden = $('bWait').hidden = true;
+    if (ms === 'PAID') { x.textContent = 'PAID'; x.removeAttribute('textLength'); x = c.querySelector('textPath'); x.textContent = x.textContent.replace('BOOKED', 'PAID'); }
+    c.querySelector('.stamp').hidden = ms === 'CLOSED';
+    if (w) {
+      if (w === 'booked') {
+        a = document.createElement('a'); a.className = 'lnk'; a.textContent = B.withdrawLink;
+        a.href = C.WITHDRAW_URL + '?desk=' + encodeURIComponent(C.CITY) + (d.number ? '&ref=' + encodeURIComponent(d.number) : '') + '#online';
+      } else if (w === 'due' && /^https:\/\/(?:www\.)?boomrome\.com\/api\/payments\/link\?/.test(d.payUrl)) {
+        a = document.createElement('a'); a.className = 'pay'; a.href = d.payUrl;
+        a.innerHTML = '<span><b></b></span><span class="ar" aria-hidden="true">→</span>';
+        a.firstChild.firstChild.textContent = B.payLabel;
+      }
+      x = c.appendChild(document.createElement('p')); x.id = 'bLine';
+      x.textContent = w === 'due' ? String(B.dueText).replace('{amount}', amt(d.amount)) : w === 'paid' ? on(B.paidText, d.paidOn) : w === 'withdrawn' ? on(B.withdrawnText, d.withdrawnOn) : w === 'closed' ? B.closedText : '';
+      if (a) x.appendChild(a);
+    }
+    show('cBooked');
+    if (!w) ping(c.querySelector('.stamp'), 'l');
+  }
+  function on(s, v) { var x = dayOf(v); return String(s).replace(/ on \{date\}/, x ? ' on ' + x : '').replace('{date}', x); }
 
   var till = sell ? $('till') : null, tf = sell ? $('tillForm') : null, opener = null, paying = false;
   function payLabels() {
@@ -418,6 +453,7 @@
     var ul = $('tInc'); ul.textContent = '';
     p.includes.forEach(function (t) { var li = document.createElement('li'); li.textContent = t; ul.appendChild(li); });
     $('tRule').hidden = !p.rule;
+    if (p.trigger) txt('tRule', p.trigger);
     var fn = $('fName'), c = splitContact(($('fContact') || {}).value);
     if (fn && fn.value && !$('tName').value) $('tName').value = fn.value.trim();
     if (c.email && !$('tEmail').value) $('tEmail').value = c.email;
@@ -473,19 +509,25 @@
       if (!p) return;
       paying = true; $('tGo').setAttribute('aria-disabled', 'true'); txt('tErr', '');
       var tok = payTok;
-      track('add_payment_info', { currency: CUR, value: p.eur, market: C.SLUG });
-      postJson(C.CHECKOUT_ENDPOINT || '/api/service-checkout', {
+      track(SIGN ? 'booking_submit' : 'add_payment_info', { currency: CUR, value: p.eur, market: C.SLUG });
+      var body = {
         city: C.SLUG, kind: id, name: n.value.trim(), email: m.value.trim(),
         notes: ($('tNote').value || '').trim(),
         startNow: $('tStart').checked === true,
         company: ($('tCompany').value || '').trim()
-      }).then(function (r) {
+      };
+      if (SIGN) { body.requestId = requestId; body.termsV = C.ORDER_TERMS_V || ''; }
+      postJson(C.CHECKOUT_ENDPOINT || '/api/service-checkout', body).then(function (r) {
+        if (SIGN && r && r.ok && r.booked) { paying = false; confirmed(r, id); return; }
         if (tok !== payTok || !till.open) { paying = false; $('tGo').removeAttribute('aria-disabled'); return; }
         if (r && r.ok && r.url) { location.href = r.url; return; }
-        throw new Error((r && r.error) || 'failed');
-      }).catch(function () {
+        throw r || new Error('failed');
+      }).catch(function (r) {
         paying = false; $('tGo').removeAttribute('aria-disabled'); payLabels();
-        if (tok === payTok) txt('tErr', till.getAttribute('data-err-net'));
+        if (tok !== payTok) return;
+        var er = SIGN && r ? r.error : '', fd = er === 'name' ? n : er === 'email' ? m : null;
+        if (fd) { setErr(fd, till.getAttribute('data-err-' + er)); fd.focus(); return; }
+        txt('tErr', till.getAttribute(er === 'terms_changed' ? 'data-err-stale' : 'data-err-net'));
       });
     });
     addEventListener('pageshow', function (e) {
@@ -498,6 +540,7 @@
 
   function handleReturn() {
     if (!sell) return;
+    if (SIGN) return;
     var q; try { q = new URLSearchParams(location.search); } catch (e) { return; }
     var id = q.get('paid'), sid = q.get('session_id') || '';
     if (!id) return;
@@ -539,6 +582,31 @@
             ask();
           }, ask);
       }, wait);
+    })();
+  }
+
+  function confirmed(r, id) {
+    var k = 'boom-booked-' + r.id;
+    if (!planOf(r.plan)) r.plan = id;
+    setState('booked', r);
+    land($('cBooked'));
+    if (!store.get(k)) { store.set(k, '1'); track('booking', { currency: CUR, value: PLANS[r.plan].eur, plan: r.plan, market: C.SLUG }); convert('City order booked'); }
+  }
+  function handleOrder() {
+    if (!SIGN) return;
+    var q; try { q = new URLSearchParams(location.search); } catch (e) { return; }
+    var oid = q.get('order') || '', t = q.get('t') || '', n = 0;
+    if (!oid && !t) return;
+    try { history.replaceState(null, '', location.pathname); } catch (e) {}
+    if (!/^book_[a-z0-9_]{8,52}$/.test(oid) || !/^[a-f0-9]{24}$/.test(t)) return;
+    setState('confirming');
+    (function ask() {
+      fetch((C.LEAD_URL || '/api/city-lead') + '?order=' + oid + '&t=' + t + '&city=' + C.SLUG, { cache: 'no-store' }).then(function (r) {
+        return r.json().then(function (v) {
+          if (v && v.ok && /^(booked|due|paid|withdrawn|closed)$/.test(v.state)) { v.st = v.state; setState('booked', v); if (!moved) land($('cBooked'), true); return; }
+          throw r.status < 500 && r.status !== 429 ? 0 : 1;
+        });
+      }).catch(function (e) { if (e !== 0 && ++n < 3) setTimeout(ask, 1500 * n); else { setState('unconfirmed'); if (!moved) land($('cConfirm'), true); } });
     })();
   }
 
@@ -636,6 +704,7 @@
   sync();
   refreshClock();
   onScroll();
+  handleOrder();
   handleReturn();
   function deep() {
     if (till && till.open) {
@@ -643,8 +712,10 @@
       if (!till.contains(document.activeElement)) { try { $('tTitle').focus({ preventScroll: true }); } catch (e) {} }
       return;
     }
-    var m = /^#(fare-|pay-)?([a-z-]+)$/.exec(location.hash), id = m && m[2], d = id && planOf(id) && $('fare-' + id);
-    if (!d || /[?&]paid=/.test(location.search) || state() !== 'blank') return;
+    var m = /^#(fare-|pay-|order-)?([a-z-]+)$/.exec(location.hash);
+    if (m && m[1] === 'order-' && !SIGN) m = null;
+    var id = m && m[2], d = id && planOf(id) && $('fare-' + id);
+    if (!d || (!SIGN && /[?&]paid=/.test(location.search)) || state() !== 'blank') return;
     try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
     var was = d.open;
     fares.forEach(function (o) { o.open = o === d; });
@@ -654,7 +725,7 @@
     go();
     if (document.readyState !== 'complete') addEventListener('load', go, { once: true });
     if (!was) track('fare_open', { plan: id, market: C.SLUG, via: 'link' });
-    if (m[1] === 'pay-' && sell) { track('pay_link', { plan: id, market: C.SLUG }); openTill(id, t); }
+    if ((m[1] === 'pay-' || m[1] === 'order-') && sell) { track(m[1] === 'pay-' ? 'pay_link' : 'order_link', { plan: id, market: C.SLUG }); openTill(id, t); }
   }
   deep();
   addEventListener('hashchange', deep);

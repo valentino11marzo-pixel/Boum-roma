@@ -194,8 +194,18 @@ check(html.includes(frags.deskCalendar) && /BOOM_CALENDAR:START/.test(html) && /
   'the desk calendar is inlined from js/desk-calendar.js — the file the webhook imports (one copy of the holidays)');
 check(/<body data-consent-late>/.test(html) && /<script defer src="\/js\/boom-consent\.js"><\/script>/.test(html) && /<script defer src="\/js\/boom-track\.js"><\/script>/.test(html),
   'consent waits for the reader (data-consent-late); consent and tracking are the site\'s own scripts');
-check(/gtag\('consent','default',\{ad_storage:'denied'[^}]*analytics_storage:'denied'/.test(html) && /session_id=/.test(html.match(/gtag\('set',\{page_location:[^;]+/)[0]),
-  'GA starts denied and page_location drops the fragment and the session_id of a paid return');
+{
+  // the expression itself, run on the addresses it must clean (v1.8 B3: it strips the order and t of a managed
+  // ticket too — this pin used to read the literal "session_id=", which the one regex no longer spells)
+  const pl = (html.match(/gtag\('set',\{page_location:([^}]+)\}\)/) || [])[1] || '';
+  const at = (search) => { try { return new Function('location', 'return ' + pl)({ origin: 'https://www.boomrome.com', pathname: '/paris', search }); } catch (e) { return 'ERR ' + e.message; } };
+  const W = 'https://www.boomrome.com/paris';
+  check(/gtag\('consent','default',\{ad_storage:'denied'[^}]*analytics_storage:'denied'/.test(html) && !/hash/.test(pl)
+    && at('?paid=full-search&start=0&session_id=cs_test_ui0000000001') === W + '?paid=full-search&start=0' && at('?session_id=cs_x&paid=a') === W + '?paid=a'
+    && at('?order=book_abc12345&t=0123456789abcdef01234567') === W && at('?order=book_abc12345&t=00&city=paris') === W + '?city=paris'
+    && at('?utm_t=1&t=2') === W + '?utm_t=1' && at('') === W,
+    'GA starts denied and page_location drops the fragment, the session_id of a paid return and the order and t of a managed ticket', pl);
+}
 check(!/stripe\.com|js\.stripe|web3forms|formspree|fbq\(|connect\.facebook/i.test(html), 'no third-party form, no Stripe script, no ad pixel: the forms post to our own API');
 
 // the pass: the city on ONE board, served empty; the sentence; the fares; the door; the desk
@@ -2412,13 +2422,21 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
     const pins = [...H.matchAll(/<a class="pin[^"]*" id="pin-([a-z]{3})" href="\/([a-z]+)" style="--x:([\d.]+)%;--y:([\d.]+)%"/g)];
     const ok2 = pins.length === LIVE.length && pins.every((m) => { const [x, y] = HZ.cam.xy(CITY[m[2]].geo); return CITY[m[2]].live && Math.abs(+m[3] - (x - vx) / vw * 100) < 0.06 && Math.abs(+m[4] - (y - vy) / vh * 100) < 0.06; });
     check(ok2, `pins for the live desks only, at the projected --x/--y inside the cropped frame (${pins.map((m) => `${m[1]} ${m[3]}/${m[4]}`).join(' · ')})`);
-    // 44px targets: no two pins overlap on a 390px phone nor on a 320px one (HUB_MAP_PX: the drawn width, the column minus the box's two 1px borders)
-    check(HUB_MAP_PX[390] === 356 && HUB_MAP_PX[320] === 286, 'HUB_MAP_PX: 356px at 390, 286px at 320');
+    // 44px targets: no two pins overlap where a pin IS a target (HUB_MAP_PX: the drawn width, the column minus the box's two 1px borders).
+    // This pin moved in v1.8 stage B3 (spec D12, option (b)): it was { 390: 356, 320: 286 }, the phone widths; with eight live desks
+    // two pins stand 24–30px apart on a phone, so under 600px the map box is the one target (the nearest desk within 30px,
+    // assets/src/boom-desks.js, tests/cities/ui.mjs) and the 44px rule holds from 600px, where the pins are targets again
+    check(HUB_MAP_PX[600] === 566 && HUB_MAP_PX[940] === 559 && Object.keys(HUB_MAP_PX).length === 2, 'HUB_MAP_PX: 566px at 600, 559px at 940 — the widths where a pin is its own target');
     for (const [w, px] of Object.entries(HUB_MAP_PX)) {
       let min = 1e9, pair = '';
       for (const a of LIVE) for (const b of LIVE) if (a < b) { const A = HZ.cam.xy(CITY[a].geo), B = HZ.cam.xy(CITY[b].geo); const d = Math.hypot(A[0] - B[0], A[1] - B[1]) * px / vw; if (d < min) { min = d; pair = `${CITY[a].iata}–${CITY[b].iata}`; } }
-      check(min >= 44, `on a ${w}px phone (map ${px}px) the closest pins (${pair}) are ${min.toFixed(1)}px apart: 44px targets never overlap`);
+      check(min >= 44, `at ${w}px (map ${px}px) the closest pins (${pair}) are ${min.toFixed(1)}px apart: 44px targets never overlap`);
     }
+    // under 600px the map box takes the tap (option (b)): the pins keep their links but take no pointer
+    const dcss = read('assets/src/boom-desks.css'), djs = read('assets/src/boom-desks.js');
+    check(/@media \(hover:none\),\(max-width:599px\)\{\.pin\{pointer-events:none\}/.test(dcss) && /\.pc\.dock\{[^}]*pointer-events:auto/.test(dcss)
+      && /touch = mq\('\(hover: none\), \(max-width: 599px\)'\)/.test(djs) && /box\.addEventListener\('click'/.test(djs) && /bd = 30;/.test(djs),
+      'under 600px (or without hover) the pins are links but not targets; the map box resolves the nearest desk within 30px (one media query for the CSS and the script)');
     const arcs = LIVE.map((s) => ({ key: CITY[s].iata, d: HZ.arcs.get(CITY[s].iata).d }));
     check(hzViolations(arcs, SLUGS.map((s) => ({ key: CITY[s].iata, xy: HZ.cam.xy(CITY[s].geo), r: ARC_DOT_R }))).length === 0, 'no arc on the hub passes over a desk it does not serve (hzViolations = 0)');
     const rules = sliceOf(H, '<style>.hmap:has(#pin-', '</style>');
