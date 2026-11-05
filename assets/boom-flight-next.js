@@ -141,6 +141,7 @@
     rail.addEventListener('scroll',function(){var index=photoIndex();byId('nextPhotoCount').textContent=String(index+1).padStart(2,'0')+' / '+String(c.images.length).padStart(2,'0');},{passive:true});
     rail.addEventListener('keydown',function(e){if(e.key==='ArrowRight'||e.key==='ArrowLeft'){e.preventDefault();stepPhoto(e.key==='ArrowRight'?1:-1);}});
     document.title=c.name+' — BOOM Flight Next';
+    if(window.BoomClubJourney)window.BoomClubJourney.render({state:state,catalogue:catalogue,url:url,loaded:loaded,error:loadError});
   }
   function photoIndex(){var rail=byId('nextPhotoRail'),first=rail&&rail.querySelector('button');return first?Math.max(0,Math.min(rail.children.length-1,Math.round(rail.scrollLeft/(first.getBoundingClientRect().width+parseFloat(getComputedStyle(rail).gap))))):0;}
   function stepPhoto(step){var rail=byId('nextPhotoRail');if(!rail)return;var next=rail.children[Math.max(0,Math.min(rail.children.length-1,photoIndex()+step))];if(next)rail.scrollTo({left:next.offsetLeft-rail.offsetLeft-parseFloat(getComputedStyle(rail).paddingLeft),behavior:reduce()?'instant':'smooth'});}

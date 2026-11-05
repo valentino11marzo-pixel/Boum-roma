@@ -23,15 +23,12 @@ body[data-direction="club"][data-edition="club"].europe-ready{
  & .club-media-facts{font-size:12px;color:#bbbcb6;margin:10px 0 0;line-height:1.6}
  & .club-media-open{display:flex;gap:20px;align-items:center;min-height:44px;font-size:12px;color:#f3f2ec;flex-shrink:0}
  & .club-media-open span{color:#e8ce75}
- & .club-desk-person{margin:60px 0 0;padding:25px 0 0;border-top:1px solid #33363a;display:grid;grid-template-columns:112px minmax(0,600px);gap:28px;align-items:start}
- & .club-desk-person>img{width:112px;height:148px;object-fit:cover;object-position:center 35%;border-radius:2px}
- & .club-desk-person figcaption{display:grid;grid-template-columns:1fr 1fr;gap:10px 28px;min-width:0}
- & .club-desk-person figcaption>span{font-size:11px;color:#bbbcb6;grid-column:1/-1}
- & .club-desk-person h2{font-size:28px;line-height:1.1;letter-spacing:-.035em;margin:0}
- & .club-desk-person p{font-size:13px;line-height:1.6;margin:0;color:#bbbcb6}
- & .club-desk-person p:first-of-type{grid-column:1;grid-row:3}
- & .club-desk-person p:last-of-type{grid-column:2;grid-row:2/4}
- & .club-desk-person a{display:flex;gap:16px;align-items:center;min-height:44px;font-size:13px;color:#f3f2ec;grid-column:1/-1}
+ & .club-desk-person{margin:0;padding:0;border:0;display:grid;grid-template-columns:66px minmax(0,1fr);gap:15px;align-items:start}
+ & .club-desk-person>img{width:66px;height:88px;object-fit:cover;object-position:center 35%;border-radius:2px}
+ & .club-desk-person figcaption{display:flex;flex-direction:column;gap:7px;min-width:0}
+ & .club-desk-person strong{font-size:17px;line-height:1.2;font-weight:300;letter-spacing:-.02em}
+ & .club-desk-person p{font-size:12px;line-height:1.5;margin:0;color:#bbbcb6}
+ & .club-desk-person a{display:flex;gap:12px;align-items:center;min-height:44px;font-size:12px;color:#f3f2ec}
  /* The same photographs remain uncropped in the detailed visit. */
  & .next-photo-rail img{object-fit:contain;background:#101113;filter:none}
  & .next-photo-rail{height:clamp(420px,47vw,680px)}
@@ -44,10 +41,6 @@ body[data-direction="club"][data-edition="club"].europe-ready{
  & .club-media-caption{display:block;padding:15px 0 0}
  & .club-media-name{font-size:29px}
  & .club-media-open{justify-content:space-between;border-bottom:1px solid #33363a;margin-top:10px}
- & .club-desk-person{grid-template-columns:76px minmax(0,1fr);gap:18px;margin-top:40px}
- & .club-desk-person>img{width:76px;height:104px}
- & .club-desk-person figcaption{display:flex;flex-direction:column;gap:10px}
- & .club-desk-person h2{font-size:26px}
  & .next-photo-rail{height:460px}
 }}
 @media(max-width:360px){body[data-direction="club"][data-edition="club"].europe-ready{& .club-media-rail{--club-photo-height:320px}& .next-photo-rail{height:410px}}}

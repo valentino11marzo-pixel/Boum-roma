@@ -282,6 +282,8 @@ const SUITES = [
   { name: 'flightclubui', file: 'tests/flight/club-ui.mjs', what: 'Club campus to balance to Apply, private workplace search, route evidence and responsive layouts' },
   { name: 'flighteuropeui', file: 'tests/flight/europe-ui.mjs', what: 'Europe city/need navigation, currency boundaries, private URL cleanup, stale configs, desk handoff and mobile bounds' },
   { name: 'flighteditionsui', file: 'tests/flight/editions-ui.mjs', what: 'Club and Prospettiva complete journeys, truthful cost tickets, responsive layouts and simultaneous comparison' },
+  { name: 'flightclubcompanyui', file: 'tests/flight/club-company-ui.mjs', what: 'Global Club company footer, truthful destinations, service identity, real tools and private-brief boundaries' },
+  { name: 'flightclubjourneyui', file: 'tests/flight/club-journey-ui.mjs', what: 'Club catalogue and detail wayfinding, original Apply, date refresh and explicit availability states' },
   { name: 'flightclubmediaui', file: 'tests/flight/club-media-ui.mjs', what: 'Club photographs from one public home, keyboard gallery, failures, truthful captions, city boundaries and mobile detail return' },
   { name: 'flightclubmotion', file: 'tests/flight/club-motion.mjs', what: 'Original Solari clock, light palette, six city geometries, pause and mutation checks' },
   { name: 'flightclubflight', file: 'tests/flight/club-flight.mjs', what: 'Club globe arrival to real Rome Skyline or city service, draft/history/focus, skip, repeat and reduced motion' },

@@ -3383,6 +3383,13 @@ Pointer capture viene rilasciato su cancel/pausa/fuori vista; pan-y conserva lo 
 Foto e ritratto caricati lazy; canvas con budget pixel esistente, niente dipendenze. Pass/prospettiva hover solo mouse, titoli/prezzi/moduli fermi e utilizzabili subito. Clock Solari invariato.
 Verifiche aggiunte a `flightclubflight`: drag senza navigazione, reset, quiete, pausa durante gesto, scroll touch e ingresso dal pass; `flightclubmediaui` controlla le nuove collocazioni e guasti foto lazy.
 
+
+Flight Club continuità 05/11: Apartments e dettaglio espongono la tappa reale Explore/Review/Apply, senza avanzamenti finti né nuovi step; legenda Skyline/cuore e spiegazione di Apply accompagnano i controlli esistenti. `boom-club-journey` si aggiorna anche dopo modifica/clear date e destinazione, con un solo ritorno alla raccolta.
+`boom-club-company` ricompone il footer in evidenze (costi/persona/workspace PFS demo), sei destinazioni reali, servizi, persone/organizzazioni e dati societari pubblici. I Desks rispondono da Roma; il catalogo e la gestione restano romani. Nessun ufficio, partner, cliente o numero inventato.
+La rete footer riusa Europe e i confini EUR/GBP/brief pubblico; link servizi e logo riusano gli handoff canonici anche in nuova scheda. Il cambio città da Home riporta anche il focus al titolo. Demo e accesso clienti aprono i prodotti esistenti, senza un portale duplicato. Nessun nuovo backend, archivio, invio o dipendenza.
+Il ritratto del fondatore ora compare una volta in Who answers del servizio, ricostruito col bisogno selezionato; guasto manifest non mostra tariffe inventate. Il vecchio slogan footer resta solo nelle altre edizioni.
+Test `flightclubcompanyui` e `flightclubjourneyui`: 320/390/1280, destinazioni da raccolta/scheda, persona unica, dati pubblici/privati, manifest guasto, rotta, date e Apply originali; regressioni media/edizioni/Europe/Flight.
+
 Flight Lab 31/10: `/flight-lab` confronta Atlas, Residence e Club sulle stesse viste reali di `/flight-next?direction=…`, senza cambiare il sito pubblico.
 Le composizioni riusano catalogo, Solari, iframe Skyline, salvataggi e Apply; nessun secondo catalogo o nuovo handler di invio.
 Residence usa una foto realmente restituita dal catalogo pubblico (fallback a una casa pubblica non chiusa); Atlas sposta la stessa mappa nel primo schermo.
