@@ -365,6 +365,9 @@ h1 .h1a{display:block;color:var(--t2);font-size:clamp(26px,7vw,50px);text-wrap:b
 .card a.pay{text-decoration:none}
 .card .fields{margin-top:12px}
 .card .stamp~h2,.card .stamp~.k{padding-right:96px}
+/* the managed ticket past BOOKED (DUE, PAID) hides the heading: the fields rise under the stamp, so they keep its
+   room — one per line (File · Fare · Order), so a 320 px column never breaks "BM X7K2Q" or the fee in pieces */
+.card .stamp:not([hidden])~h2[hidden]~.fields{grid-template-columns:minmax(0,1fr);padding-right:96px}
 .card .next{list-style:none;margin-top:12px;border-top:1px solid var(--line-soft)}
 .card .next li{padding:7px 0;border-bottom:1px solid var(--line-soft);font-size:13.5px;color:var(--t2)}
 .card .next b{color:var(--ink);font-weight:400}

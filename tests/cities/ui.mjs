@@ -37,6 +37,11 @@
 //     leaves the screen, no price, never with the till open;
 //   - the waitlists (Paris, Berlin): "Open my file", no pay button, no till;
 //     Madrid's till repeats "Optional, chosen in writing";
+//   - v1.8 review LFR-1: on live Paris and Berlin (charged at signing) Enter
+//     in the till's name, email, note or tick never orders — it walks to the
+//     next field, then the button; a held Enter walks one step; one click on
+//     the labelled button makes ONE order; the six keep Enter to checkout;
+//     STAMP: the managed DUE/PAID fields never sit under the stamp;
 //   - v1.6, the complete aviation desk: ≤ 150 words on the first phone
 //     screen and nothing on it still moving after 1.6 s; the plane on the
 //     route parked by the SERVER's state (--at 0 · .25 · .125 with the hold),
@@ -820,6 +825,50 @@ for (const slug of ['paris', 'berlin']) {
   await page.click('#door');
   await page.waitForTimeout(500);
   check(st.posts.length === 1 && st.posts[0].city === slug && await page.getAttribute('#pass', 'data-state') === 'open', `${slug}: the free call's file opens`);
+  await ctx.close();
+}
+// v1.8 review LFR-1 (L221-14 al. 2, C. civ. 1127-2, §312j(3) BGB): on a desk that charges at signing the labelled
+// button IS the order. Enter in a field never places it — the browser's implicit submission used to click #tGo unseen,
+// below the tick, the withdrawal line and the button's words (one POST, a numbered mandate and its email from an Enter
+// in the email or the note). It walks name → email → note → the tick → the button; a held Enter walks one step and its
+// auto-repeat never presses the button; only the button orders. The six are unchanged (Stripe's page concludes there).
+for (const slug of ['paris', 'berlin']) {
+  const BOOK = { status: 200, body: { ok: true, booked: true, id: 'book_ui0000enter1', file: FILE, number: (slug === 'paris' ? 'PAR' : 'BER') + '-2026-0001', plan: 'full-search', startNow: false, workFromLabel: '19 November 2026' } };
+  const { ctx, page, st } = await open({ slug, query: '#order-full-search', checkout: BOOK });
+  await page.waitForTimeout(600);
+  const at = () => page.evaluate(() => document.activeElement && document.activeElement.id);
+  await page.fill('#tName', 'Anne Dupont'); await page.fill('#tEmail', 'anne@example.fr'); await page.fill('#tNote', 'https://www.seloger.com/annonces/123');
+  const walk = [];
+  for (const id of ['tName', 'tEmail', 'tNote', 'tStart']) { await page.focus('#' + id); await page.keyboard.press('Enter'); await page.waitForTimeout(150); walk.push(await at()); }
+  await page.waitForTimeout(500);
+  const goSeen = await page.$eval('#tGo', (b) => { const r = b.getBoundingClientRect(); return r.top >= -1 && r.bottom <= innerHeight + 1; });
+  check(await page.$eval('#till', (d) => d.open) && st.checkouts.length === 0 && await page.getAttribute('#pass', 'data-state') === 'blank' && !(await page.$eval('#tStart', (c) => c.checked)) && walk.join() === 'tEmail,tNote,tStart,tGo' && goSeen,
+    `${slug}: Enter in the name, the email, the note and on the tick orders nothing (0 POSTs) — it walks to the next field, then to the button, seen on the screen (${walk.join(' → ')})`);
+  for (const from of ['tNote', 'tStart']) {
+    await page.focus('#' + from);
+    await page.keyboard.down('Enter'); await page.keyboard.down('Enter'); await page.keyboard.down('Enter'); await page.keyboard.up('Enter');
+    await page.waitForTimeout(400);
+    check(st.checkouts.length === 0 && await at() === (from === 'tNote' ? 'tStart' : 'tGo'), `${slug}: a held Enter from ${from === 'tNote' ? 'the note' : 'the tick'} walks one step (${await at()}) and its auto-repeat never orders`);
+  }
+  await page.click('#tGo');
+  await page.waitForFunction(() => document.getElementById('pass').getAttribute('data-state') === 'booked', null, { timeout: 5000 }).catch(() => {});
+  check(st.checkouts.length === 1 && st.checkouts[0].city === slug && st.checkouts[0].kind === 'full-search' && st.checkouts[0].startNow === false && await page.getAttribute('#pass', 'data-state') === 'booked',
+    `${slug}: a click on the button "Order, pay on signing · €500" makes ONE order (BOOKED)`);
+  check(st.errors.length === 0, `${slug}: no JS error`, st.errors.join(' | '));
+  await ctx.close();
+}
+{
+  // the six are unchanged: Enter in the till's email field still goes to checkout (Stripe's own page concludes the contract)
+  const { ctx, page, st } = await open({ slug: 'amsterdam', checkout: { status: 200, body: { ok: false, error: 'stripe_down' } } });
+  await page.waitForTimeout(300);
+  await page.click('#fare-full-search > summary');
+  await page.waitForTimeout(200);
+  await tap(page, '#fare-full-search [data-pay]');
+  await page.waitForTimeout(250);
+  await page.fill('#tName', 'Anna Keller'); await page.fill('#tEmail', 'anna@example.com');
+  await page.focus('#tEmail'); await page.keyboard.press('Enter');
+  await page.waitForTimeout(500);
+  check(st.checkouts.length === 1 && st.checkouts[0].city === 'amsterdam' && !('requestId' in st.checkouts[0]), 'amsterdam (the six, Stripe concludes): Enter in the till\'s email still goes to checkout, unchanged');
   await ctx.close();
 }
 for (const slug of ['draft-paris', 'draft-berlin']) {
@@ -2354,6 +2403,36 @@ async function signingUI() {
         && await text(page, '#bLine') === 'Paid on 10 December 2026. Invoice from Egidi Immobiliare S.r.l.' && await text(page, '#bFare') === 'Full Search · €500' && !(await page.$('#bLine a')),
         'PAID (managed, the only place a signing page says it): the stamp\'s word and ring swap to PAID, "Paid on 10 December 2026"', JSON.stringify(stp));
       await ctx.close();
+    }
+    // v1.8 review STAMP: DUE and PAID hide the heading, and the fields rose under the stamp — on PAID the ring sat on
+    // "€500", the only place that page prints the amount. They keep the stamp's room, one per line: no glyph of File,
+    // Fare or Order under the stamp's box, each value on ONE line, at 320, 390 and 1440 (in the font of the run), on this
+    // scratch Paris and on the live Berlin page
+    for (const [slug, w] of [320, 390, 1440].flatMap((x) => [['paris', x], ['berlin', x]])) {
+      for (const [st0, extra] of [['due', { amount: 476.19, payUrl: 'https://www.boomrome.com/api/payments/link?k=inv&id=cityfee_book_ui0000test1&t=abc123' }], ['paid', { amount: 500, paidOn: '2026-12-10' }]]) {
+        const { ctx, page } = await open({ slug, query: `?order=${OID}&t=${TOK}`, paid: { status: 200, body: { ...base0, state: st0, ...extra } }, width: w });
+        await page.waitForFunction(() => document.getElementById('pass').getAttribute('data-state') === 'booked', null, { timeout: 5000 }).catch(() => {});
+        await page.waitForTimeout(400);
+        await center(page, '#cBooked');
+        await page.waitForTimeout(150);
+        const m = await page.evaluate(() => {
+          const s = document.querySelector('#cBooked .stamp'), sr = s.getBoundingClientRect(), out = { area: 0, lines: {}, shown: !s.hidden && sr.width > 0 };
+          for (const id of ['bFile', 'bFare', 'bOrder']) {
+            const el = document.getElementById(id), tn = el.firstChild, all = document.createRange();
+            all.selectNodeContents(el);
+            out.lines[id] = new Set([...all.getClientRects()].filter((q) => q.width > 0).map((q) => Math.round(q.top))).size;
+            for (let i = 0; tn && i < tn.textContent.length; i++) {
+              const r = document.createRange(); r.setStart(tn, i); r.setEnd(tn, i + 1);
+              for (const q of r.getClientRects()) out.area += Math.max(0, Math.min(q.right, sr.right) - Math.max(q.left, sr.left)) * Math.max(0, Math.min(q.bottom, sr.bottom) - Math.max(q.top, sr.top));
+            }
+          }
+          out.area = Math.round(out.area);
+          return out;
+        });
+        check(m.shown && m.area === 0 && Object.values(m.lines).every((n) => n === 1),
+          `${slug} ${st0.toUpperCase()} (managed) at ${w}: no glyph of File, Fare or Order under the stamp (${m.area} px²), each on one line (${JSON.stringify(m.lines)})`);
+        await ctx.close();
+      }
     }
     for (const [st0, extra, line] of [['withdrawn', { withdrawnOn: '2026-11-12' }, 'Withdrawn on 12 November 2026. Nothing was charged.'], ['closed', { closedOn: '2026-12-01' }, 'Closed. Nothing was charged.']]) {
       const { ctx, page } = await managed({ ...base0, state: st0, ...extra });

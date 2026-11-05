@@ -587,8 +587,22 @@
       });
     });
     $('tStart').addEventListener('change', payLabels);
-    /* Enter on the tick does not pay */
-    tf.addEventListener('keydown', function (e) { if (e.key === 'Enter' && e.target && e.target.type === 'checkbox') e.preventDefault(); });
+    /* Enter on the tick does not pay. On a desk that charges at signing our button IS the order (L221-14 al. 2,
+       C. civ. 1127-2, §312j(3) BGB: the function that validates it carries the obligation to pay, after a chance
+       to check): Enter in a field never submits the till — the browser's implicit submission would click #tGo
+       unseen, below the tick, the withdrawal line and the button's words. It walks to the next field instead
+       (name → email → note → the tick → the button); only a click, Enter or Space ON the button orders. A held
+       key walks one step and never reaches the button (an auto-repeated Enter does nothing there). */
+    var WALK = ['tName', 'tEmail', 'tNote', 'tStart', 'tGo'];
+    tf.addEventListener('keydown', function (e) {
+      var t = e.target, i;
+      if (e.key !== 'Enter' || !t || e.isComposing || e.keyCode === 229) return;
+      if (SIGN && e.repeat) { e.preventDefault(); return; }
+      if (t.type !== 'checkbox' && !(SIGN && t.tagName === 'INPUT')) return;
+      e.preventDefault();
+      i = SIGN ? WALK.indexOf(t.id) : -1;
+      if (i > -1 && $(WALK[i + 1])) $(WALK[i + 1]).focus();
+    });
     $('tillX').addEventListener('click', closeTill);
     /* a tap on the backdrop closes: the backdrop is the dialog's own box outside its content */
     till.addEventListener('click', function (e) {
