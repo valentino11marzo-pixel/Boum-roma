@@ -25,7 +25,7 @@ const server=createServer((req,res)=>{
  if(/^\/panorama-photo(?:-2)?\.svg$/.test(pathname)){res.setHeader('content-type','image/svg+xml');return res.end('<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1200"><rect width="900" height="1200" fill="#827964"/></svg>');}
  let file=root+pathname.slice(1);if(!existsSync(file)&&existsSync(file+'.html'))file+='.html';
  if(!file.startsWith(root)||!existsSync(file)||statSync(file).isDirectory()){res.writeHead(404);return res.end();}
- res.setHeader('content-type',file.endsWith('.js')?'text/javascript':file.endsWith('.css')?'text/css':file.endsWith('.json')?'application/json':file.endsWith('.svg')?'image/svg+xml':file.endsWith('.jpg')?'image/jpeg':file.endsWith('.woff2')?'font/woff2':'text/html');res.end(readFileSync(file));
+ res.setHeader('content-type',file.endsWith('.js')?'text/javascript':file.endsWith('.css')?'text/css':file.endsWith('.json')?'application/json':file.endsWith('.svg')?'image/svg+xml':file.endsWith('.jpg')?'image/jpeg':file.endsWith('.woff2')?'font/woff2':file.endsWith('.woff')?'font/woff':file.endsWith('.ttf')?'font/ttf':'text/html');res.end(readFileSync(file));
 });
 await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(0,'127.0.0.1',resolve);});
 const origin='http://127.0.0.1:'+server.address().port;
@@ -87,6 +87,48 @@ async function geometry(page,selectors=[]){
   assert.ok(controls.length,selector+' is visible');assert.ok(controls.every(r=>r.width>=44&&r.height>=44),selector+' is usable by touch: '+JSON.stringify(controls));
  }
 }
+async function typeQuality(page,view){
+ await page.evaluate(()=>document.fonts.ready);
+ const font=await page.evaluate(()=>({
+  family:getComputedStyle(document.body).fontFamily,
+  loaded:[...document.fonts].some(face=>face.family.replace(/["']/g,'')==='BOOM Sans'&&face.status==='loaded')
+ }));
+ // Computed family alone can lie: a missing file silently falls back. Check the
+ // real browser FontFaceSet as well as the family applied to reading/control UI.
+ assert.equal(font.loaded,true,'the local BOOM Sans face has actually loaded');
+ assert.equal(font.family.split(',')[0].replace(/["']/g,'').trim(),'BOOM Sans','body uses BOOM Sans');
+ const samples={
+  home:[['body',16],['.hero-promise',16],['#nextSearchForm>label>span',13],['#nextSearchForm input,#nextSearchForm select',16],['.search-caption',12]],
+  apartments:[['.club-explore-note',14]],
+  detail:[['.detail-copy',16],['.decision-cta>small',12],['.club-application-next p',14],['.edition-costs dt,.edition-costs small',12]]
+ };
+ for(const [selector,floor] of samples[view]){
+  const measured=await page.locator(selector).evaluateAll(nodes=>nodes.filter(node=>node.getClientRects().length&&getComputedStyle(node).visibility!=='hidden').map(node=>({font:parseFloat(getComputedStyle(node).fontSize),text:node.textContent.trim().slice(0,75)})));
+  assert.ok(measured.length,selector+' has visible reading content');
+  assert.ok(measured.every(item=>item.font>=floor),selector+' stays readable (minimum '+floor+'px): '+JSON.stringify(measured));
+ }
+ const controls={home:'#nextSearchForm input,#nextSearchForm select,#nextSearchForm button[type="submit"]',apartments:'#nextEditStay',detail:'[data-next-apply]'};
+ const families=await page.locator(controls[view]).evaluateAll(nodes=>nodes.map(node=>getComputedStyle(node).fontFamily.split(',')[0].replace(/["']/g,'').trim()));
+ assert.ok(families.length&&families.every(family=>family==='BOOM Sans'),'reading and control type stay in the same family: '+JSON.stringify(families));
+}
+async function primaryContrast(page,selector){
+ const colors=await page.locator(selector).evaluate(node=>{
+  const probe=document.createElement('canvas');probe.width=probe.height=1;const context=probe.getContext('2d');
+  function rgba(value){context.clearRect(0,0,1,1);context.fillStyle=value;context.fillRect(0,0,1,1);return [...context.getImageData(0,0,1,1).data].map(channel=>channel/255);}
+  function blend(front,back){return front.slice(0,3).map((channel,i)=>channel*front[3]+back[i]*(1-front[3]));}
+  // Resolve transparent nested labels through their real painted ancestors.
+  const chain=[];for(let current=node;current;current=current.parentElement){chain.unshift(current);if(rgba(getComputedStyle(current).backgroundColor)[3]===1)break;}
+  let background=[1,1,1],opacity=1;const images=[];
+  for(const current of chain){const style=getComputedStyle(current);background=blend(rgba(style.backgroundColor),background);if(style.backgroundImage!=='none')images.push(style.backgroundImage);}
+  for(let current=node;current;current=current.parentElement)opacity*=Number(getComputedStyle(current).opacity);
+  const ink=rgba(getComputedStyle(node).color);ink[3]*=opacity;
+  return {foreground:blend(ink,background),background,images};
+ });
+ assert.deepEqual(colors.images,[],selector+' has an unambiguous painted background for the text contrast check');
+ function luminance(rgb){const linear=rgb.map(value=>value<=.04045?value/12.92:Math.pow((value+.055)/1.055,2.4));return .2126*linear[0]+.7152*linear[1]+.0722*linear[2];}
+ const a=luminance(colors.foreground),b=luminance(colors.background),ratio=(Math.max(a,b)+.05)/(Math.min(a,b)+.05);
+ assert.ok(ratio>=4.5,selector+' text has at least 4.5:1 contrast; actual '+ratio.toFixed(2)+':1 '+JSON.stringify(colors));
+}
 function previewIntent(url,{view,budget='1500',city='rome',place='luiss'}={}){
  for(const [key,value] of Object.entries({direction:'club',edition:'club',experience:'panorama',moveIn:arrival,moveOut:departure,budget,people:'couple'}))assert.equal(url.searchParams.get(key),value,key+' survives preview navigation');
  if(view)assert.equal(url.searchParams.get('view'),view);
@@ -122,21 +164,51 @@ async function stableFrames(page){
 try{
  browser=await chromium.launch(await launchOptions());
  for(const width of [320,390,1440])await check(width+': Home → Apartments → Detail keeps the move and reaches the original Apply',width,async({page})=>{
-  await start(page);await geometry(page,['[data-panorama-expand]','#nextSearchForm button[type="submit"]']);
+  await start(page);await geometry(page,['[data-panorama-expand]','.edition-plan-link','#nextSearchForm button[type="submit"]']);
+  await typeQuality(page,'home');await primaryContrast(page,'.edition-pass-action');await primaryContrast(page,'#nextSearchForm button[type="submit"]');
   assert.equal(await page.locator('#nextSearchForm').count(),1,'one original planner');
   await fillRome(page);await page.locator('#nextSearchForm button[type="submit"]').click();await page.locator('#nextApartments').waitFor({state:'visible'});
-  previewIntent(new URL(page.url()),{view:'apartments'});await geometry(page,['#nextEditStay']);
+  previewIntent(new URL(page.url()),{view:'apartments'});await geometry(page,['#nextEditStay']);await typeQuality(page,'apartments');
   await page.locator('#nextApartmentsMap').scrollIntoViewIfNeeded();await page.waitForFunction(()=>BoomNextMap.state().status==='ready');
   assert.equal(await page.locator('iframe.boom-next-map-frame').count(),1,'one Skyline during exploration');
   await page.locator('#nextResults [data-home="panorama-courtyard"]').first().click();await page.locator('#nextDetailTitle').waitFor();
   assert.equal(await page.locator('#nextDetailTitle').innerText(),'Fixture Courtyard');previewIntent(new URL(page.url()),{view:'detail'});
-  await geometry(page,['[data-next-apply]']);assert.equal(await page.locator('iframe.boom-next-map-frame').count(),1);
+  await geometry(page,['[data-next-apply]']);await typeQuality(page,'detail');await primaryContrast(page,'[data-next-apply]');assert.equal(await page.locator('iframe.boom-next-map-frame').count(),1);
   const apply=new URL(await page.locator('[data-next-apply]').getAttribute('href'),origin);
   assert.equal(apply.pathname,'/listing/panorama-courtyard');assert.equal(apply.hash,'#applica');assert.equal(apply.searchParams.has('experience'),false,'a presentation option does not enter the original application');
   for(const [key,value] of Object.entries({moveIn:arrival,moveOut:departure,budget:'1500',people:'couple',place:'luiss'}))assert.equal(apply.searchParams.get(key),value,'Apply preserves '+key);
   await page.locator('[data-next-apply]').click();await page.waitForURL(url=>url.pathname==='/listing/panorama-courtyard');assert.equal(page.url(),apply.href,'Apply reaches the actual canonical URL without submitting');
   await page.goBack();await page.locator('#nextDetailTitle').waitFor();previewIntent(new URL(page.url()),{view:'detail'});
   await page.locator('.detail-breadcrumb [data-view="apartments"]').click();await page.locator('#nextApartments').waitFor();previewIntent(new URL(page.url()),{view:'apartments'});
+ });
+ await check('900: tablet planner controls do not overlap; reduced motion preserves the keyboard-only skip link',900,async({page})=>{
+  await start(page);await typeQuality(page,'home');await geometry(page,['#nextDestinationSummary','#nextSearchForm button[type="submit"]']);
+  const layout=await page.locator('#nextSearchForm').evaluate(form=>({
+   bounds:form.getBoundingClientRect().toJSON(),
+   controls:[...form.children].filter(node=>node.matches('label,button')&&node.getClientRects().length).map(node=>({
+    name:node.id||node.querySelector('input,select')?.id||'submit',submit:node.matches('[type="submit"]'),box:node.getBoundingClientRect().toJSON()
+   }))
+  }));
+  for(const item of layout.controls){
+   assert.ok(item.box.left>=layout.bounds.left-1&&item.box.right<=layout.bounds.right+1,item.name+' stays inside the tablet planner');
+   for(const other of layout.controls){
+    if(item===other)continue;
+    const overlapX=Math.min(item.box.right,other.box.right)-Math.max(item.box.left,other.box.left);
+    const overlapY=Math.min(item.box.bottom,other.box.bottom)-Math.max(item.box.top,other.box.top);
+    assert.ok(overlapX<=1||overlapY<=1,item.name+' must not overlap '+other.name+' at tablet width');
+   }
+  }
+  const submit=layout.controls.find(item=>item.submit),fields=layout.controls.filter(item=>!item.submit);
+  assert.ok(submit&&fields.length,'the tablet planner contains its fields and submit');
+  assert.ok(submit.box.top>=Math.max(...fields.map(item=>item.box.bottom))-1,'the tablet action follows the destination and fields instead of occupying their row');
+  const skip=page.getByRole('link',{name:'Skip to content',exact:true});
+  const outside=()=>skip.evaluate(node=>{const r=node.getBoundingClientRect();return r.bottom<=0||r.right<=0||r.top>=innerHeight||r.left>=innerWidth;});
+  assert.equal(await outside(),true,'reduced motion does not expose the unfocused skip link');
+  await page.keyboard.press('Tab');
+  assert.equal(await skip.evaluate(node=>document.activeElement===node),true,'the skip link is the first keyboard destination');
+  assert.equal(await outside(),false,'the focused skip link is visible in the viewport');
+  await page.keyboard.press('Tab');
+  assert.equal(await outside(),true,'the skip link leaves the viewport again after focus moves on');
  });
  await check('London: globe and Solari share the canonical city, and GBP requires a new budget',390,async({page})=>{
   await start(page);await fillRome(page);

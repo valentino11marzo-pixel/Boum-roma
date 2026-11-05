@@ -5,7 +5,7 @@ Compare the complete journeys at `/flight-studio`.
 
 ## Direction before composition
 
-The opening is a cabin observation window with a working destination instrument.
+The opening gives the working destination instrument room to breathe.
 The globe owns spatial depth; the Solari board confirms the chosen city; the planner
 turns intent into the existing homes or tenant-side service journey. Photography
 belongs with the real home, and the founder belongs with the person answering.
@@ -17,15 +17,15 @@ Full view: title and controls → same globe with all six destinations → route
 | Element | Club | Panorama |
 |---|---|---|
 | Globe | All six callouts on the home | One current-city callout; all six in Full view |
-| Hierarchy | Destination-led editorial composition | Large narrative headline and arched observation window |
-| Materials | Predominantly flat black/yellow | Cool glass surround, olive instrument surface, thin metal borders |
+| Hierarchy | Destination-led editorial composition | Clear narrative headline and unframed geographic globe |
+| Materials | Predominantly flat black/yellow | Neutral graphite, warm white type, consistent action surfaces |
 | Phone | Rome planner before the globe | Explore the globe before the planner |
 | Comparison | Separate preview URL | One-frame switch preserving the validated public brief |
 
-Use Helvetica Neue light, existing original BOOM mark and Solari, yellow only for
-the active destination/action. Palette: cabin `#07090b`, instrument `#15191c`,
-border `#3c454b`, secondary text `#aeb8bb`, action `#ffd700`. Fine SVG grain is local,
-static and low opacity on material surfaces; no noise over photographs or text.
+The active visual system is documented in [Panorama polish](panorama-polish-notes.md):
+locally served Instrument Sans for the interface, original BOOM mark and Solari,
+neutral graphite surfaces, yellow for the active destination/action. The earlier
+arch and material grain were removed after visual review.
 
 ## Motion score
 
@@ -43,7 +43,7 @@ Closing cancels the entrance, restores the same canvas and returns focus. Select
 a destination restores the canvas before the canonical controller begins arrival.
 Reduced motion and shared pause cancel the added entrance; no idle animation added.
 
-Feel check: the eye first reads the promise, then city, then the spatial window.
+Feel check: the eye first reads the promise, then city, then the geographic globe.
 The opening should feel spacious and tactile; touching Full view changes scale,
 not the data model. A long headline must not overpower the city or hide the next step.
 
