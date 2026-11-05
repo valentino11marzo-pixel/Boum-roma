@@ -2,8 +2,9 @@
 // Rent/deposit receipts remain available to owner accounting but cannot become
 // company revenue. All formulae live in the unchanged fiscal engine.
 import assert from 'node:assert/strict';
-import { register } from 'node:module';
+import { register, createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
+import vm from 'node:vm';
 register('../notify/loader.mjs', import.meta.url);
 Object.assign(process.env,{FIREBASE_API_KEY:'test-key',FIREBASE_ADMIN_EMAIL:'server@example.test',FIREBASE_ADMIN_PASS:'synthetic',FIREBASE_PROJECT_ID:'agency-test',CRON_SECRET:'test-cron'});
 delete process.env.TELEGRAM_BOT_TOKEN;
@@ -134,5 +135,52 @@ await test('missing owner is explicitly unverified and never relabelled BOOM dir
 await test('both handlers remain protected and perform no reads/writes without auth',async()=>{
   seed();for(const handler of [scadenzario,contabile])assert.equal((await drive(handler,{auth:''})).code,401);readOnly();
 });
+// v1.8 review F3: the portal's Egidi fiscal page and its «Salva nelle scadenze» are the THIRD reader of the
+// Italian IVA estimate (js/portal-app.js commercialistaEgidiView, pushObligationsToDeadlines). Driven here as
+// tests/rent-admin drives them — the real portal source in a vm, the real fiscal engine — on the invoices exactly
+// as api/payments/_citysign.js writes them: the fees abroad stay out of the quarters and the deadlines, are listed
+// apart («IVA estera — da definire»), and still count as BOOM revenue.
+{
+  const require=createRequire(import.meta.url);
+  const {build}=require('../rent-admin/fixture.cjs');
+  const RENT=require('../../js/rent-engine.js'),FX=require('../../js/fiscal-engine.js');
+  const portal=build().source;
+  async function egidi(source){
+    const {fragment,links,fixture}=build();
+    const inputs=[],added=[];
+    const ctx=vm.createContext({S:{},window:{BOOM_RENT:RENT,BOOM_FISCAL:{...FX,companyObligations(y,q){inputs.push({...q});return FX.companyObligations(y,q)}},confirm:()=>true},
+      document:{getElementById:()=>({innerHTML:'',textContent:'',value:''})},Intl,Date,JSON,Number,String,Set,Promise,URL,setTimeout,clearTimeout,console,Math,Object,
+      esc:v=>String(v??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;'),fmtDate:v=>v||'',toast:()=>{},isAdmin:()=>true,refresh:async()=>{},logActivity:()=>{},
+      _cmState:{year:2026},fiscalScadenzarioCard:()=>'<div class="card"></div>',firebase:{firestore:{FieldValue:{serverTimestamp:()=>'ts'}}},
+      db:{collection(name){return {add:async(doc)=>{added.push([name,doc]);return {id:'x'}}}}}});
+    vm.runInContext(fragment+'\n'+links,ctx);
+    const at=source.indexOf('    function egidiPaymentBreakdown(');
+    vm.runInContext(source.slice(at,source.indexOf('    function commercialistaLandlordLite(',at)),ctx);
+    const fee={number:'PAR-2026-0001-FS',service:'BOOM Paris — Full Search',amount:500,netAmount:null,vatPct:null,vatAmount:null,vatCountry:'FR',currency:'eur',lang:'en',status:'paid',date:'2026-12-10',dueDate:'2026-12-17',paidDate:'2026-12-11',source:'city-signing'};
+    ctx.S={...structuredClone(fixture),pfsClients:[],deadlines:[],contracts:[],payments:[],invoices:[
+      {...fee,id:'cityfee_book_par1'},
+      {...fee,id:'cityfee_book_ber1',number:'BER-2026-0001-FS',service:'BOOM Berlin — Full Search',vatCountry:'DE',amount:476,status:'pending',date:'2026-11-20'},
+      {id:'italian',service:'Consulenza',amount:100,status:'paid',date:'2026-12-01'}]};
+    const html=vm.runInContext('commercialistaEgidiView()',ctx);
+    await vm.runInContext("pushObligationsToDeadlines(2026,'company')",ctx);
+    const vat=added.filter(a=>a[1].category==='vat'&&a[1].estimatedAmount).map(a=>[a[1].title,a[1].estimatedAmount]);
+    return {html,inputs,vat};
+  }
+  await test('portal: the Egidi page and «Salva nelle scadenze» keep the fees abroad out of the Italian IVA, list them apart and count them as revenue',async()=>{
+    const {html,inputs,vat}=await egidi(portal);
+    // only the €100 Italian invoice in Q4 → IVA €22; the €500 (FR) and €476 (DE) never in a quarter nor in a deadline
+    // three readers of the same base: the page's obligations, the advice's count, the saved deadlines
+    assert.equal(inputs.length,3);for(const q of inputs)assert.deepEqual(q,{1:0,2:0,3:0,4:100});
+    assert.match(html,/IVA stimata 2026<\/div><div class="stat-value">€22</);
+    assert.deepEqual(vat,[['IVA trimestrale Q4 2026',22]]);
+    assert.match(html,/id="egidiForeignVat"[^>]*>🌍 IVA estera — da definire: €976 \(2 fatture · FR €500 · DE €476\) — nei compensi, fuori dai trimestri e dalla stima IVA italiana/);
+    assert.match(html,/Compensi BOOM 2026<\/div><div class="stat-value gold">€1076</);
+  });
+  await test('portal: removing the foreign-VAT exclusion makes the portal assertion fail (mutation)',async()=>{
+    assert.ok(portal.includes('if (window.BOOM_RENT.isForeignVat(inv)) {'));
+    const {inputs,vat}=await egidi(portal.replace('if (window.BOOM_RENT.isForeignVat(inv)) {','if (false) {'));
+    assert.throws(()=>assert.deepEqual(inputs[0],{1:0,2:0,3:0,4:100}));assert.throws(()=>assert.deepEqual(vat,[['IVA trimestrale Q4 2026',22]]));
+  });
+}
 globalThis.Date=NativeDate;
 console.log(`\n${checks} agency accounting checks passed; no live reads, writes, email or notifications.`);

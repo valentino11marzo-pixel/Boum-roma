@@ -479,7 +479,16 @@
       });
     });
     $('tStart').addEventListener('change', payLabels);
-    tf.addEventListener('keydown', function (e) { if (e.key === 'Enter' && e.target && e.target.type === 'checkbox') e.preventDefault(); });
+    var WALK = ['tName', 'tEmail', 'tNote', 'tStart', 'tGo'];
+    tf.addEventListener('keydown', function (e) {
+      var t = e.target, i;
+      if (e.key !== 'Enter' || !t || e.isComposing || e.keyCode === 229) return;
+      if (SIGN && e.repeat) { e.preventDefault(); return; }
+      if (t.type !== 'checkbox' && !(SIGN && t.tagName === 'INPUT')) return;
+      e.preventDefault();
+      i = SIGN ? WALK.indexOf(t.id) : -1;
+      if (i > -1 && $(WALK[i + 1])) $(WALK[i + 1]).focus();
+    });
     $('tillX').addEventListener('click', closeTill);
     till.addEventListener('click', function (e) {
       if (e.target !== till) return;

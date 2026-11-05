@@ -2068,6 +2068,18 @@ tplRefuses('<p class="proof">', '<p class="proof">Pay by bank transfer · ', /no
     check(cityCss.includes('@media (forced-colors:active) and (min-width:940px){.eroe{border:1px solid ButtonText}.eroe>.fare{border:0}}'),
       'boom-city.css (source): in forced colors at ≥940 First class has ONE frame, the ticket\'s own border (the closed waitlist Full Search kept open corners above a separate foot)');
   }
+  // v1.8 review: the signing till's Enter (LFR-1) and the managed ticket's stamp room (STAMP) bite here too, where the
+  // browser suite is skipped
+  {
+    const cityJs = read('assets/src/boom-city.js'), cityCss = read('assets/src/boom-city.css');
+    const keyH = (cityJs.match(/tf\.addEventListener\('keydown', function \(e\) \{([\s\S]*?)\n    \}\);/) || [])[1] || '';
+    check(/var WALK = \['tName', 'tEmail', 'tNote', 'tStart', 'tGo'\];/.test(cityJs) && /if \(SIGN && e\.repeat\) \{ e\.preventDefault\(\); return; \}/.test(keyH)
+      && /if \(t\.type !== 'checkbox' && !\(SIGN && t\.tagName === 'INPUT'\)\) return;\s*e\.preventDefault\(\);/.test(keyH)
+      && /i = SIGN \? WALK\.indexOf\(t\.id\) : -1;\s*if \(i > -1 && \$\(WALK\[i \+ 1\]\)\) \$\(WALK\[i \+ 1\]\)\.focus\(\);/.test(keyH),
+      'boom-city.js (source, LFR-1): on a desk that charges at signing Enter in a till field never submits — it walks name → email → note → tick → button; a held Enter does nothing more; the six keep their Enter');
+    check(cityCss.includes('.card .stamp:not([hidden])~h2[hidden]~.fields{grid-template-columns:minmax(0,1fr);padding-right:96px}'),
+      'boom-city.css (source, STAMP): with the heading hidden (managed DUE/PAID) the fields keep the stamp\'s room, one per line');
+  }
   check(stagger >= 260 && /if \(!a \|\| reduce \|\| fl\.some\(function \(f\) \{ return f\.a === a; \}\)\) return;/.test(mapJs), `boom-map.js: the first view sends the planes ${stagger}ms apart (≥ 260), never two on one arc`);
   check(/var reduce = matchMedia\('\(prefers-reduced-motion: reduce\)'\)\.matches/.test(mapJs) && /if \(!reduce && window\.IntersectionObserver\)/.test(mapJs), 'boom-map.js: under reduced motion no plane flies and no arc is drawn in');
   check(/60080 - Date\.now\(\) % 60000/.test(mapJs) && /if \(!document\.hidden\) timer = setTimeout/.test(mapJs) && /addEventListener\('visibilitychange'/.test(mapJs)
