@@ -27,6 +27,18 @@ Premium rental management platform for Rome's apartment market. Serves tenants, 
                           scan-market (portal scraping), sync-searches
                           (auto-search generation), _ingest (shared pipeline),
                           _health (heartbeats + Telegram alerts)
+  withdraw.js             POST — la funzione di recesso online di ogni desk
+                          e del Pacchetto (v1.8). Vedi «IL BIGLIETTO v1.8».
+  _withdrawal.js          La finestra dei 14 giorni e i moduli tipo, una
+                          copia (il webhook li riesporta).
+  _cityterms.js           I termini dell'ordine di Parigi e Berlino, puri:
+                          versione, hash, testo reso (server E build).
+  _cityorder.js           L'ordine di un desk che incassa alla firma:
+                          book_ + contatore in un commit, email, card.
+  _cityorderpdf.js        Il PDF dell'ordine, in memoria (FR/EN a Parigi).
+  payments/_citysign.js   L'addebito alla firma: cancelli, importo dal
+                          listino, fattura cityfee_, email.
+  telegram/_firmato.js    /firmato e /chiudi: la firma detta dall'operatore.
 /js/
   firebase-config.js      Firebase SDK init (project: boom-property-dashboards)
   boom-portal.js          Shared client lib for the 3 portals (auth guard,
@@ -84,7 +96,8 @@ Premium rental management platform for Rome's apartment market. Serves tenants, 
                           (cloud · ombra · locale sul Mac), mette il tetto,
                           ricade sul cloud, conta in aiUsage/aiShadow.
   desk-calendar.js        Il calendario dei desk città, una copia: festivi
-                          (Italia + nl/es/es-bcn), la finestra del desk in
+                          (Italia + nl, es, es-bcn, es-vlc, gb-eng, it-mi,
+                          fr, de-be), la finestra del desk in
                           parole col fuso dell'apertura. Lo importa il
                           webhook (recesso), il build lo inlina nelle pagine.
                           window.BOOM_DESK_CAL. Vedi «Il biglietto v1.5».
@@ -3883,6 +3896,362 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
   della sandbox cade anche negli altri giorni). Codice di Oggi che v1.7 non tocca:
   la diagnosi e una patch di sei righe per `css/oggi-workspace.css` stanno nel
   commento sulla PR #331, non applicate qui.
+- **IL BIGLIETTO v1.8 (05/11/2026 — Parigi e Berlino live, l'ordine sulla pagina, l'addebito alla
+  firma).** Decisione del fondatore del 04/11, presa DOPO essere stato informato dei rischi (loi
+  Hoguet, §34c GewO, WoVermRG: le note legali, i tre progetti, i tre giudici e la specifica sono
+  scratch, non repo, e nessuna riga è il parere di un avvocato): Parigi e Berlino vendono come gli
+  altri sei desk, con le stesse tre tariffe (€500 · €199 · €149 IVA inclusa, righe identiche), ma
+  all'ordine NON si incassa niente. Si ordina sul NOSTRO bottone «Order, pay on signing · €500», il
+  server risponde BOOKED, l'email è il contratto, e ogni tariffa si paga solo quando il cliente firma
+  una locazione: fattura Egidi e link di pagamento stabile, la rotaia delle provvigioni di Roma. Mai
+  un addebito automatico, mai una carta salvata. Le scelte sono le D1–D20 della specifica, ognuna col
+  suo default («procedi»: un punto legale non blocca, va fra le aperte qui sotto). Per Parigi e
+  Berlino sono superati la modalità waitlist, «Launching with a licensed partner», «NOT OPEN» e il
+  «charged only when the desk opens» della v1.1. Il codice è entrato AL BUIO (il registro non girato:
+  Parigi e Berlino restavano bozze, le pagine cambiavano solo per il JSON-LD su una riga, gli asset e
+  il recesso online; `--check` verde a ogni stadio), poi il FLIP: due righe del registro, i due JSON,
+  l'hub, i claims e le superfici insieme.
+  1. **La terza forma del desk: vende E incassa alla firma.** Lo dice il registro, come la valuta
+     (`api/_market.js`): Parigi `country:'fr'`, `holidays:'fr'`, `chargeAt:'signing'`,
+     `order:{prefix:'PAR', months:6}`, `cardStep:false`; Berlino `holidays:'de-be'`,
+     `chargeAt:'signing'`, `order:{prefix:'BER', months:null}`, `feeCap:{months:2, vatPct:19}`,
+     `goAhead:true`, `noStacking:true`, `cardStep:false`; `partner` tolto. La leggono
+     `chargeAtOf(slug)` e `isSigningDesk(lead)`, e `cityOffer` la restituisce. Il JSON la ripete
+     (`"chargeAt": "signing"`) e il build rifiuta i due disallineati, nei due sensi. Chiavi nuove nel
+     JSON: `pricing.plans[].trigger` (obbligatoria su un desk alla firma, rifiutata sui sei), UNA
+     etichetta `till.label` «Order, pay on signing» (dice «order», «pay» e «sign», mai «start»: CRD
+     art. 8(2); la spunta cambia la riga sotto, mai l'obbligo; `labelWait` resta obbligatoria sui sei
+     e rifiutata qui), `checkoutCopy.order` (la riga della durata prima del bottone),
+     `checkoutCopy.booked` (16 stringhe: `paid` e `booked` si escludono),
+     `checkoutCopy.errors.stale` e il segnaposto `{online}` nella riga del recesso.
+     `cities/_shared.json signing.rule` (14 parole: «Nothing is charged before you sign a lease, and
+     nothing if you never do.») sta dove i sei stampano la regola del rimborso: sotto il €500 chiuso,
+     nella riga Fees, nelle Offer, nel fine. Il build rifiuta: sui sei «only when you sign» o
+     «at/on signing» sul pass, «order»/«sign» sulle etichette, la regola della firma, un `trigger`;
+     su una pagina alla firma «refunded in full», «work already done» e un `PreOrder` (le Offer sono
+     `InStock`: l'ordine si prende oggi); un desk che vende in Francia o in Germania senza
+     `chargeAt:'signing'` (Hoguet art. 6, WoVermRG §2(4)); in Francia un Full Search senza «(six
+     months at most)» e una riga d'ordine senza «six months at most» (Hoguet art. 7); in Germania
+     «(more:» nelle righe del Full Search (§3(3)), «No percentage» ovunque nel JSON (§3(1), D2) e un
+     check `fees` che non dica «offered to you alone» (§2(1a), D3); `"updated": "SHIP-DATE"`, il
+     segnaposto della specifica. La config della pagina porta `CHARGE_AT`, `ORDER_TERMS_V`, `BOOKED`, `WITHDRAW_URL` e
+     `PLANS[id].trigger` solo sui desk alla firma: i sei restano byte per byte.
+  2. **Le due pagine.** Frase «We search, apply, attend the viewings and check the lease.» con
+     l'obbligo in grassetto «Paid only by you, and only when you sign.»; testata delle tariffe «Flat
+     fees · No percentage of your rent» a Parigi, «Flat fees · Always within the legal cap» a
+     Berlino; condizioni uguali ai sei («flat · incl. VAT», «per viewing · incl. VAT»: l'uguaglianza
+     delle tariffe sull'hub regge) e `conditionLong` «VAT included, charged when you sign a lease.
+     Invoice from Egidi Immobiliare S.r.l.». I trigger per tariffa (D4): Full Search «Nothing is
+     charged before you sign the lease we helped you get…» a Parigi, «…a lease for a home we brought
+     you…» a Berlino; Application Pack «…unless you sign for a home you applied to with our
+     dossier.»; Attended Viewing «…unless you sign for the home we viewed.». Parigi: Full Search
+     «Until you sign, or you say stop (six months at most)» e «One attended viewing (more: €149
+     each)» (D14); riga d'ordine «Your order runs six months at most; your copy comes by email.»;
+     checks fees (loi Hoguet · ALUR), rentcap (encadrement des loyers, D17), deposit, contract.
+     Berlino (D2, D3, D15): Full Search solo su «Homes offered to you alone, with the landlord's
+     go-ahead», «Attended viewings included» (nessun extra; AP e AV mai sopra un Full Search),
+     nessun «No percentage» né nella pagina né nella riga Fees della scheda; riga d'ordine «Your order
+     runs until you sign or stop it; your copy comes by email.»; checks fees (Bestellerprinzip ·
+     WoVermRG), rentcap (Mietpreisbremse), deposit (Kaution), charges (Kaltmiete · Warmmiete). Sotto
+     il bottone «Starts in the desk’s first open hour · no card» (spunta accesa) o «Starts when your 14
+     days end · no card»; il fine «No card today. Invoice from Egidi Immobiliare S.r.l., VAT included,
+     with a secure payment link when you sign.» più la regola della firma. Card social «AT SIGNING ·
+     FROM €149» (il generatore lo legge da `chargeAt`).
+  3. **L'ordine** (`api/_cityorder.js`, `createCityOrder`). In `api/service-checkout.js`, subito dopo
+     `cityOffer`, un desk alla firma prende questo ramo; prima dell'UNICA chiamata a Stripe c'è una
+     cintura che risponde 500 `signing_desk` (tolto il ramo, mai una sessione: provato per
+     mutazione). Il corpo è quello dei sei più `requestId` (uno per caricamento) e `termsV`. Nome ≥ 2,
+     email, piano del listino; `termsV` diverso dalla versione in vigore → 409 `terms_changed`,
+     niente scritto. Id `leads/book_<requestId>` (minuscolo; senza token `book_srv_<12 hex>`),
+     fascicolo `BM …` da `fileCode`. Lo stesso ordine aperto (stessa email, desk e tariffa, non
+     ritirato, chiuso, pagato o già firmato; a Parigi non scaduto) risponde quello, con `duplicate` e
+     `sameOrder`. Poi UN `fsCommit`: il contatore `heartbeat/city-orders-<slug>` (`{year, next}`, con
+     `updateTime`, `exists:false` il primo) e il lead (`exists:false`); al conflitto si rilegge, fino
+     a 12 tentativi con 20–100 ms di scarto, poi 503 `busy`; un contatore già nell'anno dopo si
+     tiene (il registro non torna indietro), uno illeggibile è 500 `counter_invalid`. Numero
+     `<PREFISSO>-<anno di Roma>-0001…`, l'anno nuovo riparte da 0001: a Parigi è il numero del
+     registro dei mandati (décret 72-678 art. 72), a Berlino il riferimento dell'ordine. Il lead:
+     `intent:'city_booking'` (mai `city_order`, l'ordine PAGATO dei sei), `booked:true` e
+     `paid:false` in cima, `city.chargeAt`, `city.order {number, termsV, termsHash, expiresOn}`
+     (Parigi: giorno dell'ordine + sei mesi di calendario), la finestra del recesso dal calendario del
+     desk; `city` non si riscrive mai dopo (una maschera di primo livello rimpiazza la mappa intera).
+     DOPO il commit il PDF in memoria (`api/_cityorderpdf.js`: pdf-lib importato staticamente,
+     `api/_pdfbrand.js`, date fissate all'ordine; Parigi FR poi EN), nessun prefisso Storage, e il suo
+     SHA-256 in `orderPdf`; l'email al cliente (Nodemailer, tetto 8 s) con numero e fascicolo, la
+     tariffa e il suo trigger, i termini inglesi INTERI nel corpo (resta il supporto durevole anche
+     se l'allegato si perde), il recesso (online, email, modulo tipo), «Manage your order» e il PDF
+     `BOOM-PAR-2026-0007.pdf`; a Berlino «Please reply ‘Confirmed’ to this email: we approach
+     landlords only after your reply.» (D18). Copia all'operatore in italiano col PDF. L'esito si
+     registra (`clientEmailSentAt` o `clientEmailFailedAt`, `exists:true`): un'email caduta, o un
+     doppione senza esito dopo 90 s, alza `agentNotifications/book-mail-<id>` («… mandala a mano, col
+     testo del recesso e il PDF dell'ordine»). La card `lead.new` (🇫🇷 PARIGI · ORDINE PAR-2026-0007 · Full Search €500
+     alla firma · …) sotto 5 s; ogni scrittura attesa. Risposta
+     `{ok, booked, id, file, number, plan, startNow, workFromLabel}`. Misurato: dieci ordini insieme → BER-2026-0001…0010 senza buchi né
+     doppioni (9 conflitti riletti); PDF di Parigi Full Search 3 pagine, 19.883 B, di Berlino 2 pagine,
+     15.589 B, ~80 ms, lo stesso ordine dà lo stesso SHA-256.
+  4. **I termini dell'ordine** (`api/_cityterms.js`, puro, letto dal server E dal build).
+     `ORDER_TERMS`: Parigi `par-2026-11-1` «Mandat de recherche non exclusif / Non-exclusive search
+     mandate» (francese ed inglese), Berlino `ber-2026-11-1` «Suchauftrag / Search order» (inglese);
+     `termsHash` (SHA-256 del testo canonico, fissato nei test), `renderOrderTerms`,
+     `orderExpiresOn` (giorno di Roma + sei mesi, schiacciato all'ultimo del mese). La pagina manda
+     `termsV` (`ORDER_TERMS_V` nella config): una pagina vecchia riceve 409 e dice «This page was just
+     updated — reload it to order with the current terms.». Una parola cambiata = una versione nuova;
+     il modulo tipo è uguale a quello di `api/_withdrawal.js` (il test lo pretende) e la riga della
+     legge ripete i Termini §12 parola per parola. Contenuto: le parti (Egidi, Via dei Coronari
+     181/184, REA RM-1710623, IVA IT17322991005), numero, data e ora di Roma, oggetto e trigger per
+     tariffa, «nothing is due or paid before a lease is signed; if no such lease is signed, nothing
+     is due», «BOOM holds no client money, deposit or rent», fattura e link alla firma pagabili in 7
+     giorni, la durata, Start now, le istruzioni di recesso adattate dall'Allegato I(A) (14 giorni
+     dall'ordine, «nothing has been paid and nothing will be due», nessuna frase sull'importo
+     proporzionale) col modulo tipo. Parigi aggiunge il numero del registro e «the landlord's agent
+     may charge you its capped share (loi 89-462 art. 5)»; Berlino lo scopo Bestellerprinzip del Full
+     Search, «No other charge alongside Full Search» e «reply 'Confirmed'». Mai una licenza, un
+     permesso, un numero di carta o un partner. Misurato: nove mutazioni prese; gli stessi due hash e
+     lo stesso testo reso con `TZ=Pacific/Auckland` e locale francese.
+  5. **BOOKED, mai PAID, e il biglietto gestito.** Dietro `SIGN = C.CHARGE_AT === 'signing'` in
+     `assets/src/boom-city.js` (i sei non lo emettono). La cassa nell'ordine CRD di sempre: piano,
+     prezzo, condizione, cosa compra, il trigger della SUA tariffa, la riga d'ordine, nome, email,
+     nota, Start now MAI pre-spuntato, il recesso con `{online}`, errore, bottone, riga sotto, fine
+     coi Termini, la via di ritorno alla chiamata gratuita. Il POST risponde → stato `booked`
+     (`#pass[data-state="booked"]`, gemelli CSS di ogni selettore `paid`), riga del codice
+     `BOOKED · FILE BM X7K2Q · PAR`, timbro BOOKED (`textLength="50"`), card `#cBooked` («Booked —
+     your file is open.», File · Fare «… when you sign» · Order · Starts, i passi). Nessun «paid» o
+     «payment» sulla card, nessun link di recesso lì (D11), nessun `[data-pay]` dopo. Un ricaricamento
+     torna alla pagina bianca: l'email è il documento. 400 `name`/`email` sul campo, 409 → `stale`,
+     il resto → errore di rete e un nuovo tentativo con lo stesso `requestId` (= lo stesso ordine).
+     Analytics solo col consenso: `begin_checkout` all'apertura, `booking_submit`, UN
+     `booking {currency:'EUR', value, plan, market}` + `convert('City order booked')` per ordine
+     (sessionStorage), MAI `add_payment_info` né `purchase`; `page_location` toglie `session_id`,
+     `order` e `t` (ogni occorrenza). Alias nuovo `#order-<piano>`; un `?paid=` su un desk alla firma
+     è ignorato (il server risponde 400). Il biglietto gestito:
+     `GET /api/city-lead?order=<book_…>&t=<token>&city=<slug>` (`orderToken` derivato in `api/payments/_token.js`, mai salvato e fuori da
+     `KINDS`: `link.js?k=ord` resta rifiutato; ruotare `HOMIE_SECRET` li revoca tutti), lo stesso
+     tetto di `?paid=` (30 ogni 10′ per IP), no-store, token sbagliato = ordine sconosciuto = 404,
+     nessun nome, email o id Stripe. Stati `booked` (col link «Withdraw from contract here» →
+     `/withdrawal?desk=Paris&ref=PAR-2026-0007#online`), `due` (`dueText` e il bottone di pagamento
+     SOLO verso `https://(www.)boomrome.com/api/payments/link?…`), `paid` (il lead o la fattura
+     pagati: il timbro cambia la parola in PAID, l'unico posto di una pagina alla firma dove PAID
+     compare), `withdrawn`, `closed`. Correzione d'integrazione (62a699de): una dichiarazione di
+     recesso arrivata DOPO la firma (la mappa senza `withdrawnAt`) lascia DUE finché c'è una fattura
+     da pagare e CLOSED a ordine chiuso; WITHDRAWN solo senza fattura viva. Il bottone «Order, pay on
+     signing · €500» misurato su un Parigi di prova, nei due font: 320 px due righe (cassa e
+     biglietto), 360 una nella cassa e due nel biglietto, da 390 una. JS 11.011 → 12.606 B gz (tetto
+     14 KB): i cinque stati del biglietto.
+  6. **L'addebito alla firma: lo dice l'operatore, mai un cron** (D7, solo Telegram).
+     `api/telegram/_firmato.js`:
+     `/firmato <BM XXXXX | book_…> <AAAA-MM-GG | oggi> [visite <n>] [kalt <euro>] [ok <AAAA-MM-GG>] [anticipo]`
+     scrive la BOZZA (`signing.status:'draft'`) e manda UNA card con UNA
+     domanda per tariffa (l'italiano dell'operatore; il «Sì» è l'attestazione, registrata parola per
+     parola); `/chiudi <BM …> <declined|stopped|expired|other> [nota]`. Bottoni ≤ 64 byte con la
+     chiave della bozza: `cfy:<id>:<key>` ✅ emetti la fattura, `cfx` ✖ nessun compenso, `cfn` Annulla
+     (nessuna scrittura), `cch` chiudi, `cfr` 🔔 Ricorda; una card superata da una bozza più nuova
+     risponde `stale_card` e non scrive niente (la lezione `PENDING_NL` del 28/08). I cancelli
+     (`signingGates` in `api/payments/_citysign.js`, in ordine, ognuno detto sulla card): ordine
+     prenotato, non ritirato, chiuso, pagato né già fatturato; data vera, non futura, non prima
+     dell'ordine; a Parigi entro `expiresOn`; spunta spenta e firma dentro i 14 giorni → solo con
+     `anticipo` (il cliente ha chiesto per iscritto di partire prima: `earlyStart`); Full Search di
+     Berlino solo con `kalt` > 0, `ok` (il go-ahead scritto del proprietario) non prima dell'ordine e
+     l'attestazione (offerta SOLO a lei, dopo l'ordine e il «Confirmed», non affidata a un'agenzia),
+     altrimenti solo ✖; AP e AV di Berlino rifiutati a chi ha un Full Search di Berlino aperto
+     (`noStacking`) e con l'attestazione X1 (la casa l'ha trovata il cliente, nessuna trattativa col
+     proprietario); visite AV 1–5, Full Search di Parigi 1–10. L'importo SOLO dal listino
+     (`signingFee`): Full Search di Parigi 500 + 149 × (visite − 1); di Berlino min(500, 2 × kalt ×
+     1,19) (kalt €200 → €476,00), visite comprese e mai addebitate; AP 199; AV 149 × visite. `cfy`:
+     claim `signing.status:'invoicing'` sotto l'`updateTime` letto (due tap → una fattura; un claim
+     più vecchio di 2 minuti si riprende), `invoices/cityfee_<leadId>` con `fsCreate` (409 = la
+     stessa; una fattura emessa non si riscrive mai): numero `<ordine>-FS|AP|AV`, `lang:'en'`,
+     `vatCountry:'FR'|'DE'`, `vatPct`, `netAmount` e `vatAmount` null, `dueDate` = 7 giorni dopo
+     l'emissione (la più tarda fra firma e oggi), `source:'city-signing'`, `cityLeadId`; l'email al
+     cliente in inglese UNA volta col link stabile `payLink('inv', id)` (nessuna commissione carta
+     sulle fatture: la paga BOOM); poi `signing.status:'invoiced'`. `cfx` → `no_fee`, email «nothing is
+     due to BOOM»; `/chiudi` + `cch` → `closedAt`, `closeReason`, email «Nothing was charged». 🔔
+     Ricorda: subito solo se l'email della fattura non è mai partita o l'indirizzo è stato corretto,
+     altrimenti dopo la scadenza e al massimo una volta ogni 20 ore; mai da sola. Il webhook
+     (`handleInvoice`): `inv.cityLeadId` → `leads/<id>`
+     `paid:true, paidAt, paidVia:'link', paidInvoiceId` (`exists:true`, attesa) e la ricevuta in inglese quando `inv.lang === 'en'`;
+     `api/payments/link.js` parla inglese per `lang:'en'`. L'opzione B (salvare una carta e
+     addebitarla alla firma, D1) è progettata e SPENTA (`cardStep:false`): non è costruita.
+  7. **I lettori** (una riga ciascuno). Il Brain vota A un ordine prenotato; il rimbalzo dice «📌
+     ORDINE <numero> … si paga alla firma, niente incassato» (`isPaid` non lo tocca) e riconosce le
+     email `book_` che portano il recesso; `cityReplyText` ha il ramo prenotato («Your {plan} order is
+     in: file …, order …. Nothing is charged before you sign a lease.», Berlino chiede il
+     «Confirmed»), quello fatturato e quello chiuso/ritirato, mai «Payment received» prima del
+     pagamento né un prezzo, e la risposta di un desk alla firma chiude con `#order-full-search`;
+     `RENT.isForeignVat` (`js/rent-engine.js`, una copia) tiene le fatture `vatCountry ≠ IT` FUORI
+     dalla base IVA italiana del Contabile e dello scadenzario («IVA estera — da definire»,
+     `foreignVat` nel JSON dello scadenzario); la Bonifica non cancella mai un lead prenotato, pagato
+     o numerato; la conservazione del mese aggiunge `registre-PAR-<AAAA-MM>.csv` e
+     `orders-BER-<AAAA-MM>.csv` (`;`, BOM, CRLF, celle protette dalle formule).
+  8. **La funzione di recesso online** (la direttiva 2023/2673, in vigore dal 19/06/2026: CRD art.
+     11a, §356a BGB, L221-21, art. 54-bis Cod. cons.), su TUTTI gli otto desk e sul Pacchetto di Roma
+     (D10). `POST /api/withdraw` (config di default: `vercel.json` resta a 50 regole):
+     `{name, email, ref, desk, service, requestId, company, lang?}`, honeypot, 6 ogni 10′ per IP, desk da una
+     lista chiusa (gli otto, Roma, other), riferimento ≤ 80. La dichiarazione è
+     `agentNotifications/withdraw-<sha1(email|ref|requestId)[0:20]>` (409 = la stessa: niente seconda
+     card né email); la conferma parte SUBITO al consumatore (la dichiarazione, data e ora di Roma, il
+     suo riferimento, la ricevuta `W-…`) e la copia all'operatore (italiano, Reply-To il cliente:
+     Gmail è l'archivio). La risposta è 200 `{ok:true}` qualunque sia l'abbinamento (nessuna
+     enumerazione). L'abbinamento, sul server: `BM …` → `city.file`, `PAR-`/`BER-` →
+     `city.order.number`, altrimenti email e desk; contano solo gli ORDINI (`book_`, `svc_` pagato), e
+     il lead si scrive SOLO se un ordine solo combacia E la sua email è quella della dichiarazione
+     (un numero d'ordine è sequenziale, si indovina). Un `book_` non firmato oltre la bozza e non
+     pagato → `withdrawnAt` + `withdrawal{at, via:'online', ackSentAt, statementId}` («nulla da
+     rimborsare»); firmato, fatturato, pagato o chiuso, o un `svc_` pagato dei sei → solo la mappa
+     `withdrawal`, e la card dice «decidi tu» (dopo l'esecuzione completa il diritto può essere
+     finito). NIENTE si decide da solo: nessun rimborso, nessuna chiusura. Una dichiarazione identica
+     riprende quella la cui conferma è caduta (al massimo 5 volte, con l'ora ORIGINALE);
+     `withdraw-mail-<hash>` all'operatore se la conferma cade. `/withdrawal`: passo 1 «Withdraw from
+     contract here» (`#online`) apre la dichiarazione precompilata da `?desk=&service=&ref=`; passo
+     2 il riepilogo e «Confirm withdrawal» → «Received. We emailed you a copy with the date and
+     time.»; «Recedi dal contratto qui» / «Conferma recesso» con `?desk=Roma` (anche Rome) o
+     `?lang=it`; l'honeypot è l'input `hp_x` (posta `company`: un input chiamato `company`
+     l'autocompilazione lo riempie); i moduli tipo e l'aiuto mailto restano; nessun tracciamento. Sui
+     desk: `{online}` in ogni riga di recesso di un desk che vende (il build rifiuta chi non lo ha),
+     il link del piede «Withdraw from contract here» → `/withdrawal?desk=<Città>#online` (+2 parole al
+     caricamento; `WITHDRAW_LABEL`, una copia in `build-cities.mjs`), la striscia dell'hub «Withdraw
+     online, from the day you order.» → `/withdrawal#online`, la riga del Pacchetto →
+     `/withdrawal?desk=Roma&service=concordato-pack#online`. `withdrawalWindow`, `withdrawalEnds` e i
+     due moduli tipo stanno ora in `api/_withdrawal.js` (il webhook li riesporta).
+  9. **I calendari `fr` e `de-be`** (`js/desk-calendar.js`, prelavoro 970b4c3b; l'Italia sempre
+     unita). `fr` (Code du travail L3133-1): 1/1, 1/5, 8/5, 14/7, 15/8, 1/11, 11/11, 25/12 e Pasqua
+     +1, +39, +50 (niente Venerdì Santo né 26/12: sono dell'Alsazia-Mosella). `de-be`
+     (Feiertagsgesetz Berlin §1): 1/1, 8/3 (dal 2019), 1/5, 3/10, 25/12, 26/12 e Pasqua −2, +1, +39,
+     +50, più il 17/06/2028 una volta sola (`dated`: 75 anni dal 1953, legge del 2024; è un sabato).
+     Parigi lo nomina con `holidays:'fr'`; Berlino ESIGE `holidays:'de-be'` (`country:'de'` da sola è
+     una chiave ignota = l'Italia sola). Fonti secondarie (i siti ufficiali non rispondono dal
+     sandbox): non verificati. Il radar PFS dichiara Parigi e Berlino SPENTI (`js/radar-markets.js`)
+     e la plancia li offre «· radar spento»: accenderli è un'altra decisione.
+  10. **L'hub con otto desk e i claims.** Il JSON-LD di desk e hub su una riga (`ldJson`, `<`
+     escapato): −175…−200 B gz per pagina desk, −386 B sull'hub, senza cui l'hub a otto non sta nei
+     28 KB. Sull'hub (H1–H13): prima del primo prezzo «In Berlin and Paris every fare is charged only
+     when you sign a lease.» (il build pretende i soli desk alla firma vivi, e solo se ce n'è uno);
+     Full Search «Contract checked before you sign» invece di «Applications sent as listings appear»;
+     la striscia del recesso online; via «One company» e «One person»; didascalia «As on each desk's
+     page»; via l'etichetta del paese; `rules.hold` `paris:rentcap`; le FAQ riscritte senza bozze; via
+     la riga Rome della scheda e la riga sotto ROM; il tag «ITALIAN LAW · AS ROME» di Milano RESTA
+     (D13); la riga del recesso «14 days from your order … Withdraw online or with the model form».
+     I pin del telefono, opzione (b) (D12): sotto i 600 px o senza hover i pin restano link (tastiera,
+     crawler) ma non bersagli, e la mappa intera prende il tocco e aggancia il desk più vicino entro
+     30 px (oltre, niente); `HUB_MAP_PX = { 600: 566, 940: 559 }` (≥ 44 px dove i pin SONO bersagli);
+     a otto desk LON–PAR sta a 30,1 px a 390 e 24,2 a 320. `cities/_claims.json` 74 → 48 (−20
+     `partner`, −7 `law` che nessuna pagina stampa più, −1 `company-rome` della striscia; +2
+     `company-rome`, le righe Who di Parigi e Berlino): company-rome 15 · tenant 9 · lease 7 ·
+     follower 6 · deposit 5 · heading 2 · context 2 · trade-mark 1 · listing 1. Le frasi delle bozze
+     vivono in `tests/cities/fixtures/draft-claims.json` (26: partner 19 · law 7) e ogni guardia
+     waitlist resta provata su `draft-paris.json`/`draft-berlin.json` (i JSON di prima del flip).
+  11. **Le superfici del flip.** Termini (Last Updated 5 November 2026): §12 nomina otto desk; 12.2 sui
+     sei la regola della carta, a Parigi e Berlino niente all'ordine e ogni tariffa sul SUO trigger, le
+     visite in più di Parigi a €149, Berlino entro due mensilità nette fredde più IVA; 12.3 niente da
+     rimborsare a Parigi e Berlino; 12.4 il recesso (14 giorni dal pagamento sui sei, dall'ordine a
+     Parigi e Berlino, la funzione online, il lavoro già fatto solo sui sei); 12.5 sostituisce «not
+     open» con le due ancore `#city-paris` (mandato di ricerca scritto non esclusivo, numerato nel
+     registro, sei mesi al più, copia FR/EN, la quota con tetto dell'agente del locatore, loi 89-462
+     art. 5) e
+     `#city-berlin` (ordine in forma testuale, «Confirmed» prima di contattare un proprietario, Full
+     Search solo sulle case col go-ahead, visite comprese, niente accanto); 12.6 invariato. Privacy
+     (stessa data): otto desk, cosa porta un ordine e a cosa serve, la dichiarazione di recesso,
+     Stripe solo quando la fattura si paga dal link, conservazione «as long as the law requires the
+     order register» (la fattura 10 anni). `withdrawal.html`: 14 giorni dall'ordine a Parigi e
+     Berlino, il lavoro già fatto «if you paid». `llms.txt`: otto desk, la regola della firma e i
+     trigger, via «Paris and Berlin desks are not open.»; la riga 63 (La Réunion) NON toccata.
+     `sitemap.xml` `/paris` e `/berlin` (lastmod 2026-11-05), `/desks`, `/terms`, `/privacy` alla
+     stessa data; i piedi «Company & Markets» (sei pagine, `pt.html`, `patch-lotto2.py`) con BOOM
+     Berlin e BOOM Paris; `vercel.json` `/parigi` → `/paris` e `/berlino` → `/berlin` (59 redirect,
+     funzioni ancora 50); `og-paris.png` 94 KB, `og-berlin.png` 93 KB, `og-desks.png` 97 KB con gli
+     otto codici.
+  12. **Le misure** (albero del flip, e819d034, dove non detto altro). Parigi 481 parole al
+     caricamento (prosa 431 · strumenti 50) e 78,9 KB, Berlino 468 (424 · 44) e 79,0 KB, prima del
+     link del recesso nel piede (+2); i sei con quel link 467 · 511 · 489 · 485 · 536 · 485 (Amsterdam,
+     Barcellona, Londra, Madrid, Milano, Valencia). Col JS di B3 (12,3 KB) e il recesso, nella copia
+     d'integrazione: Parigi 80,5 KB, Berlino 80,7, Milano 81,2 su 82 — 0,8 KB di margine: ogni
+     aggiunta a tutte le pagine desk libera byte prima. Primo schermo a 390×844: 122 e 122 (≤ 150);
+     piega nel font della CI: 390×844 porta 709 · chi 779, 375×812 715 · 785; in Inter 390×844 724 ·
+     794. Biglietti (sui JSON della specifica): Parigi 55/43/35, Berlino 50/46/35 parole (60);
+     tariffe chiuse 58 e 58 (70). Hub: 973 parole (prosa 698 · strumenti 275; board 119 · map 65 ·
+     fares 225 · rules 156 · faq 43 · brief 227) su 980, pagina 28.319 B gz su 28.672, totale 73,1
+     KB su 78; primo schermo 84 (≤ 120) nei due font. Un altro desk costa all'hub circa 31 parole
+     (la stima della v1.7) contro 7 di margine: resta una decisione strutturale.
+  13. **L'integrazione.** Cinque merge senza conflitti di testo (A1+A2, il recesso lato server,
+     B1+B3+il recesso lato desk, B2, il recesso lato pagina) e una correzione di significato
+     (62a699de, il punto 5). Una prova di fine a fine in scratch, non committata, 19/19: la pagina di
+     B3 su un Parigi di prova in Chromium contro gli handler VERI dell'ordine, del biglietto, della
+     firma e del recesso — ordine → BOOKED col numero del server; link di gestione e di recesso
+     dell'email; recesso online → `withdrawnAt` + conferma → WITHDRAWN; un secondo ordine con la
+     spunta → fattura €199 → DUE col link stabile; una dichiarazione dopo la fattura → solo la
+     mappa, il biglietto resta DUE.
+  I Termini §12.5 dicono «due within 7 days of the signing»; la fattura scade 7 giorni dopo
+  l'EMISSIONE (mai prima: a favore del cliente quando la firma è dichiarata in ritardo). Se il legale
+  sceglie il ripiego del bottone (O9), cambiano anche i Termini §12.5 e `llms.txt`, che lo citano.
+  **Non fatto, dichiarato**: dopo una dichiarazione di recesso arrivata DOPO la firma l'operatore non
+  ha un comando per chiudere l'ordine (`/chiudi` rifiuta sulla mappa `withdrawal` e su `invoiced`;
+  🔔 Ricorda non la guarda, quindi può ancora ricordare — è un suo tap, «decidi tu» — e la colonna
+  `withdrawnAt` del CSV resta vuota); il dedupe `sameOrder` restituisce numero e fascicolo a chi
+  POSTa la stessa email, desk e tariffa (un oracolo: «questa email ha un ordine») e il recesso online
+  ferma un ordine aperto abbinato per email e desk anche senza riferimento — un terzo che conosce
+  l'email del cliente può fermarglielo, il cliente lo sa per email (per il fondatore o il legale);
+  la conferma di un recesso di Roma è sempre in italiano, anche con `?lang=en`; `chargeAtOf` esiste
+  in due copie con la stessa regola (`build-cities.mjs`, `api/_market.js`); il PDF dell'ordine perde
+  le lettere fuori dal Latin-1 (ő, ł, CJK) nel nome, l'email le tiene; `banca.html` non mostra ancora
+  `foreignVat`; il Pacchetto ha il link del recesso online solo nella riga della cassa (un «Recesso»
+  nel piede è suggerito, non fatto) e il suo honeypot si chiama ancora `company`;
+  `api/service-checkout.js` gira col tetto di default di Vercel (commit fino a 12 tentativi, PDF, due
+  email sotto 8 s, la card sotto 5 s): il p95 va misurato sulla Preview.
+  **Aperte, del fondatore e del legale** (la specifica §16; nessuna blocca, ognuna con la sua
+  esposizione): O1 Parigi senza carte professionnelle (Hoguet art. 3): la via UE è la dichiarazione
+  LPS art. 8-1 (CCI, €96, cerfa 15312) per un lavoro «temporaneo e occasionale», che un desk aperto
+  lun–ven fatica a essere — art. 16 I, sei mesi + €7.500 (×5 per la società), interdizione; la LPS
+  è raccomandata prima del primo ordine di Parigi, con revisione al decimo mandato o a sei mesi. O2
+  Berlino senza §34c GewO: l'esenzione temporanea §4 GewO cade con lavoro «ganz oder vorwiegend» in
+  Germania o da una sede fissa — §144 fino a €5.000, ripetuto §148 penale; nessuna sede fissa né
+  dipendente a Berlino. O3 il €500 fisso di Berlino contro WoVermRG §3(1) (il compenso in frazioni o
+  multipli del canone): §8 fino a €2.500 per caso; il D2-alt («una mensilità netta fredda, IVA
+  inclusa, al massimo €500») è un interruttore di dati progettato, non spedito, e la scelta va
+  datata. O4 la carta salvata prima della locazione (opzione B) contro Hoguet art. 6 e WoVermRG
+  §2(4): art. 16 II due anni + €30.000 (×5 per la società), rimborso §5 — spenta. O5 il contatore
+  Firestore e il CSV mensile come registro dei mandati (décret 72-678 art. 72) e O6 l'ordine a click
+  come «écrit» Hoguet (Code civil 1127-1, 1174, 1366): se non valgono, il mandato è inopponibile e il
+  compenso non dovuto (P2: il mandato firmato col Magic Sign personalizzato). O7 la forma testuale di
+  un ordine web (WoVermRG §2(1)): compenso perso; il «Confirmed» prima di contattare un proprietario
+  (D18). O8 WoVermRG §6 (offrire solo col mandato del locatore, «Wohnungsvermittler» negli annunci):
+  fino a €2.500; nessun annuncio in v1.8. O9 le parole del bottone contro §312j(3) BGB
+  («zahlungspflichtig bestellen»), CRD 8(2) e L221-14, anche per un compenso condizionato (C-400/22):
+  nessun contratto (BGH I ZR 159/24); il ripiego «Order with obligation to pay» è nel brief. O10 le
+  istruzioni di recesso adattate dall'Allegato I(A): se difettose il diritto dura 12 mesi + 14 giorni
+  e il cliente può recedere dopo la locazione senza dovere niente (BGH I ZR 30/15). O11 le etichette
+  e la conferma della funzione online, da fonti secondarie. O12 il Full Search di Berlino frutta solo
+  sulle case col go-ahead esclusivo (quasi mai quelle dei portali): ricavo, non legge, ma il desk deve
+  saperlo fare. O13 l'IVA: Full Search e AV legati all'immobile → IVA francese 20 % o tedesca 19 %
+  (art. 47; Reg. 282/2011 art. 31a), AP forse italiana 22 %, OSS o registrazione locale — il
+  commercialista PRIMA della prima fattura (`vatCountry`, `vatPct:null`, fuori dalla base italiana;
+  «VAT included» resta vero). O14 l'encadrement di Parigi dopo ~24/11/2026 (Senato il 21/10,
+  Assemblée attesa ~19/11, fonti secondarie): ricontrollare dopo il 19/11; se decade, via `rentcap`
+  da `paris.json` (ne restano tre, il minimo) e dall'hub. O15 il mediatore del consumo francese
+  (L612-1): fino a €3.000 / €15.000; nessuno nominato, come sui sei. O16 `llms.txt:63` (La Réunion)
+  dice che in Francia la ricerca vuole la licenza Hoguet, e Parigi ora cerca senza: lasciata com'è
+  (vera come legge). O17 la legge Toubon (francese nei contratti al consumo): il PDF del mandato è
+  FR/EN, il francese non è letto da un avvocato. O18 AP e AV di Berlino stanno fuori dalla legge solo
+  finché BOOM non trova la casa né tratta col proprietario (§2(1a)): fino a €25.000; l'attestazione
+  alla firma. O19 «(more: €149 each)» di Parigi dovute alla firma anche per visite di case non prese:
+  clausola contestabile, lettura non verificata.
+  **Non verificato** (la specifica §18): il testo di Hoguet artt. 1, 3, 6, 7, 8-1, 16 e del décret
+  72-678 artt. 72–73; un registro su Firestore come quello dell'art. 72; l'ordine a click come
+  «écrit»; la lettera di WoVermRG §§2–8 e le multe del §8; la forma testuale di un ordine web; la
+  lettera di §312j, CRD 8(2) e L221-14 e se «Order, pay on signing» è una formula ugualmente
+  inequivocabile; CRD art. 14(4)(a)(ii) (la porta della finestra, a memoria) e art. 11a; le
+  etichette del recesso online; l'encadrement di Parigi dopo ~24/11 e la data dell'Assemblée; gli
+  elenchi `fr` e `de-be` e il 17/06/2028; l'IVA per tariffa e l'OSS; i dettagli Stripe dell'opzione B;
+  il 24 px di WCAG 2.2 SC 2.5.8; il francese dei termini. Verificato invece dal test: pdf-lib con le
+  date fissate dà lo stesso SHA-256. Mancano due misure: un iPhone vero (Safari) e il p95 dell'ordine
+  sulla Preview.
+  Test: `tests/cities/run.mjs` TBD-COUNTS, `ui.mjs` TBD-COUNTS (Inter e font della CI),
+  `checkout.mjs` TBD-COUNTS, `calendar.mjs` TBD-COUNTS, `signing.mjs` (citiessigning) TBD-COUNTS,
+  `tests/cityterms/run.mjs` TBD-COUNTS, `tests/withdraw/run.mjs` TBD-COUNTS, `tests/withdraw/ui.mjs`
+  (withdrawui) TBD-COUNTS; più paymentlinks, paexternal, money, rimbalzi, dataops, agencyaccounting,
+  conservazione, vercelfunctions, guasti, seo, crawl, llmstxt, verita, consentbanner, scroll, cielo,
+  markets. Al buio, prima del flip (62a699de): run 1222, ui 599 nei due font, checkout 117, calendar
+  126, signing 274, cityterms 142, withdraw 122, withdrawui 87 nei due font; `npm test` 296 suite,
+  rosse solo `portalnavigationui` in Inter (Oggi, il font) e `magicsigncustomui` /
+  `magicsigncustomsigner` (cdn.jsdelivr.net irraggiungibile), preesistenti.
 - **IL DESK AVIAZIONE COMPLETO (v1.6, 03/11/2026 — il fondatore: «questo stile è
   troppo sintetizzato… itera lo stile del biglietto… anche per una pagina
   completa»).** Il primo schermo resta UNA carta d'imbarco, rifatta come oggetto
@@ -3951,16 +4320,17 @@ desk è GENERATO da `build-cities.mjs` dagli stessi JSON dei desk (`buildHub`,
 pagine città).
 - **La pagina, in ordine**: H1 «A rental agent on your side, in» + il tabellone
   Solari **EUROPE** (fuori dall'H1, che si legge «…in Europe»); il **tabellone
-  delle partenze** (nove righe: i sei desk live — Valencia dal 04/11 — linkati con codice IATA,
-  orari, ora del desk, OPEN/CLOSED e «from €149/£149»; Parigi e Berlino «NOT
-  OPEN» senza link; ROM, l'hub, verso `/`). L'HTML statico porta solo gli orari:
+  delle partenze** (nove righe: gli otto desk live — Valencia dal 04/11, Parigi e Berlino dal 05/11 —
+  linkati con codice IATA, orari, ora del desk, OPEN/CLOSED e «from €149/£149»; ROM, l'hub, verso
+  `/`, senza la riga sotto dal 05/11; nessun desk «NOT OPEN» resta, la riga vale per una bozza futura). L'HTML statico porta solo gli orari:
   orologio, finestra e OPEN/CLOSED li scrive `assets/boom-desks.js` dal
   calendario del desk (`js/desk-calendar.js`, festivi compresi), dentro span
   `data-nosnippet`; a ≥ 760 la colonna NOW è un tabellone a palette di sei
   celle (verde se aperto) che gira SOLO quando il desk apre o chiude. Poi la
   **mappa d'Europa** (vedi sotto), **le tre tariffe** uguali a ogni desk (la
-  regola del rimborso sotto ogni €500/£500, la nota LAU art. 20 prima del primo
-  prezzo, nessun pagamento qui: le porte portano a `/<slug>#fares`), la tabella
+  regola del rimborso sotto ogni €500/£500, la nota LAU art. 20 e, dal 05/11, «In Berlin and Paris
+  every fare is charged only when you sign a lease.» prima del primo prezzo, nessun pagamento qui:
+  le porte portano a `/<slug>#fares`), la tabella
   **«Renting rules, city by city»** dai `checks` dei JSON (l'etichetta `at`
   verbatim, una riga per tema, sotto 760 una scheda per tema), le FAQ, la scheda
   «in brief» APERTA, il piede.
@@ -4004,11 +4374,12 @@ pagine città).
   guardare `validGeo` di quel desk. Le etichette le mette UN collocatore a
   backtracking sull'UNIONE delle scatole del telefono (`HZ_FONT.phone` 20/13) e
   del desktop (11/7,95), così il codice sta dallo stesso lato su ogni pagina; i
-  pin dei desk live distano ≥ 44px sulla mappa del telefono (`HUB_MAP_PX`:
-  356px larga a 390, 286 a 320; asserito dal build): oggi il minimo è AMS–LON,
-  55,6px a 390 e 44,7 a 320 (il commento accanto a `HZ_CAM` dice ancora 55,9 e
-  45,0, i valori dello Stage 2 prima di Valencia). Parigi e Berlino pallino vuoto col
-  codice attenuato e senza arco; Roma col suo anello (due sull'hub, «ROM · HUB»);
+  pin distano ≥ 44px dove SONO bersagli (`HUB_MAP_PX = { 600: 566, 940: 559 }`, dal 05/11;
+  asserito dal build). Con otto desk live LON–PAR sta a 30,1px a 390 e 24,2 a 320, quindi sul
+  telefono vale l'opzione (b) (D12 della v1.8): sotto i 600px, o senza hover, i pin restano link
+  (tastiera, crawler) ma non prendono il tocco, e la mappa intera aggancia il desk più vicino entro
+  30px (oltre, niente). Il pallino vuoto col codice attenuato e senza arco resta per una bozza
+  (oggi nessuna); Roma col suo anello (due sull'hub, «ROM · HUB»);
   i pin e la lista Network sono link veri. **Viva a vista** (`assets/boom-map.js`,
   3,0 KB gz servita; il SUO tetto `MAP_KB` 3,5 è una riga a sé E conta nel totale
   della pagina — gli 82 KB reggono CON la mappa; iniettata da `boom-city.js` /
@@ -4038,16 +4409,18 @@ pagine città).
   (`setOpen` ogni minuto; un fotogramma fermo quando sono tutti chiusi, mai
   sotto reduced-motion). Cicli a riposo: la pillola «Desks open» e l'onda con un
   desk aperto, zero con tutti chiusi.
-- **JSON-LD**: l'organizzazione condivisa (identica alle pagine desk),
-  CollectionPage con `speakable` (`.hub-lead`, `.enbref`), ItemList dei desk
-  live, i sei `Service` IDENTICI a quelli delle pagine desk (stessa funzione
+- **JSON-LD** (su una riga dal 05/11, `ldJson`): l'organizzazione condivisa (identica alle pagine
+  desk), CollectionPage con `speakable` (`.hub-lead`, `.enbref`), ItemList dei desk
+  live, gli otto `Service` IDENTICI a quelli delle pagine desk (stessa funzione
   `serviceNode`, test di uguaglianza), FAQPage = le domande visibili. Nessun desk
   non aperto in nessun nodo JSON-LD tranne la FAQ visibile. Nessuna cassa,
   nessun WhatsApp generico (una città sconosciuta finirebbe nella macchina di
   Roma), il rating una volta sola («on Google in Rome»).
 - **Decisioni**:
-  1. Parigi e Berlino «NOT OPEN» (non «Opening»): mai un link, un prezzo, un
-     orario, un arco o un nodo JSON-LD su una pagina live.
+  1. Un desk non aperto è «NOT OPEN» (non «Opening»): mai un link, un prezzo, un
+     orario, un arco o un nodo JSON-LD su una pagina live. Parigi e Berlino lo sono stati fino al
+     05/11 (vedi «IL BIGLIETTO v1.8»); la regola resta provata sulle bozze di prova
+     (`tests/cities/fixtures/draft-paris.json`, `draft-berlin.json`).
   2. **Milano (decisione del fondatore, 03/11)**: Egidi Immobiliare S.r.l. è
      un'agenzia immobiliare italiana (REA RM-1710623), e a Milano valgono le
      stesse regole italiane di Roma. Milano però resta un desk: tariffe fisse,
@@ -4059,8 +4432,8 @@ pagine città).
      piede, la FAQ 6 e la riga di prova «an Italian real estate agency, under the
      same Italian law as in Rome».
   3. La tabella non ripete fatti ancora da confermare: `rules.hold` (Londra
-     tutta, Madrid contract, Barcellona rentcap/contract, Milano
-     fees/registration) mostra solo il titolo col link; `rules.cut` toglie da
+     tutta, Madrid contract, Barcellona rentcap/contract, Valencia rent/contract, Milano
+     fees/registration, Parigi rentcap dal 05/11) mostra solo il titolo col link; `rules.cut` toglie da
      Amsterdam «Agents still ask for three. We don't let them.». Sbloccare =
      togliere la chiave dopo il parere del legale.
   4. Ogni pagina desk mostra tutti i desk nella Rete (pallino pieno live, vuoto
@@ -4070,13 +4443,13 @@ pagine città).
   stare qualcosa): 78 KB gz in tutto (pagina 28, CSS 6, JS 6); parole al
   caricamento 980 (prosa 740, strumenti 280), primo schermo a 390 ≤ 120, lead 30,
   nodo 24, una risposta FAQ ≤ 42, una riga in brief ≤ 45; per sezione board 120 ·
-  map 90 · fares 230 · rules 160 · faq 70 · brief 240. Oggi (v1.7, dopo la
-  revisione del 04/11): 975 parole (prosa 712 · strumenti 263; board 118 · map
-  65 · fares 223 · rules 153 · faq 43 · brief 239), 71,8 KB (pagina 26,4 · css
-  3,7 · js 2,6, più la mappa a vista 3,0 contata nel totale; `MAP_KB` 3,5 è la
-  sua riga). Le pagine desk, mappa compresa: 76,4–79,4 KB su 82. Un altro desk
-  costa all'hub ~31 parole contro 5 di margine: il prossimo (il settimo live) è
-  una decisione strutturale, non una riga di copy.
+  map 90 · fares 230 · rules 160 · faq 70 · brief 240. Con otto desk (v1.8, misurato
+  sull'albero del flip): 973 parole (prosa 698 · strumenti 275; board 119 · map 65 · fares 225 ·
+  rules 156 · faq 43 · brief 227), pagina 28.319 B gz su 28.672, totale 73,1 KB; primo schermo 84.
+  Ci stanno perché il JSON-LD va su una riga (−386 B) e per i tagli H1–H13 della v1.8 (via «One
+  company» e «One person» dalla striscia, la riga Rome della scheda, la riga sotto ROM, il tag del
+  paese nella tabella; il tag di Milano resta). Un altro desk costa all'hub circa 31 parole contro 7
+  di margine: il prossimo (il nono live) è una decisione strutturale, non una riga di copy.
 - **Da confermare col legale (non bloccano)**: per Milano, un'unità locale con
   preposto (DM 26/10/2011) se una persona BOOM va alle visite; il Full Search
   pagato prima (art. 6 L. 39/1989, provvigione o mandato); moduli in CCIAA;
@@ -4085,13 +4458,15 @@ pagine città).
   (Cass. SS.UU. 23601/2017; nullità ex L. 311/2004 art. 1 c. 346; la riga resta
   `hold` sull'hub); un check `fees` per
   Amsterdam solo dopo il legale; IVA UK (NETP) e redress scheme di Londra; la
-  conferma del voto del 12/11 sul RDL 29/2026 per Madrid. **Del fondatore**: la
+  conferma del voto del 12/11 sul RDL 29/2026 per Madrid; Parigi e Berlino: le aperte O1–O19 di
+  «IL BIGLIETTO v1.8». **Del fondatore**: la
   foto, una voce «Desks» nel menu della home, Wikidata nei `Service`.
 - Test: `tests/cities/run.mjs` (THE HUB, la rete, Milano, la costa in gradi,
   la Horizon — `hzViolations`, le etichette, gli archi uguali, `MAP_KB` —,
   l'onda), `ui.mjs` (hub: primo schermo, orologi con Koningsdag e il bank
   holiday, senza JS, 320px, pin e archi, gli aerei, la scheda agganciata al
-  tocco, tabellone a palette, onda aperta/chiusa, reduced-motion), più seo,
+  tocco — dal 05/11 il tocco sulla mappa che aggancia il desk più vicino entro 30px —, tabellone a
+  palette, onda aperta/chiusa, reduced-motion), più seo,
   llmstxt, crawl, verita, consent, scroll (`desks.html` in VENDONO), radici
   (`genera-europa.mjs` deriva la radice dal proprio file).
 
@@ -4352,7 +4727,10 @@ piede, voce attiva centrata. Test: `tests/conto` 114 check (mutazioni prese).
 da `CITY_PLANS`; un desk waitlist o senza `checkout:true` è 400
 `checkout_closed` senza sessione; il telefono è facoltativo (Stripe lo
 raccoglie), `success_url` è la pagina della città con `?paid=<kind>`. Vedi
-«BOOM Cities → La cassa e i prezzi su ogni desk».
+«BOOM Cities → La cassa e i prezzi su ogni desk». **Dal 05/11 (v1.8)** un desk
+`chargeAt:'signing'` (Parigi, Berlino) non apre MAI una sessione: `createCityOrder`
+(`api/_cityorder.js`) prende l'ordine e risponde `{ok, booked:true, …}`; prima della chiamata
+Stripe una cintura risponde 500 `signing_desk`.
 Public one-tap Stripe Checkout for the productised services (Services 2.0
 pages). Server-side catalog decides price/copy — the client only names the
 kind: `virtual-viewing` (€89), `deal-assistance` (€249),
@@ -4367,6 +4745,24 @@ WhatsApp-only. All four pages (`virtual-viewing`, `deal-assistance`,
 `property-finding`, `concierge`) are standalone Services 2.0 product pages
 (MATERIA ambient, pay-plate + checkout sheet, sticky mobile pay bar,
 JSON-LD Service+Offer+FAQ).
+
+### GET `/api/city-lead?order=<book_…>&t=<token>&city=<slug>` — il biglietto gestito (v1.8)
+Solo su un desk che incassa alla firma; token derivato (`orderToken`, `api/payments/_token.js`),
+token sbagliato e ordine sconosciuto = lo stesso 404; 30 ogni 10′ per IP, no-store. Risponde
+`state` booked · due (col link di pagamento della fattura) · paid · withdrawn · closed, mai un dato
+personale. `?paid=` su un desk alla firma è 400. Vedi «IL BIGLIETTO v1.8», punto 5.
+
+### POST `/api/withdraw` — il recesso online (v1.8)
+Pubblico: `{ name, email, ref, desk, service, requestId, company(honeypot), lang? }`. La
+dichiarazione in `agentNotifications/withdraw-<hash>` (409 = la stessa), la conferma subito al
+consumatore e la copia all'operatore, sempre 200 `{ok:true}` (nessuna enumerazione); un ordine si
+timbra solo se UNO combacia e l'email è la sua; niente si decide da solo. Config di default.
+Vedi «IL BIGLIETTO v1.8», punto 8.
+
+**Fatture con `vatCountry` diverso da `'IT'`** (le `cityfee_` di Parigi e Berlino, v1.8):
+`RENT.isForeignVat` (`js/rent-engine.js`, una copia) le tiene FUORI dalla base IVA italiana del
+Contabile e dello scadenzario, elencate a parte («IVA estera — da definire») finché il
+commercialista non decide il luogo della prestazione.
 
 ### POST `/api/search/save`
 Public save-search endpoint for the apartments discovery page. Body
