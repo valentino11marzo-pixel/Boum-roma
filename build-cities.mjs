@@ -186,6 +186,10 @@ export const eur = (n) => money(n, 'EUR');
 const scriptJson = (obj, indent) => JSON.stringify(obj, null, 2)
   .replace(/</g, '\\u003c')
   .split('\n').map((l, i) => (i ? indent + l : l)).join('\n');
+// v1.8 (W1): the JSON-LD is read by machines, never by a person, so it goes out on ONE line (the same `<` escape).
+// Every reader parses it (the claims guard, run.mjs ldOf, seo, answers, faqtruth): the parsed objects are the same,
+// only the whitespace between tokens goes. It is what lets the hub hold its 28 KB page cap with eight live desks.
+const ldJson = (obj) => JSON.stringify(obj).replace(/</g, '\\u003c');
 
 const get = (obj, dotted) => dotted.split('.').reduce((o, k) => (o == null ? undefined : o[k]), obj);
 
@@ -2144,8 +2148,8 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
     robotsMeta: city.live
       ? '<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">'
       : '<meta name="robots" content="noindex">',
-    jsonLdBreadcrumb: scriptJson(jsonLdBreadcrumb(city, shared, pageUrl), ''),
-    jsonLd: scriptJson(jsonLd(city, shared, pageUrl, ogImage, cities), ''),
+    jsonLdBreadcrumb: ldJson(jsonLdBreadcrumb(city, shared, pageUrl)),
+    jsonLd: ldJson(jsonLd(city, shared, pageUrl, ogImage, cities)),
     configJson: scriptJson(config, '  '),
     assetVersion,
     scrollBlock: frags.scrollBlock,
@@ -3717,8 +3721,8 @@ export function renderHub({ template, shared, hub, cities, assetVersion, frags, 
   const data = {
     meta, pageUrl, ogImage, assetVersion,
     robotsMeta: '<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">',
-    jsonLdBreadcrumb: scriptJson(breadcrumb, ''),
-    jsonLd: scriptJson(graph, ''),
+    jsonLdBreadcrumb: ldJson(breadcrumb),
+    jsonLd: ldJson(graph),
     configJson: scriptJson(config, '  '),
     scrollBlock: frags.scrollBlock, solariEngine: frags.solariEngine, deskCalendar: frags.deskCalendar,
     mapCss,
