@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import content from '../design/buying/content.cjs';
 import BUYING from '../js/buying-engine.js';
 import { orgNode } from '../build-cities.mjs';
+import { scrollBlock } from './scroll-sync.mjs';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = p => fs.readFileSync(path.join(root,p),'utf8');
 const shared = JSON.parse(read('cities/_shared.json'));
@@ -19,7 +20,6 @@ const asset = p => '/'+p+'?v='+crypto.createHash('sha256').update(read(p)).diges
 const mark = read('cities/_hub.html').match(/<svg[^>]*>[\s\S]*?<symbol id="boomMark"[\s\S]*?<\/symbol>[\s\S]*?<\/svg>/)?.[0];
 if (!mark) throw new Error('Canonical BOOM mark missing');
 const solari = read('design/pages-deco/solari-engine.html');
-const scrollCss = read('css/boom-scroll.css'), scrollJs = read('js/boom-scroll.js');
 const og = site+'/og-buy-property-europe.png';
 function options(list, lang, selected='') {
   return Object.entries(list).map(([k,v])=>`<option value="${esc(k)}"${k===selected?' selected':''}>${esc(Array.isArray(v)?v[lang==='it'?1:0]:v)}</option>`).join('');
@@ -69,10 +69,7 @@ function build(lang) {
 <meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="${esc(c.title)}">
 <meta name="twitter:description" content="${esc(c.description)}"><meta name="twitter:image" content="${og}">
 <link rel="icon" href="/favicon.ico"><link rel="stylesheet" href="${asset('assets/boom-buying.css')}">
-<!-- BOOM_SCROLL:START -->
-<style>${scrollCss}</style>
-<script>${scrollJs}</script>
-<!-- BOOM_SCROLL:END -->
+${scrollBlock(root)}
 <!-- BOOM_SOLARI:START — canonical source, one entrance, no idle loop -->
 ${solari}
 <!-- BOOM_SOLARI:END -->
