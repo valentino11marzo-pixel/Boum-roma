@@ -7,6 +7,7 @@
   var hero=byId('nextHero'),atlas=byId('boomGlobeMount'),ticket=byId('directionClubTicket');
   if(!hero||!atlas||!ticket)return;
   document.body.dataset.experience='panorama';
+  document.body.dataset.homeVariant=query.get('variant')==='terminal'?'terminal':'panorama';
   document.documentElement.classList.add('boom-panorama');
   document.querySelector('meta[name="theme-color"]').content='#000';
   var anchor=document.createElement('span');anchor.hidden=true;anchor.dataset.panoramaAnchor='';atlas.before(anchor);
@@ -36,6 +37,8 @@
   document.querySelector('#services .chapter-aside').textContent='Four ways to help with your move. Choose the service, see its scope, then continue with BOOM.';
   var catalogueNote=document.createElement('p');catalogueNote.className='panorama-catalogue-note';
   catalogueNote.innerHTML='Renting a BOOM home? <strong>Viewings are free.</strong> Apply directly from the home’s page. <a href="/flight-next?direction=club&amp;edition=club&amp;experience=panorama&amp;view=apartments&amp;layout=skyline" data-view="apartments">Browse the homes</a>';
+  var catalogueLink=catalogueNote.querySelector('a');
+  catalogueLink.href=window.BoomFlightEurope.decorateURL(catalogueLink.getAttribute('href'),{view:'apartments'});
   document.querySelector('#services .service-foot').before(catalogueNote);
   document.querySelector('#services .service-foot').innerHTML='<a href="/services">All services &amp; prices <span aria-hidden="true"></span></a><a href="/your-money">How fees work <span aria-hidden="true"></span></a><a href="/concierge">Life in Rome, handled <span aria-hidden="true"></span></a>';
   document.querySelectorAll('#services .europe-service-proof>span[aria-hidden],#services .service-foot a>span').forEach(function(icon){icon.innerHTML=actionArrow;});

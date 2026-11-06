@@ -29,9 +29,15 @@ main{max-width:1600px;margin:0 auto;padding:0 var(--studio-gutter);padding-left:
 .studio-controls button[aria-pressed=true]:focus-visible{outline-color:#fffef7}
 #studioStatus{margin:0 0 0 auto;font-size:13px;color:var(--studio-muted);font-variant-numeric:tabular-nums}
 #studioError{margin:0 0 16px;padding:12px 16px;border:1px solid #ffd700;border-radius:8px;background:#15140c;font-size:14px;line-height:1.5}
-.studio-viewport{position:relative;height:max(560px,calc(100svh - 268px));overflow:hidden;background:#000;border:1px solid var(--studio-line);border-radius:8px}
+.studio-variant-description{display:flex;align-items:baseline;gap:24px;margin:0 0 20px}
+.studio-variant-description h2{flex:none;margin:0;font-size:18px;font-weight:500;line-height:1.4;letter-spacing:-.02em}
+.studio-variant-description p{margin:0;color:var(--studio-muted);font-size:14px;line-height:1.6;max-width:70ch}
+.studio-viewport{position:relative;height:max(560px,calc(100svh - 328px));overflow:hidden;background:#000;border:1px solid var(--studio-line);border-radius:8px}
 .studio-viewport iframe{position:absolute;top:0;left:0;border:0;transform-origin:top left;background:#000}
 .studio-note{max-width:85ch;margin:16px 0 24px;font-size:13px;color:var(--studio-muted);line-height:1.65;text-wrap:pretty}
+.studio-legacy{display:flex;align-items:center;flex-wrap:wrap;gap:8px 16px;margin:0 0 24px;color:var(--studio-muted);font-size:13px;line-height:1.5}
+.studio-legacy button{min-height:44px;padding:8px 12px;border:1px solid var(--studio-line);border-radius:8px;background:none;font-size:13px;text-decoration:underline;text-underline-offset:4px}
+.studio-legacy button[aria-pressed=true]{color:#ffd700;border-color:#ffd700}
 noscript{padding:20px var(--studio-gutter)}
 noscript a{text-decoration:underline}
 @media(hover:hover) and (pointer:fine){
@@ -52,6 +58,8 @@ noscript a{text-decoration:underline}
  .studio-header-actions{display:grid;grid-template-columns:1fr 1fr;width:100%;gap:8px}
  .studio-header-actions a{min-width:0;padding:12px;font-size:13px;gap:8px}
  .studio-intro{font-size:14px;margin-bottom:20px}
+ .studio-variant-description{display:block;margin-bottom:16px}
+ .studio-variant-description h2{margin-bottom:6px}
  .studio-toolbar{gap:12px}
  .studio-controls{flex:1 1 170px}
  .studio-controls button{padding:0 12px;min-width:0;flex:1;font-size:13px}

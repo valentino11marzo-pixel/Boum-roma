@@ -5049,6 +5049,12 @@ Zoom+/− modifica soltanto la camera, con260ms interrompibili e tastiera immedi
 Un suggerimento dopo3,2s di inattività visibile appare una volta sola; attività/pausa lo eliminano, senza focus, scroll, annunci o stato cliente. Nessuna nuova dipendenza o telemetria.
 `flightpanoramaui` aggiunge tre prove su pittura reale, zoom, lifecycle e suggerimento; `flightclubflight` conserva la quiete finita del Club. Il merge di main f6663503 conserva credito upgrade e correzioni delle caselle operative.
 
+Flight due home 06/11: Studio confronta A/Panorama e B/Terminal; Club resta accessibile come versione precedente. Panorama amplia il globo e raccoglie i comandi; Terminal affianca ricerca e Solari al globo, con quattro biglietti confrontabili.
+`variant=terminal` è solo presentazione di `experience=panorama`: `editionURL` lo conserva tra home, raccolta, scheda e Back; non entra nei brief o nelle porte dei servizi/desk originali.
+Il controller Club sposta il planner originale prima del globo anche nel DOM Terminal mobile, preservando focus e campi; all'estero resta il modulo desk originale. Nessun secondo form, canvas, stato cliente o dipendenza.
+`/home-terminal` è un redirect temporaneo alla variante; `/flight-studio?experience=terminal` la apre nel confronto con una sola preview. Cambiare A/B conserva la bozza pubblica valida e blocca date invalide senza perdere i campi.
+Verifica `flightpanoramaui`: Terminal320/390/900/1440, canvas dipinto, full view, biglietti, navigazione e privacy, più cambio A/B e formato; regressioni Europe/edizioni/Club flight/Next. Decisioni in `design/panorama-terminal-variants.md`.
+
 Flight Lab 31/10: `/flight-lab` confronta Atlas, Residence e Club sulle stesse viste reali di `/flight-next?direction=…`, senza cambiare il sito pubblico.
 Le composizioni riusano catalogo, Solari, iframe Skyline, salvataggi e Apply; nessun secondo catalogo o nuovo handler di invio.
 Residence usa una foto realmente restituita dal catalogo pubblico (fallback a una casa pubblica non chiusa); Atlas sposta la stessa mappa nel primo schermo.

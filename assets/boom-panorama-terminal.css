@@ -1,0 +1,274 @@
+/* Terminal: the same BOOM journeys, arranged as a working departure desk.
+   The Club controller keeps the DOM in reading order: title, planner, globe. */
+body[data-direction="club"][data-experience="panorama"][data-edition="club"][data-home-variant="terminal"].europe-ready {
+ --p-surface:#080808;
+ --p-raised:#161409;
+ --p-line:#494638;
+ --p-hairline:#2d2b23;
+ --edition-gutter:clamp(24px,4.2vw,72px);
+
+ & .next-nav{height:76px;border-bottom-color:var(--p-yellow)}
+ & #nextHero{padding-bottom:28px}
+ & #nextHero #nextSolariField{opacity:.12;mask-image:linear-gradient(90deg,#000,transparent 55%);-webkit-mask-image:linear-gradient(90deg,#000,transparent 55%)}
+ & .europe-city-switch{padding:12px 0 16px;border-bottom:1px solid var(--p-line)}
+ & .europe-cities{gap:0}
+ & .europe-cities button{min-height:52px;padding:12px 18px;border-radius:6px;border-right-color:var(--p-hairline)}
+ & .europe-cities button:last-child{border-right-color:transparent}
+ & .europe-cities button[aria-pressed="true"]{border-color:var(--p-yellow)}
+ & .europe-city-code{font-size:12px;font-variant-numeric:tabular-nums}
+
+ & #directionClubTicket{
+  display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.04fr);
+  grid-template-rows:auto auto;grid-template-areas:"title globe" "planner globe";
+  align-items:start;column-gap:clamp(32px,4.2vw,72px);row-gap:18px;
+  min-height:0;padding:28px 0 0;
+ }
+ & #directionClubTicket>.hero-centre{grid-area:title;align-self:start;width:100%;padding:0;order:0}
+ & .hero-centre h1{gap:16px}
+ & #nextHero #nextDestinationBoard{font-size:min(var(--europe-board-size,110px),94px)}
+ & .hero-pretitle{font-size:clamp(24px,2.1vw,30px);line-height:1.16;max-width:28ch}
+ & .hero-promise{max-width:47ch;margin-top:18px;font-size:16px;line-height:1.55}
+ & .panorama-proof{margin-top:6px;gap:4px 24px}
+ & .panorama-proof a{font-size:13px}
+ &[data-europe-city="rome"] .edition-plan-link{display:none}
+ & #directionClubTicket>.europe-planner.edition-club-runway{
+  grid-area:planner;align-self:start;order:0;width:100%;max-width:none;margin:0;
+  border-radius:12px;background:var(--p-bg);overflow:visible;
+ }
+ & .edition-runway-head{padding:12px 20px;gap:8px 16px;align-items:baseline;background:var(--p-yellow);color:#453b00;border-bottom-color:var(--p-yellow)}
+ & .edition-runway-head>span:first-child{font-size:18px;font-weight:600;color:#000}
+ & .edition-runway-head>span:last-child{font-size:12px;color:#453b00}
+ & #nextSearch{padding:16px 20px 14px}
+ & #nextSearchForm{grid-template-columns:repeat(2,minmax(0,1fr));align-items:stretch;gap:12px 20px;min-height:0}
+ & #nextDestinationSummary{grid-column:1/-1;grid-row:auto;display:grid;grid-template-columns:1fr auto;align-items:center;gap:3px 16px;min-height:0;margin:0;padding:0 0 12px;border:0;border-bottom:1px solid var(--p-line)}
+ & #nextDestinationSummary>span:first-child{grid-column:1;grid-row:1;font-size:12px}
+ & #nextDestinationSummary strong{grid-column:1;grid-row:2;max-width:none;font-size:18px}
+ & #nextDestinationSummary .destination-hint{grid-column:2;grid-row:1/3;max-width:18ch;text-align:right}
+ & #nextDestinationSummary .destination-arrow{display:none}
+ & #nextSearchForm>label{grid-column:auto;grid-row:auto;display:flex;flex-direction:column;min-width:0;min-height:66px;padding:0!important;gap:2px;border:0;border-bottom:1px solid var(--p-line)}
+ & #nextSearchForm label>span{font-size:13px;margin-bottom:0}
+ & #nextSearchForm :is(input,select){width:100%;min-width:0;min-height:44px;height:44px;font-size:16px;font-variant-numeric:tabular-nums}
+ & #nextSearchForm .search-submit{grid-column:1/-1;grid-row:auto;align-self:stretch;width:100%;min-height:54px;margin:4px 0 0;padding:9px 9px 9px 16px;border-radius:8px}
+ & #nextHero #nextSearch .search-caption{margin-top:10px;padding-top:0;font-size:12px;line-height:1.5}
+
+ & #directionClubTicket>.edition-atlas{
+  grid-area:globe;order:0;align-self:stretch;width:100%;height:100%;min-height:540px;
+  margin:0;padding-left:28px;border-left:1px solid var(--p-line);overflow:visible;
+ }
+ & #directionClubTicket>.edition-atlas #europeCitySignature{left:28px;min-height:52px;max-width:calc(100% - 148px)}
+ & #directionClubTicket>.edition-atlas #europeCitySignature .europe-city-icon{width:66px;height:48px;flex-basis:66px}
+ & #directionClubTicket>.edition-atlas .panorama-globe-toolbar{left:28px;min-height:60px}
+ & #directionClubTicket>.edition-atlas .boom-globe-stage{margin-top:60px;height:calc(100% - 156px);min-height:350px}
+ & #directionClubTicket>.edition-atlas .panorama-route{min-height:40px;padding-top:9px}
+ & #directionClubTicket>.edition-atlas .panorama-route-city{font-size:15px}
+ & #directionClubTicket>.edition-atlas .panorama-route-scope{font-size:12px}
+ & #directionClubTicket>.edition-atlas .boom-globe-caption{gap:0 12px;min-height:50px}
+ & #directionClubTicket>.edition-atlas .panorama-globe-hint{bottom:3px}
+ & .panorama-globe-toolbar button{border-radius:6px}
+ & .panorama-globe-tools{padding:0;border:0;border-radius:0}
+ & .panorama-globe-tools [data-panorama-zoom]{border-color:var(--p-hairline);border-radius:6px}
+ & .panorama-globe-tools .boom-globe-reset{margin-left:0}
+ & .panorama-globe-tools #nextMotionToggle{margin-left:2px;padding-left:9px}
+ & .edition-flightline{padding-block:10px;border-top:1px solid var(--p-line);border-bottom:1px solid var(--p-line)}
+
+ /* Foreign desks keep their own brief and offer below this two-column welcome. */
+ &:not([data-europe-city="rome"]) #directionClubTicket{grid-template-areas:"title globe";grid-template-rows:auto;min-height:520px;align-items:center;padding-bottom:8px}
+ &:not([data-europe-city="rome"]) #directionClubTicket>.hero-centre{align-self:center;padding-block:24px}
+ &:not([data-europe-city="rome"]) #directionClubTicket>.edition-atlas{min-height:500px}
+ &:not([data-europe-city="rome"]) .edition-plan-link{margin-top:24px}
+
+ /* Equal service choices; the perforation separates scope from the real price. */
+ & .next-section{padding-block:72px}
+ & .chapter-heading{gap:32px;padding-bottom:24px;margin-bottom:32px;border-bottom:1px solid var(--p-line)}
+ & .chapter-heading h2{font-size:clamp(32px,3.1vw,44px)}
+ & .chapter-aside{font-size:15px;max-width:38ch}
+ & .next-tickets.panorama-ticketing{grid-template-columns:repeat(2,minmax(0,1fr));gap:24px}
+ & .panorama-ticket,& .panorama-ticket:hover,& .panorama-ticket[data-rome-service="property-finding"]{
+  grid-column:auto;grid-template-columns:20px minmax(0,1fr);grid-template-rows:1fr auto;
+  border-radius:12px;background:var(--p-surface);border-color:var(--p-line);
+ }
+ & .panorama-ticket-band,& [data-rome-service="property-finding"] .panorama-ticket-band{grid-column:1;grid-row:1;font-size:12px}
+ & .panorama-ticket-body,& [data-rome-service="property-finding"] .panorama-ticket-body{grid-column:2;grid-row:1;display:flex;flex-direction:column;gap:0;padding:26px;min-width:0}
+ & [data-rome-service="property-finding"] .panorama-ticket-body::after{display:none}
+ & .panorama-ticket h3,& [data-rome-service="property-finding"] h3{min-height:0;font-size:29px;line-height:1.14}
+ & .panorama-ticket-situation,& [data-rome-service="property-finding"] .panorama-ticket-situation{font-size:14px;margin-top:8px}
+ & .panorama-ticket-route,& [data-rome-service="property-finding"] .panorama-ticket-route{align-self:stretch;max-width:none;margin:20px 0;font-size:17px;gap:12px}
+ & .panorama-ticket-route svg{width:28px;height:28px}
+ & [data-rome-service="property-finding"] .panorama-ticket-route svg{width:28px;height:28px}
+ & .panorama-ticket-description,& [data-rome-service="property-finding"] .panorama-ticket-description{margin:0;font-size:15px;line-height:1.6;max-width:65ch}
+ & .panorama-ticket-facts,& [data-rome-service="property-finding"] .panorama-ticket-facts{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 20px;margin-top:20px;padding-top:16px;max-width:none}
+ & [data-rome-service="property-finding"] .panorama-ticket-facts>div:last-child{grid-column:1/-1}
+ & .panorama-ticket-facts dd{margin-top:4px;font-size:14px}
+ & .panorama-ticket .ticket-terms,& [data-rome-service="property-finding"] .ticket-terms{min-height:0;margin:18px 0 0;font-size:13px;line-height:1.55}
+ & .panorama-ticket .ticket-stub,& [data-rome-service="property-finding"] .ticket-stub{
+  grid-column:1/-1;grid-row:2;display:grid;grid-template-columns:auto minmax(0,1fr);grid-template-rows:auto auto auto;
+  align-items:center;gap:10px 24px;padding:22px 26px;border:0;
+  border-top:1px dashed color-mix(in srgb,var(--ticket-accent) 52%,transparent);background:var(--p-bg);color:var(--p-text);
+ }
+ & .panorama-ticket .ticket-stub::before,& .panorama-ticket .ticket-stub::after,& [data-rome-service="property-finding"] .ticket-stub::after{top:-8px;bottom:auto;left:-8px;right:auto;width:16px;height:16px}
+ & .panorama-ticket .ticket-stub::after,& [data-rome-service="property-finding"] .ticket-stub::after{left:auto;right:-8px}
+ & .panorama-ticket-reference,& [data-rome-service="property-finding"] .panorama-ticket-reference{grid-column:1;grid-row:1;font-size:12px;letter-spacing:.025em;color:var(--ticket-accent)}
+ & .panorama-ticket .ticket-stub>strong,& [data-rome-service="property-finding"] .ticket-stub>strong{grid-column:1;grid-row:2;font-size:48px;line-height:1;color:var(--ticket-accent)}
+ & .panorama-ticket .ticket-stub>small,& [data-rome-service="property-finding"] .ticket-stub>small{grid-column:1/-1;grid-row:3;margin:0;max-width:none;font-size:13px;line-height:1.5;color:var(--p-muted)}
+ & .panorama-ticket .ticket-stub>.panorama-ticket-action,& [data-rome-service="property-finding"] .ticket-stub>.panorama-ticket-action{grid-column:2;grid-row:1/3;align-self:center;min-height:56px;margin:0;padding:10px 10px 10px 14px;border-radius:8px;background:var(--ticket-accent);color:#000;font-size:14px}
+ & .panorama-ticket-action>b,& [data-rome-service="property-finding"] .panorama-ticket-action>b{border-radius:5px;background:#000;color:var(--ticket-accent)}
+ & .panorama-ticket[data-rome-service="property-finding"]:focus-visible .panorama-ticket-action{outline-color:var(--p-yellow)}
+ & .service-foot{gap:24px;padding-top:24px}
+ & .service-foot a{border-radius:8px}
+ & .europe-service-proof{padding-block:24px;margin-top:28px}
+ & .next-journey{gap:56px}
+ & .next-journey li{padding-bottom:28px}
+ & .next-signoff{padding-block:48px;border-top:1px solid var(--p-yellow)}
+ & .next-signoff h2{font-size:clamp(32px,3.3vw,44px)}
+
+ /* The desk grammar continues through catalogue, decisions and the company. */
+ & .next-filter-bar{background:var(--p-bg);border-block-color:var(--p-line)}
+ & .next-view-switch button[aria-pressed="true"]{background:var(--p-yellow);color:#000}
+ & .balance-card[data-primary="true"]{border-color:var(--p-yellow)}
+ & .detail-decision{border-top-color:var(--p-yellow)}
+ & .decision-price{padding-bottom:20px;border-bottom:1px dashed var(--p-line)}
+ & .decision-price strong{color:var(--p-yellow)}
+ & #europeDeskStory .europe-service-copy h3{font-size:30px}
+ & #clubCompany{border-top-color:var(--p-yellow)}
+ & #clubCompany .club-destination-board button{padding-inline:12px;border-color:var(--p-line)}
+ & #clubCompany .club-destination-board button[aria-pressed="true"]{background:var(--p-raised)}
+ & #clubCompany .club-destination-board button[aria-pressed="true"] .club-destination-code{background:var(--p-yellow);color:#000}
+}
+
+@media(min-width:1320px){
+ body[data-direction="club"][data-experience="panorama"][data-edition="club"][data-home-variant="terminal"].europe-ready {
+  & .panorama-ticket,& .panorama-ticket:hover,& .panorama-ticket[data-rome-service="property-finding"]{grid-template-columns:20px minmax(0,1fr) 174px;grid-template-rows:1fr}
+  & .panorama-ticket-band,& [data-rome-service="property-finding"] .panorama-ticket-band{grid-row:1}
+  & .panorama-ticket-body,& [data-rome-service="property-finding"] .panorama-ticket-body{padding:26px 24px}
+  & .panorama-ticket h3,& [data-rome-service="property-finding"] h3{font-size:28px}
+  & .panorama-ticket .ticket-stub,& [data-rome-service="property-finding"] .ticket-stub{grid-column:3;grid-row:1;grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto 1fr auto;gap:16px;padding:26px 18px;align-items:start;border-top:0;border-left:1px dashed color-mix(in srgb,var(--ticket-accent) 52%,transparent)}
+  & .panorama-ticket .ticket-stub::after,& [data-rome-service="property-finding"] .ticket-stub::after{top:auto;bottom:-8px;left:-8px;right:auto}
+  & .panorama-ticket-reference,& [data-rome-service="property-finding"] .panorama-ticket-reference{grid-column:1;grid-row:1;line-height:1.5}
+  & .panorama-ticket .ticket-stub>strong,& [data-rome-service="property-finding"] .ticket-stub>strong{grid-column:1;grid-row:2;font-size:46px}
+  & .panorama-ticket .ticket-stub>small,& [data-rome-service="property-finding"] .ticket-stub>small{grid-column:1;grid-row:3;max-width:20ch}
+  & .panorama-ticket .ticket-stub>.panorama-ticket-action,& [data-rome-service="property-finding"] .ticket-stub>.panorama-ticket-action{grid-column:1;grid-row:4;grid-template-columns:1fr 26px;gap:8px;align-self:end;padding:10px;font-size:14px}
+  & .panorama-ticket-action>b,& [data-rome-service="property-finding"] .panorama-ticket-action>b{width:26px;height:32px}
+  & .panorama-ticket-action>b svg{width:18px;height:18px}
+ }
+}
+
+@media(min-width:761px) and (max-width:1100px){
+ body[data-direction="club"][data-experience="panorama"][data-edition="club"][data-home-variant="terminal"].europe-ready {
+  & #directionClubTicket{grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:28px;row-gap:18px;grid-template-areas:"title globe" "planner globe"}
+  & #directionClubTicket>.hero-centre{max-width:660px}
+  & .hero-pretitle{font-size:26px}
+  & #nextHero #nextDestinationBoard{font-size:min(var(--europe-board-size,94px),88px)}
+  & .hero-promise{max-width:58ch}
+  & #directionClubTicket>.edition-atlas{min-height:420px;padding-left:20px}
+  & #directionClubTicket>.edition-atlas #europeCitySignature{left:20px;max-width:calc(100% - 118px);gap:7px}
+  & #directionClubTicket>.edition-atlas #europeCitySignature .europe-city-icon{width:48px;flex-basis:48px}
+  & #directionClubTicket>.edition-atlas #europeCitySignature>span{font-size:12px}
+  & #directionClubTicket>.edition-atlas .panorama-globe-toolbar{left:20px}
+  & .panorama-globe-toolbar button{padding-inline:9px;gap:7px;font-size:12px}
+  & #directionClubTicket>.edition-atlas .boom-globe-stage{height:calc(100% - 196px);min-height:240px}
+  & #directionClubTicket>.edition-atlas .panorama-route{align-items:start;flex-direction:column;gap:4px;padding-top:10px}
+  & #directionClubTicket>.edition-atlas .boom-globe-caption{gap:0;justify-content:start}
+  & .panorama-globe-tools{width:100%;justify-content:space-between;gap:2px}
+  & .panorama-globe-tools [data-panorama-zoom]{width:44px;min-width:44px}
+  & .panorama-globe-tools .boom-globe-reset{padding-inline:5px}
+  & .panorama-globe-tools #nextMotionToggle{font-size:11px;margin-left:0;padding-left:6px}
+  & .europe-cities button{padding-inline:10px;font-size:13px}
+  & .europe-city-code{padding-left:7px;font-size:11px}
+  & .edition-runway-head{display:block;padding-inline:18px}
+  & .edition-runway-head>span:last-child{display:block;margin-top:4px}
+  & #nextSearch{padding-inline:18px}
+  & #nextDestinationSummary{grid-template-columns:minmax(0,1fr);gap:5px}
+  & #nextDestinationSummary .destination-hint{grid-column:1;grid-row:3;max-width:none;text-align:left}
+  &:not([data-europe-city="rome"]) #directionClubTicket{grid-template-areas:"title globe";min-height:450px}
+  &:not([data-europe-city="rome"]) #directionClubTicket>.edition-atlas{min-height:450px}
+  & .next-tickets.panorama-ticketing{gap:20px}
+  & .panorama-ticket-body,& [data-rome-service="property-finding"] .panorama-ticket-body{padding:24px}
+  & .panorama-ticket h3,& [data-rome-service="property-finding"] h3{font-size:27px}
+  & .panorama-ticket .ticket-stub,& [data-rome-service="property-finding"] .ticket-stub{padding:22px 24px;gap:12px 16px}
+  & .panorama-ticket .ticket-stub>.panorama-ticket-action,& [data-rome-service="property-finding"] .ticket-stub>.panorama-ticket-action{grid-column:1/-1;grid-row:4;grid-template-columns:1fr 36px}
+  & .panorama-ticket-reference,& [data-rome-service="property-finding"] .panorama-ticket-reference{grid-column:1/-1}
+  & .panorama-ticket .ticket-stub>small,& [data-rome-service="property-finding"] .ticket-stub>small{grid-column:2;grid-row:2;max-width:25ch}
+ }
+}
+
+@media(max-width:760px){
+ body[data-direction="club"][data-experience="panorama"][data-edition="club"][data-home-variant="terminal"].europe-ready {
+  --edition-gutter:20px;
+  & .next-nav{height:104px}
+  & #nextHero{padding:0 20px 24px}
+  & .europe-city-switch{margin-inline:0;padding:12px 0;border-bottom-color:var(--p-line)}
+  & .europe-cities{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+  & .europe-cities button{min-height:48px;padding:10px 8px;justify-content:center;border-right-color:transparent;font-size:13px}
+  & .europe-city-code{display:none}
+  & #directionClubTicket,&:not([data-europe-city="rome"]) #directionClubTicket{display:flex;flex-direction:column;gap:0;min-height:0;padding:28px 0 0}
+  & #directionClubTicket>.hero-centre,&:not([data-europe-city="rome"]) #directionClubTicket>.hero-centre{width:100%;padding:0;order:0}
+  & .hero-pretitle{font-size:25px;max-width:25ch}
+  & .hero-centre h1{gap:16px}
+  & .hero-promise{font-size:16px;line-height:1.55;margin-top:18px;max-width:40ch}
+  & .panorama-proof{margin-top:6px;justify-content:space-between;gap:4px 14px}
+  & #directionClubTicket>.europe-planner.edition-club-runway{order:0;flex:none;margin-top:20px;width:100%}
+  & .edition-runway-head{display:block;padding:16px 18px}
+  & .edition-runway-head>span:first-child{font-size:19px}
+  & .edition-runway-head>span:last-child{display:block;margin-top:4px;font-size:12px}
+  & #nextSearch{padding:16px 18px}
+  & #nextSearchForm{gap:14px 16px}
+  & #nextDestinationSummary{grid-template-columns:minmax(0,1fr);padding-bottom:12px;gap:5px}
+  & #nextDestinationSummary strong{font-size:18px}
+  & #nextDestinationSummary .destination-hint{grid-column:1;grid-row:3;max-width:none;font-size:12px;text-align:left}
+  & #nextSearchForm>label{min-height:66px}
+  & #nextSearchForm .search-submit{margin-top:2px;min-height:56px}
+  & #directionClubTicket>.edition-atlas,&:not([data-europe-city="rome"]) #directionClubTicket>.edition-atlas{order:0;flex:none;width:100%;height:430px;min-height:0;margin:28px 0 0;padding:16px 0 0;border-left:0;border-top:1px solid var(--p-line)}
+  & #directionClubTicket>.edition-atlas #europeCitySignature{top:16px;left:0;max-width:calc(100% - 116px);min-height:52px;gap:9px}
+  & #directionClubTicket>.edition-atlas #europeCitySignature .europe-city-icon{width:58px;height:46px;flex-basis:58px}
+  & #directionClubTicket>.edition-atlas #europeCitySignature>span{font-size:12px}
+  & #directionClubTicket>.edition-atlas .panorama-globe-toolbar{top:16px;left:0;min-height:60px}
+  & #directionClubTicket>.edition-atlas .boom-globe-stage{margin-top:60px;height:230px;min-height:0}
+  & #directionClubTicket>.edition-atlas .panorama-route{min-height:36px;padding-top:8px;gap:8px}
+  & #directionClubTicket>.edition-atlas .panorama-route-city{font-size:14px}
+  & #directionClubTicket>.edition-atlas .panorama-route-scope{font-size:12px}
+  & #directionClubTicket>.edition-atlas .boom-globe-caption{gap:0 12px;min-height:44px}
+  & .panorama-globe-tools{width:100%;justify-content:space-between;gap:3px}
+  & .panorama-globe-tools [data-panorama-zoom]{width:44px;min-width:44px}
+  & .panorama-globe-tools .boom-globe-reset{padding-inline:6px}
+  & .panorama-globe-tools #nextMotionToggle{margin-left:0;padding-left:8px;font-size:11px}
+  & .next-section{padding:48px 20px}
+  & .chapter-heading{display:block;padding-bottom:22px;margin-bottom:24px}
+  & .chapter-heading h2{font-size:32px}
+  & .chapter-aside{font-size:15px;margin-top:18px}
+  & .next-tickets.panorama-ticketing{grid-template-columns:minmax(0,1fr);gap:20px}
+  & .panorama-ticket,& .panorama-ticket:hover,& .panorama-ticket[data-rome-service="property-finding"]{grid-template-columns:18px minmax(0,1fr)}
+  & .panorama-ticket-body,& [data-rome-service="property-finding"] .panorama-ticket-body{padding:24px}
+  & .panorama-ticket h3,& [data-rome-service="property-finding"] h3{font-size:29px}
+  & .panorama-ticket-description{font-size:16px}
+  & .panorama-ticket .ticket-stub,& [data-rome-service="property-finding"] .ticket-stub{padding:22px 24px;gap:12px 18px}
+  & .panorama-ticket-reference,& [data-rome-service="property-finding"] .panorama-ticket-reference{grid-column:1/-1;grid-row:1}
+  & .panorama-ticket .ticket-stub>strong,& [data-rome-service="property-finding"] .ticket-stub>strong{grid-column:1;grid-row:2;font-size:48px}
+  & .panorama-ticket .ticket-stub>small,& [data-rome-service="property-finding"] .ticket-stub>small{grid-column:2;grid-row:2;font-size:13px;max-width:25ch}
+  & .panorama-ticket .ticket-stub>.panorama-ticket-action,& [data-rome-service="property-finding"] .ticket-stub>.panorama-ticket-action{grid-column:1/-1;grid-row:3;margin-top:4px;grid-template-columns:minmax(0,1fr) 36px;font-size:15px}
+  & .service-foot{grid-template-columns:1fr;gap:12px;padding-top:20px}
+  & .europe-service-proof strong{font-size:23px}
+  & .next-journey{gap:32px}
+  & .next-signoff{padding-block:40px}
+  & .decision-price{padding-bottom:16px}
+ }
+}
+
+@media(max-width:360px){
+ body[data-direction="club"][data-experience="panorama"][data-edition="club"][data-home-variant="terminal"].europe-ready {
+  & .hero-pretitle{font-size:23px}
+  & .edition-runway-head,& #nextSearch{padding-inline:14px}
+  & #nextSearchForm{column-gap:12px}
+  & #nextSearchForm>label:has(input[type="date"]){grid-column:1/-1;display:grid;grid-template-columns:70px minmax(0,1fr);align-items:center;gap:8px;min-height:48px}
+  & #nextDestinationSummary .destination-hint{max-width:none}
+  & #directionClubTicket>.edition-atlas .panorama-route{flex-wrap:wrap;gap:3px 10px}
+  & #directionClubTicket>.edition-atlas{height:448px}
+  & .panorama-globe-tools{gap:0}
+  & .panorama-globe-tools [data-panorama-zoom]{width:44px;min-width:44px}
+  & .panorama-globe-tools .boom-globe-reset{font-size:11px;padding-inline:5px}
+  & .panorama-globe-tools #nextMotionToggle{padding-left:5px;font-size:11px}
+  & .panorama-ticket-body,& [data-rome-service="property-finding"] .panorama-ticket-body{padding:20px}
+  & .panorama-ticket h3,& [data-rome-service="property-finding"] h3{font-size:27px}
+  & .panorama-ticket .ticket-stub,& [data-rome-service="property-finding"] .ticket-stub{padding:20px;column-gap:14px}
+  & .panorama-ticket .ticket-stub>strong,& [data-rome-service="property-finding"] .ticket-stub>strong{font-size:44px}
+ }
+}

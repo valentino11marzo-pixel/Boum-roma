@@ -1,4 +1,4 @@
-// Panorama uses the real city, journey, globe and motion controllers. Fixtures
+// Panorama and Terminal use the real city, journey, globe and motion controllers. Fixtures
 // replace only the public catalogue, photo bytes, Skyline rendering and final
 // form boundary. Every write and every remote browser request is blocked.
 import assert from 'node:assert/strict';
@@ -231,11 +231,120 @@ async function releaseGlobe(page){
  await page.locator('.europe-city-switch [data-europe-city="rome"]').focus();
  await page.locator('#boomGlobeMount').scrollIntoViewIfNeeded();await page.mouse.move(0,0);
 }
+async function plannerBounds(page){
+ const layout=await page.locator('#nextSearchForm').evaluate(form=>({bounds:form.getBoundingClientRect().toJSON(),controls:[...form.children].filter(node=>node.matches('label,button')&&node.getClientRects().length).map(node=>({name:node.id||node.querySelector('input,select')?.id||'submit',box:node.getBoundingClientRect().toJSON()}))}));
+ for(const item of layout.controls){
+  assert.ok(item.box.left>=layout.bounds.left-1&&item.box.right<=layout.bounds.right+1,item.name+' stays inside the planner');
+  for(const other of layout.controls){
+   if(item===other)continue;
+   const overlapX=Math.min(item.box.right,other.box.right)-Math.max(item.box.left,other.box.left),overlapY=Math.min(item.box.bottom,other.box.bottom)-Math.max(item.box.top,other.box.top);
+   assert.ok(overlapX<=1||overlapY<=1,item.name+' does not overlap '+other.name);
+  }
+ }
+}
+async function nativeCatalogue(page,variant='panorama'){
+ const link=page.locator('#services .panorama-catalogue-note a'),href=new URL(await link.getAttribute('href'),origin);
+ assert.equal(href.pathname,'/flight-next');assert.equal(href.searchParams.get('experience'),'panorama');assert.equal(href.searchParams.get('view'),'apartments');
+ assert.equal(href.searchParams.get('variant'),variant==='terminal'?'terminal':null,'the native catalogue URL retains the selected presentation');
+ for(const key of ['privatePlace','lat','lng'])assert.equal(href.searchParams.has(key),false,'the native catalogue link excludes '+key);
+ const original=page.url(),opened=page.context().waitForEvent('page');await link.click({button:'middle'});const popup=await opened;
+ try{
+  await popup.waitForLoadState('domcontentloaded');await popup.locator('#nextApartments').waitFor({state:'visible'});await popup.waitForFunction(()=>!!document.body.dataset.homeVariant);
+  assert.equal(await popup.locator('body').getAttribute('data-home-variant'),variant,'opening the real native link in another tab retains the selected design');
+  assert.equal(page.url(),original,'native new-tab browsing leaves the source journey intact');
+  assert.equal(new URL(popup.url()).searchParams.get('experience'),'panorama');await oneGlobe(popup);
+ }finally{await popup.close();}
+}
 try{
  browser=await chromium.launch(await launchOptions());
+ for(const width of [320,390,900,1440])await check('Terminal '+width+': the original planner, globe and four real tickets remain readable and keep their identity',width,async({page,catalogueReads})=>{
+  await start(page,'&variant=terminal');
+  assert.equal(await page.locator('body').getAttribute('data-home-variant'),'terminal','Terminal is an explicit presentation of the real Panorama journey');
+  assert.equal(await page.locator('#nextSearchForm').count(),1,'Terminal does not clone the form');
+  await geometry(page,['#nextSearchForm button[type="submit"]','[data-panorama-expand]','[data-panorama-zoom]','#nextMotionToggle']);
+  await plannerBounds(page);await typeQuality(page,'home');await primaryContrast(page,'#nextSearchForm button[type="submit"]');await romeTickets(page);
+  const order=await page.locator('#directionClubTicket').evaluate(node=>{
+   const title=node.querySelector('.hero-centre'),planner=node.querySelector('.europe-planner'),globe=node.querySelector('#boomGlobeMount');
+   return {sameParent:!!(title&&planner&&globe&&planner.parentElement===node),titleBeforePlanner:!!(title&&planner&&(title.compareDocumentPosition(planner)&Node.DOCUMENT_POSITION_FOLLOWING)),plannerBeforeGlobe:!!(planner&&globe&&(planner.compareDocumentPosition(globe)&Node.DOCUMENT_POSITION_FOLLOWING)),planner:planner?.getBoundingClientRect().toJSON(),globe:globe?.getBoundingClientRect().toJSON()};
+  });
+  assert.ok(order.sameParent&&order.titleBeforePlanner&&order.plannerBeforeGlobe,'Terminal reading order is title, the existing planner, then the globe');
+  if(width<650)assert.ok(order.planner.bottom<=order.globe.top+1,'the phone visual order agrees with its keyboard and reading order');
+  await fillRome(page);
+  await page.evaluate(()=>{window.__terminalNodes={form:document.getElementById('nextSearchForm'),field:document.getElementById('nextMoveIn'),globe:document.querySelector('.boom-flight-globe-canvas')};});
+  const reads=catalogueReads();
+  if(width===1440)for(const nextWidth of [390,900,1440]){
+   await page.setViewportSize({width:nextWidth,height:900});await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+   await plannerBounds(page);await geometry(page,['#nextSearchForm button[type="submit"]','[data-panorama-expand]']);
+   assert.equal(await page.evaluate(()=>document.getElementById('nextSearchForm')===window.__terminalNodes.form&&document.getElementById('nextMoveIn')===window.__terminalNodes.field&&document.querySelector('.boom-flight-globe-canvas')===window.__terminalNodes.globe),true,'responsive composition moves the same live nodes');
+   assert.deepEqual(await page.locator('#nextMoveIn,#nextMoveOut,#nextBudget,#nextPeople').evaluateAll(nodes=>nodes.map(node=>node.value)),[arrival,departure,'1500','couple'],'responsive composition preserves the unsubmitted draft');
+  }
+  await openGlobe(page);await closeGlobe(page,true);
+  assert.equal(await page.evaluate(()=>document.getElementById('nextSearchForm')===window.__terminalNodes.form&&document.querySelector('.boom-flight-globe-canvas')===window.__terminalNodes.globe),true,'Full view does not replace the form or canvas');
+  await page.locator('.europe-city-switch [data-europe-city="london"]').click();await page.waitForFunction(()=>document.body.dataset.europeCity==='london');
+  assert.equal(new URL(page.url()).searchParams.get('variant'),'terminal','city changes preserve the chosen composition');
+  await page.locator('#europeServicePass .europe-service-price strong').waitFor();await geometry(page,['#europeDeskContinue']);
+  assert.equal(await page.locator('#nextSearchForm').isVisible(),false,'the Roman form does not become an extra London form');
+  await page.locator('.europe-city-switch [data-europe-city="rome"]').click();await page.waitForFunction(()=>document.body.dataset.europeCity==='rome');
+  assert.equal(await page.evaluate(()=>document.getElementById('nextSearchForm')===window.__terminalNodes.form&&document.getElementById('nextMoveIn')===window.__terminalNodes.field),true,'Rome receives its original planner again after a foreign city');
+  await plannerBounds(page);await romeTickets(page);await oneGlobe(page);
+  assert.equal(catalogueReads(),reads,'layout, Full view and city presentation do not create another catalogue');
+ });
+ await check('Terminal journey: presentation follows Rome navigation and Back but never enters original service or desk handoffs',1440,async({page})=>{
+  await start(page,'&variant=terminal&privatePlace=synthetic-office&lat=41.9123&lng=12.5123');await nativeCatalogue(page,'terminal');await fillRome(page);
+  for(const service of romeServices){
+   const link=new URL(await romeTicket(page,service.path).getAttribute('href'),origin);
+   assert.equal(link.pathname,service.path);
+   for(const key of ['variant','experience','privatePlace','lat','lng'])assert.equal(link.searchParams.has(key),false,'the original '+service.name+' door excludes '+key);
+  }
+  await page.locator('#nextSearchForm button[type="submit"]').click();await page.locator('#nextApartments').waitFor({state:'visible'});
+  previewIntent(new URL(page.url()),{view:'apartments'});assert.equal(new URL(page.url()).searchParams.get('variant'),'terminal');
+  await page.locator('#nextResults [data-home="panorama-courtyard"]').first().click();await page.locator('#nextDetailTitle').waitFor();
+  previewIntent(new URL(page.url()),{view:'detail'});assert.equal(new URL(page.url()).searchParams.get('variant'),'terminal');
+  const apply=new URL(await page.locator('[data-next-apply]').getAttribute('href'),origin);
+  for(const key of ['variant','experience','privatePlace','lat','lng'])assert.equal(apply.searchParams.has(key),false,'the original Apply excludes '+key);
+  assert.equal(apply.pathname,'/listing/panorama-courtyard');assert.equal(apply.hash,'#applica');
+  await page.locator('[data-next-apply]').click();await page.waitForURL(url=>url.pathname==='/listing/panorama-courtyard');
+  await page.goBack();await page.locator('#nextDetailTitle').waitFor();assert.equal(new URL(page.url()).searchParams.get('variant'),'terminal','Back restores Terminal on the original detail journey');
+  await page.locator('.detail-breadcrumb [data-view="apartments"]').click();await page.locator('#nextApartments').waitFor();assert.equal(new URL(page.url()).searchParams.get('variant'),'terminal');
+  await start(page,'&variant=terminal&city=london&need=application&moveIn='+arrival+'&moveOut='+departure+'&budget=3000&currency=GBP&people=couple');
+  await page.locator('#europeServicePass .europe-service-price strong').waitFor();await page.locator('#europeDeskContinue').click();await page.waitForURL(url=>url.pathname==='/london');
+  const desk=new URL(page.url());for(const key of ['variant','experience','privatePlace','lat','lng','place'])assert.equal(desk.searchParams.has(key),false,'the original London desk excludes '+key);
+  for(const [key,value] of Object.entries({city:'london',need:'application',moveIn:arrival,moveOut:departure,budget:'3000',currency:'GBP',people:'couple'}))assert.equal(desk.searchParams.get(key),value,'the original desk retains the real '+key);
+ });
+ await check('Terminal Studio: both variants carry the live draft, reject invalid dates and resize without a second preview',1440,async({page})=>{
+  await page.goto(origin+'/flight-studio?experience=panorama',{waitUntil:'domcontentloaded'});
+  const handle=await page.locator('#studioFrame').elementHandle(),frame=await handle.contentFrame();
+  await frame.waitForFunction(()=>document.body.dataset.experience==='panorama'&&!!window.BoomFlightEurope);
+  await fillRome(frame);
+  await page.locator('button[data-studio-experience="terminal"]').click();
+  await frame.waitForFunction(()=>document.body.dataset.homeVariant==='terminal'&&!!window.BoomFlightEurope);
+  assert.equal(await page.locator('button[data-studio-experience="terminal"]').getAttribute('aria-pressed'),'true');
+  const terminal=new URL(frame.url());assert.equal(terminal.searchParams.get('experience'),'panorama');assert.equal(terminal.searchParams.get('variant'),'terminal');previewIntent(terminal);
+  const open=new URL(await page.locator('#studioOpen').getAttribute('href'),origin);open.searchParams.sort();terminal.searchParams.sort();assert.equal(open.href,terminal.href,'opening separately uses the exact selected variant and draft');
+  await frame.evaluate(()=>{window.__terminalStudioIdentity='same document';});
+  for(const device of ['mobile','desktop']){
+   await page.locator('button[data-studio-device="'+device+'"]').click();await frame.waitForFunction(width=>innerWidth===width,device==='mobile'?390:1280);
+   assert.equal(await frame.evaluate(()=>window.__terminalStudioIdentity),'same document','device changes resize rather than reload Terminal');
+  }
+  for(const width of [320,390,900,1440]){await page.setViewportSize({width,height:900});await geometry(page,['#studioOpen','button[data-studio-experience="panorama"]','button[data-studio-experience="terminal"]','button[data-studio-device]']);}
+  await frame.locator('#nextMoveOut').fill(year+'-01-01');
+  await page.locator('button[data-studio-experience="panorama"]').click();await page.locator('#studioError').waitFor({state:'visible'});
+  assert.equal(await frame.evaluate(()=>window.__terminalStudioIdentity),'same document','an invalid Terminal draft is not discarded');
+  assert.equal(await page.locator('button[data-studio-experience="terminal"]').getAttribute('aria-pressed'),'true');
+  await frame.locator('#nextMoveOut').fill(departure);await frame.locator('#nextBudget').selectOption('2000');
+  await page.locator('button[data-studio-experience="panorama"]').click();await frame.waitForFunction(()=>document.body.dataset.homeVariant==='panorama'&&!!window.BoomFlightEurope);
+  assert.equal(new URL(frame.url()).searchParams.has('variant'),false,'Panorama is the canonical default, with no Terminal flag');previewIntent(new URL(frame.url()),{budget:'2000'});
+  await frame.evaluate(()=>{window.__terminalStudioIdentity='Panorama draft';});
+  await frame.locator('#nextMoveOut').fill(year+'-01-01');await page.locator('button[data-studio-experience="terminal"]').click();await page.locator('#studioError').waitFor({state:'visible'});
+  assert.equal(await frame.evaluate(()=>window.__terminalStudioIdentity),'Panorama draft','an invalid Panorama draft cannot be lost by switching to Terminal');
+  await frame.locator('#nextMoveOut').fill(departure);await page.locator('button[data-studio-experience="terminal"]').click();await frame.waitForFunction(()=>document.body.dataset.homeVariant==='terminal'&&!!window.BoomFlightEurope);
+  assert.equal(await page.locator('iframe').count(),1,'comparing two designs still has one live preview');previewIntent(new URL(frame.url()),{budget:'2000'});
+  assert.equal(await page.locator('#studioLive').getAttribute('href'),'https://www.boomrome.com/');
+ });
  for(const width of [320,390,1440])await check(width+': Home → Apartments → Detail keeps the move and reaches the original Apply',width,async({page})=>{
   await start(page);await geometry(page,['[data-panorama-expand]','.edition-plan-link','#nextSearchForm button[type="submit"]']);
   await romeTickets(page);
+  if(width===1440)await nativeCatalogue(page);
   await typeQuality(page,'home');await primaryContrast(page,'.edition-pass-action');await primaryContrast(page,'#nextSearchForm button[type="submit"]');
   assert.equal(await page.locator('#nextSearchForm').count(),1,'one original planner');
   await fillRome(page);await page.locator('#nextSearchForm button[type="submit"]').click();await page.locator('#nextApartments').waitFor({state:'visible'});

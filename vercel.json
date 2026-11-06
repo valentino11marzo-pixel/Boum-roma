@@ -45,6 +45,11 @@
   },
   "redirects": [
     {
+      "source": "/home-terminal",
+      "destination": "/flight-next?direction=club&edition=club&experience=panorama&variant=terminal",
+      "permanent": false
+    },
+    {
       "source": "/home-panorama",
       "destination": "/flight-next?direction=club&edition=club&experience=panorama",
       "permanent": false
