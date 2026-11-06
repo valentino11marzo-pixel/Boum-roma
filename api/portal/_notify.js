@@ -5,8 +5,17 @@
 // the operator had to spot them by opening portal.html. Reuses the same EmailJS
 // `boom_notification` template the rest of the app already uses. Never throws;
 // failures are logged and swallowed so the client's action always succeeds.
+//
+// The operator's mailbox follows the same convention as every other operator
+// email (ADMIN_NOTIFY_EMAIL, default valentino@boom-rome.com). Until 6/11/2026
+// this file read NOTIFY_OWNER_EMAIL and defaulted to valentino@ on boomrome.com
+// (no hyphen) — the WEBSITE's domain, which has no mail server (no MX: Gmail
+// connects to the Vercel IPs and times out, 4.4.1). Both reply-to headers below
+// (noreply@ and valentino@) were on that domain too: a reply went nowhere.
+// NOTIFY_OWNER_EMAIL is no longer read.
 
-const OWNER_EMAIL = process.env.NOTIFY_OWNER_EMAIL || 'valentino@boomrome.com';
+export const operatorAddress = () => process.env.ADMIN_NOTIFY_EMAIL || 'valentino@boom-rome.com';
+const isMail = (v) => typeof v === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
 const EMAILJS = { service: 'service_74n80th', template: 'boom_notification', user: 'dnMxbtS2qDm_o7SHE' };
 
 export async function notifyOperator({ kind, client, property, preference, text }) {
@@ -29,8 +38,12 @@ export async function notifyOperator({ kind, client, property, preference, text 
       return false;
     }
 
+    // "Reply" from the operator's inbox reaches the client who acted (the same
+    // convention as the viewing, apply and city-order alerts); no valid client
+    // address → the operator's own mailbox, never an undeliverable one.
     const tp = {
-      to_email: OWNER_EMAIL, from_name: 'BOOM Portal', reply_to: 'noreply@boomrome.com',
+      to_email: operatorAddress(), from_name: 'BOOM Portal',
+      reply_to: isMail(client && client.email) ? client.email.trim() : operatorAddress(),
       name: 'Valentino', heading, subheading: name, intro,
       card_title: kind === 'viewing' ? 'VIEWING REQUEST' : 'MESSAGE', card_color: '#D4AF37',
       r1_icon: '👤', r1_label: 'Cliente', r1_value: name,
@@ -70,7 +83,7 @@ export async function notifyClient({ kind, client, property }) {
     const code = client.portalAccessCode || '';
 
     const tp = {
-      to_email: email, from_name: 'BOOM Rome', reply_to: 'valentino@boomrome.com',
+      to_email: email, from_name: 'BOOM Rome', reply_to: operatorAddress(),
       name: first,
       heading: it ? 'Richiesta visita ricevuta' : 'Viewing request received',
       subheading: 'BOOM · Property Finding',

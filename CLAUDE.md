@@ -326,8 +326,14 @@ PASS_KEY_BASE64
 PASS_KEY_PASSPHRASE
 
 # Email (Nodemailer)
-GMAIL_USER
+GMAIL_USER                   # the sending Gmail account (valentino@boom-rome.com)
 GMAIL_APP_PASS
+ADMIN_NOTIFY_EMAIL           # optional — the operator's mailbox for EVERY operator
+                             # email, portal "[Portal]" copies (to:'operator' in
+                             # /api/notify/send), PFS alerts and viewing alerts
+                             # included; default valentino@boom-rome.com. NEVER an
+                             # address on boomrome.com: see «La casella che non
+                             # esiste». NOTIFY_OWNER_EMAIL is no longer read.
 EMAILJS_PRIVATE_KEY          # server-side EmailJS REST (api/stripe-webhook.js:
                              # PFS, SERVICE/city orders, RESERVE). Without it the
                              # paid client's confirmation fails — recorded on the
@@ -441,6 +447,22 @@ ELEVENLABS_WEBHOOK_SECRET    # via B (receptionist): signing secret del
                              # post-call webhook ElevenLabs (HMAC t=,v0= sui
                              # byte grezzi). Senza, la porta rifiuta tutto.
 ```
+
+### La casella che non esiste (6/11/2026)
+`boomrome.com` (senza trattino) è il dominio del SITO e non riceve posta: nessun MX, Gmail bussa agli IP di
+Vercel, va in timeout (4.4.1), riprova 48 ore e rinuncia. La posta vera è `boom-rome.com` (valentino@, hello@
+che arriva nella stessa casella). Letto nelle DSN della casella, non dedotto: le copie «[Portal]» del portal
+(pagamenti ricevuti compresi) andavano a valentino@ su boomrome.com almeno da metà luglio, e fra aprile e
+giugno circa 200 «New lead.» del modulo intake erano andati a info@ sullo stesso dominio. Nessuno lo ha visto:
+una DSN finisce fra gli «Aggiornamenti». Ora la copia per l'operatore parte come `to:'operator'` e la risolve
+`/api/notify/send` con `ADMIN_NOTIFY_EMAIL`, come ogni altra email all'operatore; gli avvisi PFS
+(`api/portal/_notify.js`) e la visita prenotata (`api/notify-viewing-created.js`) seguono la stessa convenzione,
+col Reply-To del cliente quando ha un indirizzo valido, altrimenti dell'operatore; `COMPANY.email` del portal
+è `hello@boom-rome.com`, salvo `settings/company` in Firestore, che vince e va controllato in Impostazioni →
+Dati aziendali. `FIREBASE_ADMIN_EMAIL` e le whitelist di login possono restare su boomrome.com: sono
+identificativi, non caselle, ma una email di recupero password per quell'account non arriverebbe.
+`tests/caselle/run.mjs` legge l'intero repository (tranne le suite) e cade su qualsiasi casella @boomrome.com
+fuori da un'eccezione nominata per riga; poi segue la copia di un pagamento dal portal a nodemailer.
 
 ## API Endpoints
 

@@ -15,7 +15,7 @@
 //   boom heartbeat --status live --tool watching-whatsapp
 //   boom snapshot
 //   boom risk
-//   boom digest [--email valentino@boomrome.com]
+//   boom digest [--email valentino@boom-rome.com]
 //   boom lead-create --name "Anna" --phone "+39..." --source whatsapp --zone Trastevere --budget 1200 --message "..." --grade B --confidence 0.8 [--dedup]
 //   boom lead-update --id <leadId> --status responded --notes "..."
 //   boom note --lead <leadId> --text "..."
