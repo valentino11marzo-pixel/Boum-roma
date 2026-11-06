@@ -198,4 +198,3 @@ for(const [name,from,to,detect] of [
 }
 execFileSync(process.execPath,['scripts/build-buying.mjs','--check'],{cwd:new URL('../..',import.meta.url)});
 console.log(`Buying: ${passed} passed, 0 failed`);
-
