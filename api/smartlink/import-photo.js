@@ -14,38 +14,56 @@ export function imageType(bytes) {
   return null;
 }
 
-export async function fetchPhoto(url) {
-  const r = await fetch(url, {
-    redirect: 'manual',
-    headers: { 'Accept':'image/avif,image/webp,image/png,image/jpeg,image/*;q=0.8' },
-    signal: AbortSignal.timeout(12000),
-  });
-  if (!r.ok || !/^image\/(?:jpeg|png|webp|avif)$/i.test((r.headers.get('content-type') || '').split(';')[0])) return null;
-  if (Number(r.headers.get('content-length')) > LIMIT) return null;
-  const reader = r.body?.getReader();
-  if (!reader) return null;
-  let size = 0;
-  const chunks = [];
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    size += value.length;
-    if (size > LIMIT) { await reader.cancel(); return null; }
-    chunks.push(value);
+export async function fetchPhoto(url, onFailure) {
+  let upstreamStatus=null, contentType='missing', size=0, detectedType=null, phase='network';
+  const unavailable=reason=>{
+    // Solo forma e conteggi: mai URL, header grezzi, corpi o dettagli dell'errore.
+    try { onFailure?.({phase:reason,upstreamStatus,contentType,bytesRead:size,detectedType}); }
+    catch { /* La diagnostica non cambia l'esito dell'importazione. */ }
+    return null;
+  };
+  try {
+    const r = await fetch(url, {
+      redirect: 'manual',
+      headers: { 'Accept':'image/avif,image/webp,image/png,image/jpeg,image/*;q=0.8' },
+      signal: AbortSignal.timeout(12000),
+    });
+    upstreamStatus=Number.isInteger(r.status) && r.status>=100 && r.status<=599 ? r.status : null;
+    const mime=(r.headers.get('content-type') || '').split(';')[0];
+    const accepted=/^image\/(?:jpeg|png|webp|avif)$/i.test(mime);
+    contentType=accepted?mime.toLowerCase():mime?'other':'missing';
+    if (!r.ok) return unavailable('upstream_status');
+    if (!accepted) return unavailable('content_type');
+    if (Number(r.headers.get('content-length')) > LIMIT) return unavailable('content_length');
+    const reader = r.body?.getReader();
+    if (!reader) return unavailable('body_missing');
+    phase='body_read';
+    const chunks = [];
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.length;
+      if (size > LIMIT) { await reader.cancel(); return unavailable('body_limit'); }
+      chunks.push(value);
+    }
+    const bytes = Buffer.concat(chunks);
+    const type = imageType(bytes);
+    detectedType=type;
+    // I CDN possono restituire AVIF anche ignorando Accept: rendiamolo leggibile
+    // da tutti i browser prima dell'upload, con lo stesso limite di dimensioni.
+    if (type === 'image/avif') {
+      try {
+        const converted = await sharp(bytes, {limitInputPixels:40_000_000}).rotate()
+          .resize({width:2400,height:2400,fit:'inside',withoutEnlargement:true})
+          .webp({quality:88}).toBuffer();
+        return {bytes:converted,type:'image/webp'};
+      } catch { return unavailable('avif_conversion'); }
+    }
+    return type ? { bytes, type } : unavailable('signature');
+  } catch (error) {
+    unavailable(phase);
+    throw error;
   }
-  const bytes = Buffer.concat(chunks);
-  const type = imageType(bytes);
-  // I CDN possono restituire AVIF anche ignorando Accept: rendiamolo leggibile
-  // da tutti i browser prima dell'upload, con lo stesso limite di dimensioni.
-  if (type === 'image/avif') {
-    try {
-      const converted = await sharp(bytes, {limitInputPixels:40_000_000}).rotate()
-        .resize({width:2400,height:2400,fit:'inside',withoutEnlargement:true})
-        .webp({quality:88}).toBuffer();
-      return {bytes:converted,type:'image/webp'};
-    } catch { return null; }
-  }
-  return type ? { bytes, type } : null;
 }
 
 export default async function handler(req, res) {
@@ -61,7 +79,7 @@ export default async function handler(req, res) {
   const url = source && RULES.photoUrl(body?.imageUrl, source.source);
   if (!url) return res.status(400).json({ ok:false, error:'invalid_photo_url' });
   try {
-    const photo = await fetchPhoto(url);
+    const photo = await fetchPhoto(url, diagnostic=>console.warn(JSON.stringify({event:'smartlink_photo_failure',...diagnostic})));
     if (!photo) return res.status(422).json({ ok:false, error:'photo_unavailable' });
     res.setHeader('Content-Type', photo.type);
     return res.status(200).end(photo.bytes);

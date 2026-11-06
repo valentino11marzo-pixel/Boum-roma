@@ -25,6 +25,8 @@ function dom(html, currentSources={}) {
     if(!node.name || !node.attribs) return false;
     if(selector[0]==='.') return (node.attribs.class || '').split(/\s+/).includes(selector.slice(1));
     if(selector[0]==='#') return node.attribs.id===selector.slice(1);
+    const compound=selector.match(/^([a-z0-9-]+)\.([a-z0-9_-]+)$/i);
+    if(compound) return node.name===compound[1] && (node.attribs.class || '').split(/\s+/).includes(compound[2]);
     const match=selector.match(/^([a-z0-9-]+)?(?:\[([a-z0-9-]+)="([^"]*)"\])?$/i);
     assert.ok(match,'Add DOM support for a real new selector: '+selector);
     return (!match[1] || node.name===match[1]) && (!match[2] || node.attribs[match[2]]===match[3]);
@@ -123,6 +125,51 @@ function checkObservedIdealistaGallery(api) {
   assert.equal(api.capture(dom(prefix+counter+unrelated),base+'foto/1/').error,'photos_not_found','Unrelated page pictures cannot fill an empty gallery');
   const unknown=api.capture(dom(prefix+slides,currentSources),base+'foto/1/');
   assert.equal(unknown.ok,true);assert.equal(unknown.payload.gallery.expected,null,'No counter means unknown, not two of two');
+  // The real slide after 15/15 is a contact panel: two profile images and a logo,
+  // no figure.item-gallery and no counter. It is not an extra listing photo.
+  const contact='<div class="image-gallery-slide-wrapper"><div class="image-gallery-slide center">'+
+    '<img width="200" height="200" src="https://st3.idealista.it/profilephotos/f5/ae/1e/4482998.jpg">'+
+    '<img width="200" height="200" src="https://st3.idealista.it/profilephotos/f5/ae/1e/4482998.jpg">'+
+    '<img width="125" height="60" src="https://st3.idealista.it/71/9e/e1/undicimarzo-re-srl.gif"></div></div>';
+  assert.equal(api.capture(dom(prefix+contact),base+'foto/1/').error,'photos_not_found','A contact panel without listing figures cannot supply photos');
+  assert.equal(api.capture(dom(prefix+slides+contact+counter,currentSources),base+'foto/1/').payload.images.length,2,'Contact images remain excluded even beside listing slides');
+}
+function checkObservedIdealistaFacts(api) {
+  // Source DOM observed in Chrome on 3/11. Contradictions/bad labels below are
+  // synthetic negative cases, never claimed as facts from the real listing.
+  const base='https://www.idealista.it/immobile/37221750/';
+  const gallery='<div class="image-gallery-slide-wrapper"><div class="image-gallery-slide center"><figure class="item-gallery"><picture><img src="https://img4.idealista.it/blur/WEB_DETAIL-L-L/0/id.pro.it.image.master/18/17/e4/849829517.jpg"></picture></figure></div></div><span data-testid="gallery-counter">1/15</span>';
+  const priceNodes=values=>values.map(value=>'<p class="info-data txt-big"><span class="price-container"><strong class="price">'+value+'</strong></span></p>').join('');
+  // Native Safari ancestor probe confirms this section around the price on 3/11.
+  const prices=values=>'<section class="detail-content-wrapper">'+priceNodes(values)+'</section>';
+  const features=values=>'<section class="detail-content-wrapper"><div class="info-features">'+values.map(value=>'<span>'+value+'</span>').join('')+'</div></section>';
+  const zones=values=>'<main class="detail-container"><span class="main-info__title-block">'+values.map(value=>'<span class="main-info__title-minor">'+value+'</span>').join('')+'</span></main>';
+  const read=(content,extraSchema='')=>{
+    const result=api.capture(dom('<link rel="canonical" href="'+base+'"><h1>Quadrilocale in affitto in Via di Ripetta, 22</h1>'+gallery+content+extraSchema),base+'foto/1/');
+    assert.equal(result.ok,true);return result.payload.data;
+  };
+  const location='Piazza del Popolo, Roma';
+  const observed=prices(['2.450 €/mese'])+features(['\n110 m²\n','\n4 locali\n'])+zones([location]);
+  const data=read(observed);
+  assert.equal(data.price,2450);assert.equal(data.sqm,110);assert.equal(data.rooms,4);assert.equal(data.zone,location);
+  assert.equal(data.title,'Quadrilocale in affitto in Via di Ripetta, 22');
+  const duplicate=read(observed+observed);
+  assert.deepEqual(normalize(duplicate),normalize(data),'Repeated coherent visible values remain usable');
+  const conflicts=read(observed+prices(['2.500 €/mese'])+features(['120 m²','5 locali'])+zones(['Prati, Roma']));
+  for(const key of ['price','sqm','rooms']) assert.equal(conflicts[key],null,'Conflicting visible values must remain unknown: '+key);
+  assert.equal(conflicts.zone,'','Conflicting visible locations remain empty');
+  const structured=script(apartment({url:base,image:[],offers:{price:2800},floorSize:{value:120},numberOfRooms:5}));
+  const schemaConflict=read(observed,structured);
+  for(const key of ['price','sqm','rooms']) assert.equal(schemaConflict[key],null,'Visible data must not silently contradict a structured value: '+key);
+  assert.equal(read(observed,script(apartment({url:base,image:[],address:{addressLocality:'Roma'},offers:{price:2450},floorSize:{value:110},numberOfRooms:4}))).zone,'Roma','Visible zone is a fallback, not a replacement of structured locality');
+  const unrelated='<aside>'+priceNodes(['9.999 €/mese'])+'</aside><div class="recommendations"><strong class="price">9.999 €/mese</strong><div class="info-features"><span>999 m²</span><span>99 locali</span></div><span class="main-info__title-block"><span class="main-info__title-minor">Altra zona, Roma</span></span></div>';
+  assert.deepEqual(normalize(read(observed+unrelated)),normalize(data),'Other page prices/features/locations are outside the observed listing scopes');
+  const missing=read(unrelated+features(['4 camere','110 m² calpestabili','110 / 120 m²']));
+  for(const key of ['price','sqm','rooms']) assert.equal(missing[key],null,'Do not infer missing fields from arbitrary text: '+key);
+  assert.equal(missing.zone,'');
+  const invalid=read(prices(['-10 €/mese'])+features(['100001 m²','101 locali']));
+  for(const key of ['price','sqm','rooms']) assert.equal(invalid[key],null,'Numeric bounds remain enforced: '+key);
+  assert.equal(read(prices(['2.450,50 €/mese'])).price,2450.5,'Visible Italian decimal price keeps its value');
 }
 function checkNoSecrets(api) {
   const captured=api.capture(dom(html('<input name="password" value="fixture-secret"><script>throw new Error("Never execute me")</script>')),source);
@@ -163,7 +210,7 @@ for(const invalid of ['http://www.immobiliare.it/annunci/123456789/','https://ww
   'https://www.idealista.com/inmueble/123456789/','https://www.immobiliare.it/annunci/123456789/?x='+('x'.repeat(2048))]) {
   const p=input();p.pageUrl=invalid;assert.equal(SHARE.validate(p,now).ok,false,invalid);
 }
-checkIdentity(SHARE);checkGalleryRoute(SHARE);checkObservedIdealistaGallery(SHARE);checkNoSecrets(SHARE);checkIncomplete(SHARE);checkSixty(RULES);
+checkIdentity(SHARE);checkGalleryRoute(SHARE);checkObservedIdealistaGallery(SHARE);checkObservedIdealistaFacts(SHARE);checkNoSecrets(SHARE);checkIncomplete(SHARE);checkSixty(RULES);
 for(const at of ['not-a-date','2026-02-30T11:00:00.000Z','2026-10-31T12:05:00.001Z','2099-01-01T00:00:00.000Z']) {
   const p=input();p.capturedAt=at;assert.equal(SHARE.validate(p,now).error,'invalid_capture_date');
 }
@@ -217,7 +264,7 @@ function load(code, rules=RULES) {
   return {api:context.window.BOOM_SMARTLINK_SHARE,network:()=>network};
 }
 const browser=load(implementation);
-checkNoSecrets(browser.api);checkIdentity(browser.api);checkGalleryRoute(browser.api);checkObservedIdealistaGallery(browser.api);checkIncomplete(browser.api);
+checkNoSecrets(browser.api);checkIdentity(browser.api);checkGalleryRoute(browser.api);checkObservedIdealistaGallery(browser.api);checkObservedIdealistaFacts(browser.api);checkIncomplete(browser.api);
 assert.equal(browser.network(),0);
 assert.deepEqual(normalize(browser.api.validate(input(),now)),validated,'Browser and CommonJS share the same rules');
 const mutations=[
@@ -225,7 +272,12 @@ const mutations=[
   ['gallery route','(?:\\/foto\\/([1-9]\\d*))?','',checkGalleryRoute],
   ['gallery identity','a.id===b.id','true',checkGalleryRoute],
   ['observed gallery selector',",'.image-gallery-slide-wrapper'",'',checkObservedIdealistaGallery],
-  ['gallery scope',"gallery.querySelectorAll('img')","document.querySelectorAll('img')",checkObservedIdealistaGallery],
+  ['gallery scope',"figure.querySelectorAll('img')","document.querySelectorAll('img')",checkObservedIdealistaGallery],
+  ['gallery contact slide',"const isIdealistaSlides=source.host===","const isIdealistaSlides=false && source.host===",checkObservedIdealistaGallery],
+  ['visible conflicts','values.length===1?values[0]:null','values[0] || null',checkObservedIdealistaFacts],
+  ['visible price scope',"for(const detail of document.querySelectorAll('section.detail-content-wrapper')) for(const info of detail.querySelectorAll('p.info-data'))","for(const info of document.querySelectorAll('p.info-data'))",checkObservedIdealistaFacts],
+  ['visible feature scope',"for(const detail of document.querySelectorAll('section.detail-content-wrapper')) for(const features of detail.querySelectorAll('div.info-features'))","for(const features of document.querySelectorAll('div.info-features'))",checkObservedIdealistaFacts],
+  ['visible location scope',"document.querySelectorAll('main.detail-container')",'[document]',checkObservedIdealistaFacts],
   ['secret access','const source=listing(pageUrl);','const source=listing(pageUrl); document.cookie;',checkNoSecrets],
   ['network access','const source=listing(pageUrl);','const source=listing(pageUrl); fetch(pageUrl);',checkNoSecrets],
   ['incomplete count','gallery:{expected:gallery.expected,found:images.length}','gallery:{expected:images.length,found:images.length}',checkIncomplete],
@@ -239,4 +291,4 @@ const rulesImplementation=await readFile(new URL('../../js/smartlink-engine.js',
 const context={window:{},URL,Math,Number,Set};
 vm.runInNewContext(rulesImplementation.replace('const MAX_PHOTOS = 60;','const MAX_PHOTOS = 12;'),context);
 assert.throws(()=>checkSixty(context.window.BOOM_SMARTLINK),{code:'ERR_ASSERTION'},'Restoring 12 loses real shared images');
-console.log('SmartLink Safari share: real HTML fixtures, observed Idealista 2/15, listing/gallery identity, private-data/network guards, source photos, incomplete totals, 60-photo roundtrip and 9 mutations ✓');
+console.log('SmartLink Safari share: real HTML fixtures, observed Idealista data and 2/15, contact-slide exclusion, listing/gallery identity, private-data/network guards, source photos, incomplete totals, 60-photo roundtrip and 14 mutations ✓');

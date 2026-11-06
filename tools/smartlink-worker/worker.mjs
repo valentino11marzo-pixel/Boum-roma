@@ -18,7 +18,7 @@ const profile=join(root,'smartlink-reader-profile'); await mkdir(profile,{recurs
 let context,stopped=false;
 async function call(body) {
   const response=await fetch(new URL('/api/smartlink/worker',base),{
-    method:'POST',redirect:'error',signal:AbortSignal.timeout(body.op==='complete'?175000:15000),
+    method:'POST',redirect:'error',signal:AbortSignal.timeout(body.op==='complete'?175000:body.op==='photo'?35000:15000),
     headers:{'Content-Type':'application/json','X-Homie-Secret':secret,...(config.previewBypass ? {'x-vercel-protection-bypass':config.previewBypass} : {})},body:JSON.stringify(body)
   });
   if(!response.ok) {const error=new Error('boom_request_failed');error.status=response.status;throw error;}

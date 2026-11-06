@@ -1,5 +1,15 @@
 # SmartLink · lettore centrale BOOM
 
+## Candidato del 5 novembre 2026 · non attivato
+
+Idealista usa ora la stessa raccolta SHARE del percorso Safari, con identità, contatore e foto centrali verificati. Il lettore scorre tutta la galleria e invia una foto per richiesta all'endpoint BOOM già autenticato; il server decodifica, ottimizza e archivia i byte ricevuti senza riscaricarli dal CDN. Le ricevute restano private nel job Firestore. Lo stato pronto richiede tutte le ricevute in ordine; retry e cambio di assegnazione non possono sostituire foto già accettate.
+
+Il trasporto byte è limitato a 3 MB per foto originale e 60 foto, entro la lease complessiva di cinque minuti. Una foto troppo grande o negata dalla fonte ferma l'importazione. Idealista e Casafari richiedono un totale osservato; Immobiliare, Subito e Casa.it conservano il percorso URL precedente quando il totale è ignoto, senza dichiararlo completo e senza ripiegare su quel percorso dopo un errore dei byte.
+
+Prova pubblica del 5/11 su Idealista Via di Ripetta: 15 URL distinti raccolti dalla galleria in 6,6 s; 15 immagini distinte da 1500 px ottenute dal download nativo. Una prova separata del nuovo `readPhoto` Node locale ha scaricato 15/15 immagini in 1,1 s. I test del server usano Sharp reale e rete simulata, incluse interruzioni, risposte perse e assegnazioni scadute. Queste prove **non certificano l'intero percorso sul Mac centrale o nel Portal**, né tutti gli annunci, iPhone o l'account assistente.
+
+Accesso SSH al Mac centrale rifiutato e preview senza sessione BOOM nella prova odierna: installazione aggiornata, attivazione e pubblicazione autenticata restano pendenti. Non modificare il flag di produzione sulla sola base dei test locali. Le sezioni successive conservano la cronologia e le istruzioni operative precedenti.
+
 ## Ripresa autonoma · 21 ottobre 2026
 
 Il collegamento SSH temporaneo del 20/10 non esiste più. La connessione non interattiva al Mac BOOM è stata rifiutata; l'agente SSH locale non ha chiavi. Non sono state cercate password, cambiate autorizzazioni o riaperte le prove DevTools. Il Portal in Chrome conserva invece una sessione admin utilizzabile per il collaudo.

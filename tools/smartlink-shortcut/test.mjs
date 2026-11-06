@@ -4,7 +4,8 @@ import { existsSync, readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { resolve } from 'node:path';
 import vm from 'node:vm';
-import { buildArtifact, buildCaptureScript, buildReleaseManifest, buildWorkflow, CAPTURE_ERRORS, MANIFEST_RELATIVE, OUTPUT_RELATIVE, PORTAL_URL, REPO_ROOT, SIGNED_RELATIVE, toPlist } from './build.mjs';
+import { buildArtifact, buildCaptureScript, buildWorkflow, validateReleaseManifest, CAPTURE_ERRORS, MANIFEST_RELATIVE, OUTPUT_RELATIVE, PORTAL_URL, REPO_ROOT, SIGNED_RELATIVE, toPlist } from './build.mjs';
+import './release-test.mjs';
 
 const rulesSource=readFileSync(resolve(REPO_ROOT,'js/smartlink-engine.js'),'utf8');
 const shareSource=readFileSync(resolve(REPO_ROOT,'js/smartlink-share-engine.js'),'utf8');
@@ -152,7 +153,7 @@ assert.ok(artifact===readFileSync(resolve(REPO_ROOT,OUTPUT_RELATIVE),'utf8'),'co
 const manifestPath=resolve(REPO_ROOT,MANIFEST_RELATIVE), signedPath=resolve(REPO_ROOT,SIGNED_RELATIVE);
 if(existsSync(signedPath)) {
   assert.ok(existsSync(manifestPath),'a signed release needs its manifest');
-  assert.deepEqual(JSON.parse(readFileSync(manifestPath,'utf8')),buildReleaseManifest(),'release hashes must match unsigned artifact, signed file and both embedded engines');
+  assert.deepEqual(validateReleaseManifest(JSON.parse(readFileSync(manifestPath,'utf8'))),{attestationMatchesCurrentFiles:true,nativeDecoderRun:false,trustChainVerified:false},'release hashes and native attestation must match unsigned, signed file and both embedded engines');
 } else if(existsSync(manifestPath)) {
   const manifest=JSON.parse(readFileSync(manifestPath,'utf8'));
   assert.equal(manifest.unsigned.sha256,createHash('sha256').update(artifact).digest('hex'),'unsigned release must match manifest even without signed binary');

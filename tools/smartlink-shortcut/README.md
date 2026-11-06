@@ -67,12 +67,27 @@ funzionamento su un dispositivo. Il 31 ottobre 2026 la firma locale del plist bi
 errore “isn't in the correct format”. Verificare quindi il contesto di esecuzione
 prima di modificare un plist già valido. Non è necessario modificare le azioni.
 
-`--manifest` registra in `release.json` i digest SHA-256 del sorgente unsigned,
-della copia firmata e dei due motori. Non firma e non installa il file: va eseguito
-subito dopo una firma riuscita della build corrente. I test confrontano tutti i
-digest quando la copia firmata è presente, e falliscono su file cambiati o motori
-non aggiornati. Il manifest rileva modifiche accidentali; non convalida da sé la
-firma Apple o il contenuto interno dell'archivio firmato.
+`--manifest` richiede ora macOS e i tool locali `aea`, `aa`, `plutil` e `openssl`:
+verifica la firma AEA con la chiave incorporata, ammette solo `Shortcut.wflow`
+nell'archivio e confronta tutto il plist con l'unsigned corrente. Sono consentiti
+soltanto il nome rimosso dal firmatario e i quattro default osservati, vuoti o
+`false`; ordine delle azioni, JavaScript e collegamenti devono coincidere.
+Una copia privata degli stessi byte viene decodificata e poi eliminata. Tool
+assenti, firma non valida o contenuti diversi fermano la generazione, senza override.
+
+Il manifest v2 lega l'attestazione a SHA-256 di signed, unsigned, workflow e
+sorgenti. In CI `validateReleaseManifest` controlla questa prova registrata e i
+file correnti; **non ripete il decoder Apple**. Il manifest deve quindi provenire
+dal comando e dalla revisione: i digest non rendono affidabile un'attestazione
+scritta a mano. `trustChainVerified:false` distingue la verifica della firma
+incorporata dall'identità del firmatario e dal trust Apple, lasciati all'importazione
+nativa. Generatore e test non firmano, installano o contattano servizi.
+
+`node tools/smartlink-shortcut/release-test.mjs` verifica separatamente il gate
+con processi nativi simulati, drift dei file, schema chiuso e mutazione del confronto;
+su Mac controlla anche la coppia di file già presente, senza certificarne la freschezza.
+La suite `smartlinkshortcut` include queste prove e continua a rifiutare artefatti
+o sorgenti obsoleti prima di accettare l'attestazione di release.
 
 Prima della consegna verificare sulla copia firmata:
 apertura in Comandi Rapidi, aggiunta, comparsa in Condividi di Safari, permesso JS,
