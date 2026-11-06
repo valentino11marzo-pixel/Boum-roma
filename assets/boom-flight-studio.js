@@ -5,7 +5,8 @@
   var status=document.getElementById('studioStatus'),error=document.getElementById('studioError'),open=document.getElementById('studioOpen');
   var query=new URLSearchParams(location.search);
   var publicKeys=['view','home','city','need','moveIn','moveOut','stay','budget','currency','people','type','place','homes','saved','layout'];
-  var experience=query.get('experience')==='terminal'||(query.get('experience')==='panorama'&&query.get('variant')==='terminal')?'terminal':query.get('experience')==='club'?'club':query.get('experience')==='panorama'?'panorama':query.has('experience')?'club':'panorama';
+  var visions=['airframe','signal','orbit'];
+  var experience=visions.includes(query.get('experience'))?query.get('experience'):query.get('experience')==='panorama'&&visions.includes(query.get('vision'))?query.get('vision'):query.get('experience')==='terminal'||(query.get('experience')==='panorama'&&query.get('variant')==='terminal')?'terminal':query.get('experience')==='club'?'club':query.get('experience')==='panorama'?'panorama':query.has('experience')?'club':'airframe';
   var device=query.get('device')==='mobile'?'mobile':'desktop',brief=publicQuery(query),loading=false,detach=null;
 
   function publicQuery(source){
@@ -13,11 +14,12 @@
     publicKeys.forEach(function(key){var value=source.get(key);if(value&&value.length<=310)out.set(key,value);});
     return out;
   }
-  function name(){return experience==='terminal'?'Terminal':experience==='panorama'?'Panorama':'Club';}
+  function name(){return {airframe:'Airframe',signal:'Signal',orbit:'Orbit',terminal:'Terminal',panorama:'Panorama',club:'Club'}[experience];}
   function previewURL(){
     var out=new URLSearchParams(brief);out.set('direction','club');out.set('edition','club');
     if(experience!=='club')out.set('experience','panorama');
     if(experience==='terminal')out.set('variant','terminal');
+    if(visions.includes(experience))out.set('vision',experience);
     return '/flight-next?'+out;
   }
   function render(){
@@ -29,8 +31,8 @@
     var out=new URLSearchParams(brief);out.set('experience',experience);out.set('device',device);
     history.replaceState(null,'','/flight-studio?'+out);
     status.textContent=loading?'Apertura di '+name()+'…':name()+' · '+(device==='mobile'?'390 px':'1280 px');
-    document.getElementById('studioVariantTitle').textContent=experience==='terminal'?'B / Terminal':experience==='panorama'?'A / Panorama':'Club / Versione precedente';
-    document.getElementById('studioVariantNote').textContent=experience==='terminal'?'Il banco partenze: ricerca subito accessibile, globo al fianco e quattro biglietti da confrontare.':experience==='panorama'?'La vista sulle destinazioni: più spazio al globo e al Solari, poi ricerca e servizi.':'La composizione precedente, conservata per confrontare il percorso.';
+    document.getElementById('studioVariantTitle').textContent=name();
+    document.getElementById('studioVariantNote').textContent={airframe:'Luce, spazio e case reali. Una superficie chiara collega destinazione, vita quotidiana e assistenza.',signal:'Il giallo diventa identità. Una grande composizione tipografica guida dalla città al prossimo passo.',orbit:'La geografia diventa ambiente. Esplora le destinazioni, entra nelle case e costruisci il tuo arrivo.',terminal:'La precedente composizione a banco partenze, conservata per il confronto.',panorama:'La precedente apertura Solari e globo, conservata per il confronto.',club:'La composizione Club originale, conservata per il confronto.'}[experience];
     resize();
   }
   function resize(){
@@ -82,7 +84,7 @@
     var current=child();if(!current)return true;
     var next=publicQuery(current.url.searchParams);
     if(draft&&!captureDraft(current,next))return false;
-    brief=next;experience=current.url.searchParams.get('experience')==='panorama'?(current.url.searchParams.get('variant')==='terminal'?'terminal':'panorama'):'club';
+    brief=next;experience=current.url.searchParams.get('experience')==='panorama'?(visions.includes(current.url.searchParams.get('vision'))?current.url.searchParams.get('vision'):current.url.searchParams.get('variant')==='terminal'?'terminal':'panorama'):'club';
     return true;
   }
   function load(){
@@ -111,7 +113,7 @@
     var option=event.target.closest('button[data-studio-experience]');
     if(option){
       if(loading||option.dataset.studioExperience===experience)return;
-      var chosen=option.dataset.studioExperience;if(!['panorama','terminal','club'].includes(chosen)||!capture(true))return;
+      var chosen=option.dataset.studioExperience;if(!visions.concat(['panorama','terminal','club']).includes(chosen)||!capture(true))return;
       experience=chosen;load();return;
     }
     option=event.target.closest('button[data-studio-device]');

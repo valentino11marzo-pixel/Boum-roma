@@ -45,6 +45,21 @@
   },
   "redirects": [
     {
+      "source": "/home-airframe",
+      "destination": "/flight-next?direction=club&edition=club&experience=panorama&vision=airframe",
+      "permanent": false
+    },
+    {
+      "source": "/home-signal",
+      "destination": "/flight-next?direction=club&edition=club&experience=panorama&vision=signal",
+      "permanent": false
+    },
+    {
+      "source": "/home-orbit",
+      "destination": "/flight-next?direction=club&edition=club&experience=panorama&vision=orbit",
+      "permanent": false
+    },
+    {
       "source": "/home-terminal",
       "destination": "/flight-next?direction=club&edition=club&experience=panorama&variant=terminal",
       "permanent": false

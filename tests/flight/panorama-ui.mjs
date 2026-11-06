@@ -147,12 +147,19 @@ async function typeQuality(page,view){
  await page.evaluate(()=>document.fonts.ready);
  const font=await page.evaluate(()=>({
   family:getComputedStyle(document.body).fontFamily,
+  vision:document.body.dataset.homeVision||'',
   loaded:[...document.fonts].some(face=>face.family.replace(/["']/g,'')==='BOOM Sans'&&face.status==='loaded')
  }));
  // Computed family alone can lie: a missing file silently falls back. Check the
  // real browser FontFaceSet as well as the family applied to reading/control UI.
- assert.equal(font.loaded,true,'the local BOOM Sans face has actually loaded');
- assert.equal(font.family.split(',')[0].replace(/["']/g,'').trim(),'BOOM Sans','body uses BOOM Sans');
+ const expectedFamily=font.vision?'Helvetica Neue':'BOOM Sans';
+ if(font.vision){
+  // Helvetica Neue is the original system-font stack, not a downloaded face.
+  // Keep the archived font-file check and test the new family's exact contract.
+  assert.ok(['airframe','signal','orbit'].includes(font.vision),'only the approved new visions use the restored brand stack');
+  if(view==='home')assert.deepEqual(await page.locator('.hero-pretitle,#visionCityName').evaluateAll(nodes=>nodes.map(node=>getComputedStyle(node).fontWeight)),['300','300'],'the new vision restores BOOM’s light display and city-name weight');
+ }else assert.equal(font.loaded,true,'the archived local BOOM Sans face has actually loaded');
+ assert.equal(font.family.split(',')[0].replace(/["']/g,'').trim(),expectedFamily,'body uses its explicit approved type family');
  const samples={
   home:[['body',16],['.hero-promise',16],['#nextSearchForm>label>span',13],['#nextSearchForm input,#nextSearchForm select',16],['.search-caption',12]],
   apartments:[['.club-explore-note',14]],
@@ -165,7 +172,7 @@ async function typeQuality(page,view){
  }
  const controls={home:'#nextSearchForm input,#nextSearchForm select,#nextSearchForm button[type="submit"]',apartments:'#nextEditStay',detail:'[data-next-apply]'};
  const families=await page.locator(controls[view]).evaluateAll(nodes=>nodes.map(node=>getComputedStyle(node).fontFamily.split(',')[0].replace(/["']/g,'').trim()));
- assert.ok(families.length&&families.every(family=>family==='BOOM Sans'),'reading and control type stay in the same family: '+JSON.stringify(families));
+ assert.ok(families.length&&families.every(family=>family===expectedFamily),'reading and control type stay in the same family: '+JSON.stringify(families));
 }
 async function primaryContrast(page,selector){
  const colors=await page.locator(selector).evaluate(node=>{
@@ -242,21 +249,164 @@ async function plannerBounds(page){
   }
  }
 }
-async function nativeCatalogue(page,variant='panorama'){
+async function nativeCatalogue(page,variant='panorama',vision=null){
  const link=page.locator('#services .panorama-catalogue-note a'),href=new URL(await link.getAttribute('href'),origin);
  assert.equal(href.pathname,'/flight-next');assert.equal(href.searchParams.get('experience'),'panorama');assert.equal(href.searchParams.get('view'),'apartments');
  assert.equal(href.searchParams.get('variant'),variant==='terminal'?'terminal':null,'the native catalogue URL retains the selected presentation');
+ assert.equal(href.searchParams.get('vision'),vision,'the native catalogue URL preserves only the selected new vision');
  for(const key of ['privatePlace','lat','lng'])assert.equal(href.searchParams.has(key),false,'the native catalogue link excludes '+key);
  const original=page.url(),opened=page.context().waitForEvent('page');await link.click({button:'middle'});const popup=await opened;
  try{
   await popup.waitForLoadState('domcontentloaded');await popup.locator('#nextApartments').waitFor({state:'visible'});await popup.waitForFunction(()=>!!document.body.dataset.homeVariant);
   assert.equal(await popup.locator('body').getAttribute('data-home-variant'),variant,'opening the real native link in another tab retains the selected design');
+  assert.equal(await popup.locator('body').getAttribute('data-home-vision'),vision,'the real new tab uses the selected new vision');
   assert.equal(page.url(),original,'native new-tab browsing leaves the source journey intact');
   assert.equal(new URL(popup.url()).searchParams.get('experience'),'panorama');await oneGlobe(popup);
  }finally{await popup.close();}
 }
+const visions=['airframe','signal','orbit'];
+async function startVision(page,vision,query=''){
+ await start(page,'&vision='+vision+query);
+ await page.waitForFunction(value=>document.body.dataset.homeVision===value,vision);
+ assert.equal(new URL(page.url()).searchParams.get('variant'),null,'new visions do not inherit Terminal presentation');
+ assert.equal(await page.locator('#visionScene').count(),1,'one scene owns the original media and geography');
+}
+async function visionScene(page,scene){
+ await page.locator('#visionSceneTabs button[data-vision-scene="'+scene+'"]').click();
+ await page.waitForFunction(value=>document.body.dataset.visionScene===value,scene);
+ assert.equal(await page.locator('#visionSceneTabs button[data-vision-scene="'+scene+'"]').getAttribute('aria-pressed'),'true','the active scene is explicit');
+ assert.equal(await page.locator('#visionScene #clubMedia').isVisible(),scene==='homes','the original home scene follows the selected view');
+ assert.equal(await page.locator('#visionScene #boomGlobeMount').isVisible(),scene==='world','the original globe follows the selected view');
+ if(scene==='world')await paintedGlobe(page);
+}
 try{
  browser=await chromium.launch(await launchOptions());
+ for(const vision of visions)for(const width of [390,1440])await check('Vision '+vision+' '+width+': distinct scene presentation keeps original form, photographs, canvas and readable brand type',width,async({page,catalogueReads})=>{
+  await startVision(page,vision);
+  await page.waitForFunction(()=>BoomFlightNextMotion.state().fieldEnabled===false&&!BoomFlightNextMotion.state().rafPending);
+  const field=await page.evaluate(()=>({motion:BoomFlightNextMotion.state(),rect:document.getElementById('nextHero').getBoundingClientRect().toJSON(),height:innerHeight}));
+  assert.ok(field.rect.top<field.height&&field.rect.bottom>0,'the hidden-field assertion is made while the opening itself is onscreen');
+  assert.equal(field.motion.running,false,'the removed Solari background field does not keep a hidden frame loop');
+  assert.equal(await page.locator('body').getAttribute('data-vision-scene'),vision==='airframe'?'homes':'world','each vision opens its intended subject');
+  await geometry(page,['#visionSceneTabs button','#nextSearchForm button[type="submit"]','#visionNeedChooser button']);
+  await plannerBounds(page);await typeQuality(page,'home');await primaryContrast(page,'#nextSearchForm button[type="submit"]');await romeTickets(page);
+  await page.evaluate(()=>{window.__visionNodes={form:document.getElementById('nextSearchForm'),field:document.getElementById('nextMoveIn'),media:document.getElementById('clubMedia'),atlas:document.getElementById('boomGlobeMount'),canvas:document.querySelector('.boom-flight-globe-canvas')};});
+  await fillRome(page);const before=page.url(),reads=catalogueReads();let photoAdvanced=false;
+  for(const scene of ['homes','world','homes','world']){
+   await visionScene(page,scene);
+   assert.equal(await page.evaluate(()=>document.getElementById('nextSearchForm')===window.__visionNodes.form&&document.getElementById('nextMoveIn')===window.__visionNodes.field&&document.getElementById('clubMedia')===window.__visionNodes.media&&document.getElementById('boomGlobeMount')===window.__visionNodes.atlas&&document.querySelector('.boom-flight-globe-canvas')===window.__visionNodes.canvas),true,'changing scene moves no customer state and replaces no original node');
+   assert.deepEqual(await page.locator('#nextMoveIn,#nextMoveOut,#nextBudget,#nextPeople').evaluateAll(nodes=>nodes.map(node=>node.value)),[arrival,departure,'1500','couple'],'changing scene preserves the live unsubmitted request');
+   assert.equal(page.url(),before,'changing the visual scene does not commit a search or change history');
+   await oneGlobe(page);
+   if(scene==='homes'){
+    const photo=page.locator('#visionScene #clubMedia img').first();await photo.waitFor({state:'visible'});await photo.evaluate(node=>node.decode());
+    assert.equal(await photo.getAttribute('src'),'/panorama-photo.svg','the opening photograph comes from the actual public home fixture');
+    assert.match(await page.locator('#visionScene .club-media-name').innerText(),/Fixture Courtyard|Fixture Room/,'the image keeps the actual home identity beside it');
+    if(!photoAdvanced){await page.locator('#visionScene .club-media-rail').focus();await page.keyboard.press('ArrowRight');photoAdvanced=true;}
+    await page.waitForFunction(()=>document.querySelector('#visionScene .club-media-count')?.textContent==='02 / 02');
+    assert.equal(await page.locator('#visionScene .club-media-count').innerText(),'02 / 02','the original photograph controls and chosen frame survive scene switches');
+   }
+  }
+  await openGlobe(page);await closeGlobe(page,true);
+  assert.equal(await page.evaluate(()=>document.querySelector('#visionScene #boomGlobeMount')===window.__visionNodes.atlas&&document.querySelector('.boom-flight-globe-canvas')===window.__visionNodes.canvas),true,'Full view returns the original canvas to its new scene');
+  if(width===1440){
+   await releaseGlobe(page);await page.waitForFunction(()=>BoomFlightGlobe.state().ambientActive);
+   const beforeGlobe=await cameraSnapshot(page);await page.waitForTimeout(700);const afterGlobe=await cameraSnapshot(page);
+   assert.ok(afterGlobe.camera.frames>beforeGlobe.camera.frames,'the visible original globe still paints its deliberate ambient movement');
+   assert.notEqual(afterGlobe.fingerprint,beforeGlobe.fingerprint,'ambient movement reaches the real geographic pixels');
+   assert.equal(await page.evaluate(()=>BoomFlightNextMotion.state().rafPending),false,'the moving globe does not restart a hidden Solari field');
+  }
+  if(vision==='orbit'&&width===1440){
+   await openGlobe(page);
+   assert.equal(await page.locator('#boomGlobeMount').getAttribute('data-globe-labels'),'all','Full view exposes the geographic destinations rather than the cropped horizon label');
+   await page.locator('#panoramaGlobeDialog [data-globe-city="london"]').click();
+   await page.waitForFunction(()=>BoomFlightGlobe.state().flying&&BoomFlightGlobe.state().flightCity==='london'&&BoomFlightGlobe.state().flightFrames>0);
+   assert.equal(await page.locator('.boom-globe-flight').evaluate(node=>node.open&&node.querySelector('canvas').width>0),true,'a real destination choice paints the finite geographic flight');
+   await page.waitForFunction(()=>document.body.dataset.europeCity==='london'&&BoomFlightGlobe.state().city==='london'&&!BoomFlightGlobe.state().flying);
+   await page.locator('#panoramaGlobeDialog').waitFor({state:'hidden'});await paintedGlobe(page);
+   assert.equal(await page.locator('#boomGlobeMount').getAttribute('data-globe-labels'),'selected','arrival restores the horizon framing with the chosen city');
+   assert.equal(await page.evaluate(()=>document.querySelector('#visionScene #boomGlobeMount')===window.__visionNodes.atlas&&document.querySelector('.boom-flight-globe-canvas')===window.__visionNodes.canvas),true,'the real city flight returns the same geographic scene and canvas');
+   assert.equal(await page.locator('.boom-globe-flight').count(),0,'the finite flight removes its temporary overlay after arrival');
+  }
+  await page.locator('.europe-city-switch [data-europe-city="london"]').click();await page.waitForFunction(()=>document.body.dataset.europeCity==='london');
+  assert.equal(await page.locator('#visionSceneTabs').isVisible(),false,'foreign desks do not offer photographs of Rome as their homes');
+  assert.equal(await page.locator('body').getAttribute('data-vision-scene'),'world','foreign desks open the real geographic scene');
+  assert.equal(await page.locator('#clubMedia').isVisible(),false,'Rome photographs do not imply foreign inventory');
+  assert.equal(new URL(page.url()).searchParams.get('vision'),vision,'the city change retains the selected vision');
+  await page.locator('#europeServicePass .europe-service-price strong').waitFor();await geometry(page,['#europeDeskContinue']);
+  await page.locator('.europe-city-switch [data-europe-city="rome"]').click();await page.waitForFunction(()=>document.body.dataset.europeCity==='rome');
+  await page.locator('#visionSceneTabs').waitFor({state:'visible'});await plannerBounds(page);await romeTickets(page);
+  assert.equal(catalogueReads(),reads,'scene switches, Full view and city presentation do not create another catalogue');
+ },width===1440?'no-preference':'reduce');
+ await check('Vision journey: each new identity follows native links, real home review and Back while private handoffs stay clean',1440,async({page})=>{
+  for(const vision of visions){
+   await startVision(page,vision,'&privatePlace=synthetic-office&lat=41.9123&lng=12.5123');await nativeCatalogue(page,'panorama',vision);await fillRome(page);
+   for(const service of romeServices){
+    const link=new URL(await romeTicket(page,service.path).getAttribute('href'),origin);
+    for(const key of ['vision','variant','experience','privatePlace','lat','lng'])assert.equal(link.searchParams.has(key),false,'the original '+service.name+' excludes '+key);
+   }
+   await page.locator('#nextSearchForm button[type="submit"]').click();await page.locator('#nextApartments').waitFor({state:'visible'});
+   previewIntent(new URL(page.url()),{view:'apartments'});assert.equal(new URL(page.url()).searchParams.get('vision'),vision);await typeQuality(page,'apartments');
+   await page.locator('#nextResults [data-home="panorama-courtyard"]').first().click();await page.locator('#nextDetailTitle').waitFor();
+   previewIntent(new URL(page.url()),{view:'detail'});assert.equal(new URL(page.url()).searchParams.get('vision'),vision);await typeQuality(page,'detail');
+   const apply=new URL(await page.locator('[data-next-apply]').getAttribute('href'),origin);
+   for(const key of ['vision','variant','experience','privatePlace','lat','lng'])assert.equal(apply.searchParams.has(key),false,'the original Apply excludes '+key);
+   await page.locator('[data-next-apply]').click();await page.waitForURL(url=>url.pathname==='/listing/panorama-courtyard');
+   await page.goBack();await page.locator('#nextDetailTitle').waitFor();assert.equal(new URL(page.url()).searchParams.get('vision'),vision,'Back restores the selected new vision');
+   await startVision(page,vision,'&city=london&need=application&moveIn='+arrival+'&moveOut='+departure+'&budget=3000&currency=GBP&people=couple');
+   await page.locator('#europeServicePass .europe-service-price strong').waitFor();await page.locator('#europeDeskContinue').click();await page.waitForURL(url=>url.pathname==='/london');
+   const desk=new URL(page.url());for(const key of ['vision','variant','experience','privatePlace','lat','lng','place'])assert.equal(desk.searchParams.has(key),false,'the original London desk excludes '+key);
+   for(const [key,value] of Object.entries({city:'london',need:'application',moveIn:arrival,moveOut:departure,budget:'3000',currency:'GBP',people:'couple'}))assert.equal(desk.searchParams.get(key),value,'the original desk preserves the real '+key);
+  }
+ });
+ await check('Vision support choices filter the four original services without replacing tickets, prices or native links',900,async({page})=>{
+  const groups={search:['property-finding'],found:['virtual-viewing','deal-assistance'],contract:['deal-assistance','contract-check-express'],all:['property-finding','virtual-viewing','deal-assistance','contract-check-express']};
+  for(const vision of visions){
+   await startVision(page,vision);await fillRome(page);await romeTickets(page);
+   await page.evaluate(()=>{window.__visionServiceNodes=[...document.querySelectorAll('#services .panorama-ticket')];window.__visionServiceLinks=window.__visionServiceNodes.map(node=>node.href);});
+   const before=page.url();
+   for(const [need,services] of Object.entries(groups)){
+    const button=page.locator('#visionNeedChooser button[data-vision-need="'+need+'"]');await button.focus();await button.press('Enter');
+    await page.waitForFunction(value=>document.querySelector('#visionNeedChooser button[data-vision-need="'+value+'"]')?.getAttribute('aria-pressed')==='true',need);
+    const visible=await page.locator('#services .panorama-ticket').evaluateAll(nodes=>nodes.filter(node=>node.getClientRects().length&&getComputedStyle(node).visibility!=='hidden').map(node=>new URL(node.href).pathname.slice(1)));
+    assert.deepEqual(visible,services,'the chosen situation reveals only its actual services');
+    assert.equal(await page.locator('#visionNeedChooser button[aria-pressed="true"]').count(),1,'one service situation is selected');
+    assert.equal(await button.evaluate(node=>node===document.activeElement),true,'filtering retains keyboard focus on the chosen situation');
+    assert.equal(await page.locator('#visionNeedSummary').getAttribute('role'),'status');assert.ok((await page.locator('#visionNeedSummary').innerText()).trim(),'the visible result has an accessible explanation');
+    assert.equal(await page.evaluate(()=>[...document.querySelectorAll('#services .panorama-ticket')].every((node,i)=>node===window.__visionServiceNodes[i]&&node.href===window.__visionServiceLinks[i])),true,'filtering reuses the same tickets and native brief links');
+    assert.equal(page.url(),before,'service guidance is not a new request or navigation');
+   }
+   await romeTickets(page);await page.locator('#visionNeedChooser button[data-vision-need="contract"]').click();
+   await page.locator('.europe-city-switch [data-europe-city="london"]').click();await page.waitForFunction(()=>document.body.dataset.europeCity==='london');
+   await page.locator('.europe-city-switch [data-europe-city="rome"]').click();await page.waitForFunction(()=>document.body.dataset.europeCity==='rome');
+   assert.equal(await page.locator('#visionNeedChooser button[data-vision-need="all"]').getAttribute('aria-pressed'),'true','returning to Rome clears an obsolete service filter');await romeTickets(page);
+  }
+ });
+ await check('Vision Studio: Airframe, Signal and Orbit retain a valid public draft and reject invalid dates in one preview',1440,async({page})=>{
+  await page.goto(origin+'/flight-studio',{waitUntil:'domcontentloaded'});
+  const handle=await page.locator('#studioFrame').elementHandle(),frame=await handle.contentFrame();
+  await frame.waitForFunction(()=>document.body.dataset.homeVision==='airframe'&&!!window.BoomFlightEurope);
+  assert.equal(await page.locator('body').evaluate(node=>getComputedStyle(node).fontFamily.split(',')[0].replace(/["']/g,'').trim()),'Helvetica Neue','Studio uses the original BOOM family');
+  await fillRome(frame);
+  for(const vision of ['signal','orbit','airframe']){
+   await page.locator('button[data-studio-experience="'+vision+'"]').click();await frame.waitForFunction(value=>document.body.dataset.homeVision===value&&!!window.BoomFlightEurope,vision);
+   assert.equal(await page.locator('button[data-studio-experience="'+vision+'"]').getAttribute('aria-pressed'),'true');
+   const current=new URL(frame.url());assert.equal(current.searchParams.get('vision'),vision);assert.equal(current.searchParams.has('variant'),false);previewIntent(current);
+   const open=new URL(await page.locator('#studioOpen').getAttribute('href'),origin);open.searchParams.sort();current.searchParams.sort();assert.equal(open.href,current.href,'the full-view link carries the same design and valid public brief');
+   for(const key of ['privatePlace','lat','lng'])assert.equal(current.searchParams.has(key),false,'Studio excludes '+key);
+  }
+  await frame.evaluate(()=>{window.__visionStudioNode=document.getElementById('nextSearchForm');});
+  for(const device of ['mobile','desktop']){
+   await page.locator('button[data-studio-device="'+device+'"]').click();await frame.waitForFunction(width=>innerWidth===width,device==='mobile'?390:1280);
+   assert.equal(await frame.evaluate(()=>document.getElementById('nextSearchForm')===window.__visionStudioNode),true,'device selection resizes the same new-vision form');
+  }
+  await frame.locator('#nextMoveOut').fill(year+'-01-01');await page.locator('button[data-studio-experience="signal"]').click();await page.locator('#studioError').waitFor({state:'visible'});
+  assert.equal(await frame.evaluate(()=>document.getElementById('nextSearchForm')===window.__visionStudioNode),true,'invalid dates never discard the current draft');
+  assert.equal(await page.locator('button[data-studio-experience="airframe"]').getAttribute('aria-pressed'),'true');
+  await frame.locator('#nextMoveOut').fill(departure);await frame.locator('#nextBudget').selectOption('2000');await page.locator('button[data-studio-experience="orbit"]').click();await frame.waitForFunction(()=>document.body.dataset.homeVision==='orbit');
+  previewIntent(new URL(frame.url()),{budget:'2000'});assert.equal(await page.locator('iframe').count(),1,'all directions share one live preview');
+  for(const width of [320,390,900,1440]){await page.setViewportSize({width,height:900});await geometry(page,['#studioOpen','button[data-studio-experience="airframe"]','button[data-studio-experience="signal"]','button[data-studio-experience="orbit"]','button[data-studio-device]']);}
+ });
  for(const width of [320,390,900,1440])await check('Terminal '+width+': the original planner, globe and four real tickets remain readable and keep their identity',width,async({page,catalogueReads})=>{
   await start(page,'&variant=terminal');
   assert.equal(await page.locator('body').getAttribute('data-home-variant'),'terminal','Terminal is an explicit presentation of the real Panorama journey');
@@ -757,7 +907,7 @@ try{
   assert.equal(aliases[0].destination,'/flight-next?direction=club&edition=club&experience=panorama','the alternate home selects the actual Panorama route');
   assert.equal(aliases[0].permanent,false,'the alternate home alias remains reversible');
   assert.equal(config.redirects.some(rule=>rule.source==='/'&&rule.destination.includes('panorama')),false,'the second home does not replace the production homepage');
-  const query=new URLSearchParams({city:'london',moveIn:arrival,moveOut:departure,budget:'3000',currency:'GBP',people:'couple',need:'application',privatePlace:'synthetic-office',lat:'41.9123',lng:'12.5123'});
+  const query=new URLSearchParams({experience:'panorama',city:'london',moveIn:arrival,moveOut:departure,budget:'3000',currency:'GBP',people:'couple',need:'application',privatePlace:'synthetic-office',lat:'41.9123',lng:'12.5123'});
   await page.goto(origin+'/flight-studio?'+query,{waitUntil:'domcontentloaded'});
   const live=page.locator('#studioLive');
   async function productionLink(){
@@ -770,7 +920,7 @@ try{
   assert.equal(await page.locator('iframe').count(),1,'the comparison owns exactly one iframe');
   const handle=await page.locator('#studioFrame').elementHandle(),frame=await handle.contentFrame();
   await frame.waitForFunction(()=>document.body.dataset.experience==='panorama'&&document.body.dataset.europeCity==='london'&&!!window.BoomFlightEurope);
-  assert.equal(await page.locator('button[data-studio-experience="panorama"]').getAttribute('aria-pressed'),'true','Panorama is the default preview');
+  assert.equal(await page.locator('button[data-studio-experience="panorama"]').getAttribute('aria-pressed'),'true','the explicitly requested archived Panorama stays available');
   for(const [key,value] of Object.entries({moveIn:arrival,moveOut:departure,budget:'3000',currency:'GBP',people:'couple',need:'application',city:'london'}))assert.equal(new URL(frame.url()).searchParams.get(key),value,'initial studio route preserves '+key);
   if(!await frame.locator('#europeOptionalBrief').evaluate(node=>node.open))await frame.locator('#europeOptionalBrief summary').click();
   await frame.locator('#europeBudget').selectOption('5000');await frame.locator('#europePeople').selectOption('family');

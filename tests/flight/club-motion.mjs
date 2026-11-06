@@ -24,12 +24,12 @@ proto.drawImage=function(base){if(this.canvas.id==='nextSolariField')window.__ba
 window.__advance=ms=>{for(let i=0;i<Math.ceil(ms/16);i++){__tick+=16;const callbacks=Array.from(__q.values());__q.clear();callbacks.forEach(fn=>fn(__tick));}return BoomFlightNextMotion.state();};
 window.__shown=value=>__intersections.forEach(observer=>observer.fn([{isIntersecting:value}]));
 `;
-async function fixture({code=source,theme='light',city='rome',paused=false}={}){
+async function fixture({code=source,theme='light',city='rome',paused=false,fieldEnabled=true}={}){
  const page=await browser.newPage({viewport:{width:900,height:700},reducedMotion:'no-preference'}),errors=[];
  page.on('pageerror',e=>errors.push(e.message));
  await page.route('**/*',r=>r.abort());
  const before=`window.__pre={theme:BoomFlightNextMotion.setTheme(${JSON.stringify(theme)}),city:BoomFlightNextMotion.setCityPattern(${JSON.stringify(city)})};BoomFlightNextMotion.setDestination('AMSTERDAM');BoomFlightNextMotion.setPaused(${paused});`;
- await page.setContent('<!doctype html><html><head><style>'+css+'#nextHero{width:720px;height:420px}#nextDestinationBoard{font:60px sans-serif}#nextSolariField{width:720px;height:420px}</style><script>'+harness+'</script><script>'+code.replace(/<\/script/gi,'<\\/script')+'</script><script>'+before+'</script></head><body><section id="nextHero"><canvas id="nextSolariField"></canvas><div id="nextDestinationBoard">ROME</div></section></body></html>');
+ await page.setContent('<!doctype html><html><head><style>'+css+'#nextHero{width:720px;height:420px}#nextDestinationBoard{font:60px sans-serif}#nextSolariField{width:720px;height:420px;'+(fieldEnabled?'':'display:none;')+'}</style><script>'+harness+'</script><script>'+code.replace(/<\/script/gi,'<\\/script')+'</script><script>'+before+'</script></head><body><section id="nextHero" data-next-field="'+(fieldEnabled?'on':'off')+'"><canvas id="nextSolariField"></canvas><div id="nextDestinationBoard">ROME</div></section></body></html>');
  await page.waitForFunction(()=>BoomFlightNextMotion.state().elapsedMs!==null,null,{polling:25,timeout:5000});
  return {page,errors};
 }
@@ -92,6 +92,30 @@ try{
   await p.evaluate(()=>dispatchEvent(new Event('pagehide')));assert.equal(await p.evaluate(()=>__q.size),0);
   await p.evaluate(()=>dispatchEvent(new Event('pageshow')));assert.equal(await p.evaluate(()=>__q.size),1);
   await p.evaluate(()=>BoomFlightNextMotion.destroy());assert.equal(await p.evaluate(()=>__q.size),0);await close(t);
+ });
+ await check('A disabled, zero-sized field keeps finite Solari flips and responsive calibration without canvas work',async()=>{
+  const t=await fixture({fieldEnabled:false}),p=t.page;
+  assert.deepEqual(await p.evaluate(()=>({enabled:BoomFlightNextMotion.state().fieldEnabled,paints:__paintCount,q:__q.size,fieldWidth:document.getElementById('nextSolariField').getBoundingClientRect().width})),{enabled:false,paints:0,q:0,fieldWidth:0});
+  async function flipTo(word){
+   await p.evaluate(value=>BoomFlightNextMotion.setDestination(value),word);
+   await p.waitForFunction(()=>Array.from(document.querySelectorAll('.lt,.lb')).some(el=>el.style.animation),null,{polling:10,timeout:2000});
+   await p.waitForFunction(value=>Array.from(document.querySelectorAll('.fc2 .st b')).map(el=>el.textContent).join('')===value&&!Array.from(document.querySelectorAll('.lt,.lb')).some(el=>el.style.animation),word,{polling:25,timeout:5000});
+  }
+  await flipTo('LONDON');
+  const shift=await p.evaluate(()=>{window.__originalCell=document.querySelector('.fc2');return document.getElementById('nextDestinationBoard').style.getPropertyValue('--gs');});
+  await p.setViewportSize({width:390,height:700});
+  await p.evaluate(()=>{document.getElementById('nextDestinationBoard').style.fontSize='24px';dispatchEvent(new Event('resize'));});
+  await p.waitForFunction(prior=>document.getElementById('nextDestinationBoard').style.getPropertyValue('--gs')!==prior,shift,{polling:25,timeout:2000});
+  assert.equal(await p.evaluate(()=>__originalCell===document.querySelector('.fc2')),true,'recalibration preserves the mechanical cells');
+  await flipTo('BARCELONA');
+  await p.evaluate(()=>{BoomFlightNextMotion.setTheme('dark');__advance(2000);});
+  assert.deepEqual(await p.evaluate(()=>({paints:__paintCount,q:__q.size})),{paints:0,q:0},'finite flips never start or paint the hidden field');
+  await p.emulateMedia({reducedMotion:'reduce'});
+  await p.waitForFunction(()=>document.getElementById('nextHero').dataset.nextMotion==='reduced',null,{polling:25,timeout:2000});
+  await p.evaluate(()=>BoomFlightNextMotion.setDestination('MADRID'));
+  assert.equal(await p.locator('.fc2 .st b').allTextContents().then(chars=>chars.join('')),'MADRID');
+  assert.equal(await p.evaluate(()=>Array.from(document.querySelectorAll('.lt,.lb')).some(el=>el.style.animation)),false,'reduced motion keeps the finite board static too');
+  assert.deepEqual(await p.evaluate(()=>({paints:__paintCount,q:__q.size})),{paints:0,q:0});await close(t);
  });
  await check('Mutation: changing the 8.2-second cadence is caught by the real engine check',async()=>{
   const mutant=source.replace('battito = t + 8200;','battito = t + 4000;');assert.notEqual(mutant,source);

@@ -316,10 +316,17 @@
     paint(s); s.frames++; s.dirty = false;s.lastPaint=time;
     if (s.transition||s.zoomTransition) requestDraw(s);else scheduleAmbient(s);
   }
+  // A presentation can frame the same real globe as a horizon. The flight
+  // origin uses this same geometry, so entering a city never jumps cameras.
+  function cameraFrame(s,w,h,zoom) {
+    if(s.root.dataset.globeFraming==='horizon'&&s.root.dataset.globeLabels==='selected')return {cx:w*.5,cy:h*.80,radius:Math.min(w*.72,h*.78)*zoom};
+    return {cx:w*.5,cy:h*(s.ambient?.5:.47),radius:s.ambient?Math.min(w,h)*.40*zoom:Math.min(w*.455,h*.465)};
+  }
   function paint(s, view) {
     view = view || {};
     var ctx = view.context || s.context, w = view.width || s.width, h = view.height || s.height;
-    var cx = view.cx == null ? w*.5 : view.cx, cy = view.cy == null ? h*(s.ambient?.5:.47) : view.cy, r = view.radius || (s.ambient?Math.min(w,h)*.40*s.zoom:Math.min(w*.455,h*.465));
+    var framing=cameraFrame(s,w,h,s.zoom);
+    var cx = view.cx == null ? framing.cx : view.cx, cy = view.cy == null ? framing.cy : view.cy, r = view.radius || framing.radius;
     var angle = view.angle || [s.angle[0]+s.scroll, s.angle[1]+s.scroll*.4], selectedCity = view.city || s.city;
     var zoom = view.radius ? Math.min(2, r / Math.min(w,h)) : 1;
     ctx.setTransform(view.dpr || s.dpr, 0, 0, view.dpr || s.dpr, 0, 0); ctx.clearRect(0, 0, w, h);
@@ -476,7 +483,8 @@
     settle(s); // The globe and the immersive handoff never own simultaneous frame loops.
     try {
       var rect = s.stage.getBoundingClientRect(), visible = rect.bottom > 0 && rect.top < innerHeight && rect.right > 0 && rect.left < innerWidth;
-      f.origin = visible ? { x:rect.left+rect.width*.5,y:rect.top+rect.height*(s.ambient?.5:.47),radius:s.ambient?Math.min(rect.width,rect.height)*.40*cameraZoom:Math.min(rect.width*.455,rect.height*.465) }
+      var framing=cameraFrame(s,rect.width,rect.height,cameraZoom);
+      f.origin = visible ? { x:rect.left+framing.cx,y:rect.top+framing.cy,radius:framing.radius }
         : { x:innerWidth*.5,y:innerHeight*.5,radius:Math.min(innerWidth,innerHeight)*.36 };
       f.angle = s.ambient?cameraAngle:[s.angle[0]+s.scroll,s.angle[1]+s.scroll*.4];
       f.destination = s.data.cities[slug].coordinate.slice();
