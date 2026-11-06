@@ -429,6 +429,48 @@ try{
   previewIntent(new URL(frame.url()),{budget:'2000'});assert.equal(await page.locator('iframe').count(),1,'all directions share one live preview');
   for(const width of [320,390,900,1440]){await page.setViewportSize({width,height:900});await geometry(page,['#studioOpen',...visions.map(vision=>'button[data-studio-experience="'+vision+'"]'),'button[data-studio-device]']);}
  });
+ await check('Vision Studio: resizing during a delayed direction change keeps the incoming selection and public draft',1440,async({page})=>{
+  await page.goto(origin+'/flight-studio?experience=dispatch&device=mobile',{waitUntil:'domcontentloaded'});
+  const handle=await page.locator('#studioFrame').elementHandle(),frame=await handle.contentFrame();
+  await frame.waitForFunction(()=>document.body.dataset.homeVision==='dispatch'&&!!window.BoomFlightEurope&&innerWidth===390);
+  await fillRome(frame);await frame.evaluate(()=>{window.__outgoingStudioDocument='Dispatch mobile';});
+  let release,arrived,timer;
+  const gate=new Promise(resolve=>{release=resolve;}),incoming=new Promise((resolve,reject)=>{arrived=resolve;timer=setTimeout(()=>reject(new Error('Connection navigation never reached the controlled request boundary')),10000);});
+  // Hold only the incoming document request. The real Studio and outgoing
+  // Dispatch document continue to handle the user's device change normally.
+  await page.route('**/flight-next?**',async route=>{
+   const url=new URL(route.request().url());
+   if(route.request().isNavigationRequest()&&url.searchParams.get('vision')==='connection'){clearTimeout(timer);arrived(url);await gate;}
+   return route.fallback();
+  });
+  async function selectedConnection(){
+   assert.equal(await page.locator('body').getAttribute('data-studio-experience'),'connection');
+   assert.equal(await page.locator('body').getAttribute('data-studio-device'),'desktop');
+   assert.equal(await page.locator('button[data-studio-experience="connection"]').getAttribute('aria-pressed'),'true');
+   assert.equal(await page.locator('button[data-studio-experience="dispatch"]').getAttribute('aria-pressed'),'false');
+   assert.equal(await page.locator('button[data-studio-device="desktop"]').getAttribute('aria-pressed'),'true');
+   assert.equal(await page.locator('#studioVariantTitle').innerText(),'Connection');
+   assert.match(await page.locator('#studioFrame').getAttribute('title'),/BOOM Connection/);
+   const full=new URL(await page.locator('#studioOpen').getAttribute('href'),origin);assert.equal(full.searchParams.get('vision'),'connection');previewIntent(full);
+   const studio=new URL(page.url());assert.equal(studio.searchParams.get('experience'),'connection');assert.equal(studio.searchParams.get('device'),'desktop');
+  }
+  try{
+   await page.locator('button[data-studio-experience="connection"]').click({noWaitAfter:true});
+   const pending=await incoming;previewIntent(pending);
+   assert.equal(await frame.evaluate(()=>window.__outgoingStudioDocument),'Dispatch mobile','the request boundary retains the outgoing document until explicitly released');
+   await page.locator('button[data-studio-device="desktop"]').click({noWaitAfter:true});
+   await frame.waitForFunction(()=>innerWidth===1280);
+   assert.equal(await frame.locator('body').getAttribute('data-home-vision'),'dispatch','the resize really happens while the previous direction is still exposed');
+   await selectedConnection();
+   assert.equal(await page.locator('#studioOpen').getAttribute('aria-disabled'),'true','opening stays disabled while the requested direction is pending');
+   assert.match(await page.locator('#studioStatus').innerText(),/Apertura di Connection/);
+  }finally{clearTimeout(timer);release();}
+  await frame.waitForFunction(()=>document.body.dataset.homeVision==='connection'&&!!window.BoomFlightEurope&&innerWidth===1280);
+  await page.waitForFunction(()=>document.getElementById('studioOpen').getAttribute('aria-disabled')==='false');
+  await selectedConnection();previewIntent(new URL(frame.url()));
+  assert.equal(await page.locator('#studioStatus').innerText(),'Connection · 1280 px');
+  assert.equal(await page.locator('#studioFrame').count(),1,'the delayed direction change still uses one preview element');
+ });
  await check('Vision Connection: Skyline retains one browsing context through scenes, native balance guidance and private-place sharing',1440,async({page,catalogueReads,skylineReads})=>{
   // Saved places and the OS clipboard are fixture boundaries. All destination,
   // privacy, navigation and shared-frame decisions remain the real controllers.

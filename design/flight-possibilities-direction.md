@@ -94,3 +94,11 @@ All form/payment writes are blocked during automated QA. Syntax, whitespace,
 redirect JSON and byte-for-byte main-homepage preservation pass. Current main
 f6663503 is an ancestor of this preview branch. No production release, conversion
 uplift or physical-device frame-rate result is claimed.
+
+The authenticated preview exposed a Studio loading race: switching device width
+while a new direction was pending briefly recaptured the outgoing iframe's
+direction. The device control now preserves the pending selection. A delayed
+navigation case verifies selection, title, open link, URL, dimensions and public
+brief before and after the incoming page loads. All4 focused Studio scenarios
+pass after the fix; the expanded suite now contains39 scenarios. The previous
+full38 run and the68 shared-controller scenarios remain the broader evidence.

@@ -5067,6 +5067,10 @@ Connection apre con Skyline sul fondo cobalto e promuove la guida alla destinazi
 Foto e geografia restano alternative della scena; Locate rivela Skyline, le città estere conservano il proprio desk e i luoghi privati non entrano negli URL pubblici. Nessun nuovo form, motore, archivio, dipendenza o invio.
 Verifica `flightpanoramaui`: sei direzioni390/1440, mappa unica e dimensionata, guida→confronto→scheda→Back, servizi anticipati, filtro e Studio; controlli visivi320/390/1440. Regia in `design/flight-possibilities-direction.md`.
 
+Flight Studio 07/11: durante il caricamento di una nuova direzione, il cambio Desktop/Telefono può ancora leggere il documento uscente dell'iframe.
+Il formato ora cambia senza ricatturare quella vecchia presentazione: titolo, selezione e URL restano sulla nuova scelta mentre arriva la pagina.
+La bozza pubblica già acquisita resta conservata; una prova `flightpanoramaui` trattiene la risposta entrante e verifica il cambio formato prima e dopo il caricamento.
+
 Flight Lab 31/10: `/flight-lab` confronta Atlas, Residence e Club sulle stesse viste reali di `/flight-next?direction=…`, senza cambiare il sito pubblico.
 Le composizioni riusano catalogo, Solari, iframe Skyline, salvataggi e Apply; nessun secondo catalogo o nuovo handler di invio.
 Residence usa una foto realmente restituita dal catalogo pubblico (fallback a una casa pubblica non chiusa); Atlas sposta la stessa mappa nel primo schermo.

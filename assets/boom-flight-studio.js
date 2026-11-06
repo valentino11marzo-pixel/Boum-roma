@@ -117,7 +117,9 @@
       experience=chosen;load();return;
     }
     option=event.target.closest('button[data-studio-device]');
-    if(option){device=option.dataset.studioDevice;capture(false);render();return;}
+    // While a new direction loads, the iframe may still expose its outgoing
+    // document. Resizing must not restore that document's previous direction.
+    if(option){device=option.dataset.studioDevice;if(!loading)capture(false);render();return;}
     if(event.target.closest('#studioOpen')){
       if(loading||!capture(true)){event.preventDefault();return;}
       error.hidden=true;render();
