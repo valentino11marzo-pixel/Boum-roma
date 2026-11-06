@@ -19,7 +19,9 @@
 //     "Who pays the agent · LAU art. 20" check is not the first one;
 //   - the till out of the order the law asks (CRD): the plan, the UNTICKED
 //     start-now box, the withdrawal line with the model form, the pay button
-//     that follows the tick;
+//     that follows the tick; v1.8 stage W: a selling desk whose withdrawal
+//     line, footer or hub strip does not link the online withdrawal function
+//     (/withdrawal?desk=<City>#online, "Withdraw from contract here");
 //   - the quiz pages coming back (Check-in, meter, shared pass, #checkin=,
 //     the v1.4 hero, the priced pay bar, U+2708) or their JSON keys;
 //   - v1.6: the walk out of order (Departures, Pre-flight, Baggage, Gate,
@@ -43,7 +45,12 @@
 //     file, read by the page and the webhook);
 //   - the lead endpoint filing a city lead into the Rome machine, or the
 //     Rome machine (Commerciale, Segretaria, /richiama, the reverse search,
-//     the Lead Brain) speaking to someone moving to Amsterdam.
+//     the Lead Brain) speaking to someone moving to Amsterdam;
+//   - v1.8 (the third shape, dark until the flip): a desk that charges at
+//     signing out of its shape — the registry and the JSON apart, a second
+//     till label, a PAID card, a fare without its trigger, no order line, a
+//     refund or "work already done" sentence, a PreOrder, the "SHIP-DATE"
+//     placeholder — or the six printing the signing rule.
 //
 // No browser, no network: the real build functions on the real data, and
 // the real /api/city-lead handler on a Firestore in memory. The page in a
@@ -53,13 +60,18 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import zlib from 'node:zlib';
+import { spawnSync } from 'node:child_process';
 import {
   buildAll, renderCity, writeAll, fill, findPlaceholders, fragments, familyFor, BuildError, esc, eur, money, currencyOf, GENERATED_MARK, WEIGHT_KB, BUDGET,
-  daysLabel, deskHoursText, feesRowOf, holidayKeyOf, visibleAtLoad, visibleText, sliceOf, words, waHref, WITHDRAWAL_PATH, TERMS_PATH,
-  atLoadParts, longNodes, weightOf, mapXY, validGeo, sealText, sealPhrase, STATUS_RE, STATUS_BANNED_RE, AVIATION_BAN_RE,
-  arcViolations, bowArcs, arcCtrl, ARC_CLEAR, ARC_DOT_R, ARC_ME_R,
+  daysLabel, deskHoursText, feesRowOf, holidayKeyOf, visibleAtLoad, visibleText, sliceOf, words, waHref, WITHDRAWAL_PATH, WITHDRAW_LABEL, TERMS_PATH,
+  stripComments, emittedAssets, emitAssets, SERVED_ASSETS,
+  atLoadParts, longNodes, weightOf, validGeo, sealText, sealPhrase, STATUS_RE, STATUS_BANNED_RE, AVIATION_BAN_RE,
+  ARC_CLEAR, ARC_DOT_R, ARC_ME_R, MAP_KB, HZ_CAM, HZ_LIFT, HZ_LEAN, HZ_KEY, HUB_MAP_PX, horizon, hzViolations, hzPathPts, hzCal, holidayKeyOf as hkOf,
   orgNode, serviceNode, numberWord, listJoin, dateLong, homeCountryOf, isHomeDesk,
-  renderHub, buildHub, HUB_WEIGHT_KB, HUB_BUDGET, HUB_FILE, HUB_PATH, HUB_VIEWBOX, COUNTRY_NAME, hoursSentence, hubText, arcD, CALL_RE, RATING_RE
+  renderHub, buildHub, HUB_WEIGHT_KB, HUB_BUDGET, HUB_FILE, HUB_PATH, COUNTRY_NAME, hoursSentence, hubText, CALL_RE, RATING_RE,
+  reviewSentences, claimProblems, claimGuard, lintClaims, loadClaims, CLAIM_VOCAB_RE, CLAIM_KINDS, CLAIMS_FILE,
+  hasClaimVocab, claimHits, sellHit, closeUp, cleanText, normSentence, PLACE_RE, htmlFieldGuard, neutralValue, joinCut, numKeyCode
 } from '../../build-cities.mjs';
 import SCALO from '../../js/scalo-codes.js';
 import CAL from '../../js/desk-calendar.js';
@@ -76,10 +88,11 @@ const throws = (fn, re) => {
   }
 };
 // a refusal: the mutated data must make the build throw, naming the fault
+// (a base 'draft-paris' / 'draft-berlin' is the frozen waitlist draft, rendered as one: see DRAFT below)
 const refuses = (mut, re, t, base = 'amsterdam') => {
-  const c = clone(CITY[base]);
+  const c = clone(baseCity(base));
   mut(c);
-  const r = throws(() => render(c), re);
+  const r = throws(() => renderOf(base)(c), re);
   check(r === true, t, r === true ? '' : r);
 };
 const clone = (o) => JSON.parse(JSON.stringify(o));
@@ -89,25 +102,69 @@ console.log('\n\x1b[1m▸ cities\x1b[0m  the city desks (v1.6, the complete avia
 
 const template = read('cities/_template.html');
 const shared = JSON.parse(read('cities/_shared.json'));
-const SLUGS = ['amsterdam', 'barcelona', 'berlin', 'london', 'madrid', 'milan', 'paris'];
+const SLUGS = ['amsterdam', 'barcelona', 'berlin', 'london', 'madrid', 'milan', 'paris', 'valencia'];
 const CITY = Object.fromEntries(SLUGS.map((s) => [s, JSON.parse(read(`cities/${s}.json`))]));
 const ams = CITY.amsterdam;
 const assetVersion = { css: 'testcss000', js: 'testjs0000', onda: 'testonda00' };
 const frags = fragments(R);
 // the refusals are measured without the weight gate (it has its own check);
 // the family is the real one, so a mutation of one desk keeps its sisters
+// the reviewed sentences (cities/_claims.json) travel with the render, whatever root the refusal builds in
+const CLAIMS = loadClaims(R);
 const render = (city, sh = shared, tpl = template, root = R, extra = {}) =>
-  renderCity({ template: tpl, shared: sh, city, assetVersion, frags, root, weigh: false, cities: SLUGS.map((s) => (s === city.slug ? city : CITY[s])), ...extra });
+  renderCity({ template: tpl, shared: sh, city, assetVersion, frags, root, weigh: false, cities: SLUGS.map((s) => (s === city.slug ? city : CITY[s])), claims: CLAIMS, ...extra });
+// v1.8, the FLIP (05/11/2026): Paris and Berlin are LIVE and charge at signing (CITY_MARKETS.<slug>.chargeAt), so no
+// desk of cities/ is a waitlist any more. Every waitlist guard keeps its test on a SYNTHETIC draft: cities/paris.json
+// and cities/berlin.json as they stood before the flip, frozen in tests/cities/fixtures (draft-paris.json,
+// draft-berlin.json), rendered with the registry patched back to their waitlist entries inside try/finally (the
+// object is exported and mutable) and with their own reviewed sentences (fixtures/draft-claims.json: the partner and
+// law entries no live page prints any more, merged with cities/_claims.json for those renders only). A base named
+// 'draft-paris' / 'draft-berlin' (refuses, tplRefuses) is that fixture; 'paris' / 'berlin' are the live desks.
+const { CITY_MARKETS: REG, CITY_PLANS: REG_PLANS } = await import('../../api/_market.js');
+const DRAFT = Object.fromEntries(['paris', 'berlin'].map((s) => [s, JSON.parse(read(`tests/cities/fixtures/draft-${s}.json`))]));
+const DRAFT_CLAIMS_FILE = 'tests/cities/fixtures/draft-claims.json';
+const DRAFT_CLAIMS_ONLY = JSON.parse(read(DRAFT_CLAIMS_FILE));
+const byText = (a, b) => (a.text < b.text ? -1 : a.text > b.text ? 1 : 0);
+const DRAFT_CLAIMS = { about: CLAIMS.about, allowed: [...CLAIMS.allowed, ...DRAFT_CLAIMS_ONLY.allowed].sort(byText) };
+// the two registry entries as they stood before the flip (api/_market.js at 083d96b6), frozen like the fixtures
+const DRAFT_REG = {
+  paris: { label: 'Paris', flag: '🇫🇷', country: 'fr', url: 'https://www.boomrome.com/paris', mode: 'waitlist', partner: 'a licensed partner', plans: REG_PLANS },
+  berlin: { label: 'Berlin', flag: '🇩🇪', country: 'de', url: 'https://www.boomrome.com/berlin', mode: 'waitlist', partner: 'a licensed partner', plans: REG_PLANS }
+};
+const withRegistry = (patch, fn) => {
+  const save = Object.fromEntries(Object.keys(patch).map((s) => [s, REG[s]]));
+  try { Object.assign(REG, patch); return fn(); } finally { Object.assign(REG, save); }
+};
+// only the slugs that are drafts in the render are patched (a live Berlin beside the draft Paris keeps its 'de-be')
+const drafted = (fn, slugs = ['paris', 'berlin']) => withRegistry(Object.fromEntries(slugs.map((x) => [x, DRAFT_REG[x]])), fn);
+// the same around an async handler: the patch holds until the promise settles
+const draftedAsync = async (fn, slugs = ['paris', 'berlin']) => {
+  const save = Object.fromEntries(slugs.map((x) => [x, REG[x]]));
+  try { Object.assign(REG, Object.fromEntries(slugs.map((x) => [x, DRAFT_REG[x]]))); return await fn(); } finally { Object.assign(REG, save); }
+};
+const isDraftBase = (b) => /^draft-(?:paris|berlin)$/.test(b);
+function baseCity(b) { return isDraftBase(b) ? DRAFT[b.slice(6)] : CITY[b]; }
+// a draft renders in a family where it replaces its live twin (a live page links only live sisters; a draft links all)
+const renderDraft = (city, sh = shared, tpl = template, root = R, extra = {}) => drafted(() => render(city, sh, tpl, root, { claims: DRAFT_CLAIMS, ...extra }), [city.slug]);
+function renderOf(b) { return isDraftBase(b) ? renderDraft : render; }
+// a family where Paris and Berlin are both the frozen drafts (as before the flip): the desks not open, synthetic
+const TWO_DRAFTS = SLUGS.map((x) => DRAFT[x] || CITY[x]);
+const renderFam = (city, fam = TWO_DRAFTS, tpl = template, extra = {}) => {
+  const all = fam.map((x) => (x.slug === city.slug ? city : x));
+  // since the flip a Paris or a Berlin that is not live is a frozen draft: its registry entry goes back to the waitlist
+  return drafted(() => renderCity({ template: tpl, shared, city, assetVersion, frags, root: R, weigh: false, cities: all, claims: DRAFT_CLAIMS, ...extra }),
+    all.filter((x) => x.live !== true && DRAFT_REG[x.slug]).map((x) => x.slug));
+};
 // a template mutation: the build must refuse its own output
 const tplRefuses = (from, to, re, t, base = 'amsterdam') => {
   check(template.includes(from), `(the template still carries the anchor of: ${t})`);
-  const r = throws(() => render(CITY[base], shared, template.replace(from, to)), re);
+  const r = throws(() => renderOf(base)(baseCity(base), shared, template.replace(from, to)), re);
   check(r === true, t, r === true ? '' : r);
 };
 
 // ── 1 · the committed pages are exactly what the data builds ─────────────
 const pages = buildAll({ root: R });
-check(pages.length === 7 && pages.map((p) => p.slug).join() === SLUGS.join(), `the seven desks are built from cities/*.json (${pages.map((p) => p.slug).join(', ')})`);
+check(pages.length === 8 && pages.map((p) => p.slug).join() === SLUGS.join(), `the eight desks are built from cities/*.json (${pages.map((p) => p.slug).join(', ')})`);
 for (const p of pages) {
   const f = path.join(R, p.file);
   const cur = fs.existsSync(f) ? fs.readFileSync(f, 'utf8') : null;
@@ -136,17 +193,23 @@ check(WEIGHT_KB.total <= 82 && WEIGHT_KB.js <= 14 && WEIGHT_KB.css <= 15 && WEIG
   // weightOf reads the onda canvas script: a fatter onda makes every page heavier
   const tmpW = fs.mkdtempSync(path.join(os.tmpdir(), 'boom-cities-w-'));
   fs.mkdirSync(path.join(tmpW, 'assets'), { recursive: true }); fs.mkdirSync(path.join(tmpW, 'js'), { recursive: true });
-  for (const f of ['assets/boom-city.css', 'assets/boom-city.js', 'assets/boom-onda.js', 'js/boom-consent.js', 'js/boom-track.js']) fs.copyFileSync(path.join(R, f), path.join(tmpW, f));
+  for (const f of ['assets/boom-city.css', 'assets/boom-city.js', 'assets/boom-onda.js', 'assets/boom-map.js', 'js/boom-consent.js', 'js/boom-track.js']) fs.copyFileSync(path.join(R, f), path.join(tmpW, f));
   const w0 = weightOf(pages[0].html, tmpW);
   fs.appendFileSync(path.join(tmpW, 'assets/boom-onda.js'), '\n/*' + Array.from({ length: 4000 }, (_, i) => ((i * 2654435761) % 4294967296).toString(36)).join(' ') + '*/');
   const w1 = weightOf(pages[0].html, tmpW);
   check(w0.ondaKb > 0 && w1.ondaKb > w0.ondaKb && w1.totalKb - w0.totalKb > (w1.ondaKb - w0.ondaKb) * 0.99, `weightOf counts assets/boom-onda.js in the total and on its own (${w0.ondaKb.toFixed(1)} → ${w1.ondaKb.toFixed(1)} KB)`);
+  // v1.7: the map's script, loaded on view, is in the total AND on its own line (MAP_KB)
+  fs.appendFileSync(path.join(tmpW, 'assets/boom-map.js'), '\n/*' + Array.from({ length: 3000 }, (_, i) => ((i * 2246822519) % 4294967296).toString(36)).join(' ') + '*/');
+  const w2 = weightOf(pages[0].html, tmpW);
+  check(w1.mapKb > 0 && w2.mapKb > w1.mapKb && w2.totalKb - w1.totalKb > (w2.mapKb - w1.mapKb) * 0.99 && w2.ondaKb === w1.ondaKb, `weightOf counts assets/boom-map.js in the total and on its own (${w1.mapKb.toFixed(1)} → ${w2.mapKb.toFixed(1)} KB; total +${(w2.totalKb - w1.totalKb).toFixed(1)})`);
   fs.rmSync(tmpW, { recursive: true, force: true });
 }
 const PAGE = Object.fromEntries(pages.map((p) => [p.slug, p.html]));
-// the coast drawing (P4, optional): design/pages-deco/genera-europa.py → cities/_europe.json
+// the coast (optional): design/pages-deco/genera-europa.mjs → cities/_europe.json, rings in degrees the camera projects at build time
 const EUROPE = fs.existsSync(path.join(R, 'cities/_europe.json')) ? JSON.parse(fs.readFileSync(path.join(R, 'cities/_europe.json'), 'utf8')) : null;
 const html = PAGE.amsterdam;
+// the Horizon's model over every desk: the same camera, arcs and labels every page draws (memoised in the build)
+const HZ = horizon(shared.rome.geo, SLUGS.map((x) => CITY[x]), EUROPE);
 
 // ── 2 · the Amsterdam page, as built ──────────────────────────────────────
 check(!/\{\{\{?\s*[\w.]+\s*\}\}\}?/.test(html), 'amsterdam: no unresolved {{token}} in the output');
@@ -157,9 +220,11 @@ for (const s of SLUGS) {
   check(live ? (!/noindex/.test(head) && /content="index, follow/.test(head)) : /<meta name="robots" content="noindex">/.test(head),
     `${s} is ${live ? 'LIVE: index, follow' : 'a draft: noindex'} in the first 4000 chars (tests/seo rule 8 reads exactly there)`);
 }
-check(['amsterdam', 'madrid', 'barcelona', 'london', 'milan'].every((s) => CITY[s].live && CITY[s].checkout === true && CITY[s].mode === 'search')
-  && ['paris', 'berlin'].every((s) => !CITY[s].live && CITY[s].checkout === undefined && CITY[s].mode === 'waitlist'),
-  'the live set is pinned: Amsterdam, Madrid, Barcelona, London, Milan sell; Paris and Berlin are noindex waitlists without a till');
+// v1.8 FLIP (05/11/2026): this pin moved — it said "Paris and Berlin are noindex waitlists without a till"; the
+// founder took them live with a till that takes the ORDER and charges at signing (spec v1.8 D1–D20)
+check(['amsterdam', 'madrid', 'barcelona', 'london', 'milan', 'valencia'].every((s) => CITY[s].live && CITY[s].checkout === true && CITY[s].mode === 'search' && CITY[s].chargeAt === undefined)
+  && ['paris', 'berlin'].every((s) => CITY[s].live === true && CITY[s].checkout === true && CITY[s].mode === 'search' && CITY[s].chargeAt === 'signing'),
+  'the live set is pinned: the eight desks are live and sell — Amsterdam, Madrid, Barcelona, London, Milan, Valencia at the checkout, Paris and Berlin at signing (chargeAt "signing")');
 const canon = (html.match(/<link rel="canonical" href="([^"]+)"/) || [])[1];
 check(canon === `${shared.siteUrl}/amsterdam` && /^https:\/\/www\.boomrome\.com$/.test(shared.siteUrl), `canonical comes from siteUrl, on www: ${canon}`);
 
@@ -176,8 +241,18 @@ check(html.includes(frags.deskCalendar) && /BOOM_CALENDAR:START/.test(html) && /
   'the desk calendar is inlined from js/desk-calendar.js — the file the webhook imports (one copy of the holidays)');
 check(/<body data-consent-late>/.test(html) && /<script defer src="\/js\/boom-consent\.js"><\/script>/.test(html) && /<script defer src="\/js\/boom-track\.js"><\/script>/.test(html),
   'consent waits for the reader (data-consent-late); consent and tracking are the site\'s own scripts');
-check(/gtag\('consent','default',\{ad_storage:'denied'[^}]*analytics_storage:'denied'/.test(html) && /session_id=/.test(html.match(/gtag\('set',\{page_location:[^;]+/)[0]),
-  'GA starts denied and page_location drops the fragment and the session_id of a paid return');
+{
+  // the expression itself, run on the addresses it must clean (v1.8 B3: it strips the order and t of a managed
+  // ticket too — this pin used to read the literal "session_id=", which the one regex no longer spells)
+  const pl = (html.match(/gtag\('set',\{page_location:([^}]+)\}\)/) || [])[1] || '';
+  const at = (search) => { try { return new Function('location', 'return ' + pl)({ origin: 'https://www.boomrome.com', pathname: '/paris', search }); } catch (e) { return 'ERR ' + e.message; } };
+  const W = 'https://www.boomrome.com/paris';
+  check(/gtag\('consent','default',\{ad_storage:'denied'[^}]*analytics_storage:'denied'/.test(html) && !/hash/.test(pl)
+    && at('?paid=full-search&start=0&session_id=cs_test_ui0000000001') === W + '?paid=full-search&start=0' && at('?session_id=cs_x&paid=a') === W + '?paid=a'
+    && at('?order=book_abc12345&t=0123456789abcdef01234567') === W && at('?order=book_abc12345&t=00&city=paris') === W + '?city=paris'
+    && at('?utm_t=1&t=2') === W + '?utm_t=1' && at('') === W,
+    'GA starts denied and page_location drops the fragment, the session_id of a paid return and the order and t of a managed ticket', pl);
+}
 check(!/stripe\.com|js\.stripe|web3forms|formspree|fbq\(|connect\.facebook/i.test(html), 'no third-party form, no Stripe script, no ad pixel: the forms post to our own API');
 
 // the pass: the city on ONE board, served empty; the sentence; the fares; the door; the desk
@@ -228,11 +303,59 @@ for (const p of ams.pricing.plans) {
   const row = sliceOf(fares, `id="fare-${p.id}"`, '</details>');
   check(row.includes(`<b class="f-name">${esc(p.label)}</b><span class="f-when">${esc(p.when)}</span>`) && row.includes(`data-plan-price="${p.id}">${eur(p.price)}</span><span class="f-cond">`),
     `${p.label}: the row says who it is for ("${p.when}") and its price ${eur(p.price)} with its condition`);
-  check(p.includes.every((x) => row.includes(`<li>${esc(x)}</li>`)) && row.includes(`<p class="tk-tag">${esc(p.name)}</p>`), `${p.label}: its ticket says what the fee buys (${p.includes.length} lines)`);
+  // v1.7 (card-S): Full Search prints its promise in the closed summary (f-say), the economy tickets keep it in the open ticket (tk-tag)
+  const promise = p.id === 'full-search' ? `<span class="f-say">${esc(p.name)}</span></span>` : `<p class="tk-tag">${esc(p.name)}</p>`;
+  check(p.includes.every((x) => row.includes(`<li>${esc(x)}</li>`)) && row.includes(promise) && (p.id === 'full-search' ? !row.includes('tk-tag') : !row.includes('f-say')),
+    `${p.label}: its ticket says what the fee buys (${p.includes.length} lines) and prints its promise ${p.id === 'full-search' ? 'in the summary' : 'in the ticket'}`);
   check(row.includes(`data-pay="${p.id}"><span>${esc(ams.till.label)} · ${eur(p.price)}</span>`), `${p.label}: the ticket's pay button reads till.label with ITS price`);
 }
 check(fares.includes(`<p class="fares-h"><b id="faresH">Flat fees</b><span>No percentage of your rent</span></p>`), 'the line over the fares: "Flat fees · No percentage of your rent"');
 check((html.match(/data-pay="/g) || []).length === 3, 'pay controls live only inside the tickets (three, one per plan): no pay bar, no pay button outside a ticket');
+// v1.7 (04/11, card-S): three tickets in the home's grammar — an <ol class="bps"> of
+// three <li class="bp">, the first .eroe (Full Search lies down, the flagship);
+// the pip INSIDE the stub; the open ticket ends in a darker stub (slot, barcode,
+// pay); the €500 coupon and the desk-width pay slot follow the FS <details>
+// inside ITS <li>; the leftovers of the four prototypes are banned by name.
+{
+  const lis = [...fares.matchAll(/<li class="bp( eroe)?">/g)].map((m) => !!m[1]);
+  check(/<ol class="bps">\s*<li class="bp eroe">/.test(fares) && lis.length === 3 && lis.join() === 'true,false,false' && fares.includes('</li>\n        </ol>'),
+    'the fares are an <ol class="bps"> of three <li class="bp">, the first .eroe (Full Search, the flagship)');
+  for (const p of ams.pricing.plans) {
+    const row = sliceOf(fares, `id="fare-${p.id}"`, '</details>');
+    check(/<span class="f-r">.*<i class="f-tog" aria-hidden="true"><\/i><\/span>\s*<\/summary>/.test(row) && !/<span class="f-tog"/.test(row), `${p.label}: the pip (.f-tog) lives inside the stub .f-r, last`);
+    check(/<div class="tk-stub">\s*<div class="tk-slot" data-slot><\/div>\s*<i class="bars" aria-hidden="true"><\/i>\s*<button class="pay2 js" type="button" data-pay="/.test(row) && row.trimEnd().endsWith('</button>\n            </div>\n          </div>'),
+      `${p.label}: the ticket ends in a darker stub holding the door's slot, a barcode and the pay button`);
+    check((row.match(/class="bars"/g) || []).length === (p.id === 'full-search' ? 2 : 1), `${p.label}: a barcode on the open stub${p.id === 'full-search' ? ' and one on the flagship\'s closed stub' : ', none on the closed row'}`);
+  }
+  const li = sliceOf(fares, '<li class="bp eroe">', '</li>\n        <li class="bp">');
+  check(/<\/details>\s*<p class="refund fs">[^<]+<\/p>\s*<span class="bp-pay"><\/span>\s*$/.test(li), 'after the Full Search </details>, inside its <li>: the ✓ coupon, then the empty desk-width pay slot');
+  // v1.8 FLIP: this pin moved — Paris and Berlin were waitlists (no coupon, no pay slot, no pay button); they sell
+  // now, charged at signing: the six's three tickets, the coupon under the €500 saying the SIGNING rule, the pay
+  // slot and three order buttons. The waitlist shape keeps its pin on the frozen draft (fixtures/draft-paris.json).
+  for (const s of ['paris', 'berlin']) {
+    const f = sliceOf(PAGE[s], '<!-- FARES -->', '<!-- /FARES -->');
+    const li2 = sliceOf(f, '<li class="bp eroe">', '</li>\n        <li class="bp">');
+    check(/<ol class="bps">\s*<li class="bp eroe">/.test(f) && /<\/details>\s*<p class="refund fs">[^<]+<\/p>\s*<span class="bp-pay"><\/span>\s*$/.test(li2)
+      && li2.includes(`<p class="refund fs">${esc(shared.signing.rule)}</p>`) && !f.includes(esc(shared.refund.rule)) && (f.match(/data-pay="/g) || []).length === 3,
+      `${s} (charged at signing): the six's three tickets — the coupon under the €500 says the signing rule, never the refund rule; the pay slot; three order buttons`);
+  }
+  {
+    const f = sliceOf(renderDraft(DRAFT.paris).html, '<!-- FARES -->', '<!-- /FARES -->');
+    check(/<ol class="bps">\s*<li class="bp eroe">/.test(f) && !f.includes('bp-pay') && !f.includes('class="refund') && !f.includes('data-pay='), 'a waitlist draft (the frozen Paris): the same three tickets, no coupon, no pay slot, no pay button');
+  }
+  // the Departures board keeps its v1.6 "N°" column (steps 1–3, real facts): the ban on a code is on the TICKETS
+  const LEFTOVERS = /First class|f-band|tk-band|tk-foot|f-kind|class="deck|class="pair"/;
+  check(SLUGS.every((s) => { const f = sliceOf(PAGE[s], '<!-- FARES -->', '<!-- /FARES -->'); return f && !LEFTOVERS.test(PAGE[s]) && !/N°|tk-code|\bBM [A-Z0-9]{5}\b/.test(f); }),
+    'no prototype leftover on any page: no "First class" word (the band is wordless), no N° or code on a ticket, no f-band/tk-band/tk-foot/f-kind, no deck, no .pair div');
+  const css = read('assets/src/boom-city.css');
+  check(/\.door:hover,\.pay:hover\{box-shadow:/.test(css) && !/\.door:hover,\.pay:hover\{[^}]*translateY\(-1px\)/.test(css) && !/\.door:hover\{[^}]*transform/.test(css), 'the door no longer lifts on hover (the lift moved the edge away from the pointer and the hover flickered)');
+  const bare = [...css.matchAll(/(?:^|[}{;])\s*([^{}@]+)\{/g)].map((m) => m[1]).filter((sel) => sel.split(',').some((x) => x.trim() === '.refund'));
+  check(bare.length === 0 && /\.pass \.refund,\.till \.refund\{/.test(css) && /\.bp>\.refund\.fs\{/.test(css), 'the ✓ rule is scoped to the pass, the till and the coupon: boom-city.css has no bare .refund{ rule, so the hub\'s .hft .refund keeps its own look', bare.join(' | '));
+  check(/\.hft \.refund\{/.test(read('assets/src/boom-desks.css')), 'the hub styles its own .hft .refund');
+  check(/\.f-when::after\{content:'\?'\}/.test(css) && /\.bps:not\(\.pair-open\):not\(:has\(>\.bp:not\(\.eroe\)>\[open\]\)\)\{grid-template-columns:repeat\(2,minmax\(0,1fr\)\)\}/.test(css),
+    'the situation ends in a CSS "?"; between 360 and 939 the two economy tickets are a pair while neither is open (pair-open from the page, :has without it)');
+  check(/\.bp:has\(>\[data-fs\]\[open\]\)>\.refund\.fs,\.fs-open \.refund\.fs,\.bp-pay:empty\{display:none\}/.test(css), 'the coupon hides while Full Search is open; an empty desk pay slot takes no room');
+}
 
 // the door: one node, one label, the desk window under it, nothing pre-selected
 check((html.match(/id="door"/g) || []).length === 1 && (html.match(/id="fileForm"/g) || []).length === 1 && (html.match(/id="act"/g) || []).length === 1, 'one door, one form, one act node (it moves into the open ticket on a phone; it is never two doors)');
@@ -376,122 +499,184 @@ check(!/id="contact"/.test(html) && /<article class="pass" id="pass"/.test(html)
 // THE SEAL and THE STAMPS: the desk's must-state on a ring, never a new claim;
 // FILE OPEN / PAID only on the cards the server opens
 {
-  const SEAL = { amsterdam: 'NEVER PAID BY LANDLORDS', london: 'NEVER PAID BY LANDLORDS', milan: 'NEVER PAID BY LANDLORDS', madrid: 'WE DO NOT ACT FOR THE LANDLORD', barcelona: 'WE DO NOT ACT FOR THE LANDLORD', paris: 'OPENING WITH A LICENSED PARTNER', berlin: 'OPENING WITH A LICENSED PARTNER' };
+  // v1.8 FLIP: Paris and Berlin moved from "OPENING WITH A LICENSED PARTNER" (the waitlist phrase, kept on the frozen
+  // draft below) to "PAID ONLY WHEN YOU SIGN" (their must-state "Paid only by you, and only when you sign."), and from
+  // a lone FILE OPEN stamp to FILE OPEN + BOOKED (their order card, never a PAID stamp: no money is taken at the order)
+  const SEAL = { amsterdam: 'NEVER PAID BY LANDLORDS', london: 'NEVER PAID BY LANDLORDS', milan: 'NEVER PAID BY LANDLORDS', madrid: 'WE DO NOT ACT FOR THE LANDLORD', barcelona: 'WE DO NOT ACT FOR THE LANDLORD', valencia: 'WE DO NOT ACT FOR THE LANDLORD', paris: 'PAID ONLY WHEN YOU SIGN', berlin: 'PAID ONLY WHEN YOU SIGN' };
   for (const s of SLUGS) {
     const h = PAGE[s], C = CITY[s].city.toUpperCase();
     const seal = sliceOf(h, '<svg class="seal"', '</svg>');
     check(sealPhrase(CITY[s]) === SEAL[s] && sealText(CITY[s]) === `BOOM ${C} · TENANT SIDE · ${SEAL[s]} · ` && seal.includes(`<textPath href="#sealArc" textLength="310" lengthAdjust="spacing">${sealText(CITY[s])}</textPath>`)
-      && /<svg class="seal"[^>]*aria-hidden="true" focusable="false"/.test(h) && (SEAL[s] !== 'OPENING WITH A LICENSED PARTNER' || /^Opening with a licensed partner\./.test(CITY[s].hero.lead)),
+      && /<svg class="seal"[^>]*aria-hidden="true" focusable="false"/.test(h) && (SEAL[s] !== 'PAID ONLY WHEN YOU SIGN' || CITY[s].hero.leadStrong === 'Paid only by you, and only when you sign.'),
       `${s}: the seal reads "BOOM ${C} · TENANT SIDE · ${SEAL[s]}", derived from the desk's own must-state, decorative`);
     const stamps = [...h.matchAll(/<span class="stamp" aria-hidden="true"><svg[\s\S]*?<textPath href="#stampArc"[^>]*>([^<]+)<\/textPath><\/text><text class="st-w"[^>]*>([^<]+)<\/text><\/svg><\/span>/g)].map((m) => [m[1], m[2]]);
-    const sells = CITY[s].checkout === true;
-    const want = [[`FILE OPEN · BOOM ${C} · TENANT SIDE · `, 'OPEN'], ...(sells ? [[`PAID · BOOM ${C} · TENANT SIDE · `, 'PAID']] : [])];
-    check(JSON.stringify(stamps) === JSON.stringify(want) && sliceOf(h, 'id="cOpen"', '</div>').includes('class="stamp"') && (!sells || sliceOf(h, 'id="cPaid"', '<dl').includes('class="stamp"')),
-      `${s}: the SVG stamps — FILE OPEN on the OPEN card${sells ? ', PAID on the paid card' : '; no PAID stamp (no money is taken)'}`, JSON.stringify(stamps));
+    const sells = CITY[s].checkout === true, signs = CITY[s].chargeAt === 'signing';
+    const want = [[`FILE OPEN · BOOM ${C} · TENANT SIDE · `, 'OPEN'], ...(signs ? [[`BOOKED · BOOM ${C} · TENANT SIDE · `, 'BOOKED']] : sells ? [[`PAID · BOOM ${C} · TENANT SIDE · `, 'PAID']] : [])];
+    check(JSON.stringify(stamps) === JSON.stringify(want) && sliceOf(h, 'id="cOpen"', '</div>').includes('class="stamp"')
+      && (signs ? sliceOf(h, 'id="cBooked"', '<dl').includes('class="stamp"') && !/id="cPaid"/.test(h) : !sells || sliceOf(h, 'id="cPaid"', '<dl').includes('class="stamp"')),
+      `${s}: the SVG stamps — FILE OPEN on the OPEN card${signs ? ', BOOKED on the order card (never PAID: nothing is taken at the order)' : sells ? ', PAID on the paid card' : '; no PAID stamp (no money is taken)'}`, JSON.stringify(stamps));
   }
+  // the waitlist phrase keeps its pin on the frozen draft: the first sentence of its lead, on the ring; FILE OPEN alone
+  const d = renderDraft(DRAFT.paris).html;
+  const dStamps = [...d.matchAll(/<textPath href="#stampArc"[^>]*>([^<]+)<\/textPath>/g)].map((m) => m[1]);
+  check(drafted(() => sealPhrase(DRAFT.paris)) === 'OPENING WITH A LICENSED PARTNER' && /^Opening with a licensed partner\./.test(DRAFT.paris.hero.lead)
+    && d.includes(`>${drafted(() => sealText(DRAFT.paris))}</textPath>`) && JSON.stringify(dStamps) === JSON.stringify(['FILE OPEN · BOOM PARIS · TENANT SIDE · ']),
+    'a waitlist draft (the frozen Paris): the seal reads "OPENING WITH A LICENSED PARTNER" from its lead\'s first sentence; one stamp, FILE OPEN (no money is taken)', JSON.stringify(dStamps));
 }
 
 // NETWORK: the sisters and Rome, on a map (decorative) and as a list (the navigation)
 {
   const netList = (h) => [...sliceOf(h, '<ul class="net">', '</ul>').matchAll(/<li><a href="\/([a-z]*)"><b data-instr>([A-Z]{3})<\/b> ([^<]+)<\/a><\/li>/g)].map((m) => [m[1], m[2], m[3]]);
-  const ams2 = netList(PAGE.amsterdam), par = netList(PAGE.paris);
-  check(ams2.map((x) => x[0]).join() === 'barcelona,london,madrid,milan,' && ams2.map((x) => x[1]).join() === 'BCN,LON,MAD,MIL,ROM' && ams2[4][2] === 'BOOM Rome',
+  // v1.8 FLIP: this pin moved — Amsterdam linked five sisters (Berlin and Paris were drafts); the eight are live now.
+  // The draft side keeps its pin on the frozen fixtures: the draft Paris, in a family where Berlin is a draft too
+  // (both as they stood before the flip), links every sister, Berlin included; Amsterdam beside the draft Paris does not.
+  const ams2 = netList(PAGE.amsterdam);
+  check(ams2.map((x) => x[0]).join() === 'barcelona,berlin,london,madrid,milan,paris,valencia,' && ams2.map((x) => x[1]).join() === 'BCN,BER,LON,MAD,MIL,PAR,VLC,ROM' && ams2[7][2] === 'BOOM Rome' && ams2[0][2] === 'Barcelona',
     `a live desk links only the live sisters, then BOOM Rome (${ams2.map((x) => x[1]).join(', ')})`);
-  check(par.map((x) => x[0]).join() === 'amsterdam,barcelona,berlin,london,madrid,milan,', 'a draft links every sister (the review sees the suite)');
-  check(!/<a href="\/(amsterdam|barcelona|berlin|london|madrid|milan|paris)">/.test(sliceOf(html, '<footer class="foot">', '</footer>')), 'the network list replaces the family links of the footer (said once)');
+  {
+    const twoDrafts = SLUGS.map((x) => DRAFT[x] || CITY[x]);
+    const par = netList(drafted(() => renderCity({ template, shared, city: DRAFT.paris, assetVersion, frags, root: R, weigh: false, cities: twoDrafts, claims: DRAFT_CLAIMS }).html));
+    const amsD = netList(drafted(() => renderCity({ template, shared, city: ams, assetVersion, frags, root: R, weigh: false, cities: twoDrafts, claims: DRAFT_CLAIMS }).html));
+    check(par.map((x) => x[0]).join() === 'amsterdam,barcelona,berlin,london,madrid,milan,valencia,' && amsD.map((x) => x[0]).join() === 'barcelona,london,madrid,milan,valencia,',
+      'a draft links every sister, a draft one included (the review sees the suite); a live desk beside two drafts links only the live ones (the frozen draft Paris and Berlin)');
+  }
+  check(!/<a href="\/(amsterdam|barcelona|berlin|london|madrid|milan|paris|valencia)">/.test(sliceOf(html, '<footer class="foot">', '</footer>')), 'the network list replaces the family links of the footer (said once)');
   const fam = familyFor({ slug: 'x', live: true }, [{ slug: 'b', city: 'B', live: false, iata: 'BBB', geo: { lat: 50, lon: 5 } }, { slug: 'a', city: 'A', live: true, iata: 'AAA', geo: { lat: 48, lon: 2 } }], { family: [{ label: 'BOOM Rome', href: '/' }], rome: { geo: shared.rome.geo } });
-  check(fam.map((f) => f.href).join() === '/a,/' && fam[0].label === 'A desk' && fam[0].iata === 'AAA' && fam[0].geo.lat === 48 && fam[1].iata === 'ROM' && fam[1].geo === shared.rome.geo,
-    'familyFor: live sisters only, alphabetical, labelled "<City> desk" with their IATA and coordinates, then BOOM Rome (ROM, the hub)');
+  check(fam.map((f) => f.href).join() === '/a,/' && fam[0].label === 'A' && fam[0].iata === 'AAA' && fam[0].geo.lat === 48 && fam[1].iata === 'ROM' && fam[1].geo === shared.rome.geo,
+    'familyFor: live sisters only, alphabetical, labelled with the city (the heading says "Other desks") with their IATA and coordinates, then BOOM Rome (ROM, the hub)');
   check(sliceOf(html, '<section class="sec" id="network"', '</section>').includes('<p class="net-c">Every desk answers from Rome.</p>'), 'the caption: "Every desk answers from Rome."');
   // BOOM Desks (03/11/2026): the map shows EVERY desk — the live sisters with an arc from Rome, this desk
   // with its gold arc (on a draft too), the desks not open as a hollow dot with NO arc; Rome wears its ring
-  for (const s of SLUGS) {
-    const h = PAGE[s], map = sliceOf(h, '<svg class="map"', '</svg>');
-    const xy = (g) => mapXY(g).map((v) => Math.round(v * 10) / 10);
-    const [mx, my] = xy(CITY[s].geo), [rx, ry] = xy(shared.rome.geo);
-    const dots = [...map.matchAll(/<circle class="(d(?: me| off)?|hub|hub-r)" cx="([\d.]+)" cy="([\d.]+)" r="([\d.]+)"( fill="none")?/g)].map((m) => [m[1], +m[2], +m[3], +m[4], !!m[5]]);
-    const arcs = [...map.matchAll(/<path class="arc( me)?"[^>]*d="M([\d.]+) ([\d.]+)Q[\d.]+ [\d.]+ ([\d.]+) ([\d.]+)"/g)];
-    const inside = dots.every(([, x, y]) => x >= 20 && x <= 580 && y >= 20 && y <= 400);
-    const me = dots.find((d) => d[0] === 'd me'), hub = dots.find((d) => d[0] === 'hub'), ring = dots.find((d) => d[0] === 'hub-r');
-    const others = SLUGS.filter((x) => x !== s).map((x) => CITY[x]);
+  // v1.8 FLIP: the eight desks are live, so no real page has a desk not open — the hollow dots, the "· not open"
+  // lines and a draft's every-sister list keep their pins on two synthetic pages, each in its own family: Amsterdam
+  // with the frozen waitlist Paris as its sister ('amsterdam·draft-paris'), and that draft Paris itself ('draft-paris')
+  const famWith = (d) => SLUGS.map((x) => (x === d ? DRAFT[x] : CITY[x]));
+  const SUBJ = [
+    ...SLUGS.map((s) => ({ s, name: s, h: PAGE[s], me: CITY[s], fam: SLUGS.map((x) => CITY[x]) })),
+    { s: 'amsterdam', name: 'amsterdam·draft-paris', h: renderFam(ams, famWith('paris'), template, { europe: EUROPE }).html, me: ams, fam: famWith('paris') },
+    { s: 'paris', name: 'draft-paris', h: renderDraft(DRAFT.paris, shared, template, R, { europe: EUROPE }).html, me: DRAFT.paris, fam: famWith('paris') }
+  ];
+  for (const { s, name, h, me: CS, fam } of SUBJ) {
+    const map = sliceOf(h, '<svg class="hz"', '</svg>');
+    const xy = (g) => HZ.cam.xy(g);
+    const [mx, my] = xy(CS.geo), [rx, ry] = HZ.hub, [vx, vy, vw, vh] = HZ.view;
+    const dots = [...map.matchAll(/<circle class="(d(?: me| off)?|d-ring|hub|hub-r)" cx="([\d.]+)" cy="([\d.]+)" r="([\d.]+)"( fill="none")?/g)].map((m) => [m[1], +m[2], +m[3], +m[4], !!m[5]]);
+    const arcs = [...map.matchAll(/<path class="arc( me)?" data-k="([a-z]{3})" pathLength="1" fill="none" d="(M[\d.]+ [\d.]+C[^"]+)"\/>/g)];
+    const inside = dots.every(([, x, y]) => x >= 0 && x <= 640 && y >= vy && y <= vy + vh);
+    const me = dots.find((d) => d[0] === 'd me'), myRing = dots.find((d) => d[0] === 'd-ring'), hub = dots.find((d) => d[0] === 'hub'), ring = dots.find((d) => d[0] === 'hub-r');
+    const others = fam.filter((x) => x.slug !== s);
     const liveSis = others.filter((x) => x.live === true), offSis = others.filter((x) => x.live !== true);
-    check(/viewBox="0 0 600 420" aria-hidden="true" focusable="false"/.test(map) && inside && me && me[1] === mx && me[2] === my && hub && hub[1] === rx && hub[2] === ry
+    check(map.startsWith(`<svg class="hz" viewBox="${HZ.view.join(' ')}" aria-hidden="true" focusable="false">`) && vx === 0 && vw === 640 && inside
+      && me && me[1] === mx && me[2] === my && me[3] === 4 && myRing && myRing[1] === mx && myRing[2] === my && myRing[3] === ARC_ME_R && myRing[4] && hub && hub[1] === rx && hub[2] === ry
       && liveSis.every((x) => { const [px, py] = xy(x.geo); return dots.some((d) => d[0] === 'd' && d[1] === px && d[2] === py && d[3] === ARC_DOT_R); })
-      && arcs.length === liveSis.length + 1 && arcs.every((a) => +a[2] === rx && +a[3] === ry) && arcs.filter((a) => a[1]).length === 1 && +arcs.find((a) => a[1])[4] === mx
+      && arcs.length === liveSis.length + 1 && arcs.every((a) => a[3].startsWith(`M${rx} ${ry}C`) && HZ.arcs.get(a[2].toUpperCase()).d === a[3]) && arcs.filter((a) => a[1]).length === 1 && arcs[arcs.length - 1][1] === ' me' && arcs[arcs.length - 1][2] === CS.iata.toLowerCase()
       && SLUGS.every((x) => validGeo(CITY[x].geo)) && validGeo(shared.rome.geo),
-      `${s}: the map's dots are the projected real coordinates, inside the 600×420 viewBox margins (this desk ${mx},${my}; ROM ${rx},${ry}); one arc from Rome per LIVE sister (${liveSis.length}) and this desk's in gold`);
-    check(offSis.length >= 1 && offSis.every((x) => { const [px, py] = xy(x.geo); return dots.some((d) => d[0] === 'd off' && d[1] === px && d[2] === py && d[3] === ARC_DOT_R && d[4]) && !arcs.some((a) => +a[4] === px && +a[5] === py); })
-      && dots.filter((d) => d[0] === 'd off').length === offSis.length,
-      `${s}: the desks not open (${offSis.map((x) => x.iata).join(', ')}) are hollow dots (fill="none") at their real coordinates, and NO arc ends at them (an arc means "operated from Rome")`);
-    check(ring && ring[1] === rx && ring[2] === ry && ring[3] === 10 && ring[4] && map.indexOf('class="hub-r"') > map.indexOf('class="hub"'), `${s}: Rome, the hub, wears its ring (r 10, hollow)`);
-    // the coast (P4): Natural Earth's land cut to this map's box (cities/_europe.json `desk`), drawn as a
-    // dot matrix clipped to it, under the arcs; the same drawing as the hub, never a second source
-    if (EUROPE) check(map.includes(`<clipPath id="netCoast" clip-rule="evenodd"><path d="${EUROPE.desk}"/></clipPath>`) && /<rect class="m-land" width="600" height="420" fill="url\(#netLand\)" clip-path="url\(#netCoast\)"\/>/.test(map)
-      && map.indexOf('class="m-land"') > map.indexOf('class="m-bg"') && map.indexOf('class="m-land"') < map.indexOf('<path class="arc'),
-      `${s}: the coast lies under the network (land dots clipped to cities/_europe.json \`desk\`, before the arcs)`);
-    const offLab = [...map.matchAll(/<text class="m-l off(?: l)?"[^>]*>([A-Z]{3})<\/text>/g)].map((m) => m[1]);
-    check(offLab.join() === offSis.map((x) => x.iata).join(), `${s}: each desk not open carries its code, dimmed (m-l off): ${offLab.join(', ')}`);
+      `${name}: the Horizon's dots are the camera's projection of the real coordinates, inside the cropped frame (this desk ${mx},${my} with its ${ARC_ME_R}px ring; ROM ${rx},${ry}); one lifted arc from Rome per LIVE sister (${liveSis.length}), each the model's own cubic, and this desk's in gold, drawn last`);
+    check((name === 'amsterdam·draft-paris' ? offSis.length === 1 : offSis.length === 0) && offSis.every((x) => { const [px, py] = xy(x.geo); return dots.some((d) => d[0] === 'd off' && d[1] === px && d[2] === py && d[3] === ARC_DOT_R && d[4]) && !arcs.some((a) => a[2] === x.iata.toLowerCase()); })
+      && dots.filter((d) => d[0] === 'd off').length === offSis.length && !new RegExp(`id="hzd-(?:${offSis.map((x) => x.iata.toLowerCase()).join('|')})"`).test(map),
+      `${name}: the desks not open (${offSis.map((x) => x.iata).join(', ') || 'none since the flip'}) are hollow dots (fill="none") at their real coordinates, with NO arc and no glow (an arc means "operated from Rome")`);
+    check(ring && ring[1] === rx && ring[2] === ry && ring[3] === 10 && ring[4] && map.indexOf('class="hub-r"') > map.indexOf('class="hub"') && !/hub-r r2/.test(map) && /<text class="m-l hub"[^>]*>ROM<\/text>/.test(map),
+      `${name}: Rome, the hub, wears its ring (r 10, hollow — the second ring is the hub page's) and its code`);
+    // the globe: the earth disc under the limb (three strokes), the sea and the land dot matrices, the graticule, the seas that fit, the night EMPTY
+    check(/<use class="earth" href="#hzEarth"\/><rect class="sea" width="640" height="520" fill="url\(#hzSea\)" clip-path="url\(#hzEc\)"\/>/.test(map) && /<path class="grat" d="M/.test(map)
+      && /<use class="limb l3" href="#hzLimb"\/><use class="limb l2" href="#hzLimb"\/><use class="limb l1" href="#hzLimb"\/>/.test(map) && (map.match(/<g class="hz-nite"><\/g>/g) || []).length === 1 && !/<image\b|hz-term|hz-pl/.test(map)
+      && HZ.seas.length >= 2 && HZ.seas.every((sea) => map.includes(`>${sea.t}</text>`)) && map.indexOf('class="m-s"') < map.indexOf('<path class="arc'),
+      `${name}: the globe is drawn (earth, limb, sea and land patterns, graticule, ${HZ.seas.map((x) => x.t).join(' · ')}), the night layer served empty — the hour draws it`);
+    // the coast: Natural Earth in degrees (cities/_europe.json rings) projected by the camera, as a dot matrix clipped to it, under the arcs; the same drawing as the hub
+    if (EUROPE) check(/<path id="hzCoast" d="M-?\d+ -?\d+l[-\d ]+z/.test(map) && /<rect class="land" width="640" height="520" fill="url\(#hzDots\)" clip-path="url\(#hzLc\)"\/><use class="coast" href="#hzCoast"\/>/.test(map)
+      && map.indexOf('class="land"') > map.indexOf('class="sea"') && map.indexOf('class="land"') < map.indexOf('<path class="arc') && sliceOf(map, '<path id="hzCoast"', '/>') === sliceOf(sliceOf(read('desks.html'), '<svg class="hz"', '</svg>'), '<path id="hzCoast"', '/>'),
+      `${name}: the coast lies under the network (land dots clipped to the projected coast, before the arcs), the very same path as the hub's`);
+    const offLab = [...map.matchAll(/<text class="m-l off"[^>]*>([A-Z]{3})<\/text>/g)].map((m) => m[1]);
+    check(offLab.join() === offSis.map((x) => x.iata).join() && /<text class="m-l me"[^>]*>/.test(map) && [...map.matchAll(/<text class="m-l[^"]*"[^>]*>([A-Z]{3})/g)].length === SLUGS.length + 1,
+      `${name}: each desk not open carries its code, dimmed (m-l off): ${offLab.join(', ') || 'none'}; this desk's in gold; one label per desk and the hub`);
+    // the script's data: the camera (15 numbers), the crop, each live desk's calendar facts — never a person
+    const data = JSON.parse(sliceOf(h.slice(h.indexOf('</svg>', h.indexOf('<svg class="hz"'))), '<script type="application/json" class="hz-data">', '</script>').replace('<script type="application/json" class="hz-data">', '') || '{}');
+    const liveHere = [...liveSis, ...(CS.live === true ? [CS] : [])];
+    check(Array.isArray(data.c) && data.c.length === 15 && data.c.every(Number.isFinite) && JSON.stringify(data.v) === JSON.stringify(HZ.view) && Object.keys(data.d).sort().join() === liveHere.map((x) => x.iata.toLowerCase()).sort().join()
+      && liveHere.every((x) => data.d[x.iata.toLowerCase()].h === hkOf(x.slug)) && (!data.d.lon || (data.d.lon.z === 'Europe/London' && data.d.lon.f === '08:00' && data.d.lon.t === '18:00')) && (!data.d.ams || !('z' in data.d.ams)) && JSON.stringify(data.d) === JSON.stringify(hzCal(liveHere)),
+      `${name}: the map's data script carries the camera, the crop and the live desks' calendar facts (${Object.keys(data.d).join(', ')}: holiday key, and only what differs from Rome's 09–19)`);
     const key = sliceOf(h, '<p class="net-k"', '</p>');
-    check(/^<p class="net-k" aria-hidden="true">/.test(key) && ['live desk', 'not open', 'Rome, the hub'].every((t) => key.includes(t)) && h.indexOf('<p class="net-k"') > h.indexOf('</svg>', h.indexOf('<svg class="map"')) && h.indexOf('<p class="net-k"') < h.indexOf('<ul class="net">'),
-      `${s}: the legend after the map — live desk · not open · Rome, the hub (decorative, like the map)`);
+    check(key === `<p class="net-k" aria-hidden="true">${HZ_KEY}` && ['live desk', 'not open', 'Rome, the hub'].every((t) => key.includes(t)) && /<span class="k-x" hidden><i class="k-g"><\/i>open now<\/span><span class="k-x" hidden><i class="k-n"><\/i>night, now<\/span>$/.test(key)
+      && h.indexOf('<p class="net-k"') > h.indexOf('</svg>', h.indexOf('<svg class="hz"')) && h.indexOf('<p class="net-k"') < h.indexOf('<ul class="net">'),
+      `${name}: the legend after the map — live desk · not open · Rome, the hub, plus the two the script reveals (open now, night) served hidden`);
     // the list: the family, then (live page) the desks not open as plain text, BOOM Rome, then every desk
     const ul = sliceOf(h, '<ul class="net">', '</ul>');
     const codes = [...ul.matchAll(/<li(?: class="(off|all)")?>(?:<a href="([^"]*)">)?<b data-instr>([A-Z]{3})<\/b> ([^<]+)/g)].map((m) => ({ cls: m[1] || '', href: m[2], code: m[3], label: m[4] }));
-    const live = CITY[s].live === true;
+    const live = CS.live === true;
     const famSis = live ? liveSis : others;
     const want = [...famSis.map((x) => x.iata), ...(live ? offSis.map((x) => x.iata) : []), 'ROM', 'ALL'];
-    check(codes.map((c) => c.code).join() === want.join(), `${s}: the Network list reads ${want.join(' · ')}`, codes.map((c) => c.code).join());
+    check(codes.map((c) => c.code).join() === want.join(), `${name}: the Network list reads ${want.join(' · ')}`, codes.map((c) => c.code).join());
     check(codes.filter((c) => c.cls === 'off').every((c) => !c.href && c.label === `${others.find((x) => x.iata === c.code).city} · not open`) && (live ? codes.filter((c) => c.cls === 'off').length === offSis.length : codes.every((c) => c.cls !== 'off')),
-      live ? `${s}: the desks not open are named, never linked: ${codes.filter((c) => c.cls === 'off').map((c) => c.label).join(' · ')}` : `${s}: a draft lists every sister as a link (no "not open" line)`);
+      live ? `${name}: the desks not open are named, never linked: ${codes.filter((c) => c.cls === 'off').map((c) => c.label).join(' · ') || 'none since the flip'}` : `${name}: a draft lists every sister as a link (no "not open" line)`);
     const all = codes[codes.length - 1];
-    check((ul.match(/<li class="all">/g) || []).length === 1 && all.cls === 'all' && all.href === '/desks' && all.label === 'Every BOOM desk', `${s}: "ALL · Every BOOM desk" once, last, linking /desks`);
-    if (live) check(!/href="(?:https:\/\/www\.boomrome\.com)?\/(?:berlin|paris)(?=[#"?/])/.test(h), `${s}: a live page links no desk that is not open (Berlin, Paris), anywhere`);
+    check((ul.match(/<li class="all">/g) || []).length === 1 && all.cls === 'all' && all.href === '/desks' && all.label === 'Every BOOM desk', `${name}: "ALL · Every BOOM desk" once, last, linking /desks`);
+    // v1.8 FLIP: this pin named Berlin and Paris; it reads the family now (none on a real page, the draft Paris beside Amsterdam)
+    if (live && offSis.length) check(!new RegExp(`href="(?:https://www\\.boomrome\\.com)?/(?:${offSis.map((x) => x.slug).join('|')})(?=[#"?/])`).test(h), `${name}: a live page links no desk that is not open (${offSis.map((x) => x.city).join(', ')}), anywhere`);
     const netWords = words(visibleText(sliceOf(atLoadParts(h).html, '<section class="sec" id="network"', '</section>')));
-    check(netWords === (live ? 37 : 35) && netWords <= BUDGET.network, `${s}: the Network section is ${netWords} words at load (${live ? 'live 37' : 'draft 35'}, ≤ ${BUDGET.network})`);
+    // v1.8 FLIP: this pin moved from "live 35" (five sisters linked + Berlin and Paris "· not open") to 31 (seven sisters
+    // linked); each desk not open beside a live page adds its "<CODE> <City> · not open" line in place of a link (+2)
+    const wantNet = live ? 31 + 2 * offSis.length : 31;
+    check(netWords === wantNet && netWords <= BUDGET.network, `${name}: the Network section is ${netWords} words at load (${live ? `live ${wantNet}` : 'draft 31'}, ≤ ${BUDGET.network})`);
     const bc = [...h.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => JSON.parse(m[1])).find((b) => b['@type'] === 'BreadcrumbList') || {};
     const items = bc.itemListElement || [];
-    check(items.length === 3 && items.map((i) => i.position).join() === '1,2,3' && items[0].item === `${shared.siteUrl}/` && items[1].name === 'BOOM Desks' && items[1].item === `${shared.siteUrl}/desks` && items[2].name === CITY[s].city && items[2].item === `${shared.siteUrl}/${s}`,
-      `${s}: the breadcrumb runs Home → BOOM Desks (/desks) → ${CITY[s].city}`, JSON.stringify(items.map((i) => i.item)));
+    check(items.length === 3 && items.map((i) => i.position).join() === '1,2,3' && items[0].item === `${shared.siteUrl}/` && items[1].name === 'BOOM Desks' && items[1].item === `${shared.siteUrl}/desks` && items[2].name === CS.city && items[2].item === `${shared.siteUrl}/${s}`,
+      `${name}: the breadcrumb runs Home → BOOM Desks (/desks) → ${CS.city}`, JSON.stringify(items.map((i) => i.item)));
   }
-  // v1.6 review (visual F9): an arc never passes over a desk it does not serve. Read from
-  // what is DRAWN (the path's control point, each dot with the mark it carries: 3px, this
-  // desk's 10px ring), and the same arc on every page (the bows are chosen over every desk)
-  const drawnCtrl = {};
+  // v1.6 review (visual F9), on the Horizon: an arc never passes over a desk it does not serve.
+  // Read from what is DRAWN (the cubic path, each dot with the mark it carries: 3px, this desk's
+  // 10px ring), and the same arc on every page (one lift and lean per desk, chosen over all of them)
+  const drawnD = {};
   for (const s of SLUGS) {
-    const map = sliceOf(PAGE[s], '<svg class="map"', '</svg>');
-    const hub = (map.match(/<circle class="hub" cx="([\d.]+)" cy="([\d.]+)"/) || []).slice(1).map(Number);
-    const at = (x, y) => `${x},${y}`;
-    const dots = [...map.matchAll(/<circle class="(d|d off|d-ring)" cx="([\d.]+)" cy="([\d.]+)" r="([\d.]+)"/g)].map((m) => ({ key: at(m[2], m[3]), xy: [+m[2], +m[3]], r: +m[4] }));
-    const arcs = [...map.matchAll(/<path class="arc(?: me)?"[^>]*d="M[\d.]+ [\d.]+Q([\d.]+) ([\d.]+) ([\d.]+) ([\d.]+)"/g)].map((m) => ({ key: at(m[3], m[4]), c: [+m[1], +m[2]], to: [+m[3], +m[4]] }));
-    for (const a of arcs) (drawnCtrl[a.key] = drawnCtrl[a.key] || new Set()).add(a.c.join());
-    const bad = arcViolations(hub, arcs, dots);
-    check(hub.length === 2 && arcs.length >= 2 && dots.some((d) => d.r === ARC_ME_R) && dots.length === SLUGS.length && bad.length === 0,
+    const map = sliceOf(PAGE[s], '<svg class="hz"', '</svg>');
+    const dots = [...map.matchAll(/<circle class="(d|d off|d-ring)" cx="([\d.]+)" cy="([\d.]+)" r="([\d.]+)"/g)].map((m) => ({ key: `${m[2]},${m[3]}`, xy: [+m[2], +m[3]], r: +m[4] }));
+    const arcs = [...map.matchAll(/<path class="arc(?: me)?" data-k="([a-z]{3})"[^>]*d="([^"]+)"\/>/g)].map((m) => ({ k: m[1].toUpperCase(), d: m[2] }));
+    for (const a of arcs) (drawnD[a.k] = drawnD[a.k] || new Set()).add(a.d);
+    // the dot an arc serves is the one under its end
+    const keyed = arcs.map((a) => { const p = hzPathPts(a.d, 8), e = p[p.length - 1]; return { key: (dots.find((d) => Math.hypot(d.xy[0] - e[0], d.xy[1] - e[1]) < 0.6) || {}).key, d: a.d }; });
+    const bad = hzViolations(keyed, dots);
+    check(arcs.length >= 2 && keyed.every((a) => a.key) && dots.some((d) => d.r === ARC_ME_R) && dots.length === SLUGS.length && bad.length === 0,
       `${s}: every arc drawn from Rome clears every other desk's dot by ≥ ${ARC_CLEAR}px — the hollow dots of the desks not open included (this desk's ${ARC_ME_R}px ring counted)`, bad.join('; '));
   }
-  check(Object.values(drawnCtrl).every((set) => set.size === 1), 'the arc to a desk is the same on every page (one bow per desk, chosen over all of them)',
-    JSON.stringify(Object.entries(drawnCtrl).filter(([, v]) => v.size > 1).map(([k, v]) => [k, [...v]])));
-  // the check bites: v1.5's control point (the chord's midpoint raised by 0.18 × chord) took ROM → LON through Milan's dot
-  const H = mapXY(shared.rome.geo), LON = mapXY(CITY.london.geo), MIL = mapXY(CITY.milan.geo), L = Math.hypot(LON[0] - H[0], LON[1] - H[1]);
-  const old = arcViolations(H, [{ key: 'LON', to: LON, c: [(H[0] + LON[0]) / 2, (H[1] + LON[1]) / 2 - 0.18 * L] }], [{ key: 'MIL', xy: MIL, r: ARC_DOT_R }, { key: 'LON', xy: LON, r: ARC_DOT_R }]);
-  check(old.length === 1 && /^ROM → LON passes -?\d+\.\dpx from MIL$/.test(old[0]), `(arcViolations catches v1.5's arc: "${old[0]}")`);
-  const bows = bowArcs(H, SLUGS.map((x) => [CITY[x].iata, mapXY(CITY[x].geo)]));
-  check(bows.size === SLUGS.length && [...bows.values()].every((f) => Math.abs(f) >= 0.12 && Math.abs(f) <= 0.36) && arcViolations(H, SLUGS.map((x) => ({ key: CITY[x].iata, to: mapXY(CITY[x].geo), c: arcCtrl(H, mapXY(CITY[x].geo), bows.get(CITY[x].iata)) })), SLUGS.map((x) => ({ key: CITY[x].iata, xy: mapXY(CITY[x].geo), r: ARC_ME_R }))).length === 0,
-    'bowArcs bows every desk (|f| 0.12–0.36) so no arc comes near ANY desk\'s ring, whichever page draws it');
+  check(Object.keys(drawnD).length === SLUGS.length && Object.values(drawnD).every((set) => set.size === 1), 'the arc to a desk is the same on every page (one lift and lean per desk, chosen over all of them)',
+    JSON.stringify(Object.entries(drawnD).filter(([, v]) => v.size > 1).map(([k]) => k)));
+  // the check bites: a dot 4px off the middle of the real ROM → LON arc is the violation the build refuses
+  {
+    const lon = HZ.arcs.get('LON'), pts = hzPathPts(lon.d, 40), mid = pts[Math.floor(pts.length / 2)];
+    const bad = hzViolations([{ key: 'LON', d: lon.d }], [{ key: 'X', xy: [mid[0] + 4, mid[1]], r: ARC_DOT_R }, { key: 'LON', xy: lon.to, r: ARC_DOT_R }]);
+    check(bad.length === 1 && /^ROM → LON passes -?\d+\.\dpx from X$/.test(bad[0]) && hzViolations([{ key: 'LON', d: lon.d }], [{ key: 'Y', xy: [mid[0], mid[1] + 40], r: ARC_DOT_R }]).length === 0,
+      `(hzViolations catches an arc within ${ARC_CLEAR}px of a dot it does not serve — "${bad[0]}" — and clears one 40px away)`);
+    const lifts = new Set([...HZ.arcs.values()].map((a) => a.lift));
+    check(HZ.arcs.size === SLUGS.length && lifts.size === 1 && HZ_LIFT.includes([...lifts][0]) && [...HZ.arcs.values()].every((a) => HZ_LEAN.includes(a.lean) && /^M[\d.]+ [\d.]+C/.test(a.d) && hzPathPts(a.d).length > 20),
+      `one lift serves every desk (${[...lifts][0]}: the height stays proportional to the distance), the arcs are cubics from Rome; leans only where needed (${[...HZ.arcs.values()].filter((a) => a.lean).map((a) => `${a.key} ${a.lean}`).join(', ') || 'none'})`);
+    check(HZ_CAM.pad.l === 0.09 && HZ_CAM.pad.r === 0.06 && HZ.view[0] === 0 && HZ.view[2] === 640 && HZ.view[1] > 0 && HZ.view[1] + HZ.view[3] <= 520,
+      `the camera's side paddings are the Stage 2 ones (pins ≥ 44px at 320); the frame is cropped top and bottom only (viewBox ${HZ.view.join(' ')})`);
+  }
 }
-// a desk that no bow can serve is a build error, never an arc through a sister:
-// one set on the hub's doorstep sits under the start of every other arc
-refuses((c) => { c.geo = { lat: 42.15, lon: 12.62 }; check(validGeo(c.geo), '(the doorstep coordinates are a valid geo: only the arcs refuse them)'); },
-  /network map: no bow takes the arc ROM → [A-Z]{3} clear of the other desks|draws an arc over a desk/, 'a desk placed where every arc from Rome would cross its dot is refused by the build (no arc through a sister)');
+// a desk no arc can serve is a build error, never an arc through a sister: one set 6 km from
+// Milan ends every arc (its own, and Milan's) inside the other's ring, whatever lift or lean
+refuses((c) => { c.geo = { lat: CITY.milan.geo.lat + 0.05, lon: CITY.milan.geo.lon + 0.05 }; check(validGeo(c.geo), '(coordinates 6 km from Milan are a valid geo: only the arcs refuse them)'); },
+  /network map: no bow takes the arc ROM → [A-Z]{3} clear of the other desks|draws an arc over a desk/, 'a desk placed where every arc from Rome would cross a sister\'s dot is refused by the build (no arc through a sister)');
 
 // BOOM Desks (03/11/2026): a LIVE page never links a desk that is not open —
 // the build refuses it, from the template and from a city's own data
-tplRefuses('<p class="net-c">Every desk answers from Rome.</p>', '<p class="net-c">Every desk answers from Rome. <a href="/paris">Paris</a></p>', /a live page links a desk that is not open \(href="\/paris/,
-  'MUTATION: a live page linking a desk that is not open (href="/paris", from the template) is refused by the build');
-tplRefuses('<p class="net-c">Every desk answers from Rome.</p>', '<p class="net-c">Every desk answers from Rome. <a href="https://www.boomrome.com/berlin#fares">Berlin</a></p>', /a live page links a desk that is not open/,
-  'a live page linking a desk that is not open by its absolute URL is refused too');
-refuses((c) => { c.bref.rows[0].ddHtml += ' See <a class="lnk" href="/berlin">Berlin</a>.'; }, /a live page links a desk that is not open \(href="\/berlin/, 'a live desk\'s own data linking a desk that is not open is refused', 'london');
-check(throws(() => render(CITY.paris, shared, template.replace('<p class="net-c">Every desk answers from Rome.</p>', '<p class="net-c">Every desk answers from Rome. <a href="/berlin">Berlin</a></p>')), /not open/) === 'did not throw',
-  'a draft may link another draft (the review sees the suite)');
+// v1.8 FLIP: since the eight desks are live these mutations run in a family where Paris and Berlin are the frozen
+// drafts (TWO_DRAFTS): the desks not open are synthetic, the guard is the build's own
+{
+  const tplNet = (to) => template.replace('<p class="net-c">Every desk answers from Rome.</p>', to);
+  check(template.includes('<p class="net-c">Every desk answers from Rome.</p>'), '(the template still carries the network caption the link mutations use)');
+  check(throws(() => renderFam(ams, TWO_DRAFTS, tplNet('<p class="net-c">Every desk answers from Rome. <a href="/paris">Paris</a></p>')), /a live page links a desk that is not open \(href="\/paris/) === true,
+    'MUTATION: a live page linking a desk that is not open (href="/paris", from the template) is refused by the build (Paris a draft in the family)');
+  check(throws(() => renderFam(ams, TWO_DRAFTS, tplNet('<p class="net-c">Every desk answers from Rome. <a href="https://www.boomrome.com/berlin#fares">Berlin</a></p>')), /a live page links a desk that is not open/) === true,
+    'a live page linking a desk that is not open by its absolute URL is refused too');
+  const lon = clone(CITY.london); lon.bref.rows[0].ddHtml += ' See <a href="/berlin">Berlin</a>.';
+  const r = throws(() => renderFam(lon), /a live page links a desk that is not open \(href="\/berlin/);
+  check(r === true, 'a live desk\'s own data linking a desk that is not open is refused', r === true ? '' : r);
+  check(throws(() => renderFam(DRAFT.paris, TWO_DRAFTS, tplNet('<p class="net-c">Every desk answers from Rome. <a href="/berlin">Berlin</a></p>')), /not open/) === 'did not throw',
+    'a draft may link another draft (the review sees the suite)');
+  // and the eight live desks link each other: the same link from a live page to a live sister builds
+  check(throws(() => render(ams, shared, tplNet('<p class="net-c">Every desk answers from Rome. <a href="/paris">Paris</a></p>')), /not open/) === 'did not throw',
+    'since the flip a live page may link Paris and Berlin: they are live desks');
+}
 
 // the company's identity, said once: a REA or a VAT number in a desk's copy
 // is the entity's own (cities/_shared.json) — the build refuses a typed variant
@@ -531,7 +716,7 @@ tplRefuses('<p class="proof">', '<p class="proof">REA RM-9999999 · ', /"REA RM-
   const Q6 = 'Is BOOM Milan a real estate agency?';
   const A6 = 'Yes. BOOM Milan is a desk of Egidi Immobiliare S.r.l., an Italian real estate agency registered with the Rome Chamber of Commerce (REA RM-1710623), under the same Italian law as our agency in Rome. On this desk we work for the tenant only: you hire us and pay us, never the landlord.';
   const HOME = 'Operated by Egidi Immobiliare S.r.l., an Italian real estate agency, under the same Italian law as in Rome';
-  const DEF = 'Operated by Egidi Immobiliare S.r.l., a registered Italian agency';
+  const DEF = 'Operated by Egidi Immobiliare S.r.l., an Italian real estate agency registered in Rome';
   check(M.bref.rows[0].dt === 'Who' && M.bref.rows[0].ddHtml === WHO && mil.includes(`<dt>Who</dt><dd>${WHO}</dd>`), 'milan: the "Who" row says what it is — an Italian real estate agency registered with the Rome Chamber of Commerce (REA RM-1710623), the same Italian law as in Rome');
   check(M.footer.statement === STMT && mil.includes(`<p class="stmt">${esc(STMT)}</p>`), 'milan: the footer statement — a desk of the Italian agency, under the same Italian law as in Rome, acting solely for the tenant');
   const mg = ([...mil.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => JSON.parse(m[1])).find((b) => Array.isArray(b['@graph'])) || {})['@graph'] || [];
@@ -540,7 +725,7 @@ tplRefuses('<p class="proof">', '<p class="proof">REA RM-9999999 · ', /"REA RM-
     && mf.length === 6 && mf[5].name === Q6 && mf[5].acceptedAnswer.text === A6, 'milan: the sixth question "Is BOOM Milan a real estate agency?" — visible and in the FAQPage, word for word');
   check(mil.includes(`<p class="proof">${esc(HOME)} · <a class="lnk" href="${shared.rome.profileUrl}"`), 'milan: the proof line under the pass says the home-country desk (an Italian real estate agency, the same Italian law as in Rome)');
   check(SLUGS.filter((x) => x !== 'milan').every((x) => PAGE[x].includes(`<p class="proof">${esc(DEF)} · <a class="lnk" href="${shared.rome.profileUrl}"`) && !PAGE[x].includes(HOME)),
-    'the six other desks keep the default proof line, byte for byte ("a registered Italian agency")');
+    'the seven other desks keep the default proof line, byte for byte ("an Italian real estate agency registered in Rome": which registry, never a Valencian or Spanish one)');
   const flipped = clone(M); flipped.country = 'XX';
   const fh = render(flipped).html;
   check(fh.includes(`<p class="proof">${esc(DEF)} · `) && !fh.includes(HOME), 'MUTATION: Milan with another country reverts to the default proof line (the home-country desk is derived, never typed)');
@@ -556,10 +741,22 @@ tplRefuses('<p class="proof">', '<p class="proof">REA RM-9999999 · ', /"REA RM-
 
 check(/<details class="sheet">\s*<summary>BOOM Amsterdam — fact sheet<\/summary>\s*<dl class="enbref" id="enbref">/.test(html) && /<section class="sec brief" id="enbref-wrap"[^>]*>\s*<span class="corner" aria-hidden="true">Conditions<\/span>/.test(html),
   'the fact sheet is folded for people and whole in the DOM for machines (GEO), on the back of the ticket (CONDITIONS, decorative)');
-check(html.includes(`<a href="${WITHDRAWAL_PATH}?desk=Amsterdam">Withdrawal form</a>`) && html.includes(`<a href="/terms#city-desks">Terms</a>`) && html.includes('<a href="/privacy">Privacy</a>')
-  && /<nav aria-label="Legal"><h3>Legal<\/h3> <a href="\/terms#city-desks">Terms<\/a> <a href="\/privacy">Privacy<\/a> <a href="\/withdrawal\?desk=Amsterdam">Withdrawal form<\/a><\/nav>/.test(html)
-  && /<nav aria-label="Legal"><h3>Legal<\/h3> <a href="\/terms#city-desks">Terms<\/a> <a href="\/privacy">Privacy<\/a><\/nav>/.test(PAGE.paris),
-  'the footer\'s Legal column links the Terms §12, the privacy notice and — where the desk sells — the withdrawal form with the desk');
+// v1.8 stage W (spec §4.5): the pin moved — the footer link of a selling
+// desk was "Withdrawal form" → /withdrawal?desk=<City>; it is now the online
+// withdrawal function under its statutory label (Dir. 2023/2673, CRD art.
+// 11a), "Withdraw from contract here" → /withdrawal?desk=<City>#online; the
+// model form stays on that page and in the till (+2 words at load)
+// v1.8 FLIP: Paris sells now, so its Legal column carries the online withdrawal link with its desk; the column
+// without it (a desk that does not sell) keeps its pin on the frozen waitlist draft
+check(WITHDRAW_LABEL === 'Withdraw from contract here' && html.includes(`<a href="${WITHDRAWAL_PATH}?desk=Amsterdam#online">Withdraw from contract here</a>`) && html.includes(`<a href="/terms#city-desks">Terms</a>`) && html.includes('<a href="/privacy">Privacy</a>')
+  && /<nav aria-label="Legal"><h3>Legal<\/h3> <a href="\/terms#city-desks">Terms<\/a> <a href="\/privacy">Privacy<\/a> <a href="\/withdrawal\?desk=Amsterdam#online">Withdraw from contract here<\/a><\/nav>/.test(html)
+  && !html.includes('>Withdrawal form</a>')
+  && PAGE.paris.includes('<nav aria-label="Legal"><h3>Legal</h3> <a href="/terms#city-desks">Terms</a> <a href="/privacy">Privacy</a> <a href="/withdrawal?desk=Paris#online">Withdraw from contract here</a></nav>')
+  && /<nav aria-label="Legal"><h3>Legal<\/h3> <a href="\/terms#city-desks">Terms<\/a> <a href="\/privacy">Privacy<\/a><\/nav>/.test(renderDraft(DRAFT.paris).html),
+  'the footer\'s Legal column links the Terms §12, the privacy notice and — where the desk sells (Paris since the flip; not the waitlist draft) — the online withdrawal function with the desk, under its statutory label ("Withdraw from contract here" → #online)');
+// v1.8 FLIP: eight selling desks (the six and the two charged at signing), each with its own desk in the link
+check(SLUGS.filter((s) => CITY[s].checkout === true).length === 8 && SLUGS.filter((s) => CITY[s].checkout === true).every((s) => sliceOf(PAGE[s], '<nav aria-label="Legal">', '</nav>').endsWith(` <a href="${WITHDRAWAL_PATH}?desk=${encodeURIComponent(CITY[s].city)}#online">${WITHDRAW_LABEL}</a>`)),
+  'every selling desk (the eight since the flip) carries the online withdrawal link with its own desk in the footer\'s Legal column');
 check(html.includes(`<p class="stmt">${esc(ams.footer.statement)}</p>`) && html.includes(`P.IVA ${shared.entity.vat}`) && html.includes(`© ${shared.copyrightYear} BOOM`) && html.includes(`<p class="tm">${esc(shared.entity.trademark)}</p>`),
   'the tenant-side statement, the entity with its VAT number, the trademark, the year from data (never the clock)');
 check(/<nav aria-label="This desk"><h3>This desk<\/h3> <a href="mailto:hello@boom-rome\.com">/.test(html) && sliceOf(html, '<nav aria-label="This desk">', '</nav>').includes('<p>Mon–Fri <span class="nw">09:00–19:00</span>, Rome time</p>'),
@@ -601,6 +798,17 @@ const wp = graph.find((n) => n['@type'] === 'WebPage') || {};
 const svc = graph.find((n) => n['@type'] === 'Service') || {};
 const faqLd = graph.find((n) => n['@type'] === 'FAQPage') || {};
 check(ld.length === 2 && ld.some((b) => b['@type'] === 'BreadcrumbList' && b['@id'] === `${shared.siteUrl}/amsterdam#breadcrumb`), 'two JSON-LD blocks: the breadcrumb and the graph');
+// v1.8 (W1–W3): the JSON-LD goes out on ONE line, the compact form of its own parse, so nothing but the whitespace
+// between tokens differs from the pretty form every reader parses alike (the hub's 28 KB page cap rests on it)
+const ldRaw = (h) => [...h.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => m[1].trim());
+const ldCompact = (t) => { try { return t === JSON.stringify(JSON.parse(t)).replace(/</g, '\\u003c') && !t.includes('\n'); } catch { return false; } };
+check(SLUGS.every((s) => { const r = ldRaw(PAGE[s]); return r.length === 2 && r.every(ldCompact); }),
+  `every desk page's two JSON-LD blocks are one line each, the compact form of their own parse (${SLUGS.map((s) => `${s} ${ldRaw(PAGE[s]).map((t) => t.length).join('+')} B`).join(' · ')})`);
+{
+  const evil = clone(ams); evil.city = 'Ams</script>';
+  let r; try { r = ldRaw(render(evil).html); } catch (e) { r = [`the build refused: ${e.message}`]; }
+  check(r.length === 2 && r.every(ldCompact) && r.some((t) => t.includes('Ams\\u003c/script>')) && !r.some((t) => t.includes('</script')), 'the one-line JSON-LD keeps the < escape: a value cannot close its <script> tag');
+}
 check(org['@type'] === 'RealEstateAgent' && org.name === 'BOOM Rome' && org.alternateName === 'BOOM' && org.legalName === shared.entity.legalName && JSON.stringify(org.sameAs) === JSON.stringify([shared.rome.profileUrl]),
   'the #organization node is the one the rest of the site declares (RealEstateAgent "BOOM Rome"), sameAs the public profile behind the rating');
 check(JSON.stringify(org.areaServed) === JSON.stringify(['Rome', ...SLUGS.filter((s) => CITY[s].live).map((s) => CITY[s].city)]), `areaServed is derived: Rome and the live desks only (${org.areaServed})`);
@@ -614,7 +822,10 @@ check(JSON.stringify(wp.speakable.cssSelector) === JSON.stringify(['.pass .lead'
     const m = sm.match(new RegExp(`<loc>https://www\\.boomrome\\.com/${s}</loc>\\s*<lastmod>([^<]+)</lastmod>`));
     check(!!m && m[1] === CITY[s].updated, `the sitemap <lastmod> of /${s} is the page's "updated" (${CITY[s].updated})`);
   }
-  check(!/boomrome\.com\/(paris|berlin)</.test(sm), 'the drafts are not in the sitemap');
+  // v1.8 FLIP: this pin named Paris and Berlin ("the drafts are not in the sitemap"); they are live now and listed
+  // (above). It reads the data: a desk that is not live is never in the sitemap — today there is none
+  const drafts0 = SLUGS.filter((x) => CITY[x].live !== true);
+  check(!drafts0.length || !new RegExp(`boomrome\\.com/(?:${drafts0.join('|')})<`).test(sm), `a draft is never in the sitemap (${drafts0.join(', ') || 'no draft since the flip'})`);
 }
 check(Array.isArray(svc.offers) && svc.offers.length === 3 && svc.offers.every((o, i) => {
   const p = ams.pricing.plans[i];
@@ -659,8 +870,9 @@ check(eur(1500) === '€1,500' && eur(199) === '€199' && eur(12500) === '€12
   fs.copyFileSync(path.join(R, 'sitemap.xml'), path.join(noOg, 'sitemap.xml'));
   check(throws(() => render(ams, shared, template, noOg), /og-amsterdam\.png is missing/) === true, 'live:true without its social card on disk is refused');
   check(throws(() => render(ams, shared, template, noOg), /withdrawal\.html is missing/) === true, 'live:true on a selling desk without the model withdrawal form on disk is refused (the till links it)');
-  const draft = clone(CITY.paris);
-  check(render(draft, shared, template, noOg).placeholders.includes('og-paris.png is missing (python3 design/pages-deco/genera-og-cities.py)'), 'a draft without the card builds, and lists the card as the thing to make');
+  // v1.8: no desk of cities/ is a draft since the flip — the frozen waitlist Paris (fixtures/draft-paris.json) is
+  const draft = clone(DRAFT.paris);
+  check(renderDraft(draft, shared, template, noOg).placeholders.includes('og-paris.png is missing (python3 design/pages-deco/genera-og-cities.py)'), 'a draft without the card builds, and lists the card as the thing to make');
   fs.rmSync(noOg, { recursive: true, force: true });
   const badUrl = clone(shared); badUrl.rome.profileUrl = 'http://maps.google.com/?cid=1';
   check(throws(() => render(ams, badUrl), /rome\.profileUrl must be https/) === true, 'a profile link that is not https is refused');
@@ -698,7 +910,7 @@ refuses((c) => { c.checkoutCopy.offer = 'x'; }, /checkoutCopy\.offer is a leftov
 refuses((c) => { c.hero.leadStrong = 'We work for you.'; }, /Amsterdam's must-state is verbatim|leadStrong is its must-state/, 'Amsterdam without "We work exclusively for you; never paid by landlords." is refused');
 refuses((c) => { c.hero.leadStrong = 'Paid by you; never paid by landlords.'; }, /Amsterdam's must-state is verbatim/, 'Amsterdam\'s must-state is verbatim, not a paraphrase that keeps the words "never paid by landlords"');
 refuses((c) => { c.hero.leadStrong = 'We act for you; we do not act for the landlord'; }, /on a Spanish desk the must-state is verbatim/, 'Madrid without "You hire us; we do not act for the landlord." is refused', 'madrid');
-refuses((c) => { c.hero.lead = 'We search for you.'; }, /lead opens with "Opening with"/, 'a waitlist lead that does not open "Opening with" is refused', 'paris');
+refuses((c) => { c.hero.lead = 'We search for you.'; }, /lead opens with "Opening with"/, 'a waitlist lead that does not open "Opening with" is refused', 'draft-paris');
 refuses((c) => { c.hero.lead = 'We search, apply, attend the viewings, negotiate the rent, check the lease, confirm the registration and stay with you from the first message to the keys.'; }, /words, over 30/, 'a lead over its 30 words is refused');
 // Spain: LAU art. 20 on the first screen and in the till
 refuses((c) => { c.hero.faresHead.b = 'Flat fees'; }, /hero\.faresHead\.b is "Optional, chosen in writing"/, 'a Spanish selling desk whose fares do not open "Optional, chosen in writing" is refused', 'madrid');
@@ -707,9 +919,9 @@ refuses((c) => { c.checks.items = c.checks.items.filter((k) => k.id !== 'fees');
 refuses((c) => { c.faq.items = c.faq.items.filter((f) => !/landlord who pays/i.test(f.q)); }, /landlord-pays question/, 'a Spanish desk without the landlord-pays FAQ is refused', 'madrid');
 refuses((c) => { c.pricing.sub = 'Optional, chosen in writing.'; }, /pricing\.sub is the Spanish till line/, 'pricing.sub on a non-Spanish desk is refused');
 // waitlists: list prices say when they are charged
-refuses((c) => { c.hero.faresHead.span = 'Flat fees, no percentage'; }, /says when \(or that nothing is\) charged/, 'a waitlist faresHead that does not say when it is charged is refused', 'paris');
-refuses((c) => { c.pricing.plans[1].condition = 'flat · incl. VAT'; }, /a waitlist plan says when it is charged/, 'a waitlist plan without "at opening" is refused', 'paris');
-refuses((c) => { c.pricing.plans[0].condition = 'at opening · incl. VAT'; c.pricing.plans[0].conditionLong = 'Charged when the desk opens, VAT included.'; }, /Full Search is due only once a lease is signed/, 'Berlin\'s Full Search without "sign" (WoVermRG §2–§3) is refused', 'berlin');
+refuses((c) => { c.hero.faresHead.span = 'Flat fees, no percentage'; }, /says when \(or that nothing is\) charged/, 'a waitlist faresHead that does not say when it is charged is refused', 'draft-paris');
+refuses((c) => { c.pricing.plans[1].condition = 'flat · incl. VAT'; }, /a waitlist plan says when it is charged/, 'a waitlist plan without "at opening" is refused', 'draft-paris');
+refuses((c) => { c.pricing.plans[0].condition = 'at opening · incl. VAT'; c.pricing.plans[0].conditionLong = 'Charged when the desk opens, VAT included.'; }, /Full Search is due only once a lease is signed/, 'Berlin\'s Full Search without "sign" (WoVermRG §2–§3) is refused', 'draft-berlin');
 refuses((c) => { c.pricing.plans[0].condition = 'at opening · incl. VAT'; }, /never "at opening"/, 'a selling desk\'s plan "at opening" is refused');
 // the plans
 refuses((c) => { c.pricing.plans.reverse(); }, /in that order/, 'the plans out of the server\'s order are refused (CITY_PLANS sells by these ids)');
@@ -724,15 +936,15 @@ refuses((c) => { c.hero2 = { lead: 'x' }; }, /hero2 is a key the page does not r
 refuses((c) => { c.checkoutCopy.paid.recourse = 'Nothing by then?'; }, /checkoutCopy\.paid\.recourse is a key the page does not read/, 'a dead PAID line is refused');
 // the door, the clock, the call
 refuses((c) => { c.door.label = 'Open my file'; }, /door\.label is "Start with a free call"/, 'a selling desk\'s door must read "Start with a free call"');
-refuses((c) => { c.door.label = 'Start with a free call'; }, /door\.label is "Open my file"/, 'a waitlist door must read "Open my file" (it takes no call)', 'paris');
+refuses((c) => { c.door.label = 'Start with a free call'; }, /door\.label is "Open my file"/, 'a waitlist door must read "Open my file" (it takes no call)', 'draft-paris');
 for (const [what, mut] of [['24 hours', (c) => { c.pricing.plans[1].offerDescription = 'Your dossier within 24 hours.'; }],
   ['24h', (c) => { c.how.steps[1].h = 'Dutch-format, in 24h'; }], ['24-hour', (c) => { c.meta.description = 'A 24-hour Dutch-format dossier for expats in Amsterdam, tenant side only, viewings attended and contract checked before you sign.'; }],
   ['within an hour', (c) => { c.pricing.plans[0].includes[1] = 'Applications within an hour of a listing'; }], ['<1h', (c) => { c.how.steps[2].p = 'Applications sent <1h after a listing appears.'; }]]) {
   refuses(mut, /no clock promise in the copy/, `a clock promise ("${what}") is refused on any desk: the desk is Mon–Fri 09–19`);
 }
-refuses((c) => { c.stub.notSure = 'Not sure? Book a call with us.'; }, /promises no call/, 'a waitlist "not sure" line that promises a call is refused', 'berlin');
-refuses((c) => { c.faq.items[0].a += " We'll phone you to talk it through."; }, /promises no call/, 'a waitlist promising to phone you, in other words, is refused', 'paris');
-refuses((c) => { c.stub.notSure = 'Until it opens nothing is charged. Ask for a callback.'; }, /promises no call/, 'a waitlist offering a callback is refused', 'paris');
+refuses((c) => { c.stub.notSure = 'Not sure? Book a call with us.'; }, /promises no call/, 'a waitlist "not sure" line that promises a call is refused', 'draft-berlin');
+refuses((c) => { c.faq.items[0].a += " We'll phone you to talk it through."; }, /promises no call/, 'a waitlist promising to phone you, in other words, is refused', 'draft-paris');
+refuses((c) => { c.stub.notSure = 'Until it opens nothing is charged. Ask for a callback.'; }, /promises no call/, 'a waitlist offering a callback is refused', 'draft-paris');
 refuses((c) => { c.desk.hours = { from: '19:00', to: '09:00' }; }, /from before to/, 'desk hours backwards are refused');
 refuses((c) => { c.desk.timeZone = 'Europe/Atlantis'; }, /not a time zone Intl accepts/, 'a desk time zone Intl does not know is refused');
 refuses((c) => { c.desk.person = '[NAME]'; }, /desk\.person is the named person/, 'the desk person must be a named person');
@@ -747,12 +959,17 @@ refuses((c) => { c.checkoutCopy.btnSubNow = 'Starts today'; }, /never promises "
 refuses((c) => { c.checkoutCopy.fine = 'Secure card payment by Stripe.'; }, /must state the refund policy/, 'the fine print must state the refund policy');
 refuses((c) => { c.checkoutCopy.startNow = 'Start now.'; }, /payer's own request to start/, 'the start-now line must be the payer\'s request, with the right that ends once fully performed');
 refuses((c) => { c.checkoutCopy.withdrawal = 'You can withdraw within 14 days.'; }, /14-day withdrawal right/, 'the withdrawal line must name the email and link the model form');
+// v1.8 stage W: from now every selling desk links the online withdrawal function (the six as Paris and Berlin)
+for (const s of ['amsterdam', 'london']) {
+  refuses((c) => { c.checkoutCopy.withdrawal = c.checkoutCopy.withdrawal.replace(' — {online},', ','); check(!c.checkoutCopy.withdrawal.includes('{online}'), `(the mutation drops {online} from ${s})`); },
+    /links the online function \(\{online\}\) on every selling desk/, `${s}: a selling desk whose withdrawal line does not link the online function ({online}) is refused (stage W)`, s);
+}
 refuses((c) => { c.checkoutCopy.paid.startsWait = 'When your 14 days end'; }, /paid\.startsWait carries \{date\}/, 'the PAID start date for a payer who waits is the server\'s date ({date})');
 refuses((c) => { c.checkoutCopy.paid.startsWait = '{date}, when your 14 days end'; }, /never calls \{date\} the day the 14 days end/, 'the PAID card never calls the work\'s first day the end of the 14 days (the webhook\'s date is the first working day AFTER them: the right to withdraw would read days longer than it is)');
 refuses((c) => { c.checkoutCopy.paid.nextWait[0][1] = 'the desk writes the same working day'; }, /nextWait never "same working day"/, 'the steps of a payer who waits never promise the same working day');
 refuses((c) => { c.checkoutCopy.altLink = 'Open a file instead'; }, /must start with door\.label/, 'the way out of the till is the page\'s one door');
-refuses((c) => { c.checkout = true; c.till = clone(ams.till); c.checkoutCopy = clone(ams.checkoutCopy); }, /a waitlist city cannot open a checkout/, 'a waitlist city with checkout:true is refused: shown is not charged', 'paris');
-refuses((c) => { c.till = clone(ams.till); }, /till and checkoutCopy belong only to a desk with the checkout open/, 'a till on a desk without the checkout is refused', 'paris');
+refuses((c) => { c.checkout = true; c.till = clone(ams.till); c.checkoutCopy = clone(ams.checkoutCopy); }, /a waitlist city cannot open a checkout/, 'a waitlist city with checkout:true is refused: shown is not charged', 'draft-paris');
+refuses((c) => { c.till = clone(ams.till); }, /till and checkoutCopy belong only to a desk with the checkout open/, 'a till on a desk without the checkout is refused', 'draft-paris');
 // the below
 refuses((c) => { c.papers.items = c.papers.items.slice(0, 7); }, /the eight papers/, 'the papers list is the eight papers');
 refuses((c) => { c.faq.items = c.faq.items.slice(0, 2); }, /three to six questions/, 'fewer than three questions is refused');
@@ -761,7 +978,7 @@ refuses((c) => { c.bref.rows = c.bref.rows.filter((r) => r.dt !== "What we don't
 refuses((c) => { c.word = 'AMSTERDAMNORTHHOLLAND'; }, /2–12 letters/, 'a board word over 12 letters is refused (the drum has no room)');
 refuses((c) => { c.iata = 'Ams'; }, /"iata" \(three upper-case letters\)/, 'the stub destination is three upper-case letters');
 // the word budgets bite on the OUTPUT (not only the data)
-refuses((c) => { c.pricing.plans[0].includes[0] += ', and a very long extra clause about everything else we do for you on the Full Search, from the brief to the keys, the registration and the first week'; }, /ticket is \d+ words, over 60/, 'a ticket over its 60 words is refused');
+refuses((c) => { c.pricing.plans[0].includes[0] += ', and a very long extra clause about everything else we do for you on the Full Search, from the brief to the keys, the paperwork and the first week'; }, /ticket is \d+ words, over 60/, 'a ticket over its 60 words is refused');
 refuses((c) => { for (const k of c.how.steps) k.p += ' ' + 'Every word here is read at load, so the page cannot quietly grow back past the budget the founder set for it.'.repeat(5); }, /visible words at load, over the 640 budget/, 'the page over its 640 words at load is refused: it cannot grow back');
 // v1.6: the prose has its own cap under the total (the richness comes from
 // instruments, not paragraphs), and no text node runs past 24 words
@@ -787,8 +1004,8 @@ refuses((c) => { c.how.steps[2].status = 'ONLY 2 LEFT'; }, /is a flight remark/,
 refuses((c) => { c.how.steps[1].status = 'ONE WORK DAYS'; }, /2–12 characters \(a 12-cell board\)/, 'a 13-character status is refused (the board has 12 cells)');
 refuses((c) => { c.how.steps[0].status = 'free'; }, /upper-case letters, digits and spaces/, 'a lower-case status is refused');
 refuses((c) => { c.how.steps[1].status = '24H'; }, /no clock promise in the copy/, 'a status "24H" is refused (a clock promise the desk cannot keep)');
-refuses((c) => { c.how.steps[1].status = 'CALL'; }, /promises no call/, 'a status "CALL" on a desk still opening is refused (it takes no call)', 'paris');
-refuses((c) => { c.how.steps[1].status = 'FILE CHECK'; }, /FREE on step 1 and the partner or the opening/, 'a desk still opening says the partner or the opening on steps 2 and 3, never a service it does not run yet', 'berlin');
+refuses((c) => { c.how.steps[1].status = 'CALL'; }, /promises no call/, 'a status "CALL" on a desk still opening is refused (it takes no call)', 'draft-paris');
+refuses((c) => { c.how.steps[1].status = 'FILE CHECK'; }, /FREE on step 1 and the partner or the opening/, 'a desk still opening says the partner or the opening on steps 2 and 3, never a service it does not run yet', 'draft-berlin');
 refuses((c) => { c.how.steps[0].k = '2 · Brief'; }, /must read "1 · <step name>"/, 'a step whose number is not its row is refused (the board prints N° from k)');
 refuses((c) => { delete c.how.steps[2].status; }, /how\.steps\[2\]\.status/, 'a step without its status is refused');
 // the item allow-lists: a key nobody prints is refused — the rejected proposals' keys first
@@ -803,14 +1020,15 @@ refuses((c) => { c.geo = { lat: '52.37', lon: 4.9 }; }, /"geo" \{lat, lon\} is r
 {
   const sh = clone(shared); delete sh.rome.geo;
   check(throws(() => render(ams, sh), /rome\.geo \{lat, lon\} is required/) === true, '_shared.json without rome.geo is refused (the hub of the map)');
-  const XY = SLUGS.map((s) => [s, ...mapXY(CITY[s].geo)]);
-  check(XY.every(([, x, y]) => x >= 20 && x <= 580 && y >= 20 && y <= 400) && validGeo(shared.rome.geo) && !validGeo({ lat: 52, lon: 40 }) && !validGeo({ lat: 64, lon: -21 }),
-    `every desk projects inside the 600×420 map (${XY.map(([s, x, y]) => `${s} ${Math.round(x)},${Math.round(y)}`).join(' · ')}); Moscow and Reykjavik would not`);
+  const XY = SLUGS.map((s) => [s, ...HZ.cam.xy(CITY[s].geo)]);
+  const [, vy, , vh] = HZ.view;
+  check(XY.every(([, x, y]) => x >= 20 && x <= 620 && y >= vy + 10 && y <= vy + vh - 10) && validGeo(shared.rome.geo) && !validGeo({ lat: 52, lon: 40 }) && !validGeo({ lat: 64, lon: -21 }) && !validGeo({ lat: '52', lon: 5 }),
+    `every desk projects inside the Horizon's cropped frame (${XY.map(([s, x, y]) => `${s} ${Math.round(x)},${Math.round(y)}`).join(' · ')}); Moscow and Reykjavik would not`);
 }
 // the Baggage heading, the seal
 refuses((c) => { c.papers.summary = 'Documents'; }, /papers\.summary must read "The papers a\/an … asks for"/, 'papers.summary "Documents" is refused (the Baggage heading is split from it)');
-refuses((c) => { c.hero.lead = 'Opening with a call from a licensed partner. Until it opens we file your request.'; }, /promises no call/, 'a waitlist seal that would read "call" is refused (the seal derives from the lead; a desk still opening promises no call)', 'paris');
-check(/CALL/.test(sealText({ ...clone(CITY.paris), hero: { ...CITY.paris.hero, lead: 'Opening with a call. Later.' } })), '(the seal derives the waitlist phrase from the lead\'s first sentence: a "call" there would reach the ring)');
+refuses((c) => { c.hero.lead = 'Opening with a call from a licensed partner. Until it opens we file your request.'; }, /promises no call/, 'a waitlist seal that would read "call" is refused (the seal derives from the lead; a desk still opening promises no call)', 'draft-paris');
+check(/CALL/.test(drafted(() => sealText({ ...clone(DRAFT.paris), hero: { ...DRAFT.paris.hero, lead: 'Opening with a call. Later.' } }))), '(the seal derives the waitlist phrase from the lead\'s first sentence: a "call" there would reach the ring — the frozen draft Paris)');
 refuses((c) => { c.hero.leadStrong = 'We work for you, only.'; }, /leadStrong is its must-state|issuer seal cannot derive its phrase/, 'a selling desk whose leadStrong carries no must-state has no seal to print: refused', 'london');
 // Spain: the LAU art. 20 lane is the first one
 refuses((c) => { c.checks.items.push(c.checks.items.shift()); }, /as the first lane/, 'a Spanish desk whose "Who pays the agent · LAU art. 20" is not the first Pre-flight lane is refused', 'madrid');
@@ -830,7 +1048,7 @@ tplRefuses('<p class="proof">', '<p class="proof">Your file BM 7K2QX · ', /no f
 // the price, refund and call scans read SVG <text> too (visibleText takes it)
 tplRefuses('<p class="proof">', '<p class="proof"><svg aria-hidden="true"><text x="0" y="9">Full Search from €129</text></svg>', /a price the plans do not charge is stated on the page: €129/, 'a price written in SVG <text> no plan charges is refused (decorative is not invisible)');
 tplRefuses('<p class="proof">', '<p class="proof"><svg aria-hidden="true"><text x="0" y="9">Full Search €500</text></svg>', /stands without the refund rule/, 'a €500 in SVG <text> without the refund rule is refused');
-tplRefuses('<p class="proof">', '<p class="proof"><svg aria-hidden="true"><text x="0" y="9">We call you back</text></svg>', /promises no call anywhere/, 'a call promised in SVG <text> on a desk still opening is refused', 'paris');
+tplRefuses('<p class="proof">', '<p class="proof"><svg aria-hidden="true"><text x="0" y="9">We call you back</text></svg>', /promises no call anywhere/, 'a call promised in SVG <text> on a desk still opening is refused', 'draft-paris');
 
 // ── 7 · the output refusals (each proven by mutating the template) ────────
 tplRefuses('<!-- FARES -->\n{{{faresHtml}}}', '<!-- FARES -->\n<p>Full Search €500</p>\n{{{faresHtml}}}', /stands without the refund rule/, 'a €500 printed outside the fares, the till and the fees row without the refund rule is refused');
@@ -853,9 +1071,9 @@ tplRefuses('<p class="proof">', '<p class="proof">Trusted by 500+ expats · ', /
 tplRefuses('<a class="pill" id="topWa" href="{{contact.waHref}}"', '<a class="pill" id="topWa" href="https://wa.me/393313251961"', /desk marker/, 'a WhatsApp link without the desk marker is refused');
 tplRefuses('<button class="st-go" id="stripGo" type="button">{{door.label}}</button>', '<button class="st-go" id="stripGo" type="button">Book a viewing</button>', /the door and the strip read door\.label/, 'a second label on the strip is refused');
 tplRefuses('<p class="st-t">{{city}}', '<p class="st-t">{{city}} · from €149', /the strip carries no price/, 'a price on the strip is refused');
-tplRefuses('<a class="skip" href="#main">Skip to content</a>', '<a class="skip" href="#main">Skip to content</a><a href="https://buy.stripe.com/x">Pay</a>', /no Stripe reference/, 'a Stripe link on a waitlist page is refused', 'paris');
-tplRefuses('<p class="proof">', '<p class="proof" title="We call you back within a day">', /promises no call anywhere/, 'a waitlist page that promises a call even in an attribute is refused', 'paris');
-tplRefuses('<p class="proof">', '<p class="proof">Pay by bank transfer · ', /no bank transfer/, 'a bank transfer on a waitlist page is refused', 'berlin');
+tplRefuses('<a class="skip" href="#main">Skip to content</a>', '<a class="skip" href="#main">Skip to content</a><a href="https://buy.stripe.com/x">Pay</a>', /no Stripe reference/, 'a Stripe link on a waitlist page is refused', 'draft-paris');
+tplRefuses('<p class="proof">', '<p class="proof" title="We call you back within a day">', /promises no call anywhere/, 'a waitlist page that promises a call even in an attribute is refused', 'draft-paris');
+tplRefuses('<p class="proof">', '<p class="proof">Pay by bank transfer · ', /no bank transfer/, 'a bank transfer on a waitlist page is refused', 'draft-berlin');
 {
   // the till, mutated in the renderer's output order: pre-ticked, reordered
   const c = clone(ams);
@@ -868,6 +1086,34 @@ tplRefuses('<p class="proof">', '<p class="proof">Pay by bank transfer · ', /no
     'the till, in the order the law asks: the plan and its price, the start-now request, the withdrawal line, the pay button, the fine print, the way back to the free door');
   check(/<input type="checkbox" id="tStart">/.test(till) && !/id="tStart"[^>]*checked/.test(till), 'the start-now box is never pre-ticked');
   check(till.includes(`href="${WITHDRAWAL_PATH}?desk=Amsterdam" target="_blank" rel="noopener">model withdrawal form</a>`) && till.includes(`href="${TERMS_PATH}"`), 'the withdrawal line links the model form with the desk; the fine print links the Terms §12');
+  // v1.8 stage W: the online withdrawal function, first in the line, on the six as on Paris and Berlin
+  {
+    const wdLine = sliceOf(till, '<p class="wd">', '</p>');
+    check(wdLine.startsWith('<p class="wd">Withdrawal: 14 days from payment — <a class="lnk" href="/withdrawal?desk=Amsterdam#online" target="_blank" rel="noopener">online</a>, by email to <a class="lnk" href="mailto:')
+      && wdLine.indexOf('#online"') < wdLine.indexOf('model withdrawal form</a>') && !/\{(?:online|email|form)\}/.test(till),
+      'the six\'s withdrawal line links the online withdrawal function with the desk (/withdrawal?desk=Amsterdam#online), then the email, then the model form; no token left');
+    // v1.8 FLIP: the pin moved — "checkout === true" was the six until the flip; Paris and Berlin sell now and charge at
+    // signing, so "the six" are the desks without chargeAt, and the two signing desks get their own pin: their line
+    // says "14 days from your order" and "costs nothing" (spec §3.2), with the same {online} link to their own desk
+    const linksOnline = (s) => sliceOf(sliceOf(PAGE[s], '<dialog class="till"', '</dialog>'), '<p class="wd">', '</p>').includes(`href="${WITHDRAWAL_PATH}?desk=${encodeURIComponent(CITY[s].city)}#online" target="_blank" rel="noopener">online</a>`);
+    const sixSell = SLUGS.filter((s) => CITY[s].checkout === true && CITY[s].chargeAt !== 'signing');
+    const twoSign = SLUGS.filter((s) => CITY[s].checkout === true && CITY[s].chargeAt === 'signing');
+    check(sixSell.length === 6 && sixSell.every((s) => /^Withdrawal: 14 days from payment — \{online\}, by email to \{email\} or with the \{form\}\. /.test(CITY[s].checkoutCopy.withdrawal) && linksOnline(s)),
+      'every one of the six carries {online} after "14 days from payment" (spec §4.5) and its till links the online function with its own desk');
+    check(twoSign.join() === 'berlin,paris' && twoSign.every((s) => /^Withdrawal: 14 days from your order — \{online\}, by email to \{email\} or with the \{form\}\. /.test(CITY[s].checkoutCopy.withdrawal)
+      && /costs nothing/.test(CITY[s].checkoutCopy.withdrawal) && linksOnline(s)),
+      'Paris and Berlin carry {online} after "14 days from your order" and say withdrawing costs nothing (spec §3.2); their till links the online function with their own desk');
+    // the two output guards, each proven by putting the pre-W markup back
+    // through the template (a function replacement: the markup holds no $-patterns to expand)
+    const tplTill = template.includes('{{{tillHtml}}}'), tplFoot = template.includes('{{{footHtml}}}');
+    const oldTill = till.replace(' — <a class="lnk" href="/withdrawal?desk=Amsterdam#online" target="_blank" rel="noopener">online</a>,', ',');
+    const r1 = throws(() => render(CITY.amsterdam, shared, template.replace('{{{tillHtml}}}', () => oldTill + '</dialog>')), /the withdrawal line links the online withdrawal function with the desk \(\{online\}\), before the pay or order button/);
+    check(tplTill && oldTill !== till && r1 === true, 'a till whose withdrawal line does not link the online function is refused (stage W)', r1 === true ? '' : r1);
+    const foot = sliceOf(out, '    <footer class="foot">', '</footer>');
+    const oldFoot = foot.replace('<a href="/withdrawal?desk=Amsterdam#online">Withdraw from contract here</a>', '<a href="/withdrawal?desk=Amsterdam">Withdrawal form</a>');
+    const r2 = throws(() => render(CITY.amsterdam, shared, template.replace('{{{footHtml}}}', () => oldFoot + '</footer>')), /the footer of a selling desk links the online withdrawal function under its statutory label: "Withdraw from contract here"/);
+    check(tplFoot && oldFoot !== foot && r2 === true, 'a selling desk\'s footer with the old "Withdrawal form" link (no #online, no statutory label) is refused (stage W, §4.5)', r2 === true ? '' : r2);
+  }
   check(till.includes('<b id="tGoL">Pay and book</b><small id="tGoS">Starts when your 14 days end · Stripe</small>') && till.includes('data-label-now="Pay and start"'), 'the pay button reads "Pay and book" until the box is ticked');
   check(till.includes(`<p class="refund" id="tRule" hidden>${esc(shared.refund.rule)}</p>`), 'the till carries the refund rule (shown on Full Search)');
   const madTill = sliceOf(PAGE.madrid, '<dialog class="till"', '</dialog>');
@@ -879,8 +1125,12 @@ tplRefuses('<p class="proof">', '<p class="proof">Pay by bank transfer · ', /no
   const fsRow = sliceOf(html, '<details class="fare" name="fare" id="fare-full-search"', '<!-- /FARES -->');
   check(fsRow.includes(`<p class="refund">${esc(shared.refund.rule)}</p>`) && fsRow.includes(`<p class="refund fs">${esc(shared.refund.rule)}</p>`), 'the refund rule sits inside the Full Search ticket and under its closed row');
   check(sliceOf(html, '<dt>Fees</dt>', '</dd>').includes(shared.refund.rule), 'and on the fees row of the fact sheet');
-  check(feesRowOf(ams, shared).startsWith('<b>Full Search €500</b> · <b>Application Pack €199</b> · <b>Attended Viewing €149</b> per viewing.') && feesRowOf(CITY.berlin, shared).includes('<b>Full Search €500</b> (List price. Due only once you sign a lease; nothing before.)'),
-    'the fees row is DERIVED from the plans: one condition when they agree, each plan\'s own when they differ (Berlin)');
+  // v1.8 FLIP: Berlin's three plans agree since the flip (one conditionLong, the signing rule after it); "each plan's
+  // own when they differ" keeps its pin on the frozen draft Berlin (List price / Due only once you sign)
+  check(feesRowOf(ams, shared).startsWith('<b>Full Search €500</b> · <b>Application Pack €199</b> · <b>Attended Viewing €149</b> per viewing.')
+    && feesRowOf(CITY.berlin, shared) === '<b>Full Search €500</b> · <b>Application Pack €199</b> · <b>Attended Viewing €149</b> per viewing. VAT included, charged when you sign a lease. Invoice from Egidi Immobiliare S.r.l. ' + shared.signing.rule
+    && drafted(() => feesRowOf(DRAFT.berlin, shared)).includes('<b>Full Search €500</b> (List price. Due only once you sign a lease; nothing before.)'),
+    'the fees row is DERIVED from the plans: one condition when they agree (Berlin since the flip, with the signing rule), each plan\'s own when they differ (the draft Berlin)');
 }
 
 // ── 8 · the five desks, each its own truth ────────────────────────────────
@@ -892,45 +1142,972 @@ tplRefuses('<p class="proof">', '<p class="proof">Pay by bank transfer · ', /no
     check(c.pricing.plans.every((p) => CITY_PLANS[p.id] && CITY_PLANS[p.id].eur === Number(p.price) && CITY_PLANS[p.id].label === p.label),
       `${s}: the prices on the page are the prices the server charges (CITY_PLANS: ${c.pricing.plans.map((p) => p.label + ' ' + eur(p.price)).join(', ')})`);
     // a desk that sells counts the withdrawal on its own calendar: the page's
-    // window must read THAT one; a desk still opening (fr, de: no calendar
-    // yet) reads Italy's, where its desk sits — said, never guessed
+    // window must read THAT one; a desk still opening reads the same key the
+    // server would (its own calendar when one exists, fr since v1.8), always
+    // united with Italy's, where its desk sits — said, never guessed
     if (c.checkout === true) check(holidayKeyOf(s) === (m.holidays || m.country) && CAL.HOLIDAY_KEYS.includes(holidayKeyOf(s)), `${s}: the page's desk window reads the webhook's calendar (${holidayKeyOf(s)}), a calendar that exists`);
-    else check(holidayKeyOf(s) === m.country && !CAL.HOLIDAY_KEYS.includes(m.country) && CAL.isHoliday(2026, 8, 15, m.country) && CAL.isHoliday(2026, 12, 25, m.country), `${s}: a desk still opening reads the Italian calendar of the desk (key ${m.country} has no calendar of its own yet)`);
+    else check(holidayKeyOf(s) === (m.holidays || m.country) && CAL.isHoliday(2026, 8, 15, holidayKeyOf(s)) && CAL.isHoliday(2026, 12, 25, holidayKeyOf(s)), `${s}: a desk still opening reads the server's key (${holidayKeyOf(s)}${CAL.HOLIDAY_KEYS.includes(holidayKeyOf(s)) ? '' : ': no calendar of its own yet'}) united with Italy's`);
     check(c.pricing.plans.every((p) => h.includes(`data-plan-price="${p.id}">${money(p.price, currencyOf(s))}</span>`)), `${s}: every desk shows its list prices, in its own currency`);
     check(!/two months at most|extra guarantees two months/i.test(JSON.stringify(c)), `${s}: no "extra guarantees two months at most" (it waits for counsel after the 12/11 vote on RDL 29/2026)`);
   }
+  // v1.8 FLIP: this block moved. Paris and Berlin were waitlists (no till, "Open my file", no call, PreOrder Offers);
+  // they sell now, charged at signing: a till that takes the ORDER (no Stripe word, no PAID card, the BOOKED one),
+  // the free call at the door, InStock Offers that say the signing rule. The waitlist pins keep their test on the
+  // frozen drafts below, rendered as waitlists (registry patched in try/finally).
+  const ldOf2 = (h) => [...h.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => JSON.parse(m[1]));
   for (const s of ['paris', 'berlin']) {
     const h = PAGE[s];
-    check(!/id="till"|data-pay=|id="cPaid"|id="cConfirm"/.test(h) && !/stripe/i.test(h) && h.includes('"CHECKOUT": false'), `${s}: no till, no pay button, no paid card, no Stripe word`);
-    check(!/refunded in full|bank transfer/i.test(h), `${s}: no refund rule and no bank transfer: no money is taken there`);
-    const said = (visibleText(h) + ' ' + [...h.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => m[1]).join(' '));
-    check(!/\bcall(s|ed|ing)?\b/i.test(said), `${s}: no call promised anywhere (text and JSON-LD)`);
-    check(h.includes('<b id="doorL">Open my file</b>') && h.includes('<small data-window="free · {w}">free · '), `${s}: the door reads "Open my file", free`);
-    const svcLd = [...h.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => JSON.parse(m[1])).find((b) => b['@graph'])['@graph'].find((n) => n['@type'] === 'Service');
-    check(svcLd.offers.every((o) => o.availability === 'https://schema.org/PreOrder' && /opens|sign/i.test(o.description) && !/refunded/.test(o.description)), `${s}: its Offers are PreOrder and say when they are charged`);
+    check(/id="till"/.test(h) && (h.match(/data-pay="/g) || []).length === 3 && /id="cBooked"/.test(h) && !/id="cPaid"/.test(h) && !/stripe/i.test(h) && h.includes('"CHECKOUT": true') && h.includes('"CHARGE_AT": "signing"'),
+      `${s}: a till that takes the order (three order buttons, the BOOKED card, never the PAID card), no Stripe word`);
+    check(!/refunded in full|bank transfer|work already done|minus the work/i.test(h), `${s}: no refund rule, no bank transfer, no "work already done": nothing is taken before the lease`);
+    check(h.includes(`<b id="doorL">Start with a free call</b><small data-window="no card · {w}">no card · ${deskHoursText(CITY[s].desk)}</small>`), `${s}: the door reads "Start with a free call", no card (as the six)`);
+    const svcLd = ldOf2(h).find((b) => b['@graph'])['@graph'].find((n) => n['@type'] === 'Service');
+    check(svcLd.offers.length === 3 && svcLd.offers.every((o) => o.availability === 'https://schema.org/InStock' && o.description.endsWith(' ' + shared.signing.rule) && !/refunded|PreOrder/.test(JSON.stringify(o))),
+      `${s}: its Offers are InStock (it sells) and say the signing rule — never PreOrder, never the refund rule`);
   }
-  check(CITY.berlin.hero.faresHead.span === 'Nothing charged today' && /data-plan-price="full-search">€500<\/span><span class="f-cond">flat ·<br> incl\. VAT · on signing<\/span>/.test(PAGE.berlin),
-    'berlin: nothing is charged today, and Full Search says on its own row that it is due only once you sign (WoVermRG §2–§3)');
+  for (const s of ['paris', 'berlin']) {
+    const h = renderDraft(DRAFT[s]).html, nm = `draft-${s}`;
+    check(!/id="till"|data-pay=|id="cPaid"|id="cConfirm"|id="cBooked"/.test(h) && !/stripe/i.test(h) && h.includes('"CHECKOUT": false'), `${nm}: no till, no pay button, no paid card, no Stripe word`);
+    check(!/refunded in full|bank transfer/i.test(h), `${nm}: no refund rule and no bank transfer: no money is taken there`);
+    const said = (visibleText(h) + ' ' + [...h.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => m[1]).join(' '));
+    check(!/\bcall(s|ed|ing)?\b/i.test(said), `${nm}: no call promised anywhere (text and JSON-LD)`);
+    check(h.includes('<b id="doorL">Open my file</b>') && h.includes('<small data-window="free · {w}">free · '), `${nm}: the door reads "Open my file", free`);
+    const svcLd = ldOf2(h).find((b) => b['@graph'])['@graph'].find((n) => n['@type'] === 'Service');
+    check(svcLd.offers.every((o) => o.availability === 'https://schema.org/PreOrder' && /opens|sign/i.test(o.description) && !/refunded/.test(o.description)), `${nm}: its Offers are PreOrder and say when they are charged`);
+  }
+  // v1.7 (CI fonts): a pair member whose condition has three parts carries f-c3, so the closed pair breaks it after
+  // its first part and both stubs start on one line; Full Search (not in the pair) and two-part conditions do not
+  for (const s of SLUGS) {
+    const marks = Object.fromEntries(CITY[s].pricing.plans.map((p) => [p.id, new RegExp(`data-plan-price="${p.id}">[^<]*</span><span class="f-cond f-c3">`).test(PAGE[s])]));
+    const want = Object.fromEntries(CITY[s].pricing.plans.map((p) => [p.id, p.id !== 'full-search' && p.condition.split(' · ').length > 2]));
+    check(JSON.stringify(marks) === JSON.stringify(want), `${s}: the three-part conditions of the pair, and only those, carry f-c3`, JSON.stringify({ marks, want }));
+  }
+  { const css = read('assets/src/boom-city.css');
+    check(/@media \(min-width:360px\) and \(max-width:389px\)\{\.bps:not\(\.pair-open\)[^{]*\.f-cond\{letter-spacing:\.03em\}\}/.test(css) && /@media \(min-width:360px\) and \(max-width:599px\)\{\.bps:not\(\.pair-open\)[^{]*\.f-c3 br\{display:inline\}\}/.test(css),
+      'the closed pair: .03em tracking under 390, and the three-part condition breaks after its first part below 600 (CI fonts: the stubs stood 11.7 px apart)'); }
+  // v1.8 FLIP: Berlin sells now, charged at signing — "Nothing charged today" and the "on signing" row were the
+  // waitlist's (kept below on the frozen draft); the live desk says when on the pass and on every ticket instead
+  check(CITY.berlin.hero.faresHead.span === 'Always within the legal cap' && CITY.berlin.hero.leadStrong === 'Paid only by you, and only when you sign.'
+    && /data-plan-price="full-search">€500<\/span><span class="f-cond">flat ·<br> incl\. VAT<\/span>/.test(PAGE.berlin) && PAGE.berlin.includes(`<p class="refund">${esc(CITY.berlin.pricing.plans[0].trigger)}</p>`),
+    'berlin: the fares say "Always within the legal cap", the pass "Paid only by you, and only when you sign.", and the Full Search ticket its trigger (WoVermRG §2–§3)');
+  check(DRAFT.berlin.hero.faresHead.span === 'Nothing charged today' && /data-plan-price="full-search">€500<\/span><span class="f-cond">flat ·<br> incl\. VAT · on signing<\/span>/.test(renderDraft(DRAFT.berlin).html),
+    'draft-berlin: nothing is charged today, and Full Search says on its own row that it is due only once you sign (WoVermRG §2–§3)');
   check(/Catalan or Spanish/.test(CITY.barcelona.checkoutCopy.fine) && /fulls oficials/i.test(PAGE.barcelona), 'barcelona: documents in Catalan or Spanish on request, the official complaint forms named');
-  for (const s of ['madrid', 'barcelona']) {
+  for (const s of ['madrid', 'barcelona', 'valencia']) {
     const h = PAGE[s];
     check(h.includes('<b id="faresH">Optional, chosen in writing</b>') && h.includes('<b>You hire us; we do not act for the landlord.</b>'), `${s}: the prices open "Optional, chosen in writing"; the must-state in bold`);
     check(/<details class="lane rv" id="check-fees" style="--i:0"><summary><span class="ln" aria-hidden="true">01<\/span> <span class="at" data-instr>LAU art\. 20<\/span> <span class="t">[^<]+<\/span><\/summary>/.test(h) && CITY[s].checks.items[0].id === 'fees',
       `${s}: the check "Who pays the agent · LAU art. 20" is the FIRST Pre-flight lane`);
   }
   check(!/AICAT/.test(PAGE.barcelona.replace(/<!--[\s\S]*?-->/g, '')), 'barcelona: no AICAT registration is claimed anywhere (there is no number to print)');
+  // v1.7 review: LAU art. 20 is an ORDER — "Optional, chosen in writing" is read before the first price in #fares
+  for (const s of ['madrid', 'barcelona', 'valencia']) {
+    const fares = sliceOf(PAGE[s], '<!-- FARES -->', '<!-- /FARES -->');
+    const hAt = fares.indexOf('id="faresH"'), pAt = fares.search(/data-plan-price=/);
+    check(hAt > -1 && pAt > -1 && hAt < pAt, `${s}: in #fares the head "Optional, chosen in writing" (#faresH) comes BEFORE the first price (LAU art. 20)`, `head at ${hAt}, first price at ${pAt}`);
+  }
+  // v1.7 review, third round: every sentence about registration or licences is REVIEWED (cities/_claims.json,
+  // default deny). Two rounds of regexes chased each other (round 1 refused true copy about the lease, round 2 let
+  // "Registered with the Generalitat Valenciana." through); now an unlisted sentence is refused whatever its shape.
+  {
+    const claims = loadClaims(R);
+    const page = (t) => `<!DOCTYPE html><html><head><title>t</title></head><body><main><p>${t}</p></main></body></html>`;
+    const sortE = (a) => [...a].sort((x, y) => (x.text < y.text ? -1 : x.text > y.text ? 1 : 0));
+    const withEntries = (add) => lintClaims({ ...claims, allowed: sortE([...claims.allowed, ...add]) });
+    // (a) the real build is clean: every trigger sentence on the eight desks and /desks is reviewed; no selling desk names a register
+    const SELLERS = SLUGS.filter((s) => CITY[s].checkout === true);
+    // v1.8 FLIP: this pin moved — the six sold, Paris and Berlin were drafts; since the flip the eight sell
+    check(SELLERS.join() === SLUGS.join(), `the selling desks are ${SELLERS.join(', ')}`);
+    const hubHtml = read('desks.html');
+    const used = new Set();
+    for (const [s, h] of [...SLUGS.map((x) => [x, PAGE[x]]), ['desks', hubHtml]]) {
+      const bad = claimProblems(h, { claims, sell: SELLERS.includes(s) });
+      check(!bad.length, `${s}: every sentence about registration or licences is in ${CLAIMS_FILE}${SELLERS.includes(s) ? ', no register the desk does not hold, no partner line' : ''}`, bad.map((p) => `${p.why}: "${p.text}"`).join(' | '));
+      for (const x of reviewSentences(h)) used.add(x.text);
+    }
+    // the extractor reads each meta and each JSON string on its own, never concatenated
+    {
+      const h = '<html><head><meta name="description" content="Paid by you"><meta property="og:description" content="registered with the Generalitat"><script type="application/ld+json">{"a":"Tenant side","b":"Licensed in Spain."}</script></head><body><p>Hello <b>registered</b>in Rome.</p><div aria-label="BOOM, registered in Valencia"></div><script>var x = "We are licensed in Spain";</script></body></html>';
+      const r = reviewSentences(h);
+      const has = (t, w) => r.some((x) => x.text === t && x.where === w);
+      check(has('registered with the Generalitat', 'meta') && has('Licensed in Spain', 'ld') && has('BOOM, registered in Valencia', 'attr') && has('We are licensed in Spain', 'script') && !r.some((x) => /Paid by you registered/.test(x.text)),
+        'reviewSentences: each meta, each JSON-LD string, attributes and inline-script strings separately (never concatenated), normalised', JSON.stringify(r));
+    }
+    { const empty = fs.mkdtempSync(path.join(os.tmpdir(), 'boom-claims-')); check(throws(() => loadClaims(empty), /cities\/_claims\.json: is missing: every sentence about registration or licences is reviewed there \(default deny\)/) === true, 'no cities/_claims.json, no page: default deny'); }
+    // (f) no stale entries
+    const stale = claims.allowed.filter((e) => !used.has(e.text)).map((e) => e.text);
+    check(!stale.length, `${CLAIMS_FILE}: every one of the ${claims.allowed.length} entries is printed on at least one built page (no stale entry)`, stale.join(' | '));
+    // v1.8 FLIP (spec §11): this pin moved from "≥ 50, every kind used" — with no draft left no built page prints a
+    // partner or a law sentence, so those entries (and the hub's "One company" line, cut with H4) left the file:
+    // 74 → 48. Every kind a LIVE page uses is used; partner and law are exercised by the drafts' fixture (below)
+    const LIVE_KINDS = CLAIM_KINDS.filter((k) => k !== 'partner' && k !== 'law');
+    check(claims.allowed.length >= 45 && LIVE_KINDS.every((k) => claims.allowed.some((e) => e.kind === k)) && !claims.allowed.some((e) => e.kind === 'partner' || e.kind === 'law')
+      && claims.allowed.every((e) => e.kind !== 'partner' || !SELLERS.some((s) => reviewSentences(PAGE[s]).some((x) => x.text === e.text))),
+      `${CLAIMS_FILE}: ${claims.allowed.length} reviewed sentences, every live kind used (${LIVE_KINDS.join(', ')}), no partner or law line left without a draft`);
+    {
+      // the drafts' own sentences: the fixture holds only partner and law entries, lints merged with the file, each is
+      // printed by a frozen draft (no stale fixture entry), and the drafts' pages are clean with the merge
+      const fx = DRAFT_CLAIMS_ONLY.allowed, drafts = ['paris', 'berlin'].map((x) => renderDraft(DRAFT[x]).html);
+      const dUsed = new Set(drafts.flatMap((h) => reviewSentences(h).map((x) => x.text)));
+      let lintOk = true; try { lintClaims(DRAFT_CLAIMS); } catch (e) { lintOk = e.message; }
+      const dBad = drafts.flatMap((h) => drafted(() => claimProblems(h, { claims: DRAFT_CLAIMS, sell: false })));
+      check(fx.length >= 20 && fx.every((e) => e.kind === 'partner' || e.kind === 'law') && ['partner', 'law'].every((k) => fx.some((e) => e.kind === k)) && lintOk === true
+        && fx.every((e) => dUsed.has(e.text)) && !dBad.length && !fx.some((e) => claims.allowed.some((x) => x.text === e.text)),
+        `${DRAFT_CLAIMS_FILE}: the ${fx.length} partner and law sentences the frozen drafts print, linted with ${CLAIMS_FILE}, none stale, none in the live file`,
+        [lintOk === true ? '' : lintOk, ...fx.filter((e) => !dUsed.has(e.text)).map((e) => 'stale: ' + e.text), ...dBad.map((p) => `${p.why}: "${p.text}"`)].filter(Boolean).join(' | '));
+    }
+    // (b) the claims of both regex rounds and the verifier's misses: refused on a desk that sells (unreviewed or banned)
+    const KO = ['we are registered with the Comunitat Valenciana', 'we are listed in the RAICV', 'we are authorised by the Generalitat', 'BOOM is licensed in Spain',
+      'BOOM Valencia is registered with the regional registry', 'a registered Italian agency', 'licensed to operate in Spain', 'a licensed agency in Valencia',
+      'registered as an agent in Valencia', 'a Valencia-registered agency', 'an accredited Valencian agency', 'authorised to broker leases in Valencia',
+      'registered real estate agency in Valencia', 'member of the Valencian register', "we're registered with the Generalitat", 'our agents are certified in Spain',
+      'Registered with the Generalitat Valenciana.', 'Licensed in the Netherlands.', 'Registered with the Generalitat de Catalunya as an estate agency.', 'BOOM, registered in Valencia, answers from Rome.',
+      'BOOM — licensed in Spain.', 'Accredited by the Generalitat Valenciana.', 'Registered in Spain under number V-1234.', 'Fully licensed and insured in Spain.', 'BOOM Amsterdam, licensed by the gemeente.',
+      'Registered with the KvK (Dutch Chamber of Commerce).', 'We are an Italian real estate agency registered in Valencia.', 'an agency licensed in Spain', 'an agency registered in the Netherlands',
+      'The Valencia desk is registered with the Generalitat.', 'We hold a licence in Spain.', "We've been licensed in Spain since 2024.", 'Our Valencia desk is licensed by the Generalitat.',
+      'Our team is licensed in Spain.', 'Our licensed team in Valencia.', 'BOOM Desks Valencia S.L. is registered with the Generalitat.', 'Egidi Immobiliare srl is registered in Valencia.',
+      'We were granted a licence by the Generalitat.', 'We have a licence from the Generalitat.', 'Our agents hold a licence in Valencia.', 'BOOM holds a Valencian agent licence.',
+      'The desk holds a Spanish licence.', 'We operate under licence in Spain.', 'We are KvK-registered.', 'BOOM is a member of a government-approved redress scheme.',
+      'We are regulated by the Property Ombudsman.', 'BOOM is a member of ARLA Propertymark.'];
+    const koMiss = KO.filter((t) => !claimProblems(page(t), { claims, sell: true }).length);
+    check(!koMiss.length, `the ${KO.length} claims of both rounds and the verifier's misses (subject-free footers, the agency after its noun, licences as nouns, memberships) are refused on a desk that sells`, koMiss.join(' | '));
+    check(['Registered with the Generalitat Valenciana.', 'We are an Italian real estate agency registered in Valencia.', 'BOOM is a member of a government-approved redress scheme.', 'We are regulated by the Property Ombudsman.', 'We hold a licence in Spain.', 'We are KvK-registered.', 'Fully licensed and insured in Spain.', 'The Valencia desk is registered with the Generalitat.']
+      .every((t) => claimProblems(page(t), { claims, sell: false }).length), 'the eight named claims are refused on a draft desk and on /desks too (default deny is not a selling-desk rule)');
+    check(throws(() => claimGuard(page('Registered with the Generalitat Valenciana.'), { claims, sell: true }, 'cities/valencia.json'), /cities\/valencia\.json: 1 sentence\(s\) about registration or licences not reviewed in cities\/_claims\.json: "Registered with the Generalitat Valenciana" \(text\) — if it does not say that BOOM or the company holds a registration, licence or membership outside Rome, add it to cities\/_claims\.json with its kind and a note; if it does, it cannot ship/) === true,
+      'the refusal names the desk, quotes the sentence and says what to do');
+    // (c) true sentences are refused by default, and pass once a person adds them with a non-claim kind (the workflow, on an in-memory copy)
+    const TRUE = [['The lease is registered with the Agenzia delle Entrate within 30 days', 'lease'], ['Egidi Immobiliare S.r.l. is registered under REA RM-1710623.', 'company-rome'],
+      ['Students enrolled at the Universidad Complutense qualify.', 'tenant'], ['BOOM is registered as a European Union trade mark.', 'trade-mark'], ['Your fianza is lodged with the regional register of deposits.', 'tenant'],
+      ['The company is registered at Viale Liegi 42, Rome.', 'company-rome'], ['BOOM is registered with the EUIPO as a trade mark.', 'trade-mark'],
+      ["We're a Rome-registered agency.", 'company-rome'], ['Ask whether the agency is licensed.', 'law'], ['Only pay a holding deposit to a registered letting agent.', 'law'],
+      ['Most homes on Idealista are listed by licensed agencies.', 'law'], ['The deposit goes to the Catalan register of tourist dwellings.', 'law'], ['BRP: registration in the Dutch register of persons.', 'tenant'],
+      ["The landlord's agent is authorised to act for the landlord, not for you.", 'law'], ['we are not licensed in Spain', 'law'], ['We are not a Spanish-registered agency.', 'law'],
+      ['Portals: Funda and Pararius list most homes; registered agents post first.', 'law'], ['Once you are registered with the gemeente you get a BSN.', 'tenant'], ['beware of unlicensed agents', 'law'], ['we check the lease is registered', 'lease']];
+    const trueBad = TRUE.filter(([t, kind]) => {
+      const before = claimProblems(page(t), { claims, sell: true });
+      if (!before.length || before.some((p) => p.why !== 'unreviewed')) return true;
+      try { return claimProblems(page(t), { claims: withEntries(before.map((p) => ({ text: p.text, kind, note: 'reviewed in the test: not a claim about us' }))), sell: true }).length > 0; } catch { return true; }
+    });
+    check(!trueBad.length, `the ${TRUE.length} true sentences the regexes refused are reported as unreviewed (default deny) and pass once added to a copy of ${CLAIMS_FILE} with their kind (lease, tenant, company-rome, trade-mark, law)`, trueBad.map(([t]) => t).join(' | '));
+    // fourth round: "listed", "approved", "member", "permit" are in the vocabulary now; true sentences with them are reviewed like the rest
+    {
+      const T4 = [['Homes listed on Rightmove go fast.', 'listing'], ['The landlord must approve the tenant before signing.', 'law'], ['Unregistered leases are void in Italy until registered.', 'lease'],
+        ['The landlord lodges the deposit with the Generalitat Valenciana.', 'deposit'], ['Your household members can live with you.', 'tenant']];
+      const bad4 = T4.filter(([t, kind]) => {
+        const before = claimProblems(page(t), { claims, sell: true });
+        if (!before.length || before.some((p) => p.why !== 'unreviewed')) return true;
+        try { return claimProblems(page(t), { claims: withEntries(before.map((p) => ({ text: p.text, kind, note: 'reviewed in the test: not a claim about us' }))), sell: true }).length > 0; } catch { return true; }
+      });
+      check(!bad4.length, 'fourth round: sentences with "listed", "approve", "Unregistered", "Generalitat", "members" are reviewed (default deny) and pass once listed with their kind (listing, law, lease, deposit, tenant)', bad4.map(([t]) => t).join(' | '));
+      check(["rent within the bands of Milan's local agreement", 'We read the agreement before you sign', 'Shortlisted, still abroad', 'All prices include VAT'].every((t) => !hasClaimVocab(t)),
+        'fourth round: "agreement" (agréé is accented only), "shortlisted" (a word inside another) and plain copy are not in the vocabulary');
+    }
+    // (d) the lint: a reviewed file cannot carry a claim
+    const lintRefuses = (e, re) => throws(() => withEntries([{ note: 'a lint probe, refused', ...e }]), re) === true;
+    check(lintRefuses({ text: 'we are registered with the Comunitat Valenciana', kind: 'tenant' }, /kind tenant, but the company is the subject/), 'lint: "we are registered with the Comunitat Valenciana" as kind tenant is refused (the company as subject)');
+    check(lintRefuses({ text: 'The tenant checks the RAICV listing', kind: 'law' }, /names a register or a scheme no desk holds \(RAICV\)/), 'lint: an entry naming RAICV is refused, whatever its kind');
+    check(lintRefuses({ text: 'Egidi Immobiliare S.r.l. is registered in Italy', kind: 'company-rome' }, /kind company-rome names Rome/), 'lint: a company-rome entry without Rome, REA RM-1710623 or Viale Liegi is refused');
+    check(lintRefuses({ text: 'BOOM, registered in Valencia, answers from Rome', kind: 'company-rome' }, /does not land on Rome/), 'lint: a company-rome entry whose "registered" does not land on Rome is refused (Rome named later in the sentence is not enough)');
+    check(lintRefuses({ text: 'We are licensed in Spain', kind: 'law' }, /no negation/) && !lintRefuses({ text: 'We are not licensed in Spain', kind: 'law' }, /./),
+      'lint: a law entry with the company as subject needs a negation ("We are not licensed in Spain" passes, "We are licensed in Spain" does not)');
+    check(lintRefuses({ text: 'Registered with the Generalitat Valenciana', kind: 'tenant' }, /shape of a claim \(a participle with no subject/) && lintRefuses({ text: 'Our licensed team in Valencia', kind: 'heading' }, /company is the subject/),
+      'lint: the subject-free footer and "our licensed team" are refused as tenant/heading');
+    check(lintRefuses({ text: 'Launching with a licensed partner in Valencia, registered in Spain', kind: 'partner' }, /does not land on Rome/) && lintRefuses({ text: 'Registration', kind: 'nothing' }, /kind must be one of/)
+      && lintRefuses({ text: 'Licensed partner and licensed in Spain', kind: 'partner' }, /a licence only as "a licensed partner"/),
+      'lint: a partner entry may only name "a licensed partner" and the Rome registration; an unknown kind is refused');
+    check(throws(() => lintClaims({ ...claims, allowed: [...claims.allowed].reverse() }), /sorted by text/) === true && throws(() => lintClaims({ ...claims, allowed: sortE([...claims.allowed, claims.allowed[0]]) }), /listed twice/) === true
+      && throws(() => withEntries([{ text: 'Paid by you', kind: 'tenant', note: 'no trigger word here' }]), /carries no registration or licence word/) === true,
+      'lint: the file is sorted and unique, and holds only sentences the build reviews');
+    // (e) kind partner: the drafts' wording, refused on a desk that sells
+    // v1.8 FLIP: the partner entries live in the drafts' fixture now (no live page prints one): read with the merge
+    const partnerP = page('Launching with a licensed partner.');
+    check(claimProblems(partnerP, { claims: DRAFT_CLAIMS, sell: true }).some((p) => p.why === 'partner') && !claimProblems(partnerP, { claims: DRAFT_CLAIMS, sell: false }).length
+      && throws(() => claimGuard(partnerP, { claims: DRAFT_CLAIMS, sell: true }, 'cities/amsterdam.json'), /cities\/amsterdam\.json: "a licensed partner" is the wording of a desk that is not open/) === true
+      && claimProblems(partnerP, { claims, sell: false }).some((p) => p.why === 'unreviewed'),
+      'kind partner ("Launching with a licensed partner") passes on a draft (the drafts\' fixture), is refused on a desk that sells, and since the flip is not in the live file at all');
+    // the build itself: an unreviewed sentence in a desk's data, through render()
+    refuses((c) => { c.faq.items[0].a += ' Registered with the Generalitat Valenciana.'; }, /cities\/valencia\.json: 1 sentence\(s\) about registration or licences not reviewed.*"Registered with the Generalitat Valenciana" \(text, ld\)/, 'build: a subject-free registration claim in valencia\'s FAQ is refused (it was the round-2 regression)', 'valencia');
+    refuses((c) => { c.faq.items[0].a += ' We are regulated by the Property Ombudsman.'; }, /a desk that sells names a register or a licence it does not hold \(Property Ombudsman\): "We are regulated by the Property Ombudsman" \(text, ld\)/, 'build: a named scheme on a desk that sells is refused even before review (London)', 'london');
+    {
+      const c = clone(CITY.milan); c.checks.items[0].text += ' The lease is registered with the Agenzia delle Entrate within 30 days.';
+      const r1 = throws(() => render(c), /add it to cities\/_claims\.json with its kind and a note/);
+      const more = withEntries([{ text: 'The lease is registered with the Agenzia delle Entrate within 30 days', kind: 'lease', note: 'the lease registration, not ours' }]);
+      let r2 = 'threw'; try { render(c, shared, template, R, { claims: more }); r2 = true; } catch (e) { r2 = e.message; }
+      check(r1 === true && r2 === true, 'build: a true lease sentence added to milan is refused with "add it to cities/_claims.json…", and builds once the sentence is added (an in-memory allowlist)', `${r1} / ${r2}`);
+    }
+    // ── fourth round (04/11/2026): the extractor, the vocabulary, the context rules, the lint, the HTML whitelist ──
+    {
+      const at = (h) => reviewSentences(h);
+      const has = (h, t, w) => at(h).some((x) => x.text === t && (!w || x.where === w));
+      // (h1) the extractor: entities decoded BEFORE the split, NFKC, no format characters, inline tags squashed, every attribute
+      check(has('<p>R&#101;gistered with the Generalitat Valenciana.</p>', 'Registered with the Generalitat Valenciana', 'text') && has('<p>Regis&shy;tered with the Generalitat Valenciana.</p>', 'Registered with the Generalitat Valenciana', 'text')
+        && has('<p>Licen&#99;ed in Spain.</p>', 'Licenced in Spain') && has('<p>Member&nbsp;of the NVM.</p>', 'Member of the NVM') && has('<p>Regis&#x200D;tered in Spain.</p>', 'Registered in Spain'),
+        'extractor: entities are decoded on the whole text before the split ("&#101;" and "&shy;" are no longer cut at their ";")');
+      check(has('<p>Regis\u200Btered in Spain.</p>', 'Registered in Spain') && has('<p>Regis\u00ADtered in Spain.</p>', 'Registered in Spain') && has('<p>Licen\u2060sed in Spain.</p>', 'Licensed in Spain')
+        && has('<p>Regis\u2028tered in Spain.</p>', 'Registered in Spain') && has('<p>Ｒｅｇｉｓｔｅｒｅｄ in Spain.</p>', 'Registered in Spain') && cleanText('Regis\uFEFFtered') === 'Registered',
+        'extractor: NFKC (fullwidth letters) and no \\p{Cf} (soft hyphen, zero-width space/joiner, word joiner, BOM) nor U+2028/2029');
+      check(at('<p>Regis<span>tered</span> with the Generalitat Valenciana.</p>').some((x) => x.split && x.text === 'Registered with the Generalitat Valenciana')
+        && at('<p><b>Reg</b><i>istered</i> with the Generalitat Valenciana.</p>').some((x) => x.split) && at('<p><!-- x --><span>Licen</span><!-- y -->sed in Spain.</p>').some((x) => x.split)
+        && !at('<p>Hello <b>registered</b>in Rome.</p>').some((x) => x.split),
+        'extractor: a word split by inline tags or comments is read whole in the squashed copy, and refused (a block whose squashed copy has more vocabulary than its spaced copy)');
+      check(has("<p><span title='Registered with the Generalitat Valenciana'>x</span></p>", 'Registered with the Generalitat Valenciana', 'attr') && has('<p><span title=Licensed>x</span></p>', 'Licensed', 'attr')
+        && has('<p><span aria-description="Registered in Valencia">x</span></p>', 'Registered in Valencia', 'attr') && has('<p><input value="Registered in Valencia" readonly></p>', 'Registered in Valencia', 'attr')
+        && has('<select><optgroup label="Licensed in Spain"><option>x</option></optgroup></select>', 'Licensed in Spain', 'attr') && has("<p><span data-x='Licensed in Spain'></span></p>", 'Licensed in Spain', 'attr')
+        && !at('<p><a href="/registration" class="registered">x</a></p>').some((x) => /regist/i.test(x.text)),
+        'extractor: every attribute that carries letters is read, in either quote style or none (title, aria-*, value, label, data-*), except the non-text ones (href, class, …)');
+      check(has('<style>.rx::after{content:"Registered with the Generalitat Valenciana"}</style><p>x</p>', 'Registered with the Generalitat Valenciana', 'style'), 'extractor: <style> content strings are text a reader sees');
+      check(has('<ul><li><b data-instr>One company</b> Egidi Immobiliare S.r.l., registered in Rome.</li></ul>', 'Egidi Immobiliare S.r.l., registered in Rome')
+        && has('<ul><li><span class="tn" aria-hidden="true">MIL 08</span> <span class="tt">University enrolment, for students</span></li></ul>', 'University enrolment, for students'),
+        'extractor: the END of a data-instr element and span.tn / span.tt are sentence boundaries (no instrument label inside an entry)');
+      check(normSentence('A trade mark of Egidi Immobiliare S.r.l.') === 'A trade mark of Egidi Immobiliare S.r.l.' && normSentence('Paid by you.') === 'Paid by you' && normSentence('Acme Ltd.') === 'Acme Ltd.'
+        && has('<p>Agència col·legiada a Barcelona.</p>', 'Agència col·legiada a Barcelona'),
+        'normSentence keeps the dot that closes S.r.l. / Ltd.; a middle dot inside a word (col·legiada) is not a split');
+      // (h3, h4) the vocabulary: KO on a desk that sells (every probe of both verifiers)
+      const KO4 = ['R.A.I.C.V. n.º 1234.', 'A.I.C.A.T. n.º 5678.', 'K.v.K. 12345678.', 'Kvk12345678.', 'KvK12345678.', 'Member: T.P.O. and A.R.L.A.', 'Erlaubnis nach §34 c GewO.', 'Makler mit Erlaubnis nach Paragraph 34c GewO.',
+        'Chamber of Commerce no. 12345678 (Amsterdam).', 'BOOM Valencia is listed with the Generalitat Valenciana as an estate agency.', 'Approved by the Generalitat Valenciana as a real estate agent.', 'Our Generalitat Valenciana agent number: CV-1234.',
+        'Reg. no. CV-1234 with the Generalitat Valenciana.', 'Regd. with the Generalitat Valenciana.', 'Lic. no. CV-1234, Generalitat Valenciana.', 'BOOM Valencia appears on the Generalitat list of estate agents.',
+        'Supervised by the Generalitat Valenciana.', 'BOOM London is a RICS member firm.', 'A TPO member agency, with CMP cover for your money.', 'BOOM London is a chartered letting agent in England.',
+        'Signed up to a government-approved complaints scheme in England.', 'BOOM Amsterdam is an NVM member agency.', 'We hold the trade permit in Germany.', 'BOOM is an NVM member.',
+        'BOOM is a TPO member and offers client money protection.', 'BOOM is FIAIP-affiliated.', 'Approved by the Generalitat.', 'we are unregulated in Spain', 'Deregistered in Spain.', 'Unregistered agent in Spain.',
+        'Agencia autorizada por la Generalitat Valenciana.', 'Agencia acreditada en Valencia.', 'Agencia certificada en Madrid.', 'Agencia regulada en Madrid.', 'Miembro de la Asociación de Agentes Inmobiliarios de Madrid.',
+        'Agente de la Propiedad Inmobiliaria (API) n.º 1234.', 'Dada de alta como agencia ante la Generalitat Valenciana.', 'Agència amb llicència de la Generalitat.', 'Agència habilitat per la Generalitat.',
+        'Agència acreditada a Catalunya.', 'Agència autoritzada a Barcelona.', 'Agència col·legiada a Barcelona.', 'Membre de l’API de Catalunya.', 'BOOM staat ingeschreven in het Handelsregister.',
+        'Erkend makelaar in Amsterdam.', 'Lid van de NVM.', 'Een NVM-makelaar voor huurders.', 'Agence agréée en Espagne.', 'Titulaire de la carte T à Madrid.', 'Agence habilitée à Madrid.',
+        'Im Handelsregister eingetragen.', 'Egidi Immobiliare è iscritta al ruolo degli agenti di Milano.', 'Iscritta alla Camera di Commercio di Milano.', 'Agenzia abilitata a Milano.', 'Com licença em Lisboa.',
+        'We are on the Generalitat list of agents.', 'Is BOOM Valencia approved by the Generalitat?', 'Ask our Generalitat-approved agent.', 'Lic&shy;ensed in Spain.', 'Regis&#8203;tered in Spain.', 'R E G I S T E R E D in Spain.'];
+      const KO4H = ['<p>R&#101;gistered with the Generalitat Valenciana.</p>', '<p>Licen&ZeroWidthSpace;sed in Spain.</p>', '<p>Member&#160;of the NVM.</p>', '<p>Regis<wbr>tered with the Generalitat Valenciana.</p>',
+        '<p>Regis<span>tered</span> with the Generalitat Valenciana.</p>', '<p><b>Reg</b><i>istered</i> with the Generalitat Valenciana.</p>', '<p><!-- x --><span>Licen</span><!-- y -->sed in Spain.</p>',
+        "<p><span title='Registered with the Generalitat Valenciana'>Valencia</span></p>", "<p><img alt='Licensed in Spain' src=\"/boom-logo.svg\"></p>", "<p><a href=\"#\" title='Licensed in Spain'>Valencia</a></p>",
+        '<p><span aria-description="Registered with the Generalitat Valenciana">Valencia</span></p>', '<p><input value="Registered with the Generalitat Valenciana" readonly></p>',
+        '<style>.rx::after{content:"Registered with the Generalitat Valenciana"}</style><span class="rx"></span>', '<select><optgroup label="Licensed in Spain"><option>x</option></optgroup></select>',
+        "<p><abbr title='Registro de Agentes de Intermediacion Inmobiliaria'>R.A.I.C.V.</abbr></p>"];
+      const pg = (b) => `<!DOCTYPE html><html><head><title>t</title></head><body><main>${b}</main></body></html>`;
+      const miss4 = [...KO4.filter((t) => !claimProblems(page(t), { claims, sell: true }).length), ...KO4H.filter((h) => !claimProblems(pg(h), { claims, sell: true }).length)];
+      check(!miss4.length, `fourth round: the ${KO4.length + KO4H.length} probes of both verifiers (entities, zero-width, inline tags, attributes, CSS content, abbreviations, synonyms, local languages, number shapes, §34c spellings) are refused on a desk that sells`, miss4.join(' | '));
+      const BAN4 = ['R.A.I.C.V. n.º 1234.', 'A.I.C.A.T. n.º 5678.', 'K.v.K. 12345678.', 'Kvk12345678.', 'Member: T.P.O. and A.R.L.A.', 'Erlaubnis nach §34 c GewO.', 'Paragraph 34c GewO applies.', 'Property Redress',
+        'A RICS member firm', 'An NVM agency', 'A VBO agency', 'client money protection', 'Agente de la Propiedad Inmobiliaria', 'API n.º 12', 'colegiado', 'carte T', 'TPO', 'CMP', 'PRS', 'Kamer van Koophandel'];
+      const nb4 = BAN4.filter((t) => !claimProblems(page(t), { claims, sell: true }).some((p) => p.why === 'banned'));
+      check(!nb4.length && !sellHit('Within 30 days the landlord lodges it in a government-approved scheme (DPS, TDS or mydeposits) and sends you its details') && closeUp('R.A.I.C.V. and K.v.K.') === 'RAICV and KvK',
+        'fourth round: the registers by name and initials (closed up: R.A.I.C.V., K.v.K., T.P.O.; KvK12345678; §34 c; Paragraph 34c) are banned on a desk that sells; the deposit schemes DPS, TDS, mydeposits are not', nb4.join(' | '));
+      // (h5) the context rules: the Rome line is not continued elsewhere; a reviewed label is not followed by an unreviewed place (the label rule, fifth round)
+      const CTX4 = [['<dl><dt>Who</dt><dd>Egidi Immobiliare S.r.l. is an Italian real estate agency, registered in Rome. Also in Valencia, since 2026.</dd></dl>', 'place'],
+        ['<dl><dt>Who</dt><dd>Egidi Immobiliare S.r.l. is an Italian real estate agency, registered in Rome; also in Valencia.</dd></dl>', 'place'],
+        ['<dl><dt>Who</dt><dd>Egidi Immobiliare S.r.l. is an Italian real estate agency, registered in Rome. And with the Comunitat, in València.</dd></dl>', 'place'],
+        ['<dl><dt>Registration</dt><dd>In Valencia, with the Generalitat.</dd></dl>', 'label'], ['<dl><dt>Registration</dt><dd>In Valencia, since 2026.</dd></dl>', 'label']];
+      const ctxMiss = CTX4.filter(([h, w]) => !claimProblems(pg(h), { claims, sell: true }).some((p) => p.why === w)).map(([h]) => h);
+      const ctxOk = [['<dl><dt>Who</dt><dd>Egidi Immobiliare S.r.l. is an Italian real estate agency, registered in Rome. Hired by the tenant, paid by the tenant only.</dd></dl>'],
+        ['<dl><dt>Registration</dt><dd>padrón · NIE</dd><dd>Registered at the town hall with your lease: the SIP health card and a school place hang on it.</dd></dl>']].filter(([h]) => claimProblems(pg(h), { claims, sell: true }).length).map(([h]) => h);
+      check(!ctxMiss.length && !ctxOk.length, 'fourth round: next to the company\'s Rome line an unreviewed sentence naming another desk place is refused ("Also in Valencia, since 2026"); after the heading "Registration" an unreviewed place or authority is refused; the true rows pass', [...ctxMiss, ...ctxOk].join(' | '));
+      check(throws(() => claimGuard(pg(CTX4[0][0]), { claims, sell: true }, 'cities/valencia.json'), /cities\/valencia\.json: next to the company's Rome line, a sentence names another desk place \(Valencia\) and is not reviewed: "Also in Valencia, since 2026"/) === true
+        && throws(() => claimGuard(pg('<p>Regis<span>tered</span> in Spain.</p>'), { claims, sell: true }, 'x'), /a registration or licence word is split by inline tags or comments/) === true,
+        'the place and split refusals name the sentence and say what to do');
+      // (h6) the lint: the eight claim entries verifier B saw accepted, and more
+      const L4 = [['Registered with the Generalitat Valenciana for your peace of mind', 'tenant', /participle with no subject/], ['Registered with the Generalitat Valenciana, so your deposit is safe', 'lease', /participle with no subject/],
+        ['Registration with the Generalitat Valenciana', 'heading', /nominal registration/], ['As a regulated agency in Valencia we check your lease', 'lease', /agency adjective/],
+        ['BOOM, which is licensed in Spain, works only for you', 'tenant', /relative clause/], ['BOOM, which is licensed in Spain, works only for you', 'law', /first person/],
+        ["Valencia requires agents to register in the regional agents' register, and you can check us there", 'law', /first person/],
+        ['Egidi Immobiliare S.r.l., an Italian real estate agency registered in Valencia as well as Rome', 'company-rome', /does not land on Rome/],
+        ['Egidi Immobiliare S.r.l., an Italian real estate agency registered in Valencia (Rome office)', 'company-rome', /does not land on Rome/],
+        ['Egidi Immobiliare S.r.l., an Italian real estate agency registered in Rome and in the Valencian agents list', 'company-rome', /after Rome it names another place/],
+        ['The desk is registered under Egidi Immobiliare S.r.l. in Rome', 'company-rome', /does not land on Rome/],
+        ['BOOM, with its licensed partner, holds a carte professionnelle', 'partner', /another licence|carte professionnelle or §34c stands only|holds/],
+        ['Also in Valencia, since 2026', 'context', /adds to the Rome line/], ['Egidi has an office in Valencia', 'context', /adds to the Rome line/], ['In Valencia, with the Generalitat', 'context', /review it under its own kind/],
+        ['a registered Italian agency', 'law', /agency adjective .* with no verb/], ['a licensed agency in Valencia', 'law', /agency adjective .* with no verb/], ['an accredited Valencian agency', 'law', /agency adjective .* with no verb/],
+        ['The deposit is lodged, and we are registered with the Generalitat', 'deposit', /company is the subject/], ['Our agency, which is approved by the Generalitat', 'deposit', /relative clause|first person|company is the subject/],
+        ['The listed agency in Valencia is ours', 'listing', /agency adjective|first person/], ['The tenant checks the NVM listing', 'law', /names a register .*NVM/], ['A T.P.O. member', 'law', /names a register/]];
+      const lintMiss = L4.filter(([text, kind, re]) => !lintRefuses({ text, kind }, re)).map(([t, k]) => `${k}: ${t}`);
+      check(!lintMiss.length, `fourth round lint: the ${L4.length} claim entries (verifier B's eight, the strict Rome seat, the partner who holds, context continuations, the law label, first person in law/deposit/listing, named registers) are refused`, lintMiss.join(' | '));
+      check(['Registered at the town hall with your new lease, before the health card', 'BRP: registration in the Dutch register of persons', 'Only pay a holding deposit to a registered letting agent', 'Egidi Immobiliare S.r.l. is registered under REA RM-1710623']
+        .every((t, i) => !lintRefuses({ text: t, kind: ['tenant', 'tenant', 'law', 'company-rome'][i] }, /./)), 'fourth round lint: the tenant\'s own registration at the town hall, the BRP, advice about a registered letting agent and "registered under REA RM-1710623" pass');
+      // (h2) the trusted-markup fields: only <b>, <strong>, <em>, <i>, <br>, <a href="…">
+      for (const [bad, what] of [['<span>x</span>', 'a span'], ['<!-- x -->', 'a comment'], ["<a href='#'>x</a>", 'a single-quoted href'], ['<a href="#" title="Licensed">x</a>', 'a title attribute'], ['<img src="/x.png">', 'an img'],
+        ['<abbr title="x">R</abbr>', 'an abbr'], ['<b data-x="y">x</b>', 'a data attribute'], ['<style>p{}</style>', 'a style'], ['<input value="x">', 'an input'], ['x < y', 'a stray <']]) {
+        refuses((c) => { c.bref.rows[2].ddHtml += ` ${bad}`; }, /bref\.rows\[2\]\.ddHtml: trusted markup carries only <b>, <strong>, <em>, <i>, <br> and <a href="…">/, `the trusted markup of a desk refuses ${what}`, 'valencia');
+      }
+      check(throws(() => htmlFieldGuard({ rows: [{ ddHtml: 'Pay <b>once</b>, <strong>flat</strong>, <em>in</em> <i>writing</i><br><a href="/terms">terms</a>.' }] }, 'x'), /./) === 'did not throw' && throws(() => htmlFieldGuard({ brief: { rows: [{ ddHtml: '<span>x</span>' }] } }, 'cities/_hub.json'), /cities\/_hub\.json: brief\.rows\[0\]\.ddHtml/) === true,
+        'the trusted markup allows exactly <b>, <strong>, <em>, <i>, <br>, <a href="…">, and the hub is held to it too');
+      // the build: an entity or a zero-width character inside the word is refused through render()
+      refuses((c) => { c.bref.rows[2].ddHtml += ' R&#101;gistered with the Generalitat Valenciana.'; }, /cities\/valencia\.json: 1 sentence\(s\) about registration or licences not reviewed.*"Registered with the Generalitat Valenciana" \(text\)/, 'build: "R&#101;gistered with the Generalitat Valenciana." in a fact-sheet row is refused (the entity no longer cuts the word)', 'valencia');
+      refuses((c) => { c.faq.items[1].a += ' Regis\u200Btered with the Generalitat Valenciana.'; }, /cities\/valencia\.json: 1 sentence\(s\) about registration or licences not reviewed.*"Registered with the Generalitat Valenciana" \(text, ld\)/, 'build: a zero-width space inside "Registered" in the FAQ is refused', 'valencia');
+      refuses((c) => { c.bref.rows.splice(1, 0, { dt: 'Registration', ddHtml: 'In Valencia, since 2026.' }); }, /next to the reviewed label \("Registration"\), a sentence is not reviewed and reads as its value \(it names a desk place, an authority, a number or a code, speaks for us, or says yes, since, number, file, list, active, valid, done, ✓…\): "In Valencia, since 2026"/, 'build: a fact-sheet row "Registration" followed by "In Valencia, since 2026." is refused (the label rule)', 'valencia');
+      // verifier A's surfaces: "approved" with no other trigger word, in the JSON-LD only, in a check, in a meta description
+      refuses((c) => { c.service.description += ' Approved by the Generalitat Valenciana as an agent.'; }, /not reviewed in cities\/_claims\.json: "Approved by the Generalitat Valenciana as an agent" \(ld\)/, 'build: "Approved by the Generalitat Valenciana as an agent." in the Service (JSON-LD only) is refused', 'valencia');
+      refuses((c) => { c.checks.items[0].text += ' We are on the Generalitat list of agents.'; }, /not reviewed in cities\/_claims\.json: "We are on the Generalitat list of agents"/, 'build: "We are on the Generalitat list of agents." in a check with no reviewed label is refused (the authority is in the vocabulary)', 'valencia');
+      refuses((c) => { c.meta.description = 'Apartment search for expats in Valencia, an approved agent: a Spanish-format file, applications as listings appear, viewings attended.'; }, /not reviewed in cities\/_claims\.json: "Apartment search for expats in Valencia, an approved agent: a Spanish-format file, applications as listings appear, viewings attended" \(meta/, 'build: "an approved agent" in the meta description is refused', 'valencia');
+      // (h8) the served assets: no string of assets/boom-*.js and no CSS content string carries the vocabulary
+      for (const f of fs.readdirSync(path.join(R, 'assets')).filter((x) => /^boom-[\w-]+\.(?:js|css)$/.test(x))) {
+        const src = read(`assets/${f}`);
+        const strs = f.endsWith('.js') ? [...src.matchAll(/"((?:[^"\\\n]|\\.)*)"|'((?:[^'\\\n]|\\.)*)'|`((?:[^`\\]|\\.)*)`/g)].map((x) => x[1] ?? x[2] ?? x[3]) : [...src.matchAll(/\bcontent\s*:\s*(?:"((?:[^"\\]|\\.)*)"|'((?:[^'\\]|\\.)*)')/g)].map((x) => x[1] ?? x[2]);
+        const hit = strs.filter((x) => hasClaimVocab(x));
+        check(strs.length > 0 && !hit.length, `assets/${f}: none of its ${strs.length} ${f.endsWith('.js') ? 'string literals' : 'content strings'} carries registration, licence or authority vocabulary`, hit.join(' | '));
+      }
+    }
+    // ── fifth round (04/11/2026): the number shapes read whole, the splitter's belt, the value next to a reviewed label,
+    //    the local words for a licence, a certificate or a membership ──
+    {
+      const desk = (slug, mut) => { const c = clone(baseCity(slug)); mut(c); try { renderOf(slug)(c); return 'built clean'; } catch (e) { return e instanceof BuildError ? e.message : `threw ${e.name}: ${e.message}`; } };
+      const reEsc = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const pg5 = (b) => `<!DOCTYPE html><html><head><title>t</title></head><body><main>${b}</main></body></html>`;
+      const why5 = (h, sell = true) => claimProblems(pg5(h), { claims, sell }).map((p) => p.why);
+      // (F1a) the splitter never cuts after the abbreviation of a number; it still splits a sentence, and "S.r.l. is" stays one
+      const at5 = (h) => reviewSentences(pg5(`<p>${h}</p>`)).filter((x) => x.where === 'text' && !x.cut && !x.ncut).map((x) => x.text);
+      const runOn = 'n. 1234. Lic. no. 4471. Regd. 1234. Agent ref. CV-1234. Núm. 1234. Nr. 1234. REG. NO. 1234.';
+      check(JSON.stringify(at5('Agent no. CV-1234.')) === '["Agent no. CV-1234"]' && JSON.stringify(at5('Reg. No. 12345.')) === '["Reg. No. 12345"]'
+        && JSON.stringify(at5(runOn)) === '["n. 1234","Lic. no. 4471","Regd. 1234","Agent ref. CV-1234","Núm. 1234","Nr. 1234","REG. NO. 1234"]'
+        && JSON.stringify(at5('We act as an agent. What we check is the lease.')) === '["We act as an agent","What we check is the lease"]'
+        && JSON.stringify(at5('Egidi Immobiliare S.r.l. is an Italian real estate agency. Rome is its seat.')) === '["Egidi Immobiliare S.r.l. is an Italian real estate agency","Rome is its seat"]',
+        'fifth round: the splitter keeps "Agent no. CV-1234", "Reg. No. 12345" and no./nr./n./núm./reg./regd./lic./ref. whole, still splits "as an agent. What…", and keeps "S.r.l. is…" in one sentence', `${JSON.stringify(at5('Agent no. CV-1234.'))} ${JSON.stringify(at5(runOn))}`);
+      // (F1b) the number shapes, read whole, are unreviewed sentences: refused on a desk that sells in a FAQ answer, a check text and a fact-sheet row
+      const F1 = ['Agent no. CV-1234.', 'Our agent no. CV-1234 is on every invoice.', 'Agent no. 4471 in Valencia.', 'Reg. No. 12345.', 'Reg. no. 123456.', 'Reg. 123456.', 'Regd. 1234.', 'Lic. No. 4567.', 'Lic. no. 4471.',
+        'Agent ref. CV-1234.', 'Reg. no. CV-1234.', 'Reg. no. NL-88123.', 'Agent number CV 1234.', 'Número de agente 1234.'];
+      for (const [where, mut] of [['a FAQ answer', (c, t) => { c.faq.items[1].a += ` ${t}`; }], ['a check text', (c, t) => { c.checks.items[0].text += ` ${t}`; }], ['a fact-sheet row (ddHtml, &nbsp; as an entity)', (c, t) => { c.bref.rows[2].ddHtml += ` ${t.replace(/ /g, '&nbsp;')}`; }]]) {
+        const miss = F1.filter((t) => !new RegExp(`not reviewed in cities/_claims\\.json: "${reEsc(normSentence(t))}" \\(`).test(desk('valencia', (c) => mut(c, t))));
+        check(!miss.length, `fifth round: the ${F1.length} number shapes ("Agent no. CV-1234", "Reg. No. 12345", "Regd. 1234", "Lic. no. 4471", "Agent ref. CV-1234", "Reg. no." with &nbsp;, "Agent number CV 1234", "Número de agente 1234") in ${where} on valencia are refused, each read whole as one unreviewed sentence`,
+          miss.map((t) => `${t} → ${desk('valencia', (c) => mut(c, t)).slice(0, 180)}`).join(' | '));
+      }
+      {
+        const F1x = ['Agency number CV-1234.', 'Agency ref. CV-1234.', 'Ref. 1234.', 'Registration ID: CV-1234.', 'Agent code CV-1234.', 'License #1234.', 'Agent N.º 1234.', 'Agent nr 1234.', 'Iscrizione n. 1234.', 'Numero di iscrizione 1234.'];
+        const miss = F1x.filter((t) => !new RegExp(`not reviewed in cities/_claims\\.json: "${reEsc(normSentence(t))}" \\(`).test(desk('valencia', (c) => { c.faq.items[1].a += ` ${t}`; })));
+        check(!miss.length, `fifth round: ${F1x.length} more number shapes (agency, ref., ID, code, #, N.º, nr, "Iscrizione n.", "Numero di iscrizione") in a FAQ answer on valencia are refused, each read whole`, miss.join(' | '));
+      }
+      check(['REA RM-1710623', 'L. 311/2004', 'DPR 131/86', 'RDL 29/2026', 'LAU art. 20', 'Llei 11/2025', '€500, £199 and €149', '1 Nov 2026', 'Nov 2026', 'Egidi Immobiliare S.r.l.', 'e.g. Funda and Pararius',
+        'No. Full Search €500, Application Pack €199 and Attended Viewing €149 per viewing', 'no fee before 2026', 'within 30 days of signing', 'No more than 3 months', 'the agency fee €500', 'the agency fee is €149 per viewing', 'agency fee 10%'].every((t) => !hasClaimVocab(t)),
+        'fifth round: the true copy stays clean: law references (L. 311/2004, DPR 131/86, RDL 29/2026, LAU art. 20), prices, dates ("Nov 2026" is not "no 2026"), REA RM-1710623, S.r.l., e.g., and "No. Full Search €500…" carry no number shape');
+      // (F1c) the belt: a hit the splitter cuts (a dot the lookbehind does not know, a newline) refuses the whole string
+      check(why5('<p>Agent. CV-1234 in Valencia.</p>').includes('cut') && claimProblems(pg5('<script type="application/ld+json">{"d":"Our agent\\n4471 in Valencia."}</script>'), { claims, sell: true }).some((p) => p.why === 'cut' && p.where === 'ld')
+        && !why5('<p>Egidi Immobiliare S.r.l., registered in Rome. Hired by the tenant, paid by the tenant only.</p>').includes('cut'),
+        'fifth round: the belt refuses a string whose whole text has a hit its sentences lost ("Agent. CV-1234", "agent\\n4471" in a JSON-LD string), and not a company line with S.r.l. (closed-up copies counted apart)');
+      refuses((c) => { c.faq.items[1].a += ' Agent. CV-1234 in Valencia.'; }, /a registration or licence word, a register's initials or a number shape is split by the sentence splitter \(on the page it reads as one claim\): ".*Agent\. CV-1234 in Valencia" \(text/,
+        'build: "Agent. CV-1234 in Valencia." in a FAQ answer is refused by the belt, naming the whole answer', 'valencia');
+      // (F2) the value next to a reviewed label: reviewed, or neutral (no vocabulary, place, three digits or code, first person, yes/since/number/file/list…)
+      const F2 = [
+        ['valencia', 'a fact-sheet row "Registration" / "Yes, since 2026."', (c) => c.bref.rows.splice(1, 0, { dt: 'Registration', ddHtml: 'Yes, since 2026.' }), 'Registration', 'Yes, since 2026'],
+        ['valencia', 'a fact-sheet row "Registration" / "CV-1234"', (c) => c.bref.rows.splice(1, 0, { dt: 'Registration', ddHtml: 'CV-1234' }), 'Registration', 'CV-1234'],
+        ['valencia', 'a fact-sheet row "Generalitat" / "On its list of agents since 2026."', (c) => c.bref.rows.splice(1, 0, { dt: 'Generalitat', ddHtml: 'On its list of agents since 2026.' }), 'Generalitat', 'On its list of agents since 2026'],
+        ['barcelona', 'a fact-sheet row "INCASÒL" / "Yes, our number is on file."', (c) => c.bref.rows.splice(1, 0, { dt: 'INCASÒL', ddHtml: 'Yes, our number is on file.' }), 'INCASÒL', 'Yes, our number is on file'],
+        ['valencia', 'a check "Registration", at "Generalitat", "Our file number is CV-1234; ask us for it."', (c) => { Object.assign(c.checks.items[4], { title: 'Registration', at: 'Generalitat', text: 'Our file number is CV-1234; ask us for it.' }); }, 'Generalitat', 'Our file number is CV-1234'],
+        ['valencia', 'a fact-sheet row "Registration" / "CV 1234 since 2025"', (c) => c.bref.rows.splice(1, 0, { dt: 'Registration', ddHtml: 'CV 1234 since 2025' }), 'Registration', 'CV 1234 since 2025'],
+        ['barcelona', 'a check "Registration", at "INCASÒL", "Our agency file is number B-5521; we show it on request."', (c) => { Object.assign(c.checks.items[4], { title: 'Registration', at: 'INCASÒL', text: 'Our agency file is number B-5521; we show it on request.' }); }, 'INCASÒL', 'Our agency file is number B-5521'],
+        ['madrid', 'a check "Registration" whose legal label (before the title) is "agency file 4471"', (c) => { Object.assign(c.checks.items[4], { title: 'Registration', at: 'agency file 4471' }); }, 'Registration', 'agency file 4471'],
+        ['valencia', 'the deposit check (label "fianza · Generalitat") with "Our agency number there is V-5521."', (c) => { c.checks.items[1].text = 'Habitual lease: one month. Our agency number there is V-5521.'; }, 'Generalitat', 'Our agency number there is V-5521'],
+        ['barcelona', 'a fact-sheet row "fianza · INCASÒL" / "Yes, our number is on file."', (c) => c.bref.rows.splice(1, 0, { dt: 'fianza · INCASÒL', ddHtml: 'Yes, our number is on file.' }), 'INCASÒL', 'Yes, our number is on file'],
+        ['valencia', 'a fact-sheet row "Registration" / "At the town hall.<br>CV-1234" (a <br> is the same value)', (c) => c.bref.rows.splice(1, 0, { dt: 'Registration', ddHtml: 'At the town hall.<br>CV-1234' }), 'Registration', 'CV-1234'],
+        ['valencia', 'a fact-sheet row "Registration" / "✓"', (c) => c.bref.rows.splice(1, 0, { dt: 'Registration', ddHtml: '✓' }), 'Registration', '✓'],
+        ['valencia', 'a fact-sheet row "Registration" / "Active."', (c) => c.bref.rows.splice(1, 0, { dt: 'Registration', ddHtml: 'Active.' }), 'Registration', 'Active'],
+        ['valencia', 'a fact-sheet row "Registration · Yes, since 2026" (the value inside the label)', (c) => c.bref.rows.splice(1, 0, { dt: 'Registration · Yes, since 2026', ddHtml: 'On request.' }), 'Registration', 'Yes, since 2026'],
+        ['valencia', 'a FAQ answer with "Registration. Yes, since 2026." inside prose', (c) => { c.faq.items[1].a += ' Registration. Yes, since 2026.'; }, 'Registration', 'Yes, since 2026']];
+      const f2miss = F2.filter(([s, , mut, label, value]) => !new RegExp(`next to the reviewed label \\([^)]*"${reEsc(label)}"[^)]*\\), a sentence is not reviewed and reads as its value .*"${reEsc(value)}" \\([^)]*text`).test(desk(s, mut)));
+      check(!f2miss.length, `fifth round: the ${F2.length} values next to a reviewed label ("Registration", "Generalitat", "INCASÒL", "fianza · INCASÒL"; after it, before it as a check's legal label, after a <br>) are refused on their desk, naming the label and the value`,
+        f2miss.map(([s, t, mut]) => `${s}: ${t} → ${desk(s, mut).slice(0, 200)}`).join(' | '));
+      // since the seventh round "Registration · CV-1234" is itself a number shape across the middle dot (the keyword "registration", the
+      // code): the splitter belt refuses it before the label rule
+      check(/split by the sentence splitter \(on the page it reads as one claim\): "Registration · CV-1234" \(text\)/.test(desk('valencia', (c) => c.bref.rows.splice(1, 0, { dt: 'Registration · CV-1234', ddHtml: 'On request.' }))),
+        'fifth round, as of the seventh: a fact-sheet row "Registration · CV-1234" (the code inside the label) is a number shape across the middle dot, refused by the splitter belt');
+      {
+        const m1 = desk('valencia', (c) => { c.faq.items[1].a += ' Registration. No. CV-1234.'; });
+        check(hasClaimVocab('No. CV-1234') && /: "No\. CV-1234" \((?:ld, text|text, ld)\)/.test(m1) && !/"How do I avoid/.test(m1),
+          'fifth round: "Registration. No. CV-1234." in a FAQ answer is refused, "No. CV-1234" read whole (a number shape, and the value of the key); the next question is not read as a value', m1.slice(0, 300));
+        const m2 = desk('valencia', (c) => { c.service.description += ' Registration. Yes, since 2026.'; });
+        check(/next to the reviewed label \("Registration"\), a sentence is not reviewed and reads as its value .*"Yes, since 2026" \(ld\)/.test(m2),
+          'fifth round: "Registration. Yes, since 2026." in the Service description (JSON-LD only) is refused: inside a string the sentence after a key is its value', m2.slice(0, 300));
+        const m3 = desk('valencia', (c) => { c.service.description += ' Registration. CV-1234.'; });
+        check(/split by the sentence splitter .*Registration\. CV-1234\. .*" \(ld\)/.test(m3), 'fifth round: "Registration. CV-1234." in the Service description is refused by the belt ("registration" + a code read across the dot)', m3.slice(0, 300));
+      }
+      // the label rule's scope: inside a table only a <th> is a label; the build's codes (span.tn) are skipped; the block before is read only when it is a label
+      check(!why5('<table><tr><th>Deposit</th><td>fianza · INCASÒL</td><td>since 2024</td><td>art. 11 L. 392/1978</td></tr></table>').length
+        && why5('<table><tr><th>Registration</th><td>CV-1234</td></tr></table>').includes('label')
+        && !why5('<ol><li><span class="tn">MIL 08</span> <span class="tt">University enrolment, for students</span></li><li><span class="tn">MIL 09</span> <span class="tt">Payslips</span></li></ol>').length
+        && why5('<details><summary><span class="ln">05</span> <span class="at">agency file 4471</span> <span class="t">Registration</span></summary><p>Your lease needs the full address.</p></details>').includes('label')
+        && !why5('<p>We check the lease and the address with the town hall before you sign it, every time.</p><dl><dt>Registration</dt><dd>padrón · NIE</dd></dl>').length,
+        'fifth round: the label rule\'s scope — a table cell is the value of its row head (never a label of its own), a <th> is a label, the paper codes (MIL 08) are skipped, the block before a label is read when it is a label too ("agency file 4471"), not when it is prose');
+      check(['padrón', 'NIE', 'BRP', 'Right to Rent', 'The deposit', 'Your lease needs the full address, cadastral reference and both signatures, or the town hall refuses it', '05', 'Opening', 'Agenzia delle Entrate'].every(neutralValue)
+        && !['Yes, since 2026', 'CV-1234', 'CV 1234 since 2025', 'B 5521', 'agency file 4471', 'On its list of agents since 2026', 'Yes, our number is on file', 'In Valencia', 'In Wales', 'We hold one', 'Our file',
+          'Active', 'Valid until March', '✓', 'Sí', 'Ja', 'Desde 2024', 'Dal 2024', 'Seit 2024', 'Depuis 2024', 'Nummer 12', 'Número 12', 'Lista', 'On its listing', 'On record', 'In the directory', 'On the roster'].some(neutralValue),
+        'fifth round: a value is neutral with no vocabulary, desk place, three digits or code, first person, nor yes/since/number/file/list/listing/record/directory/roster/active/valid/✓ in the desk languages');
+      // kind follower: the true values next to a label, each needed by a built page, linted
+      const followers = claims.allowed.filter((e) => e.kind === 'follower');
+      const notNeeded = followers.filter((f) => { const less = { ...claims, allowed: claims.allowed.filter((e) => e !== f) }; return ![...SLUGS.map((x) => [x, PAGE[x]]), ['desks', hubHtml]].some(([x, h]) => claimProblems(h, { claims: less, sell: SELLERS.includes(x) }).some((p) => p.why === 'label' && p.text === f.text)); });
+      check(followers.length === 6 && !notNeeded.length, `fifth round: the ${followers.length} followers of ${CLAIMS_FILE} ("We confirm it before you sign", "we ask for the receipt", "The rest we go through on the free call"…) are each the value of a reviewed label on a built page (remove one and that page is refused)`, notNeeded.map((e) => e.text).join(' | '));
+      check([['Yes, since 2026', /kind follower/], ['In Valencia', /kind follower names a desk place/], ['CV-1234', /kind follower carries a number of three digits or a code/], ['We hold one', /never says that we hold/], ['We are on it', /never says that we hold/],
+        ['On its list of agents', /kind follower says "list"/], ['Registered with us', /kind follower carries a registration/], ['Done', /kind follower says "Done"/]].every(([text, re]) => lintRefuses({ text, kind: 'follower' }, re))
+        && !lintRefuses({ text: 'We read it with you before you sign', kind: 'follower' }, /./),
+        'fifth round lint: a follower may speak for us ("We read it with you before you sign"), nothing else of a value: no vocabulary, desk place, number or code, yes/since/file/list/done, nor "we hold / we are on"');
+      // (F3) the vocabulary: the local words for a licence, a certificate, a sworn or affiliated agent, and the approval synonyms
+      const F3 = [['amsterdam', 'Makelaar met vergunning.'], ['amsterdam', 'Gecertificeerd makelaar in Amsterdam.'], ['amsterdam', 'SCVM-gecertificeerd.'], ['amsterdam', 'Aangesloten bij de vereniging van makelaars.'], ['amsterdam', 'Beëdigd makelaar.'],
+        ['valencia', 'Somos una agencia homologada en Valencia.'], ['valencia', 'Agencia afiliada a la asociación de agentes de Valencia.'], ['madrid', 'Agencia asociada al colegio de agentes.'], ['valencia', 'Con permiso municipal para operar.'],
+        ['barcelona', 'Agència associada al Col·legi d’Agents de Barcelona.'], ['milan', 'Agenzia certificata a Milano.'], ['milan', "Agenzia associata all'associazione agenti immobiliari di Milano."], ['milan', 'Agente con patentino a Milano.'],
+        ['milan', 'Socio Fimaa Milano.'], ['milan', 'With Fimaa Milano since 2024.'], ['valencia', 'BOOM is permitted to broker leases in Valencia.'], ['valencia', 'BOOM is entitled to work as an agent in Spain.'],
+        ['valencia', 'Endorsed by the Valencia city council.'], ['valencia', 'Vetted by the Valencian consumer office.'], ['london', 'Endorsed by the London Assembly.'], ['london', 'TrustMark letting agent.'],
+        ['london', 'We are signed up to an independent complaints scheme for letting agents.'], ['london', 'Our agents are qualified under English law.'], ['paris', 'Agence certifiée à Paris.'], ['paris', 'Affiliée à la FNAIM.'], ['paris', 'Adhérent FNAIM.'],
+        ['berlin', 'Zertifizierter Makler in Berlin.'], ['berlin', 'IHK-geprüfter Makler.']];
+      const f3miss = F3.filter(([s, t]) => !/not reviewed in cities\/_claims\.json|names a register or a licence it does not hold/.test(desk(s, (c) => { c.faq.items[1].a += ` ${t}`; })));
+      check(!f3miss.length, `fifth round: the ${F3.length} local-language and synonym claims (vergunning, gecertificeerd, aangesloten, beëdigd; homologada, afiliada, asociada, associada, permiso; certificata, associata, patentino, Fimaa; permitted, entitled, endorsed, vetted, TrustMark, complaints scheme, qualified under; certifiée, affiliée, adhérent, FNAIM; zertifiziert, IHK) are refused on their desk (the six that sell, the Paris and Berlin drafts)`,
+        f3miss.map(([s, t]) => `${s}: ${t}`).join(' | '));
+      check(/names a register or a licence it does not hold \(Fimaa\)/.test(desk('milan', (c) => { c.faq.items[1].a += ' Socio Fimaa Milano.'; })) && ['IHK', 'FNAIM', 'IVD', 'Fimaa', 'fiaip', 'Aicat', 'raicv'].every((t) => sellHit(`${t} member`)),
+        'fifth round: on a desk that sells, "Fimaa" (any case, as a word), IHK, FNAIM and IVD are names it cannot ship, reviewed or not');
+      {
+        const hub = JSON.parse(read('cities/_hub.json')); hub.rules.note += ' Our desks are homologated.';
+        const r = throws(() => renderHub({ template: read('cities/_hub.html'), shared, hub, cities: SLUGS.map((s) => clone(CITY[s])), assetVersion: { css: 'testcss000', desksCss: 'testdcss00', desksJs: 'testdjs000' }, frags, root: R, weigh: false }), /cities\/_hub\.json: 1 sentence\(s\) about registration or licences not reviewed.*"Our desks are homologated"/);
+        check(r === true, 'fifth round: "Our desks are homologated." in the hub\'s rules note is refused on /desks', r);
+      }
+      check(['erkenning', 'toelating', 'Zulassung', 'Genehmigung', 'convenzionata', 'permís', 'omologata', 'qualified as an agent', 'endorsement', 'gecertificeerde', 'certifié', 'IVD-Makler', 'FIAIP-affiliated', 'iscritta all\'albo', 'Iscrizione al REA', 'Eintragung', 'inschrijving', 'immatriculée'].every(hasClaimVocab)
+        && !['associated', 'associate', 'agreement', 'energy certificate', 'allowed', 'qualified', 'qualify', 'Nov 2026', 'permission', 'Our association'].some(hasClaimVocab),
+        'fifth round: erkenning, toelating, Zulassung, Genehmigung, convenzionata, permís, omologata, "qualified as", albo, iscrizione, Eintragung, inschrijving, immatriculée are vocabulary; "associated", "associate", "agreement", "energy certificate", "allowed", a bare "qualified" are not');
+      check(['Wales', 'Welsh', 'Scotland', 'Scottish'].every((t) => PLACE_RE.test(t)) && why5('<dl><dt>Who</dt><dd>Egidi Immobiliare S.r.l. is an Italian real estate agency, registered in Rome. Also in Wales.</dd></dl>').includes('place')
+        && ['PRS', 'FNAIM', 'IVD', 'IHK'].every((n) => lintRefuses({ text: `The tenant checks the ${n} register`, kind: 'law' }, new RegExp(`names a register or a scheme no desk holds \\(${n}\\)`))),
+        'fifth round: Wales, Welsh, Scotland, Scottish are desk places (the place rule); an entry naming PRS, FNAIM, IVD or IHK is refused by the lint');
+    }
+    // ── sixth round (04/11/2026, the last): the belt ACROSS blocks (a number shape, a registration word or a register's
+    //    initials split between a label and its value), two reviewed short labels that compose, a label that asks who, and
+    //    the number shapes' precision (the code's letters upper case; amounts, measures and years after in/since not codes) ──
+    {
+      const desk = (slug, mut) => { const c = clone(baseCity(slug)); mut(c); try { renderOf(slug)(c); return 'built clean'; } catch (e) { return e instanceof BuildError ? e.message : `threw ${e.name}: ${e.message}`; } };
+      const reEsc = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const pg6 = (b) => `<!DOCTYPE html><html><head><title>t</title></head><body><main>${b}</main></body></html>`;
+      const why6 = (h, sell = true) => claimProblems(pg6(h), { claims, sell }).map((p) => p.why);
+      // v1.8 FLIP: the drafts' partner sentences live in their fixture: a draft's composition is read with the merge
+      const why6d = (h, sell = false) => claimProblems(pg6(h), { claims: DRAFT_CLAIMS, sell }).map((p) => p.why);
+      const row = (dt, dd, at) => (c) => { c.bref.rows.splice(at, 0, { dt, ddHtml: dd }); };
+      const XCUT = 'split between a label and its value \\(on the page they read as one claim\\): ';
+      const PAIR = /another reviewed label of four words or fewer, or a label that asks who or what status, reads as its value — two labels make a claim neither was reviewed for/;
+      // (G1) the fifth round's verifier built these clean: a number shape split between a fact-sheet row's label and its value,
+      // on the six desks that sell (at several rows, Valencia's first row included) and on the two drafts
+      const G1 = [['valencia', 0, 'Agent no.', 'CV-1234'], ['valencia', 2, 'Agent no.', 'CV-1234'], ['valencia', 6, 'Agent no.', 'CV-1234.'], ['valencia', 2, 'Reg. no.', '123456'], ['valencia', 6, 'Reg. no.', '123456'],
+        ['valencia', 2, 'Agency number', 'CV 1234'], ['valencia', 6, 'Agent ref.', 'CV-1234'], ['valencia', 2, 'Número de agente', '1234'], ['valencia', 6, 'No.', 'CV-1234'], ['valencia', 2, 'Agent ID', 'CV-1234'],
+        ['valencia', 6, 'Agent', 'CV-1234'], ['valencia', 2, 'Agent', 'CV-1234'], ['madrid', 6, 'Agent no.', 'M-4471'], ['london', 6, 'Agent no.', '4471'], ['amsterdam', 6, 'No.', '12345678'], ['milan', 6, 'Reg. no.', 'MI-123456'],
+        ['barcelona', 6, 'Agent no.', 'B-5521'], ['barcelona', 2, 'Número de agente', '5521'], ['draft-berlin', 2, 'Agent no.', 'CV-1234'], ['draft-paris', 5, 'No.', '12345']];
+      const g1miss = G1.filter(([s, at, dt, dd]) => !new RegExp(`${XCUT}.*"${reEsc(normSentence(`${dt} ${dd}`))}" \\(text\\)`).test(desk(s, row(dt, dd, at))));
+      check(!g1miss.length, `sixth round: the ${G1.length} fact-sheet rows that split a number shape between the label and its value ({dt "Agent no.", dd "CV-1234"}, "Reg. no." | "123456", "Agency number" | "CV 1234", "Agent ref.", "Número de agente" | "1234", "No." | "12345678", "Agent ID", "Agent" | "CV-1234") are refused on the six desks that sell and on the two drafts, the join quoted`,
+        g1miss.map(([s, at, dt, dd]) => `${s}@${at} ${dt}|${dd} → ${desk(s, row(dt, dd, at)).slice(0, 160)}`).join(' | '));
+      // a <br> or a newline inside one value, a check's legal label and title, a FAQ question and its answer
+      const G1b = [
+        ['valencia', 'a fact-sheet value "… Agent no.<br>CV-1234."', (c) => { c.bref.rows[4].ddHtml += ' Agent no.<br>CV-1234.'; }, 'Agent no. CV-1234'],
+        ['valencia', 'a fact-sheet value "… Reg.<br>123456."', (c) => { c.bref.rows[4].ddHtml += ' Reg.<br>123456.'; }, 'Reg. 123456'],
+        ['valencia', 'a fact-sheet value "… Our agent\\n4471 handles it."', (c) => { c.bref.rows[4].ddHtml += ' Our agent\n4471 handles it.'; }, 'Our agent 4471 handles it'],
+        ['madrid', 'a fact-sheet value whose long first line ends "… one agent" and whose next line is "4471, on every invoice."', (c) => { c.bref.rows[4].ddHtml += ' Every file of yours goes to one agent\n4471, on every invoice.'; }, 'one agent 4471, on every invoice'],
+        ['valencia', 'a check whose legal label is "Agent no." and whose title is "CV-1234"', (c) => { Object.assign(c.checks.items[4], { at: 'Agent no.', title: 'CV-1234' }); }, 'Agent no. CV-1234'],
+        ['valencia', 'a FAQ item "What is your agent number in Valencia?" / "CV-1234."', (c) => { c.faq.items.splice(3, 0, { q: 'What is your agent number in Valencia?', a: 'CV-1234.' }); }, 'What is your agent number in Valencia? CV-1234'],
+        ['london', 'a FAQ item "Your agent number?" / "4471."', (c) => { c.faq.items.splice(2, 0, { q: 'Your agent number?', a: '4471.' }); }, 'Your agent number? 4471'],
+        ['valencia', 'a fact-sheet row "Agent number in Valencia" / "CV-1234" (a number key, the code apart)', row('Agent number in Valencia', 'CV-1234', 6), 'Agent number in Valencia CV-1234']];
+      const g1bmiss = G1b.filter(([s, , mut, join]) => !new RegExp(`${XCUT}.*${reEsc(join)}" \\(text(?:, ld)?\\)`).test(desk(s, mut)));
+      check(!g1bmiss.length, `sixth round: the ${G1b.length} splits inside one value (a <br>, a newline — whatever the first line's length), between a check's legal label and its title, and between a FAQ question and its answer (a number key, "agent number", and a code) are refused, the join quoted`,
+        g1bmiss.map(([s, t, mut]) => `${s}: ${t} → ${desk(s, mut).slice(0, 200)}`).join(' | '));
+      // the register's initials split between a label and its value: a ban on a desk that sells, the belt on /desks
+      check(/names a register or a licence it does not hold \(RAICV\): "R A I C V"/.test(desk('valencia', row('R A I', 'C V', 2))) && why6('<dl><dt>R A I</dt><dd>C V</dd></dl>', false).includes('xcut'),
+        'sixth round: "R A I" | "C V" (the initials split between a label and its value) is refused on a desk that sells (RAICV, closed up across the two) and by the belt across blocks on a draft');
+      {
+        const hub = JSON.parse(read('cities/_hub.json')); hub.brief.rows[0] = { dt: 'R A I', dd: 'C V' };
+        const r = throws(() => renderHub({ template: read('cities/_hub.html'), shared, hub, cities: SLUGS.map((s) => clone(CITY[s])), assetVersion: { css: 'testcss000', desksCss: 'testdcss00', desksJs: 'testdjs000' }, frags, root: R, weigh: false }), /cities\/_hub\.json: a registration or licence word, a register's initials or a number shape is split between a label and its value .*"R A I C V" \(text\)/);
+        check(r === true, 'sixth round: on /desks a fact-sheet row "R A I" | "C V" is refused by the belt across blocks', r);
+        // v1.8 FLIP: "A licensed partner" left cities/_claims.json with the drafts (it lives in the drafts' fixture):
+        // the hub is read with that merge here, so the pair rule — not the unreviewed one — is what refuses it
+        const r2 = ['Registration|Generalitat', 'Generalitat|Registration', 'Who|A licensed partner'].map((x) => { const [dt, dd] = x.split('|'); const h = JSON.parse(read('cities/_hub.json')); h.brief.rows[0] = { dt, dd }; return throws(() => renderHub({ template: read('cities/_hub.html'), shared, hub: h, cities: SLUGS.map((s) => clone(CITY[s])), assetVersion: { css: 'testcss000', desksCss: 'testdcss00', desksJs: 'testdjs000' }, frags, root: R, weigh: false, claims: DRAFT_CLAIMS }), /cities\/_hub\.json: next to the reviewed label/); });
+        check(r2.every((x) => x === true), 'sixth round: on /desks a fact-sheet row "Registration" | "Generalitat", "Generalitat" | "Registration" or "Who" | "A licensed partner" is refused next to its reviewed label (the drafts\' fixture merged)', r2.join(' | '));
+      }
+      // the belt across blocks on the nine built pages: every join read, none refused (prices, dates, the Rome company line
+      // with VAT IT17322991005 and REA RM-1710623 under "Operated by", the Who rows, the papers' codes, the hours)
+      {
+        let n = 0; const fired = [], kinds = {};
+        for (const [x, h] of [...SLUGS.map((y) => [y, PAGE[y]]), ['desks', hubHtml]]) {
+          const joins = []; reviewSentences(h, { joins });
+          for (const j of joins) { n++; kinds[j.how] = (kinds[j.how] || 0) + 1; if (j.cut) fired.push(`${x}: ${j.parts.join(' | ')}`); }
+        }
+        check(n > 1000 && kinds.label > 0 && kinds.line > 0 && kinds.summary > 0 && !fired.length, `sixth round: on the nine built pages the belt across blocks reads ${n} joins (${Object.entries(kinds).map(([k, v]) => `${k} ${v}`).join(', ')}) and refuses none`, fired.join(' | '));
+        check(['Who', 'Operated by', 'Egidi Immobiliare S.r.l.', 'Passport or EU ID', 'Email or WhatsApp number', 'Valentino Egidi tenant-side agent'].every((l) => !joinCut([l, 'VAT IT17322991005, REA RM-1710623, 00186 Roma, AMS 02, Mon–Fri 09:00–19:00']))
+          && joinCut(['Agent no.', 'CV-1234']) === 'hits' && joinCut(['What is your agent number in Valencia?', 'CV-1234.']) === 'number' && joinCut(['ID', 'CV-1234']) === 'number' && !joinCut(['Agent number', 'Since 2026, €500 and 2,500 m² of flats']),
+          'sixth round: joinCut — a label that is no number key (Who, Operated by, the company, "EU ID", "WhatsApp number", the hours) never makes a value\'s code a claim; "Agent no." | "CV-1234" is a hit, a number key and a code apart is a split; a year, a price, a measure are no code');
+      }
+      // (G2) two reviewed short labels compose a claim; a label that asks who makes the key its answer
+      const G2 = [
+        ['valencia', 'a fact-sheet row "Registration" / "Generalitat"', row('Registration', 'Generalitat', 6)],
+        ['barcelona', 'a fact-sheet row "Registration" / "INCASÒL"', row('Registration', 'INCASÒL', 6)],
+        ['draft-berlin', 'a fact-sheet row "Registration" / "§34c GewO" (draft)', row('Registration', '§34c GewO', 5)],
+        ['valencia', 'a fact-sheet row "Generalitat" / "Registration"', row('Generalitat', 'Registration', 6)],
+        ['valencia', 'a fact-sheet row "Registration" / "Generalitat. We confirm it in writing before you sign." (row 2)', row('Registration', 'Generalitat. We confirm it in writing before you sign.', 2)],
+        ['valencia', 'a fact-sheet row "Registration" / "Generalitat. We confirm it in writing before you sign." (row 6)', row('Registration', 'Generalitat. We confirm it in writing before you sign.', 6)],
+        ['valencia', 'a fact-sheet row "Registration" / "Generalitat. We confirm it in writing before you sign." (last row)', row('Registration', 'Generalitat. We confirm it in writing before you sign.', 99)],
+        ['valencia', 'a check "Registration" (legal label) / "Generalitat" (title) / "The details are on request."', (c) => { Object.assign(c.checks.items[4], { at: 'Registration', title: 'Generalitat', text: 'The details are on request.' }); }],
+        ['valencia', 'a check "Generalitat" / "Registration" / "The details are on request."', (c) => { Object.assign(c.checks.items[4], { at: 'Generalitat', title: 'Registration', text: 'The details are on request.' }); }],
+        ['valencia', 'a check "Generalitat" / "Registration" / "Ask the landlord for the receipt."', (c) => { Object.assign(c.checks.items[4], { at: 'Generalitat', title: 'Registration', text: 'Ask the landlord for the receipt.' }); }],
+        ['barcelona', 'a check "Registration" / "INCASÒL" / "The details are on request."', (c) => { Object.assign(c.checks.items[4], { at: 'Registration', title: 'INCASÒL', text: 'The details are on request.' }); }],
+        ['draft-berlin', 'a check "Registration" / "§34c GewO" / "The details are on request." (draft)', (c) => { Object.assign(c.checks.items[3], { at: 'Registration', title: '§34c GewO', text: 'The details are on request.' }); }],
+        ['valencia', 'a FAQ answer ending "Registration. Generalitat."', (c) => { c.faq.items[2].a += ' Registration. Generalitat.'; }],
+        ['draft-berlin', 'a fact-sheet row "Who" / "A licensed partner" (draft)', row('Who', 'A licensed partner', 5)],
+        ['draft-paris', 'a fact-sheet row "Status" / "A licensed partner" (draft)', row('Status', 'A licensed partner', 5)]];
+      const g2miss = G2.filter(([s, , mut]) => !PAIR.test(desk(s, mut)));
+      check(!g2miss.length, `sixth round: the ${G2.length} compositions of two reviewed short labels ("Registration" — "Generalitat", "INCASÒL", "§34c GewO", either way round, in a fact-sheet row, a check, a FAQ answer) and the drafts' "Who" / "Status" — "A licensed partner" are refused on their desk`,
+        g2miss.map(([s, t, mut]) => `${s}: ${t} → ${desk(s, mut).slice(0, 200)}`).join(' | '));
+      check(why6('<dl><dt>Registration · Generalitat</dt><dd>On request.</dd></dl>').filter((w) => w === 'pair').length === 2 && why6('<dl><dt>Registration</dt><dd>Generalitat</dd></dl>').includes('pair')
+        && why6d('<dl><dt>Who</dt><dd>A licensed partner</dd></dl>', false).includes('pair') && why6('<dl><dt>Operated by</dt><dd>Generalitat</dd></dl>').includes('pair')
+        && !why6d('<ol><li><span class="s" data-instr>Opening</span> <span class="w"><b class="dh">A licensed partner</b> <span class="dp">We open with a licensed partner, not around the rule.</span></span></li></ol>', false).length
+        && !why6('<dl><dt>Registration</dt><dd>We confirm it before you sign.</dd></dl>').length
+        && !why6('<details><summary><span class="at" data-instr>fianza · Generalitat</span> <span class="t">The deposit</span></summary><p>Habitual lease: one month. The landlord lodges it with the Generalitat Valenciana; we ask for the deposit receipt.</p></details>').length,
+        'sixth round: two reviewed short labels in one block are each refused ("Registration · Generalitat"), and so is one as the value of another or of "Who" / "Operated by"; the drafts\' how step ("Opening" — "A licensed partner"), a follower value and the true deposit check pass');
+      // (G3) the number shapes' precision: the code's letters upper case, no amount, measure or year after in/since
+      // the lead's four, then two that only the upper-case rule protects (no amount, no measure, no year after them)
+      const G3 = ['Find your agent in 2026.', 'An agency 100% on your side.', 'Hire an agent for 300 euros.', 'The agency fee 300 € is paid by the landlord.', 'The agency has 1200 homes.', 'Your agent saw 300 flats in a week.'];
+      const g3bad = G3.flatMap((t) => [['a FAQ answer', (c) => { c.faq.items[1].a += ` ${t}`; }], ['a check text', (c) => { c.checks.items[0].text += ` ${t}`; }]].map(([w, mut]) => [t, w, desk('valencia', mut)])).filter(([, , r]) => r !== 'built clean');
+      check(!g3bad.length && G3.every((t) => !hasClaimVocab(t)) && ['AGENT IN 2026', 'Agency since 2019, on your side', 'Agency 2500 EUR', 'The agency is 1500 metres away', 'An agent 100 percent on your side', 'agency fee 10%'].every((t) => !hasClaimVocab(t)),
+        `sixth round: "${G3.join('", "')}" build clean in a FAQ answer and a check text on valencia (with the i flag the code's letters took "in", "for", "fee", "has", "saw"), and no amount, measure or year after in/since reads as a code`,
+        g3bad.map(([t, w, r]) => `${t} in ${w}: ${r.slice(0, 160)}`).join(' | '));
+      check(['Our agent number is 1234.', 'Our agent no. is CV-1234.', 'Agent no. cv-1234.', 'Agent N. 1234.'].every((t) => new RegExp(`not reviewed in cities/_claims\\.json: "${reEsc(normSentence(t))}" \\(`).test(desk('valencia', (c) => { c.faq.items[1].a += ` ${t}`; })))
+        && JSON.stringify(reviewSentences(pg6('<p>Agent N. 1234. Iscrizione N. 5678.</p>')).filter((x) => x.where === 'text' && !x.cut && !x.ncut).map((x) => x.text)) === '["Agent N. 1234","Iscrizione N. 5678"]',
+        'sixth round: the copula ("Our agent number is 1234", "Our agent no. is CV-1234") and a lower-case code joined to its digits ("cv-1234") are number shapes; "Agent N. 1234" stays one sentence (an upper-case "N." is a number abbreviation), refused as unreviewed');
+    }
+    // ── seventh round (04/11/2026): the number key and its code wherever they stand — a label of any length with its value, in
+    //    either order, on any line of a block, across the house separators, anywhere in one string, on every line of a FAQ
+    //    answer, and across a page's title and its description or a JSON-LD node's name and its description ──
+    {
+      const desk = (slug, mut) => { const c = clone(baseCity(slug)); mut(c); try { renderOf(slug)(c); return 'built clean'; } catch (e) { return e instanceof BuildError ? e.message : `threw ${e.name}: ${e.message}`; } };
+      const reEsc = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const pg7 = (b) => `<!DOCTYPE html><html><head><title>t</title></head><body><main>${b}</main></body></html>`;
+      const why7 = (h, sell = true) => claimProblems(pg7(h), { claims, sell }).map((p) => p.why);
+      const row = (dt, dd, at) => (c) => { c.bref.rows.splice(at, 0, { dt, ddHtml: dd }); };
+      const XCUT = 'split between a label and its value \\(on the page they read as one claim\\): ';
+      const NCUT = 'stand in one block or string \\(on the page the code reads as that number\\): ';
+      const UNREV = 'not reviewed in cities/_claims\\.json: ';
+      const refused = (msg, list) => list.filter(([s, , mut, quote, at]) => !new RegExp(`${msg}.*${reEsc(quote)}${at ? `[^"]*" \\(${at}` : ''}`).test(desk(s, mut)));
+      const say = (miss, list) => miss.map(([s, t, mut]) => `${s}: ${t} → ${desk(s, mut).slice(0, 220)}`).join(' | ');
+      // (P1) a number key in a label of five words or more: a fact-sheet row on the six desks that sell and on both drafts, a how step's heading
+      const P1 = [
+        ['valencia', 'row 2 "Our agent number in Valencia" / "CV-1234."', row('Our agent number in Valencia', 'CV-1234.', 2), '"Our agent number in Valencia CV-1234" (text'],
+        ['valencia', 'row 6 "Our agent number in Valencia" / "CV-1234."', row('Our agent number in Valencia', 'CV-1234.', 6), '"Our agent number in Valencia CV-1234" (text'],
+        ['valencia', 'row 6 "Agent number of our Valencia desk" / "CV-1234"', row('Agent number of our Valencia desk', 'CV-1234', 6), '"Agent number of our Valencia desk CV-1234" (text'],
+        ['madrid', 'row 6 "Our agent number in Madrid" / "M-4471."', row('Our agent number in Madrid', 'M-4471.', 6), '"Our agent number in Madrid M-4471" (text'],
+        ['london', 'row 6 "Our agency number in England" / "4471."', row('Our agency number in England', '4471.', 6), '"Our agency number in England 4471" (text'],
+        ['milan', 'row 6 "Our agent number in Milan" / "MI-123456."', row('Our agent number in Milan', 'MI-123456.', 6), '"Our agent number in Milan MI-123456" (text'],
+        ['amsterdam', 'row 6 "Our agent number in Amsterdam" / "12345678."', row('Our agent number in Amsterdam', '12345678.', 6), '"Our agent number in Amsterdam 12345678" (text'],
+        ['barcelona', 'row 6 "Our agent number in Barcelona" / "B-5521."', row('Our agent number in Barcelona', 'B-5521.', 6), '"Our agent number in Barcelona B-5521" (text'],
+        ['draft-berlin', 'row 5 "Our agent number in Berlin" / "B-4471." (draft)', row('Our agent number in Berlin', 'B-4471.', 5), '"Our agent number in Berlin B-4471" (text'],
+        ['draft-paris', 'row 5 "Our agent number in Paris" / "P-4471." (draft)', row('Our agent number in Paris', 'P-4471.', 5), '"Our agent number in Paris P-4471" (text'],
+        ['valencia', 'a how step headed "Our agent number in Spain" whose text is "CV-1234, on every letter we send."', (c) => { Object.assign(c.how.steps[1], { h: 'Our agent number in Spain', p: 'CV-1234, on every letter we send.' }); }, '"Our agent number in Spain CV-1234, on every letter we send" (text'],
+        ['madrid', 'a how step headed "Our agent number in Spain" whose text is "M-4471, on every letter we send."', (c) => { Object.assign(c.how.steps[1], { h: 'Our agent number in Spain', p: 'M-4471, on every letter we send.' }); }, '"Our agent number in Spain M-4471, on every letter we send" (text']];
+      const p1miss = refused(XCUT, P1);
+      check(!p1miss.length, `seventh round: the ${P1.length} labels of five words or more that carry a number key ("Our agent number in Valencia" / "CV-1234." on the six desks that sell and on both drafts, a how step's heading "Our agent number in Spain" / "CV-1234, …") are joined with their value and refused, the join quoted`, say(p1miss, P1));
+      // (P3) the other way round: the code in the label, the number key in the value — short or long label, a row or a check
+      const P3 = [
+        ['valencia', 'row 2 "CV-1234" / "Our agent number in Valencia."', row('CV-1234', 'Our agent number in Valencia.', 2), '"CV-1234 Our agent number in Valencia" (text'],
+        ['valencia', 'row 6 "CV-1234" / "Our agent number in Valencia."', row('CV-1234', 'Our agent number in Valencia.', 6), '"CV-1234 Our agent number in Valencia" (text'],
+        ['madrid', 'row 6 "M-4471" / "Our agent number in Madrid."', row('M-4471', 'Our agent number in Madrid.', 6), '"M-4471 Our agent number in Madrid" (text'],
+        ['draft-berlin', 'row 5 "B-4471" / "Our agent number in Berlin." (draft)', row('B-4471', 'Our agent number in Berlin.', 5), '"B-4471 Our agent number in Berlin" (text'],
+        ['valencia', 'a check whose legal label is "CV-1234" and whose title is "Our agent number"', (c) => { Object.assign(c.checks.items[4], { at: 'CV-1234', title: 'Our agent number', text: 'Shown on every letter we send.' }); }, '"CV-1234 Our agent number" (text'],
+        ['valencia', 'row 6 "Printed on every letter we send: CV-1234" / "Our agent number in Valencia." (a long label)', row('Printed on every letter we send: CV-1234', 'Our agent number in Valencia.', 6), '"Printed on every letter we send: CV-1234 Our agent number in Valencia" (text']];
+      const p3miss = refused(XCUT, P3);
+      check(!p3miss.length, `seventh round: the ${P3.length} reversed splits (the code in the label, the number key in the value: "CV-1234" / "Our agent number in Valencia.", a check {at "CV-1234", title "Our agent number"}, a long label ending on the code) are refused on the desk page, the join quoted`, say(p3miss, P3));
+      // (P4, and its siblings in a fact-sheet row) the code on a later line of the value's block: a FAQ answer with a newline, a value with a <br>
+      const P4 = [
+        ['valencia', 'a FAQ item "Do you have an agent number in Valencia?" / "Yes.⏎CV-1234."', (c) => { c.faq.items.splice(3, 0, { q: 'Do you have an agent number in Valencia?', a: 'Yes.\nCV-1234.' }); }, '"Do you have an agent number in Valencia? Yes. CV-1234" (text'],
+        ['valencia', 'a FAQ item "What is your agent number in Valencia?" / "Ask us.⏎CV-1234."', (c) => { c.faq.items.splice(3, 0, { q: 'What is your agent number in Valencia?', a: 'Ask us.\nCV-1234.' }); }, '"What is your agent number in Valencia? Ask us. CV-1234" (text'],
+        ['london', 'a FAQ item "Your agent number?" / "We print it on every letter.⏎4471."', (c) => { c.faq.items.splice(2, 0, { q: 'Your agent number?', a: 'We print it on every letter.\n4471.' }); }, '"Your agent number? We print it on every letter. 4471" (text'],
+        ['valencia', 'a check titled "Our agent number" whose text is "Ask us.⏎CV-1234, on every letter."', (c) => { Object.assign(c.checks.items[4], { title: 'Our agent number', text: 'Ask us.\nCV-1234, on every letter.' }); }, 'Our agent number Ask us. CV-1234, on every letter" (text'],
+        ['valencia', 'a check whose legal label is "Our agent number", titled "In Valencia", whose text is "Ask us.⏎CV-1234, on every letter." (only the summary reads the label with the answer\'s second line)', (c) => { Object.assign(c.checks.items[4], { at: 'Our agent number', title: 'In Valencia', text: 'Ask us.\nCV-1234, on every letter.' }); }, '"Our agent number In Valencia Ask us. CV-1234, on every letter" (text'],
+        ['valencia', 'a fact-sheet row "Our agent number" / "In Valencia:<br>CV-1234."', row('Our agent number', 'In Valencia:<br>CV-1234.', 6), '"Our agent number In Valencia: CV-1234" (text'],
+        ['madrid', 'a fact-sheet row "M-4471" / "On every letter.<br>Our agent number in Madrid."', row('M-4471', 'On every letter.<br>Our agent number in Madrid.', 6), '"M-4471 On every letter. Our agent number in Madrid" (text'],
+        ['valencia', 'a fact-sheet value "Our agent number<br>in Valencia." before a row labelled "CV-1234"', (c) => { c.bref.rows.splice(6, 0, { dt: 'Ours', ddHtml: 'Our agent number<br>in Valencia.' }, { dt: 'CV-1234', ddHtml: 'On every letter.' }); }, '"Our agent number in Valencia. CV-1234" (text']];
+      const p4miss = refused(XCUT, P4);
+      check(!p4miss.length, `seventh round: the ${P4.length} codes on a later line of the value's block (a FAQ answer "Yes.⏎CV-1234.", a check's text, a fact-sheet value "In Valencia:<br>CV-1234.", either order, the key on a first line) are joined with the question, the title or the label and refused`, say(p4miss, P4));
+      // (P2) the house separators between the keyword and the code: the number shape is read whole, and the guard refuses it (unreviewed,
+      // or the splitter belt for the spaced ·), on the six desks that sell and on a draft, wherever the string stands
+      const GUARD = `(?:${UNREV}|split by the sentence splitter \\(on the page it reads as one claim\\): |${XCUT}|${NCUT})`;
+      const P2 = [];
+      for (const [city, code] of [['valencia', 'CV-1234'], ['madrid', 'M-4471'], ['london', '4471'], ['milan', 'MI-123456'], ['amsterdam', '12345678'], ['barcelona', 'B-5521']]) P2.push([city, `a fact-sheet value "… Agent no. — ${code}."`, (c) => { c.bref.rows[4].ddHtml += ` Agent no. — ${code}.`; }, `Agent no. — ${code}`]);
+      // ('[' and '{' are a placeholder and a token in a desk's JSON, refused before the guard: they stay in the unit list SEPS)
+      for (const [sep, close] of [[' – ', ''], [' · ', ''], [' • ', ''], [' / ', ''], [' | ', ''], [' (', ')'], [' “', '”'], [' "', '"'], [" '", "'"], [' ‘', '’'], [' «', '»'], ['-', ''], [': ', '']]) {
+        const x = `Agent no.${sep}CV-1234${close}`;
+        P2.push(['valencia', `a fact-sheet value "… ${x}."`, (c) => { c.bref.rows[4].ddHtml += ` ${x}.`; }, x]);
+      }
+      P2.push(
+        ['valencia', 'the Who row, after the company\'s Rome line, "Agent number (CV-1234)."', (c) => { c.bref.rows[0].ddHtml += ' Agent number (CV-1234).'; }, 'Agent number (CV-1234)'],
+        ['madrid', 'the Who row "… Agent number (M-4471)."', (c) => { c.bref.rows[0].ddHtml += ' Agent number (M-4471).'; }, 'Agent number (M-4471)'],
+        ['london', 'the Who row "… Agency number — 4471."', (c) => { c.bref.rows[0].ddHtml += ' Agency number — 4471.'; }, 'Agency number — 4471'],
+        ['valencia', 'a check\'s legal label "Agent no. · CV-1234"', (c) => { c.checks.items[3].at = 'Agent no. · CV-1234'; }, 'Agent no. · CV-1234'],
+        ['madrid', 'a check\'s legal label "Agent no. · M-4471"', (c) => { c.checks.items[3].at = 'Agent no. · M-4471'; }, 'Agent no. · M-4471'],
+        ['valencia', 'a check\'s legal label "Agent no. (CV-1234)"', (c) => { c.checks.items[3].at = 'Agent no. (CV-1234)'; }, 'Agent no. (CV-1234)'],
+        ['valencia', 'a check\'s legal label "Agent number · CV-1234"', (c) => { c.checks.items[3].at = 'Agent number · CV-1234'; }, 'Agent number · CV-1234'],
+        ['valencia', 'a check\'s legal label "Reg. no. · 123456"', (c) => { c.checks.items[3].at = 'Reg. no. · 123456'; }, 'Reg. no. · 123456'],
+        ['valencia', 'a FAQ answer "… Our agent no. · CV-1234."', (c) => { c.faq.items[2].a += ' Our agent no. · CV-1234.'; }, 'Our agent no. · CV-1234'],
+        ['valencia', 'a check text "… Our agency number (CV-1234) is on every letter."', (c) => { c.checks.items[3].text += ' Our agency number (CV-1234) is on every letter.'; }, 'Our agency number (CV-1234) is on every letter'],
+        ['valencia', 'the footer statement "… Agent number (CV-1234)."', (c) => { c.footer.statement += ' Agent number (CV-1234).'; }, 'Agent number (CV-1234)'],
+        ['valencia', 'meta.description "… Agent number (CV-1234)."', (c) => { c.meta.description += ' Agent number (CV-1234).'; }, 'Agent number (CV-1234)'],
+        ['valencia', 'the Service description (JSON-LD) "… Agent no. · CV-1234."', (c) => { c.service.description += ' Agent no. · CV-1234.'; }, 'Agent no. · CV-1234'],
+        ['draft-paris', 'a fact-sheet value "… Agent no. · P-4471." (draft)', (c) => { c.bref.rows[4].ddHtml += ' Agent no. · P-4471.'; }, 'Agent no. · P-4471']);
+      const p2miss = refused(GUARD, P2);
+      check(!p2miss.length, `seventh round: the ${P2.length} number shapes across a house separator (—, –, ·, •, /, |, (, straight and curly quotes, «, -, a colon) are refused on the six desks that sell and on a draft, in a fact-sheet value, the Who row after the company's Rome line, a check's legal label or text, a FAQ answer, the footer, the meta description and the JSON-LD, the string quoted`, say(p2miss, P2));
+      // (P2, the belt) a number key and a code in one string with no number shape at all — a word, a sentence or a comma between, or the
+      // code first: no other rule reads them, the block-level check refuses them
+      const P2n = [
+        ['valencia', 'a FAQ answer "… Our agent number in Valencia — CV-1234."', (c) => { c.faq.items[2].a += ' Our agent number in Valencia — CV-1234.'; }, 'Our agent number in Valencia — CV-1234', 'text, ld'],
+        ['valencia', 'a FAQ answer "… CV-1234 is our agent number in Valencia." (the code first)', (c) => { c.faq.items[2].a += ' CV-1234 is our agent number in Valencia.'; }, 'CV-1234 is our agent number in Valencia', 'text, ld'],
+        ['valencia', 'a FAQ answer "… Our agent no. today is CV-1234." (a word between)', (c) => { c.faq.items[2].a += ' Our agent no. today is CV-1234.'; }, 'Our agent no. today is CV-1234', 'text, ld'],
+        ['valencia', 'a FAQ answer "… Agent no. cv 1234." (lower-case letters spaced from the digits)', (c) => { c.faq.items[2].a += ' Agent no. cv 1234.'; }, 'Agent no. cv 1234', 'text, ld'],
+        ['valencia', 'a fact-sheet value of two sentences "… Our agent number in Valencia. CV-1234."', (c) => { c.bref.rows[4].ddHtml += ' Our agent number in Valencia. CV-1234.'; }, 'Our agent number in Valencia. CV-1234', 'text'],
+        ['madrid', 'a check text "… Our agency number, printed on every letter: M-4471."', (c) => { c.checks.items[3].text += ' Our agency number, printed on every letter: M-4471.'; }, 'Our agency number, printed on every letter: M-4471', 'text'],
+        ['london', 'the Who row "… Our agency number is on every invoice — 4471."', (c) => { c.bref.rows[0].ddHtml += ' Our agency number is on every invoice — 4471.'; }, 'Our agency number is on every invoice — 4471', 'text'],
+        ['valencia', 'the footer statement "… Our agent number in Valencia — CV-1234."', (c) => { c.footer.statement += ' Our agent number in Valencia — CV-1234.'; }, 'Our agent number in Valencia — CV-1234', 'text'],
+        ['valencia', 'meta.description "… Our agent number in Valencia — CV-1234."', (c) => { c.meta.description += ' Our agent number in Valencia — CV-1234.'; }, 'Our agent number in Valencia — CV-1234', 'meta'],
+        ['valencia', 'the Service description (JSON-LD) "… CV-1234 is our agent number."', (c) => { c.service.description += ' CV-1234 is our agent number.'; }, 'CV-1234 is our agent number', 'ld'],
+        ['draft-paris', 'a fact-sheet value "… Our agent number in Paris — P-4471." (draft)', (c) => { c.bref.rows[4].ddHtml += ' Our agent number in Paris — P-4471.'; }, 'Our agent number in Paris — P-4471', 'text'],
+        ['valencia', 'a fact-sheet value "Our agent number<br>in Valencia<br>CV-1234." (the key and the code two lines apart in one block)', (c) => { c.bref.rows.splice(6, 0, { dt: 'Ours', ddHtml: 'Our agent number<br>in Valencia<br>CV-1234.' }); }, 'Our agent number in Valencia CV-1234', 'text'],
+        ['milan', 'a fact-sheet value "CV-1234<br>printed on every letter<br>is our agent number." (the code first, two lines apart)', (c) => { c.bref.rows.splice(6, 0, { dt: 'Ours', ddHtml: 'MI-123456<br>printed on every letter<br>is our agent number.' }); }, 'MI-123456 printed on every letter is our agent number', 'text']];
+      const p2nmiss = refused(NCUT, P2n);
+      check(!p2nmiss.length, `seventh round: the ${P2n.length} blocks and strings with a number key and a code and no number shape (a word, a sentence, a comma or two <br> lines between, the code first) are refused by the block-level check on the desks that sell and on a draft, in a FAQ answer, a fact-sheet value, a check text, the Who row, the footer, the meta description and the JSON-LD`, say(p2nmiss, P2n));
+      // the bridge itself: a separator between the keyword and the number word, where no number key is read
+      const P2b = [['valencia', 'a FAQ answer "… Our agent — number CV-1234."', (c) => { c.faq.items[2].a += ' Our agent — number CV-1234.'; }, '"Our agent — number CV-1234" (text, ld'],
+        ['valencia', 'a FAQ answer "… Agent: number CV-1234."', (c) => { c.faq.items[2].a += ' Agent: number CV-1234.'; }, '"Agent: number CV-1234" (text, ld']];
+      const p2bmiss = refused(UNREV, P2b);
+      check(!p2bmiss.length, 'seventh round: a number shape bridges the separators between its keyword and its number word too ("Our agent — number CV-1234", "Agent: number CV-1234"), refused as unreviewed', say(p2bmiss, P2b));
+      const SEPS = ['Agent no. — CV-1234', 'Agent no. – CV-1234', 'Agent no. · CV-1234', 'Agent no. • CV-1234', 'Agent no. / CV-1234', 'Agent no. | CV-1234', 'Agent no. (CV-1234)', 'Agent no. [CV-1234]', 'Agent no. {CV-1234}', 'Agent no. “CV-1234”', 'Agent no. "CV-1234"', "Agent no. 'CV-1234'", 'Agent no. ‘CV-1234’', 'Agent no. «CV-1234»', 'Agent no.-CV-1234', 'Agent no.: CV-1234', 'Agent number (CV-1234)', 'Agency number — 4471', 'Reg. no. · 123456', 'Número de agente — 1234', 'Agent — number CV-1234', 'Agent: no. CV-1234'];
+      const SEP_TRUE = ['Who pays the agent: no one but you.', 'An agency (100%) on your side.', 'Agent (since 2019).', 'Agent — since 2026.', 'Hire an agent (300 euros).', 'An agency (2,500 homes).', 'The agent — €500, flat.', 'Your agent · Mon–Fri 09:00–19:00.'];
+      check(SEPS.every((t) => hasClaimVocab(t)) && SEP_TRUE.every((t) => !hasClaimVocab(t)),
+        'seventh round: a number shape bridges the house separators between its keyword, its number word and its code (—, –, -, ·, •, /, |, an opening parenthesis, bracket or brace, straight and curly quotes, guillemets, the colon); an amount, a measure, a year after since, the hours or "no one" after a separator are no code',
+        [...SEPS.filter((t) => !hasClaimVocab(t)), ...SEP_TRUE.filter(hasClaimVocab)].join(' | '));
+      const KEYED = ['Our agent number in Valencia — CV-1234.', 'Our agency number (CV-1234) is on every letter.', 'CV-1234 is our agent number.', 'Our agent no. today is CV-1234.', 'Agent no. cv 1234.', 'Our agent number in Valencia. CV-1234.', 'Número de agente es 1234.', 'Registration ID: AB 4471.'];
+      const UNKEYED = ['Yes. BOOM Milan is a desk of Egidi Immobiliare S.r.l., an Italian real estate agency registered in Rome (REA RM-1710623).', 'Operated by Egidi Immobiliare S.r.l. — VAT IT17322991005, REA RM-1710623, Viale Liegi 42, 00198 Roma.', 'Your agent number? We have none outside Rome.', 'Ask the agent for the agency number; the lease is registered within 30 days, in 2026.', 'Agent number questions: Mon–Fri 09:00–19:00.', 'WhatsApp +39 331 325 1961 · Email or WhatsApp number'];
+      check(KEYED.every(numKeyCode) && !UNKEYED.some(numKeyCode), 'seventh round: numKeyCode — a number key and a code in one string, in either order and whatever stands between (a word, a sentence, a separator); the company lines with VAT IT17322991005 and REA RM-1710623, a key with no code, a year, the hours and a phone number are not one',
+        [...KEYED.filter((t) => !numKeyCode(t)), ...UNKEYED.filter(numKeyCode)].join(' | '));
+      check(why7('<p>Agent n<b>o.</b> in Valencia: CV-1234.</p>').includes('split') && why7('<p>Agent no. in Valencia — CV-1234.</p>').includes('ncut') && why7('<dl><dt>Our agent number in Valencia</dt><dd>CV-1234.</dd></dl>', false).includes('xcut')
+        && why7('<dl><dt>CV-1234</dt><dd>Our agent number in Valencia.</dd></dl>', false).includes('xcut') && why7('<dl><dt>Our agent number</dt><dd>In Valencia:<br>CV-1234.</dd></dl>', false).includes('xcut')
+        && why7('<details><summary>Do you have an agent number in Valencia?</summary><p>Yes.\nCV-1234.</p></details>', false).includes('xcut'),
+        'seventh round: a number key made whole by removing inline tags is a split; the number key and the code in one string, a long label, the reversed order, a <br> in the value and a newline in a FAQ answer are refused on a draft too');
+      // (P5) a page's title and its description, read together (a search snippet), and a JSON-LD node's name or serviceType with its description
+      const P5 = [
+        ['valencia', 'the <title> "… — BOOM agent no." and the meta description "CV-1234. …"', (c) => { c.meta.title = 'Valencia rental agent for expats — BOOM agent no.'; c.meta.description = `CV-1234. ${c.meta.description}`; }, '— BOOM agent no. CV-1234. Apartment search'],
+        ['valencia', 'og:title "BOOM Valencia — agent no." and og:description "CV-1234. …"', (c) => { c.meta.ogTitle = 'BOOM Valencia — agent no.'; c.meta.ogDescription = `CV-1234. ${c.meta.ogDescription}`; }, 'BOOM Valencia — agent no. CV-1234. Tenant-side rental search'],
+        ['valencia', 'the Service serviceType "Tenant-side rental search agent no." and its description "CV-1234. …"', (c) => { c.service.serviceType = 'Tenant-side rental search agent no.'; c.service.description = `CV-1234. ${c.service.description}`; }, 'Tenant-side rental search agent no. CV-1234. Rental search'],
+        ['madrid', 'the <title> "… — our agent number" and the meta description "M-4471. …"', (c) => { c.meta.title = 'Madrid rental agent for expats — our agent number'; c.meta.description = `M-4471. ${c.meta.description}`; }, '— our agent number M-4471. Apartment search']];
+      const p5miss = refused(XCUT, P5);
+      check(!p5miss.length, `seventh round: the ${P5.length} number shapes split between a page's title and its description (<title> and meta description, og:title and og:description) or between a JSON-LD node's serviceType and its description are refused, the pair quoted`, say(p5miss, P5));
+      // on /desks: a number typed in the hub's copy is refused by the hub's own rule before the guard ("types a number"); the guard itself
+      // reads the hub page the same way (a long number-key label with its code, a separator, the code first, injected into the built hub)
+      {
+        const errOf = (mut) => { const h = JSON.parse(read('cities/_hub.json')); mut(h); try { renderHub({ template: read('cities/_hub.html'), shared, hub: h, cities: SLUGS.map((s) => clone(CITY[s])), assetVersion: { css: 'testcss000', desksCss: 'testdcss00', desksJs: 'testdjs000' }, frags, root: R, weigh: false }); return 'built clean'; } catch (e) { return e.message; } };
+        const typed = errOf((h) => { h.footer.statement += ' Our agent number in Valencia — CV-1234.'; });
+        const inHub = (frag) => claimProblems(hubHtml.replace(/<\/main>/i, `${frag}</main>`), { claims }).map((p) => p.why);
+        check(/cities\/_hub\.json: footer\.statement: .*types a number/.test(typed)
+          && inHub('<dl><dt>Our agent number in Valencia</dt><dd>CV-1234.</dd></dl>').includes('xcut') && inHub('<dl><dt>CV-1234</dt><dd>Our agent number in Valencia.</dd></dl>').includes('xcut')
+          && inHub('<p>Our agent number in Valencia — CV-1234.</p>').includes('ncut') && inHub('<p>Agent no. · CV-1234.</p>').includes('cut') && !inHub('').length,
+          'seventh round: on /desks a typed code is refused by the hub\'s number rule; on the built hub page the guard refuses a long number-key label with its code, the reversed pair, a number key and a code in one string and a separator, and the hub as built is clean', typed.slice(0, 200));
+      }
+      // the nine built pages: every join, pair and string read, none refused; the true copy that stays clean
+      {
+        const kinds = {}, fired = [];
+        let strings = 0;
+        for (const [x, h] of [...SLUGS.map((y) => [y, PAGE[y]]), ['desks', hubHtml]]) {
+          const joins = [], all = reviewSentences(h, { joins });
+          for (const j of joins) { kinds[j.how] = (kinds[j.how] || 0) + 1; if (j.cut) fired.push(`${x} ${j.how}: ${j.parts.join(' | ')}`); }
+          for (const s of all) { if (s.ncut || s.cut || s.xcut || s.split) fired.push(`${x} ${s.where}: ${s.text}`); }
+          const blocks = new Map();
+          for (const s of all) blocks.set(`${s.where}|${s.block}`, `${blocks.get(`${s.where}|${s.block}`) || ''} ${s.text}`);
+          strings += blocks.size;
+          for (const [k, t] of blocks) if (numKeyCode(t)) fired.push(`${x} ${k}: ${t.trim()}`);
+        }
+        check(kinds.meta === 3 * (SLUGS.length + 1) && kinds.ld > 100 && !kinds.block && !fired.length,
+          `seventh round: on the nine built pages ${Object.values(kinds).reduce((a, b) => a + b, 0)} joins are read (${Object.entries(kinds).map(([k, v]) => `${k} ${v}`).join(', ')}) and ${strings} blocks and strings, and nothing is refused: no long label, no reversed pair, no multi-line value, no title and description carries a number key with a code`, fired.join(' | '));
+        check(joinCut(['Our agent number in Valencia', 'CV-1234.']) === 'number' && joinCut(['CV-1234', 'Our agent number in Valencia.']) === 'number' && joinCut(['Valencia rental agent — BOOM agent no.', 'CV-1234. Apartment search']) === 'hits'
+          && !joinCut(['VAT IT17322991005, REA RM-1710623', 'Email or WhatsApp number']) && !joinCut(['Operated by', 'Egidi Immobiliare S.r.l. — VAT IT17322991005, REA RM-1710623, 00186 Roma'])
+          && !joinCut(['Is BOOM Milan a real estate agency?', 'Yes. BOOM Milan is a desk of Egidi Immobiliare S.r.l., an Italian real estate agency registered in Rome (REA RM-1710623).'])
+          && !joinCut(['Who', 'BOOM Milan, the tenant-side rental desk of BOOM — operated by Egidi Immobiliare S.r.l. (REA RM-1710623)'])
+          && !joinCut(['€199', 'flat · incl. VAT']) && !joinCut(['Passport or EU ID', 'AMS 02']) && !joinCut(['AMS 02', 'Passport or EU ID']),
+          'seventh round: joinCut reads either order ("Our agent number in Valencia" | "CV-1234.", "CV-1234" | "Our agent number in Valencia.") and a title with its description; the company lines with VAT IT17322991005 and REA RM-1710623 under "Operated by", "Who" and "Is BOOM Milan a real estate agency?", a fare\'s "€199" | "flat · incl. VAT" and "Passport or EU ID" | "AMS 02" stay clean');
+      }
+    }
+    // ── eighth round (04/11/2026, the last): a code written grouped or as a number and its year, the build's indexes between two
+    //    lines, the hub's row heads with every cell of their row, and the Spanish and Italian "agente" ──
+    {
+      const desk = (slug, mut) => { const c = clone(baseCity(slug)); mut(c); try { renderOf(slug)(c); return 'built clean'; } catch (e) { return e instanceof BuildError ? e.message : `threw ${e.name}: ${e.message}`; } };
+      const reEsc = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const pg8 = (b) => `<!DOCTYPE html><html><head><title>t</title></head><body><main>${b}</main></body></html>`;
+      const why8 = (h, sell = true) => claimProblems(pg8(h), { claims, sell }).map((p) => p.why);
+      const row = (dt, dd, at) => (c) => { c.bref.rows.splice(at, 0, { dt, ddHtml: dd }); };
+      const faq = (k, t) => (c) => { c.faq.items[k].a += ` ${t}`; };
+      const XCUT = 'split between a label and its value \\(on the page they read as one claim\\): ';
+      const UNREV = 'not reviewed in cities/_claims\\.json: ';
+      // the quote is the END of the quoted sentence, with its closing quote and where it stands
+      const refused = (msg, list) => list.filter(([s, , mut, quote]) => !new RegExp(`${msg}.*${reEsc(quote)}`).test(desk(s, mut)));
+      const say = (miss, list) => miss.map(([s, t, mut]) => `${s}: ${t} → ${desk(s, mut).slice(0, 220)}`).join(' | ');
+      // (P1) a grouped code ("1.234", "1,234", "12 345", "CV-12.345", "12.345.678", "1,234,567") after a number word, a number
+      // abbreviation (nº, n., no.) or with its letters and a hyphen after a bare keyword, and a number with its year ("45/2026")
+      const P1 = [];
+      for (const t of ['Agent no. 1,234.', 'Agent no. 1.234.', 'Agent no. 12 345.', 'Agent no. CV-12.345.', 'Our agent number is 12.345.', 'Agent number: 1,234,567.', 'Agente inmobiliario nº 1.234.', 'Nº 1.234.', 'Agent no. 45/2026.'])
+        P1.push(['valencia', `a FAQ answer "… ${t}"`, faq(2, t), `"${normSentence(t)}" (text, ld)`]);
+      P1.push(['london', 'a FAQ answer "… Agency number 12,345."', faq(2, 'Agency number 12,345.'), '"Agency number 12,345" (text, ld)'],
+        ['london', 'a FAQ answer "… Agency no. 12,345."', faq(2, 'Agency no. 12,345.'), '"Agency no. 12,345" (text, ld)'],
+        ['amsterdam', 'a FAQ answer "… Agent no. 12.345.678."', faq(2, 'Agent no. 12.345.678.'), '"Agent no. 12.345.678" (text, ld)'],
+        ['milan', 'a FAQ answer "… Agente n. 1.234."', faq(2, 'Agente n. 1.234.'), '"Agente n. 1.234" (text, ld)'],
+        ['madrid', 'a FAQ answer "… Agent CV-12.345." (letters and a hyphen after a bare keyword)', faq(2, 'Agent CV-12.345.'), '"Agent CV-12.345" (text, ld)'],
+        ['valencia', 'the Who row, after the company\'s Rome line, "… Agent no. 1.234."', (c) => { c.bref.rows[0].ddHtml += ' Agent no. 1.234.'; }, '"Agent no. 1.234" (text)'],
+        ['draft-paris', 'a FAQ answer "… Agent no. 1.234." (draft)', faq(1, 'Agent no. 1.234.'), '"Agent no. 1.234" (text, ld)'],
+        ['draft-berlin', 'a FAQ answer "… Agent no. 45/2026." (draft)', faq(1, 'Agent no. 45/2026.'), '"Agent no. 45/2026" (text, ld)']);
+      const p1miss = refused(UNREV, P1);
+      check(!p1miss.length, `eighth round: the ${P1.length} grouped codes and numbers with their year ("Agent no. 1.234", "1,234", "12 345", "CV-12.345", "Our agent number is 12.345", "1,234,567", "Agente inmobiliario nº 1.234", "Nº 1.234", "Agente n. 1.234", "Agent no. 12.345.678", "Agent CV-12.345", "Agent no. 45/2026") are number shapes, refused as unreviewed on the six desks that sell (a FAQ answer, the Who row after the company's Rome line) and on both drafts`, say(p1miss, P1));
+      const P1L = [
+        ['valencia', 'row 6 "Agent no." / "1.234"', row('Agent no.', '1.234', 6), '"Agent no. 1.234" (text'],
+        ['valencia', 'row 6 "Our agent number in Valencia" / "12.345"', row('Our agent number in Valencia', '12.345', 6), '"Our agent number in Valencia 12.345" (text'],
+        ['madrid', 'row 6 "Agent no." / "1,234"', row('Agent no.', '1,234', 6), '"Agent no. 1,234" (text'],
+        ['barcelona', 'row 6 "Agent no." / "B-1.234"', row('Agent no.', 'B-1.234', 6), '"Agent no. B-1.234" (text'],
+        ['valencia', 'row 6 "Agent no." / "45/2026"', row('Agent no.', '45/2026', 6), '"Agent no. 45/2026" (text'],
+        ['london', 'row 6 "Our agency number" / "12 345"', row('Our agency number', '12 345', 6), '"Our agency number 12 345" (text'],
+        ['draft-berlin', 'row 5 "Our agent number in Berlin" / "12.345" (draft)', row('Our agent number in Berlin', '12.345', 5), '"Our agent number in Berlin 12.345" (text']];
+      const p1lmiss = refused(XCUT, P1L);
+      check(!p1lmiss.length, `eighth round: the ${P1L.length} grouped codes and numbers with their year under a number key ({dt "Agent no.", dd "1.234"}, "Our agent number in Valencia" | "12.345", "1,234", "B-1.234", "45/2026", "12 345") are refused on the desks that sell and on a draft, the join quoted`, say(p1lmiss, P1L));
+      // the true copy: a grouped number with no number word before it, an amount, a measure, a date, a phone number, two years, a law
+      const NOCODE8 = ['An agency (2,500 homes).', 'Rents run €1,500 – €2,000/month.', '12,000 students a year.', '1.500 € per month.', 'No 1,000 listings to scroll.', 'There is no 10,000-word contract.',
+        'Llei 11/2025 and RDL 29/2026.', 'art. 11 L. 392/1978', 'The academic year 2026/2027.', 'Agent since 22/10/2026.', 'Agency fee 1,500 €.', 'Agency (1.234 m²).'];
+      const KEYFREE8 = ['Our agent number? None outside Rome; rents run €1,500 – €2,000/month.', "Your agent's number: +34 612 345 678.", 'Our agency number since 22/10/2026.', 'Agent number questions: 1.500 € per month.',
+        'Our agent number covers 2025/2026.', 'WhatsApp +39 331 325 1961 · Email or WhatsApp number'];
+      check(NOCODE8.every((t) => !hasClaimVocab(t)) && !KEYFREE8.some(numKeyCode) && !joinCut(['Agent no.', '1.500 €']) && !joinCut(['Our agent number', '+34 612 345 678'])
+          && !joinCut(['Our agent number', '22/10/2026']) && !joinCut(['Operated by', 'Egidi Immobiliare S.r.l. — VAT IT17322991005, REA RM-1710623, Viale Liegi 42, 00198 Roma'])
+          && !joinCut(['Who', 'BOOM Milan, the tenant-side rental desk of BOOM — operated by Egidi Immobiliare S.r.l. (REA RM-1710623)'])
+          && !joinCut(['Is BOOM Milan a real estate agency?', 'Yes. BOOM Milan is a desk of Egidi Immobiliare S.r.l., an Italian real estate agency registered in Rome (REA RM-1710623).'])
+          && JSON.stringify(claimHits('Agente de la Propiedad Inmobiliaria')) === '["agente de la propiedad inmobiliaria"]' && cleanText('N&ordm; 1.234 · № 5') === 'Nº 1.234 · Nº 5',
+        'eighth round: the true copy stays clean — "An agency (2,500 homes)", "€1,500 – €2,000/month", "12,000 students a year", "1.500 € per month", "No 1,000 listings" (the English "no", no dot), laws, two years, a date, a phone number, an amount or a measure after a key; the company lines with VAT IT17322991005 and REA RM-1710623 under "Operated by", "Who" and "Is BOOM Milan a real estate agency?"; "Agente de la Propiedad Inmobiliaria" keeps its one hit; the ordinal of "Nº" and the sign № keep their mark',
+        [...NOCODE8.filter(hasClaimVocab), ...KEYFREE8.filter(numKeyCode)].join(' | '));
+      // (P2) the build's indexes between two lines: a paper's code ("VLC 08"), a lane number ("03"), a question number
+      const P2 = [
+        ['valencia', 'two papers "Our agent number" / "CV-1234" (the build\'s "VLC 08" between)', (c) => { c.papers.items.splice(6, 2, 'Our agent number', 'CV-1234'); }, '"Our agent number CV-1234" (text'],
+        ['madrid', 'two papers "Our agent number, for the landlord" / "M-4471 on every letter" ("MAD 08" between)', (c) => { c.papers.items.splice(6, 2, 'Our agent number, for the landlord', 'M-4471 on every letter'); }, '"Our agent number, for the landlord M-4471 on every letter" (text'],
+        ['madrid', 'a check\'s text ending "Ask for our agent number." and the next check\'s legal label "M-4471" (the lane "03" between)', (c) => { c.checks.items[1].text += ' Ask for our agent number.'; c.checks.items[2].at = 'M-4471'; }, 'Ask for our agent number. M-4471" (text'],
+        ['valencia', 'an answer ending "Ask for our agent number." and the next question "CV-1234: is it on every letter we send?" (the question number between)', (c) => { c.faq.items[1].a += ' Ask for our agent number.'; c.faq.items[2].q = 'CV-1234: is it on every letter we send?'; }, 'Ask for our agent number. CV-1234: is it on every letter we send?" (text'],
+        ['draft-paris', 'two papers "Our agent number" / "P-4471" (draft)', (c) => { c.papers.items.splice(6, 2, 'Our agent number', 'P-4471'); }, '"Our agent number P-4471" (text']];
+      const p2miss = refused(XCUT, P2);
+      check(!p2miss.length && why8('<ol><li><span class="tn" aria-hidden="true">VLC 07</span> <span class="tt">Our agent number</span></li><li><span class="tn" aria-hidden="true">VLC 08</span> <span class="tt">CV-1234</span></li></ol>').includes('xcut')
+          && why8('<details><summary><span class="ln" aria-hidden="true">01</span> <span class="at" data-instr>fianza</span> <span class="t">The deposit</span></summary><p>Ask for our agent number.</p></details><details><summary><span class="ln" aria-hidden="true">02</span> <span class="at" data-instr>M-4471</span> <span class="t">The rent</span></summary><p>We check.</p></details>').includes('xcut'),
+        `eighth round: the ${P2.length} keys and codes with a build index between them (two papers with the span.tn "VLC 08" between, a check's text and the next check's legal label with the lane "03" between, an answer and the next question with its number between) are refused on the desks that sell and on a draft, the join quoted`, say(p2miss, P2));
+      // (P3) /desks: a row head with a number key is the label of every cell of its row (the render, and the built hub with a row injected)
+      {
+        const hubOf = (hmut, cmut) => { const h = JSON.parse(read('cities/_hub.json')); hmut(h); const cs = SLUGS.map((s) => { const c = clone(CITY[s]); if (cmut[s]) cmut[s](c); return c; }); try { renderHub({ template: read('cities/_hub.html'), shared, hub: h, cities: cs, assetVersion: { css: 'testcss000', desksCss: 'testdcss00', desksJs: 'testdjs000' }, frags, root: R, weigh: false }); return 'built clean'; } catch (e) { return e.message; } };
+        const move = (id, head) => (h) => { h.rules.rows = [...h.rules.rows.map((r) => (r.ids ? { ...r, ids: r.ids.filter((x) => x !== id) } : r)), { head, ids: [id] }]; };
+        const P3 = [
+          ['a row head "Agent number" over Madrid\'s rent check at "M-4471" (the fourth cell)', move('rent', 'Agent number'), { madrid: (c) => { c.checks.items[2].at = 'M-4471'; } }, '"Agent number M-4471" (text)'],
+          ['a row head "Our agent number, desk by desk" over Madrid\'s "M-4471"', move('rent', 'Our agent number, desk by desk'), { madrid: (c) => { c.checks.items[2].at = 'M-4471'; } }, '"Our agent number, desk by desk M-4471" (text)'],
+          ['a row head "Agent number" over Milan\'s charges check at "MI-123456" (the fifth cell)', move('charges', 'Agent number'), { milan: (c) => { c.checks.items[3].at = 'MI-123456'; } }, '"Agent number MI-123456" (text)'],
+          ['a row head "Agent number" over Amsterdam\'s check at "AMS-1234" (the first cell)', move('wws', 'Agent number'), { amsterdam: (c) => { c.checks.items[2].at = 'AMS-1234'; } }, '"Agent number AMS-1234" (text)']];
+        const p3miss = P3.filter(([, hm, cm, quote]) => !new RegExp(`cities/_hub\\.json: .*${XCUT}.*${reEsc(quote)}`).test(hubOf(hm, cm)));
+        const inHub = (frag) => claimProblems(hubHtml.replace(/<\/main>/i, `${frag}</main>`), { claims }).map((p) => p.why);
+        const tr = (head, cells) => `<table class="rtab"><tbody><tr><th scope="row">${head}</th>${cells.map((c) => `<td>${c}</td>`).join('')}</tr></tbody></table>`;
+        const joinsOf = (h) => { const j = []; reviewSentences(h, { joins: j }); return j; };
+        check(!p3miss.length && inHub(tr('Agent number', ['—', '—', '—', 'M-4471', '—'])).includes('xcut') && inHub(tr('M-4471', ['—', '—', 'Our agent number'])).includes('xcut')
+            && inHub(tr('Our agent number, desk by desk', ['—', '—', 'In Valencia', 'CV-12.345'])).includes('xcut') && !inHub('').length && !joinsOf(hubHtml).some((j) => j.how === 'row'),
+          `eighth round: on /desks a row head with a number key is the label of every cell of its row — the ${P3.length} rules tables built from _hub.json and the desks (the code in the first, fourth or fifth cell, a long head) are refused, and so are rows injected into the built hub (the code in a later cell, the code in the head and the key in a cell, a grouped code); the hub as built has no row head with a key or a code`,
+          p3miss.map(([t, hm, cm]) => `${t} → ${hubOf(hm, cm).slice(0, 220)}`).join(' | '));
+      }
+      // (P4) the Spanish and Italian "agente", and the abbreviated words of the number before it
+      const P4 = [];
+      for (const t of ['Agente: CV-1234.', 'Agente CV-1234.', 'Nº de agente CV-1234.', 'Nº de agente: CV-1234.', 'N.º de agente: 1234.', 'Núm. de agente: 1234.', 'Nro. de agente: 1234.', 'Número agente: 1234.', 'Código de agente: CV-1234.', 'ID de agente: CV-1234.', 'Nº de agente 1.234.'])
+        P4.push(['valencia', `a FAQ answer "… ${t}"`, faq(2, t), `"${normSentence(t)}" (text, ld)`]);
+      for (const t of ['Agente: MI-1234.', 'Codice agente: MI-1234.', 'N. agente MI-1234.', 'Numero agente MI-1234.']) P4.push(['milan', `a FAQ answer "… ${t}"`, faq(2, t), `"${normSentence(t)}" (text, ld)`]);
+      P4.push(['draft-berlin', 'a FAQ answer "… Agente: B-1234." (draft)', faq(1, 'Agente: B-1234.'), '"Agente: B-1234" (text, ld)']);
+      const p4miss = refused(UNREV, P4);
+      const P4L = [
+        ['madrid', 'row 6 "Nº de agente" / "M-4471"', row('Nº de agente', 'M-4471', 6), '"Nº de agente M-4471" (text'],
+        ['barcelona', 'row 6 "Agente" / "B-5521"', row('Agente', 'B-5521', 6), '"Agente B-5521" (text'],
+        ['valencia', 'row 6 "Nº de agente" / "1234"', row('Nº de agente', '1234', 6), '"Nº de agente 1234" (text'],
+        ['valencia', 'row 6 "Nº de agente" / "1.234"', row('Nº de agente', '1.234', 6), '"Nº de agente 1.234" (text'],
+        ['milan', 'row 6 "Codice agente" / "MI-1234"', row('Codice agente', 'MI-1234', 6), '"Codice agente MI-1234" (text']];
+      const p4lmiss = refused(XCUT, P4L);
+      check(!p4miss.length && !p4lmiss.length, `eighth round: the ${P4.length + P4L.length} number shapes and labels with the Spanish and Italian "agente" ("Agente: CV-1234", "Nº de agente CV-1234", "N.º de agente: 1234", "Núm. de agente", "Nro. de agente", "Número agente", "Código de agente", "ID de agente", "Codice agente", "N. agente", "Numero agente"; {dt "Nº de agente", dd "M-4471"}, {dt "Agente", dd "B-5521"}) are refused on the desks that sell and on a draft; "Agente de la Propiedad Inmobiliaria" with no code keeps its verdict`,
+        [say(p4miss, P4), say(p4lmiss, P4L)].filter(Boolean).join(' | '));
+      // the nine built pages: no join holds a build index, the hub has no row join, nothing is refused
+      {
+        const kinds = {}, fired = [], idx = [];
+        for (const [x, h] of [...SLUGS.map((y) => [y, PAGE[y]]), ['desks', hubHtml]]) {
+          const joins = [], all = reviewSentences(h, { joins });
+          for (const j of joins) {
+            kinds[j.how] = (kinds[j.how] || 0) + 1;
+            if (j.cut) fired.push(`${x} ${j.how}: ${j.parts.join(' | ')}`);
+            if (j.parts.some((p) => /^(?:\d{1,2}|[A-Z]{3} \d{2})$/.test(p))) idx.push(`${x} ${j.how}: ${j.parts.join(' | ')}`);
+          }
+          for (const s of all) if (s.ncut || s.cut || s.xcut || s.split) fired.push(`${x} ${s.where}: ${s.text}`);
+        }
+        check(!fired.length && !idx.length && !kinds.row && kinds.label > 1000,
+          `eighth round: on the nine built pages ${Object.values(kinds).reduce((a, b) => a + b, 0)} joins are read (${Object.entries(kinds).map(([k, v]) => `${k} ${v}`).join(', ')}), none holds a build index (a paper's code, a lane, question or step number), none is refused, and no row head of the hub carries a number key or a code`,
+          [...fired, ...idx].slice(0, 8).join(' | '));
+      }
+    }
+    // (g) the page-level mirror, a literal copy independent of the build: no selling desk names a register it does not hold
+    const HELD = /\bRAICV\b|Registro de Agentes|\bAICAT\b|Registre d['’]Agents|carte professionnelle|\bcarte T\b|§\s*34\s*c|Paragraph\s*34\s*c|Property Ombudsman|Property Redress|redress scheme|Propertymark|\bARLA\b|\bNAEA\b|\bKvK|Kamer van Koophandel|\bTPO\b|\bCMP\b|client money protection|\bRICS\b|\bNVM\b|\bVBO\b|Agente de la Propiedad|colegiad|\bFIMAA\b|\bFIAIP\b|\bPRS\b|\bFNAIM\b|\bIVD\b|\bIHK\b/i;
+    for (const s of SELLERS) {
+      const said = reviewSentences(PAGE[s]).map((x) => x.text).join(' \n ');
+      const m = said.match(HELD);
+      check(!m, `${s}: no register or licence it does not hold (RAICV, AICAT, carte professionnelle, carte T, §34c, redress scheme, Property Ombudsman, Propertymark, ARLA, NAEA, KvK, TPO, CMP, RICS, NVM, VBO, Agente de la Propiedad, colegiado, FIMAA, FIAIP, PRS, FNAIM, IVD, IHK)`, m ? m[0] : '');
+    }
+    // the hub runs the same guard
+    {
+      const hub = JSON.parse(read('cities/_hub.json')); hub.footer.statement += ' Accredited by the Generalitat Valenciana.';
+      const r = throws(() => renderHub({ template: read('cities/_hub.html'), shared, hub, cities: SLUGS.map((s) => clone(CITY[s])), assetVersion: { css: 'testcss000', desksCss: 'testdcss00', desksJs: 'testdjs000' }, frags, root: R, weigh: false }), /cities\/_hub\.json: 1 sentence\(s\) about registration or licences not reviewed.*"Accredited by the Generalitat Valenciana"/);
+      check(r === true, 'the hub (/desks) refuses an unreviewed sentence too', r);
+    }
+    const llms = read('llms.txt');
+    check(!/registered Italian agency/i.test(llms) && /Operated by Egidi Immobiliare S\.r\.l\., an Italian real estate agency registered in Rome/.test(llms),
+      'llms.txt: the desks paragraph says "an Italian real estate agency registered in Rome", never "the registered Italian agency"');
+  }
+  {
+    // the PFS plancia: every LIVE desk has its voice in the client modal's market select (pfs-command.html #cm-market),
+    // or saving a Full Search client of that desk would rewrite it to 'roma' and the radar would push Rome listings
+    const cm = (read('pfs-command.html').match(/<select id="cm-market">([\s\S]*?)<\/select>/) || [])[1] || '';
+    const missing = SLUGS.filter((s) => CITY[s].live === true && !cm.includes(`<option value="${s}">`));
+    check(cm && !missing.length, 'pfs-command.html: every live desk has an <option> in the client modal\'s market select (#cm-market)', `missing: ${missing.join(', ')}`);
+  }
+  check(['madrid', 'barcelona', 'valencia'].every((s) => !/seguro de impago|rent[- ]default insurance|rent guarantee insurance/i.test(JSON.stringify(CITY[s]))), 'the Spanish desks never list rent-default insurance among the papers (a landlord may not require it: RDL 29/2026)');
+  check(/Generalitat/.test(CITY.valencia.checks.items.find((k) => k.id === 'deposit').text) && /deposit receipt/.test(CITY.valencia.checks.items.find((k) => k.id === 'deposit').text) && /\btoday\b/.test(CITY.valencia.checks.items.find((k) => k.id === 'rent').text),
+    'valencia: the deposit is lodged with the Generalitat (ask for the receipt); the no-stressed-zone line is dated ("today") and held on the hub');
   for (const s of ['paris', 'berlin']) {
     const extra = CITY[s].pricing.plans.flatMap((p) => ['negotiat', 'template', 'cover letter'].filter((w) => p.offerDescription.toLowerCase().includes(w) && !p.includes.join(' ').toLowerCase().includes(w)).map((w) => `${p.id}: ${w}`));
     check(!extra.length, `${s}: its Offers (JSON-LD) promise nothing its tickets do not show (no negotiation, templates or cover letter the page never names)`, extra.join(', '));
   }
 }
 
+// ── 8b · Stage 0 (04/11/2026): the served assets are the sources without their comments ──
+// The commented sources live in assets/src/ (never deployed); the build EMITS
+// assets/<name> from them. The served copy must be the source minus its
+// comments (the scanner and an independent line-based oracle agree), it must
+// parse (node --check), the pages must link it by ITS hash, the weights must
+// be measured on it, and nothing served may reference the sources.
+{
+  const gz = (s) => zlib.gzipSync(Buffer.from(s), { level: 9 }).length;
+  // the oracle: whole-line comments only, no knowledge of strings — it agrees with the
+  // scanner on these files because none of them has a comment inside a literal
+  const naive = (src, kind) => {
+    const keep = []; let inB = false;
+    for (const l of src.split('\n')) {
+      if (inB) { if (l.includes('*/')) { inB = false; const rest = l.slice(l.indexOf('*/') + 2); if (rest.trim()) keep.push(rest.trimStart()); } continue; }
+      if (/^\s*\/\*/.test(l)) { if (l.includes('*/')) { const rest = l.slice(l.indexOf('*/') + 2); if (rest.trim()) keep.push(l.match(/^\s*/)[0] + rest.trimStart()); } else inB = true; continue; }
+      if (kind === 'js' && /^\s*\/\//.test(l)) continue;
+      keep.push(l);
+    }
+    return keep.join('\n').replace(/\n{4,}/g, '\n\n');
+  };
+  check(SERVED_ASSETS.map((a) => a.name).join() === 'boom-city.css,boom-city.js,boom-onda.js,boom-map.js,boom-desks.css,boom-desks.js' && SERVED_ASSETS.every((a) => a.kind === path.extname(a.name).slice(1)),
+    'SERVED_ASSETS: the six files of the desks and the hub (the map\'s script since v1.7), each with its kind');
+  for (const a of SERVED_ASSETS) {
+    const src = path.join(R, 'assets/src', a.name), out = path.join(R, 'assets', a.name);
+    check(fs.existsSync(src) && fs.existsSync(out), `assets/src/${a.name} (the source) and assets/${a.name} (served) both exist`);
+    const source = fs.readFileSync(src, 'utf8'), served = fs.readFileSync(out, 'utf8');
+    check(served === stripComments(source, a.kind), `assets/${a.name} is assets/src/${a.name} minus its comments, byte for byte`);
+    check(served === naive(source, a.kind), `assets/${a.name}: an independent line-based oracle agrees with the scanner`);
+    check(/^\/\*/.test(source) && !/^[ \t]*\/\*/m.test(served) && !(a.kind === 'js' && /^[ \t]*\/\//m.test(served)) && gz(served) < gz(source),
+      `assets/${a.name}: the banner and every whole-line comment stay in the source, none is served (${(gz(source) / 1024).toFixed(1)} → ${(gz(served) / 1024).toFixed(1)} KB gz)`);
+    if (a.kind === 'js') {
+      const r = spawnSync(process.execPath, ['--check', out], { encoding: 'utf8' });
+      check(r.status === 0, `node --check assets/${a.name}: the served script parses`, r.stderr);
+      check(/^\(function \(\) \{\n  'use strict';\n/.test(served), `assets/${a.name} opens with its IIFE and 'use strict' first: only comments went`);
+    }
+  }
+  const em = emittedAssets(R);
+  check(em.length === 6 && em.every((a) => !a.stale && a.gzKb < a.sourceGzKb), 'emittedAssets(R): no served copy is stale against its source (the committed assets are the build\'s)');
+  const sha = (f) => crypto.createHash('sha256').update(fs.readFileSync(path.join(R, f))).digest('hex').slice(0, 10);
+  check(SLUGS.every((s) => PAGE[s].includes(`/assets/boom-city.css?v=${sha('assets/boom-city.css')}`) && PAGE[s].includes(`/assets/boom-city.js?v=${sha('assets/boom-city.js')}`)) && sha('assets/boom-city.css') !== sha('assets/src/boom-city.css'),
+    'every desk page links the CSS and the JS by the hash of the SERVED file, never the source\'s');
+  check(Math.abs(pages[0].weight.cssKb * 1024 - gz(fs.readFileSync(path.join(R, 'assets/boom-city.css')))) < 1 && Math.abs(pages[0].weight.jsKb * 1024 - gz(fs.readFileSync(path.join(R, 'assets/boom-city.js')))) < 1,
+    'the weights are measured on the served files');
+  const servedHtml = fs.readdirSync(R).filter((f) => f.endsWith('.html')).map((f) => read(f)).join('\n') + read('cities/_template.html') + read('cities/_hub.html') + read('vercel.json');
+  check(!/assets\/src\//.test(servedHtml), 'no page, template or header rule references assets/src/');
+  check(read('.vercelignore').split(/\r?\n/).map((l) => l.trim()).includes('/assets/src/'), '.vercelignore keeps /assets/src/ off the site');
+
+  // the stripper, case by case
+  const S = (x, k) => stripComments(x, k);
+  check(S('a{content:"/* not */"}/* yes */\nb{}\n', 'css') === 'a{content:"/* not */"}\nb{}\n', 'CSS: a /* inside a string stays, the block after it goes');
+  check(S('a{background:url(data:image/svg+xml,/*x*/)}\n', 'css') === 'a{background:url(data:image/svg+xml,/*x*/)}\n', 'CSS: an unquoted url(…) is one token, nothing in it is a comment');
+  check(S("/* don't */\na{}\n", 'css') === 'a{}\n' && S('x{} /* tail */\ny{}\n', 'css') === 'x{}\ny{}\n' && S('  /* lead */ a{}\n', 'css') === '  a{}\n' && S('a{}\n/* one\n   two */\nb{}\n', 'css') === 'a{}\nb{}\n',
+    'CSS: whole-line blocks go with their line, a trailing block goes with the blanks before it, a leading one keeps the indent, an apostrophe in a comment opens no string');
+  check(S("var u = 'https://x'; // tail\n", 'js') === "var u = 'https://x'; // tail\n" && S('foo(1, /* arg */ 2);\n', 'js') === 'foo(1, /* arg */ 2);\n' && S("var r = /\\/\\*/; /* keep mid */\n", 'js') === "var r = /\\/\\*/; /* keep mid */\n",
+    'JS: a // mid-line (https:// included) and a block mid-line are never touched, nor a /* in a regex literal');
+  check(S('  // only\nvar a = 1;\n', 'js') === 'var a = 1;\n' && S('/* block */\nvar a = 1;\n', 'js') === 'var a = 1;\n' && S('/* a */ var b = 2;\n', 'js') === 'var b = 2;\n' && S('a();\n// c\nb();\n', 'js') === 'a();\nb();\n',
+    'JS: a line that is only a // comment and a block that begins a line go, leaving no blank line');
+  check(S('var t = `\n/* css */\n// not a comment\n`;\n', 'js') === 'var t = `\n/* css */\n// not a comment\n`;\n' && S("var s = '\\n'; var q = \"/* no */\";\n", 'js') === "var s = '\\n'; var q = \"/* no */\";\n",
+    'JS: nothing inside a template literal or a string is a comment, even at the start of a line');
+  check(S('var t = `a${\n/* c */\n1}b`;\n', 'js') === 'var t = `a${\n1}b`;\n', 'JS: a comment inside a ${…} expression is code, and goes');
+  check(S("/* banner */\n(function () {\n  'use strict';\n})();\n", 'js') === "(function () {\n  'use strict';\n})();\n", "JS: the banner goes and 'use strict' stays first");
+  check(S('var x = a / b / c; // c\n', 'js') === 'var x = a / b / c; // c\n' && S("var re = /https?:\\/\\//; // scheme\n", 'js') === "var re = /https?:\\/\\//; // scheme\n" && S('var y = s.replace(/\\/\\//g, "");\n', 'js') === 'var y = s.replace(/\\/\\//g, "");\n',
+    'JS: a division is not a regex and a regex is not a comment');
+  check(S('var y = 1;\n\n\n\n\nvar z = 2;\n', 'js') === 'var y = 1;\n\nvar z = 2;\n' && S('a{}\n\n\nb{}\n', 'css') === 'a{}\n\n\nb{}\n', 'three or more blank lines fold to one; fewer stay as written');
+  check(throws(() => S('a{} /* oops\n', 'css'), /unterminated comment/) === true && throws(() => S("var s = 'oops\n", 'js'), /unterminated string/) === true && throws(() => S('x', 'txt'), /kind must be/) === true,
+    'the stripper refuses what it cannot follow (an unterminated comment or string, an unknown kind) instead of guessing');
+}
+
+// ── 8b · Stage 2 (04/11/2026): the Horizon's script, loaded on view ──────
+{
+  const gz = (x) => zlib.gzipSync(Buffer.from(x), { level: 9 }).length;
+  const sha = (f) => crypto.createHash('sha256').update(fs.readFileSync(path.join(R, f))).digest('hex').slice(0, 10);
+  const mapJs = read('assets/src/boom-map.js'), served = read('assets/boom-map.js');
+  check(SERVED_ASSETS.some((a) => a.name === 'boom-map.js' && a.kind === 'js' && a.of === 'desk') && served === stripComments(mapJs, 'js'), 'assets/boom-map.js is a served asset emitted from assets/src/ like the others (Stage 0)');
+  check(MAP_KB === 3.5 && gz(served) / 1024 <= MAP_KB && pages.every((p) => p.weight.mapKb <= MAP_KB && Math.abs(p.weight.mapKb * 1024 - gz(served)) < 1),
+    `the map's script is ${(gz(served) / 1024).toFixed(2)} KB gzipped, under its own ${MAP_KB} KB line, measured on the served file`);
+  const base = ['assets/boom-city.css', 'assets/boom-city.js', 'assets/boom-onda.js', 'assets/boom-map.js', 'js/boom-consent.js', 'js/boom-track.js'].reduce((n, f) => n + gz(fs.readFileSync(path.join(R, f))), 0);
+  check(pages.every((p) => p.weight.totalKb <= WEIGHT_KB.total && Math.abs(p.weight.totalKb * 1024 - (gz(p.html) + base)) < 2),
+    `every page's total counts the map and holds the ${WEIGHT_KB.total} KB cap WITH it (${pages.map((p) => `${p.slug} ${p.weight.totalKb.toFixed(1)}`).join(' · ')})`);
+  check(SLUGS.every((s) => { const cfg = JSON.parse((PAGE[s].match(/window\.BOOM_CITY = (\{[\s\S]*?\});\s*<\/script>/) || [])[1] || '{}'); return cfg.MAP === `/assets/boom-map.js?v=${sha('assets/boom-map.js')}`; }),
+    'every desk page carries the map script\'s versioned URL (the hash of the served file) in its config');
+  const cityJs = read('assets/src/boom-city.js'), desksJs = read('assets/src/boom-desks.js');
+  check([cityJs, desksJs].every((j) => /var hzMap = document\.querySelector\('svg\.hz'\), hzIn = false;/.test(j) && /rootMargin: '600px 0px'/.test(j) && /if \(es\.some\(function \(e\) \{ return e\.isIntersecting; \}\)\) \{ hzIO\.disconnect\(\); hzGo\(\); \}/.test(j) && !/es\[0\]\.isIntersecting/.test(j) && /if \(hzIn \|\| !hzMap \|\| ![CD]\.MAP\) return; hzIn = true;/.test(j))
+    && /e\.src = C\.MAP; e\.async = true;/.test(cityJs) && /e\.src = D\.MAP; e\.async = true;/.test(desksJs),
+    'boom-city.js and boom-desks.js inject the map script once, when the map nears the screen (600px ahead) — on ANY entry of the batch, never es[0] alone');
+  // the script: one rAF chain, the stagger ≥ 260ms, never two planes on an arc, nothing under reduced motion, the night every minute from the desk calendar
+  check((mapJs.match(/requestAnimationFrame\(/g) || []).length === 2 && /raf = raf \|\| requestAnimationFrame\(step\);/.test(mapJs) && /raf = fl\.length \? requestAnimationFrame\(step\) : 0;/.test(mapJs) && !/setInterval|\.animate\(|@keyframes/.test(mapJs),
+    'boom-map.js: ONE requestAnimationFrame chain for every plane (a flight joins the list; the chain ends when the list is empty); no interval, no CSS animation');
+  const stagger = +((mapJs.match(/fly\(k, i \* (\d+), !seen\)/) || [])[1] || 0);
+  check(/if \(es\.some\(function \(e\) \{ return e\.isIntersecting; \}\)\) \{ io\.disconnect\(\);/.test(mapJs) && !/es\[0\]/.test(mapJs),
+    'boom-map.js: the first-view flights start on ANY intersecting entry of the batch (never es[0] alone: a batch can lead with a stale entry)');
+  check(/return !!\(drawn \|\| \/L\/\.test\(d\)\);/.test(mapJs) && /var dark = night\(sun\(\+now\)\);/.test(mapJs) && /x\.hidden = !!x\.querySelector\('\.k-n'\) && !dark;/.test(mapJs),
+    'boom-map.js: the "night, now" key shows only when night() drew a veil pixel or a terminator segment in the frame; "open now" always');
+  // v1.7 review, second round: the till's and the forced-colors guards bite here too, where the browser suite is skipped
+  {
+    const cityJs = read('assets/src/boom-city.js'), cityCss = read('assets/src/boom-city.css');
+    const closeH = (cityJs.match(/till\.addEventListener\('close', function \(\) \{([\s\S]*?)\n    \}\);/) || [])[1] || '';
+    check(/var fd = opener && opener\.closest && opener\.closest\('details\.fare'\);/.test(closeH) && /if \(fd && !fd\.open && document\.contains\(fd\)\) \{ fares\.forEach\(function \(o\) \{ o\.open = o === fd; \}\); last = fd; sync\(\); \}/.test(closeH),
+      'boom-city.js (source): closing the till reopens the CLOSED ticket that holds its opener (the focus never falls to <body>)');
+    check(/opener\.focus\(\{ preventScroll: true \}\)/.test(closeH) && /var or = opener\.getBoundingClientRect\(\);\s*if \(or\.top < topLim\(\) \|\| or\.bottom > innerHeight - stripH\(\)\) opener\.scrollIntoView\(\{ block: 'center', behavior: 'instant' \}\);/.test(closeH),
+      'boom-city.js (source): the focus returned to the opener is SEEN — under the header or below the strip, it is scrolled to the centre');
+    const deepF = (cityJs.match(/function deep\(\) \{([\s\S]*?)\n  \}/) || [])[1] || '';
+    check(/if \(till && till\.open\) \{\s*scrollTo\(\{ left: tillX, top: tillY, behavior: 'instant' \}\);[\s\S]*?return;\s*\}/.test(deepF) && /tillX = scrollX; tillY = scrollY;/.test(cityJs),
+      'boom-city.js (source): a link followed with the till open returns early and puts the page behind back where the till found it (recorded in openTill)');
+    const fcPair = (cityCss.match(/@media \(forced-colors:active\) and \(min-width:360px\) and \(max-width:939px\)\{([\s\S]*?)\}\}/) || [])[1] || '';
+    const bare = cityCss.replace(/@media \(forced-colors:active\) and \(min-width:360px\) and \(max-width:939px\)\{[\s\S]*?\}\}/, '');
+    check(/\.bps:not\(\.pair-open\):not\(:has\(>\.bp:not\(\.eroe\)>\[open\]\)\)>\.bp:not\(\.eroe\) \.f-r::before\{border-left:0;border-top:1px dashed CanvasText/.test(fcPair) && !/\.bp:not\(\.eroe\) \.f-r::before\{border-left:0/.test(bare),
+      'boom-city.css (source): the forced-colors horizontal economy tear lives ONLY inside the 360–939 pair block (no unscoped ".bp:not(.eroe) .f-r::before{border-left:0")');
+    check(cityCss.includes('@media (forced-colors:active) and (min-width:940px){.eroe{border:1px solid ButtonText}.eroe>.fare{border:0}}'),
+      'boom-city.css (source): in forced colors at ≥940 First class has ONE frame, the ticket\'s own border (the closed waitlist Full Search kept open corners above a separate foot)');
+  }
+  // v1.8 review: the signing till's Enter (LFR-1) and the managed ticket's stamp room (STAMP) bite here too, where the
+  // browser suite is skipped
+  {
+    const cityJs = read('assets/src/boom-city.js'), cityCss = read('assets/src/boom-city.css');
+    const keyH = (cityJs.match(/tf\.addEventListener\('keydown', function \(e\) \{([\s\S]*?)\n    \}\);/) || [])[1] || '';
+    check(/var WALK = \['tName', 'tEmail', 'tNote', 'tStart', 'tGo'\];/.test(cityJs) && /if \(SIGN && e\.repeat\) \{ e\.preventDefault\(\); return; \}/.test(keyH)
+      && /if \(t\.type !== 'checkbox' && !\(SIGN && t\.tagName === 'INPUT'\)\) return;\s*e\.preventDefault\(\);/.test(keyH)
+      && /i = SIGN \? WALK\.indexOf\(t\.id\) : -1;\s*if \(i > -1 && \$\(WALK\[i \+ 1\]\)\) \$\(WALK\[i \+ 1\]\)\.focus\(\);/.test(keyH),
+      'boom-city.js (source, LFR-1): on a desk that charges at signing Enter in a till field never submits — it walks name → email → note → tick → button; a held Enter does nothing more; the six keep their Enter');
+    check(cityCss.includes('.card .stamp:not([hidden])~h2[hidden]~.fields{grid-template-columns:minmax(0,1fr);padding-right:96px}'),
+      'boom-city.css (source, STAMP): with the heading hidden (managed DUE/PAID) the fields keep the stamp\'s room, one per line');
+  }
+  check(stagger >= 260 && /if \(!a \|\| reduce \|\| fl\.some\(function \(f\) \{ return f\.a === a; \}\)\) return;/.test(mapJs), `boom-map.js: the first view sends the planes ${stagger}ms apart (≥ 260), never two on one arc`);
+  check(/var reduce = matchMedia\('\(prefers-reduced-motion: reduce\)'\)\.matches/.test(mapJs) && /if \(!reduce && window\.IntersectionObserver\)/.test(mapJs), 'boom-map.js: under reduced motion no plane flies and no arc is drawn in');
+  check(/60080 - Date\.now\(\) % 60000/.test(mapJs) && /if \(!document\.hidden\) timer = setTimeout/.test(mapJs) && /addEventListener\('visibilitychange'/.test(mapJs)
+    && /CAL\.deskWindow\(now, \{ timeZone: x\.z \|\| 'Europe\/Rome', hours: \{ from: x\.f \|\| '09:00', to: x\.t \|\| '19:00' \}, days: x\.w \|\| \[1, 2, 3, 4, 5\] \}, x\.h\)/.test(mapJs) && /g\.classList\.toggle\('on', !!w\.open\)/.test(mapJs),
+    'boom-map.js: the night and the open-now glow are redrawn on each minute boundary while the tab is visible, from the desk calendar (the board\'s)');
+  check(/if \(!svg \|\| svg\.hzOn\) return;/.test(mapJs) && /svg\.hzOn = 1;/.test(mapJs) && /window\.BOOM_MAP = \{ fly: fly, sun: sun \};/.test(mapJs) && /setAttribute\('transform', 'translate\(/.test(mapJs) && !/\.style\.(left|top|width|height)\b/.test(mapJs),
+    'boom-map.js runs once per map, moves a plane by its transform attribute only, and exposes fly() to the hub\'s pins');
+  check(/\.hz-pl\{fill:var\(--gold-hi\)\}/.test(read('assets/src/boom-city.css')) && /\.hz-term\{fill:none;stroke:rgba\(255,215,0,\.5\);stroke-dasharray:3 5\}/.test(read('assets/src/boom-city.css')),
+    'boom-city.css styles the plane and the terminator the script adds (gold, a dashed line)');
+  // served immutable, like the other emitted assets
+  const rule = JSON.parse(read('vercel.json')).headers.find((h) => /boom-\(city/.test(h.source));
+  check(rule && new RegExp(`^${rule.source}$`).test('/assets/boom-map.js') && new RegExp(`^${rule.source}$`).test('/assets/boom-city.js') && rule.headers.some((x) => x.key === 'Cache-Control' && /immutable/.test(x.value)),
+    'vercel.json serves /assets/boom-map.js immutable, in the same rule as the other emitted assets (it carries ?v=)');
+  check(SLUGS.every((s) => PAGE[s].includes(`<p class="net-k" aria-hidden="true">${HZ_KEY}</p>`)) && read('desks.html').includes(`<figcaption class="m-legend" aria-hidden="true">${HZ_KEY}</figcaption>`),
+    'the map\'s key is one copy on every desk and the hub (HZ_KEY)');
+  check(!/comet|hmap-svg|netDots|seaDots|landDots|mapXY|HUB_VIEWBOX|bowArcs|BOW_FIRST/.test(read('build-cities.mjs') + read('assets/src/boom-city.css') + read('assets/src/boom-desks.css') + read('assets/src/boom-desks.js')),
+    'the flat map is gone: no comet, no fixed viewBox, no equirectangular projection, no bows, in the build or the assets');
+}
+
 // ── 9 · the build never overwrites a page it did not make ────────────────
 {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'boom-cities-'));
-  for (const d of ['cities', 'assets', 'css', 'js', 'design/pages-deco']) fs.mkdirSync(path.join(tmp, d), { recursive: true });
-  for (const f of ['cities/_template.html', 'cities/_shared.json', 'cities/paris.json', 'assets/boom-city.css', 'assets/boom-city.js', 'assets/boom-onda.js',
-    'css/boom-scroll.css', 'js/boom-scroll.js', 'js/boom-consent.js', 'js/boom-track.js', 'js/desk-calendar.js', 'design/pages-deco/solari-engine.html', 'og-paris.png']) fs.copyFileSync(path.join(R, f), path.join(tmp, f));
+  for (const d of ['cities', 'assets/src', 'css', 'js', 'design/pages-deco']) fs.mkdirSync(path.join(tmp, d), { recursive: true });
+  // the SOURCES only: the build emits the served assets/boom-*.{css,js} from them (Stage 0)
+  for (const f of ['cities/_template.html', 'cities/_shared.json', 'cities/paris.json', 'assets/src/boom-city.css', 'assets/src/boom-city.js', 'assets/src/boom-onda.js', 'assets/src/boom-map.js',
+    'css/boom-scroll.css', 'js/boom-scroll.js', 'js/boom-consent.js', 'js/boom-track.js', 'js/desk-calendar.js', 'design/pages-deco/solari-engine.html', 'og-paris.png', 'cities/_claims.json',
+    // v1.8 FLIP: Paris is a live seller now — its till links the model withdrawal form, which must be on disk
+    'withdrawal.html']) fs.copyFileSync(path.join(R, f), path.join(tmp, f));
   fs.writeFileSync(path.join(tmp, 'paris.html'), '<!doctype html><title>hand-made</title>');
   check(throws(() => writeAll({ root: tmp }), /not generated by this script — refusing/) === true && fs.readFileSync(path.join(tmp, 'paris.html'), 'utf8').includes('hand-made'),
     'a root page without the GENERATED mark is never overwritten');
@@ -938,8 +2115,25 @@ tplRefuses('<p class="proof">', '<p class="proof">Pay by bank transfer · ', /no
   const first = writeAll({ root: tmp });
   const again = writeAll({ root: tmp, check: true });
   check(first[0].stale === true && again[0].stale === false, 'write then --check: the build is deterministic');
-  fs.appendFileSync(path.join(tmp, 'assets', 'boom-city.css'), '\n/* changed */\n');
-  check(writeAll({ root: tmp, check: true })[0].stale === true, 'changing the shared CSS makes the page stale (hash in the URL)');
+  const tCss = path.join(tmp, 'assets', 'boom-city.css'), tSrc = path.join(tmp, 'assets/src', 'boom-city.css');
+  check(['boom-city.css', 'boom-city.js', 'boom-onda.js', 'boom-map.js'].every((f) => fs.readFileSync(path.join(tmp, 'assets', f), 'utf8') === stripComments(fs.readFileSync(path.join(tmp, 'assets/src', f), 'utf8'), path.extname(f).slice(1))),
+    'the build emitted the four served assets from assets/src/, comments stripped (Stage 0)');
+  fs.appendFileSync(tSrc, '/* a note in the source */\n');   // the source ends with a newline: a whole comment line
+  check(writeAll({ root: tmp, check: true })[0].stale === false && emittedAssets(tmp).every((a) => !a.stale), 'a comment added to the SOURCE changes no served byte: neither the asset nor the page goes stale');
+  fs.appendFileSync(tSrc, '\n.changed{color:red}\n');
+  const chk = emitAssets({ root: tmp, check: true });
+  check(writeAll({ root: tmp, check: true })[0].stale === true && chk.find((a) => a.name === 'boom-city.css').stale === true && chk.filter((a) => a.stale).length === 1,
+    'a rule added to the source makes the served CSS stale and the page stale (the hash in the URL is the emitted file\'s)');
+  writeAll({ root: tmp });
+  check(fs.readFileSync(tCss, 'utf8').includes('.changed{color:red}') && !fs.readFileSync(tCss, 'utf8').includes('a note in the source'), 'the build re-emits the served CSS: the rule is served, the comment is not');
+  fs.appendFileSync(tCss, '\n/* by hand */\n');
+  check(emitAssets({ root: tmp, check: true }).find((a) => a.name === 'boom-city.css').stale === true && writeAll({ root: tmp, check: true })[0].stale === false,
+    'a served copy edited by hand is reported stale by --check, while the page (hashed on the emitted text) is not');
+  writeAll({ root: tmp });
+  check(fs.readFileSync(tCss, 'utf8') === stripComments(fs.readFileSync(tSrc, 'utf8'), 'css'), 'the next build restores the served copy from the source');
+  fs.renameSync(path.join(tmp, 'assets/src', 'boom-onda.js'), path.join(tmp, 'onda.bak'));
+  check(throws(() => writeAll({ root: tmp }), /assets\/src\/boom-onda\.js: is missing/) === true, 'a missing source is a refusal that names it, never a page built on a stale served copy');
+  fs.renameSync(path.join(tmp, 'onda.bak'), path.join(tmp, 'assets/src', 'boom-onda.js'));
   fs.writeFileSync(path.join(tmp, 'js/desk-calendar.js'), 'var x = 1;');
   check(throws(() => writeAll({ root: tmp }), /is not the desk calendar/) === true, 'a file that is not the calendar cannot be inlined as the calendar');
   fs.copyFileSync(path.join(R, 'js/desk-calendar.js'), path.join(tmp, 'js/desk-calendar.js'));
@@ -990,8 +2184,11 @@ tplRefuses('<p class="proof">', '<p class="proof">Pay by bank transfer · ', /no
     check(iso && lm === iso, `${u}: the sitemap <lastmod> is the page's own "Last Updated" date`, `${iso} vs ${lm}`);
   }
   const pv = read('privacy.html');
-  check(!/AWS|SendGrid/.test(pv) && /Firebase/.test(pv) && /Vercel/.test(pv) && /Telegram/.test(pv) && /Anthropic/.test(pv) && /EmailJS/.test(pv) && /City desks \(Amsterdam, Barcelona, London, Madrid, Milan\)/.test(pv),
-    'the privacy policy names the real processors and what a city request is used for');
+  // v1.8 FLIP: this pin moved — it named the six; it reads the live desks now (Paris and Berlin since the flip), so the
+  // privacy notice names the eight cities it collects requests for (stream C's privacy.html carries the sentence)
+  const livePv = SLUGS.filter((s) => CITY[s].live === true).map((s) => CITY[s].city).sort().join(', ');
+  check(!/AWS|SendGrid/.test(pv) && /Firebase/.test(pv) && /Vercel/.test(pv) && /Telegram/.test(pv) && /Anthropic/.test(pv) && /EmailJS/.test(pv) && pv.includes(`City desks (${livePv})`),
+    `the privacy policy names the real processors and what a city request is used for (City desks: ${livePv})`);
   const cityLine = (pv.match(/<li><strong>City desks[\s\S]*?<\/li>/) || [''])[0];
   check(cityLine && !/Check-in|list of papers/i.test(cityLine) && /name/i.test(cityLine) && /service you were looking at/.test(cityLine),
     'privacy describes what the v1.5 door sends (a name, one contact, the service being read) — never the retired Check-in', cityLine.replace(/<[^>]+>/g, '').slice(0, 200));
@@ -1105,8 +2302,10 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
   check(l && l.language === 'en' && l.zone === 'De Pijp, Oud-West' && l.city && l.city.serviceLabel === 'Full Search', 'English by default, areas as zone, the service by its label');
   check(r.notif && /^🇳🇱 AMSTERDAM · Anna Keller · Full Search · €1,500 – €2,000 · February 2027 · file BM [A-HJ-NP-Z2-9]{5}$/.test(r.notif.summary) && r.notif.priority === 'high', 'the operator is pinged with the flag, the name, the service, the band and the month', r.notif && r.notif.summary);
   const reply = cityReplyText(l);
-  check(/^Hi Anna, Valentino here from BOOM/.test(reply) && reply.includes('move to Amsterdam') && reply.endsWith(CITY_MARKETS.amsterdam.url) && !reply.includes('/apartments') && !/Roma/.test(reply),
-    'the pre-written WhatsApp reply is English, about Amsterdam, links /amsterdam — never the Rome catalogue');
+  // v1.7 (04/11): the reply ends with the desk url, then one more line for the lead who has decided — the till link
+  check(/^Hi Anna, Valentino here from BOOM/.test(reply) && reply.includes('move to Amsterdam') && reply.endsWith(`${CITY_MARKETS.amsterdam.url}\nIf you'd rather start now: ${CITY_MARKETS.amsterdam.url}#pay-full-search`) && !reply.includes('/apartments') && !/Roma/.test(reply),
+    'the pre-written WhatsApp reply is English, about Amsterdam, links /amsterdam and then /amsterdam#pay-full-search ("If you\'d rather start now") — never the Rome catalogue');
+  check((reply.match(/#pay-/g) || []).length === 1 && reply.split('\n').length === 4, 'the till link is one line, the last, once');
   // v1.4 review (22/10): the OPEN card promises "Valentino writes to set your
   // free call" — the ready reply sets it, with the ticket's file number, and
   // asks nothing in writing that the call covers (no questionnaire, no "I'll
@@ -1133,6 +2332,20 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
   const waReply = cityReplyText({ market: 'madrid', name: 'Luis', phone: '+34612345678', message: 'Hi BOOM Madrid, I\'m moving to Madrid.' });
   check(waReply.startsWith('Hi Luis, Valentino here from BOOM 👋 Thanks for your message about your move to Madrid. The first step is a free call.') && /which day and time suit you\?/.test(waReply) && !/this week|your file|budget|come back today/.test(waReply),
     'a desk lead that came from WhatsApp (no door, no file) is thanked for its message and offered the same free call', waReply);
+  check(waReply.endsWith(`${CITY_MARKETS.madrid.url}\nIf you'd rather start now: ${CITY_MARKETS.madrid.url}#pay-full-search`), 'the WhatsApp-born lead of a selling desk gets the same till link');
+  // v1.8 FLIP: this pin moved. Paris and Berlin were waitlists (no till, no call); they sell now, charged at signing:
+  // the ready reply offers the free call and the ORDER alias (#order-full-search, "nothing is charged before you sign
+  // a lease"), never #pay- — that branch is stream A's (api/_market.js cityReplyText, stage A2). The waitlist reply
+  // keeps its pin with the registry patched back to the waitlist entries (a future waitlist desk reads the same code).
+  for (const s of ['paris', 'berlin']) {
+    const r = cityReplyText({ market: s, name: 'Ana', message: '' });
+    check(r.includes(`${CITY_MARKETS[s].url}#order-full-search`) && /nothing is charged before you sign a lease/i.test(r) && !/#pay-/.test(r) && /free call/.test(r),
+      `${s} (charged at signing): the ready reply offers the free call and the order link (#order-full-search, nothing charged before the lease), never #pay-`, r);
+    const wl = drafted(() => cityReplyText({ market: s, name: 'Ana', intent: 'city_waitlist', message: '' }));
+    check(wl.length > 40 && !/#pay-|call/i.test(wl) && wl.includes(CITY_MARKETS[s].url), `${s} as a waitlist (the registry patched back): the ready reply never carries #pay- (no till exists) nor "call"`, wl);
+  }
+  check(!/#pay-/.test(cityReplyText({ market: 'amsterdam', name: 'Bo', paid: true, city: { serviceLabel: 'Full Search' } })) && !/#pay-/.test(cityReplyText({ market: 'amsterdam', name: 'Bo', city: { abandoned: true, serviceLabel: 'Full Search' } })),
+    'the paid and the abandoned-checkout replies never carry #pay-');
   check(cityLabel(l) === '🇳🇱 Amsterdam', 'the Telegram card label');
   check(l && l.phone === '+31612345678' && l.raw.phone === '+31 6 1234 5678', 'the phone is stored as E.164 read with the desk\'s country (the WhatsApp reply arrives so, and now matches); the typed value stays on raw');
   check(l && l.attribution === null, 'no consent cookie, no attribution: the field is there and empty');
@@ -1191,7 +2404,11 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
   const bad1 = await get({ paid: 'not-a-session', city: 'amsterdam' });
   const bad2 = await get({ paid: SID, city: 'paris' });
   const bad3 = await get({ paid: SID, city: 'rome' });
-  check(bad1.code === 400 && bad2.code === 400 && bad3.code === 400, 'GET ?paid=: a malformed session id, a waitlist city or a city outside the list is a 400');
+  // v1.8 FLIP: Paris was a waitlist here; it is a desk that charges at signing now — still a 400 (no Stripe session is
+  // ever opened at its order: api/city-lead.js, stream A stage A1), a waitlist keeps its 400 with the registry patched
+  const bad2w = await draftedAsync(() => get({ paid: SID, city: 'paris' }));
+  check(bad1.code === 400 && bad2.code === 400 && bad3.code === 400, 'GET ?paid=: a malformed session id, a city that charges at signing (Paris) or a city outside the list is a 400');
+  check(bad2w.code === 400, 'GET ?paid= on a waitlist city (Paris with the registry patched back) is a 400');
   const unk = await get({ paid: 'cs_test_unknown00000000', city: 'amsterdam' });
   check(unk.code === 200 && unk.payload.ok === true && unk.payload.pending === true && !('paid' in unk.payload), 'an unknown session is pending (the webhook may not have landed yet)');
   const other = await get({ paid: SID2, city: 'amsterdam' });
@@ -1336,7 +2553,7 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
   const HUBT = read('cities/_hub.html');
   const HUBJ = JSON.parse(read('cities/_hub.json'));
   const LIVE = SLUGS.filter((s) => CITY[s].live === true);
-  const DRAFT = SLUGS.filter((s) => CITY[s].live !== true);
+  const OFF = SLUGS.filter((s) => CITY[s].live !== true);
   check(typeof renderHub === 'function' && typeof buildHub === 'function' && HUB_WEIGHT_KB && HUB_BUDGET && typeof orgNode === 'function' && typeof serviceNode === 'function' && HUB_FILE === 'desks.html' && HUB_PATH === '/desks',
     'build-cities.mjs exports renderHub, buildHub, HUB_WEIGHT_KB, HUB_BUDGET, orgNode and serviceNode (HUB_FILE desks.html, HUB_PATH /desks)');
   // the caps, set once with the hub, never raised to fit
@@ -1347,22 +2564,37 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
   const HB = buildHub({ root: R, pages });
   const W = writeAll({ root: R, check: true });
   const wHub = W.find((x) => x.file === 'desks.html');
-  check(wHub && !wHub.stale && fs.readFileSync(path.join(R, 'desks.html'), 'utf8') === HB.html && HB.html.includes(GENERATED_MARK) && W.filter((x) => x.file !== 'desks.html').length === 7,
-    'writeAll(--check) covers desks.html next to the seven desks; the committed page is what the data builds and carries the GENERATED mark');
-  check(buildAll({ root: R }).length === 7, 'buildAll() still returns the seven desk pages only');
+  check(wHub && !wHub.stale && fs.readFileSync(path.join(R, 'desks.html'), 'utf8') === HB.html && HB.html.includes(GENERATED_MARK) && W.filter((x) => x.file !== 'desks.html').length === 8,
+    'writeAll(--check) covers desks.html next to the eight desks; the committed page is what the data builds and carries the GENERATED mark');
+  check(buildAll({ root: R }).length === 8, 'buildAll() still returns the eight desk pages only');
   check(HB.weight.totalKb <= HUB_WEIGHT_KB.total && HB.weight.pageKb <= HUB_WEIGHT_KB.page && HB.weight.cssKb <= HUB_WEIGHT_KB.css && HB.weight.jsKb <= HUB_WEIGHT_KB.js,
     `desks.html: ${HB.weight.totalKb.toFixed(1)} KB gz first-party (≤ ${HUB_WEIGHT_KB.total}) · the page ${HB.weight.pageKb.toFixed(1)} (≤ ${HUB_WEIGHT_KB.page}) · boom-desks.css ${HB.weight.cssKb.toFixed(1)} · boom-desks.js ${HB.weight.jsKb.toFixed(1)} (≤ 6 each)`);
   check(HB.words <= HUB_BUDGET.body && HB.prose <= HUB_BUDGET.prose && HB.instr <= HUB_BUDGET.instr && Object.entries(HB.sections).every(([k, v]) => v <= HUB_BUDGET[k]),
     `desks.html: ${HB.words} words at load (prose ${HB.prose} · instruments ${HB.instr}); per section ${Object.entries(HB.sections).map(([k, v]) => `${k} ${v}/${HUB_BUDGET[k]}`).join(' · ')}`);
   const H = HB.html, V = visibleText(H);
+  // v1.8 FLIP: the eight desks are live, so the real hub has no desk not open (OFF is empty). The not-open pins read a
+  // SYNTHETIC hub: the same _hub.json over a family where Paris and Berlin are the frozen drafts (TWO_DRAFTS, registry
+  // patched back to the waitlist entries, the drafts' reviewed sentences merged)
+  const hubOf = (cities, hub = clone(HUBJ), tpl = HUBT) => {
+    // a hold or a cut names a LIVE desk's check: those of a desk that is a draft in this family are left out
+    const live = new Set(cities.filter((c) => c.live === true).map((c) => c.slug));
+    for (const k of ['hold', 'cut']) hub.rules[k] = Object.fromEntries(Object.entries(hub.rules[k] || {}).filter(([x]) => live.has(x.split(':')[0])));
+    return drafted(() => renderHub({ template: tpl, shared, hub, cities: cities.map(clone), assetVersion: { css: 'testcss000', desksCss: 'testdcss00', desksJs: 'testdjs000' }, frags, root: R, weigh: false, europe: EUROPE, claims: DRAFT_CLAIMS }));
+  };
+  const HDR = hubOf(TWO_DRAFTS), HD = HDR.html;
+  check(OFF.length === 0 && TWO_DRAFTS.filter((c) => c.live !== true).map((c) => c.slug).join() === 'berlin,paris', 'since the flip no desk is a draft; the not-open pins read the hub built over the frozen draft Paris and Berlin');
   const sm = read('sitemap.xml');
   const lastmod = (sm.match(/<loc>https:\/\/www\.boomrome\.com\/desks<\/loc>\s*<lastmod>([\d-]+)<\/lastmod>/) || [])[1];
 
   // head
   const title = (H.match(/<title>([^<]*)<\/title>/) || [])[1] || '';
   const desc = (H.match(/<meta name="description" content="([^"]*)"/) || [])[1] || '';
-  check(title.length <= 62 && title === HUBJ.meta.title && desc.length >= 110 && desc.length <= 165 && desc.includes('Amsterdam, Barcelona, London, Madrid and Milan'),
-    `head: title ${title.length} ≤ 62 characters, description ${desc.length} in 110–165 naming the live desks ("${desc.slice(0, 60)}…")`);
+  // v1.8 FLIP: this pin moved — six names fitted the 165 characters ("…Milan and Valencia"); the eight do not (the long
+  // form is over), so the hub counts them: the short description, "eight European cities" (the build's own switch)
+  const longDesc = hubText(HUBJ.meta.description, { cities: listJoin(LIVE.map((s) => CITY[s].city)) }, 't');
+  check(title.length <= 62 && title === HUBJ.meta.title && desc.length >= 110 && desc.length <= 165 && longDesc.length > 165
+    && desc === hubText(HUBJ.meta.descriptionShort, { n: numberWord(LIVE.length) }, 't') && desc.includes(`${numberWord(LIVE.length)} European cities`),
+    `head: title ${title.length} ≤ 62 characters, description ${desc.length} in 110–165 counting the live desks ("${desc.slice(0, 60)}…"; the long form with every name is ${longDesc.length})`);
   check(H.includes('<link rel="canonical" href="https://www.boomrome.com/desks">') && H.includes('<link rel="alternate" hreflang="en" href="https://www.boomrome.com/desks">') && H.includes('<link rel="alternate" hreflang="x-default" href="https://www.boomrome.com/desks">')
     && /<meta name="robots" content="index, follow/.test(H) && !/noindex/.test(H.slice(0, 4000)), 'head: canonical /desks, hreflang en and x-default to itself, robots index');
   {
@@ -1384,13 +2616,15 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
   const ldOf = (h) => [...h.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => JSON.parse(m[1])).flatMap((b) => b['@graph'] || [b]);
   check(blocks.length === 2 && crumb && crumb.itemListElement.length === 2 && crumb.itemListElement[1].item === 'https://www.boomrome.com/desks' && crumb.itemListElement[0].item === 'https://www.boomrome.com/',
     'JSON-LD: two blocks; the breadcrumb runs Home → BOOM Desks and ends on the canonical');
+  check(ldRaw(H).length === 2 && ldRaw(H).every(ldCompact), `desks.html: the two JSON-LD blocks are one line each, the compact form of their own parse (${ldRaw(H).map((t) => t.length).join('+')} B)`);
   const org = g.find((n) => n['@type'] === 'RealEstateAgent');
   const orgAms = ldOf(PAGE.amsterdam).find((n) => n['@type'] === 'RealEstateAgent');
   check(org && JSON.stringify(org) === JSON.stringify(orgAms) && JSON.stringify(org) === JSON.stringify(orgNode(shared, SLUGS.map((s) => CITY[s]))),
     'the organization node deep-equals the one amsterdam.html declares (orgNode, one function)');
   const list = g.find((n) => n['@type'] === 'ItemList');
-  check(list && list.numberOfItems === LIVE.length && LIVE.length === 5 && list.itemListElement.map((x) => x.url.split('/').pop()).join() === LIVE.join() && list.itemListElement.every((x, i) => x.position === i + 1 && x.item['@id'] === `https://www.boomrome.com/${LIVE[i]}#service`),
-    `the ItemList lists the live desks in order (${LIVE.join(', ')}), numberOfItems 5, each pointing at its desk's #service`);
+  // v1.8 FLIP: numberOfItems moved from 6 to 8 (Paris and Berlin live)
+  check(list && list.numberOfItems === LIVE.length && LIVE.length === 8 && list.itemListElement.map((x) => x.url.split('/').pop()).join() === LIVE.join() && list.itemListElement.every((x, i) => x.position === i + 1 && x.item['@id'] === `https://www.boomrome.com/${LIVE[i]}#service`),
+    `the ItemList lists the live desks in order (${LIVE.join(', ')}), numberOfItems 8, each pointing at its desk's #service`);
   const svcs = g.filter((n) => n['@type'] === 'Service');
   const svcDiff = LIVE.filter((s) => { const a = svcs.find((n) => n['@id'] === `https://www.boomrome.com/${s}#service`); const b = ldOf(PAGE[s]).find((n) => n['@type'] === 'Service'); return !a || !b || JSON.stringify(a) !== JSON.stringify(b); });
   check(svcs.length === LIVE.length && !svcDiff.length, `each of the ${LIVE.length} Services deep-equals the Service of its own desk page, Offers and refund rule included`, svcDiff.join(', '));
@@ -1403,80 +2637,116 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
   check(faqLd && vq.length === 6 && JSON.stringify(faqLd.mainEntity.map((q) => [q.name, q.acceptedAnswer.text])) === JSON.stringify(vq),
     'the FAQPage is the six visible questions and answers, word for word');
   {
-    const notFaq = g.filter((n) => n['@type'] !== 'FAQPage').concat([crumb]);
+    // v1.8 FLIP: this pin named Berlin and Paris; it reads the desks not open of each hub — none on the real one (the
+    // eight are in its nodes and areaServed), the frozen drafts on the synthetic one
     const strs = (v) => (typeof v === 'string' ? [v] : v && typeof v === 'object' ? Object.values(v).flatMap(strs) : []);
-    const hit = notFaq.flatMap(strs).filter((s) => /\b(?:Berlin|Paris|berlin|paris|BER|PAR)\b/.test(s));
-    check(!hit.length && !/"areaServed":[^\]]*(?:Berlin|Paris)/.test(H), 'no desk that is not open in the structured nodes (organization, page, list, Services, breadcrumb) nor in areaServed', hit.join(' | ').slice(0, 160));
+    const hitOf = (h, off) => {
+      if (!off.length) return [];
+      const bl = [...h.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => JSON.parse(m[1]));
+      const gg = (bl.find((b) => b['@graph']) || {})['@graph'] || [];
+      const re = new RegExp(`\\b(?:${off.flatMap((c) => [c.city, c.slug, c.iata]).join('|')})\\b`);
+      return gg.filter((n) => n['@type'] !== 'FAQPage').concat([bl.find((b) => b['@type'] === 'BreadcrumbList')]).flatMap(strs).filter((x) => re.test(x))
+        .concat(new RegExp(`"areaServed":[^\\]]*(?:${off.map((c) => c.city).join('|')})`).test(h) ? ['areaServed'] : []);
+    };
+    const offD = TWO_DRAFTS.filter((c) => c.live !== true);
+    const hit = hitOf(H, OFF.map((s) => CITY[s])), hitD = hitOf(HD, offD);
+    const areaReal = (g.find((n) => n['@type'] === 'RealEstateAgent') || {}).areaServed || [];
+    check(!hit.length && !hitD.length && ['Berlin', 'Paris'].every((c) => areaReal.includes(c)), 'no desk that is not open in the structured nodes (organization, page, list, Services, breadcrumb) nor in areaServed — none on the real hub (Berlin and Paris in areaServed since the flip), the frozen drafts kept out of the synthetic one', [...hit, ...hitD].join(' | ').slice(0, 160));
   }
 
   // the board
   const rows = [...H.matchAll(/<tr class="db-r (live|off|hub)" id="(db-[a-z]+)"[\s\S]*?<\/tr>/g)];
-  check(rows.map((m) => m[2]).join() === 'db-ams,db-bcn,db-lon,db-mad,db-mil,db-ber,db-par,db-rom', `the board: eight rows in order (${rows.map((m) => m[2]).join(', ')})`);
+  // v1.8 FLIP: this pin moved — six live rows, Berlin and Paris "not open", ROM; now the eight live rows, then ROM
+  check(rows.map((m) => m[2]).join() === 'db-ams,db-bcn,db-ber,db-lon,db-mad,db-mil,db-par,db-vlc,db-rom' && rows.every((m, i) => m[1] === (i < 8 ? 'live' : 'hub')), `the board: nine rows in order, eight live then the hub (${rows.map((m) => m[2]).join(', ')})`);
   check(rows.filter((m) => m[1] === 'live').every((m) => { const s = m[0].match(/data-desk="([a-z]+)"/)[1]; return m[0].includes(`<a class="db-go" href="/${s}">${CITY[s].city}</a>`) && m[0].includes(`data-dw="${s}">${esc(deskHoursText(CITY[s].desk))}</span>`); })
-    && rows.filter((m) => m[1] === 'off').every((m) => !/<a\b|data-desk/.test(m[0])) && /<a class="db-go" href="\/">Rome<\/a>/.test(rows[7][0]) && !/data-desk/.test(rows[7][0]),
+    && rows.filter((m) => m[1] === 'off').every((m) => !/<a\b|data-desk/.test(m[0])) && /<a class="db-go" href="\/">Rome<\/a>/.test(rows[8][0]) && !/data-desk/.test(rows[8][0]),
     'live rows link /<slug> with the static hours (deskHoursText); the not-open rows have no link and no data-desk; ROM links / with no clock');
-  check(rows.filter((m) => m[1] === 'live').map((m) => (m[0].match(/from <b>([^<]+)<\/b>/) || [])[1]).join() === '€149,€149,£149,€149,€149' && /ITALIAN LAW · AS ROME/.test(rows[4][0]) && !/ITALIAN LAW/.test(rows.slice(0, 4).map((m) => m[0]).join('')),
+  // v1.8 FLIP: Berlin and Paris have their "from €149" now; Milan's row moved from index 4 to 5 and keeps its tag (D13)
+  const milRow = rows.findIndex((m) => m[2] === 'db-mil');
+  check(rows.filter((m) => m[1] === 'live').map((m) => (m[0].match(/from <b>([^<]+)<\/b>/) || [])[1]).join() === '€149,€149,€149,£149,€149,€149,€149,€149' && milRow === 5 && /ITALIAN LAW · AS ROME/.test(rows[milRow][0]) && !/ITALIAN LAW/.test(rows.filter((m, i) => i !== milRow).map((m) => m[0]).join('')),
     'live "from" prices: €149, London £149; the Milan row carries ITALIAN LAW · AS ROME, no other row does');
-  check(rows.filter((m) => m[1] === 'off').every((m) => /<span class="db-sub">Not open<\/span>/.test(m[0]) && /data-instr>NOT OPEN</.test(m[0]) && !/[€£]|\d{2}:\d{2}|partner|opening/i.test(visibleText(m[0]))),
-    'Berlin and Paris read "Not open" / NOT OPEN: no price, no hour, no partner, no opening');
+  // the not-open rows keep their pin on the synthetic hub (the frozen drafts)
+  const rowsD = [...HD.matchAll(/<tr class="db-r (live|off|hub)" id="(db-[a-z]+)"[\s\S]*?<\/tr>/g)];
+  check(rowsD.map((m) => m[2]).join() === 'db-ams,db-bcn,db-lon,db-mad,db-mil,db-vlc,db-ber,db-par,db-rom' && rowsD.filter((m) => m[1] === 'off').length === 2
+    && rowsD.filter((m) => m[1] === 'off').every((m) => !/<a\b|data-desk/.test(m[0]) && /<span class="db-sub">Not open<\/span>/.test(m[0]) && /data-instr>NOT OPEN</.test(m[0]) && !/[€£]|\d{2}:\d{2}|partner|opening/i.test(visibleText(m[0]))),
+    'the synthetic hub (the frozen drafts): Berlin and Paris come after the live rows and read "Not open" / NOT OPEN, no link: no price, no hour, no partner, no opening');
   check(/<h1 id="h1"><span class="h1a">A rental agent on your side, in<\/span> <span class="sr">Europe<\/span><\/h1>\n\s*<p class="board-row" aria-hidden="true"><span class="board" id="hubBoard" data-word="EUROPE" style="--n:6"><\/span><\/p>/.test(H)
     && visibleText(sliceOf(H, '<h1', '</h1>') + '</h1>').trim() === 'A rental agent on your side, in Europe', 'the H1 reads "A rental agent on your side, in Europe"; the EUROPE board sits outside it, served empty');
-  check([...H.matchAll(/<[^>]*\sdata-(?:clk|dw|nsr)="[^"]*"[^>]*>/g)].every((m) => /data-nosnippet/.test(m[0])) && [...H.matchAll(/data-(?:clk|nsr)="[a-z]+"><\/span>/g)].length === 15,
+  // v1.8 FLIP: 18 → 24 empty spans (three per live desk: the board clock, the pin card clock, the status)
+  check([...H.matchAll(/<[^>]*\sdata-(?:clk|dw|nsr)="[^"]*"[^>]*>/g)].every((m) => /data-nosnippet/.test(m[0])) && [...H.matchAll(/data-(?:clk|nsr)="[a-z]+"><\/span>/g)].length === 3 * LIVE.length,
     'every clock, window and status span carries data-nosnippet; the clocks (board and pin cards) and statuses are served empty (the script fills them)');
 
-  // the map
-  const svg = sliceOf(H, '<svg class="hmap-svg"', '</svg>');
-  const hubArcs = [...svg.matchAll(/<path class="arc" id="arc-([a-z]{3})"[^>]*d="([^"]+)"/g)].map((m) => [m[1], m[2]]);
-  const gold = (s) => (PAGE[s].match(/<path class="arc me"[^>]*d="([^"]+)"/) || [])[1];
-  check(hubArcs.length === LIVE.length && hubArcs.every(([k, d]) => { const s = LIVE.find((x) => CITY[x].iata.toLowerCase() === k); return s && d === gold(s); }),
-    `the map draws one arc per live desk, each with the SAME d as that desk's gold arc on its own page (${hubArcs.map(([k]) => k).join(', ')})`);
-  check(new RegExp(`viewBox="${HUB_VIEWBOX}"`).test(svg) && DRAFT.every((s) => { const [x, y] = mapXY(CITY[s].geo); return svg.includes(`<circle class="d off" cx="${Math.round(x * 10) / 10}" cy="${Math.round(y * 10) / 10}" r="3" fill="none"/>`); }) && !hubArcs.some(([k]) => ['ber', 'par'].includes(k)),
-    'Berlin and Paris are hollow dots at their real coordinates, with no arc');
-  check(/<circle class="hub" [^>]*r="5" fill="none"\/>/.test(svg) && /<circle class="hub-r" [^>]*r="10" fill="none"\/>/.test(svg) && /<circle class="hub-r r2" [^>]*r="16" fill="none"\/>/.test(svg) && /ROM · HUB<\/text>/.test(svg), 'Rome wears its two rings and the label ROM · HUB');
+  // the map (v1.7, the Horizon)
+  const svg = sliceOf(H, '<svg class="hz"', '</svg>');
+  const hubArcs = [...svg.matchAll(/<path class="arc" id="arc-([a-z]{3})" data-k="\1" style="--s:url\(#ga-\1\)" pathLength="1" fill="none" d="([^"]+)"\/>/g)].map((m) => [m[1], m[2]]);
+  const gold = (s) => (PAGE[s].match(/<path class="arc me" data-k="[a-z]{3}" pathLength="1" fill="none" d="([^"]+)"\/>/) || [])[1];
+  check(hubArcs.length === LIVE.length && hubArcs.every(([k, d]) => { const s = LIVE.find((x) => CITY[x].iata.toLowerCase() === k); return s && d === gold(s) && d === HZ.arcs.get(CITY[s].iata).d && svg.includes(`<linearGradient id="ga-${k}" gradientUnits="userSpaceOnUse"`); }),
+    `the map draws one arc per live desk, lit from Rome by its own gradient, each with the SAME d as that desk's gold arc on its own page (${hubArcs.map(([k]) => k).join(', ')})`);
+  // v1.8 FLIP: Berlin and Paris have their arc and glow on the real hub (above); the hollow dot of a desk not open keeps
+  // its pin on the synthetic hub (the frozen drafts)
   {
+    const svgD = sliceOf(HD, '<svg class="hz"', '</svg>');
+    const arcsD = [...svgD.matchAll(/<path class="arc" id="arc-([a-z]{3})"/g)].map((m) => m[1]);
+    check(svg.startsWith(`<svg class="hz" viewBox="${HZ.view.join(' ')}" aria-hidden="true" focusable="false">`) && !/<circle class="d off"/.test(svg) && ['ber', 'par'].every((k) => hubArcs.some(([x]) => x === k) && svg.includes(`id="hzd-${k}"`))
+      && ['berlin', 'paris'].every((s) => { const [x, y] = HZ.cam.xy(DRAFT[s].geo); return svgD.includes(`<circle class="d off" cx="${x}" cy="${y}" r="3" fill="none"/>`); }) && !arcsD.some((k) => ['ber', 'par'].includes(k)) && !/id="hzd-(?:ber|par)"/.test(svgD),
+      'Berlin and Paris are live dots with their arc and glow; a desk not open (the frozen drafts, synthetic hub) is a hollow dot at its real coordinates, with no arc and no glow');
+  }
+  check(/<circle class="hub" [^>]*r="5" fill="none"\/>/.test(svg) && /<circle class="hub-r" [^>]*r="10" fill="none"\/>/.test(svg) && /<circle class="hub-r r2" [^>]*r="16" fill="none"\/>/.test(svg) && /<text class="m-l hub"[^>]*>ROM<tspan class="hb"> · HUB<\/tspan><\/text>/.test(svg),
+    'Rome wears its two rings and the label ROM · HUB');
+  check(LIVE.every((s) => { const [x, y] = HZ.cam.xy(CITY[s].geo), k = CITY[s].iata.toLowerCase(); return svg.includes(`<g class="dk" id="hzd-${k}"><circle class="gl" cx="${x}" cy="${y}" r="15"/><circle class="lr" cx="${x}" cy="${y}" r="6" fill="none"/><circle class="d" cx="${x}" cy="${y}" r="3"/></g>`); }),
+    'every live desk is a dot with its ring and a glow the script lights while the desk is open');
+  {
+    const [vx, vy, vw, vh] = HZ.view;
     const pins = [...H.matchAll(/<a class="pin[^"]*" id="pin-([a-z]{3})" href="\/([a-z]+)" style="--x:([\d.]+)%;--y:([\d.]+)%"/g)];
-    const ok2 = pins.length === LIVE.length && pins.every((m) => { const [x, y] = mapXY(CITY[m[2]].geo); return CITY[m[2]].live && Math.abs(+m[3] - Math.round(x * 10) / 10 / 640 * 100) < 0.06 && Math.abs(+m[4] - (Math.round(y * 10) / 10 + 40) / 520 * 100) < 0.06; });
-    check(ok2, `pins for the live desks only, at the projected --x/--y (${pins.map((m) => `${m[1]} ${m[3]}/${m[4]}`).join(' · ')})`);
-    const hubXY = mapXY(shared.rome.geo);
-    const bows = bowArcs(hubXY, SLUGS.map((s) => [CITY[s].iata, mapXY(CITY[s].geo)]));
-    const arcs = LIVE.map((s) => { const to = mapXY(CITY[s].geo); return { key: CITY[s].iata, to, c: arcCtrl(hubXY, to, bows.get(CITY[s].iata)) }; });
-    check(arcViolations(hubXY, arcs, SLUGS.map((s) => ({ key: CITY[s].iata, xy: mapXY(CITY[s].geo), r: ARC_DOT_R }))).length === 0 && arcs.every((a) => svg.includes(arcD(hubXY, a))), 'no arc on the hub passes over a desk it does not serve (arcViolations = 0)');
-    check(LIVE.every((s) => H.includes(`.hmap:has(#pin-${CITY[s].iata.toLowerCase()}:is(:hover,:focus-visible)) #arc-${CITY[s].iata.toLowerCase()}{stroke:var(--gold)`)), 'a pin lights its own arc (one generated :has rule per live desk)');
-    check(!EUROPE || ([EUROPE.path, EUROPE.desk].every((d) => typeof d === 'string' && /^[MLZ0-9 .\-]+$/.test(d) && d.length <= 16000) && /Natural Earth/.test(EUROPE.source) && /^https:\/\/raw\.githubusercontent\.com\/nvkelso\/natural-earth-vector\//.test(EUROPE.url) && /^\d{4}-\d{2}-\d{2}$/.test(EUROPE.generated)),
-      'the optional coast paths, when present, are plain M/L/Z numbers ≤ 16000 characters, with their provenance (Natural Earth, the raw URL, the date)');
-    if (EUROPE) {
-      const nums = (d) => [...d.matchAll(/-?\d+(?:\.\d+)?/g)].map((x) => +x[0]);
-      const inBox = (d, [x0, y0, x1, y1]) => { const n = nums(d); return n.length > 100 && n.every((v, i) => (i % 2 ? v >= y0 && v <= y1 : v >= x0 && v <= x1)); };
-      check(inBox(EUROPE.path, [-5, -45, 645, 485]) && inBox(EUROPE.desk, [-5, -5, 605, 425]), 'each coast stays within its map box ±5 (the hub 0 −40 640 520, a desk 0 0 600 420)');
-      // the generator: the root derived from its own file (tests/radici), the same projection as mapXY, and the
-      // simplification the JSON declares is the one the script runs
-      const gen = read('design/pages-deco/genera-europa.py');
-      check(/RADICE = os\.path\.dirname\(os\.path\.dirname\(QUI\)\)/.test(gen) && /return \(300 \+ \(lon - 5\) \* 17\.73, 210 \+ \(46\.75 - lat\) \* 26\)/.test(gen) && mapXY({ lon: 5, lat: 46.75 }).join() === '300,210'
-        && gen.includes(`EPS = ${EUROPE.simplify.douglasPeucker.toFixed(1)}`) && gen.includes(`MIN_AREA = ${EUROPE.simplify.minRingArea.toFixed(1)}`) && gen.includes(`DECIMALS = ${EUROPE.simplify.decimals}`),
-        'design/pages-deco/genera-europa.py projects with mapXY, derives its root from its own file, and runs the simplification cities/_europe.json declares');
-      check(svg.includes(`<path id="coast" d="${EUROPE.path}"/><clipPath id="land" clip-rule="evenodd"><use href="#coast"/></clipPath>`) && /<rect class="land"[^>]*fill="url\(#landDots\)" clip-path="url\(#land\)"\/><use class="coast" href="#coast" fill="none"\/>/.test(svg)
-        && svg.indexOf('class="land"') < svg.indexOf('<path class="arc'), 'the hub map draws the land as a dot matrix clipped to the coast, plus one hairline, under the arcs');
+    const ok2 = pins.length === LIVE.length && pins.every((m) => { const [x, y] = HZ.cam.xy(CITY[m[2]].geo); return CITY[m[2]].live && Math.abs(+m[3] - (x - vx) / vw * 100) < 0.06 && Math.abs(+m[4] - (y - vy) / vh * 100) < 0.06; });
+    check(ok2, `pins for the live desks only, at the projected --x/--y inside the cropped frame (${pins.map((m) => `${m[1]} ${m[3]}/${m[4]}`).join(' · ')})`);
+    // 44px targets: no two pins overlap where a pin IS a target (HUB_MAP_PX: the drawn width, the column minus the box's two 1px borders).
+    // This pin moved in v1.8 stage B3 (spec D12, option (b)): it was { 390: 356, 320: 286 }, the phone widths; with eight live desks
+    // two pins stand 24–30px apart on a phone, so under 600px the map box is the one target (the nearest desk within 30px,
+    // assets/src/boom-desks.js, tests/cities/ui.mjs) and the 44px rule holds from 600px, where the pins are targets again
+    check(HUB_MAP_PX[600] === 566 && HUB_MAP_PX[940] === 559 && Object.keys(HUB_MAP_PX).length === 2, 'HUB_MAP_PX: 566px at 600, 559px at 940 — the widths where a pin is its own target');
+    for (const [w, px] of Object.entries(HUB_MAP_PX)) {
+      let min = 1e9, pair = '';
+      for (const a of LIVE) for (const b of LIVE) if (a < b) { const A = HZ.cam.xy(CITY[a].geo), B = HZ.cam.xy(CITY[b].geo); const d = Math.hypot(A[0] - B[0], A[1] - B[1]) * px / vw; if (d < min) { min = d; pair = `${CITY[a].iata}–${CITY[b].iata}`; } }
+      check(min >= 44, `at ${w}px (map ${px}px) the closest pins (${pair}) are ${min.toFixed(1)}px apart: 44px targets never overlap`);
     }
-    // the comet: the SAME curve as the arc, one per live desk, run once on hover/focus — only with motion allowed
-    const comets = [...svg.matchAll(/<path class="comet" id="cm-([a-z]{3})" pathLength="1" fill="none" d="([^"]+)"\/>/g)].map((m) => [m[1], m[2]]);
-    check(comets.length === LIVE.length && comets.every(([k, d]) => (hubArcs.find((a) => a[0] === k) || [])[1] === d), `one comet per live desk, on the same d as its arc (${comets.map((c) => c[0]).join(', ')})`);
-    const motion = sliceOf(H, '@media (prefers-reduced-motion:no-preference){.hmap:has(#pin-', '}}');
-    check(motion && LIVE.every((sl) => motion.includes(`.hmap:has(#pin-${CITY[sl].iata.toLowerCase()}:is(:hover,:focus-visible)) #cm-${CITY[sl].iata.toLowerCase()}`)) && /\{animation:comet \.9s [^;}]* both$/.test(motion) && !/infinite/.test(motion),
-      'the comet runs once (.9s, never infinite), only under prefers-reduced-motion: no-preference');
-    const dcss = read('assets/boom-desks.css');
-    check(/@keyframes comet\{0%\{stroke-dashoffset:[.\d]+;opacity:1\}[^@]*100%\{stroke-dashoffset:-1;opacity:0\}\}/.test(dcss) && /\.hmap \.comet\{[^}]*opacity:0/.test(dcss), 'the comet is invisible at rest and ends where it started: invisible (assets/boom-desks.css)');
+    // under 600px the map box takes the tap (option (b)): the pins keep their links but take no pointer
+    const dcss = read('assets/src/boom-desks.css'), djs = read('assets/src/boom-desks.js');
+    check(/@media \(hover:none\),\(max-width:599px\)\{\.pin\{pointer-events:none\}/.test(dcss) && /\.pc\.dock\{[^}]*pointer-events:auto/.test(dcss)
+      && /touch = mq\('\(hover: none\), \(max-width: 599px\)'\)/.test(djs) && /box\.addEventListener\('click'/.test(djs) && /bd = 30;/.test(djs),
+      'under 600px (or without hover) the pins are links but not targets; the map box resolves the nearest desk within 30px (one media query for the CSS and the script)');
+    const arcs = LIVE.map((s) => ({ key: CITY[s].iata, d: HZ.arcs.get(CITY[s].iata).d }));
+    check(hzViolations(arcs, SLUGS.map((s) => ({ key: CITY[s].iata, xy: HZ.cam.xy(CITY[s].geo), r: ARC_DOT_R }))).length === 0, 'no arc on the hub passes over a desk it does not serve (hzViolations = 0)');
+    const rules = sliceOf(H, '<style>.hmap:has(#pin-', '</style>');
+    check(LIVE.every((s) => rules.includes(`.hmap:has(#pin-${CITY[s].iata.toLowerCase()}:is(:hover,:focus-visible,.sel)) #arc-${CITY[s].iata.toLowerCase()}{stroke:var(--gold);stroke-width:2;opacity:1}`)) && !/animation|@keyframes|comet/.test(rules),
+      'a pin lights its own arc (one generated :has rule per live desk, the tapped pin .sel included); the flight is the script\'s, no CSS animation');
+    // the coast: Natural Earth in degrees (cities/_europe.json rings) inside the camera's window, projected at build time
+    check(EUROPE && Array.isArray(EUROPE.rings) && EUROPE.rings.length > 50 && EUROPE.rings.every((r) => Array.isArray(r) && r.length >= 6 && r.length % 2 === 0 && r.every((n, i) => typeof n === 'number' && (i % 2 ? n >= EUROPE.window[1] && n <= EUROPE.window[3] : n >= EUROPE.window[0] && n <= EUROPE.window[2])))
+      && /Natural Earth/.test(EUROPE.source) && /^https:\/\/raw\.githubusercontent\.com\/nvkelso\/natural-earth-vector\//.test(EUROPE.url) && /^\d{4}-\d{2}-\d{2}$/.test(EUROPE.generated) && /degrees/.test(EUROPE.projection) && !('path' in EUROPE) && !('desk' in EUROPE),
+      'cities/_europe.json: the coast in degrees (lon, lat rings inside the camera\'s window), with its provenance (Natural Earth, the raw URL, the date); the projected paths are gone');
+    const gen = read('design/pages-deco/genera-europa.mjs');
+    check(/const RADICE = path\.dirname\(path\.dirname\(QUI\)\);/.test(gen) && /import \{ clipRect, dpRing, ringArea \} from '\.\.\/\.\.\/build-cities\.mjs';/.test(gen) && gen.includes(`const EPS = ${EUROPE.simplify.douglasPeucker}, MIN_AREA = ${EUROPE.simplify.minRingArea}, DECIMALS = ${EUROPE.simplify.decimals};`) && gen.includes(`export const WINDOW = [${EUROPE.window.join(', ')}];`) && !fs.existsSync(path.join(R, 'design/pages-deco/genera-europa.py')),
+      'design/pages-deco/genera-europa.mjs derives its root from its own file, clips and simplifies with the build\'s own helpers, and runs the simplification the JSON declares; the projected-path generator is gone');
+    check(/<path id="hzCoast" d="M-?\d+ -?\d+l[-\d ]+z/.test(svg) && /<rect class="land" width="640" height="520" fill="url\(#hzDots\)" clip-path="url\(#hzLc\)"\/><use class="coast" href="#hzCoast"\/>/.test(svg) && svg.indexOf('class="land"') < svg.indexOf('<path class="arc'),
+      'the hub map draws the land as a dot matrix clipped to the projected coast, plus one hairline, under the arcs');
+    check((svg.match(/<g class="hz-nite"><\/g>/g) || []).length === 1 && !/<image\b|hz-term|hz-pl/.test(svg), 'the night layer is served EMPTY and no plane is in the static HTML: the hour and the script draw them');
+    const hzData = JSON.parse((H.match(/<script type="application\/json" class="hz-data">([\s\S]*?)<\/script>/) || [])[1] || '{}');
+    check(Array.isArray(hzData.c) && hzData.c.length === 15 && JSON.stringify(hzData.v) === JSON.stringify(HZ.view) && JSON.stringify(hzData.d) === JSON.stringify(hzCal(LIVE.map((s) => CITY[s]))) && Object.keys(hzData.d).length === LIVE.length && hzData.d.vlc.h === 'es-vlc' && hzData.d.lon.z === 'Europe/London',
+      'the hub\'s data script carries the camera, the crop and the live desks\' calendar facts (eight since the flip)');
+    check(!/comet|cm-[a-z]{3}|hmap-svg/.test(H) && !/comet/.test(read('assets/boom-desks.css')) && /<symbol id="boomPlane" viewBox="0 0 24 24">/.test(H), 'the comet is gone (page and boom-desks.css); the hub carries the plane symbol the script flies');
   }
 
-  // the onda (P4): the desk pages' canvas script, versioned in its URL; the hub's script loads it
-  // at ≥940 after load and it loops only while a desk is open (boom-desks.js says so each minute)
+  // the onda (P4, v1.7): the desk pages' canvas script, versioned in its URL; the hub's script loads
+  // it at every width after load, when idle; the beat rises from the EUROPE board (#hubBoard) at every width, and it loops
+  // only while a desk is open (boom-desks.js says so each minute)
   {
     const cfg = JSON.parse((H.match(/window\.BOOM_DESKS = (\{[\s\S]*?\});\s*<\/script>/) || [])[1] || '{}');
     const ondaHash = crypto.createHash('sha256').update(fs.readFileSync(path.join(R, 'assets/boom-onda.js'))).digest('hex').slice(0, 10);
     check(cfg.ONDA === `/assets/boom-onda.js?v=${ondaHash}` && /<canvas class="onda" id="onda" aria-hidden="true"><\/canvas>/.test(H) && H.indexOf('id="onda"') < H.indexOf('<main'),
       `the hub carries the onda canvas and its versioned script URL (${cfg.ONDA})`);
     const djs = read('assets/boom-desks.js');
-    check(/min-width: 940px/.test(djs) && /requestIdleCallback\(onda/.test(djs) && /BOOM_ONDA\.start\(cv, \{ origin: document\.querySelector\('#db-rom \.db-code'\), open: anyOpen \}\)/.test(djs) && /BOOM_ONDA\.setOpen\(any\)/.test(djs),
-      'boom-desks.js loads the onda at ≥940 when idle, from ROM, and tells it each minute whether a desk is open');
+    check(/requestIdleCallback\(onda/.test(djs) && !/\|\| !big\.matches\) return;/.test(djs) && /BOOM_ONDA\.start\(cv, \{ origin: function \(\) \{ return \$\('hubBoard'\); \}, open: anyOpen \}\)/.test(djs) && !/#db-rom \.db-code/.test(djs) && /BOOM_ONDA\.setOpen\(any\)/.test(djs),
+      'boom-desks.js loads the onda when idle at every width — the heartbeat rises from the EUROPE board at every width (ROM\'s row sits below the ≤1000px canvas on a desktop) — and tells it each minute whether a desk is open');
     check(/new window\.BoomSolari\.Board\(h, 6, DRUM\)/.test(djs) && /if \(!f \|\| f\.w === word\) return;/.test(djs) && /set\(nb, w\.open \? 'OPEN' : 'CLOSED'\)/.test(djs),
       'DESK NOW: a 6-cell flap board beside the text the script keeps, flipping only when the word changes');
   }
@@ -1490,9 +2760,23 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
     const ucf = (s) => s.charAt(0).toLowerCase() + s.slice(1);
     check(Object.entries(HUBJ.fares.plans).every(([id, p]) => p.lines.every((l) => CITY_PLANS[id].desc.includes(ucf(l)) || CITY_PLANS[id].desc.includes(l))), 'every ticket line is a line the server sells (a substring of CITY_PLANS.desc)');
     check(sliceOf(fa, 'id="hf-full-search"', '</li>\n').includes(`<p class="refund">${esc(shared.refund.rule)}</p>`) && !/data-pay|<button/.test(fa), 'the refund rule sits inside the Full Search ticket; no button, no data-pay');
-    check(fa.indexOf('class="hnote es"') > -1 && fa.indexOf('class="hnote es"') < fa.search(/[€£]\d/) && /In Barcelona and Madrid every fare is optional, chosen in writing \(LAU art\. 20\)\./.test(fa),
+    check(fa.indexOf('class="hnote es"') > -1 && fa.indexOf('class="hnote es"') < fa.search(/[€£]\d/) && /In Barcelona, Madrid and Valencia every fare is optional, chosen in writing \(LAU art\. 20\)\./.test(fa),
       'the Spain note (LAU art. 20) names exactly the Spanish live desks and comes before the first price');
-    check(LIVE.every((s) => fa.includes(`<a href="/${s}#fares"><b data-instr>${CITY[s].iata}</b> ${CITY[s].city}</a>`)) && fa.includes('<a class="lnk" href="/withdrawal">'), 'the gates send each reader to /<slug>#fares; the 14-day strip item links the model form');
+    // v1.8 stage W (spec §8.2 H3): the pin moved — the 14-day strip item was
+    // "To withdraw after paying: the model form." → /withdrawal; it now links
+    // the online withdrawal function (same seven words, the hub stays at 975)
+    check(LIVE.every((s) => fa.includes(`<a href="/${s}#fares"><b data-instr>${CITY[s].iata}</b> ${CITY[s].city}</a>`))
+      && fa.includes('<li><b data-instr>14 days</b> <a class="lnk" href="/withdrawal#online">Withdraw online, from the day you order.</a></li>') && !fa.includes('<a class="lnk" href="/withdrawal">'),
+      'the gates send each reader to /<slug>#fares; the 14-day strip item links the online withdrawal function (/withdrawal#online)');
+    // v1.8 FLIP (H3): landed with stage W — the pin above is the stricter form of the FLIP's own (the <li>, and no
+    // link to the bare /withdrawal)
+    // v1.8 FLIP (H1): the timing differs, the fares do not — the signing desks are named before the first price
+    check(fa.includes('<p class="hnote sign">In Berlin and Paris every fare is charged only when you sign a lease.</p>') && fa.indexOf('class="hnote sign"') < fa.search(/[€£]\d/)
+      && !sliceOf(HD, '<section class="sec" id="fares"', '</section>').includes('hnote sign'),
+      'the signing note names Berlin and Paris before the first price (H1); a hub with no signing desk has none (the synthetic hub)');
+    // v1.8 FLIP (H2, H4): the Full Search line true at every desk; "One company" and "One person" cut from the strip
+    check(sliceOf(fa, 'id="hf-full-search"', '</li>\n').includes('<li>Contract checked before you sign</li>') && !/Applications sent as listings appear/.test(fa) && !/One company|One person/.test(fa),
+      'the Full Search ticket says "Contract checked before you sign" (true at every desk: H2); the strip lost "One company" and "One person" (H4)');
   }
 
   // the rules
@@ -1506,11 +2790,19 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
     for (const k of held) console.log(`      · held ${k}: ${HUBJ.rules.hold[k]}`);
     const plain = LIVE.flatMap((s) => CITY[s].checks.items.filter((k) => !HUBJ.rules.hold[`${s}:${k.id}`]).map((k) => [s, k]));
     check(plain.every(([s, k]) => ru.includes(`<a class="rc" href="/${s}#check-${k.id}"><span class="rc-at" data-instr>${esc(k.at)}</span></a>`)), 'every other cell is the desk\'s own `at` label, verbatim, linking its check');
-    check(/<td data-k="AMS"><span class="rc none" aria-hidden="true">—<\/span><span class="sr">Not one of the Amsterdam checks<\/span><\/td>/.test(sliceOf(ru, '<th scope="row">Who may charge you</th>', '</tr>')), 'Amsterdam has no fees check: its cell is "—" with a screen-reader sentence, never an invented rule');
+    // v1.8 FLIP (H6): the screen-reader sentence moved from "Not one of the Amsterdam checks" to "Not checked at this desk"
+    // (a place name beside a reviewed label read as a claim to review)
+    check(/<td data-k="AMS"><span class="rc none" aria-hidden="true">—<\/span><span class="sr">Not checked at this desk<\/span><\/td>/.test(sliceOf(ru, '<th scope="row">Who may charge you</th>', '</tr>')) && !/Not one of the/.test(ru), 'Amsterdam has no fees check: its cell is "—" with a screen-reader sentence, never an invented rule');
     check(plain.every(([s, k]) => { const t = (cut[`${s}:${k.id}`] || []).reduce((x, c) => x.split(c).join(''), k.text).replace(/\s+/g, ' ').trim(); return ru.includes(`<dd>${esc(t)}</dd>`); }) && !ru.includes('Agents still ask for three.'),
       'the full sheet: each shown check\'s sentence, minus the cut sentences (Amsterdam\'s "Agents still ask for three. We don\'t let them." is gone)');
     const country = sliceOf(ru, '<th scope="row">Country</th>', '</tr>');
-    check(LIVE.every((s) => country.includes(`<td data-k="${CITY[s].iata}">${COUNTRY_NAME[CITY[s].country]}`)) && /Italy <span class="rc-tag" data-instr>same law as BOOM Rome<\/span>/.test(country), 'the Country row is derived (COUNTRY_NAME); Italy carries "same law as BOOM Rome"');
+    // v1.8 FLIP (H6): the country tag is cut ("same law as BOOM Rome"); the board keeps Milan's "ITALIAN LAW · AS ROME" (D13)
+    check(LIVE.every((s) => country.includes(`<td data-k="${CITY[s].iata}">${COUNTRY_NAME[CITY[s].country]}</td>`)) && !/rc-tag|same law as BOOM Rome/.test(ru) && /ITALIAN LAW · AS ROME/.test(H),
+      'the Country row is derived (COUNTRY_NAME), the country alone (H6); Milan keeps its board tag ITALIAN LAW · AS ROME (D13)');
+    // v1.8 FLIP (H5, H7): the caption "As on each desk's page", no held note; Paris's rent cap held (D17)
+    check(ru.includes(`<caption>${esc(HUBJ.rules.caption)} · updated `) && HUBJ.rules.caption === "As on each desk's page" && !('heldNote' in HUBJ.rules) && !/class="r-held"/.test(ru)
+      && ru.includes(`<a class="rc held" href="/paris#check-rentcap"><span class="rc-t">${esc(CITY.paris.checks.items.find((k) => k.id === 'rentcap').title)}</span></a>`),
+      'the rules: the caption "As on each desk\'s page" and no held note (H5); Paris\'s rent cap is held, its title only (H7, D17)');
   }
 
   // the questions, the fact sheet, the footer
@@ -1521,7 +2813,15 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
     check(br && !sliceOf(H, 'id="brief"', 'id="enbref"').includes('<details') && fees.includes(esc(shared.refund.rule)) && /at the London desk £500, £199 and £149/.test(fees)
       && br.includes(`<time datetime="${HB.dateModified}">`) && !(visibleText(br).match(RATING_RE) || []).length,
       'the fact sheet is open; its Fees row carries the refund rule and the London figures; Updated is <time datetime> = dateModified; no rating in it');
-    check(/Amsterdam<\/a>, <a class="lnk" href="\/barcelona">Barcelona<\/a>[\s\S]*and <a class="lnk" href="\/milan">Milan<\/a>\. Berlin and Paris desks are not open\./.test(br), 'Open in: the live desks linked, then "Berlin and Paris desks are not open." (no link)');
+    // v1.8 FLIP: this pin moved — "… and Valencia. Berlin and Paris desks are not open." Now the eight are linked and no
+    // "not open" sentence is left; that sentence keeps its pin on the synthetic hub (the frozen drafts)
+    const brD = sliceOf(HD, '<dl class="enbref" id="enbref">', '</dl>');
+    check(LIVE.every((s) => br.includes(`<a class="lnk" href="/${s}">${CITY[s].city}</a>`)) && /<a class="lnk" href="\/paris">Paris<\/a> and <a class="lnk" href="\/valencia">Valencia<\/a>\.<\/dd>/.test(br) && !/not open/.test(br)
+      && /<a class="lnk" href="\/milan">Milan<\/a> and <a class="lnk" href="\/valencia">Valencia<\/a>\. Berlin and Paris desks are not open\./.test(brD) && !/href="\/(?:berlin|paris)"/.test(brD),
+      'Open in: the eight live desks linked, no "not open" line; with drafts (the synthetic hub) "Berlin and Paris desks are not open." (no link)');
+    // v1.8 FLIP (H11, H13): no Rome row; the withdrawal row counts from the order, online or with the model form
+    check(!/<dt>Rome<\/dt>/.test(br) && sliceOf(br, '<dt>Withdrawal</dt>', '</dd>').includes('14 days from your order.') && sliceOf(br, '<dt>Withdrawal</dt>', '</dd>').includes('<a class="lnk" href="/withdrawal#online">Withdraw online</a> or with the <a class="lnk" href="/withdrawal">model form</a>.'),
+      'the fact sheet: no Rome row (H11); Withdrawal reads "14 days from your order … Withdraw online or with the model form" (H13)');
   }
   check(/<p class="stmt">Every BOOM desk acts solely for the tenant/.test(H) && LIVE.every((s) => sliceOf(H, '<nav aria-label="Desks">', '</nav>').includes(`<a href="/${s}">BOOM ${CITY[s].city}</a>`)) && /© 2026 BOOM <span class="mono" aria-hidden="true">· DESKS · TENANT SIDE · OPERATED BY EGIDI IMMOBILIARE<\/span>/.test(H),
     'the footer: the statement, the live desks and BOOM Rome, legal, the company');
@@ -1536,7 +2836,14 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
   };
   const hubRefuses = (mutHub, re, t, mutCity = null, tpl = HUBT) => { const r = throws(() => hubRender(mutHub, mutCity, tpl), re); check(r === true, t, r === true ? '' : r); };
   check(throws(() => hubRender(), /^$/) === 'did not throw', '(the real data renders through renderHub with the test asset versions)');
-  hubRefuses((h) => { h.brief.rows[0].dd = 'See <a href="/paris">Paris</a>'; }, /links a desk that is not open/, 'a fact-sheet row linking /paris is refused (a desk not open is named, never linked)');
+  check(HDR.warnings.every((w) => /dropped/.test(w)) && HDR.warnings.some((w) => /signing/.test(w)), '(the synthetic hub over the frozen drafts builds; with no signing desk the signing note and its FAQ are dropped, with warnings)', HDR.warnings.join(' | '));
+  // v1.8 FLIP: Paris is live, so the same row on the real hub meets the plain-text guard (the next pin); the not-open guard
+  // reads the synthetic hub, where Paris is a frozen draft
+  {
+    const hm = clone(HUBJ); hm.brief.rows[0].dd = 'See <a href="/paris">Paris</a>';
+    const r = throws(() => hubOf(TWO_DRAFTS, hm), /links a desk that is not open/);
+    check(r === true, 'a fact-sheet row linking /paris is refused while Paris is not open (a desk not open is named, never linked)', r === true ? '' : r);
+  }
   hubRefuses((h) => { h.brief.rows[0].dd = 'See <b>this</b>.'; }, /carries markup: hub copy is plain text/, 'markup in hub copy is refused (it would print as text; the links are derived)');
   hubRefuses((h) => { h.rules.note += ' (art. 1590 c.c.)'; }, /"art\. 1590" .* is a statute no live desk's check names/, 'a statute no live desk checks (art. 1590 c.c.) is refused');
   hubRefuses((h) => { h.faq.items[3].a += ' Desk OPEN now.'; }, /the static HTML says a desk is open or closed \("OPEN"\)/, 'a FAQ answer saying "Desk OPEN now." is refused (only the script, from the calendar, says it; FAQ 1 is at its 42 words, so FAQ 4 carries it)');
@@ -1551,13 +2858,24 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
   hubRefuses((h) => { h.map.caption = 'We have 40 clients a month.'; }, /types a number/, 'a number typed in hub copy is refused (numbers come from tokens)');
   hubRefuses((h) => { h.faq.items[0].a = 'Ask {unknown}.'; }, /unknown or empty token \{unknown\}/, 'an unknown token is refused');
   hubRefuses((h) => { h.meta.extra = 'x'; }, /meta\.extra is a key the hub does not read/, 'a key the hub does not read is refused');
-  hubRefuses((h) => { h.map.caption = 'Paris: book a call.'; }, /a sentence that names a desk not open promises a call/, 'a sentence naming Paris with a call is refused');
+  // v1.8 stage W: the strip keeps its link to the online withdrawal function
+  hubRefuses((h) => { const x = h.fares.strip.find((i) => i.href === '/withdrawal#online'); check(!!x, '(the hub strip carries the /withdrawal#online item)'); if (x) x.href = '/withdrawal'; },
+    /fares\.strip links the online withdrawal function \(an item with href "\/withdrawal#online"\)/, 'a hub strip whose 14-day item no longer links /withdrawal#online is refused (stage W)');
+  // v1.8 FLIP: Paris is live — a call there is its free call; the guard reads the synthetic hub, where Paris is not open
+  {
+    const hm = clone(HUBJ); hm.map.caption = 'Paris: book a call.';
+    const r = throws(() => hubOf(TWO_DRAFTS, hm), /a sentence that names a desk not open promises a call/);
+    check(r === true, 'a sentence naming Paris with a call is refused while Paris is not open (the synthetic hub)', r === true ? '' : r);
+  }
   hubRefuses((h) => { h.map.caption = 'Every desk answers from Rome, our office in Madrid too.'; }, /a presence claim outside Rome/, 'a presence claim outside Rome is refused');
-  hubRefuses((h) => { h.map.caption = 'Six desks, one company.'; }, /"Six desks" is not the live count/, 'a desk count that is not the live count is refused');
+  hubRefuses((h) => { h.map.caption = 'Every desk answers from Rome; RAICV listed.'; }, /a licence the desks do not hold/, 'a Valencian registry claim (RAICV) on the hub is refused');
+  hubRefuses((h) => { h.map.caption = 'Seven desks, one company.'; }, /"Seven desks" is not the live count/, 'a desk count that is not the live count is refused');
   hubRefuses((h) => { h.map.caption = 'Rated well: ★ by tenants.'; }, /the Rome rating appears exactly once/, 'a second rating is refused');
   hubRefuses((h) => { h.footer.statement += ' Paid through Stripe.'; }, /no till/, 'a Stripe word on the hub is refused');
   hubRefuses((h) => { h.brief.rows[0].dd += ' VAT IT12345678901.'; }, /"VAT 12345678901" is not the company's VAT number/, 'a VAT number other than the entity\'s is refused');
-  hubRefuses((h) => { h.updated = '2026-11-05'; }, /must be the same date/, 'a dateModified that is not the sitemap <lastmod> is refused');
+  // v1.8 FLIP: the hub's own date is the newest of itself and its live desks (2026-11-05 since the flip): a LATER one moves
+  // dateModified away from the sitemap <lastmod>
+  hubRefuses((h) => { h.updated = '2026-12-01'; }, /must be the same date/, 'a dateModified that is not the sitemap <lastmod> is refused');
   hubRefuses(() => {}, /the fares differ at the London desk/, 'a live desk whose fares differ is refused ("same at every desk")', (c) => { if (c.slug === 'london') c.pricing.plans[1].price = 189; });
   hubRefuses(() => {}, /needs one desk\.person/, 'two different people answering is refused', (c) => { if (c.slug === 'milan') c.desk.person = 'Anna Rossi'; });
   hubRefuses(() => {}, /"What we don't do" must say/, 'a live desk whose "What we don\'t do" does not cover the hub\'s claim is refused', (c) => { if (c.slug === 'madrid') c.bref.rows.find((r) => r.dt === "What we don't do").ddHtml = 'We don\'t list homes.'; });
@@ -1576,8 +2894,11 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
   }
   {
     // with drafts gone the {drafts} token is empty: refused, never an empty sentence
-    const r = throws(() => renderHub({ template: HUBT, shared, hub: clone(HUBJ), cities: SLUGS.filter((s) => CITY[s].live).map((s) => clone(CITY[s])), assetVersion: {}, frags, root: R, weigh: false }), /unknown or empty token \{drafts\}/);
+    // v1.8 FLIP: _hub.json no longer names {drafts} (H8): the mutation puts it back in a FAQ answer; the eight are live
+    const hm = clone(HUBJ); hm.faq.items[1].a = '{cities}. {drafts} are not open.';
+    const r = throws(() => renderHub({ template: HUBT, shared, hub: hm, cities: SLUGS.filter((s) => CITY[s].live).map((s) => clone(CITY[s])), assetVersion: { css: 'testcss000', desksCss: 'testdcss00', desksJs: 'testdjs000' }, frags, root: R, weigh: false }), /unknown or empty token \{drafts\}/);
     check(r === true, 'with no desk not open, a sentence that names {drafts} is refused (never an empty name)', r === true ? '' : r);
+    check(!JSON.stringify(HUBJ).includes('{drafts}'), '_hub.json names no {drafts} since the flip (H8: "Which cities have a BOOM desk?" lists the eight and Rome)');
   }
   // a REA typed in a city JSON is refused by renderCity (the identity guard is shared)
   refuses((c) => { c.bref.rows[0].ddHtml = c.bref.rows[0].ddHtml.replace('REA RM-1710623', 'REA RM-1234567'); }, /"REA RM-1234567" is not the company's REA/, 'milan: a "Who" row with REA RM-1234567 is refused by renderCity', 'milan');
@@ -1618,12 +2939,264 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
   check((vj.redirects || []).some((r) => r.source === '/(cities|boom-desks)' && r.destination === '/desks' && r.permanent === true), '/cities and /boom-desks redirect permanently to /desks');
   check(lastmod === HB.dateModified, `the sitemap lists /desks with <lastmod> ${lastmod} = dateModified`);
   const llms = read('llms.txt');
-  check(/^## BOOM Desks \(tenant-side rental desks in Europe: Amsterdam, Barcelona, London, Madrid and Milan\)$/m.test(llms) && llms.includes('- [BOOM Desks](https://www.boomrome.com/desks):') && !/BOOM Cities/.test(llms) && llms.includes('Paris and Berlin desks are not open.') && /BOOM Milan is the home-country desk/.test(llms),
-    'llms.txt: the section is "BOOM Desks", /desks first, Milan the home-country desk; "BOOM Cities" gone; the "not open" sentence kept');
+  // v1.8 FLIP: this pin moved — it named six desks and kept "Paris and Berlin desks are not open."; it reads the data now:
+  // the heading lists the live desks (eight), and a "not open" sentence exists only while a desk is not live (spec §10:
+  // stream C writes llms.txt for the flip)
+  const offNames = OFF.map((s2) => CITY[s2].city).sort();
+  check(new RegExp(`^## BOOM Desks \\(tenant-side rental desks in Europe: ${listJoin(LIVE.map((s2) => CITY[s2].city))}\\)$`, 'm').test(llms) && llms.includes('- [BOOM Desks](https://www.boomrome.com/desks):') && !/BOOM Cities/.test(llms)
+    && (offNames.length ? llms.includes(`${listJoin(offNames)} desks are not open.`) : !/desks? (?:is|are) not open/.test(llms)) && /BOOM Milan is the home-country desk/.test(llms),
+    `llms.txt: the section is "BOOM Desks" over the ${LIVE.length} live desks, /desks first, Milan the home-country desk; "BOOM Cities" gone; ${offNames.length ? 'the "not open" sentence kept' : 'no "not open" sentence (no draft)'}`);
   const FOOT8 = ['index.html', 'apartments.html', 'try.html', 'your-money.html', 'how-it-works.html', 'apartment-detail.html', 'design/pages-deco/pt.html', 'design/pages-deco/patch-lotto2.py'];
   const noHub = FOOT8.filter((f) => { const s = read(f); const i = s.search(/<a href="\/desks(?:\.html)?">BOOM Desks · Europe<\/a>/); return i < 0 || i > s.search(/<a href="\/amsterdam(?:\.html)?">/); });
   check(!noHub.length, 'the eight "Company & Markets" footers link /desks ("BOOM Desks · Europe"), just above Amsterdam', noHub.join(', '));
   check(read('.vercelignore').split('\n').map((l) => l.trim()).includes('cities/'), 'the hub\'s template and copy (cities/) stay off the site');
+}
+
+// ── 14 · v1.8 stage B1: the build's THIRD SHAPE, dark ─────────────────────
+// A desk that SELLS and CHARGES AT SIGNING (Paris, Berlin at the flip): the
+// till takes the ORDER, the fee is invoiced when a lease is signed. No desk
+// uses the shape yet: the registry (CITY_MARKETS) is patched inside
+// try/finally, and the desk is a scratch copy of Amsterdam made into a
+// signing desk with the spec's words (spec v1.8 §3.2, §4.1). The six stay
+// byte-identical (section 1, and `node build-cities.mjs --check`).
+{
+  console.log('\n\x1b[1m▸ v1.8 B1\x1b[0m  the third shape: a desk that charges at signing (dark — the registry patched in try/finally)');
+  const { chargeAtOf, isSigning, ruleOf, ruleReOf, SIGN_RULE_RE } = await import('../../build-cities.mjs');
+  const { CITY_MARKETS: CM } = await import('../../api/_market.js');
+  const { ORDER_TERMS } = await import('../../api/_cityterms.js');
+  const SIGN_RULE = 'Nothing is charged before you sign a lease, and nothing if you never do.';
+  const sharedS = { ...clone(shared), signing: { rule: SIGN_RULE } };
+  const TRIG = {
+    'full-search': 'Nothing is charged before you sign the lease we helped you get, and nothing if you never do.',
+    'application-pack': 'Nothing is charged unless you sign for a home you applied to with our dossier.',
+    'attended-viewing': 'Nothing is charged unless you sign for the home we viewed.'
+  };
+  // the registry as spec §3.1 flips it (holidays included), restored after each use
+  const SIGN_REG = Object.fromEntries(['paris', 'berlin'].map((s) => {
+    const { partner, ...m } = CM[s];
+    return [s, { ...m, mode: 'search', checkout: true, chargeAt: 'signing', holidays: s === 'paris' ? 'fr' : 'de-be' }];
+  }));
+  const withReg = (patch, fn) => {
+    const save = Object.fromEntries(Object.keys(patch).map((s) => [s, CM[s]]));
+    try { Object.assign(CM, patch); return fn(); } finally { Object.assign(CM, save); }
+  };
+  const signed = (fn) => withReg(SIGN_REG, fn);
+  // Amsterdam (a desk that sells, its sentences already reviewed) made into a
+  // signing desk in Paris (FR) or Berlin (DE), with the spec's shared words
+  const signingOf = (target) => {
+    const c = clone(ams), P = target === 'paris';
+    Object.assign(c, { slug: target, city: P ? 'Paris' : 'Berlin', iata: P ? 'PAR' : 'BER', country: P ? 'FR' : 'DE', geo: clone(CITY[target].geo), live: false, chargeAt: 'signing' });
+    c.hero.leadStrong = 'Paid only by you, and only when you sign.';
+    c.hero.faresHead = { b: 'Flat fees', span: P ? 'No percentage of your rent' : 'Always within the legal cap' };
+    for (const p of c.pricing.plans) { p.conditionLong = 'VAT included, charged when you sign a lease. Invoice from Egidi Immobiliare S.r.l.'; p.trigger = TRIG[p.id]; }
+    const fs0 = c.pricing.plans[0];
+    fs0.includes = fs0.includes.map((x) => (P && /^Until you sign/.test(x) ? 'Until you sign, or you say stop (six months at most)' : !P && /\(more:/.test(x) ? 'Attended viewings included' : x));
+    c.faq.items[1].a = c.faq.items[1].a.replace(/ Full Search is refunded in full[^.]*\./, ' Nothing is charged before you sign a lease.');
+    c.faq.items[3].a = 'Then you pay nothing: every fare is charged only when you sign the lease we helped you get. We tell you in the first call if your budget and timeline don\'t fit the market.';
+    if (!P) {
+      c.bref.rows.find((r) => r.fees).ddHtml = 'Nothing from landlords or platforms, always inside the German cap.';
+      c.checks.items = c.checks.items.map((k) => (k.id === 'wws' ? { id: 'fees', title: 'Who pays the agent', at: 'Bestellerprinzip · WoVermRG', text: 'Whoever orders the agent pays: a landlord\'s agent cannot charge you. One you hire is paid only for a home offered to you alone, once you sign, at most two months\' net cold rent plus VAT.' } : k));
+    }
+    c.till = { label: 'Order, pay on signing' };
+    const k = c.checkoutCopy;
+    Object.assign(k, {
+      btnSubNow: 'Starts in the desk’s first open hour · no card', btnSubWait: 'Starts when your 14 days end · no card', altLink: 'Start with a free call, no card',
+      withdrawal: 'Withdrawal: 14 days from your order — {online}, by email to {email} or with the {form}. Nothing is charged before you sign, so withdrawing costs nothing. Without the tick, we start when the 14 days end.',
+      fine: 'No card today. Invoice from Egidi Immobiliare S.r.l., VAT included, with a secure payment link when you sign. ' + SIGN_RULE,
+      order: P ? 'Your order runs six months at most; your copy comes by email.' : 'Your order runs until you sign or stop it; your copy comes by email.'
+    });
+    k.errors.stale = 'This page was just updated — reload it to order with the current terms.';
+    delete k.paid;
+    k.booked = {
+      before: 'Booked — your file', em: 'is open.',
+      text: `Nothing is charged until you sign. The ${c.city} desk writes by email, or on WhatsApp if you left a number. Questions? Write to`,
+      next: [['First desk hour', 'your order by email, with what we need'], ['Same working day', 'your brief: dates, budget, who’s moving'], ['When you sign', 'the fee, once, with the invoice']],
+      nextWait: [['First desk hour', 'your order by email, with your start date'], ['When the 14 days end', 'your brief: dates, budget, who’s moving'], ['When you sign', 'the fee, once, with the invoice']],
+      wait: 'You did not tick “Start now”: we start when your 14 days end. Sooner? Write to {email}.',
+      pending: 'Order being confirmed. Your copy comes by email.', unconfirmed: 'Not confirmed yet. If no email reaches you, write to the desk.',
+      startsNow: 'The desk’s first open hour', startsWait: 'From {date}, after your 14-day withdrawal period',
+      withdrawLink: 'Withdraw from contract here', paidText: 'Paid on {date}. Invoice from Egidi Immobiliare S.r.l.',
+      dueText: 'Your lease is signed. The BOOM fee: {amount}, VAT included, invoice from Egidi Immobiliare S.r.l.', payLabel: 'Pay the fee securely',
+      withdrawnText: 'Withdrawn on {date}. Nothing was charged.', closedText: 'Closed. Nothing was charged.'
+    };
+    return c;
+  };
+  const SIGN = { paris: signingOf('paris'), berlin: signingOf('berlin') };
+  // the desks whose till takes the fee (the six, before and after the flip)
+  const TILL_DESKS = SLUGS.filter((s) => CITY[s].checkout === true && chargeAtOf(s) === 'checkout');
+  const renderS = (c, sh = sharedS, tpl = template) => signed(() => render(c, sh, tpl));
+  // a refusal on the signing desk: the mutation must make the build throw, naming the fault
+  const refusesS = (mut, re, t, target = 'paris', sh = sharedS) => {
+    const c = clone(SIGN[target]); mut(c);
+    const r = signed(() => throws(() => render(c, sh), re));
+    check(r === true, t, r === true ? '' : r);
+  };
+
+  // the word, read from the registry like the currency
+  // v1.8 FLIP: this pin moved, as it said it would — Paris and Berlin charge at signing, the six at the checkout
+  check(SLUGS.every((s) => chargeAtOf(s) === (['paris', 'berlin'].includes(s) ? 'signing' : 'checkout')) && SLUGS.filter((s) => isSigning(CITY[s])).join() === 'berlin,paris' && chargeAtOf('nowhere') === 'checkout',
+    'Paris and Berlin charge at signing, the six at the checkout: chargeAtOf reads CITY_MARKETS, an unknown desk is "checkout"');
+  {
+    const before = [chargeAtOf('paris'), chargeAtOf('berlin')].join();
+    check(signed(() => chargeAtOf('paris') === 'signing' && chargeAtOf('berlin') === 'signing' && chargeAtOf('amsterdam') === 'checkout') && [chargeAtOf('paris'), chargeAtOf('berlin')].join() === before,
+      'with the registry flipped, Paris and Berlin charge at signing, the six at the checkout — and the patch is undone after');
+  }
+  check(ruleOf(ams, sharedS) === shared.refund.rule && signed(() => ruleOf(SIGN.paris, sharedS)) === SIGN_RULE && ruleReOf(ams).test(shared.refund.rule) && signed(() => ruleReOf(SIGN.paris)) === SIGN_RULE_RE
+    && Object.values(TRIG).every((t) => SIGN_RULE_RE.test(t)) && SIGN_RULE_RE.test(SIGN_RULE) && !SIGN_RULE_RE.test(shared.refund.rule),
+    'ruleOf: the refund rule at the six, the signing rule at a signing desk; its signature (/Nothing is charged … sign/) reads the rule and every trigger, never the refund rule');
+
+  // the shape builds, from data the spec wrote
+  let PS = null, BS = null;
+  try { PS = renderS(SIGN.paris).html; BS = renderS(SIGN.berlin).html; } catch (e) { male(`the signing desks build (${e.message.slice(0, 300)})`); }
+  if (PS && BS) {
+    bene('a scratch signing desk builds in Paris (FR) and in Berlin (DE), with the registry flipped');
+    const fares = (h) => sliceOf(h, '<!-- FARES -->', '<!-- /FARES -->');
+    const fsRowP = sliceOf(PS, '<details class="fare" name="fare" id="fare-full-search"', '<!-- /FARES -->');
+    check(sliceOf(fsRowP, '</details>', '<details').includes(`<p class="refund fs">${esc(SIGN_RULE)}</p>`) && !PS.includes(esc(shared.refund.rule)) && !/refunded in full|work already done|minus the work/i.test(PS),
+      'the coupon under the closed €500 says the signing rule (§3.3); the page never says "refunded in full", "work already done" or "minus the work" (B19)');
+    check(['full-search', 'application-pack', 'attended-viewing'].every((id) => sliceOf(sliceOf(fares(PS), `id="fare-${id}"`, '</details>'), '<div class="tk">', '<div class="tk-stub">').includes(`<p class="refund">${esc(TRIG[id])}</p>`)),
+      'every open ticket says its own fare\'s trigger (D4: which signing earns that fee)');
+    const payL = [...PS.matchAll(/data-pay="[^"]*"[^>]*>([\s\S]*?)<\/button>/g)].map((m) => visibleText(m[1]).trim());
+    check(payL.length === 3 && payL[0].startsWith('Order, pay on signing · €500') && payL[2].startsWith('Order, pay on signing · €149'), `every order button reads the one label with its price (${JSON.stringify(payL)})`);
+    const till = sliceOf(PS, '<dialog class="till"', '</dialog>');
+    const at = (s) => till.indexOf(s);
+    check(till.includes('data-label-now="Order, pay on signing" data-label-wait="Order, pay on signing"') && till.includes('<b id="tGoL">Order, pay on signing</b>') && !/labelWait|Pay and book/.test(till),
+      'the till has ONE label, ticked or not (D6): the tick changes the sub-line, never the obligation');
+    check(at('id="tTitle"') < at('id="tRule"') && at('id="tRule"') < at('id="tOrder"') && at('id="tOrder"') < at('id="tStart"') && at('id="tStart"') < at('class="wd"') && at('class="wd"') < at('id="tGo"')
+      && till.includes(`<p class="refund" id="tRule" hidden>${esc(TRIG['full-search'])}</p>`) && till.includes('<p class="t-order" id="tOrder">Your order runs six months at most; your copy comes by email.</p>'),
+      'the till in the CRD order: plan, its trigger, how long the order runs, the start-now request, the withdrawal line, the order button');
+    check(till.includes('href="/withdrawal?desk=Paris#online" target="_blank" rel="noopener">online</a>') && till.includes('href="/withdrawal?desk=Paris" target="_blank" rel="noopener">model withdrawal form</a>') && !/\{(?:online|email|form)\}/.test(till),
+      '{online} is recognised: the withdrawal line links the online function (/withdrawal?desk=Paris#online) beside the model form, no token left');
+    check(till.includes(`${esc(SIGN_RULE)} <a class="lnk" href="/terms#city-desks"`) && /data-err-stale="This page was just updated/.test(till) && !/stripe/i.test(PS),
+      'the fine print states the signing rule and "No card", the till carries the stale-page words (409 terms_changed); no Stripe word on the page');
+    const booked = sliceOf(PS, '<div id="cBooked"', '<!-- /THE DOOR -->');
+    check(booked && !/id="cPaid"/.test(PS) && /<p class="k">Booked<\/p>/.test(booked) && /<text class="st-w" x="46" y="50\.5" text-anchor="middle" textLength="50" lengthAdjust="spacingAndGlyphs">BOOKED<\/text>/.test(booked)
+      && booked.includes('>BOOKED · BOOM PARIS · TENANT SIDE · </textPath>') && ['bFile', 'bFare', 'bOrder', 'bStart', 'bNext', 'bText', 'bWait'].every((id) => booked.includes(`id="${id}"`)) && !/\b(?:paid|payments?)\b/i.test(visibleText(booked)),
+      'BOOKED is its own card (D9): the BOOKED stamp fitted inside the inner ring (textLength 50), File · Fare · Order · Starts, the next steps; never the PAID card, never "paid" or "payment"');
+    check(/<div id="cConfirm"[^>]*data-unconfirmed="Not confirmed yet\.[^"]*">\s*<p class="k">Order<\/p>/.test(PS), 'the waiting card says "Order", never "Payment"');
+    const cfg = JSON.parse(PS.match(/window\.BOOM_CITY = (\{[\s\S]*?\});\n<\/script>/)[1]);
+    check(cfg.CHARGE_AT === 'signing' && cfg.ORDER_TERMS_V === ORDER_TERMS.paris.v && cfg.WITHDRAW_URL === '/withdrawal' && cfg.PAID === null && JSON.stringify(cfg.TILL) === '{"label":"Order, pay on signing"}'
+      && Object.values(cfg.PLANS).every((p) => p.rule === true) && Object.entries(cfg.PLANS).every(([id, p]) => p.trigger === TRIG[id])
+      && cfg.BOOKED.withdrawLink === 'Withdraw from contract here' && cfg.BOOKED.wait.endsWith('Write to hello@boom-rome.com.') && !JSON.stringify(cfg.BOOKED).includes('{email}') && cfg.BOOKED.dueText.includes('{amount}'),
+      `the config: CHARGE_AT, the order terms version the server checks (${ORDER_TERMS.paris.v}), WITHDRAW_URL, one label, every fare with rule + trigger, the BOOKED strings ({email} filled), no PAID`);
+    const ldP = [...PS.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => JSON.parse(m[1]));
+    const svcP = (ldP.find((b) => Array.isArray(b['@graph'])) || {})['@graph'].find((n) => n['@type'] === 'Service');
+    check(svcP.offers.length === 3 && svcP.offers.every((o) => o.availability === 'https://schema.org/InStock' && o.description.endsWith(SIGN_RULE) && !/refund/i.test(o.description)) && !/PreOrder/.test(PS),
+      'every Offer is InStock (never PreOrder: the order is taken today) and carries the signing rule');
+    check(sliceOf(PS, '<dt>Fees</dt>', '</dd>').includes(esc(SIGN_RULE)) && /textLength="310" lengthAdjust="spacing">BOOM PARIS · TENANT SIDE · PAID ONLY WHEN YOU SIGN · </.test(PS),
+      'the Fees row says the signing rule; the seal says the desk\'s must-state, "PAID ONLY WHEN YOU SIGN"');
+    check(!/\(more:/.test(fares(BS)) && !/No percentage/i.test(BS) && /offered to you alone/.test(BS) && /\(six months at most\)/.test(fares(PS)),
+      'Berlin: no "(more:" around Full Search, no "No percentage", the Bestellerprinzip lane says "offered to you alone"; Paris: "(six months at most)"');
+    // v1.8 FLIP (§13.2): the same shape on the REAL pages, built from cities/paris.json and cities/berlin.json (= the spec's JSONs)
+    for (const s of ['paris', 'berlin']) {
+      const h = PAGE[s], bk = sliceOf(h, '<div id="cBooked"', '<!-- /THE DOOR -->');
+      const cfgR = JSON.parse(h.match(/window\.BOOM_CITY = (\{[\s\S]*?\});\n<\/script>/)[1]);
+      const trigR = Object.fromEntries(CITY[s].pricing.plans.map((p) => [p.id, p.trigger]));
+      check(!!bk && /<p class="k">Booked<\/p>/.test(bk) && !/\b(?:paid|payments?)\b/i.test(visibleText(bk)) && /<div id="cConfirm"[^>]*>\s*<p class="k">Order<\/p>/.test(h)
+        && cfgR.CHARGE_AT === 'signing' && cfgR.ORDER_TERMS_V === ORDER_TERMS[s].v && cfgR.PAID === null && JSON.stringify(cfgR.TILL) === '{"label":"Order, pay on signing"}'
+        && Object.entries(cfgR.PLANS).every(([id, p]) => p.rule === true && p.trigger === trigR[id] && SIGN_RULE_RE.test(p.trigger)) && sliceOf(h, '<dt>Fees</dt>', '</dd>').includes(esc(SIGN_RULE)),
+        `${s} (the real page): the BOOKED card never says "paid" or "payment", the waiting card says "Order"; the config carries CHARGE_AT, the order terms ${ORDER_TERMS[s].v}, no PAID, one label, every fare's rule and trigger; the Fees row says the signing rule`);
+    }
+    check(!/\(more:/.test(fares(PAGE.berlin)) && !/No percentage/i.test(PAGE.berlin) && /offered to you alone/.test(PAGE.berlin) && /\(six months at most\)/.test(fares(PAGE.paris)),
+      'the real pages: Berlin has no "(more:" around Full Search, no "No percentage", and its Bestellerprinzip lane says "offered to you alone"; Paris says "(six months at most)"');
+  }
+  // the six carry none of it
+  check(TILL_DESKS.length === 6, `six desks take the fee at their till (${TILL_DESKS.join(', ')})`);
+  for (const s of SLUGS.filter((x) => chargeAtOf(x) !== 'signing')) check(!/id="cBooked"|"CHARGE_AT"|"ORDER_TERMS_V"|"BOOKED"|"trigger"|id="tOrder"|data-err-stale/.test(PAGE[s]), `${s}: no BOOKED card, no order config, no trigger, no order line, no stale-page words (the shape of a desk that charges at signing)`);
+
+  // ── the refusals (spec v1.8 §3.2), each a mutation of a scratch copy ──
+  // the registry and the JSON, either way
+  check(throws(() => render({ ...clone(ams), chargeAt: 'signing' }, sharedS), /"chargeAt" must be the desk's own \(absent or "checkout"\)/) === true, 'a desk JSON that says "signing" while the registry charges at the checkout is refused');
+  refusesS((c) => { delete c.chargeAt; }, /"chargeAt" must be the desk's own \("signing"\)/, 'a registry flipped under a JSON that does not say "signing" is refused');
+  refusesS((c) => { c.chargeAt = 'checkout'; }, /"chargeAt" must be the desk's own \("signing"\)/, 'a JSON that says "checkout" on a desk the registry charges at signing is refused');
+  refusesS((c) => { c.mode = 'waitlist'; c.checkout = false; }, /a desk that charges at signing takes the order on its page: mode "search" and checkout true/, 'a signing desk that does not sell (waitlist, no checkout) is refused');
+  {
+    const r = withReg({ amsterdam: { ...CM.amsterdam, chargeAt: 'signing' } }, () => throws(() => render({ ...clone(SIGN.paris), slug: 'amsterdam', city: 'Amsterdam', iata: 'AMS', country: 'NL', geo: clone(ams.geo) }, sharedS), /needs its order terms \(api\/_cityterms\.js ORDER_TERMS\.amsterdam\)/));
+    check(r === true, 'a signing desk with no order terms in api/_cityterms.js is refused (the page could post no termsV the server knows)', r === true ? '' : r);
+  }
+  // the ship date
+  refusesS((c) => { c.updated = 'SHIP-DATE'; }, /still the spec's "SHIP-DATE" placeholder/, 'the spec\'s "SHIP-DATE" placeholder is refused on a signing desk');
+  refuses((c) => { c.updated = 'SHIP-DATE'; }, /still the spec's "SHIP-DATE" placeholder/, 'the "SHIP-DATE" placeholder is refused on any desk');
+  // the shared sentence
+  {
+    // v1.8 FLIP: cities/_shared.json carries signing.rule since the flip; the refusal is proven on a copy without it
+    const { signing: _sg, ...noSigning } = clone(shared);
+    const r = signed(() => throws(() => render(clone(SIGN.paris), noSigning), /signing\.rule is the one sentence of a desk that charges at signing/));
+    check(r === true && shared.signing && shared.signing.rule === SIGN_RULE, 'a signing desk needs cities/_shared.json signing.rule (the file carries it, the spec\'s sentence word for word)', r === true ? '' : r);
+    const r2 = signed(() => throws(() => render(clone(SIGN.paris), { ...sharedS, signing: { rule: 'Nothing is charged before you sign a lease.' } }), /signing\.rule is the one sentence/));
+    check(r2 === true, 'the signing rule says both halves: nothing before the lease, nothing if never', r2 === true ? '' : r2);
+  }
+  // PAID and BOOKED are exclusive
+  refusesS((c) => { c.checkoutCopy.paid = clone(ams.checkoutCopy.paid); }, /checkoutCopy\.paid is refused/, 'a signing desk with a PAID block is refused (BOOKED is never PAID)');
+  refusesS((c) => { delete c.checkoutCopy.booked; }, /checkoutCopy\.booked needs/, 'a signing desk without its BOOKED block is refused');
+  refuses((c) => { c.checkoutCopy.booked = clone(SIGN.paris.checkoutCopy.booked); }, /checkoutCopy\.booked belongs to a desk that charges at signing/, 'a desk whose till takes the fee with a BOOKED block is refused');
+  refusesS((c) => { c.checkoutCopy.booked.before = 'Paid — your file'; }, /never says paid, payment or refund/, 'a BOOKED card that says "Paid" is refused');
+  refusesS((c) => { c.checkoutCopy.booked.next[2][1] = 'the refund, if any'; }, /never says paid, payment or refund/, 'a BOOKED card that speaks of a refund is refused');
+  refusesS((c) => { c.checkoutCopy.booked.withdrawLink = 'Cancel the booking'; }, /statutory label, verbatim: "Withdraw from contract here"/, 'the withdraw link is the statutory label, verbatim');
+  refusesS((c) => { c.checkoutCopy.booked.dueText = 'Your lease is signed. The BOOM fee is due.'; }, /dueText carries \{amount\}/, 'the DUE line carries the server\'s {amount}, VAT included');
+  refusesS((c) => { c.checkoutCopy.booked.startsWait = '{date}, when your 14 days end'; }, /booked\.startsWait opens "From \{date\}"/, 'the BOOKED start date for a client who waits is the first working day after the 14 days');
+  refusesS((c) => { c.checkoutCopy.booked.nextWait[1][0] = 'Same working day'; }, /nextWait never "same working day"/, 'the steps of a client who waits never promise the same working day');
+  refusesS((c) => { c.checkoutCopy.booked.card = 'Save a card'; }, /checkoutCopy\.booked\.card is a key the page does not read/, 'a BOOKED key no renderer prints is refused (option B is OFF, D1)');
+  // the single label
+  refusesS((c) => { c.till.labelWait = 'Order, pay on signing later'; }, /labelWait is refused/, 'a second till label on a signing desk is refused (D6)');
+  refusesS((c) => { c.till.label = 'Book now'; }, /says "order", "pay" and "sign"/, 'an order button that does not name the order, the payment and when is refused');
+  refusesS((c) => { c.till.label = 'Order and start, pay on signing'; }, /never "start"/, 'an order button that says "start" is refused');
+  refuses((c) => { c.till.label = 'Order and start'; }, /never "order" or "sign"/, 'a desk whose till takes the fee never labels its button "order"');
+  refuses((c) => { c.till.labelWait = 'Pay at signing'; }, /never "order" or "sign"/, 'a desk whose till takes the fee never labels its button "sign"');
+  // every fare's trigger
+  refusesS((c) => { delete c.pricing.plans[1].trigger; }, /plan "application-pack": a fare charged at signing says which signing earns it/, 'a signing fare without its trigger is refused');
+  refusesS((c) => { c.pricing.plans[0].trigger = 'You pay €500 when you sign.'; }, /a fare charged at signing says which signing earns it/, 'a trigger that is not "Nothing is charged … sign" (here with a price) is refused');
+  refusesS((c) => { c.pricing.plans[2].trigger = 'Nothing is charged unless you sign; refunds on request.'; }, /a fare charged at signing says which signing earns it/, 'a trigger that speaks of a refund is refused');
+  refuses((c) => { c.pricing.plans[0].trigger = TRIG['full-search']; }, /a trigger belongs to a desk that charges at signing/, 'a trigger on a desk whose till takes the fee is refused');
+  refusesS((c) => { c.pricing.plans[1].conditionLong = 'VAT included. Invoice from Egidi Immobiliare S.r.l.'; }, /on a desk that charges at signing, conditionLong says when/, 'a signing fare whose conditionLong does not say when it is charged is refused');
+  refuses((c) => { c.pricing.plans[2].conditionLong = 'VAT included, charged when you sign a lease.'; }, /never says its fare is charged at signing/, 'a desk whose till takes the fee never says its fare is charged at signing');
+  // the order line and the stale page
+  // (on Berlin: in France the six-month pin of the order line speaks first, below)
+  refusesS((c) => { delete c.checkoutCopy.order; }, /checkoutCopy\.order is required on a desk that charges at signing/, 'a signing till without its order line (how long the order runs) is refused', 'berlin');
+  refuses((c) => { c.checkoutCopy.order = 'Your order runs until you sign.'; }, /checkoutCopy\.order belongs to a desk that charges at signing/, 'an order line on a desk whose till takes the fee is refused');
+  refusesS((c) => { delete c.checkoutCopy.errors.stale; }, /checkoutCopy\.errors\.stale is required/, 'a signing till without the stale-page words (409 terms_changed) is refused');
+  refuses((c) => { c.checkoutCopy.errors.stale = 'Reload.'; }, /checkoutCopy\.errors\.stale belongs to a desk that charges at signing/, 'the stale-page words on a desk whose till takes the fee are refused');
+  // the withdrawal line and the fine print
+  refusesS((c) => { c.checkoutCopy.withdrawal = c.checkoutCopy.withdrawal.replace(' — {online},', ','); }, /links the online function \(\{online\}\)/, 'a signing withdrawal line without the online function is refused');
+  refusesS((c) => { c.checkoutCopy.withdrawal = c.checkoutCopy.withdrawal.replace('from your order', 'from payment'); }, /runs "14 days from your order"/, 'a signing withdrawal line that counts from a payment that never happens is refused');
+  refusesS((c) => { c.checkoutCopy.withdrawal += ' We refund the price minus the work already done.'; }, /never speaks of a refund, a minus or the work already done/, 'a signing withdrawal line that speaks of a refund is refused');
+  refusesS((c) => { c.checkoutCopy.fine = 'Secure card payment by Stripe. ' + SIGN_RULE; }, /says "No card", states the signing rule/, 'a signing fine print that names Stripe (no card is taken at the order) is refused');
+  refusesS((c) => { c.checkoutCopy.fine = 'No card today. Invoice from Egidi Immobiliare S.r.l., VAT included.'; }, /states the signing rule/, 'a signing fine print without the signing rule is refused');
+  // the must-state
+  refusesS((c) => { c.hero.leadStrong = 'Flat fees, paid by you.'; }, /leadStrong is its must-state/, 'a signing desk whose leadStrong carries no must-state is refused');
+  refuses((c) => { c.hero.faresHead.span = 'Paid only when you sign'; }, /never says, on its pass, that it is paid at signing/, 'a desk whose till takes the fee never says on its pass that it is paid at signing');
+  // the law of the country, by data
+  refusesS((c) => { c.pricing.plans[0].includes = c.pricing.plans[0].includes.map((x) => x.replace(' (six months at most)', '')); }, /France: Full Search says how long the mandate runs/, 'France: a Full Search without "(six months at most)" is refused (loi Hoguet art. 7)');
+  refusesS((c) => { c.checkoutCopy.order = 'Your order runs until you sign or stop it; your copy comes by email.'; }, /France: the order line before the button says the mandate runs "six months at most"/, 'France: an order line without the six months is refused');
+  refusesS((c) => { c.pricing.plans[0].includes[2] = 'One attended viewing (more: €149 each)'; }, /no extra fee around a Full Search \(WoVermRG §3\(3\)\)/, 'Germany: "(more: …)" around a Full Search is refused (WoVermRG §3(3))', 'berlin');
+  refusesS((c) => { c.hero.faresHead.span = 'No percentage of your rent'; }, /Germany: never "No percentage"/, 'Germany: "No percentage" is refused (WoVermRG §3(1), D2)', 'berlin');
+  refusesS((c) => { c.checks.items.find((k) => k.id === 'fees').text = 'Whoever orders the agent pays: a landlord\'s agent cannot charge you.'; }, /Germany: the Bestellerprinzip check says a Full Search is paid only for a home "offered to you alone"/, 'Germany: a Bestellerprinzip lane that does not say "offered to you alone" is refused (D3)', 'berlin');
+  {
+    // a French or German desk that sells must charge at signing: the registry says checkout here
+    const tillReg = (s) => { const { chargeAt, partner, ...m } = CM[s]; return { ...m, mode: 'search', checkout: true }; };
+    const fr = { ...clone(ams), slug: 'paris', city: 'Paris', iata: 'PAR', country: 'FR', geo: clone(CITY.paris.geo), live: false };
+    const r = withReg({ paris: tillReg('paris') }, () => throws(() => render(fr, sharedS), /France: loi Hoguet art\. 6 — a desk that sells there takes nothing before the lease: it charges at signing/));
+    check(r === true, 'a desk that sells in France without charging at signing is refused (loi Hoguet art. 6)', r === true ? '' : r);
+    const de = { ...clone(ams), slug: 'berlin', city: 'Berlin', iata: 'BER', country: 'DE', geo: clone(CITY.berlin.geo), live: false };
+    const r2 = withReg({ berlin: tillReg('berlin') }, () => throws(() => render(de, sharedS), /Germany: WoVermRG §2\(4\) — a desk that sells there takes nothing before the lease/));
+    check(r2 === true, 'a desk that sells in Germany without charging at signing is refused (WoVermRG §2(4))', r2 === true ? '' : r2);
+  }
+  // the €500 and its rule, and the output guards (each by a mutation of the page)
+  refusesS((c) => { c.faq.items[3].a += ' Full Search costs €500.'; }, /€500 stands without the signing rule in its own block/, 'a €500 in a FAQ answer without the signing rule in its block is refused');
+  refusesS((c) => { c.faq.items[2].a += ' Full Search is refunded in full if we decline it.'; }, /never says "refunded in full", "work already done" or "minus the work"/, 'a signing page that promises a refund anywhere is refused (B19)');
+  {
+    const tryT = (from, to, re) => signed(() => throws(() => render(clone(SIGN.paris), sharedS, template.replace(from, to)), re));
+    const r1 = tryT('        <!-- /THE DOOR -->', '        <p>Paid in full</p>\n        <!-- /THE DOOR -->', /the BOOKED card says BOOKED and never "paid" or "payment"/);
+    check(template.includes('        <!-- /THE DOOR -->') && r1 === true, 'a "Paid" line after the BOOKED card is refused (D9)', r1 === true ? '' : r1);
+    const r2 = tryT('</head>', '<meta name="x" content="https://schema.org/PreOrder">\n</head>', /InStock, never PreOrder/);
+    check(r2 === true, 'a PreOrder anywhere on a signing page is refused', r2 === true ? '' : r2);
+    const r3 = throws(() => render(clone(ams), sharedS, template.replace('        <!-- /THE DOOR -->', '        <div id="cBooked" hidden></div>\n        <!-- /THE DOOR -->')), /the BOOKED card and the order config belong to a desk that charges at signing/);
+    check(r3 === true, 'a BOOKED card on a desk whose till takes the fee is refused', r3 === true ? '' : r3);
+    const r4 = throws(() => render(clone(ams), sharedS, template.replace('<!-- FARES -->\n{{{faresHtml}}}', `<!-- FARES -->\n<p>${SIGN_RULE}</p>\n{{{faresHtml}}}`)), /the signing rule belongs to a desk that charges at signing/);
+    check(template.includes('<!-- FARES -->\n{{{faresHtml}}}') && r4 === true, 'the signing rule on a desk whose till takes the fee is refused', r4 === true ? '' : r4);
+  }
+  // the six still build with the signing sentence in the shared file (the flip adds it)
+  check(TILL_DESKS.every((s) => { try { return render(CITY[s], sharedS).html === render(CITY[s], shared).html; } catch (e) { return false; } }), 'the six build byte-identical with signing.rule in the shared file (the flip adds it)');
 }
 
 console.log(`\n  ${ok} passed, ${ko} failed`);

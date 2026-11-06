@@ -586,6 +586,14 @@ function personLines(p) {
       // currency, and every euro lead prints the same «€500» as before
       const cur = d.currency || (isCityMarket(d) ? cityCurrency(cityMarketOf(d)) : 'eur');
       state = '💶 PAGATO' + (plan ? ' ' + plan : '') + (eur ? ' ' + moneyOf(eur, cur) : '');
+    } else if (d.booked === true) {
+      // an ORDER of a desk that charges at signing (v1.8): never «PAGATO»
+      // before the invoice is paid — it says what it is, and what was sent
+      const c = d.city && typeof d.city === 'object' ? d.city : {};
+      const num = (c.order && c.order.number) || '';
+      const sg = d.signing && typeof d.signing === 'object' ? d.signing : {};
+      state = '📌 ORDINE' + (num ? ' ' + num : '') + (c.serviceLabel ? ' ' + c.serviceLabel : '')
+        + (sg.status === 'invoiced' ? ' · fattura emessa, non pagata' : ' · si paga alla firma, niente incassato');
     } else state = d.grade === 'dead' ? 'morto' : (d.status || 'nuovo');
   }
   const sent = d.clientEmailSentAt ? romeShort(d.clientEmailSentAt) : null;
@@ -668,8 +676,15 @@ export function cardText(a) {
     const r = matched.rec;
     let todo = '👉 ' + (TODO[r.kind] || TODO.other);
     const p = matched.people[0];
-    if (p.coll === 'leads' && /^svc_/.test(p.id) && isCityMarket(p.doc) && p.doc.clientEmailSentAt) {
+    // svc_ = an order PAID at the six's till; book_ = an order BOOKED on a
+    // desk that charges at signing (v1.8): both confirmation emails carry the
+    // withdrawal right, the durable medium. isPaid stays on the money (a
+    // booking is never «💶 PAGATO»), only this hint widens.
+    if (p.coll === 'leads' && /^(svc_|book_)/.test(p.id) && isCityMarket(p.doc) && p.doc.clientEmailSentAt) {
       todo += " Se è la conferma dell'ordine, contiene il recesso: va rimandata (supporto durevole).";
+    }
+    if (p.coll === 'leads' && /^book_/.test(p.id) && p.doc.signing && p.doc.signing.clientEmailSentAt) {
+      todo += ' Se è la fattura della firma, il link di pagamento non è arrivato: rimandalo a mano (WhatsApp) o col 🔔 Ricorda della card /firmato, dopo aver corretto l\'indirizzo.';
     }
     const pfs = matched.people.find((x) => x.coll === 'pfsClients' && x.doc && x.doc.portalAccessCode);
     if (pfs) todo += ` Se era la conferma PFS, conteneva il codice portale <code>${esc(pfs.doc.portalAccessCode)}</code>: mandalo su WhatsApp.`;

@@ -67,6 +67,37 @@ console.log('\n── 1. Il registro delle città ──────────
   ok('clientMarket: "Madrid " → madrid', RM.clientMarket({ market: 'Madrid ' }) === 'madrid');
   ok('clientMarket: città spenta o sconosciuta → null (fail closed)',
     RM.clientMarket({ market: 'paris' }) === null && RM.clientMarket({ market: 'amsterdam' }) === null && RM.clientMarket({ market: 42 }) === null);
+  // le città DICHIARATE ma spente (Amsterdam, Valencia, Parigi, Berlino): ognuna è un desk di CITY_MARKETS,
+  // ha la forma di Amsterdam/Valencia e non apre niente finché non si accende
+  ok('anti-deriva: ogni città dichiarata del radar è un desk di CITY_MARKETS',
+    Object.keys(RM.MARKETS).filter((k) => k !== 'roma').every((k) => CITY_MARKETS[k]), Object.keys(RM.MARKETS).filter((k) => !CITY_MARKETS[k]));
+  for (const id of ['valencia', 'paris', 'berlin']) {
+    const m = RM.MARKETS[id];
+    ok(`${id}: dichiarata ma spenta, sulla forma di Valencia (id, etichette, bandiera, alias, token, agenzie segnalate)`,
+      m && m.id === id && m.enabled === false && m.currency === 'EUR' && m.agencyPolicy === 'flag' && m.aliasTag === 'radar-' + id
+        && J(m.cityTokens) === J([id]) && !!m.labelIt && !!m.labelEn && !!m.flag, m);
+  }
+  ok('Parigi e Berlino: etichette e bandiere per la plancia',
+    RM.marketLabel('paris', 'it') === 'Parigi' && RM.marketLabel('paris', 'en') === 'Paris' && RM.marketFlag('paris') === '🇫🇷'
+      && RM.marketLabel('berlin', 'it') === 'Berlino' && RM.marketLabel('berlin', 'en') === 'Berlin' && RM.marketFlag('berlin') === '🇩🇪');
+  ok('Parigi e Berlino senza chiavi idealista (idealista non copre Francia e Germania: nessuno scope inventato)',
+    ['paris', 'berlin'].every((id) => !('idealistaCity' in RM.MARKETS[id]) && !('idealistaRoot' in RM.MARKETS[id])));
+  // il radar non ingerisce MAI per una città spenta: il suo cliente resta fuori da ogni mazzo, e nessuna prova
+  // (alias, testo, dichiarazione) apre la città
+  for (const id of ['paris', 'berlin']) {
+    const en = RM.marketLabel(id, 'en');
+    ok(`${id} spenta: il cliente del desk → null, anche scritto «${en}»`, RM.clientMarket({ market: id }) === null && RM.clientMarket({ market: en }) === null);
+    ok(`${id} spenta: un annuncio perfetto della sua città contro il suo cliente → other_market`,
+      M.scoreMatch({ price: 1200, bedrooms: 1, title: `Appartement, ${en}`, market: id }, { market: id, budget: 1500, bedrooms: '1' }).reject === 'other_market');
+    ok(`${id} spenta: un annuncio romano contro il suo cliente → other_market (mai le case di Roma)`,
+      M.scoreMatch({ price: 1200, bedrooms: 1, title: 'Bilocale Monti' }, { market: id, budget: 1500, bedrooms: '1' }).reject === 'other_market');
+    ok(`${id} spenta: l'alias +radar-${id} non apre la città`, RM.marketOfRecipients([`valentino+radar-${id}@boom-rome.com`]) === null);
+    ok(`${id} spenta: il testo che la nomina non la decide`, RM.marketFromText(`Appartement 2 pièces, ${en}`) === null);
+    ok(`${id} spenta: dichiarata da chi manda l'annuncio non vale (idealista.com → da verificare)`,
+      J(RM.resolveListingMarket({ sourceUrl: 'https://www.idealista.com/inmueble/100000009/', explicit: id, text: `Piso, ${en}` })) === J({ market: null, reason: 'market_unknown' }));
+    ok(`${id} spenta: nessuna ricerca automatica`, S.buildSearchUrlsFor({ market: id, budget: 1500, zone: 'Centre' }).length === 0);
+  }
+  ok('le città spente non entrano nel giro (enabledIds invariato)', !RM.enabledIds().some((k) => ['amsterdam', 'valencia', 'paris', 'berlin'].includes(k)));
 }
 
 console.log('\n── 2. La città di un annuncio ───────────────────────────────');

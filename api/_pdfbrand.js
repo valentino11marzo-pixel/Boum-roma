@@ -43,6 +43,11 @@ export const RED = rgb(0.66, 0.16, 0.13);
 // WinAnsi: StandardFonts non conosce nient'altro, e un carattere fuori
 // tabella non degrada — LANCIA, uccidendo il documento intero (la lezione
 // del certificato FES, dove una freccia "→" bloccava ogni generazione).
+// wa() è per il testo FISSO: quello che scrive un cliente (un nome, un
+// indirizzo email) qui perde le lettere in silenzio — «Ayşe Yılmaz» diventa
+// «Aye Ylmaz». Il documento d'ordine dei desk (api/_cityorderpdf.js) stampa
+// il corpo con BOOM Doc Sans e printable() di api/_pdffont.js, che stampa
+// il nome com'è e DICE cosa non ha potuto stampare (rilievo F4, v1.8).
 export function wa(s) {
   return String(s == null ? '' : s)
     .replace(/[→➔➡]/g, '->').replace(/[✓✔☑☒]/g, 'X').replace(/−/g, '-')

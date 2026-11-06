@@ -32,10 +32,23 @@
 // more: the webhook decides whether that lead exists in the SAME city
 // before reusing its file number. Anything else is ignored in silence (a
 // bad reference must never block a payment); Rome services ignore it.
+//
+// THE DESKS THAT CHARGE AT SIGNING (v1.8, Paris and Berlin from the flip):
+// cityOffer says `chargeAt: 'signing'` and the order goes to
+// api/_cityorder.js — BOOKED on our button, the email is the contract, the
+// fee is invoiced only when a lease is signed. Such a desk NEVER opens a
+// payment session here: the branch right after cityOffer hands the request
+// over, and THE BELT in front of the Stripe call refuses a signing offer
+// that ever reached it (tests/cities/signing.mjs removes the branch and
+// expects a 500, never a session).
 
 import Stripe from 'stripe';
 import { CATALOG } from './_catalog.js';
-import { cityOffer } from './_market.js';
+import { cityOffer, moneyOf } from './_market.js';
+import { createCityOrder } from './_cityorder.js';
+import { fsGet } from './homie/_lib.js';
+import { upgradeOffer, isUpgradeLeadId } from './_upgrade.js';
+import { verifyUpgradeToken } from './payments/_token.js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
@@ -73,13 +86,33 @@ export default async function handler(req, res) {
 
   const kind = clip(body.kind, 40);
   const cityKey = clip(body.city, 30).toLowerCase();
-  let svc, offer = null;
+  let svc, offer = null, upgrade = null;
   if (cityKey) {
     offer = cityOffer(cityKey, kind);
     if (!offer.ok) return res.status(400).json({ ok: false, error: offer.error });
+    // a desk that charges at signing books the order on our button: no
+    // payment session, no price from here on (api/_cityorder.js)
+    if (offer.chargeAt === 'signing') return createCityOrder(req, res, { offer, body, ip });
     // `eur` is the amount in the desk's currency (London: pounds) — see
     // CITY_PLANS in api/_market.js; the currency travels beside it
     svc = { eur: offer.eur, currency: offer.currency, label: offer.label, desc: offer.desc };
+    // THE UPGRADE CREDIT (api/_upgrade.js): a personal link /upgrade?l=&t=
+    // posts { lead, t }. The server re-reads the paid order and computes the
+    // amount: nothing about the price comes from the browser. A wrong token
+    // and an unknown order answer the same 404.
+    if (body.upgrade != null) {
+      const u = body.upgrade && typeof body.upgrade === 'object' ? body.upgrade : {};
+      const lid = clip(u.lead, 60);
+      const tok = clip(u.t, 60);
+      if (!isUpgradeLeadId(lid) || !verifyUpgradeToken(lid, tok)) return res.status(404).json({ ok: false, error: 'upgrade_not_found' });
+      let src;
+      try { src = await fsGet('leads/' + lid); }
+      catch (e) { console.warn('[service-checkout] upgrade read failed:', e && e.message); return res.status(503).json({ ok: false, error: 'unavailable' }); }
+      const up = upgradeOffer(src, lid, Date.now());
+      if (!up.ok) return res.status(up.state === 'used' || up.state === 'expired' ? 410 : 404).json({ ok: false, error: 'upgrade_' + up.state });
+      if (up.city !== offer.city || up.to !== offer.plan) return res.status(400).json({ ok: false, error: 'upgrade_mismatch' });
+      upgrade = { lead: lid, token: tok, ...up };
+    }
   } else {
     svc = CATALOG[kind];
     if (!svc) return res.status(400).json({ ok: false, error: 'unknown_service' });
@@ -88,9 +121,15 @@ export default async function handler(req, res) {
   // city offers only: a pattern-valid reference to the file this visitor opened
   const fileRef = offer && typeof body.fileRef === 'string' && FILE_REF_RE.test(body.fileRef) ? body.fileRef : null;
 
-  const name  = clip(body.name, 120);
-  const email = clip(body.email, 160);
-  const phone = clip(body.phone, 40);
+  // an upgrade pays as the same person who bought the pack: the page asks
+  // nothing, the server takes name, email and phone from the paid order
+  const name  = clip(body.name, 120) || (upgrade ? clip(upgrade.name, 120) : '');
+  const email = clip(body.email, 160) || (upgrade ? clip(upgrade.email, 160) : '');
+  const phone = clip(body.phone, 40) || (upgrade ? clip(upgrade.phone, 40) : '');
+  // the amount charged: the plan's price, or what is left after the credit
+  const charge = upgrade ? upgrade.pay : svc.eur;
+  const origin = offer ? new URL(offer.url).origin : 'https://www.boomrome.com';
+  const upgradeQs = upgrade ? `l=${encodeURIComponent(upgrade.lead)}&t=${encodeURIComponent(upgrade.token)}` : '';
   // A Rome service coordinates its slot on WhatsApp: the phone is required.
   // A city order asks for it on the page and Stripe asks again at checkout.
   if (!name || !email.includes('@') || !email.includes('.') || (!phone && !offer)) {
@@ -98,6 +137,9 @@ export default async function handler(req, res) {
   }
 
   try {
+    // THE BELT: a signing desk never opens a payment session — not even if
+    // the branch above were removed or bypassed (the catch answers 500)
+    if (offer && offer.chargeAt === 'signing') throw Object.assign(new Error('signing desk never opens a payment session'), { code: 'signing_desk' });
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       payment_method_types: ['card'],
@@ -108,8 +150,11 @@ export default async function handler(req, res) {
           // the desk's currency (cityOffer: 'gbp' for London); a Rome
           // service and every other desk charge in euros
           currency: svc.currency || 'eur',
-          product_data: { name: offer ? offer.name : `BOOM ${svc.label}`, description: svc.desc },
-          unit_amount: svc.eur * 100,
+          product_data: {
+            name: offer ? (upgrade ? `${offer.name} — ${moneyOf(upgrade.credit, upgrade.currency)} ${upgrade.fromLabel} credited` : offer.name) : `BOOM ${svc.label}`,
+            description: upgrade ? `${svc.desc} Your ${upgrade.fromLabel}${upgrade.file ? ' (file ' + upgrade.file + ')' : ''} is credited: list price ${moneyOf(upgrade.list, upgrade.currency)}, you pay ${moneyOf(upgrade.pay, upgrade.currency)}.` : svc.desc,
+          },
+          unit_amount: Math.round(charge * 100),
         },
         quantity: 1,
       }],
@@ -121,7 +166,10 @@ export default async function handler(req, res) {
         name, email, phone,
         listing: clip(body.listing, 400),
         notes: clip(body.notes, 400),
-        amount_eur: String(svc.eur),
+        amount_eur: String(charge),
+        // the upgrade credit: the paid order it comes from and how much it
+        // counts (the webhook re-reads that order and marks the credit used)
+        ...(upgrade ? { credit_from: upgrade.lead, credit_amount: String(upgrade.credit), credit_plan: upgrade.from } : {}),
         // the currency of that amount: amount_eur keeps its name for the
         // readers that already know it, and on a London order it is pounds
         currency: svc.currency || 'eur',
@@ -142,16 +190,20 @@ export default async function handler(req, res) {
       // on the ticket itself, and a fragment makes the browser re-apply its
       // own scroll to #contact at `load` — which, with gtag.js holding `load`
       // in production, arrives AFTER the page's landing and undoes it.
-      success_url: offer
+      // an upgrade lands back on /upgrade, which confirms the payment with
+      // GET /api/city-lead?paid= and shows the credited amount
+      success_url: upgrade
+        ? `${origin}/upgrade?${upgradeQs}&start=${body.startNow === true ? '1' : '0'}&session_id={CHECKOUT_SESSION_ID}`
+        : offer
         ? `${offer.url}?paid=${encodeURIComponent(kind)}&start=${body.startNow === true ? '1' : '0'}&session_id={CHECKOUT_SESSION_ID}`
         : 'https://www.boomrome.com/thank-you.html?service=' + encodeURIComponent(body.kind) +
           (body.kind === 'concordato-pack' ? '&start=' + (body.startNow === true ? '1' : '0') : '') +
           '&session_id={CHECKOUT_SESSION_ID}',
-      cancel_url: offer ? `${offer.url}#fares` : 'https://www.boomrome.com' + svc.cancel,
+      cancel_url: upgrade ? `${origin}/upgrade?${upgradeQs}` : offer ? `${offer.url}#fares` : 'https://www.boomrome.com' + svc.cancel,
     });
     return res.status(200).json({ ok: true, url: session.url });
   } catch (err) {
     console.error('Service checkout error:', err);
-    return res.status(500).json({ ok: false, error: 'stripe_failed' });
+    return res.status(500).json({ ok: false, error: err && err.code === 'signing_desk' ? 'signing_desk' : 'stripe_failed' });
   }
 }

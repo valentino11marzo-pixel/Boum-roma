@@ -27,6 +27,23 @@ Premium rental management platform for Rome's apartment market. Serves tenants, 
                           scan-market (portal scraping), sync-searches
                           (auto-search generation), _ingest (shared pipeline),
                           _health (heartbeats + Telegram alerts)
+  withdraw.js             POST — la funzione di recesso online di ogni desk
+                          e del Pacchetto (v1.8). Vedi «IL BIGLIETTO v1.8».
+  _withdrawal.js          La finestra dei 14 giorni e i moduli tipo, una
+                          copia (il webhook li riesporta).
+  _cityterms.js           I termini dell'ordine di Parigi e Berlino, puri:
+                          versione, hash, testo reso (server E build).
+  _cityorder.js           L'ordine di un desk che incassa alla firma:
+                          book_ + contatore in un commit, email, card.
+  _cityorderpdf.js        Il PDF dell'ordine, in memoria (FR/EN a Parigi):
+                          il corpo in BOOM Doc Sans, il nome com'è scritto.
+  _pdffont.js             BOOM Doc Sans per pdf-lib senza fontkit npm:
+                          Liberation Sans 2.1 ridotto (latino, greco,
+                          cirillico; SIL OFL), dati in _pdffont-data.js da
+                          design/pages-deco/genera-font-pdf.py.
+  payments/_citysign.js   L'addebito alla firma: cancelli, importo dal
+                          listino, fattura cityfee_, email.
+  telegram/_firmato.js    /firmato e /chiudi: la firma detta dall'operatore.
 /js/
   firebase-config.js      Firebase SDK init (project: boom-property-dashboards)
   boom-portal.js          Shared client lib for the 3 portals (auth guard,
@@ -84,7 +101,8 @@ Premium rental management platform for Rome's apartment market. Serves tenants, 
                           (cloud · ombra · locale sul Mac), mette il tetto,
                           ricade sul cloud, conta in aiUsage/aiShadow.
   desk-calendar.js        Il calendario dei desk città, una copia: festivi
-                          (Italia + nl/es/es-bcn), la finestra del desk in
+                          (Italia + nl, es, es-bcn, es-vlc, gb-eng, it-mi,
+                          fr, de-be), la finestra del desk in
                           parole col fuso dell'apertura. Lo importa il
                           webhook (recesso), il build lo inlina nelle pagine.
                           window.BOOM_DESK_CAL. Vedi «Il biglietto v1.5».
@@ -308,8 +326,14 @@ PASS_KEY_BASE64
 PASS_KEY_PASSPHRASE
 
 # Email (Nodemailer)
-GMAIL_USER
+GMAIL_USER                   # the sending Gmail account (valentino@boom-rome.com)
 GMAIL_APP_PASS
+ADMIN_NOTIFY_EMAIL           # optional — the operator's mailbox for EVERY operator
+                             # email, portal "[Portal]" copies (to:'operator' in
+                             # /api/notify/send), PFS alerts and viewing alerts
+                             # included; default valentino@boom-rome.com. NEVER an
+                             # address on boomrome.com: see «La casella che non
+                             # esiste». NOTIFY_OWNER_EMAIL is no longer read.
 EMAILJS_PRIVATE_KEY          # server-side EmailJS REST (api/stripe-webhook.js:
                              # PFS, SERVICE/city orders, RESERVE). Without it the
                              # paid client's confirmation fails — recorded on the
@@ -423,6 +447,22 @@ ELEVENLABS_WEBHOOK_SECRET    # via B (receptionist): signing secret del
                              # post-call webhook ElevenLabs (HMAC t=,v0= sui
                              # byte grezzi). Senza, la porta rifiuta tutto.
 ```
+
+### La casella che non esiste (6/11/2026)
+`boomrome.com` (senza trattino) è il dominio del SITO e non riceve posta: nessun MX, Gmail bussa agli IP di
+Vercel, va in timeout (4.4.1), riprova 48 ore e rinuncia. La posta vera è `boom-rome.com` (valentino@, hello@
+che arriva nella stessa casella). Letto nelle DSN della casella, non dedotto: le copie «[Portal]» del portal
+(pagamenti ricevuti compresi) andavano a valentino@ su boomrome.com almeno da metà luglio, e fra aprile e
+giugno circa 200 «New lead.» del modulo intake erano andati a info@ sullo stesso dominio. Nessuno lo ha visto:
+una DSN finisce fra gli «Aggiornamenti». Ora la copia per l'operatore parte come `to:'operator'` e la risolve
+`/api/notify/send` con `ADMIN_NOTIFY_EMAIL`, come ogni altra email all'operatore; gli avvisi PFS
+(`api/portal/_notify.js`) e la visita prenotata (`api/notify-viewing-created.js`) seguono la stessa convenzione,
+col Reply-To del cliente quando ha un indirizzo valido, altrimenti dell'operatore; `COMPANY.email` del portal
+è `hello@boom-rome.com`, salvo `settings/company` in Firestore, che vince e va controllato in Impostazioni →
+Dati aziendali. `FIREBASE_ADMIN_EMAIL` e le whitelist di login possono restare su boomrome.com: sono
+identificativi, non caselle, ma una email di recupero password per quell'account non arriverebbe.
+`tests/caselle/run.mjs` legge l'intero repository (tranne le suite) e cade su qualsiasi casella @boomrome.com
+fuori da un'eccezione nominata per riga; poi segue la copia di un pagamento dal portal a nodemailer.
 
 ## API Endpoints
 
@@ -2867,6 +2907,1497 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
     - il Full Search pagato in anticipo e l'art. 6 L. 39/89.
   - Il radar PFS non copre Londra né Milano: si cerca a mano.
   Test: `tests/cities/run.mjs` 415, `checkout.mjs` 113, `calendar.mjs` 80, `ui.mjs` 144.
+- **VALENCIA (04/11/2026 — «aggiungi un desk VALENCIA, live»; il fondatore ha
+  deciso «live con la cassa» DOPO essere stato informato del RAICV, per iscritto,
+  il 03/11).** Sesto desk live con la cassa (`/valencia`, €500 · €199 · €149 IVA
+  inclusa), sulle regole spagnole di Madrid: «Optional, chosen in writing» (LAU
+  art. 20) prima di ogni prezzo, must-state «You hire us; we do not act for the
+  landlord.», «Who pays the agent · LAU art. 20» prima corsia, i must-state di
+  Madrid verbatim. **RAICV** (Registro de Agentes de Intermediación Inmobiliaria,
+  Decreto 98/2022) è l'AICAT valenciano: se un'agenzia stabilita a Roma senza
+  sede in Comunitat debba iscriversi è APERTO (avvocato valenciano); la pagina
+  non dichiara NESSUNA iscrizione o licenza (test: niente RAICV, «Registro de
+  Agentes», «registered in Valencia/Spain», «licensed in Spain»; `HUB_BANNED`
+  rifiuta RAICV sull'hub; dalla revisione v1.7 anche il build su OGNI pagina
+  desk, la lista rivista `cities/_claims.json`: vedi «IL BIGLIETTO v1.7», punto 8), nessuna assicurazione contro il mancato pagamento fra
+  le carte dei tre desk spagnoli (RDL 29/2026), niente hojas de reclamaciones né
+  documenti in valenciano promessi (nessun obbligo trovato per chi non ha sede
+  in Comunitat). Fianza un mese depositata dal locatore presso la Generalitat
+  (chiediamo la ricevuta); «non è zona tesa» detto con «today», sul «canone
+  iniziale» (gli aggiornamenti annuali SONO tettati, IRAV) e tenuto in `hold`
+  sull'hub con il contratto (voto RDL 29/2026). Calendario **`es-vlc`** in
+  `js/desk-calendar.js` (il webhook lo importa da `CITY_MARKETS.valencia.
+  holidays`; mai la chiave `es`, che porta San Isidro, La Almudena e il Giovedì
+  Santo di Madrid): Comunitat Valenciana (Decreto 100/2025 → 2026, 42/2026 →
+  2027: 19/3, Venerdì Santo, Pasquetta, 9/10, 12/10, 1/11, 6/12) più i due
+  giorni della città (22/1 Sant Vicent Màrtir, Sant Vicent Ferrer = Pasqua+8);
+  **24/6 solo nel 2026** con la chiave nuova `dated` (YYYY-MM-DD, un festivo
+  decretato per UN anno); niente Giovedì Santo; 2028 non pubblicato — si
+  ricontrolla ogni primavera. `country: 'es'` resta (il +34 del telefono).
+  Email del pagante: lettera «in Spanish and English» (`CITY_LETTER_LANG`),
+  nessuna riga catalana all'operatore. **La riga di prova sotto il pass** dice
+  ora su ogni desk non di casa «an Italian real estate agency registered in
+  Rome» (era «a registered Italian agency»: a Valencia «registered» si legge
+  RAICV — la riga nomina QUALE registro; dalla revisione v1.7 lo dicono anche
+  la riga Who della scheda dei fatti di tutti gli altri desk e `llms.txt`).
+  Hub: lead `{n} European cities`,
+  kicker «BOOM Desks», thead «Fares», ROM «homes to rent», due frasi doppie
+  tolte (corpo 975/980, board 118/120, rules 153/160, brief 239/240); la lista
+  Network senza «desk» («AMS Amsterdam», 35/40 sui live); un altro desk costa
+  all'hub ~31 parole contro 5 di margine: il prossimo desk (il settimo live) è
+  una decisione strutturale.
+  Sulla mappa piatta del 03/11 Valencia voleva `BOW_FIRST = { VLC: -0.18 }`
+  (spostava l'arco di Madrid): sparito lo stesso giorno con la mappa Horizon
+  dello Stage 2, che si inquadra da sola (vedi «IL BIGLIETTO v1.7» e «BOOM
+  Desks → La mappa»). Radar: Valencia DICHIARATA e spenta in
+  `js/radar-markets.js` (il Full Search si cerca a mano; prima di accenderla:
+  «Calle de Valencia» a Madrid e «Carrer de València» a Barcellona collidono
+  col token della città → maschera delle vie, zone, scope idealista, alias,
+  battito); nel modale cliente di pfs-command Valencia ha la sua voce e una
+  città col radar spento non si salva più come Roma (dalla revisione v1.7 anche
+  Amsterdam, Londra e Milano: ogni desk live, «· radar spento»). Card social spagnole
+  (MAD, BCN, VLC) «OPTIONAL · FROM €149», `og-desks.png` coi sei codici.
+  Superfici: sitemap (/valencia `<lastmod>` = `updated`: 2026-11-03 al lancio,
+  2026-11-04 dopo la revisione v1.7 come gli altri desk live e /desks; /terms
+  e /privacy «3 November 2026»), llms.txt, Termini §12, privacy, /withdrawal, i sei
+  piedi + pt.html + patch-lotto2.py. Latente, non toccato:
+  `api/portal/_shared.js:93` dice «The Rome market» a un cliente fuori radar
+  (Valencia, Londra, Milano). Aperte, del fondatore: RAICV (parere valenciano),
+  il voto sul RDL 29/2026 (base dell'«Optional» su tre desk), hojas de
+  reclamaciones, il calendario 2028; nessuno ha ancora letto un lead o un
+  ordine dei desk: «validato» non si può dire. Test: i conteggi del lancio
+  (Stage 1) sono superati; quelli in vigore stanno in «IL BIGLIETTO v1.7»
+  (dopo l'ottavo giro: `run.mjs` 1126, `ui.mjs` 541,
+  `checkout.mjs` 117, `calendar.mjs` 97).
+- **IL BIGLIETTO v1.7 (04/11/2026 — «iteriamo la prima card verso i biglietti
+  della home, la mappa, l'onda, e Valencia live»).** Quattro prototipi della prima
+  card (A–D) davanti a tre giudici (occhio del fondatore A 8 · conversione C 8 ·
+  ingegneria C 8), sciolti dal lead nell'ibrido `card-S` e portati in cinque
+  stage sopra lo Stage 0: Valencia (S1), la Horizon (S2), la card (S3), l'onda
+  (S4), docs, suite intera e fotografie di revisione (S5).
+  1. **La prima card è la famiglia dei biglietti della home.** Full Search è
+     l'ammiraglia: un biglietto SDRAIATO (`li.bp.eroe` > `details.fare`) con la
+     banda di lamina d'oro SENZA parole (`.fare::before`, 16px: la parola «First
+     class» non compare da nessuna parte — un'etichetta è un fatto che non
+     abbiamo; la vieta `tests/cities/run.mjs`, LEFTOVERS, non il build), la
+     domanda di situazione in oro maiuscolo col «?» disegnato dal
+     CSS (`.f-when::after`: «HAVEN'T STARTED YET?»), il nome del piano
+     (`.f-name`), la promessa che il biglietto v1.6 teneva dentro (`.f-say` =
+     `pricing.plans[].name`, «We search. You choose.»), lo strappo in piedi
+     (`.f-r::before/::after`: fori e due mezzi dischi), lo stub più scuro col
+     prezzo come quota d'oro (32px peso 200, 40 a desk), la condizione, un
+     codice a barre decorativo (`.bars`: non codifica NIENTE) e il pip d'oro
+     (`.f-tog`, anello sottile ±). Sotto, sui desk che vendono, il **coupon**
+     strappato del rimborso (`.bp>.refund.fs`: «✓ Full Search is refunded in
+     full…», fori lungo il bordo, nascosto mentre il biglietto è aperto).
+     Application Pack e Attended Viewing sono la **coppia economy** affiancata
+     fra 360 e 939px (`.bps:not(.pair-open)`: banda d'argento 6px, nome in
+     maiuscolo, situazione, strappo, stub con prezzo 24px + pip, condizione
+     sotto); la rotta del pass è in carattere da display (`.route-p .ra` 15px
+     «YOU», `.rb` 20px oro; `.perf` resta 24px). **La tariffa aperta è il
+     biglietto intero della home**: la banda si accende (il foil a sette stop
+     della home sull'ammiraglia, argento vivo sulle altre) e una luce la spazza
+     UNA volta; la promessa in display sulle economy (`tk-tag`), le ✓ di cosa
+     compra, la ✓ del rimborso su FS, un secondo strappo, lo stub scuro
+     `.tk-stub` che sul telefono ospita la PORTA (`.tk-slot[data-slot]`: il nodo
+     si sposta, non si duplica), un codice a barre da 20px, il pagamento
+     contornato `button.pay2[data-pay]`. A ≥ 940 i tre biglietti si sdraiano in
+     un ritmo (`summary` 1fr | 236px) e il `li.eroe` è la card incorniciata:
+     riga 1 il biglietto, riga 2 = la ✓ regola + il pagamento quieto (`.bp-pay`,
+     46px — l'UNICO `[data-pay="full-search"]` passa dallo stub al `.bp-pay`
+     con `placePay()` finché è largo e chiuso), mentre la porta resta nello stub
+     del pass (fondo 294 a 1440 con FS aperto; pass 1009px). **Tolto da v1.6**: i
+     divisori fra le righe, la barra d'oro del rimborso dentro il pass, le righe
+     ≤ 374 e `.fares.long`, il `summary` da 66px a desk, la rotta mono da 10px e
+     il sollevamento `.door:hover{translateY(-1px)}` (A: spostava il bordo via
+     dal puntatore e l'hover sfarfallava; lo rifiuta `tests/cities/run.mjs`
+     col check su `.door:hover`, non il build). Il «?» entra nel
+     nome accessibile del summary (accettato). Nessun JSON cambia: la promessa è
+     il `name` del piano (le tariffe chiuse salgono di 4 parole, il biglietto FS
+     ne perde 4).
+  2. **I link profondi** (`deep()` in `boom-city.js`: al boot dopo
+     `handleReturn`, su `hashchange`, e una volta al `load` se il lettore non si
+     è mosso — il browser riapplica un frammento al load): `/<slug>#fare-<piano>`,
+     l'alias `#<piano>` e `#pay-<piano>`. Guardie: il piano deve esistere
+     (`planOf`: `#fares`, `#fare-nope`, `#pay-constructor` non fanno niente e
+     tengono l'hash), niente con `paid=` nella query né a pass non `blank`. Poi
+     l'hash si ripiega (`replaceState`), si apre SOLO quel biglietto, il
+     `[data-pay]` (la porta sui waitlist) atterra al bordo inferiore
+     (`scrollIntoView({block:'end', behavior:'instant'})`: lo scroll-padding
+     della barra lo tiene sopra) e prende il fuoco senza scorrere; `fare_open
+     {via:'link'}` solo se non era già aperto, `pay_link` sui `#pay-`;
+     `#pay-<piano>` su un desk che vende apre la cassa su quel piano (Start-now
+     MAI pre-spuntato, il bottone di pagamento è l'apritore: Escape torna lì),
+     su Parigi e Berlino porta alla porta. La risposta pronta dell'operatore
+     (`cityReplyText`, SOLO il ramo dei desk che vendono — mai waitlist, pagato
+     o abbandonato) chiude con «If you'd rather start now: <url>#pay-full-search».
+     Il `cancel_url` di Stripe resta `#fares`, e le porte dell'hub restano su
+     `/<slug>#fares` (decisione del lead: il `#fare-full-search` letterale
+     farebbe atterrare un visitatore dell'hub su un €500 aperto col pagamento al
+     bordo). Nessun numero nasce nel browser: il solo numero in pagina è il
+     codice fascicolo del server (`#codeLine`), nessun N° sui biglietti.
+  3. **Le pieghe misurate** (Chromium DPR 1, martedì 10:00 UTC, barra 67px
+     quando accesa; fondi in px dal bordo alto; `…/v17/impl/final/NOTES.md`): i
+     pin DURI — tre prezzi CON le condizioni leggibili a 390×664, 375×812 e
+     390×844 su tutti e otto i desk, porta e chi-risponde sopra la piega a
+     375×812 e 390×844. Oggi: Londra 390×844 prezzi/cond. 343/357 · 543/556 ·
+     528/541, regola 440, porta 709, chi 779; 375×812 porta 700, chi 770 (la
+     regola della testata ≤ 389 guadagna 23px: senza, Milano a 375 falliva);
+     Madrid = Valencia = Barcellona 390×844 361/376 · 577/589 · 547/559, porta
+     742, chi 812 (la condizione dell'AP a 589 contro il limite 597 è la più
+     stretta di tutte), 375×812 733/804; Amsterdam = Milano 390×844 porta 724,
+     chi 794 (Milano 375×812 737/807); Parigi = Berlino 390×844 703/773, 375×812
+     694/765; Londra 1440×900 porta 316, chi 411, FS chiusa 112px (176 con la
+     riga 2). A 390×664 la BARRA porta la porta su ogni desk (porta 703–742 e
+     chi 773–812 stanno sotto per costruzione) e i tre prezzi restano leggibili.
+     Detto senza giri: a **360×780** chi-risponde sta 0–86px sotto la piega su
+     6 desk su 8 (misurato; la porta sopra su tutti: guadagnarli costerebbe
+     fino a ~90px di copy) e a **320×568** i
+     prezzi della coppia stanno sotto la barra (AP 556/568, AV 624/649, regola
+     509 contro il limite 501; l'ammiraglia no; porta 839) — accettati dal lead,
+     che ha pinnato 664/812/844. Primo schermo 117–127 parole (tetto 150);
+     l'ammiraglia chiusa 95px sui desk che vendono, 106 sui waitlist (condizione
+     su due righe).
+  4. **La Horizon** sostituisce la mappa piatta sull'hub e nella Rete di ogni
+     desk: una camera sopra il Sahara che inquadra da sola ogni desk più Roma,
+     la costa vera in gradi, archi di cerchio massimo sollevati, etichette da un
+     collocatore, il build che rifiuta (`hzViolations`, `hzLabels`, `hzArcs`);
+     viva a vista
+     (`assets/boom-map.js`, `MAP_KB` 3,5 come riga a sé E contata nel totale)
+     col terminatore vero, il bagliore dei desk aperti, un aereo per arco;
+     mostrata anche sui telefoni. Tutto il dettaglio in «BOOM Desks → La mappa».
+  5. **L'onda** (`assets/boom-onda.js`, 3,6 KB gz su 4): sul telefono vive
+     DENTRO il pass (`place()` sposta `#onda` in `#pass` sotto i 940 e lo riporta
+     nel body sopra, dove la carta del pass ha la cima traslucida — 31 B di CSS);
+     il battito (`PERIOD` 8200 ms, evento `boom:beat` senza payload) parte dal
+     tabellone della città (`#placeBoard`) sul telefono e dal codice dello stub
+     (`.route-s .rb`) a desk, `calm: faresBox` tiene i biglietti quieti; **gira
+     SOLO col desk aperto** (`setOpen` ogni minuto dal calendario; chiuso = un
+     fotogramma fermo a opacità .36, aperto .6), dorme a scheda nascosta, fuori
+     schermo e quando il tabellone è sopra il viewport (il fix «guarda il
+     tabellone», ~60 B: prima l'ambiente girava con la sola coda del pass in
+     vista, ~8% di un thread strozzato per niente); **un impulso per fatto**:
+     tariffa aperta = UN `'s'` dal `.f-price`, OPEN = UN `'l'` dal timbro, PAID =
+     UN `'p'` dal timbro, messi in coda (`ondaQ`) se il motore arriva dopo la
+     conferma; una sola catena di rAF (la revisione v1.6 aveva trovato catene
+     che si moltiplicavano); reduced motion non mette mai il campo in moto.
+     Misurato (CPU strozzata 4×, 390×844 DPR 3, canvas 534×1206 nel pass, una
+     finestra di 8,2 s): per fotogramma disegnato p50 0,5 · p95 2,2 · max 5,8
+     ms, 34,5 fotogrammi/s, +11,6% del thread principale (secondo giro
+     0,6/2,0/5,9, +13,4%). **Esposizione WCAG 2.2.2, condivisa con la home** e
+     accettata dal fondatore: sul primo schermo del telefono un ciclo oltre i
+     5 s senza comando di pausa, fermato solo da `prefers-reduced-motion`
+     (l'alternativa stretta, ~30 B: battere qualche volta all'arrivo e poi
+     riposare fino a un fatto). Non verificato: un iPhone vero (canvas GPU di
+     Safari, rAF ProMotion), Safari < 16 (celle quadrate senza `roundRect`).
+  6. **Stage 0, da ricordare**: si modifica SOLO `assets/src/*` (`boom-city.css|js`,
+     `boom-onda.js`, `boom-desks.css|js`, `boom-map.js`); `node build-cities.mjs`
+     emette le copie servite senza commenti e `--check` deve uscire 0; pesi e
+     `?v=` sono dei file emessi. Mai una mano su `assets/boom-*.css|js`.
+  7. **Pesi e parole dal build** (nessun tetto alzato per farci stare qualcosa:
+     i byte vengono dallo Stage 0 e dall'artigianato; dopo la revisione del
+     04/11, riletti dal `node build-cities.mjs --check` dell'ottavo giro): CSS 13,3 KB gz (15), JS 10,8 (14), onda 3,6 (4), mappa 3,0 (3,5);
+     pagine CON la mappa contata: Parigi 76,6 · Berlino 76,7 · Amsterdam 78,4 ·
+     Madrid 78,4 · Valencia 78,5 · Barcellona 78,6 · Londra 79,1 · Milano 79,5
+     (82); hub 71,8 (pagina 26,4 · css 3,7 · js 2,6 · mappa 3,0; 78). Parole al caricamento: Berlino 461 ·
+     Amsterdam 469 · Parigi 482 · Madrid 487 · Valencia 487 · Londra 491 ·
+     Barcellona 513 · Milano 538 (640; prosa ≤ 520: Milano 484); hub 975
+     (prosa 712 · strumenti 263; board 118 · map 65 · fares 223 · rules 153 ·
+     faq 43 · brief 239). Tariffe chiuse: Londra 57 · Spagna 61 · Milano 59 ·
+     Parigi/Berlino 48 (70).
+  8. **La revisione avversaria (04/11, commit «review fixes»)**, chiusa nello
+     stesso giorno:
+     - **LAU art. 20 è un ordine, e il build lo pretende**: su un desk ES che
+       vende (Madrid, Barcellona, Valencia) `renderCity` rifiuta la pagina se
+       `<b id="faresH">` («Optional, chosen in writing») non viene PRIMA del
+       primo `data-plan-price` in `#fares` («LAU art. 20: on a Spanish desk
+       that sells, the fares head … comes BEFORE the first price»); `run.mjs`
+       lo ripete sui tre desk, `ui.mjs` lo misura (fondo di `#faresH` ≤ cima
+       del prezzo di Full Search a 390×844 e 1440×900).
+     - **Nessuna iscrizione che non sia quella di Roma: la LISTA delle frasi
+       riviste** (`cities/_claims.json`, terzo giro del 04/11, irrobustita dal
+       quarto e dal quinto — sostituisce le regex dei primi due giri). Ogni frase di una
+       pagina desk (tutti e otto, live e bozze) e di /desks che usa il lessico
+       di iscrizioni, licenze, autorità o appartenenze (`hasClaimVocab`, ex
+       `CLAIM_VOCAB_RE`) deve stare, parola per parola dopo la normalizzazione,
+       fra le voci del file — altrimenti il build RIFIUTA la pagina (default
+       deny), nominando il desk, citando la frase e dicendo cosa fare: «if it
+       does not say that BOOM or the company holds a registration, licence or
+       membership outside Rome, add it to cities/_claims.json with its kind and
+       a note; if it does, it cannot ship».
+       **Il lessico** (lettere Unicode, ogni radice accetta i prefissi un-,
+       non-, de-, pre-: «Unregistered», «unregulated»; regist, licen[cçs],
+       lizenz, erlaubnis anche dentro un composto: «Handelsregister»,
+       «Maklererlaubnis»): licen…/llicènci…, regist…, accredit…/acredit…,
+       authorised/authorisation, autoriz…/autoritz…, certified/certification/
+       certificad…, recognised/reconocid…, regulated/regulator…/regulad…,
+       approv…, listed, member(s), membership, affiliat…, permit(s),
+       supervis…, chartered, enrol…, inscri…, colegiad…, col·legiat/da…,
+       habilit…, iscritt…, abilitat…, ruolo, ingeschreven, erkend…,
+       eingetragen…, zugelassen…, agréé… (solo accentato: «agreement» no),
+       miembro, membre, Mitglied, «lid van», redress, ombudsman, Propertymark;
+       dal quinto giro i sinonimi dell'approvazione e le parole locali della
+       licenza, del certificato, dell'agente giurato o affiliato: permitted,
+       entitled, endors…, vetted, homolog…/omologat…, TrustMark, «complaints
+       scheme», «qualified as/under/by», vergunning…, gecertific… (anche dentro
+       un composto: «SCVM-gecertificeerd»), aangesloten, beëdigd…, erkenning…,
+       toelating…, Zulassung…, Genehmigung…, zertifiz…, certifié(e)…,
+       affilié(e)…, adhérent…, afiliad…, asociada/o(s), associada/o(s),
+       permiso(s), permís, certificata/o, associata/o, patentino,
+       convenzionat…, e i nomi della registrazione che le radici non
+       prendevano (iscrizion…, Eintragung…, inschrijving…, immatricul…, albo) — mai
+       «allowed», un «qualified» da solo, «associated», «associate»,
+       «agreement», «certificate» (solo le desinenze italiane e spagnole);
+       le autorità e i registri per nome (Generalitat, Comunitat Valenciana,
+       Comunidad de Madrid, Ayuntamiento, Ajuntament, Junta, Consell, gemeente,
+       municipality, Chamber of Commerce, Camera di Commercio, Gewerbeamt,
+       Kamer van Koophandel, préfecture, INCASÒL, client money protection,
+       Vastgoedpro, Agente de la Propiedad Inmobiliaria, carte professionnelle,
+       carte T); le sigle in maiuscolo (RAICV, AICAT, TPO, PRS, CMP, ARLA, NAEA,
+       RICS, NVM, VBO, API, FIAIP, FIMAA, CCIAA, CCI, IHK, FNAIM, IVD, KvK in
+       ogni grafia anche «KvK12345678»; FIMAA, FIAIP, AICAT, RAICV e FNAIM
+       anche in minuscolo come parola: «Socio Fimaa Milano»), cercate anche su
+       una copia dove le iniziali sono chiuse («R.A.I.C.V.», «K.v.K.», «T P O»
+       → RAICV, KvK, TPO); le forme di numero (quinto giro: una parola chiave
+       intera — agent, agency, reg., regd., lic., licence, registration, ref.,
+       no., nr., n., núm., n.º —, un «no.», «nr.», «n.º», «núm.», «ref.», «ID», «code»,
+       «number», «número» o «#» facoltativo, poi un codice di al più tre
+       lettere e tre o più cifre, unito, col trattino o con lo spazio: «Agent
+       no. CV-1234», «Reg. 123456», «Regd. 1234», «Lic. no. 4471», «Agent ref.
+       CV-1234», «Agent number CV 1234», «Iscrizione n. 1234»; e l'ordine
+       spagnolo e italiano, «Número de agente 1234», «numero di iscrizione
+       1234»; dal sesto giro le parole chiave in ogni maiuscola ma le LETTERE
+       del codice solo maiuscole — minuscole solo unite alle cifre o col
+       trattino, «cv-1234», mai attraverso uno spazio: col flag i «in», «for»,
+       «fee» erano le lettere di un codice e «Find your agent in 2026», «Hire an
+       agent for 300 euros», «The agency fee 300 €» erano forme di numero —,
+       mai un codice seguito da un importo o da una misura (%, €, £, $, euro,
+       pound, EUR, GBP, per cent, percent, months, weeks, days, years, hours,
+       minutes, km, m², mq, sqm, sq ft, metres, m: «An agency 100% on your
+       side»), né un anno dopo in/since/from/until («AGENT IN 2026»), e una
+       copula fra la parola chiave e il codice (is, es, è, ist, est: «Our agent
+       number is 1234», «Our agent no. is CV-1234»); dal settimo giro la forma
+       scavalca i separatori della casa fra la parola chiave, la parola del
+       numero e il codice (`NUM_SEP`: —, –, -, ·, •, /, |, una parentesi, quadra
+       o graffa aperta, virgolette dritte e curve, caporali, i due punti:
+       «Agent no. — CV-1234», «Agent number (CV-1234)», «Agent no. · CV-1234»,
+       «Agency number “4471”», «Our agent — number CV-1234»; prima solo lo
+       spazio e i due punti); dall'ottavo giro un codice si scrive anche
+       raggruppato («1.234», «1,234», «12 345», «12.345.678», «1,234,567»,
+       «CV-12.345»: un solo separatore, gruppi di tre, e niente dopo che
+       continui il numero — «1.234,56», il telefono «331 325 1961») dopo una
+       parola o un'abbreviazione di numero o # («Agent no. 1.234», «Our agent
+       number is 12.345», «Nº 1.234», «Agente n. 1.234»), e con lettere e
+       trattino anche dopo la sola parola chiave («Agent CV-12.345»), mai
+       senza («An agency (2,500 homes)» resta copia); un numero col suo anno è
+       un codice («Agent no. 45/2026»; mai una data, «22/10/2026», né due anni,
+       «2025/2026»); «agente» è una parola chiave, e le parole spagnole e
+       italiane del numero prima di lei fanno l'ordine spagnolo («Agente:
+       CV-1234», «Nº de agente», «N.º de agente», «Núm. de agente», «Nro. de
+       agente», «N. agente», «número agente», «código de agente», «codice
+       agente», «ID de agente», come «Número de agente 1234»); l'ordinale di
+       «nº» e «N.º» e il segno «№» restano un segno (`cleanText`: l'NFKC li
+       faceva «o» e «No», la parola inglese, che senza punto non è
+       un'abbreviazione: «No 1,000 listings» resta copia); «Nov 2026» non è «no 2026», e una citazione italiana con «n.»,
+       «L. n. 392/1978», è letta come forma di numero: si mette in lista come
+       law) e lo statuto (§34c, «§34 c», «Paragraph 34c», «34c GewO»).
+       **L'estrazione** (`reviewSentences(html)`, esportata, la usano i test):
+       le entità si decodificano sul testo intero PRIMA di spezzarlo (prima
+       «R&#101;gistered» e «Regis&shy;tered» si tagliavano al loro «;»), poi
+       NFKC (lettere fullwidth, legature) e via ogni carattere di formato
+       (\p{Cf}: soft hyphen, zero-width space/joiner, word joiner, BOM) e
+       U+2028/2029; testo visibile spezzato sui blocchi, sulla FINE di un
+       elemento `data-instr` e su `span.tn`/`span.tt` (le etichette di
+       strumento non entrano più in una voce: «MIL 08», «One company»), poi su
+       . ! ? ; e sul · spaziato (mai dentro una parola: «col·legiada»), MAI
+       dopo il punto di un'abbreviazione di numero (quinto giro: no., nr., n.,
+       núm., num., reg., regd., lic., ref., n.º, ogni lettera nelle due
+       maiuscole — la «N.» maiuscola dal sesto giro: «Agent N. 1234» resta una
+       frase —, la «o» di n.º solo minuscola: «Agent no. CV-1234» resta una
+       frase; senza flag i, così «S.r.l. is» resta una frase e «as an agent.
+       What» si spezza ancora); OGNI
+       meta e OGNI stringa JSON-LD per conto suo (mai concatenate); OGNI
+       attributo con lettere, fra virgolette doppie, singole o senza (title,
+       aria-*, value, label, data-*, alt…) tranne quelli che non sono testo
+       (`ATTR_SKIP`: href, src, srcset, class, id, style, d, viewBox, points,
+       transform, rel, type, name, for, lang, hreflang, xmlns*, width, height,
+       fill, stroke, role, tabindex, target, method, action, autocomplete,
+       inputmode, enctype, sizes, media, crossorigin, integrity, loading,
+       decoding, data-v, property, charset, gli attributi svg di disegno, gli
+       aria che sono riferimenti o booleani; `content` si legge solo sul
+       `<meta>`, come «meta»); le stringhe `content:` dei `<style>` della
+       pagina; le stringhe degli script inline. Ogni blocco si legge anche in
+       una copia «schiacciata», coi tag in riga (span, b, i, em, strong, a,
+       abbr, small, sup, sub, wbr, u, s, mark, q, time, data…) e i commenti
+       tolti SENZA spazio: se la copia schiacciata ha più lessico di quella
+       spaziata, la frase è rifiutata («a registration or licence word is
+       split by inline tags or comments»: «Regis<span>tered</span>»). `cite`
+       resta un confine (l'hub lo usa come etichetta). La normalizzazione
+       tiene il punto che chiude S.r.l., S.p.A., S.L., B.V., Ltd. **La cintura
+       del divisore** (quinto giro): se una stringa intera (un blocco di testo,
+       una meta, una stringa JSON-LD, un attributo) ha più occorrenze del
+       lessico — parole, sigle, forme di numero, contate sul testo e sulla
+       copia con le iniziali chiuse SEPARATAMENTE (la copia chiusa di un
+       blocco cambia con «S.r.l.») — della somma delle sue frasi, il divisore
+       ha tagliato una pretesa: la stringa è rifiutata intera («a registration
+       or licence word, a register's initials or a number shape is split by
+       the sentence splitter»: «Agent. CV-1234», «Registration. CV-1234», e
+       «agent» e «4471» separati da un a capo in una meta, in una stringa
+       JSON-LD o in un attributo: nel testo visibile l'a capo divide il blocco
+       in due righe PRIMA della cintura, e quelle due righe le legge la cintura
+       tra i blocchi). **La cintura tra i blocchi** (sesto giro, `joinCut`,
+       dentro `reviewSentences`): un'etichetta e il suo valore sono due blocchi
+       di testo, e una forma di numero, una parola del lessico o le iniziali di
+       un registro divise fra i due si leggono sulla pagina come una pretesa
+       sola ({dt «Agent no.», dd «CV-1234»} costruiva su ogni desk che vende).
+       Si leggono uniti: ogni blocco di testo di al più quattro parole col
+       blocco dopo (un dt, un th, l'etichetta legale o il titolo di un
+       controllo, un documento, una riga chiusa da un `<br>` o da un a capo);
+       due righe dello stesso blocco divise da un `<br>` o da un a capo,
+       qualunque sia la loro lunghezza («Every file of yours goes to one
+       agent⏎4471, on every invoice»); un `<summary>` (la domanda di una FAQ;
+       l'etichetta legale e il titolo di un controllo, senza il numero della
+       corsia) col primo blocco dopo dentro il suo `<details>` (la risposta, il
+       testo del controllo). L'unione è rifiutata («a registration or licence
+       word, a register's initials or a number shape is split between a label
+       and its value») quando ha più occorrenze del lessico delle sue parti
+       (sul testo e sulla copia con le iniziali chiuse, separatamente: «Agent
+       no.» | «CV-1234», «Reg.⏎123456», «R A I» | «C V»), o quando una parte
+       prima dell'ultima porta una CHIAVE DI NUMERO — la parola chiave col suo
+       numero («agent no.», «agency number», «registration ID», «número de
+       agente») o un'etichetta che è solo un numero («No.», «Number», «ID»,
+       «Ref.», «Code») — e l'ultima un codice (`VALUE_NUM_RE`: lettere maiuscole e tre cifre o più,
+       o quattro cifre o più, e dall'ottavo giro un codice raggruppato o un
+       numero col suo anno, «1.234», «B-1.234», «45/2026»; mai un anno, una
+       data, un prezzo, una misura, un telefono, «+34 612 345 678»): «What is
+       your agent number in Valencia?» | «CV-1234.». Dal settimo giro: un blocco
+       di QUALSIASI lunghezza che porta una chiave di numero si unisce al blocco
+       dopo («Our agent number in Valencia» | «CV-1234.», il titolo di un passo
+       di How it works), e così un blocco che porta un codice quando il dopo
+       porta la chiave; l'unione è rifiutata anche nell'ordine rovesciato (il
+       codice nell'etichetta, la chiave nel valore: «CV-1234» | «Our agent
+       number in Valencia.»); le righe che un `<br>` o un a capo uniscono fanno
+       un blocco, e due blocchi consecutivi, uno con la chiave e l'altro col
+       codice, su qualunque riga stiano, si leggono uniti ({dt «Our agent
+       number», dd «In Valencia:<br>CV-1234.»}); il `<summary>` si unisce con
+       OGNI riga del primo blocco del suo `<details>` (il legale e il titolo di
+       un controllo con «Ask us.⏎CV-1234, …», «Do you have an agent number in
+       Valencia?» | «Yes.⏎CV-1234.»); e si leggono uniti il titolo e la
+       descrizione che uno snippet mostra insieme (`<title>` e meta
+       description, og:title e og:description, twitter:title e
+       twitter:description) e, nel JSON-LD, il name, serviceType o headline di
+       un nodo con la sua description e una domanda della FAQ con la sua
+       risposta. Dall'ottavo giro gli indici del build non sono righe della
+       copia: un codice `span.tn` («VLC 08», il numero di un documento) o un
+       numero nudo di una o due cifre (la corsia di un controllo, la domanda
+       della FAQ, il passo di How it works: «03») si salta, e le due righe ai
+       suoi lati si leggono consecutive (due documenti «Our agent number» |
+       «CV-1234»; il testo di un controllo che finisce su «Ask for our agent
+       number.» e l'etichetta legale «M-4471» del controllo dopo; una risposta
+       e la domanda dopo); e in una tabella la testata di riga (`<th
+       scope="row">`, o un `<th>` in una riga di celle) che porta una chiave
+       di numero o un codice si legge con OGNI cella della sua riga, non solo
+       con la prima («Agent number» | «—» | «—» | «—» | «M-4471» nella tabella
+       delle regole di /desks). Un'unione rifiutata non si
+       mette in lista: si riscrive l'etichetta o il valore. **La chiave e il
+       codice nella stessa stringa** (settimo giro, `numKeyCode`): un blocco di
+       testo o di righe, una meta, una stringa JSON-LD, un attributo o una
+       stringa di script che porta una chiave di numero E un codice, in qualunque ordine e
+       con qualunque cosa fra i due (una parola, una frase, una virgola, un
+       separatore), è rifiutato intero («a number key … and a code … stand in
+       one string»: «Our agent number in Valencia — CV-1234.», «CV-1234 is our
+       agent number.», «Our agent no. today is CV-1234.», «Agent no. cv
+       1234.», «Our agent number<br>in Valencia<br>CV-1234.»; il messaggio
+       dice «stand in one block or string»), anche quando sono i tag in riga a tenerli separati («Agent
+       n<b>o.</b> in Valencia: CV-1234», rifiutata come «split»). È l'ultimo
+       controllo di `claimGuard`: riporta solo ciò che nessuna regola sopra ha
+       preso, e nessuna voce in lista lo scavalca. Misurato sulle nove
+       pagine costruite: 1.511 unioni lette (1.236 etichetta+blocco, 164 righe
+       dello stesso blocco, 111 summary+risposta), nessuna rifiutata (dal
+       settimo giro 1.707: in più 169 coppie del JSON-LD e 27 titolo con
+       descrizione, nessuna rifiutata; una sola delle 2.283 righe di testo
+       porta una chiave di numero, la testata «Code» del tabellone di /desks,
+       e 41 un codice; nessuno dei 7.395 blocchi e stringhe una chiave col
+       codice; dall'ottavo giro 1.541: le 214 unioni che tenevano un indice
+       del build cadono, 48 nuove uniscono le righe ai suoi lati, nessuna
+       testata di riga dell'hub porta una chiave o un codice, nessuna
+       rifiutata; 45 righe portano un codice, in più le quattro citazioni di
+       legge col loro anno, «Llei 11/2025» e «L. 392/1978», nessuna accanto a
+       una chiave); le più
+       vicine sono le righe della società col codice sotto un'etichetta che
+       non è una chiave di numero («Operated by» | «… VAT IT17322991005, REA
+       RM-1710623 …», «Who» | «BOOM Milan … (REA RM-1710623)», «Egidi
+       Immobiliare S.r.l.» | «Via dei Coronari 181/184, 00186 Roma»), «Passport
+       or EU ID» | «AMS 02» (due cifre), gli orari sotto «Valentino Egidi
+       tenant-side agent» (09:00) e «Code» | «Desk» (le testate del tabellone
+       dell'hub).
+       **I campi di markup fidato** (le chiavi che finiscono in `Html`, oggi
+       solo `bref.rows[].ddHtml`, e quelli dell'hub e di `_shared.json`)
+       portano SOLO `<b>`, `<strong>`, `<em>`, `<i>`, `<br>` e `<a href="…">`
+       (facoltativi `target="_blank" rel="noopener"`) fra virgolette doppie,
+       nessun altro attributo, nessun commento (`htmlFieldGuard`): oggi i JSON
+       usano solo `<b>`.
+       **Le voci** sono `{text, kind, note}`; i tipi: `company-rome` (la
+       società iscritta a Roma: REA RM-1710623, Viale Liegi 42),
+       `trade-mark` (il marchio UE), `lease` (la registrazione del
+       contratto), `tenant` (le iscrizioni dell'inquilino: BRP, padrón,
+       università), `deposit` (dove il LOCATORE deposita la cauzione:
+       Generalitat, INCASÒL, gli schemi approvati dal governo a Londra),
+       `listing` (un annuncio: «The listed rent is often cold»), `law` (cosa
+       chiede la legge, o una negazione onesta), `partner` («opening with a
+       licensed partner», SOLO su Parigi, Berlino e /desks: su un desk che
+       vende è rifiutata), `heading` (il nome di una sezione), `context` (una
+       frase SENZA lessico accanto alla riga di Roma della società che nomina
+       un luogo di un desk: la regola dei luoghi qui sotto), `follower`
+       (quinto giro: una frase SENZA lessico che sta accanto a una chiave in
+       lista ed è letta come il suo valore: la regola delle chiavi qui sotto;
+       oggi le sei frasi vere in prima persona, «We confirm it before you
+       sign», «We confirm it in writing before you sign», «We ask for the
+       receipt», «we ask for the receipt», «we ask for the deposit receipt»,
+       «The rest we go through on the free call»). Oggi 74 voci, ordinate e
+       uniche (partner 20, company-rome 14, tenant 9, law 7, lease 7, follower
+       6, deposit 5, heading 2, context 2, trade-mark 1, listing 1).
+       **Le regole di contesto** (in `claimProblems`): nello stesso blocco di
+       una frase `company-rome` o `trade-mark`, ogni altra frase che nomina un
+       luogo di un desk diverso da Roma/Italia (Amsterdam, Netherlands, Dutch,
+       Barcelona, Catalonia/Catalunya/Catalan, Madrid, Valencia/València/
+       Valencian/Comunitat, Spain/Spanish, London, England/UK/British/Britain,
+       Wales/Welsh, Scotland/Scottish, Milan/Milano/Lombardy, Paris/France/
+       French, Berlin/Germany/German) è rifiutata se non è in lista
+       («registered in Rome. Also in Valencia, since 2026.»). **La regola delle
+       chiavi** (quinto giro, sostituisce la regola del titolo del quarto, che
+       valeva solo per il tipo `heading` e solo per i luoghi e il lessico):
+       ogni frase in lista di al più quattro parole, di QUALSIASI tipo
+       («Registration», «Generalitat», «INCASÒL», «§34c GewO», «A licensed
+       partner»…), è una CHIAVE, e ciò che le sta accanto si legge come il suo
+       valore. In un blocco di frasi brevi (un dt, l'etichetta legale o il
+       titolo di un controllo, un documento, la testata di riga di una tabella,
+       «fianza · INCASÒL») i valori sono le altre frasi del blocco, i blocchi
+       dopo (le etichette di due parole o meno si leggono attraverso; una riga
+       dopo un `<br>` è lo stesso valore; i codici generati dal build,
+       `span.tn` «MIL 08», si saltano) e, fuori da una tabella, il blocco
+       subito prima se è anch'esso un'etichetta (sulla pagina del desk
+       l'etichetta legale di un controllo sta PRIMA del titolo: «agency file
+       4471» prima di «Registration»); dentro la prosa («… Registration. Yes,
+       since 2026.») e in una meta, una stringa JSON-LD o un attributo, i
+       valori sono le frasi dopo la chiave fino alla prima di più di due
+       parole (una chiave che chiude un blocco di testo legge nei blocchi
+       dopo). Dentro una tabella solo un `<th>` porta chiavi: una cella è il
+       valore della testata della sua riga (sull'hub la cella «fianza ·
+       INCASÒL» non legge le celle degli altri desk, «392/1978», «since
+       2024»). Ogni valore dev'essere in lista o NEUTRO (`neutralValue`):
+       niente lessico, niente luogo di un desk, niente tre cifre di fila né
+       codice (`[A-Z]{1,4}` + spazio o trattino facoltativo + due cifre:
+       «CV-1234», «B 5521»), niente prima persona (we, our, us, BOOM, Egidi) e
+       nessuna delle parole che fanno di un'etichetta una pretesa (yes, sí, si,
+       oui, ja, since, desde, dal, seit, depuis, number/número/numero/nummer,
+       file, list/lista/liste, listing, record, directory, roster, e gli
+       stati e i segni di una lista di controllo: active, valid, done,
+       granted, held, current, confirmed, in place, ok, ✓). Rifiutati: {dt «Registration», dd «Yes, since 2026.» /
+       «CV-1234» / «✓»}, {dt «Generalitat», dd «On its list of agents since
+       2026.»}, {dt «INCASÒL», dd «Yes, our number is on file.»}, un controllo
+       «Registration» con l'etichetta «agency file 4471», il controllo della
+       cauzione («fianza · Generalitat») con «Our agency number there is
+       V-5521.». Le sei frasi vere in prima persona accanto alle chiavi sono in
+       lista come `follower`. Dal sesto giro un valore IN LISTA vale solo se è
+       un `follower` o una frase di più di quattro parole: una voce di al più
+       quattro parole è una chiave essa stessa, e accanto a un'altra chiave
+       compone una pretesa che nessuno ha rivisto («Registration» —
+       «Generalitat», «INCASÒL» o «§34c GewO», nei due sensi, in una riga della
+       scheda, in un controllo, nella prosa: «Registration. Generalitat.»);
+       nel suo blocco vale solo la chiave stessa, e due chiavi nello stesso
+       blocco («Registration · Generalitat») sono rifiutate tutte e due. E
+       un'etichetta subito prima di una chiave che chiede CHI o CHE STATO (who,
+       whom, whose, status, statut, estado, stato, operator(s), operated, run
+       by, managed by, held by, owned by, company, firm, agency, agent(s),
+       broker(s), desk(s): `LABEL_WHO_RE`) ne fa la sua risposta ed è rifiutata
+       («Who» — «A licensed partner», «Status» — «A licensed partner» sulle
+       bozze; la tappa vera delle bozze «Opening» — «A licensed partner»
+       passa). Il messaggio: «another reviewed label of four words or fewer, or
+       a label that asks who or what status, reads as its value». Misurato
+       sulle nove pagine: 17 valori in lista letti accanto a una chiave, tutti
+       `follower` o di più di quattro parole (il più corto che non è un
+       follower, «The landlord lodges it with INCASÒL», sei); nessun blocco con
+       due chiavi; 11 etichette
+       subito prima di una chiave (BRP, BSN, padrón, NIE, Agenzia delle
+       Entrate, Opening, The deposit, i numeri di corsia), nessuna chiede chi o
+       che stato.
+       **Il lint del file** (`lintClaims`, nel build): nessuna voce nomina
+       RAICV, AICAT, Registro de Agentes, Registre d'Agents, Property
+       Ombudsman, Property Redress, redress scheme, Propertymark, ARLA, NAEA,
+       KvK, Kamer van Koophandel, ombudsman, TPO, CMP, client money
+       protection, RICS, NVM, VBO, Vastgoedpro, FIAIP, FIMAA, Agente de la
+       Propiedad, API, colegiado, col·legiat, carte T (carte professionnelle e
+       §34c solo nei tipi law e partner; dal quinto giro anche PRS, FNAIM, IVD,
+       IHK); ogni voce porta il lessico tranne `context` e `follower`;
+       `context` NON lo porta, nomina un luogo e non aggiunge nulla (and, plus
+       all'inizio; also, too, as well, since, office, branch, based, seat,
+       headquarters ovunque → rifiutata); `follower` NON lo porta, non nomina
+       un luogo, non ha tre cifre né codice, nessuna delle parole del valore
+       (yes, since, number, file, list, done…), e può parlare per noi ma mai
+       per dire che teniamo, abbiamo o siamo su qualcosa (hold, have, got,
+       obtained, own, granted, issued, carry; «we are on/in/with/under»);
+       `company-rome` nomina Rome/REA/Viale Liegi e ogni «regist…» ci atterra
+       con in mezzo solo in/with/the/at/of (o «office:», o «under REA
+       RM-1710623», o «Rome-registered»), e dopo Roma nessun altro luogo né
+       «as well as», «and in», «also», «plus»; tolte le parti ammesse
+       (regist…, «a licensed partner» con la sua parentesi, «Rome Chamber of
+       Commerce», «trade mark») in `company-rome`, `partner` e `trade-mark`
+       non resta lessico; `partner` deve nominare «a licensed partner», ogni
+       licen… è «licensed partner», ogni regist… atterra su Roma, la carte
+       professionnelle o il §34c stanno solo nella parentesi subito dopo
+       «licensed partner», e nessuno «holds», «has», «obtained», «granted»
+       nulla (il soggetto è il partner, il desk «opens with» lui, o la legge);
+       nei tipi lease/tenant/deposit/listing/heading l'azienda non è mai
+       soggetto di una licenza o iscrizione (we/BOOM…/Egidi…/the desk/our
+       team… + verbo + licensed/registered/accredited/authorised/certified/
+       regulated/approved/listed/chartered/supervised/affiliated/a member of,
+       o hold/have … licence/permit/registration/membership; «our licensed
+       team») e nessuna FORMA di pretesa: participio senza soggetto
+       («Registered with the Generalitat», esente solo se l'oggetto è un luogo
+       dell'inquilino: «Registered/Enrolled at/with/on/in the town hall,
+       municipality, gemeente, padrón, Anagrafe, university»), agenzia +
+       participio non su Roma, «licensed to operate», «member of the …
+       register», l'aggettivo «a licensed/regulated/approved/listed agency»,
+       la relativa «which/who/that is … licensed/registered/…», la
+       registrazione nominale «registration with/in/at …» (tranne town hall,
+       municipality, gemeente, Agenzia delle Entrate, Anagrafe, padrón, BRP,
+       register of persons, l'indirizzo, l'università); `listing` e `deposit`
+       non parlano in prima persona; in `law` l'azienda come soggetto vuole
+       una negazione, una forma di pretesa vuole una negazione o un «you»,
+       la prima persona (we, us, our, BOOM, Egidi) accanto al lessico vuole
+       una negazione, e l'aggettivo dell'agenzia senza un verbo («a licensed
+       agency in Valencia») è un'etichetta, non una legge.
+       **I desk che VENDONO** (Amsterdam, Barcellona, Londra, Madrid, Milano,
+       Valencia) rifiutano in ogni caso, anche su una frase in lista
+       (`sellHit`, sul testo e sulla copia con le iniziali chiuse): RAICV,
+       Registro de Agentes, AICAT, Registre d'Agents, carte professionnelle,
+       carte T, §34c (ogni grafia, «Paragraph 34c», «34c GewO»), Property
+       Ombudsman, Property Redress, redress scheme, Propertymark, ARLA, NAEA,
+       KvK in ogni forma, Kamer van Koophandel, TPO, CMP, PRS, RICS, NVM, VBO,
+       FIAIP, FIMAA, FNAIM, IVD, IHK, client money protection, Agente de la
+       Propiedad, «API n…», colegiad…, e FIMAA, FIAIP, AICAT, RAICV, FNAIM in
+       ogni maiuscola come parola («Fimaa») — nessuna compare oggi; DPS, TDS e
+       mydeposits, gli schemi della cauzione del locatore a Londra, restano
+       ammessi. È una scelta di progetto: su un desk che vende il nome di un
+       registro è rifiutato anche in un consiglio vero all'inquilino («Check
+       the landlord's agent on the KvK register», «Ask the agent which redress
+       scheme they belong to»): il fondatore può chiedere più avanti
+       un'eccezione di tipo law per l'agente del LOCATORE, mai in prima
+       persona. Su /desks gli stessi nomi cadono per default deny più il lint
+       (`LINT_NEVER_RE`), e
+       `HUB_BANNED` aggiunge AICAT, RAICV, Registro de Agentes, carte
+       professionnelle, §34c e «licensed agent». Le stringhe di
+       `assets/boom-*.js` e le stringhe `content:` di `assets/boom-*.css` non
+       portano il lessico: `run.mjs` le scandaglia (oggi nessuna).
+       **Perché**: due giri di regex hanno prodotto buchi opposti (il primo
+       rifiutava la registrazione del contratto all'Agenzia delle Entrate e lo
+       studente iscritto all'università; il secondo, ancorato sul soggetto,
+       lasciava passare «Registered with the Generalitat Valenciana.»); una
+       lista rivista non ha forme da indovinare, e il file È l'elenco che un
+       avvocato legge: ogni frase dei desk che parla di iscrizioni o licenze,
+       con il perché. **Aggiungere una frase**: leggerla sulla pagina; se non
+       dice che BOOM o la società ha un'iscrizione, una licenza o
+       un'appartenenza fuori Roma, aggiungerla al file con tipo e nota, in
+       ordine; se lo dice, non si pubblica. Le voci che nessuna pagina stampa
+       più cadono in `run.mjs` (niente voci stantie).
+       **Il limite dichiarato**: la guardia protegge da un autore in buona fede
+       (una sessione futura o il fondatore che scrive nei JSON) e dagli
+       artefatti di formato (entità, tag in riga, attributi, sigle puntate,
+       caratteri invisibili); l'aggiramento deliberato (omoglifi cirillici, un
+       trattino dentro la parola) è fuori portata. Una pretesa senza lessico
+       di iscrizione/approvazione/appartenenza, senza nome di autorità o di
+       registro, senza una forma di numero né una chiave di numero col suo
+       codice — in una stringa o in un blocco di righe; divisa fra
+       un'etichetta e il suo valore, qualunque sia la lunghezza dell'etichetta,
+       attraverso i separatori della casa, in tutti e due gli ordini, su
+       qualunque riga di un blocco o di una risposta della FAQ; fra il titolo
+       e la descrizione di uno snippet o fra il name e la description di un
+       nodo JSON-LD — e senza un luogo di un desk accanto a una frase della
+       società («We are on the official list.») NON è presa da una guardia di
+       lessico; né un valore accanto a una chiave in lista che non porta
+       nessuno dei segni del valore («Registration — On request»); né un
+       codice sotto un'etichetta senza chiave di numero («Our number» |
+       «CV-1234», «Reference» | «CV-1234», «Who is your agent?» | «CV-1234»:
+       una domanda che finisce su «agency?» non può essere una chiave di
+       numero, perché «Is BOOM Milan a real estate agency?» ha per risposta la
+       riga della società con REA RM-1710623 — provato: il build di Milano la
+       rifiutava); né una chiave spezzata da un separatore in un'etichetta di
+       più di quattro parole o con una parola prima del codice («Our agent ·
+       number in Valencia» | «CV-1234», «Our agent — number in Valencia,
+       CV-1234»: la FORMA di numero scavalca i separatori, quindi «Agent —
+       number CV-1234» è presa, ma la CHIAVE no, perché «Who pays the agent:
+       no one but you» e «Bring it to the agency (ID required)» diventerebbero
+       chiavi — misurato: nessuna stringa delle nove pagine cambierebbe, il
+       rischio è la copia futura); né una chiave e un codice con un altro
+       blocco in mezzo (una riga della scheda fra i due; lo stato e il nome
+       di un passo di How it works; la promessa di un biglietto fra la sua
+       domanda e le sue ✓) — dall'ottavo giro un indice del build in mezzo non
+       conta —; né un codice sotto una testata di COLONNA (`<th scope="col">`)
+       o accanto a una chiave in un'altra cella della stessa riga che non è la
+       testata; né un codice raggruppato senza lettere dopo la sola parola
+       chiave («Agent 1.234»: «An agency (2,500 homes)» resta copia) o dopo il
+       «no» inglese senza punto («No 1.234»); né un codice di tre cifre senza
+       lettere sotto una chiave che con lui non fa una forma di numero («Our
+       agent number in Valencia» | «123»: «Agent no.» | «123» è presa); né due stringhe meta o JSON-LD che nessun lettore vede
+       insieme (og:image:alt con la description; il `<title>` con
+       og:description). Il sesto giro dichiarava anche «Our agent no. today is
+       CV-1234» e «agent no. cv 1234»: dal settimo li rifiuta la chiave col
+       codice nella stessa stringa. L'ottavo giro è stato l'ultimo: un'altra
+       forma della stessa classe si scrive qui, nel limite dichiarato, e non
+       si chiude.
+       La riga Who dei desk e `llms.txt` dicono «an Italian real estate agency
+       registered in Rome».
+     - **Forced colors**: lo strappo orizzontale delle economy vale solo nella
+       coppia 360–939 (e sotto i 300px); dove i biglietti sono sdraiati (≥ 940,
+       o un membro della coppia aperto) resta la colonna tratteggiata a sinistra.
+     - **L'anello del fuoco** di una tariffa è un `summary::after` (z-index 2)
+       sopra lo stub: oro sui quattro lati a 390 e 1440, `Highlight` in forced
+       colors.
+     - **La cassa restituisce il fuoco** al suo apritore anche dopo un
+       ridimensionamento: se il bottone sta in un biglietto chiuso, il biglietto
+       si riapre (da solo) prima del focus; con la cassa aperta `deep()` ignora
+       i link profondi e tiene il fuoco nella cassa (`#tTitle`).
+     - **L'onda dell'hub** batte dal tabellone EUROPE (`#hubBoard`) a ogni
+       larghezza (vedi «BOOM Desks → L'onda»); la legenda «night, now» della
+       mappa compare solo quando `night()` ha disegnato qualcosa (velo o
+       terminatore), «open now» resta; gli `IntersectionObserver` della mappa e
+       dei due caricatori decidono su `es.some`.
+     - **La plancia PFS** (`pfs-command.html` `#cm-market`): Roma, Madrid,
+       Barcellona, poi Amsterdam, Londra, Milano e Valencia «· radar spento»
+       (`js/radar-markets.js` invariato); `run.mjs` pretende un `<option>` per
+       ogni desk `live:true`, `tests/pfs/markets-ui.mjs` (25) riapre e salva i
+       tre nuovi sul loro mercato.
+     - `updated` dei JSON e `<lastmod>` della sitemap al 04/11 per i sei desk
+       live e /desks (quindi `dateModified` 2026-11-04).
+     **Il secondo giro (04/11, sera, commit «second review round»)**, sui
+     rilievi dei verificatori del primo:
+     - (Superato dal terzo giro) la guardia delle iscrizioni ancorata sul
+       SOGGETTO (`DESK_BANNED`/`DESK_BANNED_SELL`): un verificatore indipendente
+       vi ha trovato 8 falsi positivi e 8 buchi, fra cui una regressione (le
+       frasi senza soggetto, «Registered with the Generalitat Valenciana.»). Le
+       sue liste OK/KO restano come test della lista rivista.
+     - **Il fuoco si vede**: chiusa la cassa dopo un ridimensionamento
+       1440→390, il bottone di pagamento riaperto stava a 870–920 su uno
+       schermo di 844 (o sotto la testata). La chiusura, dopo il focus,
+       controlla il rettangolo contro la fascia visibile (`topLim()`, sopra la
+       striscia) e lo centra (`scrollIntoView` istantaneo). `ui.mjs` lo misura a
+       390×844 e 390×664.
+     - **La pagina dietro la cassa non si muove**: un cambio di hash con la
+       cassa aperta faceva scorrere il documento (0→289 a 1440, 412→922 a 390:
+       il salto al frammento è smooth, e quando arriva `hashchange` può non
+       essere ancora partito). `openTill` registra `scrollX/scrollY`, `deep()`
+       con la cassa aperta fa SEMPRE un `scrollTo` istantaneo lì (annulla
+       l'animazione), poi rimette il fuoco su `#tTitle`; dopo Escape l'apritore
+       sta nella fascia visibile (1440 e 390).
+     - **La coppia economy su una riga**: fra 360 e 939 i due biglietti chiusi
+       hanno la stessa altezza e i due stub cominciano sulla stessa riga (il
+       `.fare` riempie la riga, il blocco del nome prende lo spazio in più:
+       prima Attended Viewing era fino a 30px più corto). I numeri della piega
+       non cambiano (il prezzo più basso era già quello di Application Pack:
+       Spagna 589, Amsterdam e Milano 571, Londra 556, Parigi e Berlino 550 a
+       390×664, limite 597).
+     - **Il prezzo lontano dal pip**: dove un biglietto economy è sdraiato sotto
+       i 940 (un membro della coppia aperto, o sotto i 360) lo stub ha un
+       minimo di 118px invece di 112: fra «€199»/«£199» e il «+/−» ora 6,2px
+       (8,1 a Londra) invece di 0,2 (2,1).
+     - `llms.txt` (Deposit Recovery, Roma): «BOOM is an Italian real estate
+       agency registered in Rome, not a law firm.»; corretti due commenti
+       (AMS–LON 44,7 px a 320 e 55,6 a 390; il battito dell'hub parte dal
+       tabellone a ogni larghezza).
+     - Le guardie solo-browser hanno anche un perno sulla sorgente in `run.mjs`
+       (la riapertura del biglietto e lo scroll alla chiusura della cassa, il
+       ritorno anticipato di `deep()` col `scrollTo`, lo strappo orizzontale in
+       forced colors solo dentro il blocco della coppia): mordono anche dove
+       `ui.mjs` salta.
+     **Il terzo giro (04/11, notte, commit «registration claims through a
+     reviewed allowlist»)**: la lista rivista qui sopra (`cities/_claims.json`,
+     `reviewSentences`, `lintClaims`, `claimGuard`, controllata per ULTIMA su
+     ogni pagina finita, desk e hub); e in forced colors a ≥ 940 la prima
+     classe ha UNA cornice (il bordo del `.eroe` stesso, nessun bordo sul
+     `.fare` dentro): sui waitlist chiusi i lati si fermavano ~10px sopra un
+     filo di piede separato. Provato su copie: «Registered with the Generalitat
+     Valenciana.» nella FAQ di Valencia → il build rifiuta; una frase vera sul
+     contratto aggiunta a Milano → rifiutata con «add it to cities/_claims.json»,
+     poi pulita una volta aggiunta alla lista della copia; «we are registered
+     with the Comunitat Valenciana» come voce `tenant` → il lint rifiuta il
+     file; sette mutazioni del codice della guardia, tutte prese da `run.mjs`.
+     **Il quarto giro (04/11, notte, commit «harden the registration
+     guard»)**, sui rilievi dei due verificatori del terzo (88 frasi passate
+     pulite su un desk che vende, otto voci-pretesa accettate dal lint):
+     l'estrattore (entità prima dello split, NFKC, niente \p{Cf}, copia
+     schiacciata dei tag in riga, ogni attributo, il `content:` dei `<style>`,
+     fine di `data-instr` e `span.tn`/`.tt` come confini, il punto di S.r.l.);
+     i campi `…Html` ridotti a `<b> <strong> <em> <i> <br> <a href>`; il
+     lessico allargato (prefissi, sinonimi, autorità, lingue locali, sigle
+     chiuse, forme di numero, §34c in ogni grafia) e il bando dei desk che
+     vendono con esso; le regole dei luoghi e del titolo; il lint (oggetto
+     dell'inquilino per il participio, «regulated» nell'aggettivo, relativa e
+     registrazione nominale, prima persona in law/deposit/listing, la sede di
+     Roma stretta, il partner che non «holds» nulla, l'etichetta senza verbo
+     in law, il tipo `context`). Le frasi vere che il lessico nuovo ha tirato
+     in revisione: «Generalitat» e «INCASÒL» (etichette della cauzione), «The
+     landlord lodges it with the Generalitat Valenciana / with INCASÒL», il
+     deposito di Londra «in a government-approved scheme (DPS, TDS or
+     mydeposits)», «The listed rent is often cold» (Berlino); la regola dei
+     luoghi ha tirato «In the Netherlands the role is called aanhuurmakelaar…»
+     (Amsterdam) e «In Milan it works under the same Italian law as our agency
+     in Rome» (Milano), in lista come `context`. Due verità di copia: Milano
+     non dice più «Unregistered, it is void» (Cass. SS.UU. 23601/2017: la
+     registrazione tardiva sana la nullità con effetto retroattivo) ma «Until
+     it is registered, the lease is void under Italian law: a weak title for
+     your residence.» (in lista come `lease`, la riga resta `hold` sull'hub
+     finché il legale non conferma); Amsterdam non dice più «BRP registration
+     confirmed in writing» (Offer di Full Search) né «BRP confirmed in
+     writing» (riga «What we do» della scheda) — la registra la gemeente —
+     ma, in entrambe, «the right to register (BRP) at the address confirmed
+     in writing». Provato su copie: con lo
+     split prima della decodifica (il difetto del terzo giro) «Licen&#99;ed in
+     Spain.» in una riga della scheda di Valencia fa passare build e --check;
+     col codice nuovo il build lo rifiuta; nove mutazioni del codice
+     (decodifica dopo lo split, copia schiacciata tolta, prefissi tolti,
+     regola dei luoghi spenta, regola del titolo spenta, whitelist HTML spenta,
+     esenzione del participio rimessa su «your», relativa tolta, sede di Roma
+     di nuovo larga), tutte prese da `run.mjs`.
+     **Il quinto giro (04/11, notte, commit «registration guard fifth
+     round»)**, sui rilievi dei due verificatori del quarto. (1) Le forme di
+     numero non arrivavano mai al lessico: il divisore spezzava dopo il punto
+     dell'abbreviazione («Agent no. CV-1234.» diventava «Agent no» +
+     «CV-1234»), e 14 forme passavano pulite in una FAQ, un controllo e una
+     riga della scheda di Valencia; ora il divisore non spezza dopo
+     no./nr./n./núm./num./reg./regd./lic./ref./n.º, la forma accetta lo spazio
+     o il trattino prima delle cifre, «agency», «ref.», «ID», «code», «number»,
+     «n.» e l'ordine spagnolo e italiano (altre 10 forme provate: «Agency
+     number CV-1234», «Registration ID: CV-1234», «License #1234», «Iscrizione
+     n. 1234»…), e la cintura rifiuta una stringa il cui testo intero ha più
+     occorrenze del lessico delle sue frasi. (2) Le etichette in lista erano
+     jolly: un valore senza lessico né luogo dopo «Registration», «Generalitat»
+     o «INCASÒL» passava; ora la regola delle chiavi (sopra) vale per ogni voce
+     breve, prima e dopo, dentro il blocco e nella prosa, e i valori veri in
+     prima persona sono in lista come `follower`. (3) Il lessico: i sinonimi
+     dell'approvazione e le parole locali (le 27 pretese dei verificatori che
+     passavano pulite, più «Agència associada al Col·legi d'Agents» e
+     «qualified under», ora rifiutate sul loro desk o su /desks),
+     Wales/Welsh/Scotland/Scottish fra i luoghi, PRS/FNAIM/IVD/IHK nel lint,
+     FNAIM/IVD/IHK e «Fimaa» nel bando dei desk che vendono. Misurato sulle
+     nove pagine costruite: nessuna parola nuova del lessico e nessuna forma di
+     numero ha tirato in revisione una frase vera (zero frasi nuove); il
+     divisore ha cambiato solo due frasi dell'hub («No. Full Search €500…»,
+     «No. Each desk takes its fares…», senza lessico); la regola delle chiavi
+     ha letto come valori sei frasi vere in prima persona, ora `follower`
+     (Amsterdam, Madrid, Valencia, Milano, Barcellona e le schede dell'hub). Le
+     pagine costruite non cambiano di un byte. Provato su copie: con il
+     lookbehind tolto le 14 forme sono ancora rifiutate, dalla cintura (6 prove
+     di `run.mjs` cadono: il divisore e le ragioni); con lookbehind e cintura
+     tolti 12 forme su 14 passano pulite in FAQ, controllo e scheda (9 prove
+     cadono); con la cintura sola tolta 3 prove cadono; con le chiavi riportate
+     al solo tipo `heading` quattro valori su «Generalitat», «INCASÒL» e
+     «fianza · …» passano puliti (2 prove cadono); con «vergunning» tolto dal
+     lessico «Makelaar met vergunning.» passa (1 prova cade); e otto mutazioni
+     in più: niente blocco prima (2 prove), una cella di tabella come chiave
+     (il build dell'hub rifiuta «392/1978» e «since 2024»), i codici letti (il
+     build di Milano rifiuta «MIL 08»), niente `<br>` (1), niente prosa (2),
+     niente spazio nella forma di numero (3), il lint del follower (1), le
+     sigle in minuscolo (2).
+     **Il sesto giro (04/11, notte, l'ultimo; commit «registration guard sixth
+     round»)**, sui rilievi del verificatore del quinto. (1) Una forma di
+     numero divisa fra un'etichetta e il suo valore non arrivava mai al
+     lessico: {dt «Agent no.», dd «CV-1234»} costruiva su ogni desk che vende,
+     e così «Reg. no.» | «123456», «Agency number» | «CV 1234», «Agent ref.»,
+     «Número de agente» | «1234», «No.» | «12345678», «Agent ID», «Agent» |
+     «CV-1234», «Agent no.<br>CV-1234.», «Reg.<br>123456.», «Our agent⏎4471
+     handles it.», il controllo {at «Agent no.», title «CV-1234»} e la FAQ
+     «What is your agent number in Valencia?» | «CV-1234.»; ora la cintura tra
+     i blocchi (sopra) li rifiuta tutti, sui sei desk che vendono, sulle due
+     bozze e su /desks («R A I» | «C V»). (2) Due frasi brevi in lista si
+     componevano («Registration» | «Generalitat», «INCASÒL» o «§34c GewO», nei
+     due sensi, in una riga, in un controllo, «Registration. Generalitat.»
+     nella prosa; sulle bozze «Who» | «A licensed partner» e «Status» | «A
+     licensed partner»): ora un valore in lista è un `follower` o una frase di
+     più di quattro parole, due chiavi nello stesso blocco sono rifiutate e
+     un'etichetta che chiede chi o che stato prima di una chiave è rifiutata
+     (la regola delle chiavi, sopra). Il brief accettava una frase breve in
+     lista «nel blocco della sua chiave»: letta così, «Registration.
+     Generalitat.» nella prosa (un blocco solo) e «Registration · Generalitat»
+     in un dt passavano, quindi nel suo blocco vale solo la chiave stessa. (3)
+     Col flag i «Find your agent in 2026», «An agency 100% on your side»,
+     «Hire an agent for 300 euros» e «The agency fee 300 € …» erano forme di
+     numero e andavano in revisione; ora no (le lettere del codice maiuscole,
+     gli importi e le misure, gli anni dopo in/since), e restano rifiutate
+     «Our agent number is 1234» (la copula: col flag i la prendeva per caso
+     «is» letto come lettere del codice), «Our agent no. is CV-1234» e
+     «Agent no. cv-1234». (4) La «N.» maiuscola è un'abbreviazione di numero.
+     Misurato sulle nove pagine costruite: le occorrenze del lessico non
+     cambiano su nessuna delle 5.232 frasi lette (vecchio e nuovo codice
+     confrontati frase per frase); 1.511 unioni lette, nessuna rifiutata; 17
+     valori in lista accanto a una chiave, nessuno di quattro parole o meno;
+     nessun blocco con due chiavi; 11 etichette prima di una chiave, nessuna
+     chiede chi o che stato; le pagine costruite non cambiano di un byte.
+     Rieseguiti su copie i banchi del quarto e del quinto giro (le 126 forme
+     F1, 47 valori F2, 49 parole F3, e 93 + 38 + 11 + 22 sonde del quarto):
+     stesso verdetto su ognuna. Una domanda che finisce su «agency?» come
+     chiave di numero è stata provata e tolta: il build di Milano rifiutava la
+     sua FAQ vera «Is BOOM Milan a real estate agency?» | «… (REA
+     RM-1710623) …». Provato su copie, dodici mutazioni, ognuna fa cadere
+     `run.mjs` (il `--check` resta verde: nessuna pagina cambia): la cintura
+     tra i blocchi tolta (4 prove cadono), i valori brevi in lista di nuovo
+     accettati (2), le lettere del codice di nuovo in ogni maiuscola (1: le
+     quattro frasi del brief sono protette anche dagli importi e dagli anni,
+     quindi la prova che morde è «The agency has 1200 homes.», «Your agent saw
+     300 flats in a week.»), la «N.» tolta dal divisore (1), la regola di chi
+     e che stato tolta (2), la chiave di numero tolta (2), le righe dello
+     stesso blocco non unite (1), il summary non unito (2), importi e misure
+     di nuovo codici (1), la frase breve in lista accettata nel blocco della
+     sua chiave — la lettura letterale del brief — (2), gli anni dopo in/since
+     di nuovo codici (1), la copula tolta (1).
+     **Il settimo giro (04/11, notte; commit «registration guard seventh
+     round»)**, sui rilievi del verificatore del sesto (il sesto doveva essere
+     l'ultimo). (1) Una chiave di numero in un'etichetta di cinque parole o
+     più non si univa al suo codice: {dt «Our agent number in Valencia», dd
+     «CV-1234.»} costruiva sui sei desk che vendono e su Berlino, e così il
+     titolo di un passo «Our agent number in Spain» col testo «CV-1234, on
+     every letter we send.»; ora un blocco di qualunque lunghezza con una
+     chiave si unisce al blocco dopo. (2) I separatori fra la parola chiave e
+     il codice: «Agent no. — CV-1234.» in una riga della scheda su ogni desk
+     che vende, «Agent number (CV-1234).» e «Agency number — 4471.» nella riga
+     Who dopo la riga della società, l'etichetta legale «Agent no. · CV-1234»
+     o «Reg. no. · 123456», la risposta «Our agent no. · CV-1234.», il testo
+     «Our agency number (CV-1234) is on every letter.», il piede, la meta
+     description, la description del Service e «Agent no. · P-4471.» su
+     Parigi costruivano tutti: ora la forma di numero scavalca i separatori
+     della casa (`NUM_SEP`) e l'ultimo controllo rifiuta un blocco o una
+     stringa con una chiave E un codice, in qualunque ordine e con qualunque
+     cosa in mezzo (`numKeyCode`), così cadono anche le due forme che il
+     sesto giro dichiarava («Our agent no. today is CV-1234», «agent no. cv
+     1234»). (3) L'ordine rovesciato ({dt «CV-1234», dd «Our agent number in
+     Valencia.»}, e il controllo {at «CV-1234», title «Our agent number»},
+     preso prima solo dalla tabella di /desks): `joinCut` legge i due sensi,
+     anche con un'etichetta lunga che finisce sul codice. (4) Un a capo nella
+     risposta della FAQ nascondeva il codice («Do you have an agent number in
+     Valencia?» | «Yes.⏎CV-1234.»): il summary si unisce con ogni riga del
+     primo blocco del suo details; della stessa classe, trovati da questo
+     giro e chiusi, una riga della scheda «Our agent number» | «In
+     Valencia:<br>CV-1234.» (due blocchi di righe consecutivi, la chiave e il
+     codice su qualunque riga) e «Our agent number<br>in
+     Valencia<br>CV-1234.» (la chiave e il codice a due righe di distanza
+     nello stesso blocco). (5) Una forma di numero divisa fra il titolo e la
+     descrizione («… BOOM agent no.» + «CV-1234. …», o serviceType e
+     description del Service): si leggono uniti `<title>` e meta description,
+     og:title e og:description, twitter:title e twitter:description e, nel
+     JSON-LD, name/serviceType/headline con la description e la domanda con
+     la risposta. La chiave NON scavalca i separatori, di proposito (il limite
+     dichiarato). Misurato sulle nove pagine costruite: le occorrenze del
+     lessico non cambiano su nessuna delle 5.232 frasi lette (1.475 distinte)
+     né sulle 9.904 righe di testo grezzo (vecchio e nuovo codice
+     confrontati); le liste delle frasi sono identiche; 1.707 unioni (le
+     1.511 del sesto giro, 169 coppie del JSON-LD e 27 titolo+descrizione),
+     nessuna rifiutata; una sola delle 2.283 righe di testo porta una chiave
+     di numero, la testata «Code» del tabellone di /desks, già unita perché ha
+     meno di quattro parole, e 41 portano un codice (il settimo giro scriveva
+     0 e 44: corretto dal suo verificatore), quindi nessuna unione nuova per
+     chiave nasce; 140 blocchi di più righe, 7.395 blocchi e stringhe e le 2.274
+     coppie di blocchi consecutivi, nei due sensi: nessuna chiave col codice;
+     le pagine costruite non cambiano di un byte. Rieseguiti su copie i banchi
+     dei giri precedenti (512 sonde, le 16 frasi vere di G3 comprese): stesso
+     verdetto su ognuna. Delle 84 sonde del verificatore del sesto giro, le 59
+     che costruivano sono ora 52 rifiutate e 7 che costruiscono ancora: il
+     vero («Registration» | «The landlord lodges it with the Generalitat
+     Valenciana», «Opening» e «Partner» | «A licensed partner» sulle bozze,
+     «Generalitat» | «Who» come nel sesto giro) e il dichiarato («Our
+     number», «Reference», «Who is your agent?» | «CV-1234»). Il controllo
+     nuovo è l'ultimo di `claimGuard`, così ogni caso dei giri precedenti
+     tiene il suo messaggio; due prove sono cambiate perché le prende prima
+     un'altra regola: «Registration · CV-1234» (ora una forma di numero oltre
+     il ·, rifiutata dalla cintura del divisore; il suo posto nella regola
+     delle chiavi l'ha preso «Registration · Yes, since 2026») e la FAQ «What
+     is your agent number in Valencia?» | «CV-1234.», che compare anche nel
+     JSON-LD («(text, ld)»). Provato su copie, nove mutazioni, ognuna fa
+     cadere `run.mjs` (il `--check` resta verde: nessuna pagina cambia):
+     l'etichetta lunga non unita (3 prove cadono), i separatori non scavalcati
+     (4), la chiave col codice nella stessa stringa tolta (3), l'ordine
+     rovesciato tolto (5), il summary con la sola prima riga (1), titolo e
+     descrizione e le coppie del JSON-LD non uniti (2), i blocchi di righe
+     consecutivi non uniti (2), la copia schiacciata non letta per la chiave
+     (1), la chiave e il codice su due righe dello stesso blocco non letti (1).
+     **L'ottavo giro (04/11, notte, l'ultimo; commit «registration guard eighth
+     round»)**, sui rilievi del verificatore del settimo. (1) Un codice
+     raggruppato o scritto come numero e anno non era un codice: «Agent no.
+     1.234.», «1,234», «12 345», «CV-12.345», «Our agent number is 12.345.»,
+     «Agent number: 1,234,567.», «Agente inmobiliario nº 1.234.» e «Nº 1.234.»
+     nella FAQ di Valencia, «Agency no. 12,345.» a Londra, «Agent no.
+     12.345.678.» ad Amsterdam, «Agente n. 1.234.» a Milano, {dt «Agent no.»,
+     dd «1.234»}, «1,234», «B-1.234», «Agent no. 1.234.» nella riga Who dopo la
+     riga della società e «Agent no. 45/2026.» costruivano: ora il codice
+     raggruppato è una forma di numero dopo una parola o un'abbreviazione di
+     numero o # (con lettere e trattino anche dopo la sola parola chiave), il
+     numero col suo anno è un codice dovunque lo sia un codice, e tutti e due
+     valgono come valore di una chiave; l'ordinale di «nº» e il segno «№»
+     restano un segno (l'NFKC li faceva «o» e «No»). (2) Un indice del build
+     fra due righe spezzava l'unione: due documenti «Our agent number» |
+     «CV-1234» (con «VLC 08» in mezzo) a Valencia e «Our agent number, for the
+     landlord» | «M-4471 on every letter» a Madrid, il testo di un controllo
+     che finisce su «Ask for our agent number.» e l'etichetta legale «M-4471»
+     del controllo dopo (la corsia «03» in mezzo), una risposta che finisce
+     sulla chiave e la domanda dopo che apre col codice (il suo numero in
+     mezzo): ora gli indici si saltano. (3) Nella tabella delle regole di
+     /desks una testata di riga con la chiave si univa solo alla prima cella:
+     «Agent number» col «M-4471» di Madrid nella quarta cella o col
+     «MI-123456» di Milano nella quinta, e una testata lunga, costruivano; ora
+     la testata si unisce con ogni cella della sua riga, nei due sensi. (4) Lo
+     spagnolo e l'italiano «agente» non erano una parola chiave: «Agente:
+     CV-1234.», «Agente CV-1234.», «Nº de agente CV-1234.», «N.º de agente:
+     1234.», «Núm. de agente», «Nro. de agente», «Número agente», «Código de
+     agente», «ID de agente», «Codice agente», «N. agente», «Numero agente» e
+     {dt «Nº de agente», dd «M-4471»}, {dt «Agente», dd «B-5521»}, {dt «Nº de
+     agente», dd «1234»} costruivano: ora «agente» è una parola chiave e le
+     parole del numero prima di lei fanno l'ordine spagnolo; «Agente de la
+     Propiedad Inmobiliaria» senza codice tiene il suo verdetto (un'occorrenza,
+     il nome). (5) Il conto delle righe del settimo giro era sbagliato: una
+     riga porta una chiave (la testata «Code» del tabellone di /desks) e 41 un
+     codice, non 0 e 44; corretto qui e nel testo della cintura, coi pesi del
+     punto 7 riletti dal `--check`. Misurato sulle nove pagine costruite
+     contro il settimo giro: le occorrenze del lessico non cambiano su nessuna
+     delle 5.232 frasi lette (1.475 distinte) né sulle 9.904 righe di testo
+     grezzo; le liste delle frasi sono identiche; con le sole forme nuove le
+     unioni sono le stesse 1.707; col salto degli indici diventano 1.541 (le
+     214 che tenevano un indice cadono, 48 nuove uniscono le righe ai suoi
+     lati); nessuna testata di riga dell'hub porta una chiave o un codice;
+     delle 2.283 righe di testo una porta una chiave e 45 un codice (in più le
+     quattro citazioni di legge col loro anno, nessuna accanto a una chiave);
+     nessuna unione, nessun blocco e nessuna stringa rifiutati; le pagine
+     costruite non cambiano di un byte. Rieseguiti su copie i 596 sondaggi dei
+     giri precedenti (i 512 di prima e gli 84 del verificatore del sesto):
+     stesso verdetto e stessa categoria su ognuno; delle 51 sonde del
+     verificatore del settimo che costruivano, 43 sono ora rifiutate e 8
+     costruiscono ancora, tutte nel limite dichiarato (la chiave spezzata da
+     un separatore o da un trattino, un codice di tre cifre senza lettere sotto
+     una chiave lunga, una chiave e un codice con un altro blocco in mezzo — lo stato e il nome di
+     un passo, la promessa di un biglietto —, il `<title>` con
+     og:description, una description del piano senza chiave). Provato su
+     copie, sette mutazioni, ognuna fa cadere `run.mjs` (il `--check` resta
+     verde): il codice raggruppato tolto (4 prove cadono), il numero col suo
+     anno tolto (2), il salto degli indici tolto (2), la testata di riga unita
+     solo alla prima cella (1), «agente» tolto dalle parole chiave (1), le
+     parole spagnole e italiane del numero ridotte a «número de» (1),
+     l'ordinale di «nº» lasciato all'NFKC (3). **È stato l'ultimo giro**: una
+     forma della stessa classe trovata da qui in poi si scrive nel limite
+     dichiarato, non si chiude.
+  9. **La coppia economy col font della CI (04/11, sera)**: la CI ha trovato quello che la sandbox non vedeva.
+     Con Liberation Sans (metrica Arial/Helvetica, il font dei runner) a 360px «PER VIEWING · INCL. VAT» andava a
+     capo e i due tagliandi della coppia partivano a 11,7px di distanza; in Inter, il font della sandbox, entrava
+     con 0px di margine. Ora sotto i 390px la condizione della coppia ha tracking .03em (a 360 restano 4px di
+     margine in Liberation, 6 in Inter) e, sotto i 600px, una condizione in tre parti (Parigi e Berlino,
+     «… · at opening», classe `f-c3` messa dal build) va a capo dopo la prima parte: i due biglietti hanno sempre
+     lo stesso numero di righe. A 430–480px (iPhone Plus e Pro Max) Parigi e Berlino erano disallineati anche
+     loro. G4 in `ui.mjs` gira a 360, 375, 390, 430 e 480px, col font della pagina e con Liberation Sans, e
+     confronta anche il numero di righe delle due condizioni; `run.mjs` pinna la classe e le due regole.
+     La sandbox simula il font della CI con un `FONTCONFIG_FILE` che rifiuta Inter.
+  Aperte, del fondatore e del legale: il parere valenciano sul RAICV; la data di
+  convalida del RDL 29/2026 (12/11 in questo file, ~6–7/11 dedotta, non
+  confermata: regge l'«Optional, chosen in writing» di TRE desk con la cassa);
+  le hojas de reclamaciones e i documenti in valenciano; il calendario `es-vlc`
+  del 2028 (non pubblicato, da ricontrollare in primavera);
+  `api/portal/_shared.js:93` dice ancora «The Rome market» a un cliente fuori
+  radar (Valencia, Londra, Milano), latente; iPhone/Safari non verificati in CI
+  (ancoraggio, bfcache, barra degli indirizzi, canvas GPU); il prossimo desk
+  costa all'hub ~31 parole contro 5 di margine (il prossimo, il settimo live,
+  è una decisione strutturale); la parola «First class» lasciata cadere (banda muta); il codice
+  BM NON stampato nello stub del biglietto aperto dopo OPEN (`#codeLine` lo
+  stampa già nel piede del pass; +~80 B di JS se lo si vuole); le porte dell'hub
+  restano su `#fares`; nessuno ha ancora letto un lead o un ordine dei desk —
+  «validato» non si può dire.
+  Test (dopo l'ottavo giro, 04/11): `tests/cities/run.mjs`
+  1126, `ui.mjs` 541 (G4 a cinque larghezze e in due font, 541 anche con il font della CI
+  simulato; il sesto, il settimo e l'ottavo giro non cambiano nessuna pagina), `checkout.mjs` 117, `calendar.mjs` 97, `tests/pfs/markets-ui.mjs` 25 (dopo il
+  settimo giro 1119 e 541; dopo il sesto giro 1105 e 541; dopo il quinto giro e la coppia col font della CI 1094 e 541; dopo il quinto giro 1085 e 477; dopo il quarto giro 1064 e 477; dopo il terzo giro 1027 e 477; dopo il secondo giro 998 e 475; dopo il primo 993 e 444; prima della revisione 978 e 423); più consentbanner, scroll, cielo, seo, crawl, llmstxt,
+  verita, whatsapp, testata; il `npm test` intero il 04/11 (2.291 s, `BOOM_PLAYWRIGHT` impostato): 288 suite
+  verdi, 4 rosse per ragioni estranee ai desk — `magicsigncustomui` e
+  `magicsigncustomsigner` scaricano pdf.js da cdn.jsdelivr.net e il sandbox non
+  lo raggiunge (CONNECT 403 dal proxy, nessun DNS; la seconda cade perché la
+  prima non ha riempito la cache in `/tmp`), `planciaui` conta un «Failed to
+  load resource: ERR_TUNNEL_CONNECTION_FAILED» di una risorsa esterna che il
+  proxy rifiuta, `portalnavigationui` pretende la prima azione di Oggi sopra la
+  tab bar e fallisce solo di MERCOLEDÌ: a 320px la data «MERCOLEDÌ 4 NOVEMBRE» è più
+  larga di «Oggi, Valentino.» e manda «Strumenti ↓» e «↻» su una seconda riga, la
+  proposta scende di 59px (con il font della CI: fondo 802,7 contro 784; con Inter
+  della sandbox cade anche negli altri giorni). Codice di Oggi che v1.7 non tocca:
+  la diagnosi e una patch di sei righe per `css/oggi-workspace.css` stanno nel
+  commento sulla PR #331, non applicate qui.
+- **IL BIGLIETTO v1.8 (05/11/2026 — Parigi e Berlino live, l'ordine sulla pagina, l'addebito alla
+  firma).** Decisione del fondatore del 04/11, presa DOPO essere stato informato dei rischi (loi
+  Hoguet, §34c GewO, WoVermRG: le note legali, i tre progetti, i tre giudici e la specifica sono
+  scratch, non repo, e nessuna riga è il parere di un avvocato): Parigi e Berlino vendono come gli
+  altri sei desk, con le stesse tre tariffe (€500 · €199 · €149 IVA inclusa, righe identiche), ma
+  all'ordine NON si incassa niente. Si ordina sul NOSTRO bottone «Order, pay on signing · €500», il
+  server risponde BOOKED, l'email è il contratto, e ogni tariffa si paga solo quando il cliente firma
+  una locazione: fattura Egidi e link di pagamento stabile, la rotaia delle provvigioni di Roma. Mai
+  un addebito automatico, mai una carta salvata. Le scelte sono le D1–D20 della specifica, ognuna col
+  suo default («procedi»: un punto legale non blocca, va fra le aperte qui sotto). Per Parigi e
+  Berlino sono superati la modalità waitlist, «Launching with a licensed partner», «NOT OPEN» e il
+  «charged only when the desk opens» della v1.1. Il codice è entrato AL BUIO (il registro non girato:
+  Parigi e Berlino restavano bozze, le pagine cambiavano solo per il JSON-LD su una riga, gli asset e
+  il recesso online; `--check` verde a ogni stadio), poi il FLIP: due righe del registro, i due JSON,
+  l'hub, i claims e le superfici insieme.
+  1. **La terza forma del desk: vende E incassa alla firma.** Lo dice il registro, come la valuta
+     (`api/_market.js`): Parigi `country:'fr'`, `holidays:'fr'`, `chargeAt:'signing'`,
+     `order:{prefix:'PAR', months:6}`, `cardStep:false`; Berlino `holidays:'de-be'`,
+     `chargeAt:'signing'`, `order:{prefix:'BER', months:null}`, `feeCap:{months:2, vatPct:19}`,
+     `goAhead:true`, `noStacking:true`, `cardStep:false`; `partner` tolto. La leggono
+     `chargeAtOf(slug)` e `isSigningDesk(lead)`, e `cityOffer` la restituisce. Il JSON la ripete
+     (`"chargeAt": "signing"`) e il build rifiuta i due disallineati, nei due sensi. Chiavi nuove nel
+     JSON: `pricing.plans[].trigger` (obbligatoria su un desk alla firma, rifiutata sui sei), UNA
+     etichetta `till.label` «Order, pay on signing» (dice «order», «pay» e «sign», mai «start»: CRD
+     art. 8(2); la spunta cambia la riga sotto, mai l'obbligo; `labelWait` resta obbligatoria sui sei
+     e rifiutata qui), `checkoutCopy.order` (la riga della durata prima del bottone),
+     `checkoutCopy.booked` (16 stringhe: `paid` e `booked` si escludono),
+     `checkoutCopy.errors.stale` e il segnaposto `{online}` nella riga del recesso.
+     `cities/_shared.json signing.rule` (14 parole: «Nothing is charged before you sign a lease, and
+     nothing if you never do.») sta dove i sei stampano la regola del rimborso: sotto il €500 chiuso,
+     nella riga Fees, nelle Offer, nel fine. Il build rifiuta: sui sei «only when you sign» o
+     «at/on signing» sul pass, «order»/«sign» sulle etichette, la regola della firma, un `trigger`;
+     su una pagina alla firma «refunded in full», «work already done» e un `PreOrder` (le Offer sono
+     `InStock`: l'ordine si prende oggi); un desk che vende in Francia o in Germania senza
+     `chargeAt:'signing'` (Hoguet art. 6, WoVermRG §2(4)); in Francia un Full Search senza «(six
+     months at most)» e una riga d'ordine senza «six months at most» (Hoguet art. 7); in Germania
+     «(more:» nelle righe del Full Search (§3(3)), «No percentage» ovunque nel JSON (§3(1), D2) e un
+     check `fees` che non dica «offered to you alone» (§2(1a), D3); `"updated": "SHIP-DATE"`, il
+     segnaposto della specifica. La config della pagina porta `CHARGE_AT`, `ORDER_TERMS_V`, `BOOKED`, `WITHDRAW_URL` e
+     `PLANS[id].trigger` solo sui desk alla firma: i sei restano byte per byte.
+  2. **Le due pagine.** Frase «We search, apply, attend the viewings and check the lease.» con
+     l'obbligo in grassetto «Paid only by you, and only when you sign.»; testata delle tariffe «Flat
+     fees · No percentage of your rent» a Parigi, «Flat fees · Always within the legal cap» a
+     Berlino; condizioni uguali ai sei («flat · incl. VAT», «per viewing · incl. VAT»: l'uguaglianza
+     delle tariffe sull'hub regge) e `conditionLong` «VAT included, charged when you sign a lease.
+     Invoice from Egidi Immobiliare S.r.l.». I trigger per tariffa (D4): Full Search «Nothing is
+     charged before you sign the lease we helped you get…» a Parigi, «…a lease for a home we brought
+     you…» a Berlino; Application Pack «…unless you sign for a home you applied to with our
+     dossier.»; Attended Viewing «…unless you sign for the home we viewed.». Parigi: Full Search
+     «Until you sign, or you say stop (six months at most)» e «One attended viewing (more: €149
+     each)» (D14); riga d'ordine «Your order runs six months at most; your copy comes by email.»;
+     checks fees (loi Hoguet · ALUR), rentcap (encadrement des loyers, D17), deposit, contract.
+     Berlino (D2, D3, D15): Full Search solo su «Homes offered to you alone, with the landlord's
+     go-ahead», «Attended viewings included» (nessun extra; AP e AV mai sopra un Full Search),
+     nessun «No percentage» né nella pagina né nella riga Fees della scheda; riga d'ordine «Your order
+     runs until you sign or stop it; your copy comes by email.»; checks fees (Bestellerprinzip ·
+     WoVermRG), rentcap (Mietpreisbremse), deposit (Kaution), charges (Kaltmiete · Warmmiete). Sotto
+     il bottone «Starts in the desk’s first open hour · no card» (spunta accesa) o «Starts when your 14
+     days end · no card»; il fine «No card today. Invoice from Egidi Immobiliare S.r.l., VAT included,
+     with a secure payment link when you sign.» più la regola della firma. Card social «AT SIGNING ·
+     FROM €149» (il generatore lo legge da `chargeAt`).
+  3. **L'ordine** (`api/_cityorder.js`, `createCityOrder`). In `api/service-checkout.js`, subito dopo
+     `cityOffer`, un desk alla firma prende questo ramo; prima dell'UNICA chiamata a Stripe c'è una
+     cintura che risponde 500 `signing_desk` (tolto il ramo, mai una sessione: provato per
+     mutazione). Il corpo è quello dei sei più `requestId` (uno per caricamento) e `termsV`. Nome ≥ 2,
+     email, piano del listino; `termsV` diverso dalla versione in vigore → 409 `terms_changed`,
+     niente scritto. Id `leads/book_<requestId>` (minuscolo; senza token `book_srv_<12 hex>`),
+     fascicolo `BM …` da `fileCode`. Lo stesso ordine aperto (stessa email, desk e tariffa, non
+     ritirato, chiuso, pagato o già firmato; a Parigi non scaduto) risponde quello, con `duplicate` e
+     `sameOrder`. Poi UN `fsCommit`: il contatore `heartbeat/city-orders-<slug>` (`{year, next}`, con
+     `updateTime`, `exists:false` il primo) e il lead (`exists:false`); al conflitto si rilegge, fino
+     a 12 tentativi con 20–100 ms di scarto, poi 503 `busy`; un contatore già nell'anno dopo si
+     tiene (il registro non torna indietro), uno illeggibile è 500 `counter_invalid`. Numero
+     `<PREFISSO>-<anno di Roma>-0001…`, l'anno nuovo riparte da 0001: a Parigi è il numero del
+     registro dei mandati (décret 72-678 art. 72), a Berlino il riferimento dell'ordine. Il lead:
+     `intent:'city_booking'` (mai `city_order`, l'ordine PAGATO dei sei), `booked:true` e
+     `paid:false` in cima, `city.chargeAt`, `city.order {number, termsV, termsHash, expiresOn}`
+     (Parigi: giorno dell'ordine + sei mesi di calendario), la finestra del recesso dal calendario del
+     desk; `city` non si riscrive mai dopo (una maschera di primo livello rimpiazza la mappa intera).
+     DOPO il commit il PDF in memoria (`api/_cityorderpdf.js`: pdf-lib importato staticamente,
+     `api/_pdfbrand.js`, date fissate all'ordine; Parigi FR poi EN; il corpo in BOOM Doc Sans, che
+     stampa il nome com'è scritto, punto 14), nessun prefisso Storage, e il suo
+     SHA-256 in `orderPdf`; l'email al cliente (Nodemailer, tetto 8 s) con numero e fascicolo, la
+     tariffa e il suo trigger, i termini inglesi INTERI nel corpo (resta il supporto durevole anche
+     se l'allegato si perde), il recesso (online, email, modulo tipo), «Manage your order» e il PDF
+     `BOOM-PAR-2026-0007.pdf`; a Berlino «Please reply ‘Confirmed’ to this email: we approach
+     landlords only after your reply.» (D18). Copia all'operatore in italiano col PDF. L'esito si
+     registra (`clientEmailSentAt` o `clientEmailFailedAt`, `exists:true`): un'email caduta, o un
+     doppione senza esito dopo 90 s, alza `agentNotifications/book-mail-<id>` («… mandala a mano, col
+     testo del recesso e il PDF dell'ordine»). La card `lead.new` (🇫🇷 PARIGI · ORDINE PAR-2026-0007 · Full Search €500
+     alla firma · …) sotto 5 s; ogni scrittura attesa. Risposta
+     `{ok, booked, id, file, number, plan, startNow, workFromLabel}`. Misurato: dieci ordini insieme → BER-2026-0001…0010 senza buchi né
+     doppioni (9 conflitti riletti); PDF di Parigi Full Search 3 pagine, 86.865 B, di Berlino 2 pagine,
+     81.822 B (19.883 e 15.589 prima del font del corpo, punto 14), ~120–170 ms il primo di un processo
+     e 30–85 ms dopo, lo stesso ordine dà lo stesso SHA-256.
+  4. **I termini dell'ordine** (`api/_cityterms.js`, puro, letto dal server E dal build).
+     `ORDER_TERMS`: Parigi `par-2026-11-1` «Mandat de recherche non exclusif / Non-exclusive search
+     mandate» (francese ed inglese), Berlino `ber-2026-11-1` «Suchauftrag / Search order» (inglese);
+     `termsHash` (SHA-256 del testo canonico, fissato nei test), `renderOrderTerms`,
+     `orderExpiresOn` (giorno di Roma + sei mesi, schiacciato all'ultimo del mese). La pagina manda
+     `termsV` (`ORDER_TERMS_V` nella config): una pagina vecchia riceve 409 e dice «This page was just
+     updated — reload it to order with the current terms.». Una parola cambiata = una versione nuova;
+     il modulo tipo è uguale a quello di `api/_withdrawal.js` (il test lo pretende) e la riga della
+     legge ripete i Termini §12 parola per parola. Contenuto: le parti (Egidi, Via dei Coronari
+     181/184, REA RM-1710623, IVA IT17322991005), numero, data e ora di Roma, oggetto e trigger per
+     tariffa, «nothing is due or paid before a lease is signed; if no such lease is signed, nothing
+     is due», «BOOM holds no client money, deposit or rent», fattura e link alla firma pagabili in 7
+     giorni, la durata, Start now, le istruzioni di recesso adattate dall'Allegato I(A) (14 giorni
+     dall'ordine, «nothing has been paid and nothing will be due», nessuna frase sull'importo
+     proporzionale) col modulo tipo. Parigi aggiunge il numero del registro e «the landlord's agent
+     may charge you its capped share (loi 89-462 art. 5)»; Berlino lo scopo Bestellerprinzip del Full
+     Search, «No other charge alongside Full Search» e «reply 'Confirmed'». Mai una licenza, un
+     permesso, un numero di carta o un partner. Misurato: nove mutazioni prese; gli stessi due hash e
+     lo stesso testo reso con `TZ=Pacific/Auckland` e locale francese.
+  5. **BOOKED, mai PAID, e il biglietto gestito.** Dietro `SIGN = C.CHARGE_AT === 'signing'` in
+     `assets/src/boom-city.js` (i sei non lo emettono). La cassa nell'ordine CRD di sempre: piano,
+     prezzo, condizione, cosa compra, il trigger della SUA tariffa, la riga d'ordine, nome, email,
+     nota, Start now MAI pre-spuntato, il recesso con `{online}`, errore, bottone, riga sotto, fine
+     coi Termini, la via di ritorno alla chiamata gratuita. Il POST risponde → stato `booked`
+     (`#pass[data-state="booked"]`, gemelli CSS di ogni selettore `paid`), riga del codice
+     `BOOKED · FILE BM X7K2Q · PAR`, timbro BOOKED (`textLength="50"`), card `#cBooked` («Booked —
+     your file is open.», File · Fare «… when you sign» · Order · Starts, i passi). Nessun «paid» o
+     «payment» sulla card, nessun link di recesso lì (D11), nessun `[data-pay]` dopo. Un ricaricamento
+     torna alla pagina bianca: l'email è il documento. 400 `name`/`email` sul campo, 409 → `stale`,
+     il resto → errore di rete e un nuovo tentativo con lo stesso `requestId` (= lo stesso ordine).
+     Analytics solo col consenso: `begin_checkout` all'apertura, `booking_submit`, UN
+     `booking {currency:'EUR', value, plan, market}` + `convert('City order booked')` per ordine
+     (sessionStorage), MAI `add_payment_info` né `purchase`; `page_location` toglie `session_id`,
+     `order` e `t` (ogni occorrenza). Alias nuovo `#order-<piano>`; un `?paid=` su un desk alla firma
+     è ignorato (il server risponde 400). Il biglietto gestito:
+     `GET /api/city-lead?order=<book_…>&t=<token>&city=<slug>` (`orderToken` derivato in `api/payments/_token.js`, mai salvato e fuori da
+     `KINDS`: `link.js?k=ord` resta rifiutato; ruotare `HOMIE_SECRET` li revoca tutti), lo stesso
+     tetto di `?paid=` (30 ogni 10′ per IP), no-store, token sbagliato = ordine sconosciuto = 404,
+     nessun nome, email o id Stripe. Stati `booked` (col link «Withdraw from contract here» →
+     `/withdrawal?desk=Paris&ref=PAR-2026-0007#online`), `due` (`dueText` e il bottone di pagamento
+     SOLO verso `https://(www.)boomrome.com/api/payments/link?…`), `paid` (il lead o la fattura
+     pagati: il timbro cambia la parola in PAID, l'unico posto di una pagina alla firma dove PAID
+     compare), `withdrawn`, `closed`. Correzione d'integrazione (62a699de): una dichiarazione di
+     recesso arrivata DOPO la firma (la mappa senza `withdrawnAt`) lascia DUE finché c'è una fattura
+     da pagare e CLOSED a ordine chiuso; WITHDRAWN solo senza fattura viva. Il bottone «Order, pay on
+     signing · €500» misurato su un Parigi di prova, nei due font: 320 px due righe (cassa e
+     biglietto), 360 una nella cassa e due nel biglietto, da 390 una. JS 11.011 → 12.606 B gz (tetto
+     14 KB): i cinque stati del biglietto; 12.742 con la revisione. Dalla revisione (punto 14) Invio
+     in un campo della cassa non ordina mai: cammina fino al bottone, e ordina solo il bottone; sul
+     biglietto DUE/PAID i campi tengono lo spazio del timbro.
+  6. **L'addebito alla firma: lo dice l'operatore, mai un cron** (D7, solo Telegram).
+     `api/telegram/_firmato.js`:
+     `/firmato <BM XXXXX | book_…> <AAAA-MM-GG | oggi> [visite <n>] [kalt <euro>] [ok <AAAA-MM-GG>] [anticipo]`
+     scrive la BOZZA (`signing.status:'draft'`) e manda UNA card con UNA
+     domanda per tariffa (l'italiano dell'operatore; il «Sì» è l'attestazione, registrata parola per
+     parola); `/chiudi <BM …> <declined|stopped|expired|other> [nota]`. Bottoni ≤ 64 byte con la
+     chiave della bozza: `cfy:<id>:<key>` ✅ emetti la fattura, `cfx` ✖ nessun compenso, `cfn` Annulla
+     (nessuna scrittura), `cch` chiudi, `cfr` 🔔 Ricorda; una card superata da una bozza più nuova
+     risponde `stale_card` e non scrive niente (la lezione `PENDING_NL` del 28/08). I cancelli
+     (`signingGates` in `api/payments/_citysign.js`, in ordine, ognuno detto sulla card): ordine
+     prenotato, non ritirato, chiuso, pagato né già fatturato; data vera, non futura, non prima
+     dell'ordine; a Parigi entro `expiresOn`; spunta spenta e firma dentro i 14 giorni → solo con
+     `anticipo` (il cliente ha chiesto per iscritto di partire prima: `earlyStart`); Full Search di
+     Berlino solo con `kalt` > 0, `ok` (il go-ahead scritto del proprietario) non prima dell'ordine e
+     l'attestazione (offerta SOLO a lei, dopo l'ordine e il «Confirmed», non affidata a un'agenzia),
+     altrimenti solo ✖; AP e AV di Berlino rifiutati a chi ha un Full Search di Berlino aperto
+     (`noStacking`) e con l'attestazione X1 (la casa l'ha trovata il cliente, nessuna trattativa col
+     proprietario); visite AV 1–5, Full Search di Parigi 1–10. L'importo SOLO dal listino
+     (`signingFee`): Full Search di Parigi 500 + 149 × (visite − 1); di Berlino min(500, 2 × kalt ×
+     1,19) (kalt €200 → €476,00), visite comprese e mai addebitate; AP 199; AV 149 × visite. `cfy`:
+     claim `signing.status:'invoicing'` sotto l'`updateTime` letto (due tap → una fattura; un claim
+     più vecchio di 2 minuti si riprende), `invoices/cityfee_<leadId>` con `fsCreate` (409 = la
+     stessa; una fattura emessa non si riscrive mai): numero `<ordine>-FS|AP|AV`, `lang:'en'`,
+     `vatCountry:'FR'|'DE'`, `vatPct`, `netAmount` e `vatAmount` null, `dueDate` = 7 giorni dopo
+     l'emissione (la più tarda fra firma e oggi), `source:'city-signing'`, `cityLeadId`; l'email al
+     cliente in inglese UNA volta col link stabile `payLink('inv', id)` (nessuna commissione carta
+     sulle fatture: la paga BOOM); poi `signing.status:'invoiced'`. `cfx` → `no_fee`, email «nothing is
+     due to BOOM»; `/chiudi` + `cch` → `closedAt`, `closeReason`, email «Nothing was charged». 🔔
+     Ricorda: subito solo se l'email della fattura non è mai partita o l'indirizzo è stato corretto,
+     altrimenti dopo la scadenza e al massimo una volta ogni 20 ore; mai da sola. Il webhook
+     (`handleInvoice`): `inv.cityLeadId` → `leads/<id>`
+     `paid:true, paidAt, paidVia:'link', paidInvoiceId` (`exists:true`, attesa) e la ricevuta in inglese quando `inv.lang === 'en'`;
+     `api/payments/link.js` parla inglese per `lang:'en'`. L'opzione B (salvare una carta e
+     addebitarla alla firma, D1) è progettata e SPENTA (`cardStep:false`): non è costruita.
+  7. **I lettori** (una riga ciascuno). Il Brain vota A un ordine prenotato; il rimbalzo dice «📌
+     ORDINE <numero> … si paga alla firma, niente incassato» (`isPaid` non lo tocca) e riconosce le
+     email `book_` che portano il recesso; `cityReplyText` ha il ramo prenotato («Your {plan} order is
+     in: file …, order …. Nothing is charged before you sign a lease.», Berlino chiede il
+     «Confirmed»), quello fatturato e quello chiuso/ritirato, mai «Payment received» prima del
+     pagamento né un prezzo, e la risposta di un desk alla firma chiude con `#order-full-search`;
+     `RENT.isForeignVat` (`js/rent-engine.js`, una copia) tiene le fatture `vatCountry ≠ IT` FUORI
+     dalla base IVA italiana del Contabile, dello scadenzario e, dalla revisione, della pagina
+     fiscale Egidi del portal («IVA estera — da definire», `foreignVat` nel JSON dello scadenzario);
+     la Bonifica non cancella mai un lead prenotato, pagato o numerato; la conservazione del mese
+     aggiunge `registre-PAR-<AAAA-MM>.csv` e `orders-BER-<AAAA-MM>.csv` (`;`, BOM, CRLF, celle
+     protette dalle formule) e dice pagato anche un compenso pagato solo sulla fattura (punto 14).
+  8. **La funzione di recesso online** (la direttiva 2023/2673, in vigore dal 19/06/2026: CRD art.
+     11a, §356a BGB, L221-21, art. 54-bis Cod. cons.), su TUTTI gli otto desk e sul Pacchetto di Roma
+     (D10). `POST /api/withdraw` (config di default: `vercel.json` resta a 50 regole):
+     `{name, email, ref, desk, service, requestId, company, lang?}`, honeypot, 6 ogni 10′ per IP, desk da una
+     lista chiusa (gli otto, Roma, other), riferimento ≤ 80. La dichiarazione è
+     `agentNotifications/withdraw-<sha1(email|ref|requestId)[0:20]>` (409 = la stessa: niente seconda
+     card né email); la conferma parte SUBITO al consumatore (la dichiarazione, data e ora di Roma, il
+     suo riferimento, la ricevuta `W-…`) e la copia all'operatore (italiano, Reply-To il cliente:
+     Gmail è l'archivio). La risposta è 200 `{ok:true}` qualunque sia l'abbinamento (nessuna
+     enumerazione). L'abbinamento, sul server: `BM …` → `city.file`, `PAR-`/`BER-` →
+     `city.order.number`, altrimenti email e desk; contano solo gli ORDINI (`book_`, `svc_` pagato), e
+     il lead si scrive SOLO se un ordine solo combacia E la sua email è quella della dichiarazione
+     (un numero d'ordine è sequenziale, si indovina). Un `book_` non firmato oltre la bozza e non
+     pagato → `withdrawnAt` + `withdrawal{at, via:'online', ackSentAt, statementId}` («nulla da
+     rimborsare»); firmato, fatturato, pagato o chiuso, o un `svc_` pagato dei sei → solo la mappa
+     `withdrawal`, e la card dice «decidi tu» (dopo l'esecuzione completa il diritto può essere
+     finito). NIENTE si decide da solo: nessun rimborso, nessuna chiusura. Una dichiarazione identica
+     riprende quella la cui conferma è caduta (al massimo 5 volte, con l'ora ORIGINALE);
+     `withdraw-mail-<hash>` all'operatore se la conferma cade. `/withdrawal`: passo 1 «Withdraw from
+     contract here» (`#online`) apre la dichiarazione precompilata da `?desk=&service=&ref=`; passo
+     2 il riepilogo e «Confirm withdrawal» → «Received. We emailed you a copy with the date and
+     time.»; «Recedi dal contratto qui» / «Conferma recesso» con `?desk=Roma` (anche Rome) o
+     `?lang=it`; l'honeypot è l'input `hp_x` (posta `company`: un input chiamato `company`
+     l'autocompilazione lo riempie); i moduli tipo e l'aiuto mailto restano; nessun tracciamento. Sui
+     desk: `{online}` in ogni riga di recesso di un desk che vende (il build rifiuta chi non lo ha),
+     il link del piede «Withdraw from contract here» → `/withdrawal?desk=<Città>#online` (+2 parole al
+     caricamento; `WITHDRAW_LABEL`, una copia in `build-cities.mjs`), la striscia dell'hub «Withdraw
+     online, from the day you order.» → `/withdrawal#online`, la riga del Pacchetto →
+     `/withdrawal?desk=Roma&service=concordato-pack#online`. `withdrawalWindow`, `withdrawalEnds` e i
+     due moduli tipo stanno ora in `api/_withdrawal.js` (il webhook li riesporta).
+  9. **I calendari `fr` e `de-be`** (`js/desk-calendar.js`, prelavoro 970b4c3b; l'Italia sempre
+     unita). `fr` (Code du travail L3133-1): 1/1, 1/5, 8/5, 14/7, 15/8, 1/11, 11/11, 25/12 e Pasqua
+     +1, +39, +50 (niente Venerdì Santo né 26/12: sono dell'Alsazia-Mosella). `de-be`
+     (Feiertagsgesetz Berlin §1): 1/1, 8/3 (dal 2019), 1/5, 3/10, 25/12, 26/12 e Pasqua −2, +1, +39,
+     +50, più il 17/06/2028 una volta sola (`dated`: 75 anni dal 1953, legge del 2024; è un sabato).
+     Parigi lo nomina con `holidays:'fr'`; Berlino ESIGE `holidays:'de-be'` (`country:'de'` da sola è
+     una chiave ignota = l'Italia sola). Fonti secondarie (i siti ufficiali non rispondono dal
+     sandbox): non verificati. Il radar PFS dichiara Parigi e Berlino SPENTI (`js/radar-markets.js`)
+     e la plancia li offre «· radar spento»: accenderli è un'altra decisione.
+  10. **L'hub con otto desk e i claims.** Il JSON-LD di desk e hub su una riga (`ldJson`, `<`
+     escapato): −175…−200 B gz per pagina desk, −386 B sull'hub, senza cui l'hub a otto non sta nei
+     28 KB. Sull'hub (H1–H13): prima del primo prezzo «In Berlin and Paris every fare is charged only
+     when you sign a lease.» (il build pretende i soli desk alla firma vivi, e solo se ce n'è uno);
+     Full Search «Contract checked before you sign» invece di «Applications sent as listings appear»;
+     la striscia del recesso online; via «One company» e «One person»; didascalia «As on each desk's
+     page»; via l'etichetta del paese; `rules.hold` `paris:rentcap`; le FAQ riscritte senza bozze; via
+     la riga Rome della scheda e la riga sotto ROM; il tag «ITALIAN LAW · AS ROME» di Milano RESTA
+     (D13); la riga del recesso «14 days from your order … Withdraw online or with the model form».
+     I pin del telefono, opzione (b) (D12): sotto i 600 px o senza hover i pin restano link (tastiera,
+     crawler) ma non bersagli, e la mappa intera prende il tocco e aggancia il desk più vicino entro
+     30 px (oltre, niente); `HUB_MAP_PX = { 600: 566, 940: 559 }` (≥ 44 px dove i pin SONO bersagli);
+     a otto desk LON–PAR sta a 30,1 px a 390 e 24,2 a 320. `cities/_claims.json` 74 → 48 (−20
+     `partner`, −7 `law` che nessuna pagina stampa più, −1 `company-rome` della striscia; +2
+     `company-rome`, le righe Who di Parigi e Berlino): company-rome 15 · tenant 9 · lease 7 ·
+     follower 6 · deposit 5 · heading 2 · context 2 · trade-mark 1 · listing 1. Le frasi delle bozze
+     vivono in `tests/cities/fixtures/draft-claims.json` (26: partner 19 · law 7) e ogni guardia
+     waitlist resta provata su `draft-paris.json`/`draft-berlin.json` (i JSON di prima del flip).
+  11. **Le superfici del flip.** Termini (Last Updated 5 November 2026): §12 nomina otto desk; 12.2 sui
+     sei la regola della carta, a Parigi e Berlino niente all'ordine e ogni tariffa sul SUO trigger, le
+     visite in più di Parigi a €149, Berlino entro due mensilità nette fredde più IVA; 12.3 niente da
+     rimborsare a Parigi e Berlino; 12.4 il recesso (14 giorni dal pagamento sui sei, dall'ordine a
+     Parigi e Berlino, la funzione online, il lavoro già fatto solo sui sei); 12.5 sostituisce «not
+     open» con le due ancore `#city-paris` (mandato di ricerca scritto non esclusivo, numerato nel
+     registro, sei mesi al più, copia FR/EN, la quota con tetto dell'agente del locatore, loi 89-462
+     art. 5) e
+     `#city-berlin` (ordine in forma testuale, «Confirmed» prima di contattare un proprietario, Full
+     Search solo sulle case col go-ahead, visite comprese, niente accanto); 12.6 invariato. Privacy
+     (stessa data): otto desk, cosa porta un ordine e a cosa serve, la dichiarazione di recesso,
+     Stripe solo quando la fattura si paga dal link, conservazione «as long as the law requires the
+     order register» (la fattura 10 anni). `withdrawal.html`: 14 giorni dall'ordine a Parigi e
+     Berlino, il lavoro già fatto «if you paid». `llms.txt`: otto desk, la regola della firma e i
+     trigger, via «Paris and Berlin desks are not open.»; la riga 63 (La Réunion) NON toccata.
+     `sitemap.xml` `/paris` e `/berlin` (lastmod 2026-11-05), `/desks`, `/terms`, `/privacy` alla
+     stessa data; i piedi «Company & Markets» (sei pagine, `pt.html`, `patch-lotto2.py`) con BOOM
+     Berlin e BOOM Paris; `vercel.json` `/parigi` → `/paris` e `/berlino` → `/berlin` (59 redirect,
+     funzioni ancora 50); `og-paris.png` 94 KB, `og-berlin.png` 93 KB, `og-desks.png` 97 KB con gli
+     otto codici.
+  12. **Le misure** (questo albero, dopo la revisione del punto 14: `node build-cities.mjs`, dove
+     non detto altro). Parigi 483 parole al caricamento (prosa 433 · strumenti 50) e 80,7 KB, Berlino
+     470 (426 · 44) e 80,8 KB, col link del recesso nel piede (+2; 481 e 468 senza, sull'albero del
+     flip e819d034); i sei 467 · 511 · 489 · 485 · 536 · 485 parole e 80,2 · 80,5 · 80,9 · 80,3 ·
+     81,3 · 80,3 KB (Amsterdam, Barcellona, Londra, Madrid, Milano, Valencia). Asset: JS 12,4 KB gz
+     (12.742 B, tetto 14), CSS 13,3 (15), onda 3,6 (4), mappa 3,0 (3,5). Milano 81,3 su 82 — 0,7 KB
+     di margine: ogni aggiunta a tutte le pagine desk libera byte prima. Primo schermo a 390×844:
+     122 e 122 (≤ 150); piega nel font della CI: 390×844 porta 709 · chi 779, 375×812 715 · 785; in
+     Inter 390×844 724 · 794. Biglietti (sui JSON della specifica): Parigi 55/43/35, Berlino 50/46/35
+     parole (60); tariffe chiuse 58 e 58 (70). Hub: 973 parole (prosa 698 · strumenti 275; board
+     119 · map 65 · fares 225 · rules 156 · faq 43 · brief 227) su 980, pagina 28.319 B gz su
+     28.672, totale 73,3 KB su 78; primo schermo 84 (≤ 120) nei due font. Claims 48 (company-rome
+     15 · tenant 9 · lease 7 · follower 6 · deposit 5 · heading 2 · context 2 · trade-mark 1 ·
+     listing 1). Un altro desk costa all'hub circa 31 parole (la stima della v1.7) contro 7 di
+     margine: resta una decisione strutturale.
+  13. **L'integrazione.** Cinque merge senza conflitti di testo (A1+A2, il recesso lato server,
+     B1+B3+il recesso lato desk, B2, il recesso lato pagina) e una correzione di significato
+     (62a699de, il punto 5). Una prova di fine a fine in scratch, non committata, 19/19: la pagina di
+     B3 su un Parigi di prova in Chromium contro gli handler VERI dell'ordine, del biglietto, della
+     firma e del recesso — ordine → BOOKED col numero del server; link di gestione e di recesso
+     dell'email; recesso online → `withdrawnAt` + conferma → WITHDRAWN; un secondo ordine con la
+     spunta → fattura €199 → DUE col link stabile; una dichiarazione dopo la fattura → solo la
+     mappa, il biglietto resta DUE.
+  14. **La revisione (05/11).** Una verifica avversaria su a5328926 in cinque lenti (diritto
+     francese, diritto tedesco, soldi, build e sito, pagina): 36 rilievi, cinque tenuti e corretti
+     (gli altri 31 restano fuori da questo giro; quelli già noti stanno in «Non fatto» qui sotto).
+     LFR-1 (L221-14 al. 2, C. civ. 1127-2, §312j(3) BGB): su `/paris` e `/berlin` l'invio implicito
+     del browser faceva di un Invio nel nome, nell'email o nella nota della cassa l'ordine (un POST,
+     il mandato numerato e la sua email) senza che il bottone, la spunta o la riga del recesso
+     fossero visti. Ora (`assets/src/boom-city.js`, solo sui desk alla firma) Invio cammina nome →
+     email → nota → spunta → bottone, un Invio ripetuto dal tasto tenuto premuto non fa niente, e
+     ordina SOLO un clic, Invio o Spazio SUL bottone «Order, pay on signing · €N»; i sei tengono Invio
+     verso Stripe (la pagina di Stripe conclude lì il contratto). F3: la pagina fiscale Egidi del
+     portal e «Salva nelle scadenze» sommavano le provvigioni di Parigi e Berlino (`vatCountry`
+     FR/DE) nei trimestri dell'IVA italiana al 22% e le avrebbero salvate come «IVA trimestrale»;
+     una base sola (`egidiInvoiceBase`, `js/portal-app.js`) alimenta pagina, consiglio e scadenze, e
+     le tiene fuori, elencate a parte con le parole di `contabile.js` (nel test: «IVA estera — da
+     definire: €976 (2 fatture · FR €500 · DE €476)»). F4: il PDF dell'ordine (il mandato di
+     Parigi, la sua sola copia francese; l'ordine di Berlino) passava il nome da `wa()`, che toglie
+     ogni lettera fuori dal WinAnsi («Ayşe Yılmaz» → «Aye Ylmaz», un nome cirillico → niente), e
+     l'ordine tiene lo SHA-256 di quel PDF come copia del contratto. Il corpo è ora in BOOM Doc Sans (`api/_pdffont.js` +
+     `api/_pdffont-data.js`, generati da `design/pages-deco/genera-font-pdf.py` con fontTools:
+     Liberation Sans 2.1 ridotto a latino con ogni estensione, greco e cirillico, metriche Arial,
+     rinominato come chiede la SIL OFL 1.1 per una versione modificata, licenza in testa e in
+     `design/pages-deco/fonts/OFL-Liberation.txt`), incorporato da pdf-lib attraverso un'interfaccia
+     fontkit scritta sulle metriche di fontTools: nessuna dipendenza npm (`@pdf-lib/fontkit` costa
+     ~145 ms di avvio a freddo alla funzione della cassa, questo modulo ~7) e il PDF resta
+     deterministico. Un carattere che il font non ha (un nome cinese, un'emoji) esce «?», resta su
+     `orderPdf.unprinted` e alza `agentNotifications/book-pdf-<id>`, e la copia all'operatore lo dice;
+     testata, titolo e piede restano in Helvetica. F5: un compenso pagato solo sulla FATTURA (un
+     bonifico segnato nel portal, un timbro del webhook caduto che ha risposto 200) risultava «due»
+     nel registro del mese; `api/ops/conservazione.js` legge le fatture `cityfee_` (una query per
+     sorgente, più una lettura diretta per quelle che un ordine nomina) e dice lo stato come il
+     biglietto gestito (pagato sull'ordine o sulla fattura, nel giorno della fattura; una
+     dichiarazione di recesso non nasconde mai una fattura ancora dovuta), e la card del recesso
+     (`api/withdraw.js`) dice «compenso già pagato». Webhook e portal invariati: la fattura resta il
+     registro di un bonifico (specifica §5.4 e §6.7). STAMP: sul biglietto gestito DUE/PAID la
+     testata sparisce e i campi salivano sotto il timbro da 84 px (sul PAID l'anello stava su
+     «€500», l'unico posto di quella pagina che lo stampa); ora tengono lo spazio del timbro, uno per
+     riga, e una colonna da 320 px non spezza mai «BM X7K2Q» né il compenso: 0 px² sovrapposti a
+     320, 375, 390 e 1440, Parigi e Berlino, nei due font. Le pagine cambiano solo il `?v=`.
+  I Termini §12.5 dicono «due within 7 days of the signing»; la fattura scade 7 giorni dopo
+  l'EMISSIONE (mai prima: a favore del cliente quando la firma è dichiarata in ritardo). Se il legale
+  sceglie il ripiego del bottone (O9), cambiano anche i Termini §12.5 e `llms.txt`, che lo citano.
+  **Non fatto, dichiarato**: dopo una dichiarazione di recesso arrivata DOPO la firma l'operatore non
+  ha un comando per chiudere l'ordine (`/chiudi` rifiuta sulla mappa `withdrawal` e su `invoiced`;
+  🔔 Ricorda non la guarda, quindi può ancora ricordare — è un suo tap, «decidi tu» — e la colonna
+  `withdrawnAt` del CSV resta vuota); il dedupe `sameOrder` restituisce numero e fascicolo a chi
+  POSTa la stessa email, desk e tariffa (un oracolo: «questa email ha un ordine») e il recesso online
+  ferma un ordine aperto abbinato per email e desk anche senza riferimento — un terzo che conosce
+  l'email del cliente può fermarglielo, il cliente lo sa per email (per il fondatore o il legale);
+  la conferma di un recesso di Roma è sempre in italiano, anche con `?lang=en`; `chargeAtOf` esiste
+  in due copie con la stessa regola (`build-cities.mjs`, `api/_market.js`); un nome in una scrittura
+  che BOOM Doc Sans non ha (cinese, arabo, ebraico, un'emoji) esce «?» nel PDF dell'ordine — detto
+  all'operatore (`book-pdf`, punto 14), l'email lo tiene; `banca.html` non mostra ancora
+  `foreignVat`; il Pacchetto ha il link del recesso online solo nella riga della cassa (un «Recesso»
+  nel piede è suggerito, non fatto) e il suo honeypot si chiama ancora `company`;
+  `api/service-checkout.js` gira col tetto di default di Vercel (commit fino a 12 tentativi, PDF, due
+  email sotto 8 s, la card sotto 5 s): il p95 va misurato sulla Preview.
+  **Aperte, del fondatore e del legale** (la specifica §16; nessuna blocca, ognuna con la sua
+  esposizione): O1 Parigi senza carte professionnelle (Hoguet art. 3): la via UE è la dichiarazione
+  LPS art. 8-1 (CCI, €96, cerfa 15312) per un lavoro «temporaneo e occasionale», che un desk aperto
+  lun–ven fatica a essere — art. 16 I, sei mesi + €7.500 (×5 per la società), interdizione; la LPS
+  è raccomandata prima del primo ordine di Parigi, con revisione al decimo mandato o a sei mesi. O2
+  Berlino senza §34c GewO: l'esenzione temporanea §4 GewO cade con lavoro «ganz oder vorwiegend» in
+  Germania o da una sede fissa — §144 fino a €5.000, ripetuto §148 penale; nessuna sede fissa né
+  dipendente a Berlino. O3 il €500 fisso di Berlino contro WoVermRG §3(1) (il compenso in frazioni o
+  multipli del canone): §8 fino a €2.500 per caso; il D2-alt («una mensilità netta fredda, IVA
+  inclusa, al massimo €500») è un interruttore di dati progettato, non spedito, e la scelta va
+  datata. O4 la carta salvata prima della locazione (opzione B) contro Hoguet art. 6 e WoVermRG
+  §2(4): art. 16 II due anni + €30.000 (×5 per la società), rimborso §5 — spenta. O5 il contatore
+  Firestore e il CSV mensile come registro dei mandati (décret 72-678 art. 72) e O6 l'ordine a click
+  come «écrit» Hoguet (Code civil 1127-1, 1174, 1366): se non valgono, il mandato è inopponibile e il
+  compenso non dovuto (P2: il mandato firmato col Magic Sign personalizzato). O7 la forma testuale di
+  un ordine web (WoVermRG §2(1)): compenso perso; il «Confirmed» prima di contattare un proprietario
+  (D18). O8 WoVermRG §6 (offrire solo col mandato del locatore, «Wohnungsvermittler» negli annunci):
+  fino a €2.500; nessun annuncio in v1.8. O9 le parole del bottone contro §312j(3) BGB
+  («zahlungspflichtig bestellen»), CRD 8(2) e L221-14, anche per un compenso condizionato (C-400/22):
+  nessun contratto (BGH I ZR 159/24); il ripiego «Order with obligation to pay» è nel brief. O10 le
+  istruzioni di recesso adattate dall'Allegato I(A): se difettose il diritto dura 12 mesi + 14 giorni
+  e il cliente può recedere dopo la locazione senza dovere niente (BGH I ZR 30/15). O11 le etichette
+  e la conferma della funzione online, da fonti secondarie. O12 il Full Search di Berlino frutta solo
+  sulle case col go-ahead esclusivo (quasi mai quelle dei portali): ricavo, non legge, ma il desk deve
+  saperlo fare. O13 l'IVA: Full Search e AV legati all'immobile → IVA francese 20 % o tedesca 19 %
+  (art. 47; Reg. 282/2011 art. 31a), AP forse italiana 22 %, OSS o registrazione locale — il
+  commercialista PRIMA della prima fattura (`vatCountry`, `vatPct:null`, fuori dalla base italiana;
+  «VAT included» resta vero). O14 l'encadrement di Parigi dopo ~24/11/2026 (Senato il 21/10,
+  Assemblée attesa ~19/11, fonti secondarie): ricontrollare dopo il 19/11; se decade, via `rentcap`
+  da `paris.json` (ne restano tre, il minimo) e dall'hub. O15 il mediatore del consumo francese
+  (L612-1): fino a €3.000 / €15.000; nessuno nominato, come sui sei. O16 `llms.txt:63` (La Réunion)
+  dice che in Francia la ricerca vuole la licenza Hoguet, e Parigi ora cerca senza: lasciata com'è
+  (vera come legge). O17 la legge Toubon (francese nei contratti al consumo): il PDF del mandato è
+  FR/EN, il francese non è letto da un avvocato. O18 AP e AV di Berlino stanno fuori dalla legge solo
+  finché BOOM non trova la casa né tratta col proprietario (§2(1a)): fino a €25.000; l'attestazione
+  alla firma. O19 «(more: €149 each)» di Parigi dovute alla firma anche per visite di case non prese:
+  clausola contestabile, lettura non verificata.
+  **Non verificato** (la specifica §18): il testo di Hoguet artt. 1, 3, 6, 7, 8-1, 16 e del décret
+  72-678 artt. 72–73; un registro su Firestore come quello dell'art. 72; l'ordine a click come
+  «écrit»; la lettera di WoVermRG §§2–8 e le multe del §8; la forma testuale di un ordine web; la
+  lettera di §312j, CRD 8(2) e L221-14 e se «Order, pay on signing» è una formula ugualmente
+  inequivocabile; CRD art. 14(4)(a)(ii) (la porta della finestra, a memoria) e art. 11a; le
+  etichette del recesso online; l'encadrement di Parigi dopo ~24/11 e la data dell'Assemblée; gli
+  elenchi `fr` e `de-be` e il 17/06/2028; l'IVA per tariffa e l'OSS; i dettagli Stripe dell'opzione B;
+  il 24 px di WCAG 2.2 SC 2.5.8; il francese dei termini. Verificato invece dal test: pdf-lib con le
+  date fissate dà lo stesso SHA-256. Mancano due misure: un iPhone vero (Safari) e il p95 dell'ordine
+  sulla Preview.
+  Test (dopo la revisione, sull'albero integrato): `tests/cities/run.mjs` 1273, `ui.mjs` 644 in
+  Inter e 644 nel font della CI (ognuno da solo: lanciati insieme danno 643/1 in tutti e due, il
+  controllo «rotating a tablet past 940 px…», che aspetta 400 ms dopo il cambio di finestra, cede al
+  carico di quattro core occupati), `checkout.mjs` 118, `calendar.mjs` 128, `signing.mjs`
+  (citiessigning) 301, `tests/cityterms/run.mjs` 149, `tests/withdraw/run.mjs` 124,
+  `tests/withdraw/ui.mjs` (withdrawui) 87 nei due font; più paymentlinks 130, paexternal 16
+  scenari, money 77, rimbalzi 182, dataops 199, agencyaccounting 18, conservazione 9,
+  vercelfunctions (50 regole, 57 file), guasti 19, seo 21, crawl 60, llmstxt 12, verita 24,
+  consentbanner 27, scroll 4 e cielo 7 nei due font, markets 124, radici 8. Al flip (a5328926): run
+  1271, ui 621 nei due font, checkout 118, calendar 128, signing 277, cityterms 146, withdraw 122,
+  withdrawui 87. Al buio, prima del flip (62a699de): run 1222, ui 599 nei due font, checkout 117,
+  calendar 126, signing 274, cityterms 142, withdraw 122, withdrawui 87 nei due font; `npm test` 296
+  suite, rosse solo `portalnavigationui` in Inter (Oggi, il font) e `magicsigncustomui` /
+  `magicsigncustomsigner` (cdn.jsdelivr.net irraggiungibile), preesistenti.
+- **IL CREDITO DELL'APPLICATION PACK (06/11/2026 — «costruiamo la C, così la uso oggi stesso con
+  Daniel»).** Il primo caso è Madrid, fascicolo BM BEAEV: il cliente ha pagato l'Application Pack
+  (€199, «Start now» spuntato) e in chiamata il fondatore gli ha promesso che, passando al Full
+  Search, i €199 sarebbero stati accreditati. La cassa non sapeva farlo: l'unica via era incassare
+  €500 e rimborsare a mano. Ora un pack pagato su un desk che incassa alla cassa diventa Full Search
+  con quanto pagato accreditato, UNA volta, entro 30 giorni dal pagamento (a Madrid €301).
+  1. **La regola** (`api/_upgrade.js`, pura: `upgradeOffer(lead, id, ora)`): solo un ordine
+     `leads/svc_<sessione>` di un desk del registro, `intent:'city_order'`, pagato (`paid` e
+     `city.paid`), del piano in `UPGRADE_PATHS` (`application-pack` → `full-search`). Il desk deve
+     incassare alla cassa: Parigi e Berlino non incassano niente all'ordine, quindi non c'è niente da
+     accreditare. Il credito è ciò che il cliente ha PAGATO (`amount_eur`, nella valuta del desk, mai
+     quanto il listino d'arrivo o di più). `credit.usedBy` lo chiude, e scade a `paid_at` + 30 giorni.
+     Stati: `open`, `used`, `expired`, `not_upgradable`, `not_found`.
+  2. **Il link è personale e derivato** (`upgradeToken`/`upgradeLink` in `api/payments/_token.js`,
+     come `orderToken`): sha256 dell'id con `HOMIE_SECRET`, 24 hex, confronto a tempo costante, mai
+     salvato, fuori da `KINDS` (`/api/payments/link` non lo accetta). Forma: `/upgrade?l=<svc_…>&t=<token>`.
+  3. **La pagina** `/upgrade` (`upgrade.html`, noindex, no-referrer, nessun tracciamento) mostra solo
+     ciò che risponde `GET /api/city-lead?upgrade=&t=` (`publicUpgrade`: mai nome, email o telefono).
+     Token sbagliato e ordine sconosciuto danno lo stesso 404, credito usato o scaduto 410; 30 richieste
+     ogni 10′ per IP. In pagina: listino, credito, «You pay today», cosa compra il Full Search, fino a
+     quando vale. Poi la cassa nell'ordine CRD dei desk:
+     - la spunta «Start now», mai pre-spuntata (nemmeno dall'URL);
+     - la riga del recesso, col modulo e il link online;
+     - il bottone che segue la spunta («Pay and book» → «Pay and start · €301»);
+     - a Madrid, Barcellona e Valencia «Optional, chosen in writing» (LAU art. 20).
+     Al ritorno da Stripe il pagamento lo conferma il server (`GET ?paid=` a 0/1,5/3/6/12 s), e la
+     card promette il brief «nella prima ora di apertura del desk», mai «oggi».
+  4. **La cassa** (`api/service-checkout.js`, `{city, kind, upgrade:{lead, t}, startNow}`): il server
+     rilegge l'ordine e calcola l'importo, dal browser non arriva nessun prezzo. Desk o piano diversi
+     dal credito danno 400 `upgrade_mismatch`; nome, email e telefono vengono dall'ordine pagato.
+     Prodotto Stripe «Full Search — €199 Application Pack credited», metadata
+     `credit_from/credit_amount/credit_plan`, ritorno su `/upgrade`.
+  5. **Il webhook** (`handleService`):
+     - rilegge l'ordine del pack (`upgradeCreditFor`, due tentativi). Il credito è «verificato» solo
+       se è un ordine pagato dello STESSO desk, e allora il Full Search tiene il fascicolo del pack
+       (una persona, un fascicolo);
+     - `markUpgradeCredit` scrive `credit {usedBy, usedAt, amount, currency}` sul lead del pack, col
+       solo campo `credit` nella maschera e la precondizione di versione. Lo fa anche sul ramo del
+       doppione: un primo giro morto prima del segno lo segna al retry;
+     - un credito già usato da un'ALTRA sessione (due casse pagate in parallelo) non si riscrive mai:
+       parte l'avviso urgente `agentNotifications/upgrade-double-<id>` e la differenza si regola su
+       Stripe a mano;
+     - il riassunto del lead e le email dicono «€301 paid (€199 Application Pack credited)», e un
+       credito non verificabile lo scrivono all'operatore; l'email all'operatore dice di fatturare
+       quanto pagato (€301);
+     - ogni ordine di Application Pack pagato porta il link personale dell'upgrade nell'email
+       ALL'OPERATORE, mai al cliente.
+  6. **Il bot** (`api/telegram/_upgrade.js`): `/upgrade BM XXXXX` (o `svc_…`) cerca gli ordini PAGATI
+     di quel fascicolo (non la porta gratuita con lo stesso numero). Risponde con lo stato del credito,
+     il link e il messaggio pronto in inglese («your personal … link»), che non promette «oggi»: dice
+     cosa fa la spunta. È sola lettura: niente parte verso il cliente. Un credito usato o scaduto non
+     ha link; il Full Search pagato col credito tiene lo stesso fascicolo, quindi il bot lo trova
+     anche lui e dice «è già l'upgrade».
+  **Da sapere**:
+  - la fattura Egidi del Full Search è di quanto incassato (€301), quella del pack resta €199;
+  - un rimborso del pack (`charge.refunded`) non tocca il lead, quindi `/upgrade` darebbe ancora il
+    link: non mandarlo a chi ha avuto il pack rimborsato;
+  - il credito non è nei Termini §12: è un'offerta personale dell'operatore, non un prezzo pubblico;
+  - la GET non restituisce mai nome, email o telefono, ma la cassa Stripe mostra l'email del cliente
+    precompilata: il link è suo, e il messaggio pronto lo chiama «personal»;
+  - senza JavaScript la pagina lo dice e dà l'email (mai un «Checking…» infinito).
+  Test: `node tests/upgrade/run.mjs` (70): regola pura, token, GET, cassa con l'importo del server e
+  corpi falsificati, webhook (fascicolo, segno, retry, doppio uso), bot, pagina, giunzioni. Mutazioni
+  prese: token non controllato, credito riusabile, fascicolo nuovo, «today» nel messaggio e in pagina.
+  La revisione avversaria a sub-agenti non è girata (limite di spesa fino all'11/11): la revisione è
+  stata fatta a mano, sui cinque punti di vista (soldi, sicurezza, consumatore, regressioni, casi
+  limite).
 - **IL DESK AVIAZIONE COMPLETO (v1.6, 03/11/2026 — il fondatore: «questo stile è
   troppo sintetizzato… itera lo stile del biglietto… anche per una pagina
   completa»).** Il primo schermo resta UNA carta d'imbarco, rifatta come oggetto
@@ -2887,10 +4418,20 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
      24 parole (eccetto `.stmt`); primo schermo a 390 ≤ 150; per sezione
      departures 100 · pre-flight 60 · baggage 70 · gate 40 · network 40. Da qui
      non si alzano più per farci stare una modifica: si taglia copia o
-     artigianato.
+     artigianato. **Stage 0 (04/11/2026)**: le sorgenti COMMENTATE dei sei file
+     (`boom-city.css|js`, `boom-onda.js`, `boom-desks.css|js` e, dallo Stage 2,
+     `boom-map.js`: `SERVED_ASSETS`) stanno in `assets/src/`
+     (fuori dal deploy); `build-cities.mjs` EMETTE le copie servite in `assets/` senza
+     commenti (`stripComments`: uno scanner che conosce stringhe, template, regex e
+     `url()`, rifiuta se perde il filo; `vm.Script` = `node --check`), `?v=` e pesi sono
+     dei file emessi e `--check` nomina una copia servita stantia. Si modifica SOLO
+     `assets/src/`. Guadagno: CSS 14,8 → 11,5 e JS 13,7 → 10,0 KB gz per pagina desk
+     (Milano 80,0 → 72,1; hub 72,0 → 66,5 KB).
   2. **L'onda** (`assets/boom-onda.js`, il campo a palette della home, solo oro,
-     ≥ 940): caricata dopo `load` quando il browser è libero; il battito parte
-     dal codice di destinazione dello stub; **gira SOLO mentre il desk è
+     ≥ 940 — dal 04/11, v1.7, anche sul telefono DENTRO il pass: vedi «IL
+     BIGLIETTO v1.7»): caricata dopo `load` quando il browser è libero; il battito parte
+     dal codice di destinazione dello stub a desk (dal tabellone della città sul
+     telefono; sull'hub dal tabellone EUROPE a ogni larghezza); **gira SOLO mentre il desk è
      aperto** (`boom-city.js` lo dice ogni minuto dal calendario del desk),
      chiuso disegna un fotogramma fermo e attenuato, sotto reduced-motion mai un
      ciclo, fuori schermo o a scheda nascosta dorme. Una sola catena di
@@ -2903,13 +4444,15 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
      forced-colors e stampa non spostano la griglia del biglietto quando la
      lamina sparisce; stampa in bianco e nero; lo stub e la porta restano in
      vista mentre una tariffa è aperta (blocco sticky); gli archi della rete non
-     passano mai sopra il pallino di un altro desk (`bowArcs` + `arcViolations`,
-     rifiuto del build); l'orologio porta il nome del suo fuso («London time»,
+     passano mai sopra il pallino di un altro desk (oggi `hzViolations` sulla
+     Horizon: ≥ 6px dal bordo di ogni pallino che l'arco non serve, anello
+     dell'hub compreso, rifiuto del build); l'orologio porta il nome del suo fuso («London time»,
      «Italian time»), mai «At the desk»; i desk in waitlist non scrivono mai
      «desk open» (REPLYING/OFFLINE, «replies until 19:00 CET»); «Reply today»
      non sopravvive alla chiusura né alla mezzanotte; sotto 940 il tabellone
      dell'orologio si monta solo in vista.
-  Non fatti, dichiarati: il fuoco dopo un ridimensionamento (v1.5), la targa dei
+  Non fatti, dichiarati: il fuoco dopo un ridimensionamento (v1.5; per la cassa
+  chiuso dalla revisione v1.7, punto 8), la targa dei
   cookie sopra la porta del Gate, la misura a inizio pagina di
   `js/boom-scroll.js` per tutto il sito (lavoro a parte).
   Test: `tests/cities/run.mjs`, `ui.mjs`, `checkout.mjs`, `calendar.mjs`, più
@@ -2923,48 +4466,107 @@ desk è GENERATO da `build-cities.mjs` dagli stessi JSON dei desk (`buildHub`,
 pagine città).
 - **La pagina, in ordine**: H1 «A rental agent on your side, in» + il tabellone
   Solari **EUROPE** (fuori dall'H1, che si legge «…in Europe»); il **tabellone
-  delle partenze** (otto righe: i cinque desk live linkati con codice IATA,
-  orari, ora del desk, OPEN/CLOSED e «from €149/£149»; Berlino e Parigi «NOT
-  OPEN» senza link; ROM, l'hub, verso `/`). L'HTML statico porta solo gli orari:
+  delle partenze** (nove righe: gli otto desk live — Valencia dal 04/11, Parigi e Berlino dal 05/11 —
+  linkati con codice IATA, orari, ora del desk, OPEN/CLOSED e «from €149/£149»; ROM, l'hub, verso
+  `/`, senza la riga sotto dal 05/11; nessun desk «NOT OPEN» resta, la riga vale per una bozza futura). L'HTML statico porta solo gli orari:
   orologio, finestra e OPEN/CLOSED li scrive `assets/boom-desks.js` dal
   calendario del desk (`js/desk-calendar.js`, festivi compresi), dentro span
   `data-nosnippet`; a ≥ 760 la colonna NOW è un tabellone a palette di sei
   celle (verde se aperto) che gira SOLO quando il desk apre o chiude. Poi la
   **mappa d'Europa** (vedi sotto), **le tre tariffe** uguali a ogni desk (la
-  regola del rimborso sotto ogni €500/£500, la nota LAU art. 20 prima del primo
-  prezzo, nessun pagamento qui: le porte portano a `/<slug>#fares`), la tabella
+  regola del rimborso sotto ogni €500/£500, la nota LAU art. 20 e, dal 05/11, «In Berlin and Paris
+  every fare is charged only when you sign a lease.» prima del primo prezzo, nessun pagamento qui:
+  le porte portano a `/<slug>#fares`), la tabella
   **«Renting rules, city by city»** dai `checks` dei JSON (l'etichetta `at`
   verbatim, una riga per tema, sotto 760 una scheda per tema), le FAQ, la scheda
   «in brief» APERTA, il piede.
-- **La mappa** (`viewBox 0 -40 640 520`, la stessa `mapXY` delle pagine desk):
-  la **costa vera** di Natural Earth 1:50m (dominio pubblico) scritta UNA volta
-  da `design/pages-deco/genera-europa.py` in `cities/_europe.json` (proiezione
-  `mapXY`, ritaglio al riquadro ±5, Douglas–Peucker 1,2, anelli sotto 10 u²
-  tolti, unità intere; due tracciati dalla stessa fonte: `path` per l'hub, `desk`
-  per la Rete delle pagine desk; il build non scarica niente e regge senza il
-  file). La terra è una matrice di puntini ritagliata sulla costa più un filo;
-  gli archi da Roma hanno lo STESSO `d` dell'arco d'oro di ogni pagina desk
-  (test di uguaglianza), sfumati oro → bianco; i desk live hanno pallino e anello
-  d'oro, Berlino e Parigi un pallino vuoto senza arco, Roma tre anelli. I pin
-  (≥ 44px) sono link veri: al passaggio o al fuoco una regola `:has()` generata
-  accende di oro il SUO arco, una cometa percorre l'arco UNA volta (0,9 s, solo
-  senza reduced-motion) e la scheda del pin mostra codice, ora del desk,
-  finestra, «from …» e «Go to the … desk →». Sotto 640 le etichette crescono.
-- **L'onda** dietro il tabellone (≥ 940), lo stesso `boom-onda.js` delle pagine
-  desk con hash nell'URL: il battito parte da ROM, gira solo mentre almeno un
-  desk è aperto (un fotogramma fermo quando sono tutti chiusi, mai sotto
-  reduced-motion). Cicli a riposo: la pillola «Desks open» e l'onda con un desk
-  aperto, zero con tutti chiusi.
-- **JSON-LD**: l'organizzazione condivisa (identica alle pagine desk),
-  CollectionPage con `speakable` (`.hub-lead`, `.enbref`), ItemList dei desk
-  live, i cinque `Service` IDENTICI a quelli delle pagine desk (stessa funzione
+- **La mappa — la Horizon (v1.7, 04/11/2026; il fondatore su un iPhone vero:
+  «la mappa è bella; iterala molto di più: più mappa, rotte, animazioni, un
+  globo»)**: un fermo-immagine satellitare INCLINATO della Terra vera, costruito
+  nel build (`build-cities.mjs` «THE HORIZON») come SVG statico — la pagina senza
+  JS, la stampa e reduced motion ricevono tutto il disegno — con
+  `assets/boom-map.js` che aggiunge SOLO ciò che cambia col tempo. Una camera a
+  foro stenopeico sopra il Sahara (`HZ_CAM`: lon 5, lat 29, a 1,3 raggi
+  terrestri, guarda lon 5 / lat 51, nord in alto; `hzCamera`) **inquadra da sola**
+  ogni desk con coordinate più Roma — lo stesso insieme su ogni pagina, così
+  pallino, arco ed etichetta sono uguali ovunque; un desk nuovo ri-inquadra la
+  mappa, nessun rettangolo fisso rifiuta niente (`HZ_SCALE_MAX` 1000: con pochi
+  desk la camera non zooma oltre l'orizzonte); i margini sono disuguali apposta
+  (`pad` l .09 · r .06 · t .25 · b .08: a 0,1/0,1 AMS e LON stavano a 42,4px su
+  un telefono da 320) e il viewBox è ritagliato a ciò che si disegna (`0 55 640
+  437`). La curva del pianeta e il bordo illuminato attraversano la cima del
+  quadro (disco, tre tratti del lembo, graticola ogni 10°, tre nomi di mare solo
+  dove sono veri: `HZ_SEAS`). La **costa vera** di Natural Earth 1:50m sta in
+  GRADI in `cities/_europe.json` (83 KB, fuori dal peso del deploy), scritta una
+  volta da `design/pages-deco/genera-europa.mjs` (il `.py` non c'è più; il build
+  non scarica niente e regge senza il file); al build si proietta, si taglia
+  all'orizzonte e si semplifica in unità di schermo (Douglas–Peucker `HZ_COAST`:
+  eps 1,3, anelli sotto 16 u² tolti); la terra è una matrice di puntini
+  ritagliata sulla costa, il mare una trama più tenue. Gli **archi** da Roma
+  sono cerchi massimi SOLLEVATI (altezza proporzionale alla distanza angolare:
+  UN sollevamento per tutti cercato in `HZ_LIFT`, prima 0,22, inclinazione
+  `HZ_LEAN` dritta prima; poi ogni arco adattato a una cubica di Bézier,
+  tolleranza 0,5); sull'hub l'arco di ogni desk ha lo STESSO `d` dell'arco d'oro
+  della sua pagina (test di uguaglianza). **Il build rifiuta tre cose, con tre
+  funzioni**: `hzViolations` misura SOLO la distanza arco↔pallino — un arco a
+  meno di `ARC_CLEAR` 6px dal bordo di un pallino che non serve (pallini vuoti e
+  l'anello da 10px dell'hub compresi; l'errore nomina la coppia, «ROM → XXX
+  passes 4.2px from YYY»); `hzLabels` un'etichetta che non trova posto (sopra
+  un'altra etichetta, un pallino, un arco o fuori quadro: «network map: no place
+  for the labels (…)»); `hzArcs` un arco che nessun sollevamento tiene libero
+  (dagli altri desk, dal quadro, dagli altri archi) O che passa dietro
+  l'orizzonte — lo stesso messaggio per i due casi («network map: no bow takes
+  the arc ROM → XXX clear of the other desks»): prima di toccare `HZ_LIFT`
+  guardare `validGeo` di quel desk. Le etichette le mette UN collocatore a
+  backtracking sull'UNIONE delle scatole del telefono (`HZ_FONT.phone` 20/13) e
+  del desktop (11/7,95), così il codice sta dallo stesso lato su ogni pagina; i
+  pin distano ≥ 44px dove SONO bersagli (`HUB_MAP_PX = { 600: 566, 940: 559 }`, dal 05/11;
+  asserito dal build). Con otto desk live LON–PAR sta a 30,1px a 390 e 24,2 a 320, quindi sul
+  telefono vale l'opzione (b) (D12 della v1.8): sotto i 600px, o senza hover, i pin restano link
+  (tastiera, crawler) ma non prendono il tocco, e la mappa intera aggancia il desk più vicino entro
+  30px (oltre, niente). Il pallino vuoto col codice attenuato e senza arco resta per una bozza
+  (oggi nessuna); Roma col suo anello (due sull'hub, «ROM · HUB»);
+  i pin e la lista Network sono link veri. **Viva a vista** (`assets/boom-map.js`,
+  3,0 KB gz servita; il SUO tetto `MAP_KB` 3,5 è una riga a sé E conta nel totale
+  della pagina — gli 82 KB reggono CON la mappa; iniettata da `boom-city.js` /
+  `boom-desks.js` quando la mappa è a 600px dallo schermo, `immutable` in
+  `vercel.json`): il **terminatore vero** a ogni minuto (almanacco a bassa
+  precisione per il sole, un raggio ogni 4 unità dalla camera del build, il velo
+  della notte come immagine data-URL più una linea tratteggiata; il gruppo
+  `.hz-nite` nasce vuoto: la pagina statica non dipende dall'ora); il bagliore
+  d'oro sui desk APERTI ora da `BOOM_DESK_CAL.deskWindow` (`g.dk.on`; la legenda
+  aggiunge «open now» solo col JS e «night, now» solo quando `night()` ha
+  disegnato un velo o un tratto di terminatore — a mezzogiorno d'estate no); gli **aerei**: una sola catena di
+  rAF, ogni arco vola UNA volta alla prima vista con 260 ms di scarto (se la
+  mappa non era sullo schermo al caricamento l'arco si disegna anche col
+  dashoffset), di nuovo al passaggio o al fuoco sul pin (hub) o sulla riga
+  Network (pagina desk); mai due aerei sullo stesso arco; reduced motion =
+  nessun aereo, nessun disegno. Sul **tocco** (niente hover, o sotto i 600px):
+  il primo tap aggancia la scheda del desk SOTTO la mappa (`.pc.dock`, e si
+  prende il suo spazio: legenda e schede scendono invece di essere coperte) e fa
+  volare il suo aereo; il secondo tap, o un tap sulla scheda, va al desk; Escape
+  o un tap altrove la chiude. La mappa si mostra ANCHE sui telefoni (il pin v1.6
+  «niente mappa sotto i 640» è girato); sotto i 640 le etichette crescono.
+- **L'onda** dietro il tabellone, lo stesso `boom-onda.js` delle pagine desk
+  con hash nell'URL (dal 04/11, v1.7: anche il telefono dell'hub la carica, dopo
+  `load`, quando è libero): il battito parte dal tabellone EUROPE (`#hubBoard`) a
+  ogni larghezza — la riga ROM su desktop sta a y≈1010, sotto la tela (≤ 1000px)
+  e il suo velo, e l'anello non si vedeva nascere (revisione v1.7); gira solo mentre almeno un desk è aperto
+  (`setOpen` ogni minuto; un fotogramma fermo quando sono tutti chiusi, mai
+  sotto reduced-motion). Cicli a riposo: la pillola «Desks open» e l'onda con un
+  desk aperto, zero con tutti chiusi.
+- **JSON-LD** (su una riga dal 05/11, `ldJson`): l'organizzazione condivisa (identica alle pagine
+  desk), CollectionPage con `speakable` (`.hub-lead`, `.enbref`), ItemList dei desk
+  live, gli otto `Service` IDENTICI a quelli delle pagine desk (stessa funzione
   `serviceNode`, test di uguaglianza), FAQPage = le domande visibili. Nessun desk
   non aperto in nessun nodo JSON-LD tranne la FAQ visibile. Nessuna cassa,
   nessun WhatsApp generico (una città sconosciuta finirebbe nella macchina di
   Roma), il rating una volta sola («on Google in Rome»).
 - **Decisioni**:
-  1. Parigi e Berlino «NOT OPEN» (non «Opening»): mai un link, un prezzo, un
-     orario, un arco o un nodo JSON-LD su una pagina live.
+  1. Un desk non aperto è «NOT OPEN» (non «Opening»): mai un link, un prezzo, un
+     orario, un arco o un nodo JSON-LD su una pagina live. Parigi e Berlino lo sono stati fino al
+     05/11 (vedi «IL BIGLIETTO v1.8»); la regola resta provata sulle bozze di prova
+     (`tests/cities/fixtures/draft-paris.json`, `draft-berlin.json`).
   2. **Milano (decisione del fondatore, 03/11)**: Egidi Immobiliare S.r.l. è
      un'agenzia immobiliare italiana (REA RM-1710623), e a Milano valgono le
      stesse regole italiane di Roma. Milano però resta un desk: tariffe fisse,
@@ -2976,8 +4578,8 @@ pagine città).
      piede, la FAQ 6 e la riga di prova «an Italian real estate agency, under the
      same Italian law as in Rome».
   3. La tabella non ripete fatti ancora da confermare: `rules.hold` (Londra
-     tutta, Madrid contract, Barcellona rentcap/contract, Milano
-     fees/registration) mostra solo il titolo col link; `rules.cut` toglie da
+     tutta, Madrid contract, Barcellona rentcap/contract, Valencia rent/contract, Milano
+     fees/registration, Parigi rentcap dal 05/11) mostra solo il titolo col link; `rules.cut` toglie da
      Amsterdam «Agents still ask for three. We don't let them.». Sbloccare =
      togliere la chiave dopo il parere del legale.
   4. Ogni pagina desk mostra tutti i desk nella Rete (pallino pieno live, vuoto
@@ -2987,22 +4589,32 @@ pagine città).
   stare qualcosa): 78 KB gz in tutto (pagina 28, CSS 6, JS 6); parole al
   caricamento 980 (prosa 740, strumenti 280), primo schermo a 390 ≤ 120, lead 30,
   nodo 24, una risposta FAQ ≤ 42, una riga in brief ≤ 45; per sezione board 120 ·
-  map 90 · fares 230 · rules 160 · faq 70 · brief 240. Oggi: 957 parole, 71,7 KB
-  (pagina 26,8: la costa pesa 3 KB). Le pagine desk con la costa: 77,0–80,0 KB
-  su 82.
+  map 90 · fares 230 · rules 160 · faq 70 · brief 240. Con otto desk (v1.8, misurato
+  dopo la revisione del 05/11): 973 parole (prosa 698 · strumenti 275; board 119 · map 65 · fares 225 ·
+  rules 156 · faq 43 · brief 227), pagina 28.319 B gz su 28.672, totale 73,3 KB; primo schermo 84.
+  Ci stanno perché il JSON-LD va su una riga (−386 B) e per i tagli H1–H13 della v1.8 (via «One
+  company» e «One person» dalla striscia, la riga Rome della scheda, la riga sotto ROM, il tag del
+  paese nella tabella; il tag di Milano resta). Un altro desk costa all'hub circa 31 parole contro 7
+  di margine: il prossimo (il nono live) è una decisione strutturale, non una riga di copy.
 - **Da confermare col legale (non bloccano)**: per Milano, un'unità locale con
   preposto (DM 26/10/2011) se una persona BOOM va alle visite; il Full Search
   pagato prima (art. 6 L. 39/1989, provvigione o mandato); moduli in CCIAA;
-  capitale sociale nel blocco Company (art. 2250 c.c.); polizza RC; ammorbidire
-  «Unregistered, it is void» (Cass. SS.UU. 23601/2017); un check `fees` per
+  capitale sociale nel blocco Company (art. 2250 c.c.); polizza RC; far
+  confermare «Until it is registered, the lease is void under Italian law»
+  (Cass. SS.UU. 23601/2017; nullità ex L. 311/2004 art. 1 c. 346; la riga resta
+  `hold` sull'hub); un check `fees` per
   Amsterdam solo dopo il legale; IVA UK (NETP) e redress scheme di Londra; la
-  conferma del voto del 12/11 sul RDL 29/2026 per Madrid. **Del fondatore**: la
+  conferma del voto del 12/11 sul RDL 29/2026 per Madrid; Parigi e Berlino: le aperte O1–O19 di
+  «IL BIGLIETTO v1.8». **Del fondatore**: la
   foto, una voce «Desks» nel menu della home, Wikidata nei `Service`.
-- Test: `tests/cities/run.mjs` (THE HUB, la rete, Milano, la costa, la cometa,
+- Test: `tests/cities/run.mjs` (THE HUB, la rete, Milano, la costa in gradi,
+  la Horizon — `hzViolations`, le etichette, gli archi uguali, `MAP_KB` —,
   l'onda), `ui.mjs` (hub: primo schermo, orologi con Koningsdag e il bank
-  holiday, senza JS, 320px, pin e archi, cometa, tabellone a palette, onda
-  aperta/chiusa, reduced-motion), più seo, llmstxt, crawl, verita, consent,
-  scroll (`desks.html` in VENDONO), radici (`genera-europa.py`).
+  holiday, senza JS, 320px, pin e archi, gli aerei, la scheda agganciata al
+  tocco — dal 05/11 il tocco sulla mappa che aggancia il desk più vicino entro 30px —, tabellone a
+  palette, onda aperta/chiusa, reduced-motion), più seo,
+  llmstxt, crawl, verita, consent, scroll (`desks.html` in VENDONO), radici
+  (`genera-europa.mjs` deriva la radice dal proprio file).
 
 ### BOOM Proprietari (`/owners` + `api/owner-lead.js`) — 30/09/2026
 Rifatta da zero su richiesta del fondatore («non è attraente, non converte,
@@ -3261,7 +4873,10 @@ piede, voce attiva centrata. Test: `tests/conto` 114 check (mutazioni prese).
 da `CITY_PLANS`; un desk waitlist o senza `checkout:true` è 400
 `checkout_closed` senza sessione; il telefono è facoltativo (Stripe lo
 raccoglie), `success_url` è la pagina della città con `?paid=<kind>`. Vedi
-«BOOM Cities → La cassa e i prezzi su ogni desk».
+«BOOM Cities → La cassa e i prezzi su ogni desk». **Dal 05/11 (v1.8)** un desk
+`chargeAt:'signing'` (Parigi, Berlino) non apre MAI una sessione: `createCityOrder`
+(`api/_cityorder.js`) prende l'ordine e risponde `{ok, booked:true, …}`; prima della chiamata
+Stripe una cintura risponde 500 `signing_desk`.
 Public one-tap Stripe Checkout for the productised services (Services 2.0
 pages). Server-side catalog decides price/copy — the client only names the
 kind: `virtual-viewing` (€89), `deal-assistance` (€249),
@@ -3276,6 +4891,25 @@ WhatsApp-only. All four pages (`virtual-viewing`, `deal-assistance`,
 `property-finding`, `concierge`) are standalone Services 2.0 product pages
 (MATERIA ambient, pay-plate + checkout sheet, sticky mobile pay bar,
 JSON-LD Service+Offer+FAQ).
+
+### GET `/api/city-lead?order=<book_…>&t=<token>&city=<slug>` — il biglietto gestito (v1.8)
+Solo su un desk che incassa alla firma; token derivato (`orderToken`, `api/payments/_token.js`),
+token sbagliato e ordine sconosciuto = lo stesso 404; 30 ogni 10′ per IP, no-store. Risponde
+`state` booked · due (col link di pagamento della fattura) · paid · withdrawn · closed, mai un dato
+personale. `?paid=` su un desk alla firma è 400. Vedi «IL BIGLIETTO v1.8», punto 5.
+
+### POST `/api/withdraw` — il recesso online (v1.8)
+Pubblico: `{ name, email, ref, desk, service, requestId, company(honeypot), lang? }`. La
+dichiarazione in `agentNotifications/withdraw-<hash>` (409 = la stessa), la conferma subito al
+consumatore e la copia all'operatore, sempre 200 `{ok:true}` (nessuna enumerazione); un ordine si
+timbra solo se UNO combacia e l'email è la sua; niente si decide da solo. Config di default.
+Vedi «IL BIGLIETTO v1.8», punto 8.
+
+**Fatture con `vatCountry` diverso da `'IT'`** (le `cityfee_` di Parigi e Berlino, v1.8):
+`RENT.isForeignVat` (`js/rent-engine.js`, una copia) le tiene FUORI dalla base IVA italiana del
+Contabile, dello scadenzario e della pagina fiscale Egidi del portal (`egidiInvoiceBase`, anche
+per «Salva nelle scadenze»), elencate a parte («IVA estera — da definire») finché il
+commercialista non decide il luogo della prestazione.
 
 ### POST `/api/search/save`
 Public save-search endpoint for the apartments discovery page. Body

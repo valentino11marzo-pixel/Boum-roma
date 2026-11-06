@@ -63,6 +63,46 @@
       id: 'amsterdam', labelIt: 'Amsterdam', labelEn: 'Amsterdam', flag: '🇳🇱', currency: 'EUR',
       agencyPolicy: 'flag', enabled: false,
       aliasTag: 'radar-amsterdam', cityTokens: ['amsterdam']
+    },
+    // Valencia (03/11/2026): DICHIARATA ma spenta, come Amsterdam — il desk vende,
+    // il Full Search si cerca a mano. Prima di accenderla: "Calle de Valencia"
+    // (Madrid) e "Carrer de València" (Barcellona) diventano entrambe 'valencia'
+    // dopo fold(): marketFromText vedrebbe due città e manderebbe in
+    // market_unknown gli annunci di Madrid e Barcellona che nominano la via.
+    // Servono prima una maschera delle vie (calle|carrer|avenida|avinguda|plaza|
+    // plaça de …), le zone di Valencia in radar-engine (MARKET_ZONES), lo scope
+    // idealista in api/pfs/_searchurls.js, l'alias +radar-valencia e il battito
+    // inbox-valencia (api/pfs/health.js SOURCES).
+    valencia: {
+      id: 'valencia', labelIt: 'Valencia', labelEn: 'Valencia', flag: '🇪🇸', currency: 'EUR',
+      agencyPolicy: 'flag', enabled: false,
+      aliasTag: 'radar-valencia', cityTokens: ['valencia'],
+      idealistaCity: 'valencia-valencia', idealistaRoot: 'valencia'
+    },
+    // Parigi e Berlino (05/11/2026): DICHIARATE ma spente, come Valencia — il
+    // Full Search si cerca a mano (SeLoger, PAP, Leboncoin · ImmoScout24,
+    // Immowelt, Kleinanzeigen: cities/paris.json, cities/berlin.json). Il
+    // cliente si salva sul SUO mercato (pfs-command #cm-market, «· radar
+    // spento») e clientMarket() lo tiene fuori da ogni mazzo. Niente chiavi
+    // idealista: idealista non copre Francia e Germania. Già oggi, a radar
+    // spento: nessun portale francese o tedesco è in marketOfUrl, quindi un
+    // loro URL aggiunto a mano («Aggiungi annuncio», mercato «dal link») finisce
+    // su Roma (admin/match-test dà Roma a un dominio che tace), come un
+    // Rightmove di Londra: serve la regola 'needs_city' dei portali spagnoli.
+    // Prima di accenderle anche le zone in radar-engine (MARKET_ZONES), le ricerche (api/pfs/_searchurls.js conosce solo
+    // idealista.com), gli alias +radar-paris/+radar-berlin con le ricerche
+    // salvate e i battiti inbox-<città> (api/pfs/health.js SOURCES). E
+    // «Carrer de París» (Barcellona) diventa 'paris' dopo fold(): la stessa
+    // maschera delle vie che aspetta Valencia.
+    paris: {
+      id: 'paris', labelIt: 'Parigi', labelEn: 'Paris', flag: '🇫🇷', currency: 'EUR',
+      agencyPolicy: 'flag', enabled: false,
+      aliasTag: 'radar-paris', cityTokens: ['paris']
+    },
+    berlin: {
+      id: 'berlin', labelIt: 'Berlino', labelEn: 'Berlin', flag: '🇩🇪', currency: 'EUR',
+      agencyPolicy: 'flag', enabled: false,
+      aliasTag: 'radar-berlin', cityTokens: ['berlin']
     }
   };
 

@@ -11,7 +11,7 @@
   "live": true,
   "mode": "search",
   "config": {},
-  "updated": "2026-11-03",
+  "updated": "2026-11-04",
   "meta": {
     "title": "Rental property finder for expats in London — BOOM",
     "description": "Home search for expats moving to London, tenant side only: tenant file within one working day of your papers, applications as listings appear, tenancy checked.",
@@ -201,7 +201,7 @@
     "rows": [
       {
         "dt": "Who",
-        "ddHtml": "BOOM London, the tenant-side rental desk of BOOM — operated by <b>Egidi Immobiliare S.r.l.</b>, a registered Italian agency. Hired by the tenant and paid by the tenant only, <b>never by the landlord or the landlord's agent</b>."
+        "ddHtml": "BOOM London, the tenant-side rental desk of BOOM — operated by <b>Egidi Immobiliare S.r.l.</b>, an Italian real estate agency registered in Rome. Hired by the tenant and paid by the tenant only, <b>never by the landlord or the landlord's agent</b>."
       },
       {
         "dt": "For whom",
@@ -301,7 +301,7 @@
     "altLead": "Prefer to talk first?",
     "altLink": "Start with a free call, no card",
     "startNow": "Start now: I ask BOOM to begin before my 14-day withdrawal period ends, and I understand that once the service is fully performed I can no longer withdraw.",
-    "withdrawal": "Withdrawal: 14 days from payment, by email to {email} or with the {form}. If you asked us to start and then withdraw, we refund the price minus the work already done. Without the tick, we start when the 14 days end.",
+    "withdrawal": "Withdrawal: 14 days from payment — {online}, by email to {email} or with the {form}. If you asked us to start and then withdraw, we refund the price minus the work already done. Without the tick, we start when the 14 days end.",
     "fine": "Secure card payment by Stripe, in pounds sterling. Invoice from Egidi Immobiliare S.r.l., VAT included. Full Search is refunded in full if we decline the search in the first call.",
     "errors": {
       "name": "Your name, so we know who we're working for.",

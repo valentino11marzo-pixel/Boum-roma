@@ -2,34 +2,35 @@
   "slug": "berlin",
   "city": "Berlin",
   "country": "DE",
+  "chargeAt": "signing",
   "iata": "BER",
   "geo": {
     "lat": 52.52,
     "lon": 13.405
   },
-  "live": false,
-  "mode": "waitlist",
+  "live": true,
+  "mode": "search",
   "config": {},
-  "updated": "2026-11-03",
+  "updated": "2026-11-05",
   "meta": {
-    "title": "Tenant-side rental agent in Berlin — BOOM",
-    "description": "BOOM Berlin works only for the tenant and opens with a licensed partner. Open your file today: rent-brake check, lease read, German dossier, attended viewings.",
+    "title": "Tenant-side rental agent for expats in Berlin — BOOM",
+    "description": "Apartment search for expats in Berlin, tenant side only: German-format dossier, homes offered to you alone, viewings attended. Paid only when you sign.",
     "ogTitle": "BOOM Berlin — an agent on your side of the table",
-    "ogDescription": "Tenant-side desk for internationals moving to Berlin, opening with a licensed partner. Rent-brake check, lease read, German-format dossier, attended viewings. Paid by you — never by landlords."
+    "ogDescription": "Tenant-side rental search for expats and internationals moving to Berlin. German-format dossier within one working day of your papers, homes a landlord lets us offer to you alone, attended viewings, rent brake and lease checked. Flat fees, paid by you only when you sign a lease — never by landlords."
   },
   "service": {
-    "name": "BOOM Berlin — tenant-side rental desk",
+    "name": "BOOM Berlin — tenant-side rental search",
     "serviceType": "Tenant-side rental search agent",
-    "audience": "Internationals relocating to Berlin",
-    "description": "Tenant-side rental desk for Berlin, opening with a licensed partner (trade permit under §34c GewO). On the tenant's side only: rent checked against the Mietpreisbremse, cold and warm rent read, lease read before signing, German-format dossier, attended viewings with live video and written report, Anmeldung paperwork from day one. Flat fees set and shown, charged only when the desk opens; nothing from landlords or platforms, ever."
+    "audience": "Expats and internationals relocating to Berlin",
+    "description": "Rental search in Berlin on the tenant's side only: German-format dossier and self-disclosure within one working day of the tenant's papers, homes whose landlord lets BOOM offer them to the tenant alone, attended viewings with live video and written report, rent checked against the Mietpreisbremse, cold and warm rent read, lease read before signing. Flat fees paid by the tenant, charged only when a lease is signed and within the legal cap; nothing from landlords or platforms."
   },
   "hero": {
     "h1Before": "Your home in",
-    "lead": "Opening with a licensed partner. Today: your file, opened and kept ready.",
-    "leadStrong": "Paid by you, never by landlords.",
+    "lead": "We search, apply, attend the viewings and check the lease.",
+    "leadStrong": "Paid only by you, and only when you sign.",
     "faresHead": {
-      "b": "List prices",
-      "span": "Nothing charged today"
+      "b": "Flat fees",
+      "span": "Always within the legal cap"
     }
   },
   "pricing": {
@@ -39,32 +40,35 @@
         "label": "Full Search",
         "name": "We search. You choose.",
         "price": 500,
-        "condition": "flat · incl. VAT · on signing",
-        "conditionLong": "List price. Due only once you sign a lease; nothing before.",
+        "condition": "flat · incl. VAT",
+        "conditionLong": "VAT included, charged when you sign a lease. Invoice from Egidi Immobiliare S.r.l.",
         "includes": [
-          "Search every working day: ImmoScout24, Immowelt, Kleinanzeigen",
-          "Self-disclosure, German-format applications as listings appear",
-          "Attended viewing, live video + report",
-          "Rent brake and lease checked, Nebenkosten read"
+          "Homes offered to you alone, with the landlord's go-ahead",
+          "Self-disclosure and German-format application",
+          "Attended viewings included",
+          "Rent brake and lease checked, Nebenkosten read",
+          "Until you sign, or you say stop"
         ],
-        "offerDescription": "Search every working day on ImmoScout24, Immowelt and Kleinanzeigen, tenant self-disclosure and German-format applications as listings appear, an attended viewing with live video and a report, rent brake and lease checked, Nebenkosten read.",
-        "when": "Haven't started yet"
+        "offerDescription": "Search for homes whose landlord lets us offer them to you alone, German-format application and self-disclosure, attended viewings, rent brake and lease check, until the tenant signs or stops the search.",
+        "when": "Haven't started yet",
+        "trigger": "Nothing is charged before you sign a lease for a home we brought you, and nothing if you never do."
       },
       {
         "id": "application-pack",
         "label": "Application Pack",
         "name": "You search. We make you win.",
         "price": 199,
-        "condition": "flat · incl. VAT · at opening",
-        "conditionLong": "List price. Charged only when the desk opens.",
+        "condition": "flat · incl. VAT",
+        "conditionLong": "VAT included, charged when you sign a lease. Invoice from Egidi Immobiliare S.r.l.",
         "includes": [
-          "German-format dossier, one working day",
+          "German-format dossier, one working day from your papers",
           "SCHUFA and guarantor strategy for newcomers",
           "Self-disclosure and cover note in German",
           "Lease review before you sign"
         ],
         "offerDescription": "German-format rental dossier within one working day of your papers, a SCHUFA and guarantor strategy, self-disclosure and cover note in German, lease review before you sign.",
-        "when": "Found one, or shortlisted and already in Berlin"
+        "when": "Found one, or shortlisted and already in Berlin",
+        "trigger": "Nothing is charged unless you sign for a home you applied to with our dossier."
       },
       {
         "id": "attended-viewing",
@@ -72,8 +76,8 @@
         "unit": "per viewing",
         "name": "Eyes on the ground.",
         "price": 149,
-        "condition": "per viewing · incl. VAT · at opening",
-        "conditionLong": "List price. Charged only when the desk opens.",
+        "condition": "per viewing · incl. VAT",
+        "conditionLong": "VAT included, charged when you sign a lease. Invoice from Egidi Immobiliare S.r.l.",
         "includes": [
           "A BOOM person attends in your place",
           "Live video walkthrough",
@@ -81,34 +85,35 @@
           "A straight recommendation"
         ],
         "offerDescription": "A BOOM person attends the viewing in your place, with live video and a written report.",
-        "when": "Shortlisted, still abroad"
+        "when": "Shortlisted, still abroad",
+        "trigger": "Nothing is charged unless you sign for the home we viewed."
       }
     ]
   },
   "stub": {
-    "notSure": "Not sure which fare? Opening your file is free."
+    "notSure": "Not sure which fare? On a free call we say which fits, or that none does."
   },
   "how": {
-    "h2": "From your file",
+    "h2": "From the first call",
     "h2g": "to the keys.",
     "steps": [
       {
-        "k": "1 · File",
-        "h": "Open it today",
-        "p": "Budget warm and cold, move-in date, districts, who's moving. We reply the same working day.",
+        "k": "1 · Brief",
+        "h": "A free call",
+        "p": "Budget warm and cold, dates, districts, who's moving. We say what your budget buys today.",
         "status": "FREE"
       },
       {
-        "k": "2 · Opening",
-        "h": "A licensed partner",
-        "p": "Brokering a flat in Germany needs a trade permit (§34c GewO). We open with a licensed partner, not around the rule.",
-        "status": "WITH PARTNER"
+        "k": "2 · Your file",
+        "h": "German-format, one working day",
+        "p": "Dossier, self-disclosure and cover note in German, from your papers.",
+        "status": "1 WORK DAY"
       },
       {
-        "k": "3 · The search",
-        "h": "Then as in every BOOM city",
-        "p": "German-format dossier, applications as listings appear, a BOOM person at the viewing, rent brake and lease checked before you sign.",
-        "status": "AT OPENING"
+        "k": "3 · Viewing & lease",
+        "h": "A BOOM person in the room",
+        "p": "Live video and a written report. Rent brake and lease checked before you sign.",
+        "status": "IN PERSON"
       }
     ]
   },
@@ -118,9 +123,9 @@
     "items": [
       {
         "id": "fees",
-        "title": "Who may charge you",
-        "at": "Bestellerprinzip · §34c GewO",
-        "text": "Whoever orders the agent pays. One you hire is paid only once you sign, within a legal cap. We open with a licensed partner."
+        "title": "Who pays the agent",
+        "at": "Bestellerprinzip · WoVermRG",
+        "text": "Whoever orders the agent pays: a landlord's agent cannot charge you. One you hire is paid only for a home offered to you alone, once you sign, at most two months' net cold rent plus VAT."
       },
       {
         "id": "rentcap",
@@ -135,7 +140,7 @@
         "text": "At most three months' cold rent, in three instalments, kept apart from the landlord's money. Anything more is not legal."
       },
       {
-        "id": "warm",
+        "id": "charges",
         "title": "Cold or warm",
         "at": "Kaltmiete · Warmmiete",
         "text": "The listed rent is often cold. We read the Nebenkosten advance, what it covers, and what the yearly settlement can add."
@@ -155,22 +160,26 @@
       "Three months of bank statements",
       "Tenant self-disclosure (Mieterselbstauskunft)"
     ],
-    "tail": "We tell you which ones to start gathering first."
+    "tail": "The rest we go through on the free call."
   },
   "faq": {
     "h2": "Questions.",
     "items": [
       {
-        "q": "Why isn't BOOM taking searches in Berlin yet?",
-        "a": "Brokering a flat in Germany needs a trade permit (§34c GewO), and the law sets how a tenant-side agent is paid: only once you sign, within a cap. We open with a licensed partner. Your file waits, ready."
+        "q": "When do I pay a rental agent in Berlin?",
+        "a": "Only when you sign the lease: in Germany an agent may take nothing before, and a landlord's agent cannot charge you. BOOM Berlin charges Full Search only for a home its landlord let us offer to you alone; if you never sign, you pay nothing."
       },
       {
-        "q": "What can you do for me today?",
-        "a": "Open your file, answer your questions the same working day, and tell you honestly what your budget buys in Berlin, warm and cold. The prices on this page are set; nothing is charged before the desk opens, and the Full Search fee only once you sign."
+        "q": "What happens on the free call?",
+        "a": "A call with Valentino, by phone or WhatsApp, at a time that suits you both. We hear your dates, budget and who is moving, say which service fits, or that none does, and which papers you are missing. Nothing is charged for the call, or before you sign a lease."
       },
       {
-        "q": "Who pays the agent in Germany?",
-        "a": "Whoever orders the agent. A landlord's agent cannot charge you. An agent who brokers your tenancy may charge you only once the lease is signed, at most two months' net cold rent plus VAT. Full Search opens under that rule; Application Pack and Attended Viewing are charged at opening."
+        "q": "How do I avoid a rental scam in Berlin from abroad?",
+        "a": "Never transfer a deposit or first rent for a flat nobody on your side has seen, and never pay an agent before a lease is signed. With Attended Viewing (€149) a BOOM person visits it in your place, with live video and a written report, charged only if you sign. With Full Search or Application Pack we also check the lease and the rent brake before you sign."
+      },
+      {
+        "q": "What if you don't find anything?",
+        "a": "Then you pay nothing: every fare is charged only when you sign the lease we helped you get. We tell you in the first call if your budget and timeline don't fit the market. Once we take it on, the search runs until you sign or stop it."
       }
     ]
   },
@@ -179,24 +188,28 @@
     "rows": [
       {
         "dt": "Who",
-        "ddHtml": "BOOM Berlin, the tenant-side desk of BOOM — operated by <b>Egidi Immobiliare S.r.l.</b>, a registered Italian agency, opening with a <b>licensed partner (§34c GewO)</b>. Hired and paid by the tenant only."
+        "ddHtml": "BOOM Berlin, the tenant-side rental desk of BOOM — operated by <b>Egidi Immobiliare S.r.l.</b>, an Italian real estate agency registered in Rome. Hired and paid by the tenant only, <b>when the lease is signed, never before</b>."
       },
       {
         "dt": "For whom",
-        "ddHtml": "Internationals relocating to Berlin — employees, researchers, couples and families — from abroad or already in the city."
+        "ddHtml": "Expats and internationals relocating to Berlin — employees, researchers, couples and families — from abroad or already in the city."
+      },
+      {
+        "dt": "Language",
+        "ddHtml": "English; the self-disclosure and cover note go in German."
       },
       {
         "dt": "Fees",
-        "ddHtml": "VAT included, nothing charged before the desk opens; Full Search due only on a signed lease, inside the German cap. Nothing from landlords or platforms.",
-        "fees": true
+        "fees": true,
+        "ddHtml": "Nothing from landlords or platforms, always inside the German cap."
       },
       {
         "dt": "What we do",
-        "ddHtml": "Today: your file, opened and kept ready. When the desk opens: German-format dossier within <b>one working day</b>, applications <b>as listings appear</b>, attended viewings, rent brake and lease checked, Anmeldung from day one."
+        "ddHtml": "German-format dossier within <b>one working day</b> of your papers, homes a landlord lets us offer to <b>you alone</b>, attended viewings with live video and written report, rent brake and lease checked before you sign, Anmeldung supported."
       },
       {
         "dt": "What we don't do",
-        "ddHtml": "We don't list homes, represent landlords, promise a date, or broker in Germany before the desk opens."
+        "ddHtml": "We don't list homes, we don't represent landlords, we don't collect your rent or deposit, we don't promise a date, and we charge nothing before you sign."
       },
       {
         "dt": "Reply time",
@@ -210,7 +223,7 @@
     ]
   },
   "footer": {
-    "statement": "Launching with a licensed partner. BOOM Berlin acts solely as a tenant-side desk: we do not list properties, represent landlords, or receive remuneration from landlords or their agents, and we do not broker a tenancy in Germany before the desk opens with its licensed partner."
+    "statement": "BOOM Berlin acts solely as a tenant-side search agent. We do not list properties, represent landlords, or receive remuneration from landlords or their agents, and we charge nothing before your lease is signed."
   },
   "desk": {
     "person": "Valentino Egidi",
@@ -230,7 +243,7 @@
     ]
   },
   "door": {
-    "label": "Open my file"
+    "label": "Start with a free call"
   },
   "form": {
     "name": {
@@ -253,11 +266,11 @@
     "sentNext": [
       [
         "{when}",
-        "Valentino writes back by email, or WhatsApp if you left a number."
+        "Valentino writes to set your free call."
       ],
       [
         "Nothing to prepare",
-        "We tell you which papers to start gathering."
+        "On the call we say which papers matter."
       ],
       [
         "Nothing by then?",
@@ -265,5 +278,71 @@
       ]
     ],
     "sentWhenDefault": "Same working day"
+  },
+  "checkout": true,
+  "checkoutCopy": {
+    "noteLabel": "A listing you already found, or anything we should know",
+    "notePlaceholder": "https://www.immobilienscout24.de/… · move-in 1 February",
+    "btnSubNow": "Starts in the desk’s first open hour · no card",
+    "btnSubWait": "Starts when your 14 days end · no card",
+    "altLead": "Prefer to talk first?",
+    "altLink": "Start with a free call, no card",
+    "startNow": "Start now: I ask BOOM to begin before my 14-day withdrawal period ends, and I understand that once the service is fully performed I can no longer withdraw.",
+    "withdrawal": "Withdrawal: 14 days from your order — {online}, by email to {email} or with the {form}. Nothing is charged before you sign, so withdrawing costs nothing. Without the tick, we start when the 14 days end.",
+    "fine": "No card today. Invoice from Egidi Immobiliare S.r.l., VAT included, with a secure payment link when you sign. Nothing is charged before you sign a lease, and nothing if you never do.",
+    "errors": {
+      "name": "Your name, so we know who we're working for.",
+      "email": "A valid email — your order and, when you sign, the invoice go there.",
+      "net": "The order did not reach us — try again, or start with a free call instead.",
+      "stale": "This page was just updated — reload it to order with the current terms."
+    },
+    "booked": {
+      "before": "Booked — your file",
+      "em": "is open.",
+      "text": "Nothing is charged until you sign. The Berlin desk writes by email, or on WhatsApp if you left a number. Questions? Write to",
+      "next": [
+        [
+          "First desk hour",
+          "your order by email: reply ‘Confirmed’"
+        ],
+        [
+          "Same working day",
+          "your brief: dates, budget, who’s moving"
+        ],
+        [
+          "When you sign",
+          "the fee, once, with the invoice"
+        ]
+      ],
+      "nextWait": [
+        [
+          "First desk hour",
+          "your order by email: reply ‘Confirmed’"
+        ],
+        [
+          "When the 14 days end",
+          "your brief: dates, budget, who’s moving"
+        ],
+        [
+          "When you sign",
+          "the fee, once, with the invoice"
+        ]
+      ],
+      "wait": "You did not tick “Start now”: we start when your 14 days end. Sooner? Write to {email}.",
+      "pending": "Order being confirmed. Your copy comes by email.",
+      "unconfirmed": "Not confirmed yet. If no email reaches you, write to the desk.",
+      "startsNow": "The desk’s first open hour",
+      "startsWait": "From {date}, after your 14-day withdrawal period",
+      "withdrawLink": "Withdraw from contract here",
+      "paidText": "Paid on {date}. Invoice from Egidi Immobiliare S.r.l.",
+      "dueText": "Your lease is signed. The BOOM fee: {amount}, VAT included, invoice from Egidi Immobiliare S.r.l.",
+      "payLabel": "Pay the fee securely",
+      "withdrawnText": "Withdrawn on {date}. Nothing was charged.",
+      "closedText": "Closed. Nothing was charged."
+    },
+    "order": "Your order runs until you sign or stop it; your copy comes by email."
+  },
+  "till": {
+    "label": "Order, pay on signing"
   }
 }

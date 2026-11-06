@@ -7,9 +7,12 @@
 // Commerciale stands down and the Telegram card speaks of the city.
 //
 // What breaks if this goes red:
-//   - a waitlist desk (Paris, Berlin) or a search desk whose till
-//     is closed being charged by a hand-made POST (400 checkout_closed, no
-//     Stripe call) — shown is not charged;
+//   - a waitlist desk or a search desk whose till is closed being charged
+//     by a hand-made POST (400 checkout_closed, no Stripe call) — shown is
+//     not charged; since the v1.8 flip there is no waitlist left, so the
+//     refusal runs on Paris patched back to its draft (try/finally);
+//   - a desk charged at signing (Paris, Berlin since the v1.8 flip) ever
+//     opening a payment session: its order answers BOOKED, Stripe untouched;
 //   - the price coming from the browser instead of CITY_PLANS;
 //   - the paid lead filed as a Rome service (no market → the Commerciale
 //     drafts a Rome reply to someone who just paid for Amsterdam);
@@ -64,6 +67,10 @@ let failClientMail = false;
 // next n reads answer 503 (review 22/10: the file_ref read is retried once,
 // and a read that fails twice is written on the lead, never taken as absent)
 const failGets = new Map(), getReads = new Map();
+// every document carries a version, like Firestore's updateTime (a commit's precondition reads it)
+const VER = new Map();
+let verSeq = 0;
+const verOf = (k) => VER.get(k) || '2026-11-05T09:00:00.000000Z';
 globalThis.fetch = async (url, opts = {}) => {
   url = String(url);
   if (url.includes('identitytoolkit')) return okJson({ idToken: 'tok', users: [{ localId: 'admin1' }] });
@@ -78,6 +85,26 @@ globalThis.fetch = async (url, opts = {}) => {
     const clean = p.replace(/^\//, '').split('?')[0];
     const qs = new URL(url).searchParams;
     if (p.startsWith(':runQuery')) return okJson([{}]);
+    // v1.8 FLIP: the order rail of a desk charged at signing commits with preconditions (api/_cityorder.js: the
+    // register counter and the booked lead, all or nothing) — applied here as Firestore would, each write against
+    // its currentDocument; a refused precondition is a 409 and nothing is written
+    if (p.startsWith(':commit')) {
+      const writes = JSON.parse(opts.body).writes || [];
+      const pathOf = (n) => String(n).split('/documents/')[1];
+      for (const w of writes) {
+        const k = pathOf((w.update && w.update.name) || w.delete), pc = w.currentDocument || {};
+        if ((pc.exists === false && store.has(k)) || (pc.exists === true && !store.has(k)) || (pc.updateTime && pc.updateTime !== verOf(k))) {
+          return new Response(JSON.stringify({ error: { status: 'FAILED_PRECONDITION' } }), { status: 409 });
+        }
+      }
+      for (const w of writes) {
+        if (!w.update) continue;
+        const k = pathOf(w.update.name), flat = { ...(store.get(k) || {}) };
+        for (const [f, v] of Object.entries(w.update.fields || {})) flat[f] = fromFsV(v);
+        store.set(k, flat); VER.set(k, `2026-11-05T10:00:00.${String(++verSeq).padStart(6, '0')}Z`);
+      }
+      return okJson({ writeResults: writes.map(() => ({})) });
+    }
     if (opts.method === 'POST') {
       const docId = qs.get('documentId') || 'auto_' + (store.size + 1);
       const key = clean + '/' + docId;
@@ -105,7 +132,7 @@ globalThis.fetch = async (url, opts = {}) => {
     };
     const fields = {};
     for (const [k, v] of Object.entries(doc)) fields[k] = toFsV(v);
-    return okJson({ name: 'projects/p/databases/(default)/documents/' + clean, fields });
+    return okJson({ name: 'projects/p/databases/(default)/documents/' + clean, fields, updateTime: verOf(clean) });
   }
   throw new Error('fetch non stubbata: ' + url);
 };
@@ -128,9 +155,23 @@ const ANNA = { name: 'Anna Keller', email: 'anna@example.com' };
 // ── 1 · the offer resolver: what may be sold, and why not ──────────────────
 check(cityOffer('amsterdam', 'full-search').ok === true && cityOffer('amsterdam', 'full-search').eur === 500 && cityOffer('Madrid', 'attended-viewing').eur === 149,
   'cityOffer: a search desk with the till open sells its plans at CITY_PLANS prices (city key case-insensitive)');
-check(['paris', 'berlin'].every((c) => cityOffer(c, 'full-search').error === 'checkout_closed'), 'cityOffer: every waitlist desk is checkout_closed — shown is not charged');
+// v1.8 FLIP: the pin moved (spec §13.2) — Paris and Berlin were waitlists (checkout_closed); since the flip they sell
+// the same grid, charged at signing, and the offer says so. The waitlist refusal keeps its test on Paris patched back
+// to its draft registry entry (try/finally): no waitlist desk is left in the registry
+check(['paris', 'berlin'].every((c) => { const o = cityOffer(c, 'full-search'); return o.ok === true && o.chargeAt === 'signing' && o.eur === CITY_PLANS['full-search'].eur && o.currency === 'eur'; })
+  && cityOffer('amsterdam', 'full-search').chargeAt === 'checkout',
+  'cityOffer: Paris and Berlin sell the grid charged at signing (chargeAt "signing"); the six charge at the checkout');
+{
+  const keep = CITY_MARKETS.paris;
+  try {
+    CITY_MARKETS.paris = { label: 'Paris', flag: '🇫🇷', country: 'fr', url: keep.url, mode: 'waitlist', partner: 'a licensed partner', plans: CITY_PLANS };
+    check(cityOffer('paris', 'full-search').error === 'checkout_closed', 'cityOffer: a waitlist desk (Paris patched back to its draft) is checkout_closed — shown is not charged');
+  } finally { CITY_MARKETS.paris = keep; }
+}
 check(cityOffer('barcelona', 'full-search').ok === true && cityOffer('barcelona', 'full-search').eur === 500 && cityOffer('barcelona', 'attended-viewing').eur === 149,
   'cityOffer: Barcelona sells from 22/10 at the CITY_PLANS prices');
+check(cityOffer('valencia', 'full-search').ok === true && cityOffer('valencia', 'full-search').eur === 500 && cityOffer('valencia', 'application-pack').eur === 199 && cityOffer('valencia', 'full-search').currency === 'eur',
+  'cityOffer: Valencia sells the three plans at the grid prices, in euros');
 check(cityOffer('rome', 'full-search').error === 'unknown_city' && cityOffer('amsterdam', 'concierge').error === 'unknown_service', 'cityOffer: unknown city, unknown plan');
 check(Object.keys(CITY_PLANS).join() === 'full-search,application-pack,attended-viewing' && CITY_PLANS['full-search'].eur === 500 && CITY_PLANS['application-pack'].eur === 199 && CITY_PLANS['attended-viewing'].eur === 149,
   'CITY_PLANS is the brief\'s grid: 500 / 199 / 149');
@@ -145,10 +186,18 @@ check(/Refunded in full if we decline the search in the first call/.test(CITY_PL
 }
 {
   const before = globalThis.__stripeCalls.length;
+  // v1.8 FLIP: the pins moved (spec §13.2) — Berlin and Paris were waitlists (400 checkout_closed); since the flip they
+  // are charged at signing: a signing desk never opens a payment session and answers BOOKED. A hand-made POST without
+  // the order terms the page shows is refused by the order rail; an order with them is booked, and Stripe is untouched
   const r = await post(checkout, { city: 'berlin', kind: 'full-search', ...ANNA });
-  check(r.code === 400 && r.body.error === 'checkout_closed' && globalThis.__stripeCalls.length === before, 'berlin (waitlist): 400 checkout_closed, no Stripe session — a hand-made POST cannot buy a desk that is not open');
-  const r2 = await post(checkout, { city: 'paris', kind: 'application-pack', ...ANNA });
-  check(r2.body.error === 'checkout_closed' && globalThis.__stripeCalls.length === before, 'paris: the same refusal');
+  check(r.code === 409 && r.body.error === 'terms_changed' && !('url' in r.body) && globalThis.__stripeCalls.length === before,
+    'berlin (charged at signing): a hand-made POST without the order terms is 409 terms_changed — no Stripe session, never a payment', JSON.stringify(r.body));
+  const { ORDER_TERMS } = await import('../../api/_cityterms.js');
+  const r2 = await post(checkout, { city: 'paris', kind: 'application-pack', ...ANNA, requestId: 'chkflip00001', termsV: ORDER_TERMS.paris.v, startNow: false });
+  const booked = store.get('leads/book_chkflip00001');
+  check(r2.code === 200 && r2.body.ok === true && r2.body.booked === true && !('url' in r2.body) && /^PAR-\d{4}-0001$/.test(r2.body.number || '') && r2.body.plan === 'application-pack'
+    && booked && booked.booked === true && booked.paid !== true && booked.market === 'paris' && globalThis.__stripeCalls.length === before,
+    'paris (charged at signing): an order with its terms answers BOOKED (its register number, no payment URL), the lead is booked and not paid, and no Stripe session is opened', JSON.stringify(r2.body));
   const r4 = await post(checkout, { city: 'rome', kind: 'full-search', ...ANNA });
   const r5 = await post(checkout, { city: 'amsterdam', kind: 'virtual-viewing', ...ANNA });
   check(r4.code === 400 && r4.body.error === 'unknown_city' && r5.code === 400 && r5.body.error === 'unknown_service' && globalThis.__stripeCalls.length === before,
@@ -303,6 +352,17 @@ check(/Refunded in full if we decline the search in the first call/.test(CITY_PL
   await webhook(stream(evI), mkRes());
   const leadI = svcLead('cs_city_bcn_itphone');
   check(leadI && leadI.phone === '333 1234567', 'an Italian mobile typed on /barcelona is not given +34: it stays as typed, for the Rome rule', leadI && leadI.phone);
+  // and Valencia reads ITS calendar (es-vlc): paid on Fri 25 September 2026, +14 = Fri 9
+  // October (Dia de la Comunitat), then the weekend and the 12th → Tuesday 13, work from 14
+  const evV = event({ ...base, city: 'valencia', market: 'valencia', name: 'Lucía Ferrer', email: 'lucia@example.com', phone: '612 345 678' }, { id: 'cs_city_vlc_hol' });
+  evV.data.object.metadata.start_now = '0'; evV.created = Date.UTC(2026, 8, 25, 10, 0, 0) / 1000;
+  const eV = emails.length;
+  await webhook(stream(evV), mkRes());
+  const leadV = svcLead('cs_city_vlc_hol');
+  check(leadV && leadV.market === 'valencia' && leadV.city && leadV.city.withdrawalEndsOn === '2026-10-13' && leadV.city.workFrom === '2026-10-14' && /^VALENCIA — paid order · Full Search · €500 paid/.test(leadV.message) && leadV.phone === '+34612345678',
+    'a Valencia order: market valencia, the es-vlc calendar (9 Oct Dia de la Comunitat + 12 Oct → Tue 13), the +34 number', leadV && JSON.stringify([leadV.message, leadV.city, leadV.phone]));
+  const opV = emails.slice(eV).find((m) => m.to_email === 'valentino@boom-rome.com');
+  check(opV && !/Catalan|fulls oficials|RAICV|Registro de Agentes/.test(opV.intro || ''), 'a Valencia order: the operator\'s email carries no Barcelona line and no registry claim', opV && String(opV.intro).slice(-200));
   // the Rome Pacchetto: the same form, in Italian
   const eIt = emails.length;
   await webhook(stream(event({ service: 'SERVICE', kind: 'concordato-pack', name: 'Giulia Rossi', email: 'giulia@example.com', phone: '+393331234567', notes: '', amount_eur: '349', start_now: '0' }, { id: 'cs_pack_it', amount_total: 34900 })), mkRes());
@@ -405,6 +465,17 @@ check(/Refunded in full if we decline the search in the first call/.test(CITY_PL
   ];
   check(bcn.every(([at, last, start]) => w(at, 'es-bcn').lastDay === last && w(at, 'es-bcn').startDay === start),
     'withdrawalWindow (es-bcn): Sant Joan, the Diada, La Mercè, Pasqua Granada — and no Jueves Santo', JSON.stringify(bcn.map(([at]) => [at, w(at, 'es-bcn').lastDay, w(at, 'es-bcn').startDay])));
+  const vlc = [
+    ['2027-03-12T11:00:00Z', '2027-03-30', '2027-03-31', 'Good Friday (26 Mar 2027) and Easter Monday (29) → Tue 30'],
+    ['2026-01-08T10:00:00Z', '2026-01-23', '2026-01-26', 'Sant Vicent Màrtir (Thu 22 Jan 2026) → Fri 23, work from Mon 26'],
+    ['2026-03-05T10:00:00Z', '2026-03-20', '2026-03-23', 'Sant Josep (Thu 19 Mar 2026) → Fri 20'],
+    ['2026-06-10T10:00:00Z', '2026-06-25', '2026-06-26', 'Sant Joan (Wed 24 Jun 2026, that year only) → Thu 25'],
+    ['2027-06-10T10:00:00Z', '2027-06-24', '2027-06-25', 'Thu 24 Jun 2027 is a working day in Valencia (Sant Joan was 2026 only)'],
+    ['2027-03-11T10:00:00Z', '2027-03-25', '2027-03-30', 'Thu 25 Mar 2027: no Jueves Santo in Valencia; Good Friday and Easter Monday move the start'],
+    ['2027-03-22T10:00:00Z', '2027-04-06', '2027-04-07', 'Easter Monday (29 Mar) is not day 14; Sant Vicent Ferrer (Mon 5 Apr 2027) is → Tue 6'],
+  ];
+  check(vlc.every(([at, last, start]) => w(at, 'es-vlc').lastDay === last && w(at, 'es-vlc').startDay === start),
+    'withdrawalWindow (es-vlc): Sant Vicent Màrtir, Sant Josep, Sant Joan 2026 only, Sant Vicent Ferrer — and no Jueves Santo', JSON.stringify(vlc.map(([at]) => [at, w(at, 'es-vlc').lastDay, w(at, 'es-vlc').startDay])));
   check(w('2026-09-10T10:00:00Z', 'es').lastDay === '2026-09-24' && w('2027-03-11T10:00:00Z', 'es').lastDay === '2027-03-30',
     'the Madrid calendar is a different one: it keeps La Mercè a working day and has Jueves Santo — the reason Barcelona has its own key');
   // the national days Catalonia keeps, on a weekday: Fiesta Nacional (Mon 12
@@ -503,7 +574,9 @@ check(/Refunded in full if we decline the search in the first call/.test(CITY_PL
     getPaid({ paid: 'cs_live_short', city: 'amsterdam' }), getPaid({ paid: 'pi_123456789abc', city: 'amsterdam' }), getPaid({ paid: 'cs_test_abc/../x1234', city: 'amsterdam' }), getPaid({ city: 'amsterdam' }),
   ]);
   check(bads.every((r) => r.code === 400 && r.body.ok === false && r.headers['cache-control'] === 'no-store'),
-    'a waitlist desk, an unknown city, a malformed or missing session id: 400 (still no-store)', JSON.stringify(bads.map((r) => r.code)));
+    // v1.8 FLIP: Paris and Berlin are no longer waitlists — charged at signing, they have no session at the order, so
+    // their ?paid= is still a malformed request (api/city-lead.js)
+    'a desk charged at signing (Paris, Berlin), an unknown city, a malformed or missing session id: 400 (still no-store)', JSON.stringify(bads.map((r) => r.code)));
   // a lead under that id that is NOT a paid city order answers pending
   store.set('leads/' + serviceLeadId('cs_test_NotPaid00001'), { market: 'amsterdam', name: 'X', city: { paid: false, service: 'full-search', file: 'BM AAAAA' } });
   store.set('leads/' + serviceLeadId('cs_test_RomeOrder0001'), { intent: 'service', paid: true, name: 'Ada' });
@@ -561,7 +634,9 @@ check(/Refunded in full if we decline the search in the first call/.test(CITY_PL
   const refuse = src.indexOf("if (!offer.ok) return res.status(400).json({ ok: false, error: offer.error });");
   const create = src.indexOf('stripe.checkout.sessions.create(');
   check(refuse > -1 && create > -1 && refuse < create, 'the offer is refused BEFORE a Stripe session can be created');
-  check(/import \{ cityOffer \} from '\.\/_market\.js'/.test(src) && !/CITY_PLANS\s*=/.test(src) && /unit_amount: svc\.eur \* 100/.test(src) && !/body\.(eur|price|amount)/.test(src),
+  // the amount is the registry's price, or what the server's upgrade credit
+  // leaves of it (api/_upgrade.js, 06/11/2026): never a number from the body
+  check(/import \{ cityOffer(, moneyOf)? \} from '\.\/_market\.js'/.test(src) && !/CITY_PLANS\s*=/.test(src) && /const charge = upgrade \? upgrade\.pay : svc\.eur;/.test(src) && /unit_amount: Math\.round\(charge \* 100\)/.test(src) && /const up = upgradeOffer\(src, lid, Date\.now\(\)\);/.test(src) && !/body\.(eur|price|amount)/.test(src),
     'the endpoint carries no price of its own: the amount is the registry\'s, never the body\'s');
   const wh = read('api/stripe-webhook.js');
   check(/const cityDesk = CITY_MARKETS\[cityKey\] \|\| null;/.test(wh) && /market: cityKey,\s*sourceRef: `city-\$\{cityKey\}`,/.test(wh) && /intent: cityDesk \? 'city_order' : 'service'/.test(wh),

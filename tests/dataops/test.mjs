@@ -54,6 +54,12 @@ ok('contratto registrato è protetto', E.isProtected('contracts', { registration
 ok('bozza di contratto NON è protetta', !E.isProtected('contracts', { signatureStatus: 'none' }));
 ok('documento con file è protetto', E.isProtected('documents', { url: 'https://…/f.pdf' }));
 ok('utente admin è protetto', E.isProtected('users', { role: 'admin' }));
+// v1.8: l'ordine di un desk che incassa alla firma È il registro dei mandati
+// (Parigi) — numerato, senza buchi: mai cancellato in blocco (spec §6.8)
+ok('ordine prenotato (booked) è protetto', E.isProtected('leads', { booked: true, paid: false }));
+ok('ordine col numero di registro è protetto anche senza booked', E.isProtected('leads', { city: { order: { number: 'PAR-2026-0001' } } }));
+ok('lead pagato è protetto', E.isProtected('leads', { paid: true }));
+ok('lead qualunque NON è protetto', !E.isProtected('leads', { status: 'new', email: 'a@b.it' }) && !E.isProtected('leads', { booked: 'true', city: { order: {} } }));
 
 // Il caso che conta: un pagamento INCASSATO ma con nome di test resta
 // visibile, spiegato, ma MAI preselezionato.
