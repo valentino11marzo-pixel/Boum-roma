@@ -88,7 +88,7 @@ async function fixture(source=portal){
   for(const name of ['conversations','oggi-engine','segretaria-casi-engine','segretaria-proposta-engine','segretaria-esecuzione-engine'])await page.addScriptTag({content:read('js/'+name+'.js')});
   const oggi=source.slice(source.indexOf('    function oggiDismissKey()'),source.indexOf('    function adminDashboard()'));
   const inbox=source.slice(source.indexOf('    var _inboxState ='),source.indexOf('    var _psState ='));
-  await page.addScriptTag({content:sessionHelpers(source)+'\n'+oggi+'\n'+inbox+'\n'+['isAdmin','isLandlord','isTenant','portalSearchAuthorized','esc','closeModal','startInboxListener','stopInboxListener','startOpenConvListener','stopOpenConvListener'].map(name=>named(name,source)).join('\n')+'\n'+source.slice(source.indexOf('    function toast('),source.indexOf("    console.log('🚀 BOOM Portal"))+'\nstartInboxListener();'});
+  await page.addScriptTag({content:sessionHelpers(source)+'\n'+oggi+'\n'+inbox+'\n'+['isAdmin','isLandlord','isTenant','portalSearchAuthorized','portalMailboxOpenConversation','esc','closeModal','startInboxListener','stopInboxListener','startOpenConvListener','stopOpenConvListener'].map(name=>named(name,source)).join('\n')+'\n'+source.slice(source.indexOf('    function toast('),source.indexOf("    console.log('🚀 BOOM Portal"))+'\nstartInboxListener();'});
   await page.addScriptTag({content:lazyInbox(source)});
   await page.waitForFunction(()=>S.conversations.length===200);
   await page.evaluate(()=>{_inboxState.convId='conv-existing';_inboxState.composing='email';document.getElementById('main').innerHTML=inboxPage();});
@@ -157,6 +157,18 @@ function replaceOnce(source,from,to){assert(source.includes(from),'Mutazione agg
 try{
   for(const mode of ['bound','new'])await check(mode+' · il CID canonico fuori lista viene letto dal server e apre la cronologia',async()=>{
     const {page,errors}=await fixture();try{await page.evaluate(mode=>{apiMode=mode;},mode);await clickOpen(page);await canonicalOpened(page);assert.deepEqual(errors,[]);}finally{await page.close();}
+  });
+  await check('email fuori200 resta aperta dopo snapshot della lista e conserva la bozza',async()=>{
+    const {page,errors}=await fixture();try{
+      await page.evaluate(async()=>{closeModal();await portalMailboxOpenConversation(canonical.id)});
+      await page.waitForFunction(()=>S.openConvId===canonical.id);
+      await page.locator('#inboxBody').fill('Bozza dopo ammissione email');
+      await page.evaluate(()=>emitPage());
+      assert.equal(await page.evaluate(()=>_inboxState.convId),CID);
+      assert.equal(await page.evaluate(()=>S.conversations.filter(c=>c.id===canonical.id).length),1);
+      assert.equal(await page.locator('#inboxBody').inputValue(),'Bozza dopo ammissione email');
+      assert.deepEqual(await page.evaluate(()=>io.writes),[]);assert.deepEqual(errors,[]);
+    }finally{await page.close();}
   });
   await check('dopo lo strumento WhatsApp una selezione esplicita email apre il thread e rimuove il filtro canale',async()=>{
     const {page,errors}=await fixture();try{

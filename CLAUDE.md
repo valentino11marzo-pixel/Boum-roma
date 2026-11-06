@@ -6000,6 +6000,13 @@ generica dopo aver scelto una casa o un contratto. `homeTools` ora passa il
 riferimento tipizzato anche per questi due record, riusando Inbox e i suoi
 collegamenti confermati; nessun destinatario dedotto, invio, scrittura o AI.
 Il ritorno conserva la selezione. Prove `actions`, `oggiquicktoolsui`, `inboxconnected`.
+**04/11 — alias BOOM nel lettore:** importazione e nuova richiesta accettano
+anche i sei alias verificati in Google Admin, in A/Cc, esclusivamente quando
+la casella configurata è `valentino@boom-rome.com`. La mappa esatta vive in
+`js/mailbox-aliases-engine.js`; nessun wildcard di dominio o alias presunto.
+Le email da/verso sé stessi restano escluse; A/Cc originali rimangono nella fonte.
+Stesso Message-ID = stesso messaggio anche su più alias, senza nuovi invii,
+lead o notifiche. Ccn senza destinatario visibile non ammesso. Test: `mailboxaliases`.
 **15/10 — posta nel Portal:** Home → «Cerca nelle email» legge la casella configurata
 con `api/mailbox/query`, solo admin: ricerca esplicita, pagine da 20 e testo nel lettore
 mobile. Gmail usa Tutti i messaggi (anche inviati/archiviati, esclusi Spam/Cestino);
@@ -6016,6 +6023,14 @@ testo completo e identità; `_mail-import` conserva il commit atomico del cron.
 Il testo originale resta nella fonte; retry e import cron non duplicano il
 messaggio né avviano un turno automatico. Da Inbox resta «Prendi in carico».
 Prove `mailboximport`, `mailboxui`, `mailbox`, `mailsource`.
+**21/10 — nuova richiesta dall’email:** il lettore ammette un recapito confermato
+in una conversazione Email manuale, con fonte integrale e header nello stesso commit.
+Nessun lead, account, casa, invio o avvio della Segretaria implicito; il seguito usa «Prendi in carico».
+La scansione condivisa include fino a 2000 conversazioni; archivio incompleto/identità ambigua fermano il collegamento.
+Retry e due email simultanee usano lo stesso riferimento; un conflitto rilevato dopo il commit conserva la fonte e richiede verifica.
+L’apertura rilegge il server e conserva la conversazione fuori dalle ultime 200 anche dopo uno snapshot; sessioni obsolete scartate.
+Il dossier segnala recapiti condivisi con identificatori discordanti; il nuovo ingresso sospende la presa in carico se l’identità non è verificabile.
+Prove `mailboxadmission`, `mailboximport`, `mailboxui`, `inboxleadui`, `persona` e `inboxtakecharge`; dati sintetici, nessuna bonifica dello storico.
 **Rilascio 14/10:** `.vercelignore` esclude i Markdown dal sito: manuali, audit
 e note operative restano nel repository. Verificato il problema con HTTP 200
 sul vecchio `/CLAUDE.md`; nessun renderer/API legge questi file a runtime.
