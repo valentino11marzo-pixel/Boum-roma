@@ -38,6 +38,13 @@ export default async function handler(req, res) {
   const ip = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim() || "unknown";
   if (!rateOk(ip)) return res.status(429).json({ error: "rate_limited" });
   const safe = (k) => (body[k] || "—").toString().slice(0, 200);
+  // The operator's mailbox follows the ADMIN_NOTIFY_EMAIL convention. Reply-To
+  // is the client when they gave a valid address, otherwise the operator: the
+  // old fallback was a noreply address on boomrome.com, the website's domain,
+  // which has no mail server — a reply bounced after 48 hours.
+  const operator = process.env.ADMIN_NOTIFY_EMAIL || "valentino@boom-rome.com";
+  const clientEmail = String(body.clientEmail || "").trim();
+  const replyTo = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clientEmail) && clientEmail.length <= 254 ? clientEmail : operator;
 
   const subject = `[BOOM] Nuovo viewing — ${safe("clientName")} @ ${safe("listingName")} — ${safe("requestedDate")}`;
   const messageBody =
@@ -59,9 +66,9 @@ export default async function handler(req, res) {
         user_id: "dnMxbtS2qDm_o7SHE",
         accessToken: process.env.EMAILJS_PRIVATE_KEY || undefined,
         template_params: {
-          to_email: "valentino@boom-rome.com",
+          to_email: operator,
           from_name: "BOOM Portal",
-          reply_to: body.clientEmail || "noreply@boomrome.com",
+          reply_to: replyTo,
           heading: "📥 Nuovo viewing",
           subheading: safe("listingName"),
           name: "Valentino",

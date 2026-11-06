@@ -170,7 +170,7 @@ del cliente (carta d'identità, codice fiscale) → proponi
 `boom action --kind reply` chiedendo i documenti, lingua del cliente, tono caldo.
 
 **8. Digest giornaliero**
-Una volta al mattino (8:30 Europa/Rome): `boom digest --email valentino@boomrome.com`.
+Una volta al mattino (8:30 Europa/Rome): `boom digest --email valentino@boom-rome.com`.
 Una volta a fine giornata (19:00): `boom risk` + un breve riassunto via
 `boom note --lead 0 --text "Sintesi giornata: ..."`. **Non mandare email
 durante il giorno** — accumula nel digest serale.
