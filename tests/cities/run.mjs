@@ -64,7 +64,7 @@ import zlib from 'node:zlib';
 import { spawnSync } from 'node:child_process';
 import {
   buildAll, renderCity, writeAll, fill, findPlaceholders, fragments, familyFor, BuildError, esc, eur, money, currencyOf, GENERATED_MARK, WEIGHT_KB, BUDGET,
-  daysLabel, deskHoursText, feesRowOf, withdrawalRowOf, ogLocaleOf, inLanguageOf, holidayKeyOf, visibleAtLoad, visibleText, sliceOf, words, waHref, WITHDRAWAL_PATH, WITHDRAW_LABEL, TERMS_PATH,
+  daysLabel, deskHoursText, feesRowOf, withdrawalRowOf, WITHDRAW_END, ogLocaleOf, inLanguageOf, holidayKeyOf, visibleAtLoad, visibleText, sliceOf, words, waHref, WITHDRAWAL_PATH, WITHDRAW_LABEL, TERMS_PATH,
   stripComments, emittedAssets, emitAssets, SERVED_ASSETS,
   atLoadParts, longNodes, weightOf, validGeo, sealText, sealPhrase, STATUS_RE, STATUS_BANNED_RE, AVIATION_BAN_RE,
   ARC_CLEAR, ARC_DOT_R, ARC_ME_R, MAP_KB, HZ_CAM, HZ_LIFT, HZ_LEAN, HZ_KEY, HUB_MAP_PX, horizon, hzViolations, hzPathPts, hzCal, holidayKeyOf as hkOf,
@@ -1101,7 +1101,7 @@ tplRefuses('<p class="proof">', '<p class="proof">Pay by bank transfer · ', /no
     check(sixSell.length === 6 && sixSell.every((s) => /^Withdrawal: 14 days from payment — \{online\}, by email to \{email\} or with the \{form\}\. /.test(CITY[s].checkoutCopy.withdrawal) && linksOnline(s)),
       'every one of the six carries {online} after "14 days from payment" (spec §4.5) and its till links the online function with its own desk');
     check(twoSign.join() === 'berlin,paris' && twoSign.every((s) => /^Withdrawal: 14 days from your order — \{online\}, by email to \{email\} or with the \{form\}\. /.test(CITY[s].checkoutCopy.withdrawal)
-      && /costs nothing/.test(CITY[s].checkoutCopy.withdrawal) && linksOnline(s)),
+      && /Nothing is charged before you sign a lease, so withdrawing before then costs nothing\./.test(CITY[s].checkoutCopy.withdrawal) && linksOnline(s)),
       'Paris and Berlin carry {online} after "14 days from your order" and say withdrawing costs nothing (spec §3.2); their till links the online function with their own desk');
     // the two output guards, each proven by putting the pre-W markup back
     // through the template (a function replacement: the markup holds no $-patterns to expand)
@@ -1149,20 +1149,28 @@ tplRefuses('<p class="proof">', '<p class="proof">Pay by bank transfer · ', /no
     check(wd && br.indexOf('<dt>Fees</dt>') < br.indexOf('<dt>Withdrawal</dt>') && br.indexOf('<dt>Withdrawal</dt>') < br.indexOf('<dt>What we do</dt>')
       && wd.startsWith(sign ? '<b>14 days from your order</b>' : '<b>14 days from payment</b>')
       && wd.includes(`href="${WITHDRAWAL_PATH}?desk=${desk}#online">online</a>`) && wd.includes(`href="mailto:${shared.contact.email}"`) && wd.includes(`href="${WITHDRAWAL_PATH}?desk=${desk}">model withdrawal form</a>`)
-      && (sign ? /withdrawing costs nothing/.test(wd) && !/refund|work already done/.test(wd) : /minus the work already done/.test(wd)),
-      `${s}: the fact sheet's Withdrawal row follows the fees — ${sign ? '14 days from the order, withdrawing costs nothing' : '14 days from payment, the price minus the work already done'} — with the online function, the email and the model form`, wd);
+      && (sign ? /Nothing is charged before you sign a lease, so withdrawing before then costs nothing\./.test(wd) && !/refund|work already done/.test(wd) : /minus the work already done/.test(wd))
+      && wd.endsWith(' Once the service is fully performed, the right to withdraw ends.'),
+      `${s}: the fact sheet's Withdrawal row follows the fees — ${sign ? '14 days from the order, withdrawing before the lease costs nothing' : '14 days from payment, the price minus the work already done'} — with the online function, the email, the model form, and the end of the right once the service is fully performed (Terms §12.4)`, wd);
     const rt = ddOf('Reply time');
     check(rt === `The same working day (desk hours: ${esc(deskHoursText(c.desk))}).`, `${s}: the reply time names its clock — "${deskHoursText(c.desk)}", from desk.hours`, rt);
     const g = graphOf(h), svc = g.find((n) => n['@type'] === 'Service');
     check(svc.description.endsWith(` Desk hours: ${deskHoursText(c.desk)}.`) && svc.offers.every((o) => JSON.stringify(o.itemOffered) === JSON.stringify({ '@type': 'Service', name: o.name })) && !/For: /.test(JSON.stringify(svc)),
       `${s}: the Service says the desk hours, zone in words; each Offer's itemOffered is the service by name (no "For: …")`);
     const gb = s === 'london';
-    check(h.includes(`<meta property="og:locale" content="${gb ? 'en_GB' : 'en_US'}">`) && ogLocaleOf(c) === (gb ? 'en_GB' : 'en_US')
+    check(h.includes(`<meta property="og:locale" content="${gb ? 'en_GB' : 'en_US'}">`) && ogLocaleOf(c) === (gb ? 'en_GB' : 'en_US') && h.includes(`<html lang="${gb ? 'en-GB' : 'en'}">`)
       && ['WebPage', 'FAQPage'].every((t) => g.find((n) => n['@type'] === t).inLanguage === (gb ? 'en-GB' : 'en')) && inLanguageOf(c) === (gb ? 'en-GB' : 'en'),
-      `${s}: og:locale ${gb ? 'en_GB' : 'en_US'} and inLanguage ${gb ? 'en-GB' : 'en'} (London is British English; derived, not a JSON key)`);
+      `${s}: <html lang>, og:locale and inLanguage say ${gb ? 'British English (en-GB, en_GB)' : 'English (en, en_US)'} — derived from the country, not a JSON key`);
     check(c.faq.h2 === `Questions about renting in ${c.city}.` && h.includes(`<h2 id="faqH"><span class="g">Questions about renting in ${esc(c.city)}.</span></h2>`), `${s}: the FAQ heading names the city ("Questions about renting in ${c.city}.")`);
   }
   check(withdrawalRowOf({ ...clone(ams), checkout: false }, shared.contact) === '', 'a desk that does not sell has no Withdrawal row (nothing to withdraw from)');
+  {
+    // the row and the till say what Terms §12.4 says, in its words (review 06/11: "withdrawing costs nothing"
+    // without "before then" was wider than the terms; the end of the right was missing on the fact sheet)
+    const t124 = visibleText(sliceOf(read('terms.html'), '12.4', '12.5'));
+    check(t124.includes(WITHDRAW_END) && t124.includes('nothing is charged before you sign a lease, so withdrawing before then costs nothing'),
+      'Terms §12.4 carries the two sentences the Withdrawal row and the Paris/Berlin till repeat (the end of the right; nothing before the lease, so withdrawing before then costs nothing)');
+  }
   refuses((c) => { c.bref.rows.splice(4, 0, { dt: 'Withdrawal', ddHtml: '14 days from payment.' }); }, /"Withdrawal" row of the fact sheet is derived/, 'a hand-typed Withdrawal row is refused (the build derives it after the fees)');
   refuses((c) => { c.bref.rows.forEach((r) => { delete r.hours; }); }, /exactly one fact-sheet row carries "hours": true/, 'a fact sheet without its hours row is refused');
   refuses((c) => { c.bref.rows[0].hours = true; }, /exactly one fact-sheet row carries "hours": true/, 'two hours rows are refused');

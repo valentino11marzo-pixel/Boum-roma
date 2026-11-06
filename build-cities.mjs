@@ -793,6 +793,10 @@ export function feesRowOf(c, shared, extra = '') {
 // count from payment, Paris and Berlin from the order and take nothing before
 // the lease. Same three ways as the till ({online}, email, model form); no
 // tick to speak of here, so "without the tick" becomes "if you did not".
+// Terms §12.4, word for word: the right ends once the service is fully
+// performed (CRD art. 16(a); UK CCR 2013 reg. 36) — the start-now tick says it
+// at the till, the fact sheet says it too (review, 06/11)
+export const WITHDRAW_END = 'Once the service is fully performed, the right to withdraw ends.';
 export function withdrawalRowOf(c, contact) {
   if (c.checkout !== true) return '';
   const desk = encodeURIComponent(c.city);
@@ -800,8 +804,8 @@ export function withdrawalRowOf(c, contact) {
     + `<a class="lnk" href="mailto:${esc(contact.email)}">${esc(contact.email)}</a> or with the `
     + `<a class="lnk" href="${WITHDRAWAL_PATH}?desk=${desk}">model withdrawal form</a>.`;
   return isSigning(c)
-    ? `<b>14 days from your order</b>: ${ways} Nothing is charged before you sign, so withdrawing costs nothing. Unless you ask us to start sooner, we start when the 14 days end.`
-    : `<b>14 days from payment</b>: ${ways} If you asked us to start and then withdraw, we refund the price minus the work already done. If you did not, we start when the 14 days end.`;
+    ? `<b>14 days from your order</b>: ${ways} Nothing is charged before you sign a lease, so withdrawing before then costs nothing. Unless you ask us to start sooner, we start when the 14 days end. ${WITHDRAW_END}`
+    : `<b>14 days from payment</b>: ${ways} If you asked us to start and then withdraw, we refund the price minus the work already done. If you did not, we start when the 14 days end. ${WITHDRAW_END}`;
 }
 
 // The calendar a desk's window reads: the webhook's own key (CITY_MARKETS
@@ -2201,6 +2205,7 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
     jsonLdBreadcrumb: ldJson(jsonLdBreadcrumb(city, shared, pageUrl)),
     jsonLd: ldJson(jsonLd(city, shared, pageUrl, ogImage, cities)),
     ogLocale: ogLocaleOf(city),
+    htmlLang: inLanguageOf(city),
     configJson: scriptJson(config, '  '),
     assetVersion,
     scrollBlock: frags.scrollBlock,

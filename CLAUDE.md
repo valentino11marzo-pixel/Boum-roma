@@ -4398,6 +4398,48 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
   La revisione avversaria a sub-agenti non è girata (limite di spesa fino all'11/11): la revisione è
   stata fatta a mano, sui cinque punti di vista (soldi, sicurezza, consumatore, regressioni, casi
   limite).
+- **L'AUDIT GEO/SEO/AI DEI DESK (06/11/2026 — «ritorniamo alla conclusione delle città»).** Un audit a
+  più agenti sugli otto desk e sull'hub; chiusi qui i rilievi che non aspettano una decisione.
+  1. **`llms.txt`**: la frase «does BOOM operate outside Rome» nomina gli otto desk (il test la deriva
+     dai desk `live`); «Pricing/Payments in Rome» (il 10% e il bonifico valgono solo a Roma); una riga
+     «Pricing on the desks» (tre tariffe IVA inclusa, il rimborso dei sei, la regola della firma di
+     Parigi e Berlino); i contatti per ruolo (hello@ per desk, ordini e recesso; valentino@ per Roma).
+  2. **La riga Withdrawal della scheda dei fatti**, DERIVATA (`withdrawalRowOf`) subito dopo le
+     tariffe su ogni desk che vende: i sei «14 days from payment» (rimborso meno il lavoro fatto se si
+     è chiesto di iniziare), Parigi e Berlino «14 days from your order… withdrawing before then costs
+     nothing»; online, email, modulo tipo; chiude con `WITHDRAW_END`, la frase dei Termini §12.4 («Once
+     the service is fully performed, the right to withdraw ends.»). La cassa di Parigi e Berlino dice
+     ora «before then» come i Termini (la revisione: senza era più larga dei Termini). Il build
+     rifiuta una riga «Withdrawal» scritta nel JSON; il test legge le due frasi nei Termini.
+  3. **Le ore del desk**: la riga «Reply time» porta `"hours": true` (esattamente una per desk, anche
+     nelle bozze di prova) e il build aggiunge «(desk hours: Mon–Fri 09:00–19:00, Rome time)» da
+     `desk.hours`; la descrizione del `Service` finisce con le stesse ore (schema.org non ha il fuso in
+     `OpeningHoursSpecification`).
+  4. **JSON-LD e lingua**: `itemOffered` = il servizio per nome (via «For: Haven't started yet.», 24
+     volte sull'hub). Londra `<html lang="en-GB">`, `og:locale en_GB`, `inLanguage en-GB`
+     (`ogLocaleOf`/`inLanguageOf`, dal paese, nessuna chiave nel JSON); il banner cookie legge le prime
+     due lettere di `lang`, quindi resta inglese.
+  5. **Le FAQ del nuovo arrivato**: Berlino SCHUFA, Parigi garante in Francia (Visale di Action
+     Logement, «if you qualify»), Londra «or credit history» col referencing, Madrid NIE, Barcellona
+     tetto del canone e contratto temporaneo (asciugate dalla revisione: le eccezioni restano nel
+     controllo della pagina). Ogni risposta promette solo ciò che il piano vende (le parole di
+     `includes`) e nessuna promette il sì di un locatore («No landlord is obliged to accept a file»).
+     Amsterdam: i segnali della truffa. Titolo FAQ «Questions about renting in <City>.». Barcellona:
+     lead suo («…and the rent cap», card social rigenerata) ed etichetta «zona tensionada · índice de
+     referencia». Madrid: meta con «(alquiler de pisos) in English».
+  6. **L'hub**: la tabella delle regole è a schede fino a 959px (misurato: fra 760 e 943 px la tabella
+     era larga 912 e le colonne di Parigi e Valencia uscivano dalla pagina senza scroll); link delle
+     regole alti 44px; il codice del desk centrato accanto al link (`:has()`; senza, resta in alto).
+  Date: `updated` e `<lastmod>` 2026-11-06 sugli otto desk e su /desks.
+  **Non fatto, di proposito**: Milano (6 FAQ, il massimo; il codice fiscale è già fra i documenti); la
+  frase «not a law firm» (il fondatore non vuole disclaimer di quel tipo); «chasseur d'appartement» a
+  Parigi (nome di un mestiere regolato); la Wohnungsgeberbestätigung di Berlino (del fondatore); la FAQ
+  «cosa pago alla firma» di Madrid e Valencia (dopo il voto del 12/11 sul RDL 29/2026); i difetti di
+  Flight (#320) restano a quella PR.
+  Revisione avversaria (sei lenti, tre confutatori per rilievo, un critico): 8 rilievi, 3 confermati e
+  chiusi qui (le due frasi del recesso, la densità legale delle FAQ di Barcellona). Test: `run.mjs`
+  1327, `ui.mjs` 651 (sul commit prima delle correzioni della revisione), cassa 118, calendario 128,
+  firma 301, termini 149, recesso 124, upgrade 70, seo 21, llms 12, verità 24, crawl 60, faq 78.
 - **IL DESK AVIAZIONE COMPLETO (v1.6, 03/11/2026 — il fondatore: «questo stile è
   troppo sintetizzato… itera lo stile del biglietto… anche per una pagina
   completa»).** Il primo schermo resta UNA carta d'imbarco, rifatta come oggetto

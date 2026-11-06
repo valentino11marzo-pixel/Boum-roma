@@ -293,7 +293,7 @@
     "altLead": "Prefer to talk first?",
     "altLink": "Start with a free call, no card",
     "startNow": "Start now: I ask BOOM to begin before my 14-day withdrawal period ends, and I understand that once the service is fully performed I can no longer withdraw.",
-    "withdrawal": "Withdrawal: 14 days from your order — {online}, by email to {email} or with the {form}. Nothing is charged before you sign, so withdrawing costs nothing. Without the tick, we start when the 14 days end.",
+    "withdrawal": "Withdrawal: 14 days from your order — {online}, by email to {email} or with the {form}. Nothing is charged before you sign a lease, so withdrawing before then costs nothing. Without the tick, we start when the 14 days end.",
     "fine": "No card today. Invoice from Egidi Immobiliare S.r.l., VAT included, with a secure payment link when you sign. Nothing is charged before you sign a lease, and nothing if you never do.",
     "errors": {
       "name": "Your name, so we know who we're working for.",
