@@ -3,10 +3,11 @@
 // Uses Firebase REST API (no service account key needed)
 // Env vars required:
 //   FIREBASE_API_KEY        → Web API key from Firebase console
-//   FIREBASE_ADMIN_EMAIL    → valentino@boomrome.com
+//   FIREBASE_ADMIN_EMAIL    → valentino@boomrome.com (the Firebase Auth login: an
+//                             account id, NOT a mailbox — mail sent there bounces)
 //   FIREBASE_ADMIN_PASS     → your portal password
 //   FIREBASE_PROJECT_ID     → boom-property-dashboards
-//   GMAIL_USER              → valentino@boomrome.com
+//   GMAIL_USER              → valentino@boom-rome.com (the Gmail account that SENDS)
 //   GMAIL_APP_PASS          → 16-char app password
 //   CRON_SECRET             → boom-cron-2026
 

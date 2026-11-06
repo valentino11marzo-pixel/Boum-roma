@@ -260,7 +260,9 @@ window.__portalAppLoaded = true; // sentinella per la via d'uscita anti-spinner-
         legal: 'Egidi Immobiliare S.r.l.',
         address: 'Via dei Coronari 181/184, 00186 Roma — Sede legale: Viale Liegi 42, 00198 Roma',
         piva: '17322991005',
-        email: 'info@boomrome.com',
+        // The public contact of the site. Never an address on boomrome.com:
+        // that is the website's domain and it has no mail server.
+        email: 'hello@boom-rome.com',
         phone: '+39 331 325 1961',
         website: 'www.boomrome.com',
         iban: 'IT00X0000000000000000000000', // ⚠️ UPDATE WITH REAL IBAN
@@ -268,12 +270,19 @@ window.__portalAppLoaded = true; // sentinella per la via d'uscita anti-spinner-
     };
 
     // Owner forwarding — every persistent notification in the portal is also
-    // delivered to the operator (you). Email is automatic (EmailJS, reusing the
-    // working notification template); WhatsApp is a one-tap link (auto-send
-    // would require a WhatsApp Business API / Twilio, not configured).
+    // delivered to the operator (you). Email is automatic (/api/notify/send);
+    // WhatsApp is a one-tap link (auto-send would require a WhatsApp Business
+    // API / Twilio, not configured).
+    // The mailbox is NOT written here: `to: 'operator'` is resolved by the
+    // server with the same ADMIN_NOTIFY_EMAIL convention as every other
+    // operator email. Until 6/11/2026 this was valentino@ on boomrome.com (no
+    // hyphen) — the website's domain, which has no mail server, so every
+    // "[Portal]" copy bounced after 48 hours. `email` only decides whether to
+    // skip the copy when the recipient already IS the operator (no double send).
     const NOTIFY_OWNER = {
         enabled: true,
-        email: 'valentino@boomrome.com',
+        to: 'operator',
+        email: 'valentino@boom-rome.com',
         phone: '393313251961'   // wa.me format, no +/spaces
     };
 
@@ -334,7 +343,7 @@ window.__portalAppLoaded = true; // sentinella per la via d'uscita anti-spinner-
         fullName: 'BOOM Rome - Mid Term Rentals',
         website: 'www.boomrome.com',
         phone: '+39 3313251961',
-        email: 'info@boomrome.com',
+        email: 'hello@boom-rome.com',
         consultant: 'Valentyne',
         telegram: {
             botToken: '8339998702:AAEwYk3QokhnZwqfhDTpvGpYzjKMKNw2QBI',
@@ -2301,7 +2310,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 submittedAt: firebase.firestore.FieldValue.serverTimestamp(),
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
-            sendBoomEmail(EMAILJS_CONFIG.templates.notification, COMPANY.email, {
+            // The lead alert is for the operator, not the company contact
+            // address. Until 6/11/2026 it went to COMPANY.email (info@ on
+            // boomrome.com, which has no mail server): about 200 "New lead."
+            // emails bounced between April and June 2026.
+            sendBoomEmail(EMAILJS_CONFIG.templates.notification, NOTIFY_OWNER.to, {
                 heading: 'New lead.', subheading: ID.name + ' \u2014 \u20AC' + (ID.budget || '?') + '/month',
                 name: 'Valentino',
                 intro: 'A new '+(IK!=='general'?IK.toUpperCase()+' ':'')+'lead just submitted the intake form.',
@@ -3698,7 +3711,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const cfg = _getNotificationEmailConfig(type, title, message, data, ownerRecipient);
             cfg.heading = `[Portal] ${title}`;
             cfg.subheading = `Notifica${who}`;
-            await sendBoomEmail(EMAILJS_CONFIG.templates.notification, NOTIFY_OWNER.email, cfg);
+            await sendBoomEmail(EMAILJS_CONFIG.templates.notification, NOTIFY_OWNER.to, cfg);
             console.log('[BOOM] Owner copy emailed:', type, title);
         } catch (e) {
             console.warn('[BOOM] Owner email failed:', e?.message || e);
