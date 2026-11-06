@@ -2493,8 +2493,8 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
     && JSON.stringify(deskPatch({ market: 'amsterdam' }, 'Hi BOOM Madrid')) === '{}',
     'a WhatsApp lead that names a desk enters its market; a Rome one does not; a market already set is never overwritten');
   const np = read('api/telegram/notify-pending.js');
-  check(/if \(\(l\.phone \|\| l\.email\) && !isCityMarket\(l\) && !isReunion\(l\)\) buttons\.push\(\[\{ text: '🤖 Passa alla Segretaria'/.test(np)
-    && /const ownCard = l => isB2B\(l\) \|\| isCityMarket\(l\) \|\| isReunion\(l\);/.test(np) && /cityPhone\(l\.phone, cityMarketOf\(l\)\)/.test(np),
+  check(/if \(\(l\.phone \|\| l\.email\) && !isCityMarket\(l\) && !isReunion\(l\) && !isBuyingLead\(l\)\) buttons\.push\(\[\{ text: '🤖 Passa alla Segretaria'/.test(np)
+    && /const ownCard = l => isB2B\(l\) \|\| isCityMarket\(l\) \|\| isReunion\(l\) \|\| isBuyingLead\(l\);/.test(np) && /cityPhone\(l\.phone, cityMarketOf\(l\)\)/.test(np),
     'the Telegram card of a city lead: no 🤖 Segretaria button, never buried in the C digest, WhatsApp to the number read with the desk\'s country');
   const core = read('api/segretaria/_core.js');
   const handIdx = core.indexOf('export async function handoverSegretaria'), openIdx = core.indexOf('export async function segretariaOpen'), turnIdx = core.indexOf('export async function segretariaTurn');
