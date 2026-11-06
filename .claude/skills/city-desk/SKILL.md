@@ -29,6 +29,7 @@ A new desk is never one page: the hub `/desks` and every other desk's Network ma
 - phones: `DIAL` + a `nationalOf` branch for the country (keep the trunk 0 where E.164 keeps it, e.g. Italy; refuse shapes of other countries)
 - `cityFromText` aliases come from `label` + `labelIt` automatically
 - `cityReplyText` already adds «If you'd rather start now: <url>#pay-full-search» on every selling desk (the deep link opens the till on Full Search, Start-now never pre-ticked): nothing per desk to write
+- The upgrade credit (`api/_upgrade.js`, `UPGRADE_PATHS`): every desk that charges at the till inherits it — a paid Application Pack becomes Full Search with what was paid credited, once, within 30 days, through the client's personal link (`/upgrade?l=&t=`, issued by the bot's `/upgrade BM XXXXX` and printed in the operator's order email). A desk charged at signing never qualifies (nothing is paid at the order). Nothing per desk to write; a new plan path is one line in `UPGRADE_PATHS` plus its test
 
 ## 3 · Calendar — `js/desk-calendar.js`
 - add a key with `fixed`, `easter` (always an array), and the rules the country needs (`mondays`, `weekdays` for substitute days; `dated` = a list of `YYYY-MM-DD` for a holiday decreed for ONE year only, e.g. Valencia's Sant Joan `['2026-06-24']` — it never recurs, so a later year must be added when the region publishes its decree); Italy is always unioned (the desk answers from Rome)

@@ -76,6 +76,8 @@ import { CITY_MARKETS, cityPhone, serviceLeadId, chargeAtOf } from './_market.js
 import { verifyOrderToken, payLink } from './payments/_token.js';
 import { attributionFromReq } from './_attribution.js';
 import SCALO from '../js/scalo-codes.js';
+import { upgradeOffer, publicUpgrade, isUpgradeLeadId } from './_upgrade.js';
+import { verifyUpgradeToken } from './payments/_token.js';
 
 // ── Best-effort in-memory rate limit (per warm instance) ──
 const HITS = new Map(); // ip -> [timestamps]
@@ -135,6 +137,29 @@ async function paidStatus(req, res) {
     startNow: typeof c.startNow === 'boolean' ? c.startNow : null,
     workFromLabel: c.workFromLabel || null,
   });
+}
+
+// GET ?upgrade=<svc_…>&t=<token>: the upgrade credit of a paid Application
+// Pack (api/_upgrade.js), for the page /upgrade. A wrong token and an unknown
+// order answer the same 404; a credit already used or past its 30 days is a
+// 410 with its state. No name, email or phone ever comes back (publicUpgrade):
+// the link travels on WhatsApp.
+async function upgradeStatus(req, res, q) {
+  res.setHeader('Cache-Control', 'no-store');
+  const id = String((q && q.upgrade) || '');
+  const token = String((q && q.t) || '');
+  const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'unknown';
+  if (paidRateLimited(ip)) return res.status(429).json({ ok: false, error: 'rate_limited' });
+  if (!isUpgradeLeadId(id) || !verifyUpgradeToken(id, token)) return res.status(404).json(publicUpgrade({ ok: false, state: 'not_found' }));
+  let lead;
+  try { lead = await fsGet('leads/' + id); }
+  catch (e) {
+    console.warn('[city-lead] upgrade read failed:', e && e.message);
+    return res.status(503).json({ ok: false, error: 'unavailable' });
+  }
+  const o = publicUpgrade(upgradeOffer(lead, id, Date.now()));
+  if (!o.ok) return res.status(o.state === 'used' || o.state === 'expired' ? 410 : 404).json(o);
+  return res.status(200).json(o);
 }
 
 const ORDER_RE = /^book_[a-z0-9_]{8,52}$/;
@@ -263,6 +288,7 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method === 'GET') {
     const q = req.query || (() => { try { return Object.fromEntries(new URL(req.url || '', 'http://x').searchParams); } catch { return {}; } })();
+    if (q && q.upgrade != null) return upgradeStatus(req, res, q);
     return q && q.order != null ? orderStatus(req, res, q) : paidStatus(req, res);
   }
   if (req.method !== 'POST')    return res.status(405).json({ ok: false, error: 'method_not_allowed' });

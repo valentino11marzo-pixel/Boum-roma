@@ -4309,6 +4309,64 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
   calendar 126, signing 274, cityterms 142, withdraw 122, withdrawui 87 nei due font; `npm test` 296
   suite, rosse solo `portalnavigationui` in Inter (Oggi, il font) e `magicsigncustomui` /
   `magicsigncustomsigner` (cdn.jsdelivr.net irraggiungibile), preesistenti.
+- **IL CREDITO DELL'APPLICATION PACK (06/11/2026 — «costruiamo la C, così la uso oggi stesso con
+  Daniel»).** Il primo caso è Madrid, fascicolo BM BEAEV: il cliente ha pagato l'Application Pack
+  (€199, «Start now» spuntato) e in chiamata il fondatore gli ha promesso che, passando al Full
+  Search, i €199 sarebbero stati accreditati. La cassa non sapeva farlo: l'unica via era incassare
+  €500 e rimborsare a mano. Ora un pack pagato su un desk che incassa alla cassa diventa Full Search
+  con quanto pagato accreditato, UNA volta, entro 30 giorni dal pagamento (a Madrid €301).
+  1. **La regola** (`api/_upgrade.js`, pura: `upgradeOffer(lead, id, ora)`): solo un ordine
+     `leads/svc_<sessione>` di un desk del registro, `intent:'city_order'`, pagato (`paid` e
+     `city.paid`), del piano in `UPGRADE_PATHS` (`application-pack` → `full-search`). Il desk deve
+     incassare alla cassa: Parigi e Berlino non incassano niente all'ordine, quindi non c'è niente da
+     accreditare. Il credito è ciò che il cliente ha PAGATO (`amount_eur`, nella valuta del desk, mai
+     quanto il listino d'arrivo o di più). `credit.usedBy` lo chiude, e scade a `paid_at` + 30 giorni.
+     Stati: `open`, `used`, `expired`, `not_upgradable`, `not_found`.
+  2. **Il link è personale e derivato** (`upgradeToken`/`upgradeLink` in `api/payments/_token.js`,
+     come `orderToken`): sha256 dell'id con `HOMIE_SECRET`, 24 hex, confronto a tempo costante, mai
+     salvato, fuori da `KINDS` (`/api/payments/link` non lo accetta). Forma: `/upgrade?l=<svc_…>&t=<token>`.
+  3. **La pagina** `/upgrade` (`upgrade.html`, noindex, no-referrer, nessun tracciamento) mostra solo
+     ciò che risponde `GET /api/city-lead?upgrade=&t=` (`publicUpgrade`: mai nome, email o telefono).
+     Token sbagliato e ordine sconosciuto danno lo stesso 404, credito usato o scaduto 410; 30 richieste
+     ogni 10′ per IP. In pagina: listino, credito, «You pay today», cosa compra il Full Search, fino a
+     quando vale. Poi la cassa nell'ordine CRD dei desk:
+     - la spunta «Start now», mai pre-spuntata (nemmeno dall'URL);
+     - la riga del recesso, col modulo e il link online;
+     - il bottone che segue la spunta («Pay and book» → «Pay and start · €301»);
+     - a Madrid, Barcellona e Valencia «Optional, chosen in writing» (LAU art. 20).
+     Al ritorno da Stripe il pagamento lo conferma il server (`GET ?paid=` a 0/1,5/3/6/12 s), e la
+     card promette il brief «nella prima ora di apertura del desk», mai «oggi».
+  4. **La cassa** (`api/service-checkout.js`, `{city, kind, upgrade:{lead, t}, startNow}`): il server
+     rilegge l'ordine e calcola l'importo, dal browser non arriva nessun prezzo. Desk o piano diversi
+     dal credito danno 400 `upgrade_mismatch`; nome, email e telefono vengono dall'ordine pagato.
+     Prodotto Stripe «Full Search — €199 Application Pack credited», metadata
+     `credit_from/credit_amount/credit_plan`, ritorno su `/upgrade`.
+  5. **Il webhook** (`handleService`):
+     - rilegge l'ordine del pack (`upgradeCreditFor`, due tentativi). Il credito è «verificato» solo
+       se è un ordine pagato dello STESSO desk, e allora il Full Search tiene il fascicolo del pack
+       (una persona, un fascicolo);
+     - `markUpgradeCredit` scrive `credit {usedBy, usedAt, amount, currency}` sul lead del pack, col
+       solo campo `credit` nella maschera e la precondizione di versione. Lo fa anche sul ramo del
+       doppione: un primo giro morto prima del segno lo segna al retry;
+     - un credito già usato da un'ALTRA sessione (due casse pagate in parallelo) non si riscrive mai:
+       parte l'avviso urgente `agentNotifications/upgrade-double-<id>` e la differenza si regola su
+       Stripe a mano;
+     - il riassunto del lead e le email dicono «€301 paid (€199 Application Pack credited)», e un
+       credito non verificabile lo scrivono all'operatore;
+     - ogni ordine di Application Pack pagato porta il link personale dell'upgrade nell'email
+       ALL'OPERATORE, mai al cliente.
+  6. **Il bot** (`api/telegram/_upgrade.js`): `/upgrade BM XXXXX` (o `svc_…`) cerca gli ordini PAGATI
+     di quel fascicolo (non la porta gratuita con lo stesso numero). Risponde con lo stato del credito,
+     il link e il messaggio pronto in inglese, che non promette «oggi»: dice cosa fa la spunta. È sola
+     lettura: niente parte verso il cliente. Un credito usato o scaduto non ha link.
+  **Da sapere**:
+  - la fattura Egidi del Full Search è di quanto incassato (€301), quella del pack resta €199;
+  - un rimborso del pack (`charge.refunded`) non tocca il lead, quindi `/upgrade` darebbe ancora il
+    link: non mandarlo a chi ha avuto il pack rimborsato;
+  - il credito non è nei Termini §12: è un'offerta personale dell'operatore, non un prezzo pubblico.
+  Test: `node tests/upgrade/run.mjs` (67): regola pura, token, GET, cassa con l'importo del server e
+  corpi falsificati, webhook (fascicolo, segno, retry, doppio uso), bot, pagina, giunzioni. Mutazioni
+  prese: token non controllato, credito riusabile, fascicolo nuovo, «today» nel messaggio e in pagina.
 - **IL DESK AVIAZIONE COMPLETO (v1.6, 03/11/2026 — il fondatore: «questo stile è
   troppo sintetizzato… itera lo stile del biglietto… anche per una pagina
   completa»).** Il primo schermo resta UNA carta d'imbarco, rifatta come oggetto
