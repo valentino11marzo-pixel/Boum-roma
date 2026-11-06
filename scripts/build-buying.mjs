@@ -92,7 +92,7 @@ ${mark}
 <div class="hero-copy"><p class="route">${esc(c.route)}</p><h1 id="h1">${esc(c.h1)}</h1><p class="lead">${esc(c.lead)}</p>
 <div class="destination-board" aria-hidden="true" style="--oro-flap:#ffd700"><span class="board" id="buyBoard"><span class="static-word">${it?'EUROPA':'EUROPE'}</span></span></div>
 <p class="coverage">${esc(c.coverage)}</p><a class="hero-link hero-cta" href="#buyingForm">${esc(c.cta)}</a></div>
-<form class="brief-form" id="buyingForm" action="/api/leads/web" method="post" data-service="property_buying">
+<form class="brief-form" id="buyingForm" action="/api/leads/web" method="post" data-service="property_buying" data-analytics-manual>
 <h2>${esc(c.formTitle)}</h2><p class="form-intro">${esc(c.formIntro)}</p>
 <div id="buyFields"><input type="hidden" name="form" value="buy-property-europe"><input type="hidden" name="page_lang" value="${lang}">
 <div class="honeypot" aria-hidden="true"><label>Company<input name="company" tabindex="-1" autocomplete="off"></label></div>

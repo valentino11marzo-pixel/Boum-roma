@@ -21,6 +21,7 @@ const browser=await chromium.launch(launchOptions());
 try{
   for(const [slug,lang] of [['buy-property-europe','en'],['comprare-casa-europa','it']]){
     const ctx=await browser.newContext({viewport:{width:390,height:844},reducedMotion:'reduce'});
+    await ctx.addInitScript(()=>localStorage.setItem('boom:consent','all:'+Date.now()));
     const page=await ctx.newPage();
     await page.route('**/*',route=>route.request().url().startsWith(origin)?route.continue():route.abort());
     const errors=[];page.on('pageerror',e=>errors.push(e.message));
@@ -45,11 +46,16 @@ try{
     });
     await page.locator('#buySubmit').click();
     await page.locator('#formStatus[data-error]').waitFor();
+    const conversions=()=>page.evaluate(()=>dataLayer.filter(x=>x[0]==='event'&&x[1]==='generate_lead').length);
+    check(lang+' failed request never counts as a conversion',await conversions()===0);
     check(lang+' failed request keeps brief and no false success',await page.locator('[name=purchase_budget]').inputValue()==='650000' && await page.locator('#buySuccess').isHidden());
     await page.locator('#buySubmit').click();
     await page.locator('#buySuccess').waitFor({state:'visible'});
     check(lang+' retry keeps one id and correct semantics',posts.length===2 && posts[0].requestId===posts[1].requestId && posts[1].page_lang===lang && posts[1].currency==='GBP' && posts[1].purpose==='undecided' && posts[1].timeline==='exploring');
     check(lang+' success has actual server reference',await page.locator('#buyReference').textContent()==='web_buy-property-europe_'+posts[0].requestId);
+    check(lang+' confirmed request counts exactly once',await conversions()===1);
+    await page.evaluate(()=>{localStorage.setItem('boom:consent','min:'+Date.now());document.dispatchEvent(new CustomEvent('boom-consent-denied'));window.boomTrack('generate_lead',{service:'property_buying'});});
+    check(lang+' public tracker respects revoked consent',await conversions()===1);
     check(lang+' personal data stays out of URL and browser storage',await page.evaluate(()=>!location.href.includes('buyer') && !JSON.stringify({...localStorage,...sessionStorage}).includes('Synthetic buyer')));
     await page.locator('#buyAgain').click();
     check(lang+' new enquiry resets form',await page.locator('[name=city]').inputValue()==='' && await page.locator('[name=privacy]').isChecked()===false);
@@ -67,6 +73,24 @@ try{
     await p.goto(origin+'/'+slug);
     check(lang+' no-JS content and fallback remain usable',await p.locator('h1').isVisible() && await p.locator('a[href^="mailto:"]').first().isVisible() && await p.locator('#buySubmit').isDisabled());
     await nojs.close();
+  }
+  for(const defect of ['attempt_counted','consent_ignored']){
+    const ctx=await browser.newContext();
+    await ctx.addInitScript(()=>localStorage.setItem('boom:consent','all:'+Date.now()));
+    const page=await ctx.newPage();
+    await page.route('**/*',r=>r.request().url().startsWith(origin)?r.continue():r.abort());
+    if(defect==='attempt_counted') await page.route('**/buy-property-europe',r=>r.fulfill({contentType:'text/html',body:fs.readFileSync(path.join(root,'buy-property-europe.html'),'utf8').replace(' data-analytics-manual','')}));
+    else await page.route('**/js/boom-track.js',r=>r.fulfill({contentType:'text/javascript',body:fs.readFileSync(path.join(root,'js/boom-track.js'),'utf8').replace('if (allowed && hasConsent()) ev','if (true) ev')}));
+    await page.goto(origin+'/buy-property-europe');
+    await page.waitForFunction(()=>typeof window.boomTrack==='function');
+    if(defect==='attempt_counted'){
+      await page.locator('[name=country]').selectOption('IT');await page.locator('[name=city]').fill('Rome');
+      await page.locator('[name=name]').fill('Synthetic buyer');await page.locator('[name=email]').fill('buyer@example.test');await page.locator('[name=privacy]').check();
+      await page.route('**/api/leads/web',r=>r.fulfill({status:503,contentType:'application/json',body:'{"ok":false}'}));
+      await page.locator('#buySubmit').click();await page.locator('#formStatus[data-error]').waitFor();
+    }else await page.evaluate(()=>{localStorage.setItem('boom:consent','min:'+Date.now());document.dispatchEvent(new CustomEvent('boom-consent-denied'));window.boomTrack('generate_lead');});
+    check('browser detects restored defect '+defect,await page.evaluate(()=>dataLayer.filter(x=>x[0]==='event'&&x[1]==='generate_lead').length)===1);
+    await ctx.close();
   }
 }finally{await browser.close();await new Promise(r=>server.close(r));}
 console.log(`Buying UI: ${passed} passed, 0 failed`);

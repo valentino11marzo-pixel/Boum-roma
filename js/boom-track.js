@@ -238,7 +238,7 @@
     // (per esempio visita richiesta/confermata). Non sovrascrivere gli
     // helper locali delle pagine che hanno già una tassonomia propria.
     if (typeof window.boomTrack !== 'function') {
-      window.boomTrack = function (name, params) { ev(clean(name, 60), context(params || {})); };
+      window.boomTrack = function (name, params) { if (allowed && hasConsent()) ev(clean(name, 60), context(params || {})); };
     }
 
     [].forEach.call(document.querySelectorAll('form'), function (f) {
