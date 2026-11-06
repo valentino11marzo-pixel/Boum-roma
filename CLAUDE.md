@@ -4352,21 +4352,30 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
        parte l'avviso urgente `agentNotifications/upgrade-double-<id>` e la differenza si regola su
        Stripe a mano;
      - il riassunto del lead e le email dicono «€301 paid (€199 Application Pack credited)», e un
-       credito non verificabile lo scrivono all'operatore;
+       credito non verificabile lo scrivono all'operatore; l'email all'operatore dice di fatturare
+       quanto pagato (€301);
      - ogni ordine di Application Pack pagato porta il link personale dell'upgrade nell'email
        ALL'OPERATORE, mai al cliente.
   6. **Il bot** (`api/telegram/_upgrade.js`): `/upgrade BM XXXXX` (o `svc_…`) cerca gli ordini PAGATI
      di quel fascicolo (non la porta gratuita con lo stesso numero). Risponde con lo stato del credito,
-     il link e il messaggio pronto in inglese, che non promette «oggi»: dice cosa fa la spunta. È sola
-     lettura: niente parte verso il cliente. Un credito usato o scaduto non ha link.
+     il link e il messaggio pronto in inglese («your personal … link»), che non promette «oggi»: dice
+     cosa fa la spunta. È sola lettura: niente parte verso il cliente. Un credito usato o scaduto non
+     ha link; il Full Search pagato col credito tiene lo stesso fascicolo, quindi il bot lo trova
+     anche lui e dice «è già l'upgrade».
   **Da sapere**:
   - la fattura Egidi del Full Search è di quanto incassato (€301), quella del pack resta €199;
   - un rimborso del pack (`charge.refunded`) non tocca il lead, quindi `/upgrade` darebbe ancora il
     link: non mandarlo a chi ha avuto il pack rimborsato;
-  - il credito non è nei Termini §12: è un'offerta personale dell'operatore, non un prezzo pubblico.
-  Test: `node tests/upgrade/run.mjs` (67): regola pura, token, GET, cassa con l'importo del server e
+  - il credito non è nei Termini §12: è un'offerta personale dell'operatore, non un prezzo pubblico;
+  - la GET non restituisce mai nome, email o telefono, ma la cassa Stripe mostra l'email del cliente
+    precompilata: il link è suo, e il messaggio pronto lo chiama «personal»;
+  - senza JavaScript la pagina lo dice e dà l'email (mai un «Checking…» infinito).
+  Test: `node tests/upgrade/run.mjs` (70): regola pura, token, GET, cassa con l'importo del server e
   corpi falsificati, webhook (fascicolo, segno, retry, doppio uso), bot, pagina, giunzioni. Mutazioni
   prese: token non controllato, credito riusabile, fascicolo nuovo, «today» nel messaggio e in pagina.
+  La revisione avversaria a sub-agenti non è girata (limite di spesa fino all'11/11): la revisione è
+  stata fatta a mano, sui cinque punti di vista (soldi, sicurezza, consumatore, regressioni, casi
+  limite).
 - **IL DESK AVIAZIONE COMPLETO (v1.6, 03/11/2026 — il fondatore: «questo stile è
   troppo sintetizzato… itera lo stile del biglietto… anche per una pagina
   completa»).** Il primo schermo resta UNA carta d'imbarco, rifatta come oggetto

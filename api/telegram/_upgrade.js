@@ -47,6 +47,9 @@ export function upgradeReply(lead, id, nowMs, origin) {
   const head = `⬆ <b>Upgrade</b> — ${who} · ${esc(desk)}${o.file || (lead && lead.city && lead.city.file) ? ' · ' + esc(o.file || lead.city.file) : ''}`;
   if (o.state === 'used') return `${head}\nIl credito è già stato usato (${esc(o.usedBy)}). Nessun link.`;
   if (o.state === 'expired') return `${head}\nIl credito è scaduto il ${dmy(o.expiresAt)} (${UPGRADE_DAYS} giorni dal pagamento). Nessun link.`;
+  // the Full Search paid with the credit keeps the pack's file: the same file number finds it too
+  const cc = lead && lead.city && typeof lead.city === 'object' && lead.city.credit && typeof lead.city.credit === 'object' ? lead.city.credit : null;
+  if (!o.ok && cc && cc.from) return `${head}\nQuesto ordine è già l'upgrade: ${cc.amount ? moneyOf(Number(cc.amount), String(lead.currency || 'eur').toLowerCase()) + ' ' : ''}accreditati dall'ordine ${esc(cc.from)}. Nessun link.`;
   if (!o.ok) return `${head}\nQuesto ordine non si può trasformare in Full Search (solo un Application Pack pagato su un desk che incassa alla cassa).`;
   const link = upgradeLink(id, origin);
   const pay = moneyOf(o.pay, o.currency), credit = moneyOf(o.credit, o.currency), list = moneyOf(o.list, o.currency);
@@ -59,7 +62,7 @@ export function upgradeReply(lead, id, nowMs, origin) {
     esc(link),
     '',
     '<b>Messaggio pronto</b>:',
-    esc(`Here's your ${o.toLabel} link: the ${credit} you paid for the ${o.fromLabel} is credited, so it's ${pay}. If you want me to start without waiting for the 14-day withdrawal period, tick "Start now" when you pay: ${link}`),
+    esc(`Here's your personal ${o.toLabel} link: the ${credit} you paid for the ${o.fromLabel} is credited, so it's ${pay}. If you want me to start without waiting for the 14-day withdrawal period, tick "Start now" when you pay: ${link}`),
   ].join('\n');
 }
 
