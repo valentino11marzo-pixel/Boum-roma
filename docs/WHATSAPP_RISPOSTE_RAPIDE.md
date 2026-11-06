@@ -405,18 +405,16 @@ The moment it's in, we begin: [QUANDO].
 
 #### `/enpay` · Come si paga il canone · 🪑 panchina
 
-**Quando:** Primo mese e ogni volta che lo chiedono. L'addebito automatico conviene a entrambi: nessuno se lo dimentica più.
+**Quando:** Primo mese e ogni volta che lo chiedono. Il bonifico a BOOM porta sempre €1,50 fissi (6/11/2026); l'addebito automatico non si offre più ai nuovi.
 
 **Vende contro:** il canone dimenticato e il sollecito imbarazzante
 
 ```
-Everything about your rent lives in one place — invoices, receipts, and the button to pay: https://www.boomrome.com/casa
+Everything about your rent lives in one place — receipts, documents, and the button to pay: https://www.boomrome.com/casa
 
-Card, if you want it done now. Bank transfer, free, with the reference already written for you. Or automatic debit: you authorise once and it collects itself before each due date.
-
-Want me to set the automatic one up? Then neither of us thinks about it again.
+Card, if you want it done now. Or bank transfer to our account, with a fixed €1.50 fee: the amount and the reference are already written for you there.
 ```
-<sub>Pronta così com'è — 381 caratteri</sub>
+<sub>Pronta così com'è — 274 caratteri</sub>
 
 #### `/enfix` · Guasto in casa · 🪑 panchina
 
@@ -768,7 +766,7 @@ al momento. Nelle risposte della famiglia `/op…` stanno come `[LINK]`, e tu in
 - **Da verificare una volta, tu:**
   - il link recensione in `/enrev` (`g.page/r/…/review`): aprilo e controlla che si apra
     la scatola delle stelle di BOOM. È lo stesso che deve stare in `REVIEW_URL` su Vercel.
-  - `/enpay` cita il bonifico: in `/casa` compare solo se hai impostato `settings/payout`
+  - `/enpay` cita il bonifico: in `/casa` compare il conto di `payout/default` (da `/banca`) o, se manca, quello di Egidi Immobiliare su Banca Sella, sempre con la rata + €1,50
     (beneficiario + IBAN) dalle impostazioni del portale.
 - **Cose che già fa la macchina**, e che quindi non serve mandare a mano:
   la prima risposta a un lead (il Commerciale la propone su Telegram),

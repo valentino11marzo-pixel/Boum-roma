@@ -11,6 +11,7 @@
 
 import { payRef, payCausale, findByRef } from '../../api/payments/_ref.js';
 import { reconcile } from '../../api/banking/_lib.js';
+import RENT from '../../js/rent-engine.js';
 
 let pass = 0, fail = 0;
 const check = (label, cond, extra) => {
@@ -102,6 +103,27 @@ out = reconcile(TX({ side: 'out', amount: -1200 }), pays, {});
 check('un\'uscita non è mai un incasso', out.match === null);
 out = reconcile(TX({ amount: 999, description: 'niente' }), pays, {});
 check('importo che non corrisponde a nulla → niente', out.match === null && out.suggestions.length === 0);
+
+// ═══ 5 · La commissione fissa del bonifico (6/11/2026) ═════════════════════
+// /casa chiede la rata + €1,50. Arriva la somma, o (chi dimentica) la rata
+// sola: entrambe pagano la rata. Ogni altra cifra resta un suggerimento.
+console.log('\n\x1b[1mRata + €1,50 di commissione\x1b[0m');
+out = reconcile(TX({ amount: 1201.5, description: `Bonifico ${ra} canone 2026-09` }), pays, {});
+check('col codice, rata + 1,50 → pagata, e la commissione è detta', out.match && out.match.paymentId === 'pay_a_2026-09' && out.match.fee === 1.5, JSON.stringify(out.match));
+out = reconcile(TX({ amount: 1200, description: `Bonifico ${ra}` }), pays, {});
+check('col codice, la rata sola (commissione dimenticata) → pagata, commissione 0', out.match && out.match.fee === 0, JSON.stringify(out.match));
+out = reconcile(TX({ amount: 1203, description: `Bonifico ${ra}` }), pays, {});
+check('col codice, 1203 su 1200 → NON pagata, suggerimento', out.match === null && out.suggestions.includes('pay_a_2026-09'), JSON.stringify(out));
+out = reconcile(TX({ amount: 1201.5, description: 'canone 2026-09' }), [P('pay_solo_2026-09')], {});
+check('senza codice, rata + 1,50 nel periodo → abbinata come prima', out.match && out.match.paymentId === 'pay_solo_2026-09' && out.match.fee === 1.5, JSON.stringify(out.match));
+check('/casa e la banca usano lo stesso numero', RENT.bankTransferTotal(1200) === 1201.5 && RENT.BANK_TRANSFER_FEE === 1.5);
+{
+  const { readFileSync } = await import('node:fs');
+  const portal = readFileSync(new URL('../../js/portal-app.js', import.meta.url), 'utf8');
+  const company = (portal.match(/const COMPANY = \{[\s\S]*?\n\s+iban: '([A-Z0-9]+)'/) || [])[1];
+  check('il portal (promemoria, fatture) e /casa danno lo stesso IBAN', company === RENT.DEFAULT_PAYOUT.iban, company);
+}
+check('il conto di default è un IBAN valido (mod 97)', (() => { const ib = RENT.DEFAULT_PAYOUT.iban; const r = (ib.slice(4) + ib.slice(0, 4)).replace(/[A-Z]/g, c => c.charCodeAt(0) - 55); let m = 0; for (const d of r) m = (m * 10 + +d) % 97; return m === 1 && /^IT\d{2}[A-Z]\d{22}$/.test(ib); })());
 
 console.log('\n────────────────────────────────────────────────');
 console.log(`\x1b[1mResult: ${pass} passed, ${fail} failed\x1b[0m`);
