@@ -27,6 +27,7 @@ import { signedParties } from '../contracts/revise.js';
 import completion from '../../js/contract-completion-engine.js';
 import RENT from '../../js/rent-engine.js';
 import { payLink } from '../payments/_token.js';
+import { feeOf, feeInvoiceId, feeBlock } from './_fee.js';
 
 const clip = (s, n) => String(s == null ? '' : s).trim().slice(0, n);
 const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
@@ -35,28 +36,9 @@ const eurIt = (n) => '€' + r2(n).toLocaleString('it-IT', { minimumFractionDigi
 const eurEn = (n) => '€' + r2(n).toLocaleString('en-US', { minimumFractionDigits: Number.isInteger(r2(n)) ? 0 : 2, maximumFractionDigits: 2 });
 
 // ── LA PROVVIGIONE ───────────────────────────────────────────────────────
-// La cifra è quella che il cliente ha firmato sulla proposta (deriveMoney:
-// fee + IVA = feeTotal). Mai ricalcolata qui.
-export function feeOf(pa) {
-  const m = (pa && pa.money) || {};
-  const base = r2(m.fee), total = r2(m.feeTotal) || base;
-  if (!(total > 0)) return null;
-  return {
-    totalEur: total, baseEur: base || total,
-    vatPct: Number(m.feeVatPct) || 22, vatEur: base ? r2(total - base) : 0,
-    due: ['move-in', 'signing', 'separate'].includes(m.feeDue) ? m.feeDue : 'separate',
-    mode: m.feeMode || 'pct', pct: Number(m.feePct) || null, months: Number(m.feeMonths) || null,
-  };
-}
-export const feeInvoiceId = (paId) => 'prov_' + String(paId || '').replace(/[^\w-]/g, '').slice(0, 80);
-
-// Perché un link NON si fa: la provvigione dentro il dovuto alla firma
-// passa dal link della proposta (un secondo link la farebbe pagare due volte).
-export function feeBlock(pa, fee) {
-  if (!fee) return 'no_fee';
-  if (fee.due === 'signing') return (pa.status === 'paid' || pa.paidAt) ? 'fee_paid_at_signing' : 'fee_in_due_at_signing';
-  return null;
-}
+// Le regole (cifra firmata, id della fattura, quando un link non si fa)
+// stanno in _fee.js: le legge anche il Gestore, senza trascinarsi pdf-lib.
+export { feeOf, feeInvoiceId, feeBlock };
 
 export function feeMessage({ pa, fee, url }) {
   const t = pa.tenant || {}, first = clip(t.fullName, 80).split(' ')[0];

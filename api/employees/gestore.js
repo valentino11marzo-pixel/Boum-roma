@@ -11,6 +11,11 @@
 //     while unpaid (contextHash per ISO-week).
 //   • Firma mancante ≥3gg     → drafts the nudge to the missing signer
 //     with their personal Magic-Sign link (/sign?sign=<token>).
+//   • Provvigione (fattura `prov_<paId>`, dovuta all'ingresso) scaduta da
+//     ≥3gg e ancora pagabile → sollecito col link di pagamento stabile,
+//     stessa coda e stesso ritmo settimanale dei canoni. Ingresso entro 10gg
+//     con provvigione all'ingresso e NESSUN link preparato → riga nel digest
+//     (la fattura la emette l'operatore dal 💶 della console, mai il Gestore).
 //   • Rinnovi ≤90gg, burocrazia (compliance-rules) scaduta/in scadenza,
 //     manutenzioni aperte >48h → daily Telegram digest (decisions, not
 //     sendable drafts).
@@ -22,8 +27,11 @@ import COMPLIANCE from '../../js/compliance-rules.js';
 import { real } from '../_demo.js';
 import { knobs, rejectedLine } from '../_squadra.js';
 import { readSignTokens } from '../sign/_tokens.js';
+import RENT from '../../js/rent-engine.js';
+import { payLink } from '../payments/_token.js';
+import { feeOf, feeBlock, feeInvoiceId } from '../preagreement/_fee.js';
 import {
-  requireCronOrAdmin, fsList, logActivity, tgNotify, proposeAction,
+  requireCronOrAdmin, fsList, fsGet, logActivity, tgNotify, proposeAction,
   reportEmployeeHealth, saveReport, daysUntil, isoWeek, euro, esc, propLabel,
 } from './_lib.js';
 
@@ -65,6 +73,10 @@ async function run({ dry }) {
     fsList('maintenance', { limit: 150 }).catch(() => []),
     fsList('complianceState', { limit: 500 }).catch(() => []),
   ]);
+  // Le provvigioni aperte: una lettura che fallisce non ferma il giro.
+  const fees = await fsList('invoices', { filter: { field: 'status', op: 'EQUAL', value: 'pending' }, limit: 300 })
+    .then(real).then(rows => (rows || []).filter(x => x && /^prov_/.test(String(x.id || ''))))
+    .catch(e => { console.warn('[gestore] fees:', e.message); return []; });
   const propById = {}; properties.forEach(p => { propById[p.id] = p; });
   const userById = {}; users.forEach(u => { userById[u.id] = u; });
   const stateById = {}; stateDocs.forEach(d => { stateById[d.id] = d.items || {}; });
@@ -113,6 +125,41 @@ async function run({ dry }) {
       contextHash: `gestore:payrem:${p.id}:${week}`,
     });
     if (r) proposals.push({ type: 'sollecito', ref: p.id, prop, dedupHit: r.dedupHit });
+  }
+
+  // ── 1b. La provvigione dovuta all'ingresso ────────────────────────────
+  // Solo finché è pagabile (pagata, in corso o segnalata dal cliente =
+  // silenzio). Categoria `gestore:feerem`: la scala della fiducia non la
+  // conosce, quindi non parte MAI da sola — sempre il tuo ✅.
+  for (const inv of fees) {
+    const s = feeReminderDraft(inv, { now, k, contractById, propById, tenantOf });
+    if (!s) continue;
+    if (!s.to) { digest.push(`💶 ${s.prop} — provvigione ${euro(s.amount)} scaduta da ${s.late}gg (nessuna email inquilino)`); continue; }
+    const r = await maybePropose(dry, {
+      leadId: `invoice-${inv.id}`,
+      kind: 'reply',
+      summary: `Sollecito provvigione · ${s.prop} · ${euro(s.amount)} (scaduta da ${s.late}gg)`,
+      confidence: 0.85,
+      proposedBy: 'gestore',
+      payload: { channel: 'email', recipient: s.to, to: s.to, subject: s.subject, draft: s.draft },
+      contextHash: `gestore:feerem:${inv.id}:${week}`,
+    });
+    if (r) proposals.push({ type: 'provvigione', ref: inv.id, prop: s.prop, dedupHit: r.dedupHit });
+  }
+  // Ingresso vicino, provvigione all'ingresso, link mai preparato: lo dice.
+  for (const c of contracts) {
+    if (!liveContract(c)) continue;
+    const d = daysUntil(c.startDate, now.getTime());
+    if (d == null || d < 0 || d > 10) continue;
+    const paId = c.preAgreementId || (String(c.id).startsWith('pa_') ? String(c.id).slice(3) : '');
+    if (!paId) continue;
+    try {
+      if (await fsGet('invoices/' + feeInvoiceId(paId))) continue;
+      const pa = await fsGet('preAgreements/' + paId);
+      const fee = pa && feeOf(pa);
+      if (!fee || feeBlock(pa, fee) || fee.due !== 'move-in') continue;
+      digest.push(`💶 ${propLabel(propById, c)} — ingresso tra ${d}gg: provvigione ${euro(fee.totalEur)} senza link (console proposte → 💶 Link provvigione)`);
+    } catch (e) { console.warn('[gestore] fee check', c.id, e.message); }
   }
 
   // ── 2. Firme mancanti (nudge col link Magic Sign) ─────────────────────
@@ -190,7 +237,7 @@ async function run({ dry }) {
     proposalsSkippedDedup: proposals.length - fresh.length,
     digestItems: digest.length,
   };
-  const summary = [`${fresh.length} proposte in coda (solleciti/firme) · ${digest.length} punti d'attenzione`, rejectedLine(rejected)].filter(Boolean).join(' — ');
+  const summary = [`${fresh.length} proposte in coda (solleciti/firme/provvigioni) · ${digest.length} punti d'attenzione`, rejectedLine(rejected)].filter(Boolean).join(' — ');
 
   // Telegram digest — the proposals themselves already arrive as approvable
   // cards via notify-pending; here we only summarize + list watch items.
@@ -209,6 +256,32 @@ async function run({ dry }) {
     await logActivity('Gestore: run completato', 'employee', counts, EMPLOYEE);
   }
   return { counts, summary, report };
+}
+
+// Il sollecito della provvigione, puro (si testa senza Firestore). In
+// inglese, come il messaggio del 💶 della console: il cliente è un expat.
+export function feeReminderDraft(inv, { now, k, contractById = {}, propById = {}, tenantOf = () => ({}) }) {
+  if (!inv || !/^prov_/.test(String(inv.id || ''))) return null;
+  if (RENT.paymentBlockReason(inv, 'invoice') || inv.tenantReported === true) return null;
+  const amount = Math.round(Number(inv.amount) * 100) / 100;
+  if (!(amount > 0)) return null;
+  const d = daysUntil(inv.dueDate, (now instanceof Date ? now : new Date(now)).getTime());
+  if (d == null || -d < k.lateAfterDays) return null;
+  const c = contractById[inv.contractId] || {};
+  const tenant = tenantOf(c) || {};
+  const to = inv.recipientEmail || tenant.email || c.tenantEmail || null;
+  const name = String(inv.recipientName || tenant.name || c.tenantName || '').trim().split(/\s+/)[0];
+  const prop = propLabel(propById, inv.propertyId ? inv : c);
+  const due = String(inv.dueDate).slice(0, 10);
+  const eurEn = '€' + amount.toLocaleString('en-US', { minimumFractionDigits: Number.isInteger(amount) ? 0 : 2, maximumFractionDigits: 2 });
+  const url = payLink('inv', inv.id);
+  const draft =
+    `Hi${name ? ' ' + name : ''},\n\n` +
+    `The BOOM agency fee agreed in your proposal${inv.preAgreementRef ? ' ' + inv.preAgreementRef : ''} for ${prop} — ${eurEn}, VAT included — was due on ${due} and is still open.\n\n` +
+    `You can pay it by card here (the receipt arrives by email automatically):\n${url}\n\n` +
+    `If you have already paid, just ignore this message. Any question — simply reply.\n\n` +
+    `Thank you,\nThe BOOM team`;
+  return { to, prop, amount, late: -d, url, subject: `BOOM · Agency fee — ${prop}`, draft };
 }
 
 async function maybePropose(dry, action) {

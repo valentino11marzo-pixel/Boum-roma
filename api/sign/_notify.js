@@ -316,7 +316,13 @@ export async function notifyAdminContractSigned(contract, property) {
 // proprio documento. I link restano nel corpo come rete di sicurezza.
 export async function sendWelcomeEmails(contract, property, { portalLink, certUrl, cedolare, nonEU, signedPdfUrl } = {}) {
   const g = await gather(contract, property);
-  const out = { tenant: false, landlord: false };
+  // `outcome` per destinatario (sent · failed · uncertain, regola di
+  // sendOutcome): chi deve decidere se rimandare sa se il messaggio PUÒ essere
+  // arrivato. I chiamanti che leggono solo tenant/landlord non cambiano.
+  const out = { tenant: false, landlord: false, outcome: {} };
+  const trackSend = (who, to, subject, html, attachments) => send(to, subject, html, attachments)
+    .then(() => { out.outcome[who] = 'sent'; return true; })
+    .catch((e) => { out.outcome[who] = sendOutcome(e); console.warn('[sign/notify] send', to, e.message); return false; });
   const certHref = certUrl || contract.signingCertificateUrl || '';
   const signedHref = signedPdfUrl || contract.signedPdfUrl || '';
   const [contractPdf, certPdf] = await Promise.all([
@@ -335,7 +341,7 @@ export async function sendWelcomeEmails(contract, property, { portalLink, certUr
     const first = String(g.tenantName || 'there').split(' ')[0];
     const depositPending = !contract.depositPaid && contract.depositPayToken && Number(contract.deposit || 0) > 0;
     const atts = attachFor('BOOM_Signed_Contract.pdf', 'BOOM_Signing_Certificate.pdf');
-    out.tenant = await trySend(g.tenantEmail, '🔑 Welcome home — your BOOM contract is active', shell(
+    out.tenant = await trackSend('tenant', g.tenantEmail, '🔑 Welcome home — your BOOM contract is active', shell(
       para(`Hi ${esc(first)},<br>your lease for <b>${esc(g.propLabel)}</b> is now <b>fully signed and active</b>. One tap and you’re in your portal — payments, documents and support in one place.`)
       // il certificato FES esiste solo con Magic Sign: un contratto firmato
       // fuori (api/contracts/_external.js) non ne ha uno, e l'email non lo promette
@@ -364,7 +370,7 @@ export async function sendWelcomeEmails(contract, property, { portalLink, certUr
       .concat(['Registrazione contratto (RLI) entro 30 giorni — la seguiamo noi'])
       .concat(nonEU ? ['Cessione di fabbricato alla Questura entro 48h (conduttore extra-UE)'] : []);
     const atts = attachFor('BOOM_Contratto_firmato.pdf', 'BOOM_Certificato_di_firma.pdf');
-    out.landlord = await trySend(g.landlordEmail, '✓ Contratto firmato — i prossimi passi', shell(
+    out.landlord = await trackSend('landlord', g.landlordEmail, '✓ Contratto firmato — i prossimi passi', shell(
       para(`Gentile ${esc(first)},<br>il contratto per <b>${esc(g.propLabel)}</b> è <b>firmato da entrambe le parti</b>. BOOM ha già messo a scadenzario i passi qui sotto — la registrazione la seguiamo insieme.`)
       + (contractPdf ? fine('📎 In allegato: il <b>contratto firmato</b>' + (certPdf ? ' e il certificato di firma' : '') + ' (PDF) — da conservare.', 'text-align:center') : '')
       + includes(fiscal.map(esc))

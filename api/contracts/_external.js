@@ -34,7 +34,12 @@ export function externalReview(c, p, updateTime) {
     receiptArchive:c.registrationReceiptArchive || null };
 }
 
-export async function adoptExternal(contractId, b, actor) {
+// `opts.checkPdf` (facoltativo, la console pre-agreement): legge il PDF contro
+// i dati PRIMA di qualunque scrittura. Una differenza ferma tutto con 409
+// `pdf_terms_mismatch` e le voci; con `acceptMismatch:true` si carica e la
+// scelta resta sul contratto (`pdfCheck.accepted`). Senza il gancio il
+// percorso del portal resta quello di sempre.
+export async function adoptExternal(contractId, b, actor, opts = {}) {
   const v = await fsGetVersioned('contracts/'+contractId);
   if (!v) return fail('contract_not_found',404);
   const c = {...v.data,id:contractId}, p = await propertyOf(c);
@@ -58,6 +63,12 @@ export async function adoptExternal(contractId, b, actor) {
   let pages;
   try { const pdf = await PDFDocument.load(buf); pages = pdf.getPageCount(); if (!pages) throw Error(); }
   catch { return fail('pdf_unreadable'); }
+  let pdfCheck = null;
+  if (typeof opts.checkPdf === 'function') {
+    try { pdfCheck = await opts.checkPdf({ buf, contract: c, property: p, pages }); }
+    catch { pdfCheck = { status: 'unchecked', reason: 'check_failed', diff: [], unread: [] }; }
+    if (pdfCheck && pdfCheck.status === 'mismatch' && b.acceptMismatch !== true) return { ...fail('pdf_terms_mismatch', 409), check: pdfCheck };
+  }
   const url = await storageUpload(`contracts/${contractId}/external-signed/${hash}.pdf`,buf,'application/pdf');
   if (!url) return fail('storage_failed',503);
   const now = new Date().toISOString();
@@ -74,7 +85,8 @@ export async function adoptExternal(contractId, b, actor) {
     // The uploaded original is also protected from template regeneration.
     pdfSource:'upload', pdfHash:hash, generatedPDF:url, pdfFileName:document.name,
     contractVersions:[...(c.contractVersions||[]),proof],
-    externalPreparation:{status:'pending',at:now}, updatedAt:now};
+    externalPreparation:{status:'pending',at:now}, updatedAt:now,
+    ...(pdfCheck ? { pdfCheck: { ...pdfCheck, accepted: pdfCheck.status === 'mismatch', by: actor.uid, via: 'external' } } : {})};
   // Preserve the economic terms and associations fingerprint across adoption.
   document.termsHash = termsHash({...c,...patch},p);
   document.terms = completion.terms({...c,...patch},p);
@@ -87,7 +99,7 @@ export async function adoptExternal(contractId, b, actor) {
       {docPath:'properties/'+c.propertyId,fields:{},precondition:{updateTime:pv.updateTime}},
     ]);
   } catch(e) { if (e.conflict) return fail('review_changed',409); throw e; }
-  return {ok:true,adopted:true};
+  return {ok:true,adopted:true,...(pdfCheck?{check:pdfCheck}:{})};
 }
 
 // Recovery writes are deterministic; every incomplete step remains visible.
@@ -256,11 +268,17 @@ export async function onboardExternal(contractId, b = {}, actor = {}) {
     try { out.schedule = {ok:true,...await ensureRentSchedule(contractId,c)}; }
     catch { out.schedule = {ok:false,error:'schedule_failed'}; }
   }
-  if (b.welcome === true) out.welcome = await externalWelcome(contractId,p,actor);
+  if (b.welcome === true) out.welcome = await externalWelcome(contractId,p,actor,b.welcomeResolve);
   return out;
 }
 
-async function externalWelcome(contractId, p, actor) {
+// Esito incerto = un invio interrotto a metà (timeout, connessione caduta) o
+// un 'sending' rimasto appeso oltre 90 secondi: il benvenuto PUÒ essere
+// arrivato, e un secondo invio automatico sarebbe un doppione (la regola di
+// sendOutcome, la stessa della consegna al CAF). Decide l'operatore, dopo
+// aver guardato: `resolve:'sent'` lo timbra senza mandare niente,
+// `resolve:'resend'` lo rimanda.
+async function externalWelcome(contractId, p, actor, resolve) {
   const v = await fsGetVersioned('contracts/'+contractId);
   const c = {...v.data,id:contractId};
   if (c.welcomeEmailSent) return {ok:true,skipped:'already_sent',at:c.welcomeEmailSentAt||null};
@@ -268,7 +286,18 @@ async function externalWelcome(contractId, p, actor) {
   // Partito ad almeno una parte: un secondo tap non lo rimanda a chi l'ha già
   // ricevuto (sendWelcomeEmails scrive a entrambe). Il resto si fa a mano.
   if (w && w.status === 'sent') return {ok:true,skipped:'already_sent',at:w.at||null,tenant:!!w.tenant,landlord:!!w.landlord};
-  if (w && w.status === 'sending' && Date.now()-Date.parse(w.at) < 90000) return {ok:false,error:'welcome_running'};
+  const stale = !!(w && w.status === 'sending' && !(Date.now()-Date.parse(w.at) < 90000));
+  if (w && w.status === 'sending' && !stale) return {ok:false,error:'welcome_running'};
+  if (stale || (w && w.status === 'uncertain')) {
+    if (resolve === 'sent') {
+      const at = new Date().toISOString();
+      const state = {...w,status:'sent',resolution:'confirmed_sent',resolvedAt:at,resolvedBy:actor.uid||actor.email||''};
+      try { await fsCommit([{docPath:'contracts/'+contractId,fields:{externalWelcome:state,welcomeEmailSent:true,welcomeEmailSentAt:at,welcomeEmailBy:'external-confirmed'},precondition:{updateTime:v.updateTime}}]); }
+      catch(e) { if (e.conflict) return {ok:false,error:'welcome_running'}; throw e; }
+      return {ok:true,resolved:'sent',...state};
+    }
+    if (resolve !== 'resend') return {ok:false,error:'welcome_uncertain',at:w.at||null,outcome:w.outcome||null};
+  }
   const g = await gather(c,p);
   if (!g.tenantEmail && !g.landlordEmail) return {ok:false,error:'no_recipients'};
   const now = new Date(), claim = crypto.randomUUID();
@@ -283,15 +312,20 @@ async function externalWelcome(contractId, p, actor) {
   } catch(e) { console.warn('[external] magicLink failed:',e.message); }
   const portalLink = magicId ? `https://www.boomrome.com/portal.html?postSign=1&magicToken=${magicId}` : 'https://www.boomrome.com/portal.html';
   const tenant = g.tenant || {};
-  let sent = {tenant:false,landlord:false};
+  let sent = {tenant:false,landlord:false,outcome:{}}, threw = false;
   try { sent = await sendWelcomeEmails(c,p,{portalLink,signedPdfUrl:c.signedPdfUrl,cedolare:cedolareOf(c),nonEU:!isEU(c.tenantNationality||tenant.nationality||'')}); }
-  catch(e) { console.warn('[external] welcome:',e.message); }
+  catch(e) { threw = true; console.warn('[external] welcome:',e.message); }
   const at = new Date().toISOString();
-  const state = {status:(sent.tenant||sent.landlord)?'sent':'failed',at,claim,tenant:!!sent.tenant,landlord:!!sent.landlord,
-    tenantEmail:!!g.tenantEmail,landlordEmail:!!g.landlordEmail,by:actor.uid||actor.email||''};
+  const oc = sent.outcome || {};
+  // 'failed' solo quando NESSUN invio può essere partito (rifiuto SMTP,
+  // connessione mai nata): lì rimandare è sicuro. Il resto è 'uncertain'.
+  const status = (sent.tenant||sent.landlord) ? 'sent'
+    : (threw || Object.values(oc).includes('uncertain')) ? 'uncertain' : 'failed';
+  const state = {status,at,claim,tenant:!!sent.tenant,landlord:!!sent.landlord,outcome:oc,
+    tenantEmail:!!g.tenantEmail,landlordEmail:!!g.landlordEmail,by:actor.uid||actor.email||'',...(resolve==='resend'?{resent:true}:{})};
   // Il timbro di Magic Sign (badge «Onboarding incompleto», 🚀 Ri-attiva):
   // solo a invio riuscito all'inquilino — un false non cancella mai un true.
   const fields = {externalWelcome:state,...(sent.tenant?{welcomeEmailSent:true,welcomeEmailSentAt:at,welcomeEmailBy:'external'}:{})};
   try { await fsPatch('contracts/'+contractId,fields); } catch(e) { console.warn('[external] welcome stamp:',e.message); }
-  return {ok:state.status==='sent',...state,error:state.status==='sent'?undefined:'welcome_failed'};
+  return {ok:state.status==='sent',...state,error:state.status==='sent'?undefined:status==='uncertain'?'welcome_uncertain':'welcome_failed'};
 }

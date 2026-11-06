@@ -12,7 +12,7 @@ const MUTATIONS = {
   'welcome-twice': ['/api/contracts/_external.js', "if (c.welcomeEmailSent) return {ok:true,skipped:'already_sent',at:c.welcomeEmailSentAt||null};", '',
     "if (w && w.status === 'sent') return", 'if (false) return'],
   'welcome-partial-twice': ['/api/contracts/_external.js', "if (w && w.status === 'sent') return", 'if (false) return'],
-  'fee-at-signing': ['/api/preagreement/_external.js', "if (fee.due === 'signing') return", 'if (false) return'],
+  'fee-at-signing': ['/api/preagreement/_fee.js', "if (fee.due === 'signing') return", 'if (false) return'],
   // la fattura esistente RISCRITTA con la cifra di adesso (il 409 di Firestore
   // è il guardiano: qui lo si scavalca apposta)
   'invoice-rewritten': ['/api/preagreement/_external.js', 'if (!inv) {', 'if (true) {',
@@ -21,6 +21,14 @@ const MUTATIONS = {
   'profile-duplicate': ['/api/preagreement/_external.js', "if (h.length) return { hits: h, by: 'conversione' };", ''],
   'no-pa-stamp': ['/api/stripe-webhook.js', 'if (inv.preAgreementId) {', 'if (false) {'],
   'schedule-unasked': ['/api/contracts/_external.js', 'if (b.schedule === true) {', 'if (true) {'],
+  // il PDF che non riporta i dati si carica senza che nessuno lo decida
+  'pdf-mismatch-silent': ['/api/contracts/_external.js', "b.acceptMismatch !== true) return", 'false) return'],
+  // un benvenuto dall'esito incerto si rimanda da solo (doppia email)
+  'welcome-uncertain-resent': ['/api/contracts/_external.js', "if (resolve !== 'resend') return {ok:false,error:'welcome_uncertain'", "if (false) return {ok:false,error:'welcome_uncertain'"],
+  // un timeout SMTP diventa «non partito», quindi rimandabile al tap dopo
+  'timeout-as-failed': ['/api/contracts/_external.js', ": (threw || Object.values(oc).includes('uncertain')) ? 'uncertain' : 'failed';", ": 'failed';"],
+  // il Gestore sollecita una provvigione già pagata
+  'feerem-paid': ['/api/employees/gestore.js', "if (RENT.paymentBlockReason(inv, 'invoice') || inv.tenantReported === true) return null;", 'if (false) return null;'],
 };
 export async function load(url, context, nextLoad) {
   const out = await nextLoad(url, context);

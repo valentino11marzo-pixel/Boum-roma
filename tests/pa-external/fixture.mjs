@@ -45,6 +45,13 @@ globalThis.fetch = async (url, opts = {}) => {
     return json({ idToken: 'svc-token', expiresIn: '3600' });
   }
   if (u.hostname === 'freetsa.org') return new Response(Buffer.alloc(256));
+  // Anthropic finto: la trascrizione del PDF firmato (il lettore di
+  // _pdfcheck). __aiReply = oggetto → testo JSON della risposta.
+  if (u.hostname === 'api.anthropic.com') {
+    globalThis.__aiCalls = (globalThis.__aiCalls || 0) + 1;
+    const out = globalThis.__aiReply;
+    return json({ content: [{ type: 'text', text: typeof out === 'string' ? out : JSON.stringify(out || {}) }], model: 'claude-haiku-4-5-20251001', usage: { input_tokens: 900, output_tokens: 80 }, stop_reason: 'end_turn' });
+  }
   if (u.hostname === 'firebasestorage.googleapis.com') {
     if (method === 'POST') { storage.set(u.searchParams.get('name'), Buffer.from(opts.body)); return json({ downloadTokens: 'tok' }); }
     const path = decodeURIComponent(u.pathname.split('/o/')[1] || '');
@@ -103,6 +110,7 @@ export const call = async (body) => { const r = res(); await signFor({ method: '
 export function seed(extra = {}) {
   DB.clear(); storage.clear(); unexpected.length = 0; authUsers.clear(); who = 'admin';
   globalThis.deliveryMails = []; globalThis.deliveryMailAttempts = []; globalThis.deliverySmtp = null;
+  globalThis.__aiReply = null; globalThis.__aiCalls = 0; delete process.env.ANTHROPIC_API_KEY;
   DB.set('users/admin', { role: 'admin', email: 'admin@example.test', name: 'Operatore' });
   DB.set('users/someTenant', { role: 'tenant', email: 'other@example.test', name: 'Altro' });
   DB.set('preAgreements/pa1', {
