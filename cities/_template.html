@@ -238,8 +238,6 @@
   window.BOOM_CITY = {{{configJson}}};
 </script>
 <script>
-/* Only a deliberate Flight handoff loads its public brief editor. A slow
-   download cannot silently send an empty brief; no form is submitted here. */
 (function(){
   var q=new URLSearchParams(location.search);
   if(q.get('from')!=='flight'||q.get('city')!==window.BOOM_CITY.SLUG)return;
