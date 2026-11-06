@@ -15,11 +15,23 @@
 //
 // I tenant NON passano di qui: un endpoint che spedisce email a
 // destinatari arbitrari con il marchio BOOM è roba da operatore.
+//
+// `to: 'operator'` — la copia per l'operatore. L'indirizzo non sta nel
+// browser: lo risolve il server con la stessa convenzione di ogni altra
+// email all'operatore (ADMIN_NOTIFY_EMAIL, default valentino@boom-rome.com).
+// Fino al 6/11/2026 il portal lo scriveva a mano come valentino@ sul dominio
+// boomrome.com (senza trattino): è il dominio del SITO e non ha un server di
+// posta (nessun MX, Gmail bussa a Vercel e va in timeout, 4.4.1), quindi
+// almeno da metà luglio ogni copia «[Portal]» — pagamenti ricevuti compresi —
+// è rimbalzata dopo 48 ore.
 
 import { requireRole, setCors } from '../_auth.js';
 import { readJson } from '../homie/_lib.js';
 import { sendEmail } from '../agent/_lib.js';
 import { shell, para, fine, btn, rule } from '../preagreement/_notify.js';
+
+export const OPERATOR_TO = 'operator';
+export const operatorAddress = () => process.env.ADMIN_NOTIFY_EMAIL || 'valentino@boom-rome.com';
 
 const clip = (v, n = 300) => String(v == null ? '' : v).trim().slice(0, n);
 const esc = (s) => clip(s, 1200).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -57,7 +69,8 @@ export default async function handler(req, res) {
     } catch { return res.status(502).json({ ok: false, error: 'send_unconfirmed' }); }
     finally { clearTimeout(timer); }
   }
-  const to = clip((body || {}).to, 120);
+  const rawTo = clip((body || {}).to, 120);
+  const to = rawTo === OPERATOR_TO ? operatorAddress() : rawTo;
   const p = (body || {}).params || {};
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return res.status(400).json({ ok: false, error: 'bad_recipient' });
 
