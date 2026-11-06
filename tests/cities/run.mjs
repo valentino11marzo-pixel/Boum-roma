@@ -64,7 +64,7 @@ import zlib from 'node:zlib';
 import { spawnSync } from 'node:child_process';
 import {
   buildAll, renderCity, writeAll, fill, findPlaceholders, fragments, familyFor, BuildError, esc, eur, money, currencyOf, GENERATED_MARK, WEIGHT_KB, BUDGET,
-  daysLabel, deskHoursText, feesRowOf, holidayKeyOf, visibleAtLoad, visibleText, sliceOf, words, waHref, WITHDRAWAL_PATH, WITHDRAW_LABEL, TERMS_PATH,
+  daysLabel, deskHoursText, feesRowOf, withdrawalRowOf, ogLocaleOf, inLanguageOf, holidayKeyOf, visibleAtLoad, visibleText, sliceOf, words, waHref, WITHDRAWAL_PATH, WITHDRAW_LABEL, TERMS_PATH,
   stripComments, emittedAssets, emitAssets, SERVED_ASSETS,
   atLoadParts, longNodes, weightOf, validGeo, sealText, sealPhrase, STATUS_RE, STATUS_BANNED_RE, AVIATION_BAN_RE,
   ARC_CLEAR, ARC_DOT_R, ARC_ME_R, MAP_KB, HZ_CAM, HZ_LIFT, HZ_LEAN, HZ_KEY, HUB_MAP_PX, horizon, hzViolations, hzPathPts, hzCal, holidayKeyOf as hkOf,
@@ -1131,6 +1131,51 @@ tplRefuses('<p class="proof">', '<p class="proof">Pay by bank transfer · ', /no
     && feesRowOf(CITY.berlin, shared) === '<b>Full Search €500</b> · <b>Application Pack €199</b> · <b>Attended Viewing €149</b> per viewing. VAT included, charged when you sign a lease. Invoice from Egidi Immobiliare S.r.l. ' + shared.signing.rule
     && drafted(() => feesRowOf(DRAFT.berlin, shared)).includes('<b>Full Search €500</b> (List price. Due only once you sign a lease; nothing before.)'),
     'the fees row is DERIVED from the plans: one condition when they agree (Berlin since the flip, with the signing rule), each plan\'s own when they differ (the draft Berlin)');
+}
+{
+  // audit 06/11 — the fact sheet says how to withdraw, right after the fees
+  // (the 14 days were said only inside the till): the six count from payment,
+  // Paris and Berlin from the order and take nothing. DERIVED from the mode
+  // (withdrawalRowOf), never typed per desk. The reply time names its clock;
+  // the Service says the hours with the zone in words; each Offer's
+  // itemOffered is the service by name, no "For: Haven't started yet." filler;
+  // London is British English; the FAQ heading names the city.
+  const graphOf = (h) => [...h.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => JSON.parse(m[1])).find((b) => b['@graph'])['@graph'];
+  for (const s of SLUGS) {
+    const h = PAGE[s], c = CITY[s], desk = encodeURIComponent(c.city), sign = ['paris', 'berlin'].includes(s);
+    const br = sliceOf(h, '<dl class="enbref" id="enbref">', '</dl>');
+    const ddOf = (dt) => sliceOf(br, `<dt>${dt}</dt><dd>`, '</dd>').slice(`<dt>${dt}</dt><dd>`.length);
+    const wd = ddOf('Withdrawal');
+    check(wd && br.indexOf('<dt>Fees</dt>') < br.indexOf('<dt>Withdrawal</dt>') && br.indexOf('<dt>Withdrawal</dt>') < br.indexOf('<dt>What we do</dt>')
+      && wd.startsWith(sign ? '<b>14 days from your order</b>' : '<b>14 days from payment</b>')
+      && wd.includes(`href="${WITHDRAWAL_PATH}?desk=${desk}#online">online</a>`) && wd.includes(`href="mailto:${shared.contact.email}"`) && wd.includes(`href="${WITHDRAWAL_PATH}?desk=${desk}">model withdrawal form</a>`)
+      && (sign ? /withdrawing costs nothing/.test(wd) && !/refund|work already done/.test(wd) : /minus the work already done/.test(wd)),
+      `${s}: the fact sheet's Withdrawal row follows the fees — ${sign ? '14 days from the order, withdrawing costs nothing' : '14 days from payment, the price minus the work already done'} — with the online function, the email and the model form`, wd);
+    const rt = ddOf('Reply time');
+    check(rt === `The same working day (desk hours: ${esc(deskHoursText(c.desk))}).`, `${s}: the reply time names its clock — "${deskHoursText(c.desk)}", from desk.hours`, rt);
+    const g = graphOf(h), svc = g.find((n) => n['@type'] === 'Service');
+    check(svc.description.endsWith(` Desk hours: ${deskHoursText(c.desk)}.`) && svc.offers.every((o) => JSON.stringify(o.itemOffered) === JSON.stringify({ '@type': 'Service', name: o.name })) && !/For: /.test(JSON.stringify(svc)),
+      `${s}: the Service says the desk hours, zone in words; each Offer's itemOffered is the service by name (no "For: …")`);
+    const gb = s === 'london';
+    check(h.includes(`<meta property="og:locale" content="${gb ? 'en_GB' : 'en_US'}">`) && ogLocaleOf(c) === (gb ? 'en_GB' : 'en_US')
+      && ['WebPage', 'FAQPage'].every((t) => g.find((n) => n['@type'] === t).inLanguage === (gb ? 'en-GB' : 'en')) && inLanguageOf(c) === (gb ? 'en-GB' : 'en'),
+      `${s}: og:locale ${gb ? 'en_GB' : 'en_US'} and inLanguage ${gb ? 'en-GB' : 'en'} (London is British English; derived, not a JSON key)`);
+    check(c.faq.h2 === `Questions about renting in ${c.city}.` && h.includes(`<h2 id="faqH"><span class="g">Questions about renting in ${esc(c.city)}.</span></h2>`), `${s}: the FAQ heading names the city ("Questions about renting in ${c.city}.")`);
+  }
+  check(withdrawalRowOf({ ...clone(ams), checkout: false }, shared.contact) === '', 'a desk that does not sell has no Withdrawal row (nothing to withdraw from)');
+  refuses((c) => { c.bref.rows.splice(4, 0, { dt: 'Withdrawal', ddHtml: '14 days from payment.' }); }, /"Withdrawal" row of the fact sheet is derived/, 'a hand-typed Withdrawal row is refused (the build derives it after the fees)');
+  refuses((c) => { c.bref.rows.forEach((r) => { delete r.hours; }); }, /exactly one fact-sheet row carries "hours": true/, 'a fact sheet without its hours row is refused');
+  refuses((c) => { c.bref.rows[0].hours = true; }, /exactly one fact-sheet row carries "hours": true/, 'two hours rows are refused');
+  // the newcomer's blockers have their own question, and no answer promises a landlord's yes
+  const BLOCKER = { berlin: /SCHUFA/, paris: /guarantor in France/, london: /credit history/, madrid: /without a NIE/, barcelona: /rent cap|temporary contract/ };
+  for (const [s, re] of Object.entries(BLOCKER)) {
+    const fs0 = CITY[s].faq.items.filter((x) => re.test(x.q));
+    check(fs0.length >= 1 && (s !== 'barcelona' || fs0.length === 2) && fs0.every((f) => !/\b(?:will|we) (?:be )?accept|guarantee(?:d|s)? (?:you|a home|acceptance)|\bapproved\b|no SCHUFA needed/i.test(f.a)),
+      `${s}: the FAQ answers the newcomer's blocker (${re.source}) and promises no landlord's yes`);
+  }
+  check(['berlin', 'paris', 'madrid'].every((s) => CITY[s].faq.items.some((x) => / No landlord is obliged to accept a file[.;]/.test(x.a))), 'berlin, paris, madrid: the newcomer answers say no landlord is obliged to accept a file');
+  check(CITY.barcelona.hero.lead !== CITY.madrid.hero.lead && /rent cap/.test(CITY.barcelona.hero.lead) && CITY.barcelona.checks.items.find((k) => k.id === 'rentcap').at === 'zona tensionada · índice de referencia',
+    'barcelona: its own lead (the rent cap), not the line the Spanish desks share, and the rent-cap label names the zona tensionada');
 }
 
 // ── 8 · the five desks, each its own truth ────────────────────────────────
@@ -2946,6 +2991,16 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
   check(new RegExp(`^## BOOM Desks \\(tenant-side rental desks in Europe: ${listJoin(LIVE.map((s2) => CITY[s2].city))}\\)$`, 'm').test(llms) && llms.includes('- [BOOM Desks](https://www.boomrome.com/desks):') && !/BOOM Cities/.test(llms)
     && (offNames.length ? llms.includes(`${listJoin(offNames)} desks are not open.`) : !/desks? (?:is|are) not open/.test(llms)) && /BOOM Milan is the home-country desk/.test(llms),
     `llms.txt: the section is "BOOM Desks" over the ${LIVE.length} live desks, /desks first, Milan the home-country desk; "BOOM Cities" gone; ${offNames.length ? 'the "not open" sentence kept' : 'no "not open" sentence (no draft)'}`);
+  // audit 06/11: the sentence llms.txt points engines to for "does BOOM operate outside Rome" named six desks
+  // two days after Paris and Berlin went live, and Key facts gave Rome's 10% fee as the price everywhere
+  const liveList = listJoin(LIVE.map((s2) => CITY[s2].city));
+  check(llms.includes(`For "does BOOM operate outside Rome": Réunion Island (this section) and the tenant-side desks in ${liveList} (BOOM Desks, below).`),
+    `llms.txt: "does BOOM operate outside Rome" names every live desk (${liveList})`);
+  const deskPrice = (llms.match(/^- Pricing on the desks \(([^)]*)\):(.*)$/m) || []);
+  check(/^- Pricing in Rome: /m.test(llms) && !/^- Pricing: /m.test(llms) && /^- Payments in Rome: /m.test(llms)
+    && deskPrice.length && deskPrice[1] === LIVE.map((s2) => CITY[s2].city).join(', ') && !/10%/.test(deskPrice[2])
+    && /refunded in full if BOOM declines the search in the first call/.test(deskPrice[2]) && /charged only when the tenant signs a lease/.test(deskPrice[2]),
+    'llms.txt Key facts: the 10% fee and bank transfer are scoped to Rome; the desks line lists every live desk with the flat fees, the refund rule and the signing rule');
   const FOOT8 = ['index.html', 'apartments.html', 'try.html', 'your-money.html', 'how-it-works.html', 'apartment-detail.html', 'design/pages-deco/pt.html', 'design/pages-deco/patch-lotto2.py'];
   const noHub = FOOT8.filter((f) => { const s = read(f); const i = s.search(/<a href="\/desks(?:\.html)?">BOOM Desks · Europe<\/a>/); return i < 0 || i > s.search(/<a href="\/amsterdam(?:\.html)?">/); });
   check(!noHub.length, 'the eight "Company & Markets" footers link /desks ("BOOM Desks · Europe"), just above Amsterdam', noHub.join(', '));

@@ -171,13 +171,19 @@ a.rc:hover>span{color:var(--ink)}
 .rfull dl{margin-top:6px;font-size:14px;line-height:1.55}
 .rfull dt{margin-top:10px;color:var(--ink)}.rfull cite{margin-left:8px;font:400 11.5px var(--mono);font-style:normal;color:var(--gold)}
 .rfull dd,.rfull p{color:var(--t2)}.rfull p{margin-top:10px;font-size:13.5px}
-@media (max-width:759px){
+/* the rules as cards up to 959px: the table needs about 912px for its eight
+   desk columns, and between 760 and 943 the last columns (Paris, Valencia)
+   were clipped by the page with no way to scroll to them (audit 06/11, measured).
+   On cards every rule is a link: 44px tall, like every other control. */
+@media (max-width:959px){
   .rtab,.rtab caption,.rtab tbody,.rtab tr,.rtab th,.rtab td{display:block}
   .rtab thead{display:none}
   .rtab tbody tr{margin-top:12px;padding:2px 14px;border:1px solid var(--line-soft)}
   .rtab tbody th{width:auto;padding:12px 0 6px;border-top:0}
   .rtab td{position:relative;padding:10px 0 10px 52px}
   .rtab td::before{content:attr(data-k);position:absolute;left:0;top:11px}
+  .rtab a.rc{display:flex;flex-wrap:wrap;align-items:center;min-height:44px}
+  .rtab td:has(> a.rc)::before{top:25px}
 }
 
 /* §6 the fact sheet, open */

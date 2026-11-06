@@ -11,7 +11,7 @@
   "live": true,
   "mode": "search",
   "config": {},
-  "updated": "2026-11-05",
+  "updated": "2026-11-06",
   "meta": {
     "title": "Tenant-side rental agent for expats in Berlin — BOOM",
     "description": "Apartment search for expats in Berlin, tenant side only: German-format dossier, homes offered to you alone, viewings attended. Paid only when you sign.",
@@ -163,7 +163,7 @@
     "tail": "The rest we go through on the free call."
   },
   "faq": {
-    "h2": "Questions.",
+    "h2": "Questions about renting in Berlin.",
     "items": [
       {
         "q": "When do I pay a rental agent in Berlin?",
@@ -172,6 +172,10 @@
       {
         "q": "What happens on the free call?",
         "a": "A call with Valentino, by phone or WhatsApp, at a time that suits you both. We hear your dates, budget and who is moving, say which service fits, or that none does, and which papers you are missing. Nothing is charged for the call, or before you sign a lease."
+      },
+      {
+        "q": "I just arrived and have no SCHUFA. Can I still rent in Berlin?",
+        "a": "You can apply with a file that shows you can pay: employment contract, recent payslips, bank statements, and a guarantor if asked. Application Pack builds that SCHUFA and guarantor strategy, with the self-disclosure in German. No landlord is obliged to accept a file; the free call says what yours lacks."
       },
       {
         "q": "How do I avoid a rental scam in Berlin from abroad?",
@@ -213,7 +217,8 @@
       },
       {
         "dt": "Reply time",
-        "ddHtml": "The same working day."
+        "ddHtml": "The same working day.",
+        "hours": true
       },
       {
         "dt": "Contact",

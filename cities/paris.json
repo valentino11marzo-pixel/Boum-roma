@@ -11,7 +11,7 @@
   "live": true,
   "mode": "search",
   "config": {},
-  "updated": "2026-11-05",
+  "updated": "2026-11-06",
   "meta": {
     "title": "Tenant-side rental agent for expats in Paris — BOOM",
     "description": "Apartment search for expats in Paris, tenant side only: French-format dossier, applications as listings appear, viewings attended. Paid only when you sign.",
@@ -163,7 +163,7 @@
     "tail": "The rest we go through on the free call."
   },
   "faq": {
-    "h2": "Questions.",
+    "h2": "Questions about renting in Paris.",
     "items": [
       {
         "q": "When do I pay a rental agent in Paris?",
@@ -172,6 +172,10 @@
       {
         "q": "What happens on the free call?",
         "a": "A call with Valentino, by phone or WhatsApp, at a time that suits you both. We hear your dates, budget and who is moving, say which service fits, or that none does, and which papers you are missing. Nothing is charged for the call, or before you sign a lease."
+      },
+      {
+        "q": "I have no guarantor in France. Can I still rent in Paris?",
+        "a": "Plan for it: many landlords want a guarantor who lives in France and turn down one abroad. If you qualify, Visale, a free guarantee from Action Logement, can stand in; if not, a paid guarantee service. Application Pack sets that guarantor or Visale strategy. No landlord is obliged to accept a file."
       },
       {
         "q": "How do I avoid a rental scam in Paris from abroad?",
@@ -213,7 +217,8 @@
       },
       {
         "dt": "Reply time",
-        "ddHtml": "The same working day."
+        "ddHtml": "The same working day.",
+        "hours": true
       },
       {
         "dt": "Contact",

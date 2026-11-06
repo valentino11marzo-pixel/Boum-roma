@@ -787,6 +787,22 @@ export function feesRowOf(c, shared, extra = '') {
     + '.' + (same ? ' ' + esc(plans[0].conditionLong) : '') + (extra ? ' ' + extra : '')
     + (c.checkout === true ? ' ' + esc(ruleOf(c, shared)) : '');
 }
+// The fact sheet's withdrawal row (audit, 06/11): the 14 days were said only
+// inside the till, to whoever opened it; "can I cancel after paying?" is
+// asked before. DERIVED from the desk's mode, never typed per desk: the six
+// count from payment, Paris and Berlin from the order and take nothing before
+// the lease. Same three ways as the till ({online}, email, model form); no
+// tick to speak of here, so "without the tick" becomes "if you did not".
+export function withdrawalRowOf(c, contact) {
+  if (c.checkout !== true) return '';
+  const desk = encodeURIComponent(c.city);
+  const ways = `withdraw <a class="lnk" href="${WITHDRAWAL_PATH}?desk=${desk}#online">online</a>, by email to `
+    + `<a class="lnk" href="mailto:${esc(contact.email)}">${esc(contact.email)}</a> or with the `
+    + `<a class="lnk" href="${WITHDRAWAL_PATH}?desk=${desk}">model withdrawal form</a>.`;
+  return isSigning(c)
+    ? `<b>14 days from your order</b>: ${ways} Nothing is charged before you sign, so withdrawing costs nothing. Unless you ask us to start sooner, we start when the 14 days end.`
+    : `<b>14 days from payment</b>: ${ways} If you asked us to start and then withdraw, we refund the price minus the work already done. If you did not, we start when the 14 days end.`;
+}
 
 // The calendar a desk's window reads: the webhook's own key (CITY_MARKETS
 // holidays || country), so the page never says "desk open" on a day the
@@ -1205,16 +1221,23 @@ const R = {
   // The fact sheet: the fees row is DERIVED from the plans (with each plan's
   // own condition and, on a sell desk, the refund rule) and the contact row
   // from _shared.json, so the quotable ledger cannot drift from the page.
-  bref: (c, shared, pageUrl, contact = shared.contact) => list(c, 'bref.rows').map((r) => {
+  // A desk that sells adds the Withdrawal row right after the fees: the
+  // money, then how to take it back (withdrawalRowOf).
+  bref: (c, shared, pageUrl, contact = shared.contact) => list(c, 'bref.rows').flatMap((r) => {
     let dd = r.ddHtml || '';
     if (r.fees) dd = feesRowOf(c, shared, dd);
+    // the reply promise names the clock it runs on, from desk.hours (never
+    // typed in the JSON: "the same working day" said nothing of whose day)
+    if (r.hours) dd = `${dd.replace(/\.\s*$/, '')} (desk hours: ${esc(deskHoursText(c.desk))}).`;
     if (r.contact) {
       const k = contact;
       dd = `<a class="lnk" href="mailto:${esc(k.email)}">${esc(k.email)}</a> · <a class="lnk" href="${esc(waHref(k, c.city))}">WhatsApp ${esc(k.phoneDisplay)}</a>`
         + ` · <a class="lnk" href="${esc(pageUrl)}">${esc(pageUrl.replace(/^https:\/\/(www\.)?/, ''))}</a>`;
     }
     need(dd, `cities/${c.slug}.json`, `bref row "${r.dt}" has no content`);
-    return `          <dt>${esc(r.dt)}</dt><dd>${dd}</dd>`;
+    const row = `          <dt>${esc(r.dt)}</dt><dd>${dd}</dd>`;
+    const wd = r.fees ? withdrawalRowOf(c, contact) : '';
+    return wd ? [row, `          <dt>Withdrawal</dt><dd>${wd}</dd>`] : [row];
   }).join('\n'),
 
   // §D THE FOOTER: the statement under the mark, then three columns — this
@@ -1329,7 +1352,9 @@ export function serviceNode(c, shared, pageUrl, orgId) {
   const dont = (c.bref.rows.find((r) => r.dt === "What we don't do") || {}).ddHtml || '';
   return {
     '@type': 'Service', '@id': pageUrl + '#service', name: c.service.name, serviceType: c.service.serviceType,
-    description: c.service.description + (dont ? " What we don't do: " + dont.replace(/<[^>]+>/g, '') : ''), provider: { '@id': orgId },
+    // the desk hours in words, zone named: hoursAvailable has no time zone in
+    // schema.org, so "09:00" alone did not say whose 09:00 (audit 06/11)
+    description: c.service.description + (dont ? " What we don't do: " + dont.replace(/<[^>]+>/g, '') : '') + ` Desk hours: ${deskHoursText(c.desk)}.`, provider: { '@id': orgId },
     areaServed: { '@type': 'City', name: c.city },
     audience: { '@type': 'Audience', audienceType: c.service.audience },
     hoursAvailable: { '@type': 'OpeningHoursSpecification', dayOfWeek: c.desk.days.map((d) => DAY_NAMES[d]), opens: c.desk.hours.from, closes: c.desk.hours.to },
@@ -1352,11 +1377,19 @@ export function serviceNode(c, shared, pageUrl, orgId) {
           ...(unitWord ? { unitText: unitWord, referenceQuantity: { '@type': 'QuantitativeValue', value: 1, unitText: unitWord } } : {}) },
         url: pageUrl + '#fare-' + p.id,
         seller: { '@id': orgId },
-        itemOffered: { '@type': 'Service', name: p.label, description: `For: ${p.when}.` }
+        // the service it sells, by name: the "For: Haven't started yet." the
+        // fare's situation question printed here read as a definition (audit 06/11)
+        itemOffered: { '@type': 'Service', name: p.label }
       };
     })
   };
 }
+// The page's English, by country: London is British English (og:locale
+// en_GB, inLanguage en-GB); the other desks stay en_US / en. Derived, never a
+// JSON key: hreflang is untouched (one file per desk, no alternates).
+export const isGB = (c) => String(c.country || '').toUpperCase() === 'GB';
+export const ogLocaleOf = (c) => (isGB(c) ? 'en_GB' : 'en_US');
+export const inLanguageOf = (c) => (isGB(c) ? 'en-GB' : 'en');
 function jsonLd(c, shared, pageUrl, ogImage, cities = [c]) {
   const site = shared.siteUrl;
   const orgId = site + '/#organization';
@@ -1365,7 +1398,7 @@ function jsonLd(c, shared, pageUrl, ogImage, cities = [c]) {
     '@graph': [
       orgNode(shared, cities),
       {
-        '@type': 'WebPage', '@id': pageUrl + '#page', url: pageUrl, name: c.meta.ogTitle, description: c.meta.description, inLanguage: 'en',
+        '@type': 'WebPage', '@id': pageUrl + '#page', url: pageUrl, name: c.meta.ogTitle, description: c.meta.description, inLanguage: inLanguageOf(c),
         isPartOf: { '@id': site + '/#website' }, about: { '@id': orgId }, mainEntity: { '@id': pageUrl + '#service' }, breadcrumb: { '@id': pageUrl + '#breadcrumb' },
         primaryImageOfPage: { '@type': 'ImageObject', url: ogImage, width: 1200, height: 630 },
         ...(c.updated ? {
@@ -1376,7 +1409,7 @@ function jsonLd(c, shared, pageUrl, ogImage, cities = [c]) {
       },
       serviceNode(c, shared, pageUrl, orgId),
       {
-        '@type': 'FAQPage', '@id': pageUrl + '#faq', isPartOf: { '@id': pageUrl + '#page' }, inLanguage: 'en',
+        '@type': 'FAQPage', '@id': pageUrl + '#faq', isPartOf: { '@id': pageUrl + '#page' }, inLanguage: inLanguageOf(c),
         mainEntity: list(c, 'faq.items').map((f) => ({
           '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a }
         }))
@@ -1730,7 +1763,7 @@ const ALLOWED = {
   'how.step': ['k', 'h', 'p', 'status'],
   'checks.item': ['id', 'title', 'at', 'text'],
   'faq.item': ['q', 'a'],
-  'bref.row': ['dt', 'ddHtml', 'fees', 'contact'],
+  'bref.row': ['dt', 'ddHtml', 'fees', 'contact', 'hours'],
   meta: ['title', 'description', 'ogTitle', 'ogDescription'],
   service: ['name', 'serviceType', 'description', 'audience'],
   hero: ['h1Before', 'lead', 'leadStrong', 'faresHead'],
@@ -1998,6 +2031,10 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
   need(city.faq.items.length >= 3 && city.faq.items.length <= 6, where, 'three to six questions');
   need(!list(city, 'faq.items').some((q) => /moving from Rome/i.test(q.q)), where, 'the FAQ item "I\'m moving from Rome with BOOM" left the page (brief v1.3)');
   need(city.bref && str(city.bref.h2) && list(city, 'bref.rows').some((r) => r.fees) && city.bref.rows.some((r) => r.contact) && city.bref.rows.some((r) => r.dt === "What we don't do"), where, 'bref needs h2 and rows with a fees row, a contact row and "What we don\'t do"');
+  // audit 06/11: the withdrawal row and the desk hours are DERIVED (withdrawalRowOf, desk.hours):
+  // a hand-typed "Withdrawal" row would say it twice, and drift from the till
+  need(!city.bref.rows.some((r) => /^withdrawal/i.test(String(r.dt || '').trim())), where, 'the "Withdrawal" row of the fact sheet is derived by the build after the fees row (withdrawalRowOf): no row of that name in the JSON');
+  need(city.bref.rows.every((r) => r.hours === undefined || r.hours === true) && city.bref.rows.filter((r) => r.hours === true).length === 1, where, 'exactly one fact-sheet row carries "hours": true (the reply time, followed by the desk hours from desk.hours)');
   need(str(city.footer.statement), where, 'footer.statement is required (the tenant-side statement)');
 
   // ── the till ──
@@ -2163,6 +2200,7 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
       : '<meta name="robots" content="noindex">',
     jsonLdBreadcrumb: ldJson(jsonLdBreadcrumb(city, shared, pageUrl)),
     jsonLd: ldJson(jsonLd(city, shared, pageUrl, ogImage, cities)),
+    ogLocale: ogLocaleOf(city),
     configJson: scriptJson(config, '  '),
     assetVersion,
     scrollBlock: frags.scrollBlock,

@@ -708,7 +708,7 @@ for (const [slug, clock, want, what] of CLOCKS) {
   const body = await page.evaluate(() => document.body.innerText);
   check(/Write to the desk on WhatsApp or at/.test(body), 'no JS: a line says where to write');
   check(/€500/.test(body) && /€199/.test(body) && /€149/.test(body) && body.includes(RULE), 'no JS: the three prices and the refund rule read as text');
-  check(/From the first call/.test(body) && /What we check/.test(body) && /The papers a Dutch landlord asks for\./.test(body) && /Who answers, and when\./.test(body) && /Questions\./.test(body) && /Other desks, one company\./.test(body), 'no JS: every section of the walk reads (Departures, Pre-flight, Baggage, Gate, Questions, Network)');
+  check(/From the first call/.test(body) && /What we check/.test(body) && /The papers a Dutch landlord asks for\./.test(body) && /Who answers, and when\./.test(body) && /Questions about renting in Amsterdam\./.test(body) && /Other desks, one company\./.test(body), 'no JS: every section of the walk reads (Departures, Pre-flight, Baggage, Gate, Questions, Network)');
   const papers = JSON.parse(fs.readFileSync(path.join(R, 'cities/amsterdam.json'), 'utf8')).papers.items;
   check(papers.every((x) => body.includes(x)) && /\bFREE\b/.test(body) && /\b1 WORK DAY\b/.test(body) && /\bIN PERSON\b/.test(body) && body.includes('Valentino Egidi'), 'no JS: the eight papers and the Departures statuses (FREE, 1 WORK DAY, IN PERSON) read as text');
   check(!(await shown(page, '#strip')) && (await page.$$eval('[data-pay]', (b) => b.every((x) => !x.offsetParent))), 'no JS: no strip, no pay button (behaviour, not content)');
@@ -1889,6 +1889,21 @@ async function hubUI() {
     await page.waitForTimeout(300);
     const g = await page.evaluate(() => ({ table: getComputedStyle(document.querySelector('.rtab')).display, head: getComputedStyle(document.querySelector('.rtab thead')).display, k: getComputedStyle(document.querySelector('.rtab tbody td'), '::before').content }));
     check(g.table === 'block' && g.head === 'none' && g.k === '"AMS"', 'desks 390: the rules render as cards, each cell prefixed by its desk\'s code', JSON.stringify(g));
+    await ctx.close();
+  }
+  // audit 06/11: the rules table needs about 912px for its eight columns; between 760 and 943 its last
+  // columns (Paris, Valencia) were clipped by the page, unreachable. Cards up to 959px, every rule link 44px tall.
+  for (const w of [700, 768, 820, 900, 959, 960, 1024]) {
+    const { ctx, page } = await open({ slug: 'desks', width: w });
+    await center(page, '.rtab');
+    const g = await page.evaluate(() => {
+      const t = document.querySelector('.rtab'), r = t.getBoundingClientRect(), p = t.parentElement.getBoundingClientRect();
+      const rc = [...document.querySelectorAll('.rtab a.rc')].filter((a) => a.offsetParent).map((a) => a.getBoundingClientRect().height);
+      return { disp: getComputedStyle(t).display, right: Math.round(r.right), pr: Math.round(p.right), sw: document.documentElement.scrollWidth, vw: innerWidth, minRc: rc.length ? Math.min(...rc) : 0, n: rc.length };
+    });
+    const cards = w <= 959;
+    check(g.sw <= g.vw && g.right <= g.pr + 1 && g.disp === (cards ? 'block' : 'table') && g.n > 20 && (!cards || g.minRc >= 44),
+      `desks ${w}: the rules ${cards ? 'are cards, every rule link at least 44px tall' : 'are a table'}, and no column is clipped`, JSON.stringify(g));
     await ctx.close();
   }
   // reduced motion: nothing loops after load

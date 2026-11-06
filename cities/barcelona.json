@@ -10,7 +10,7 @@
   "live": true,
   "mode": "search",
   "config": {},
-  "updated": "2026-11-04",
+  "updated": "2026-11-06",
   "meta": {
     "title": "Tenant-side rental agent for expats in Barcelona — BOOM",
     "description": "Apartment search for expats in Barcelona, tenant side only: rent-cap check, Spanish-format file, applications as listings appear, viewings attended, contract read.",
@@ -25,7 +25,7 @@
   },
   "hero": {
     "h1Before": "Your home in",
-    "lead": "We search, apply, attend the viewings and check the lease.",
+    "lead": "We search, apply, attend the viewings and check the lease and the rent cap.",
     "leadStrong": "You hire us; we do not act for the landlord.",
     "faresHead": {
       "b": "Optional, chosen in writing",
@@ -127,7 +127,7 @@
       {
         "id": "rentcap",
         "title": "The rent cap",
-        "at": "índice de referencia",
+        "at": "zona tensionada · índice de referencia",
         "text": "Tensioned zone: new rents can't top the previous one, nor the reference index for large owners or homes unlet for five years."
       },
       {
@@ -166,7 +166,7 @@
     "tail": "The rest we go through on the free call."
   },
   "faq": {
-    "h2": "Questions.",
+    "h2": "Questions about renting in Barcelona.",
     "items": [
       {
         "q": "Isn't it the landlord who pays the agent in Spain?",
@@ -175,6 +175,14 @@
       {
         "q": "What happens on the free call?",
         "a": "A call with Valentino, by phone or WhatsApp, at a time that suits you both. We hear your dates, budget and who is moving, say which service fits, or that none does, and which papers you are missing. Nothing is charged for the call. Full Search is refunded in full if we decline the search in the first call."
+      },
+      {
+        "q": "Is there a rent cap in Barcelona?",
+        "a": "Yes. Barcelona is a tensioned zone: a new rent can't top the previous one, nor the reference index for large owners or homes unlet for five years. Ask for the previous rent before you sign; Full Search checks the cap for you."
+      },
+      {
+        "q": "Can I get a temporary contract for work or study in Barcelona?",
+        "a": "Yes, if the reason is real: a temporary lease for work or study must state and prove it, and its rent is capped too. Otherwise it counts as a habitual lease (Llei 11/2025). With Full Search or Application Pack we check which one you are handed before you sign."
       },
       {
         "q": "How do I avoid a rental scam in Barcelona from abroad?",
@@ -216,7 +224,8 @@
       },
       {
         "dt": "Reply time",
-        "ddHtml": "The same working day."
+        "ddHtml": "The same working day.",
+        "hours": true
       },
       {
         "dt": "Contact",

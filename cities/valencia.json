@@ -10,7 +10,7 @@
   "live": true,
   "mode": "search",
   "config": {},
-  "updated": "2026-11-04",
+  "updated": "2026-11-06",
   "meta": {
     "title": "Tenant-side rental agent for expats in Valencia — BOOM",
     "description": "Apartment search for expats in Valencia, tenant side only: a Spanish-format file, applications sent as listings appear, viewings attended, contract checked.",
@@ -166,7 +166,7 @@
     "tail": "The rest we go through on the free call."
   },
   "faq": {
-    "h2": "Questions.",
+    "h2": "Questions about renting in Valencia.",
     "items": [
       {
         "q": "Isn't it the landlord who pays the agent in Spain?",
@@ -216,7 +216,8 @@
       },
       {
         "dt": "Reply time",
-        "ddHtml": "The same working day."
+        "ddHtml": "The same working day.",
+        "hours": true
       },
       {
         "dt": "Contact",
