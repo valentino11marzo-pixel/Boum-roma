@@ -25,7 +25,7 @@
   var compactHome=matchMedia('(max-width: 650px)');
   function arrangeHome(){
     var presentation=new URLSearchParams(location.search),panorama=presentation.get('experience')==='panorama';
-    var vision=['airframe','signal','orbit','dispatch','gate','connection'].includes(presentation.get('vision'));
+    var vision=['airframe','signal','orbit','dispatch','gate','connection','vector'].includes(presentation.get('vision'));
     var terminal=panorama&&!vision&&presentation.get('variant')==='terminal';
     // Terminal keeps the actual planner beside the destination on desktop and
     // ahead of the globe in the phone's DOM/focus order. No second form.

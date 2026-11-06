@@ -45,6 +45,11 @@
   },
   "redirects": [
     {
+      "source": "/home-vector",
+      "destination": "/flight-next?direction=club&edition=club&experience=panorama&vision=vector",
+      "permanent": false
+    },
+    {
       "source": "/home-dispatch",
       "destination": "/flight-next?direction=club&edition=club&experience=panorama&vision=dispatch",
       "permanent": false

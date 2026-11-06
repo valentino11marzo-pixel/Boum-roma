@@ -5077,6 +5077,12 @@ Flight Studio 07/11: durante il caricamento di una nuova direzione, il cambio De
 Il formato ora cambia senza ricatturare quella vecchia presentazione: titolo, selezione e URL restano sulla nuova scelta mentre arriva la pagina.
 La bozza pubblica già acquisita resta conservata; una prova `flightpanoramaui` trattiene la risposta entrante e verifica il cambio formato prima e dopo il caricamento.
 
+Flight Dispatch/Orbit/Vector 07/11: Dispatch e Orbit mantengono le aperture approvate e portano la stessa gerarchia300 a planner, catalogo, costi, biglietti, desk e footer; i costi delle tre direzioni diventano una sola colonna sul telefono.
+`vision=vector` combina l'indice città con l'orizzonte del canvas originale; riusa le sezioni decisionali Dispatch. `/home-vector` è un redirect temporaneo, senza nuova form o stato cliente.
+Studio mette Dispatch (default), Orbit e Vector nei tre controlli principali; conserva le altre quattro direzioni e le versioni precedenti. Navigazione e bozza pubblica seguono la stessa allowlist e validazione.
+Locate rivela la mappa originale anche su desktop nelle tre direzioni; scene e filtri dichiarano i pannelli controllati, conservando cambio tastiera immediato, pausa e movimento ridotto.
+`flightpanoramaui` copre sette direzioni, le tre anche a900px, identità del canvas/form, handoff e Studio; verifiche visive320/390/900/1440 e decisioni in `design/dispatch-orbit-vector.md`.
+
 Flight Lab 31/10: `/flight-lab` confronta Atlas, Residence e Club sulle stesse viste reali di `/flight-next?direction=…`, senza cambiare il sito pubblico.
 Le composizioni riusano catalogo, Solari, iframe Skyline, salvataggi e Apply; nessun secondo catalogo o nuovo handler di invio.
 Residence usa una foto realmente restituita dal catalogo pubblico (fallback a una casa pubblica non chiusa); Atlas sposta la stessa mappa nel primo schermo.

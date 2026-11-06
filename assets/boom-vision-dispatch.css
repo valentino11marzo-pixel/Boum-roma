@@ -1,6 +1,6 @@
 /* DISPATCH — the destination directory is the experience's first useful object. */
-html[data-home-vision="dispatch"]{background:#000;scrollbar-color:#b39a00 #000}
-body[data-direction="club"][data-edition="club"][data-experience="panorama"][data-home-vision="dispatch"].europe-ready{
+html:is([data-home-vision="dispatch"],[data-home-vision="vector"]){background:#000;scrollbar-color:#b39a00 #000}
+body[data-direction="club"][data-edition="club"][data-experience="panorama"]:is([data-home-vision="dispatch"],[data-home-vision="vector"]).europe-ready{
  --p-bg:#000;--p-surface:#000;--p-raised:#17180e;--p-text:#fff;--p-muted:#c6c9b8;
  --p-yellow:#ffd700;--p-line:#545747;--p-hairline:#303326;--edition-gutter:clamp(24px,4.4vw,72px);
  --ink:#000;--surface:#000;--line:#545747;--muted:#c6c9b8;--p-radius:12px;
@@ -91,7 +91,50 @@ body[data-direction="club"][data-edition="club"][data-experience="panorama"][dat
  & .chapter-heading h2{font-weight:300}
  & .next-signoff{background:#ffd700;color:#000;border-color:#ffd700}
  & .next-signoff :is(h2,p,a){color:#000}
+ & .next-signoff>img{filter:brightness(0)}
  & .next-signoff .button{border-color:#000}
+
+ /* Catalogue and home detail continue the directory's editorial hierarchy. */
+ & :is(.next-discovery-heading,.detail-heading){padding-block:36px 28px}
+ & .next-discovery-heading>.eyebrow,& .next-discovery-heading .eyebrow{display:none}
+ & :is(.next-discovery-heading h1,.detail-title-row h1){font-size:clamp(38px,4vw,58px);font-weight:300;line-height:1.08;letter-spacing:-.035em}
+ & .next-view-switch{padding:4px;gap:4px;border-radius:8px}
+ & .next-view-switch button{min-width:104px;font-weight:500;border-radius:4px}
+ & .next-view-switch button[aria-pressed="true"]{background:#ffd700;color:#000}
+ & .next-filter-bar{padding-block:12px}
+ & .next-filter-bar :is(button,select){font-weight:400}
+ & .next-filter-bar .balance-button{font-weight:500;color:#ffd700}
+ & .next-results-panel{scrollbar-color:#b39a00 #000}
+ & .results-caption{margin-bottom:20px}
+ & .results-caption button{min-height:44px;font-size:14px}
+ & :is(.next-card-info h3,.next-results .next-card-info h3,.balance-card h3){font-size:30px;font-weight:300;line-height:1.16;letter-spacing:-.025em}
+ & :is(.card-price strong,.next-results .card-price strong){font-size:30px;font-weight:300;letter-spacing:-.025em}
+ & .card-price :is(a,button){min-width:44px;min-height:44px}
+ & :is(.card-status,.card-save){backdrop-filter:none}
+ & .card-status{font-weight:400}
+ & :is(.card-save,.detail-actions button)[aria-pressed="true"]{background:#ffd700;color:#000;border-color:#ffd700}
+ & .card-save[aria-pressed="true"] svg{fill:#000}
+ & .balance-card[data-primary="true"]{border-color:#ffd700}
+ & :is(.detail-breadcrumb a,.detail-stay button){min-height:44px}
+ & .detail-body{gap:48px}
+ & :is(.detail-body h2,.detail-support h3,.next-journey h3){font-weight:300}
+ & .detail-support{padding-inline:0}
+ & .detail-everyday{border-radius:0;border-inline:0;padding-inline:0}
+ & .detail-features span{background:none;border-radius:4px}
+ & .next-journey li{border-bottom:1px solid #303326;padding-block:24px;margin:0}
+ & .next-journey li:first-child{padding-top:0}
+ & .next-journey li:last-child{border:0;padding-bottom:0}
+ & .next-journey li>span{color:#ffd700;font-weight:400}
+
+ /* White plates mark a real decision: a home cost breakdown or a desk brief. */
+ & :is(.detail-decision,#europeDeskStory #europeDeskForm){--p-bg:#fff;--p-surface:#fff;--p-raised:#fff8d2;--p-text:#11130c;--p-muted:#535846;--p-line:#aeb49f;--p-hairline:#dce0d3;background:#fff;color:#11130c;color-scheme:light;border:0;border-radius:14px;box-shadow:none;padding:28px}
+ & :is(.detail-decision,#europeDeskStory #europeDeskForm) :is(a,button,input,select,summary):focus-visible{outline-color:#11130c}
+ & .decision-price{margin-bottom:20px}
+ & .decision-price strong{font-size:48px;font-weight:300;letter-spacing:-.035em}
+ & .decision-price .eyebrow{font-size:13px;font-weight:400}
+ & .decision-cta .button.gold{color:#000;font-weight:500;border-radius:8px}
+ & .club-application-next h3{font-size:24px;font-weight:300}
+ & .edition-costs dd{font-weight:400}
 
  /* Native service tickets stay open to comparison, with their full scope and fee. */
  & #services{padding-block:76px;background:#000}
@@ -103,7 +146,7 @@ body[data-direction="club"][data-edition="club"][data-experience="panorama"][dat
  & #visionNeedSummary{font-size:15px;max-width:70ch}
  & #services .next-tickets.panorama-ticketing{grid-template-columns:minmax(0,1fr);gap:22px}
  & #services .panorama-ticket,& #services .panorama-ticket:hover{grid-column:1;grid-template-columns:22px minmax(0,1fr) 240px;grid-template-rows:1fr;border-radius:12px;border-color:#545747;background:#000}
- & #services .panorama-ticket-band{grid-column:1;grid-row:1;font-size:12px}
+ & #services .panorama-ticket-band{grid-column:1;grid-row:1;font-size:12px;font-weight:500;letter-spacing:0;background:var(--ticket-accent)}
  & #services .panorama-ticket-body{grid-column:2;grid-row:1;display:grid;grid-template-columns:minmax(0,1fr) minmax(220px,.8fr);gap:0 32px;padding:30px 32px}
  & #services .panorama-ticket-body::after{display:none}
  & #services .panorama-ticket h3{grid-column:1;grid-row:1;font-size:36px;font-weight:300;line-height:1.1;min-height:0;margin:0}
@@ -120,9 +163,41 @@ body[data-direction="club"][data-edition="club"][data-experience="panorama"][dat
  & #services .panorama-ticket .ticket-stub>.panorama-ticket-action{margin-top:auto;min-height:54px;font-size:14px;font-weight:500;background:var(--ticket-accent);color:#000}
  & #services [data-rome-service="property-finding"] .panorama-ticket-action>b{background:#000;color:#ffd700}
  & #services .europe-service-proof strong{font-size:28px;font-weight:300}
- & #europeDeskStory .europe-service-copy h3{font-size:34px;font-weight:300}
- & #europeDeskStory .europe-service-price strong{font-weight:300}
- & #europeDeskStory #europeDeskContinue{font-weight:500}
+ & #services .panorama-ticket-facts dd{font-weight:400}
+ & #services .panorama-ticket .ticket-stub>.panorama-ticket-action{border-radius:8px}
+ & #services .panorama-ticket-action>b{border-radius:4px}
+
+ /* The same choice → scope → brief sequence applies to each real European desk. */
+ & #europeDeskStory .europe-story-lead h2{font-size:clamp(38px,4vw,58px);font-weight:300;line-height:1.08}
+ & .edition-desk-workspace{gap:32px 40px}
+ & #europeDeskStory #europeDeskTitle{font-size:24px;font-weight:300;line-height:1.2;margin-bottom:20px}
+ & #europeDeskStory .europe-needs{grid-template-columns:minmax(0,1fr);gap:0;border-block:1px solid #545747}
+ & #europeDeskStory [data-europe-need]{min-height:104px;padding:22px 24px;border:0;border-bottom:1px solid #545747;border-radius:0;align-items:center}
+ & #europeDeskStory [data-europe-need]:last-child{border-bottom:0}
+ & #europeDeskStory [data-europe-need]>div{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-rows:auto auto;column-gap:24px;row-gap:8px;align-items:baseline}
+ & #europeDeskStory [data-europe-need] strong{grid-column:1;grid-row:1;font-size:28px;font-weight:300;line-height:1.15}
+ & #europeDeskStory [data-europe-need] small{grid-column:1;grid-row:2;max-width:46ch}
+ & #europeDeskStory .europe-need-price{grid-column:2;grid-row:1/3;margin:0;padding:0;border:0;align-self:center;font-weight:400;font-size:16px;text-align:right}
+ & #europeDeskStory [data-europe-need]:after{align-self:center;margin:0}
+ & #europeDeskStory .europe-service-copy h3{font-size:36px;font-weight:300}
+ & #europeDeskStory .europe-service-price strong{font-size:48px;font-weight:300}
+ & #europeDeskStory .europe-service-price{background:#000;border-color:#545747;color:#ffd700}
+ & #europeDeskStory .europe-service-price :is(strong,small){color:#ffd700}
+ & #europeDeskStory .europe-service-price p{color:#c6c9b8}
+ & #europeDeskStory .edition-brief-head{margin:0 0 8px;padding:0 0 24px;background:none;border-bottom:0}
+ & #europeDeskStory .edition-brief-head h3{font-size:34px;font-weight:300;color:#11130c}
+ & #europeDeskStory .edition-brief-head>p:last-child{color:#535846;margin-top:12px}
+ & #europeDeskStory #europeBriefSummary>div{padding:16px 0}
+ & #europeDeskStory #europeBriefSummary dd{font-size:18px;font-weight:400}
+ & #europeDeskStory .europe-fields label:focus-within{color:#11130c}
+ & #europeDeskStory .europe-fields :is(input,select){border-radius:6px;caret-color:#11130c}
+ & #europeDeskStory .europe-fields :is(input,select):focus{border-color:#11130c;outline-color:#11130c;background:#fff8d2}
+ & #europeDeskStory .europe-fields :is(input,select)[aria-invalid="true"],& #europeDeskStory .europe-fields input:user-invalid{border-color:#a22d0a}
+ & #europeDeskStory .europe-form-note{color:#535846;font-size:14px;line-height:1.6}
+ & #europeDeskStory #europeDeskError{color:#a22d0a}
+ & #europeDeskStory #europeDeskContinue{font-weight:500;color:#000;border-radius:8px}
+ & #europeDeskStory #europeDeskContinue::before{border-radius:4px}
+ & #europeDeskStory .club-desk-person strong{font-size:24px;font-weight:300}
 
  /* Company information changes to a clear paper surface after the journey. */
  & #clubCompany{--p-bg:#fff;--p-surface:#fff;--p-text:#11130c;--p-muted:#535846;--p-line:#aeb49f;--p-hairline:#dce0d3;background:#fff;color:#11130c;border-top:1px solid #11130c;color-scheme:light}
@@ -130,15 +205,16 @@ body[data-direction="club"][data-edition="club"][data-experience="panorama"][dat
  & #clubCompany :is(a,button):focus-visible{outline-color:#11130c}
  & #clubCompany .club-company-intro h2{font-size:clamp(38px,4.2vw,60px);font-weight:300;line-height:1.07;letter-spacing:-.035em}
  & #clubCompany :is(.club-principles h3,.club-destinations-title h3){font-weight:300}
+ & #clubCompany .club-principles h3{font-size:24px}
  & #clubCompany .club-destination-board button{color:#11130c;background:#fff}
  & #clubCompany .club-destination-code{background:#f3f5ed;color:#535846}
  & #clubCompany .club-destination-board button[aria-pressed="true"] .club-destination-code{background:#ffd700;color:#000}
- & #clubCompany .club-destination-board strong{font-size:20px;font-weight:300}
+ & #clubCompany .club-destination-board strong{font-size:24px;font-weight:300}
  & #clubCompany .club-company-links h3{font-weight:500}
  & #europeCityDialog .europe-cities button{font-size:20px;font-weight:300;min-height:56px}
 }
 
-@media(hover:hover) and (pointer:fine){body[data-direction="club"][data-edition="club"][data-experience="panorama"][data-home-vision="dispatch"].europe-ready{
+@media(hover:hover) and (pointer:fine){body[data-direction="club"][data-edition="club"][data-experience="panorama"]:is([data-home-vision="dispatch"],[data-home-vision="vector"]).europe-ready{
  & #nextHero>.europe-city-switch button:not([aria-pressed="true"]):hover{background:#1a1b10;color:#ffd700}
  & #nextHero>.europe-city-switch button:hover::after{opacity:1}
  & #nextHero>.europe-city-switch button[aria-pressed="true"]:hover{background:#ffe44a;color:#000}
@@ -149,7 +225,7 @@ body[data-direction="club"][data-edition="club"][data-experience="panorama"][dat
  & .vision-need-options button:hover{border-color:#ffd700}
 }}
 
-@media(max-width:1100px){body[data-direction="club"][data-edition="club"][data-experience="panorama"][data-home-vision="dispatch"].europe-ready{
+@media(max-width:1100px){body[data-direction="club"][data-edition="club"][data-experience="panorama"]:is([data-home-vision="dispatch"],[data-home-vision="vector"]).europe-ready{
  & #nextHero{gap:28px}
  & #nextHero>.europe-city-switch button{padding-inline:16px;grid-template-columns:minmax(0,1fr) 34px 20px;gap:10px}
  & #nextHero>.europe-city-switch button>span:last-child{font-size:clamp(38px,4.9vw,54px)}
@@ -158,7 +234,7 @@ body[data-direction="club"][data-edition="club"][data-experience="panorama"][dat
  & #directionClubTicket>.hero-centre{grid-template-columns:minmax(0,1fr);gap:14px}
  & .hero-centre h1{grid-column:1;grid-row:1}
  & .vision-departure-record{grid-column:1;grid-row:2;justify-content:start;min-height:28px}
- & .hero-promise{grid-row:3;font-size:15px}
+ & .hero-promise{grid-row:3;font-size:16px}
  & .edition-plan-link{grid-row:4;gap:10px;padding-left:12px}
  & .edition-pass-top{padding-right:12px}
  & .edition-pass-action{font-size:14px}
@@ -173,18 +249,24 @@ body[data-direction="club"][data-edition="club"][data-experience="panorama"][dat
  & #services .panorama-ticket h3{font-size:32px}
  & #services .panorama-ticket .ticket-stub{padding:26px 20px}
  & #services .panorama-ticket .ticket-stub>strong{font-size:48px}
+ & .next-discovery[data-layout="gallery"] .next-results{grid-template-columns:repeat(2,minmax(0,1fr));gap:24px}
+ & #europeDeskStory [data-europe-need]{padding:20px}
+ & #europeDeskStory [data-europe-need]>div{grid-template-columns:minmax(0,1fr);gap:8px}
+ & #europeDeskStory .europe-need-price{grid-column:1;grid-row:3;text-align:left}
 }}
 
-@media(max-width:700px){body[data-direction="club"][data-edition="club"][data-experience="panorama"][data-home-vision="dispatch"].europe-ready{
+@media(max-width:700px){body[data-direction="club"][data-edition="club"][data-experience="panorama"]:is([data-home-vision="dispatch"],[data-home-vision="vector"]).europe-ready{
  --edition-gutter:20px;
  & .next-nav{height:104px;min-height:104px;padding-inline:20px;gap:0 16px}
  & .next-nav nav{gap:20px}
  & .next-nav .europe-brand-lockup{width:126px}
  & #nextHero{display:flex;flex-direction:column;gap:24px;padding:16px 20px 24px}
- & #nextHero>.europe-city-switch .europe-cities{grid-template-rows:repeat(6,minmax(64px,auto))}
- & #nextHero>.europe-city-switch button{min-height:64px;padding:12px 14px;grid-template-columns:minmax(0,1fr) 34px 22px;gap:12px}
- & #nextHero>.europe-city-switch button>span:last-child{font-size:38px;letter-spacing:-.03em}
- & #nextHero>.europe-city-switch .europe-city-code{font-size:11px}
+ & #nextHero>.europe-city-switch .europe-cities{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(3,minmax(78px,auto));border-top:1px solid #545747}
+ & #nextHero>.europe-city-switch button{min-height:78px;padding:12px;grid-template-columns:minmax(0,1fr) 18px;grid-template-rows:auto auto;gap:6px 8px}
+ & #nextHero>.europe-city-switch button:nth-child(odd){border-right:1px solid #545747}
+ & #nextHero>.europe-city-switch button>span:last-child{grid-column:1/-1;grid-row:1;font-size:clamp(22px,6.67vw,28px);letter-spacing:-.03em}
+ & #nextHero>.europe-city-switch .europe-city-code{grid-column:1;grid-row:2;font-size:11px}
+ & #nextHero>.europe-city-switch button::after{grid-column:2;grid-row:2;width:18px;height:18px}
  & #directionClubTicket{padding:22px 20px;border-radius:12px}
  & #directionClubTicket>.hero-centre{gap:12px}
  & #visionCityName.vision-city-name{font-size:36px}
@@ -237,14 +319,33 @@ body[data-direction="club"][data-edition="club"][data-experience="panorama"][dat
  & #services .panorama-ticket .ticket-stub>small{grid-column:2;grid-row:2}
  & #services .panorama-ticket .ticket-stub>.panorama-ticket-action{grid-column:1/-1;grid-row:3;margin-top:6px}
  & #services .panorama-ticket .ticket-stub::after{top:-10px;bottom:auto;left:auto;right:-10px}
+ & .next-discovery-heading{padding:28px 20px;gap:24px}
+ & :is(.next-discovery-heading h1,.detail-title-row h1){font-size:38px}
+ & .next-view-switch{width:100%}
+ & .next-view-switch button{flex:1;min-width:0}
+ & .next-filter-bar{padding-block:8px}
+ & .next-filter-bar :is(button,label){min-height:56px}
+ & .next-discovery[data-layout="gallery"] .next-results{grid-template-columns:minmax(0,1fr);gap:16px}
+ & :is(.next-card-info h3,.next-results .next-card-info h3,.balance-card h3){font-size:28px}
+ & .detail-heading{padding:28px 0}
+ & :is(.detail-decision,#europeDeskStory #europeDeskForm){padding:24px}
+ & .detail-decision{display:block}
+ & .decision-status{border-inline:0}
+ & .decision-price strong{font-size:44px}
+ & #europeDeskStory .europe-story-lead h2{font-size:38px}
+ & #europeDeskStory [data-europe-need]{padding:20px;min-height:112px}
+ & #europeDeskStory [data-europe-need] strong{font-size:28px}
+ & #europeDeskStory .europe-service-copy h3{font-size:32px}
+ & #europeDeskStory .edition-brief-head{margin:0 0 8px;padding:0 0 24px}
+ & #europeDeskStory .edition-brief-head h3{font-size:30px}
  & #clubCompany{padding-top:42px}
  & #clubCompany .club-company-intro h2{font-size:38px}
+ & #clubCompany .club-destination-board strong{font-size:20px}
 }}
 
-@media(max-width:360px){body[data-direction="club"][data-edition="club"][data-experience="panorama"][data-home-vision="dispatch"].europe-ready{
- & #nextHero>.europe-city-switch button>span:last-child{font-size:32px}
- & #nextHero>.europe-city-switch button{min-height:60px;padding-inline:10px;gap:8px}
- & #nextHero>.europe-city-switch .europe-cities{grid-template-rows:repeat(6,minmax(60px,auto))}
+@media(max-width:360px){body[data-direction="club"][data-edition="club"][data-experience="panorama"]:is([data-home-vision="dispatch"],[data-home-vision="vector"]).europe-ready{
+ & #nextHero>.europe-city-switch button>span:last-child{font-size:22px}
+ & #nextHero>.europe-city-switch button{padding-inline:10px}
  & #directionClubTicket{padding:20px 16px}
  & #visionScene .club-media-rail{--club-photo-height:320px}
  & #nextSearchForm>label:has(input[type="date"]){grid-column:1/-1;display:grid;grid-template-columns:70px minmax(0,1fr);align-items:center;min-height:48px;gap:8px}
@@ -252,4 +353,6 @@ body[data-direction="club"][data-edition="club"][data-experience="panorama"][dat
  & #services .panorama-ticket h3{font-size:29px}
  & #services .panorama-ticket .ticket-stub{padding:22px 20px;column-gap:14px}
  & #services .panorama-ticket .ticket-stub>strong{font-size:46px}
+ & :is(.detail-decision,#europeDeskStory #europeDeskForm){padding:20px}
+ & #clubCompany .club-destination-board strong{font-size:18px}
 }}

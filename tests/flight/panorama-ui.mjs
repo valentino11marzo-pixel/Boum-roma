@@ -274,8 +274,9 @@ async function nativeCatalogue(page,variant='panorama',vision=null){
   assert.equal(new URL(popup.url()).searchParams.get('experience'),'panorama');await oneGlobe(popup);
  }finally{await popup.close();}
 }
-const visions=['airframe','signal','orbit','dispatch','gate','connection'];
-const visionDefaults={airframe:'homes',signal:'world',orbit:'world',dispatch:'homes',gate:'world',connection:'city'};
+const visions=['airframe','signal','orbit','dispatch','gate','connection','vector'];
+const refinedVisions=['dispatch','orbit','vector'];
+const visionDefaults={airframe:'homes',signal:'world',orbit:'world',dispatch:'homes',gate:'world',connection:'city',vector:'world'};
 async function startVision(page,vision,query=''){
  await start(page,'&vision='+vision+query);
  await page.waitForFunction(value=>document.body.dataset.homeVision===value,vision);
@@ -299,7 +300,7 @@ async function visionScene(page,scene){
 }
 try{
  browser=await chromium.launch(await launchOptions());
- for(const vision of visions)for(const width of [390,1440])await check('Vision '+vision+' '+width+': distinct scene presentation keeps original form, photographs, canvas and readable brand type',width,async({page,catalogueReads})=>{
+ for(const vision of visions)for(const width of refinedVisions.includes(vision)?[390,900,1440]:[390,1440])await check('Vision '+vision+' '+width+': distinct scene presentation keeps original form, photographs, canvas and readable brand type',width,async({page,catalogueReads})=>{
   await startVision(page,vision);
   await page.waitForFunction(()=>BoomFlightNextMotion.state().fieldEnabled===false&&!BoomFlightNextMotion.state().rafPending);
   const field=await page.evaluate(()=>({motion:BoomFlightNextMotion.state(),rect:document.getElementById('nextHero').getBoundingClientRect().toJSON(),height:innerHeight}));
@@ -325,16 +326,32 @@ try{
     assert.equal(await page.locator('#visionScene .club-media-count').innerText(),'02 / 02','the original photograph controls and chosen frame survive scene switches');
    }
   }
+  if(refinedVisions.includes(vision)&&width===1440){
+   assert.deepEqual(await page.locator('#visionSceneTabs button').evaluateAll(nodes=>nodes.map(node=>({scene:node.dataset.visionScene,panel:node.getAttribute('aria-controls')}))),[{scene:'homes',panel:'clubMedia'},{scene:'world',panel:'boomGlobeMount'}],'scene controls identify the original panels they reveal');
+   const ticketList=page.locator('#services .panorama-ticketing');assert.equal(await ticketList.getAttribute('id'),'visionServiceTickets');
+   assert.deepEqual(await page.locator('#visionNeedChooser button').evaluateAll(nodes=>nodes.map(node=>node.getAttribute('aria-controls'))),Array(4).fill('visionServiceTickets'),'support choices identify the same native ticket list');
+   for(const scene of ['homes','world']){
+    await page.locator('#visionSceneTabs button[data-vision-scene="'+scene+'"]').focus();await page.keyboard.press('Enter');
+    await page.waitForFunction(value=>document.body.dataset.visionScene===value,scene);
+    const panel=page.locator(scene==='homes'?'#clubMedia':'#boomGlobeMount');
+    assert.equal(await panel.isVisible(),true,'keyboard selection reveals its original scene');
+    assert.equal(await panel.evaluate(node=>node.getAnimations().length),0,'keyboard scene selection does not start the pointer-only entrance animation');
+   }
+  }
   await openGlobe(page);await closeGlobe(page,true);
   assert.equal(await page.evaluate(()=>document.querySelector('#visionScene #boomGlobeMount')===window.__visionNodes.atlas&&document.querySelector('.boom-flight-globe-canvas')===window.__visionNodes.canvas),true,'Full view returns the original canvas to its new scene');
   if(width===1440){
-   await releaseGlobe(page);await page.waitForFunction(()=>BoomFlightGlobe.state().ambientActive);
+   await releaseGlobe(page);await page.waitForFunction(()=>BoomFlightGlobe.state().ambientActive).catch(async error=>{
+    error.message+=' '+JSON.stringify(await page.evaluate(()=>({camera:BoomFlightGlobe.state(),active:document.activeElement?.outerHTML,atlas:document.getElementById('boomGlobeMount').getBoundingClientRect().toJSON(),stage:document.querySelector('.boom-globe-stage').getBoundingClientRect().toJSON(),hidden:document.hidden})));
+    throw error;
+   });
    const beforeGlobe=await cameraSnapshot(page);await page.waitForTimeout(700);const afterGlobe=await cameraSnapshot(page);
    assert.ok(afterGlobe.camera.frames>beforeGlobe.camera.frames,'the visible original globe still paints its deliberate ambient movement');
    assert.notEqual(afterGlobe.fingerprint,beforeGlobe.fingerprint,'ambient movement reaches the real geographic pixels');
    assert.equal(await page.evaluate(()=>BoomFlightNextMotion.state().rafPending),false,'the moving globe does not restart a hidden Solari field');
   }
-  if(vision==='orbit'&&width===1440){
+  if(['orbit','vector'].includes(vision)&&width===1440){
+   assert.equal(await page.locator('#boomGlobeMount').getAttribute('data-globe-framing'),'horizon','the geographic horizon comes from the original renderer');
    await openGlobe(page);
    assert.equal(await page.locator('#boomGlobeMount').getAttribute('data-globe-labels'),'all','Full view exposes the geographic destinations rather than the cropped horizon label');
    await page.locator('#panoramaGlobeDialog [data-globe-city="london"]').click();
@@ -358,6 +375,14 @@ try{
   await page.locator('#europeServicePass .europe-service-price strong').waitFor();await geometry(page,['#europeDeskContinue']);
   await page.locator('.europe-city-switch [data-europe-city="rome"]').click();await page.waitForFunction(()=>document.body.dataset.europeCity==='rome');
   await page.locator('#visionSceneTabs').waitFor({state:'visible'});await plannerBounds(page);await romeTickets(page);
+  if(refinedVisions.includes(vision)&&width===1440){
+   await page.locator('[data-europe-locate]').click();
+   await page.waitForFunction(()=>{const map=document.getElementById('nextHomeMap').getBoundingClientRect(),nav=document.querySelector('.next-nav').getBoundingClientRect();return map.top>=Math.max(0,nav.bottom)-1&&map.bottom<=innerHeight+1;});
+   await page.waitForFunction(()=>BoomNextMap.state().status==='ready');
+   assert.equal(await page.locator('iframe.boom-next-map-frame').count(),1,'desktop Locate reuses one original Skyline iframe');
+   const mapHandle=await page.locator('#nextHomeMap iframe.boom-next-map-frame').elementHandle(),mapFrame=await mapHandle.contentFrame();
+   await mapFrame.waitForFunction(()=>__mapBoundary.selected==='panorama-courtyard'||__mapBoundary.selected==='panorama-room');
+  }
   assert.equal(catalogueReads(),reads,'scene switches, Full view and city presentation do not create another catalogue');
  },width===1440?'no-preference':'reduce');
  await check('Vision journey: each new identity follows native links, real home review and Back while private handoffs stay clean',1440,async({page})=>{
@@ -404,13 +429,14 @@ try{
    assert.equal(await page.locator('#visionNeedChooser button[data-vision-need="all"]').getAttribute('aria-pressed'),'true','returning to Rome clears an obsolete service filter');await romeTickets(page);
   }
  });
- await check('Vision Studio: all six directions retain a valid public draft and reject invalid dates in one preview',1440,async({page})=>{
+ await check('Vision Studio: all seven directions retain a valid public draft and reject invalid dates in one preview',1440,async({page})=>{
   await page.goto(origin+'/flight-studio',{waitUntil:'domcontentloaded'});
   const handle=await page.locator('#studioFrame').elementHandle(),frame=await handle.contentFrame();
-  await frame.waitForFunction(()=>document.body.dataset.homeVision==='airframe'&&!!window.BoomFlightEurope);
+  await frame.waitForFunction(()=>document.body.dataset.homeVision==='dispatch'&&!!window.BoomFlightEurope);
+  assert.deepEqual(await page.locator('.studio-toolbar button[data-studio-experience]').evaluateAll(nodes=>nodes.map(node=>node.dataset.studioExperience)),refinedVisions,'the current comparison presents Dispatch, Orbit and Vector together');
   assert.equal(await page.locator('body').evaluate(node=>getComputedStyle(node).fontFamily.split(',')[0].replace(/["']/g,'').trim()),'Helvetica Neue','Studio uses the original BOOM family');
   await fillRome(frame);
-  for(const vision of ['dispatch','gate','connection','signal','orbit','airframe']){
+  for(const vision of ['vector','gate','connection','signal','orbit','dispatch','airframe']){
    await page.locator('button[data-studio-experience="'+vision+'"]').click();await frame.waitForFunction(value=>document.body.dataset.homeVision===value&&!!window.BoomFlightEurope,vision);
    assert.equal(await page.locator('button[data-studio-experience="'+vision+'"]').getAttribute('aria-pressed'),'true');
    const current=new URL(frame.url());assert.equal(current.searchParams.get('vision'),vision);assert.equal(current.searchParams.has('variant'),false);previewIntent(current);
