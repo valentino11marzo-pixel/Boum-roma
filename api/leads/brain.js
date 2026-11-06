@@ -30,7 +30,7 @@
 import { knobs, rejectedLine } from '../_squadra.js';
 import { ai } from '../_ai.js';
 import { pendingNewLeads } from './_fresh.js';
-import { isCityMarket, isReunion } from '../_market.js';
+import { isCityMarket, isReunion, isBuyingLead } from '../_market.js';
 import {
   requireCronOrAdmin, fsGet, fsPatch, fsList, reportEmployeeHealth, saveReport,
 } from '../employees/_lib.js';
@@ -62,6 +62,7 @@ export function stage0(lead, listingById) {
   // judges a Rome tenant ("BOOM Roma"), and a real Amsterdam request read as
   // "not interested in Rome" became 'dead' and was archived without a card.
   // A rule grade, final, never the Rome prompt and never dead by AI.
+  if (isBuyingLead(lead)) return { grade: 'B', reason: 'acquisto — fattibilità e incarico al titolare, nessuna qualifica affitto', final: true };
   // v1.8: an ORDER of a desk that charges at signing (booked:true, nothing
   // paid yet) is a client who has already said yes — as hot as a paid one.
   if (isCityMarket(lead) || isReunion(lead)) {
