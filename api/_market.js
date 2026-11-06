@@ -16,6 +16,16 @@
 // et les employés IA calibrés sur Rome S'ABSTIENNENT au lieu d'improviser.
 
 import { replyLang } from './_lang.js';
+import BUYING from '../js/buying-engine.js';
+
+export const isBuyingLead = lead => BUYING.isBuyer(lead) && !isReunion(lead);
+export function buyingReplyText(lead = {}) {
+  const first = String(lead.name || '').trim().split(/\s+/)[0];
+  const city = lead.buying && lead.buying.city;
+  return lead.language === 'it'
+    ? `Ciao${first ? ' ' + first : ''}, sono Valentino di BOOM. Ho ricevuto la tua richiesta di acquisto${city ? ' a ' + city : ''}. Verifichiamo insieme fattibilità, attività e costi prima di avviare un incarico. Quando ti è comodo sentirci?\nhttps://www.boomrome.com/comprare-casa-europa`
+    : `Hi${first ? ' ' + first : ''}, Valentino from BOOM here. I have your buying enquiry${city ? ' for ' + city : ''}. We will confirm feasibility, scope and fees before starting a mandate. When would suit you for a conversation?\nhttps://www.boomrome.com/buy-property-europe`;
+}
 
 export const REUNION_URL = 'https://www.boomrome.com/reunion';
 
@@ -492,6 +502,7 @@ export function originFromText(text) {
  * @returns {string|null}
  */
 export function notRomeTenant(lead = {}) {
+  if (isBuyingLead(lead)) return 'vuole acquistare un immobile: fattibilità e incarico da valutare con Valentino';
   if (isCityMarket(lead)) { const c = CITY_MARKETS[cityMarketOf(lead)]; return `cerca casa a ${c.labelIt || c.label}, non a Roma`; }
   if (isReunion(lead)) return 'La Réunion, non Roma';
   if (isB2B(lead)) return b2bSide(lead) === 'owner' ? 'è un proprietario, non un inquilino' : 'è un ente o un\'azienda, non un inquilino';

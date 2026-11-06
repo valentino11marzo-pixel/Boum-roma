@@ -67,6 +67,7 @@
     catch (e) { return uid(); }
   }
   function inferService(path) {
+    if (/buy-property-europe|comprare-casa-europa/.test(path)) return 'property_buying';
     if (/property-finding/.test(path)) return 'property_finding';
     if (/deal-assistance|contract-check|blog-contract-types/.test(path)) return 'deal_assistance';
     if (/virtual-viewing|viewing/.test(path)) return 'virtual_viewing';
