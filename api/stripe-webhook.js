@@ -1,13 +1,16 @@
 import Stripe from 'stripe';
 import crypto from 'node:crypto';
-import { fsList, fsPatch, fsGet, fsCommit, getAdminToken, toFsValue } from './homie/_lib.js';
+import { fsList, fsPatch, fsGet, fsGetVersioned, fsCommit, getAdminToken, toFsValue } from './homie/_lib.js';
 import { sendPaEmails, shell, para, fine, btn, btn2 } from './preagreement/_notify.js';
 import { sendEmail } from './agent/_lib.js';
 import { maybeAutoConvert } from './preagreement/_auto.js';
 import { tgNotify } from './pfs/_health.js';
-import { CITY_MARKETS, CITY_PLANS, cityPhone, serviceLeadId, moneyOf } from './_market.js';
+import { CITY_MARKETS, CITY_PLANS, cityPhone, serviceLeadId, moneyOf, cityOffer } from './_market.js';
+import { isUpgradeLeadId, UPGRADE_PATHS, UPGRADE_DAYS } from './_upgrade.js';
+import { upgradeLink } from './payments/_token.js';
 import SCALO from '../js/scalo-codes.js';
 import DESK_CAL from '../js/desk-calendar.js';
+import { withdrawalWindow, WITHDRAWAL_FORM_URL, WITHDRAWAL_FORM_TEXT, WITHDRAWAL_FORM_TEXT_IT } from './_withdrawal.js';
 
 export const config = { api: { bodyParser: false } };
 
@@ -363,9 +366,11 @@ const CITY_SERVICE_META = {
   },
 };
 // The cover letter's language, where "the local language and English" reads
-// wrong: in London the local language IS English, in Milan it is Italian.
+// wrong: in London the local language IS English, in Milan it is Italian; in
+// Valencia two languages are local (Valencian is co-official) and the page
+// promises the letter in Spanish.
 // The desks not listed keep the line above, byte for byte.
-const CITY_LETTER_LANG = { london: 'in English', milan: 'in Italian and English' };
+const CITY_LETTER_LANG = { london: 'in English', milan: 'in Italian and English', valencia: 'in Spanish and English' };
 function cityServiceMeta(cityKey, kind) {
   const base = CITY_SERVICE_META[kind] || { emoji: '✓' };
   const lang = CITY_LETTER_LANG[cityKey];
@@ -373,39 +378,12 @@ function cityServiceMeta(cityKey, kind) {
   return { ...base, next2: [base.next2[0], `From your papers — local format, cover letter ${lang}`] };
 }
 
-// The 14-day withdrawal period of a service contract (Directive 2011/83/EU
-// art. 9), on the Rome calendar. The day the contract is concluded does not
-// count (Reg. 1182/71 art. 3(1), recital 41 of the Directive): paid on
-// Tuesday 20 October, the period runs to the END of 3 November and the first
-// day work may begin without a request is 4 November. Calendar days, never
-// 14×24h — that slips a day across the October and March clock changes.
-// A last day that falls on a Saturday, a Sunday or a public holiday moves to
-// the end of the next working day (Reg. 1182/71 art. 3(4)): paid on Saturday
-// 17 October, the period ends on Monday 2 November, not on Saturday 31.
-// Which holidays: the union of Italy's (the trader, in Rome) and the desk's
-// country — a day too many only lengthens the payer's right and delays our
-// start, a day too few would shorten a right the law gives them. The day
-// work begins is the next desk working day after the period. `concludedEpoch`
-// is the moment of payment (the Stripe event's time, stable across retries),
-// not the moment the Checkout page was opened.
-// The model withdrawal form (Annex I(B)), filled with the trader's details.
-// The page is the fillable copy; the TEXT travels inside the confirmation
-// email too, because the email is the durable medium (art. 8(7)) and the
-// form is part of the information it must carry (art. 6(1)(h)). One line,
-// the dashes of the Annex kept: the email template does not keep newlines.
-export const WITHDRAWAL_FORM_URL = 'https://www.boomrome.com/withdrawal';
-export const WITHDRAWAL_FORM_TEXT = 'MODEL WITHDRAWAL FORM (complete and return this form only if you wish to withdraw from the contract): '
-  + '— To Egidi Immobiliare S.r.l. (BOOM), Via dei Coronari 181/184, 00186 Roma, Italy, e-mail hello@boom-rome.com: '
-  + '— I/We (*) hereby give notice that I/We (*) withdraw from my/our (*) contract for the provision of the following service (*), '
-  + '— Ordered on (*)/received on (*), — Name of consumer(s), — Address of consumer(s), '
-  + '— Signature of consumer(s) (only if this form is notified on paper), — Date. (*) Delete as appropriate.';
-// the same form for the Rome Pacchetto, in Italian (Codice del consumo
-// art. 49(1)(h), Allegato I parte B)
-export const WITHDRAWAL_FORM_TEXT_IT = 'MODULO DI RECESSO TIPO (compilare e restituire il presente modulo solo se si desidera recedere dal contratto): '
-  + '— Destinatario: Egidi Immobiliare S.r.l. (BOOM), Via dei Coronari 181/184, 00186 Roma, e-mail hello@boom-rome.com: '
-  + '— Con la presente io/noi (*) notifichiamo il recesso dal mio/nostro (*) contratto di prestazione del seguente servizio (*), '
-  + '— Ordinato il (*)/ricevuto il (*), — Nome del/dei consumatore(i), — Indirizzo del/dei consumatore(i), '
-  + '— Firma del/dei consumatore(i) (solo se il presente modulo è notificato in versione cartacea), — Data. (*) Cancellare la dicitura inutile.';
+// The 14-day withdrawal window and the model withdrawal form live in
+// api/_withdrawal.js (moved there verbatim in v1.8: the order of a desk that
+// charges at signing counts the same window without loading this file).
+// Re-exported here, so every caller and test that imported them from the
+// webhook is unchanged.
+export { withdrawalWindow, withdrawalEnds, WITHDRAWAL_FORM_URL, WITHDRAWAL_FORM_TEXT, WITHDRAWAL_FORM_TEXT_IT } from './_withdrawal.js';
 
 // The desk calendar (Italy + the desk's own holidays) lives in ONE copy,
 // js/desk-calendar.js: the city pages print the desk window from the same
@@ -415,25 +393,6 @@ export const WITHDRAWAL_FORM_TEXT_IT = 'MODULO DI RECESSO TIPO (compilare e rest
 // an unknown key would silently fall back to Italy alone, so tests pin it
 export const HOLIDAY_KEYS = DESK_CAL.HOLIDAY_KEYS;
 export const isDeskHoliday = (date, country) => DESK_CAL.isDeskHoliday(date, country);
-const workingDay = (d, country) => DESK_CAL.workingDay(d, country);
-
-export function withdrawalWindow(concludedEpoch, country = null) {
-  const at = new Date((Number(concludedEpoch) || 0) * 1000);
-  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Rome', year: 'numeric', month: '2-digit', day: '2-digit' })
-    .formatToParts(at).filter((x) => x.type !== 'literal').map((x) => [x.type, Number(x.value)]));
-  const day = (n) => new Date(Date.UTC(parts.year, parts.month - 1, parts.day + n));
-  const iso = (d) => d.toISOString().slice(0, 10);
-  const label = (d) => new Intl.DateTimeFormat('en-GB', { timeZone: 'UTC', day: 'numeric', month: 'long', year: 'numeric' }).format(d);
-  let n = 14;
-  while (!workingDay(day(n), country)) n++;
-  const last = day(n);
-  let s = n + 1;
-  while (!workingDay(day(s), country)) s++;
-  const start = day(s);
-  return { lastDay: iso(last), lastLabel: label(last), startDay: iso(start), startLabel: label(start) };
-}
-// kept for callers that only want the last day of the period
-export const withdrawalEnds = (concludedEpoch) => withdrawalWindow(concludedEpoch).lastLabel;
 
 // The file number of a paid city order (v1.4): ONE number per person. The
 // checkout carries metadata.file_ref — the lead /api/city-lead opened for
@@ -461,6 +420,63 @@ async function cityFileFor(svcId, cityKey, fileRef) {
     if (f && /^BM [A-Z2-9]{5}$/.test(f)) return { file: f, fileLeadId: fileRef };
   }
   return { file: SCALO.fileCode(svcId), fileLeadId: null };
+}
+
+// THE UPGRADE CREDIT (api/_upgrade.js). A Full Search paid through a
+// personal upgrade link carries credit_from = the lead of the paid
+// Application Pack. That lead is re-read here: the credit is trusted only when
+// it is a paid order of the SAME desk, and then the upgrade keeps the pack's
+// file number (one person, one file). The credit is marked used on the pack's
+// lead under a version precondition, idempotently: a Stripe retry of the same
+// session finds its own mark and stops. A credit already used by ANOTHER
+// session (two upgrade checkouts paid in parallel) is never re-marked: an
+// urgent alert asks the operator to settle the difference on Stripe.
+async function upgradeCreditFor(m, cityKey) {
+  if (!cityKey || typeof m.credit_from !== 'string' || !isUpgradeLeadId(m.credit_from)) return null;
+  const credit = { from: m.credit_from, plan: String(m.credit_plan || ''), amount: Number(m.credit_amount) || null, verified: false, file: null };
+  let src = null;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try { src = await fsGet('leads/' + m.credit_from); break; }
+    catch (e) { console.warn(`[service] credit_from read failed (attempt ${attempt + 1}):`, e && e.message); }
+  }
+  const sc = src && src.city && typeof src.city === 'object' ? src.city : null;
+  if (src && src.market === cityKey && src.paid === true && sc && sc.paid === true) {
+    credit.verified = true;
+    if (!credit.plan && sc.service) credit.plan = String(sc.service);
+    if (typeof sc.file === 'string' && /^BM [A-Z2-9]{5}$/.test(sc.file)) credit.file = sc.file;
+  }
+  return credit;
+}
+
+async function markUpgradeCredit(credit, svcId, docId, currency, paidAmount) {
+  if (!credit || !credit.verified) return;
+  const path = 'leads/' + credit.from;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    let v;
+    try { v = await fsGetVersioned(path); } catch (e) { console.warn('[service] credit read failed:', e && e.message); continue; }
+    if (!v) return;
+    const used = v.data && v.data.credit && typeof v.data.credit === 'object' ? v.data.credit.usedBy : null;
+    if (used === svcId) return; // already ours: a Stripe retry
+    if (used) {
+      try {
+        await writeDoc('agentNotifications', 'upgrade-double-' + docId, {
+          type: 'service.upgrade_credit_reused',
+          summary: `⚠️ Credito di upgrade già usato da ${used}: anche ${svcId} (${paidAmount}) lo ha usato. Verifica su Stripe e regola la differenza col cliente.`,
+          priority: 'high', status: 'pending', actor: 'stripe-webhook',
+          ref: { collection: 'leads', id: svcId },
+          dedupKey: 'upgrade-double-' + docId, createdAt: new Date().toISOString(), attempts: 0,
+        });
+      } catch (_) {}
+      return;
+    }
+    try {
+      await fsCommit([{ docPath: path, fields: { credit: { usedBy: svcId, usedAt: new Date().toISOString(), amount: credit.amount, currency } }, precondition: { updateTime: v.updateTime } }]);
+      return;
+    } catch (e) {
+      if (!(e && e.conflict)) { console.error('[service] credit mark failed:', e && e.message); return; }
+      // the pack's lead changed between read and write: read it again
+    }
+  }
 }
 
 async function handleService(res, session, m, event = null) {
@@ -509,7 +525,16 @@ async function handleService(res, session, m, event = null) {
   const startLine = cityStart === '1' ? 'Start: asked to start now (inside the 14-day withdrawal period).'
     : cityStart === '0' ? `Start: NOT asked to start now. Withdrawal period runs to the end of ${win.lastLabel}; the work begins on ${win.startLabel}.` : '';
   // the file number the operator, the client and the page's ticket share
-  const cityFile = cityDesk ? await cityFileFor(svcId, cityKey, typeof m.file_ref === 'string' ? m.file_ref : '') : null;
+  let cityFile = cityDesk ? await cityFileFor(svcId, cityKey, typeof m.file_ref === 'string' ? m.file_ref : '') : null;
+  // an upgrade keeps the file number of the pack it was paid with
+  const credit = cityDesk ? await upgradeCreditFor(m, cityKey) : null;
+  if (credit && credit.file) cityFile = { file: credit.file, fileLeadId: credit.from };
+  const creditPlanLabel = credit ? (((cityDesk.plans || CITY_PLANS)[credit.plan] || {}).label || 'Application Pack') : '';
+  const creditLine = credit && credit.amount ? `${moneyOf(credit.amount, currency)} ${creditPlanLabel} credited` : '';
+  // a paid pack that can still become Full Search: the operator gets the
+  // client's personal upgrade link in the order email (valid UPGRADE_DAYS)
+  const upgradeTo = cityDesk && !credit && Object.prototype.hasOwnProperty.call(UPGRADE_PATHS, m.kind || '') ? cityOffer(cityKey, UPGRADE_PATHS[m.kind]) : null;
+  const upgradeUrl = upgradeTo && upgradeTo.ok && upgradeTo.chargeAt !== 'signing' ? upgradeLink(svcId, new URL(cityDesk.url).origin) : null;
   const lead = {
     type: 'service',
     service: 'SERVICE',
@@ -526,7 +551,7 @@ async function handleService(res, session, m, event = null) {
     // Telegram card quotes the first 240 characters, and the client quotes
     // that number on WhatsApp — a long note must not push it out
     message: cityDesk
-      ? `${cityDesk.label.toUpperCase()} — paid order · ${cityPlan ? cityPlan.label : m.kind} · ${paidAmount} paid · file ${cityFile.file}. ${startLine ? startLine + ' ' : ''}${m.listing ? 'Property: ' + m.listing + '. ' : ''}${m.notes ? 'Notes: ' + m.notes + '. ' : ''}`.trim()
+      ? `${cityDesk.label.toUpperCase()} — paid order · ${cityPlan ? cityPlan.label : m.kind} · ${paidAmount} paid${creditLine ? ' (' + creditLine + ')' : ''} · file ${cityFile.file}. ${startLine ? startLine + ' ' : ''}${m.listing ? 'Property: ' + m.listing + '. ' : ''}${m.notes ? 'Notes: ' + m.notes + '. ' : ''}`.trim()
       : `${meta.title} bought one-tap (${paidAmount}). ${m.listing ? 'Property: ' + m.listing + '. ' : ''}${m.notes ? 'Notes: ' + m.notes + '. ' : ''}${m.start_now === '1' ? 'Ha chiesto di iniziare subito (recesso: art. 50 c.3 Cod. cons.).' : m.start_now === '0' ? 'NON ha chiesto di iniziare subito: si comincia allo scadere dei 14 giorni del recesso.' : ''}`,
     amount_paid: session.amount_total || 0,
     // amount_eur keeps its name (the bounce card, the portal and the tests
@@ -554,6 +579,8 @@ async function handleService(res, session, m, event = null) {
         file: cityFile.file, fileLeadId: cityFile.fileLeadId,
         // the file_ref the webhook could not read (twice): the operator links the two leads by hand
         ...(cityFile.fileRefUnverified ? { fileRefUnverified: cityFile.fileRefUnverified } : {}),
+        // the upgrade credit this order was paid with (api/_upgrade.js)
+        ...(credit ? { credit: { from: credit.from, plan: credit.plan || null, amount: credit.amount, verified: credit.verified } } : {}),
       },
     } : {}),
   };
@@ -583,8 +610,11 @@ async function handleService(res, session, m, event = null) {
         });
       }
     } catch (_) {}
+    // a first run that died before marking the credit: the retry marks it
+    await markUpgradeCredit(credit, svcId, docId, currency, paidAmount);
     return res.status(200).json({ received: true, duplicate: true, serviceLeadId: svcId });
   }
+  await markUpgradeCredit(credit, svcId, docId, currency, paidAmount);
 
   const firstName = (m.name || '').split(' ')[0] || 'there';
   try {
@@ -594,7 +624,7 @@ async function handleService(res, session, m, event = null) {
       subheading: m.name || 'New service purchase',
       name: 'Valentino',
       intro: meta.city
-        ? `A paid order from the ${meta.city.label} desk — ${meta.title}. The page promises a message in the desk's first open hour (${meta.city.hoursEn || 'Mon–Fri 09:00–19:00, Rome time'}).${cityStart === '1' ? ' The client asked to start now.' : cityStart === '0' ? ` The client did NOT ask to start now: their withdrawal period runs to the end of ${win.lastLabel}, so the brief and the work begin on ${win.startLabel} (an acknowledgement before then is fine; starting earlier needs their written request).` : ''} The page promised an invoice from Egidi Immobiliare S.r.l., VAT included: issue it.${cityKey === 'barcelona' ? ' Barcelona: on request the client gets the order, terms and invoice in Catalan or Spanish and the official complaint forms (fulls oficials de reclamació); a complaint is answered within one month.' : ''}`
+        ? `A paid order from the ${meta.city.label} desk — ${meta.title}. The page promises a message in the desk's first open hour (${meta.city.hoursEn || 'Mon–Fri 09:00–19:00, Rome time'}).${cityStart === '1' ? ' The client asked to start now.' : cityStart === '0' ? ` The client did NOT ask to start now: their withdrawal period runs to the end of ${win.lastLabel}, so the brief and the work begin on ${win.startLabel} (an acknowledgement before then is fine; starting earlier needs their written request).` : ''} The page promised an invoice from Egidi Immobiliare S.r.l., VAT included: issue it.${credit ? ` Upgrade: ${credit.amount ? moneyOf(credit.amount, currency) + ' ' : ''}credited from the ${creditPlanLabel}${credit.file ? ' (file ' + credit.file + ')' : ''}${credit.verified ? '' : ' — the pack could NOT be verified: check the credit by hand'}; invoice what was paid, ${paidAmount}.` : ''}${cityKey === 'barcelona' ? ' Barcelona: on request the client gets the order, terms and invoice in Catalan or Spanish and the official complaint forms (fulls oficials de reclamació); a complaint is answered within one month.' : ''}`
         : `Someone just bought ${meta.title} with one tap. Clock is running — the page promises first contact fast.`,
       card_color: '#D4AF37',
       card_title: meta.title,
@@ -602,7 +632,7 @@ async function handleService(res, session, m, event = null) {
       r2_icon: '📧', r2_label: 'Email', r2_value: email || '—',
       r3_icon: '📱', r3_label: 'Phone', r3_value: phone || '—',
       r4_icon: meta.city ? '🏙' : '🏠', r4_label: meta.city ? 'Desk' : 'Property', r4_value: meta.city ? `${meta.city.label}${m.listing ? ' · ' + m.listing : ''}` : (m.listing || '—'),
-      closing: `Paid ${paidAmount}. ${cityFile ? `Your file: ${cityFile.file}. ` : ''}${m.notes ? 'Notes: ' + m.notes + '. ' : ''}Stripe: ${session.id}. Record: leads/${svcId}.`,
+      closing: `Paid ${paidAmount}. ${cityFile ? `Your file: ${cityFile.file}. ` : ''}${m.notes ? 'Notes: ' + m.notes + '. ' : ''}Stripe: ${session.id}. Record: leads/${svcId}.${upgradeUrl ? ` Upgrade to ${upgradeTo.label} with ${paidAmount} credited (valid ${UPGRADE_DAYS} days, the client's personal link): ${upgradeUrl}` : ''}`,
       cta_text: 'Open portal',
       portal_link: 'https://www.boomrome.com/portal.html#leads',
     });
@@ -637,7 +667,7 @@ async function handleService(res, session, m, event = null) {
       r4_icon: '✓', r4_label: (meta.next4 || ['—'])[0], r4_value: (meta.next4 || ['', ''])[1],
       // a city order names its file number first: the same "BM XXXXX" the
       // page's ticket and the operator's summary print
-      closing: (cityFile ? `Your file: ${cityFile.file}. ` : '') + (it
+      closing: (cityFile ? `Your file: ${cityFile.file}. ` : '') + (creditLine ? `Your ${creditPlanLabel} (${moneyOf(credit.amount, currency)}) is credited toward this order. ` : '') + (it
         ? (m.kind === 'concordato-pack'
           // Codice del consumo: chi NON ha chiesto di iniziare subito aspetta i
           // 14 giorni del recesso; a tutti si dice come recedere.
@@ -981,6 +1011,21 @@ async function handleRent(res, session, m) {
   return res.status(200).json({ received: true, rent: true, paymentId });
 }
 
+// The receipt of an English invoice: the amount as an English reader writes it
+// (never toLocaleString, which degrades in silence with a small ICU), and the
+// desk read back from the order number's prefix (PAR-…, BER-…) in the registry.
+function eurEn(n) {
+  const v = Math.round((Number(n) || 0) * 100) / 100;
+  const [i, d] = (Number.isInteger(v) ? String(v) : v.toFixed(2)).split('.');
+  return '€' + i.replace(/\B(?=(\d{3})+(?!\d))/g, ',') + (d ? '.' + d : '');
+}
+const escHtml = (x) => String(x == null ? '' : x).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+function deskOfOrderNumber(number) {
+  const prefix = String(number || '').split('-')[0];
+  if (!prefix) return null;
+  return Object.values(CITY_MARKETS).find((d) => d && d.order && d.order.prefix === prefix) || null;
+}
+
 // INVOICE — una fattura BOOM pagata con carta dal link mandato su WhatsApp.
 // Stessa disciplina del canone: idempotente sul retry di Stripe, e se il
 // documento risultava già saldato per altra via NON lo sovrascrive mai —
@@ -1038,6 +1083,18 @@ async function handleInvoice(res, session, m) {
     } catch (err) { console.warn('[invoice] pa stamp:', err.message); }
   }
 
+  // The fee of a desk that charges at SIGNING (v1.8, invoices/cityfee_<id>
+  // from api/payments/_citysign.js): the order lead learns it is paid — the
+  // managed ticket, the bounce card, the brain and the ready reply read
+  // `paid` on the lead. Only on an order that exists (precondition), awaited,
+  // and an error is logged as a code, never with the client's data.
+  if (inv.cityLeadId) {
+    try {
+      await fsCommit([{ docPath: 'leads/' + String(inv.cityLeadId), precondition: { exists: true },
+        fields: { paid: true, paidAt: now, paidVia: 'link', paidInvoiceId: invoiceId } }]);
+    } catch (err) { console.warn('[invoice] city order stamp:', err && err.conflict ? 'no_order' : 'commit_failed'); }
+  }
+
   try {
     await writeDoc('agentNotifications', 'inv-' + invoiceId + '-' + session.id.slice(-8), {
       type: 'payment.invoice.paid',
@@ -1053,7 +1110,24 @@ async function handleInvoice(res, session, m) {
   // pagante — senza questo la ricevuta non partirebbe proprio a chi ha pagato.
   const email = (session.customer_details && session.customer_details.email)
     || session.customer_email || inv.recipientEmail || '';
-  if (email) {
+  if (email && inv.lang === 'en') {
+    // An English invoice (the desks abroad, v1.8) gets an English receipt:
+    // the payer is an expat who read the invoice and the pay page in English.
+    // The operator's copy below stays Italian.
+    const desk = deskOfOrderNumber(inv.cityOrderNumber);
+    try {
+      await sendEmail({
+        to: email,
+        ...(desk && process.env.GMAIL_USER ? { from: `BOOM ${desk.label} <${process.env.GMAIL_USER}>` } : {}),
+        subject: `Receipt — invoice ${inv.number || ''} ${eurEn(amount)} ✓`,
+        html: shell(
+          para(`Payment received ✓ — invoice <b>${escHtml(inv.number || invoiceId)}</b> for <b>${eurEn(amount)}</b> is settled. Thank you.`)
+          + (receiptUrl ? fine(`Stripe receipt: <a href="${receiptUrl}" style="color:#141414">open →</a>`, 'text-align:center') : '')
+          + fine('Questions? Reply to this email or <a href="https://wa.me/393313251961" style="color:#141414">write to us on WhatsApp</a>.', 'text-align:center'),
+          `Invoice ${eurEn(amount)} settled`, desk ? { tag: `BOOM ${desk.label} · tenant side` } : {}),
+      });
+    } catch (err) { console.error('[invoice] client email:', err.message); }
+  } else if (email) {
     try {
       await sendEmail({
         to: email,

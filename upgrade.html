@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#08080A">
+<title>Your upgrade · BOOM</title>
+<meta name="description" content="Your personal BOOM upgrade: move from the Application Pack to Full Search with what you paid credited.">
+<link rel="icon" href="/favicon.ico">
+<noscript><style>#loading{display:none}</style></noscript>
+<style>
+:root{--bg:#08080A;--card:#111114;--line:rgba(255,255,255,.1);--text:#F4F4F2;--mute:#A3A3A0;--gold:#FFD700;--ok:#3DDC84;--err:#FF7A6E}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font:16px/1.55 "Helvetica Neue",Helvetica,Inter,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+main{max-width:560px;margin:0 auto;padding:max(28px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) 48px max(16px,env(safe-area-inset-left))}
+.brand{display:flex;align-items:center;gap:10px;font-weight:600;letter-spacing:.32em;font-size:13px;color:var(--text);text-decoration:none}
+.brand b{color:var(--gold);font-weight:600}
+.kick{margin:28px 0 6px;font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--gold)}
+h1{margin:0 0 10px;font-weight:300;font-size:30px;line-height:1.15;letter-spacing:-.01em}
+p{margin:0 0 12px;color:var(--mute)}
+.card{margin:22px 0;padding:18px;border:1px solid var(--line);border-radius:14px;background:var(--card)}
+.row{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px dashed var(--line)}
+.row:last-child{border-bottom:0}
+.row span{color:var(--mute)}
+.row b{font-weight:500;font-variant-numeric:tabular-nums;white-space:nowrap}
+.row.total{padding-top:12px}
+.row.total span{color:var(--text)}
+.row.total b{color:var(--gold);font-size:22px;font-weight:400}
+.note{font-size:14px}
+.opt{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--gold);margin:0 0 6px}
+.tick{display:flex;gap:12px;align-items:flex-start;margin:18px 0 10px;cursor:pointer;color:var(--text);font-size:15px}
+.tick input{width:22px;height:22px;margin:2px 0 0;flex:none;accent-color:var(--gold)}
+.small{font-size:13px;color:var(--mute)}
+.small a,.note a,p a{color:var(--text)}
+button.pay{display:block;width:100%;min-height:52px;margin:16px 0 6px;border:0;border-radius:12px;background:var(--gold);color:#111;font:600 17px/1.2 inherit;cursor:pointer}
+button.pay[aria-disabled="true"]{opacity:.55;cursor:progress}
+button.pay:focus-visible,a:focus-visible,.tick input:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+.sub{text-align:center;font-size:13px;color:var(--mute);margin:0 0 14px}
+.err{min-height:1.4em;color:var(--err);font-size:14px;margin:4px 0}
+.state{padding:22px 0}
+.state .big{font-size:22px;color:var(--text);margin:0 0 8px;font-weight:300}
+.state .okmark{color:var(--ok)}
+[hidden]{display:none!important}
+@media (prefers-color-scheme:light){:root:not([data-theme="dark"]){--bg:#08080A}}
+</style>
+</head>
+<body>
+<main>
+  <a class="brand" href="/"><b>BOOM</b></a>
+
+  <section id="loading" class="state" aria-live="polite"><p class="big">Checking your credit…</p></section>
+  <noscript><section class="state"><p class="big">This page needs JavaScript.</p><p>Turn it on and reload, or write to us at <a href="mailto:hello@boom-rome.com">hello@boom-rome.com</a> and we’ll send you the payment link another way.</p></section></noscript>
+
+  <section id="offer" hidden>
+    <p class="kick" id="kick">BOOM · your upgrade</p>
+    <h1 id="title">Full Search, with your Application Pack credited</h1>
+    <p id="lead">We search for you every working day until you sign. What you paid for the Application Pack counts toward it.</p>
+    <div class="card">
+      <p class="opt" id="optional" hidden>Optional, chosen in writing</p>
+      <div class="row"><span id="listLabel">Full Search</span><b id="list">—</b></div>
+      <div class="row"><span id="creditLabel">Application Pack already paid</span><b id="credit">—</b></div>
+      <div class="row total"><span>You pay today · VAT included</span><b id="pay">—</b></div>
+    </div>
+    <p class="note" id="desc"></p>
+    <p class="small" id="valid"></p>
+
+    <label class="tick"><input type="checkbox" id="startNow"> <span id="startNowText">Start now: I ask BOOM to begin before my 14-day withdrawal period ends, and I understand that once the service is fully performed I can no longer withdraw.</span></label>
+    <p class="small" id="withdrawal">Withdrawal: 14 days from payment — <a id="wOnline" href="/withdrawal#online">withdraw online</a>, by email to <a href="mailto:hello@boom-rome.com">hello@boom-rome.com</a> or with the <a id="wForm" href="/withdrawal">model withdrawal form</a>. If you asked us to start and then withdraw, we refund the price minus the work already done. Without the tick, we start when the 14 days end.</p>
+
+    <button type="button" class="pay" id="pay-btn"><span id="payLabel">Pay and book</span> · <span id="payAmt">—</span></button>
+    <p class="sub" id="paySub">Starts when your 14 days end · Stripe</p>
+    <p class="err" id="err" role="alert"></p>
+    <p class="small">Secure card payment by Stripe. Invoice from Egidi Immobiliare S.r.l., VAT included. Full Search is refunded in full if we decline the search in the first call. <a href="/terms#city-desks">Terms</a> · <a href="/privacy">Privacy</a></p>
+  </section>
+
+  <section id="done" class="state" hidden aria-live="polite">
+    <p class="big"><span class="okmark">✓</span> <span id="doneTitle">Payment received.</span></p>
+    <p id="doneText">Full Search is on. I'll send you the search brief to confirm in the desk's first open hour.</p>
+    <p class="small" id="doneFile"></p>
+  </section>
+
+  <section id="pending" class="state" hidden aria-live="polite">
+    <p class="big">Payment being confirmed…</p>
+    <p id="pendingText">This takes a few seconds. You'll also get the confirmation by email.</p>
+  </section>
+
+  <section id="closed" class="state" hidden>
+    <p class="big" id="closedTitle">This link isn't valid.</p>
+    <p id="closedText">Write to us at <a href="mailto:hello@boom-rome.com">hello@boom-rome.com</a> and we'll sort it out.</p>
+  </section>
+</main>
+
+<script>
+(function () {
+  'use strict';
+  var q = new URLSearchParams(location.search);
+  var lead = q.get('l') || '', tok = q.get('t') || '', sid = q.get('session_id') || '', start = q.get('start');
+  var $ = function (id) { return document.getElementById(id); };
+  var data = null, busy = false;
+  var SYM = { eur: '€', gbp: '£' };
+  function money(n, cur) {
+    var s = (SYM[cur] || '') + (Math.round(n * 100) % 100 ? Number(n).toFixed(2) : String(Math.round(n)));
+    return s.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  }
+  function day(iso) {
+    var d = new Date(iso); if (isNaN(d)) return '';
+    try { return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Rome' }); }
+    catch (e) { return d.toISOString().slice(0, 10); }
+  }
+  function show(id) {
+    ['loading', 'offer', 'done', 'pending', 'closed'].forEach(function (k) { $(k).hidden = k !== id; });
+  }
+  function closed(title, text) {
+    $('closedTitle').textContent = title;
+    if (text) $('closedText').innerHTML = text;
+    show('closed');
+  }
+  function deskLink(o) { return o && o.deskUrl ? '<a href="' + o.deskUrl + '#fares">BOOM ' + (o.cityLabel || '') + '</a>' : '<a href="/desks">BOOM Desks</a>'; }
+  function getJson(url) {
+    return fetch(url, { cache: 'no-store', headers: { Accept: 'application/json' } })
+      .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { j.__status = r.status; return j; }); });
+  }
+
+  function syncButton() {
+    var now = $('startNow').checked;
+    $('payLabel').textContent = now ? 'Pay and start' : 'Pay and book';
+    $('paySub').textContent = now ? 'Starts in the desk’s first open hour · Stripe' : 'Starts when your 14 days end · Stripe';
+  }
+
+  function render(o) {
+    data = o;
+    var city = o.cityLabel || '';
+    document.title = 'Your upgrade · BOOM ' + city;
+    $('kick').textContent = 'BOOM ' + city + ' · your upgrade';
+    $('title').textContent = o.toLabel + ', with your ' + o.fromLabel + ' credited';
+    $('listLabel').textContent = o.toLabel;
+    $('list').textContent = money(o.list, o.currency);
+    $('creditLabel').textContent = o.fromLabel + ' already paid' + (o.file ? ' · file ' + o.file : '');
+    $('credit').textContent = '−' + money(o.credit, o.currency);
+    $('pay').textContent = money(o.pay, o.currency);
+    $('payAmt').textContent = money(o.pay, o.currency);
+    $('desc').textContent = o.desc || '';
+    $('valid').textContent = 'Your credit is valid until ' + day(o.expiresAt) + ' and can be used once.';
+    // Spanish desks: the service is optional and chosen in writing (LAU art. 20)
+    $('optional').hidden = o.country !== 'es';
+    var desk = encodeURIComponent(city);
+    $('wOnline').href = '/withdrawal?desk=' + desk + '&service=full-search#online';
+    $('wForm').href = '/withdrawal?desk=' + desk + '&service=full-search';
+    syncButton();
+    show('offer');
+  }
+
+  function load() {
+    if (!lead || !tok) return closed('This link isn’t complete.', 'Open the link exactly as we sent it, or write to us at <a href="mailto:hello@boom-rome.com">hello@boom-rome.com</a>.');
+    getJson('/api/city-lead?upgrade=' + encodeURIComponent(lead) + '&t=' + encodeURIComponent(tok)).then(function (o) {
+      if (sid) return paid(o);
+      if (o.ok) return render(o);
+      if (o.state === 'used') return closed('This credit has already been used.', 'If you’ve just paid, check your email for the confirmation. Questions: <a href="mailto:hello@boom-rome.com">hello@boom-rome.com</a>.');
+      if (o.state === 'expired') return closed('This credit expired on ' + day(o.expiresAt) + '.', 'You can still book on ' + deskLink(null) + ', or write to us at <a href="mailto:hello@boom-rome.com">hello@boom-rome.com</a>.');
+      if (o.__status === 429) return closed('Too many attempts.', 'Wait a minute and reload the page.');
+      if (o.__status === 503) return closed('We can’t check your credit right now.', 'Reload the page in a minute.');
+      return closed('This link isn’t valid.', 'Write to us at <a href="mailto:hello@boom-rome.com">hello@boom-rome.com</a> and we’ll sort it out.');
+    }).catch(function () { closed('No connection.', 'Check your connection and reload the page.'); });
+  }
+
+  // back from Stripe: the credit now reads «used»; the payment is confirmed
+  // by the server (GET ?paid=), never by the URL
+  function paid(o) {
+    var city = o && o.city;
+    if (!city || !/^cs_(live|test)_[A-Za-z0-9]{8,200}$/.test(sid)) return closed('We couldn’t confirm this payment here.', 'Check your email for the confirmation, or write to us at <a href="mailto:hello@boom-rome.com">hello@boom-rome.com</a>.');
+    show('pending');
+    var waits = [0, 1500, 3000, 6000, 12000], i = 0;
+    (function poll() {
+      if (i >= waits.length) { $('pendingText').textContent = 'Not confirmed yet. You’ll get the confirmation by email; if nothing arrives within the hour, write to us at hello@boom-rome.com.'; return; }
+      setTimeout(function () {
+        getJson('/api/city-lead?paid=' + encodeURIComponent(sid) + '&city=' + encodeURIComponent(city)).then(function (r) {
+          if (r && r.paid) {
+            $('doneTitle').textContent = 'Payment received.';
+            $('doneText').textContent = 'Full Search is on. ' + (r.startNow === false && r.workFromLabel ? 'We start on ' + r.workFromLabel + ', when your 14 days end (reply to the email to start sooner).' : 'I’ll send you the search brief to confirm in the desk’s first open hour.');
+            $('doneFile').textContent = r.file ? 'Your file: ' + r.file + '. The confirmation and the invoice come by email.' : 'The confirmation and the invoice come by email.';
+            show('done');
+            try { history.replaceState(null, '', location.pathname + '?l=' + encodeURIComponent(lead) + '&t=' + encodeURIComponent(tok)); } catch (e) {}
+          } else { i++; poll(); }
+        }).catch(function () { i++; poll(); });
+      }, waits[i]);
+    })();
+  }
+
+  $('startNow').addEventListener('change', syncButton);
+  $('pay-btn').addEventListener('click', function () {
+    if (busy || !data) return;
+    busy = true; $('pay-btn').setAttribute('aria-disabled', 'true'); $('err').textContent = '';
+    fetch('/api/service-checkout', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ city: data.city, kind: data.to, upgrade: { lead: lead, t: tok }, startNow: $('startNow').checked === true }),
+    }).then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { j.__status = r.status; return j; }); })
+      .then(function (j) {
+        if (j.ok && j.url) { location.href = j.url; return; }
+        busy = false; $('pay-btn').removeAttribute('aria-disabled');
+        if (j.__status === 410 || j.__status === 404) return load();
+        $('err').textContent = j.__status === 429 ? 'Too many attempts: wait a minute and try again.' : 'The payment page didn’t open. Try again, or write to us at hello@boom-rome.com.';
+      })
+      .catch(function () { busy = false; $('pay-btn').removeAttribute('aria-disabled'); $('err').textContent = 'No connection. Try again.'; });
+  });
+  // Stripe's back button lands here from the bfcache: let the button work again
+  window.addEventListener('pageshow', function (e) { if (e.persisted) { busy = false; $('pay-btn').removeAttribute('aria-disabled'); } });
+  // the Start-now tick is the payer's own request: never pre-ticked, not even from the URL
+  void start;
+  load();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,135 @@
+{
+  "about": "TEST FIXTURE (tests/cities/run.mjs), never read by the build of the site: the reviewed sentences that only the two waitlist drafts of tests/cities/fixtures (draft-paris.json, draft-berlin.json = cities/paris.json and cities/berlin.json as they stood before the v1.8 flip of 05/11/2026) print. Since the flip no built page prints a partner or a law sentence, so they left cities/_claims.json (74 -> 48) and live here, merged with it only to render the drafts, so that every waitlist guard of the build (kind partner refused on a desk that sells, the carte professionnelle and the trade permit only as law or partner) keeps its test. Same shape, kinds and lint as cities/_claims.json; sorted by text.",
+  "allowed": [
+    {
+      "text": "A chasseur immobilier needs a carte professionnelle",
+      "kind": "law",
+      "note": "Paris check row: what French law requires of a search agent; the desk does not hold it."
+    },
+    {
+      "text": "A chasseur immobilier needs a carte professionnelle (loi Hoguet)",
+      "kind": "law",
+      "note": "Paris departure row: what French law requires; the desk opens with a licensed partner."
+    },
+    {
+      "text": "A licensed partner",
+      "kind": "partner",
+      "note": "Draft desks (Paris, Berlin): the departure row says the desk opens only WITH a licensed partner; BOOM claims no licence."
+    },
+    {
+      "text": "An agent you hire, who works only for you, is a different, licensed service",
+      "kind": "law",
+      "note": "Paris: says the law requires a licence for a tenant's agent; the same answer says the desk opens only with a licensed partner."
+    },
+    {
+      "text": "BOOM Berlin acts solely as a tenant-side desk: we do not list properties, represent landlords, or receive remuneration from landlords or their agents, and we do not broker a tenancy in Germany before the desk opens with its licensed partner",
+      "kind": "partner",
+      "note": "Berlin footer statement: nothing is brokered in Germany before the desk opens with a licensed partner; a negation, no licence claimed."
+    },
+    {
+      "text": "BOOM Berlin works only for the tenant and opens with a licensed partner",
+      "kind": "partner",
+      "note": "Berlin meta/description: the draft desk opens with a licensed partner; BOOM claims no licence."
+    },
+    {
+      "text": "BOOM Berlin, the tenant-side desk of BOOM — operated by Egidi Immobiliare S.r.l., an Italian real estate agency registered in Rome, opening with a licensed partner (§34c GewO)",
+      "kind": "partner",
+      "note": "Berlin fact sheet: the company registered in Rome, and the partner (not BOOM) holds the §34c GewO permit."
+    },
+    {
+      "text": "BOOM Paris acts solely as a tenant-side desk: we do not list properties, represent landlords, or receive remuneration from landlords or their agents, and we do not search on a client's behalf in France before the desk opens with its licensed partner",
+      "kind": "partner",
+      "note": "Paris footer statement: no search in France before the desk opens with a licensed partner; a negation, no licence claimed."
+    },
+    {
+      "text": "BOOM Paris works only for the tenant and opens with a licensed partner",
+      "kind": "partner",
+      "note": "Paris meta/description: the draft desk opens with a licensed partner; BOOM claims no licence."
+    },
+    {
+      "text": "BOOM Paris, the tenant-side desk of BOOM — operated by Egidi Immobiliare S.r.l., an Italian real estate agency registered in Rome, opening with a licensed partner (carte professionnelle)",
+      "kind": "partner",
+      "note": "Paris fact sheet: the company registered in Rome, and the partner (not BOOM) holds the carte professionnelle."
+    },
+    {
+      "text": "Brokering a flat in Germany needs a trade permit (§34c GewO)",
+      "kind": "law",
+      "note": "Berlin: what German law requires of an agent; the desk does not hold the permit and opens with a licensed partner."
+    },
+    {
+      "text": "Brokering a flat in Germany needs a trade permit (§34c GewO), and the law sets how a tenant-side agent is paid: only once you sign, within a cap",
+      "kind": "law",
+      "note": "Berlin FAQ: the German rule (permit, pay on signing within a cap); no permit is claimed for BOOM."
+    },
+    {
+      "text": "Launching with a licensed partner",
+      "kind": "partner",
+      "note": "Draft desks (Paris, Berlin) footer: the brief's must-state; BOOM claims no licence."
+    },
+    {
+      "text": "OPENING WITH A LICENSED PARTNER",
+      "kind": "partner",
+      "note": "Draft desks' status board (Paris, Berlin): opening with a licensed partner."
+    },
+    {
+      "text": "Opening with a licensed partner",
+      "kind": "partner",
+      "note": "Draft desks' lead (Paris, Berlin): opening with a licensed partner."
+    },
+    {
+      "text": "Searching on a client's behalf is regulated in France: a chasseur immobilier needs a carte professionnelle (loi Hoguet)",
+      "kind": "law",
+      "note": "Paris: what French law requires of a search agent; the desk does not hold it and opens with a licensed partner."
+    },
+    {
+      "text": "Tenant-side desk for internationals moving to Berlin, opening with a licensed partner",
+      "kind": "partner",
+      "note": "Berlin social description: opening with a licensed partner."
+    },
+    {
+      "text": "Tenant-side desk for internationals moving to Paris, opening with a licensed partner",
+      "kind": "partner",
+      "note": "Paris social description: opening with a licensed partner."
+    },
+    {
+      "text": "Tenant-side rental desk for Berlin, opening with a licensed partner (trade permit under §34c GewO)",
+      "kind": "partner",
+      "note": "Berlin Service (JSON-LD): the partner holds the §34c permit, not BOOM."
+    },
+    {
+      "text": "Tenant-side rental desk for Paris, opening with a licensed partner (carte professionnelle, loi Hoguet)",
+      "kind": "partner",
+      "note": "Paris Service (JSON-LD): the partner holds the carte professionnelle, not BOOM."
+    },
+    {
+      "text": "That is why we open with a licensed partner, and never take landlord money",
+      "kind": "partner",
+      "note": "Paris FAQ: the desk opens with a licensed partner."
+    },
+    {
+      "text": "The desk opens with a licensed partner, not around the rule",
+      "kind": "partner",
+      "note": "Paris departure row: the desk opens with a licensed partner."
+    },
+    {
+      "text": "We open with a licensed partner",
+      "kind": "partner",
+      "note": "Draft desks (Paris, Berlin): the desk opens with a licensed partner."
+    },
+    {
+      "text": "We open with a licensed partner rather than work around the rule",
+      "kind": "partner",
+      "note": "Paris FAQ: the desk opens with a licensed partner."
+    },
+    {
+      "text": "We open with a licensed partner, not around the rule",
+      "kind": "partner",
+      "note": "Berlin departure row: the desk opens with a licensed partner."
+    },
+    {
+      "text": "§34c GewO",
+      "kind": "law",
+      "note": "Berlin check row: the instrument label, the statute that requires the permit."
+    }
+  ]
+}

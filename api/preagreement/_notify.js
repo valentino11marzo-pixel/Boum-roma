@@ -217,7 +217,11 @@ a[x-apple-data-detectors]{color:inherit!important;text-decoration:none!important
 // `preheader` is the line the inbox shows next to the subject. Without one,
 // Gmail scrapes the first words of the body ("Ciao Anna — 28 days to…"),
 // which wastes the single most-read line of the whole email.
-export function shell(inner, preheader) {
+// `opts.tag` — the small line under the wordmark. Every Rome email keeps
+// "Premium rentals · Roma" (the default, byte for byte); a city desk's order
+// email names its desk (api/_cityorder.js: "BOOM Paris · tenant side"), so a
+// client in Paris never reads "Roma" on the masthead of a Paris order.
+export function shell(inner, preheader, opts = {}) {
   return `<!doctype html>
 <html lang="en" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
 <head>
@@ -245,7 +249,7 @@ export function shell(inner, preheader) {
       <img src="https://www.boomrome.com/android-chrome-192x192.png" width="46" height="46" alt="BOOM"
         style="display:block;margin:0 auto 10px;border-radius:50%">
       <div style="font-family:${SANS};font-size:15px;letter-spacing:9px;color:${GOLD};font-weight:300;${MSO}line-height:20px">B&nbsp;O&nbsp;O&nbsp;M</div>
-      <div style="font-family:${SANS};font-size:8.5px;letter-spacing:3.4px;text-transform:uppercase;color:#8F8A7E;${MSO}line-height:14px;padding-top:5px">Premium rentals · Roma</div>
+      <div style="font-family:${SANS};font-size:8.5px;letter-spacing:3.4px;text-transform:uppercase;color:#8F8A7E;${MSO}line-height:14px;padding-top:5px">${esc(opts.tag || 'Premium rentals · Roma')}</div>
     </td></tr>
     <tr><td class="bp-paper bp-pad" style="background:#FFFFFF;border:1px solid #E3E0D7;border-top:none;border-radius:0 0 16px 16px;padding:36px 34px 30px">${inner}</td></tr>
   </table>

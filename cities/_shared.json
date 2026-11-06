@@ -79,6 +79,9 @@
   "refund": {
     "rule": "Full Search is refunded in full if we decline the search in the first call."
   },
+  "signing": {
+    "rule": "Nothing is charged before you sign a lease, and nothing if you never do."
+  },
   "rome": {
     "rating": "4.9",
     "reviews": "47",

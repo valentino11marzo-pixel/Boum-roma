@@ -63,8 +63,10 @@ export function stage0(lead, listingById) {
   // "not interested in Rome" became 'dead' and was archived without a card.
   // A rule grade, final, never the Rome prompt and never dead by AI.
   if (isBuyingLead(lead)) return { grade: 'B', reason: 'acquisto — fattibilità e incarico al titolare, nessuna qualifica affitto', final: true };
+  // v1.8: an ORDER of a desk that charges at signing (booked:true, nothing
+  // paid yet) is a client who has already said yes — as hot as a paid one.
   if (isCityMarket(lead) || isReunion(lead)) {
-    return { grade: lead.phone || lead.paid === true ? 'A' : 'B', reason: 'desk fuori Roma — voto a regola, mai il prompt di Roma', final: true };
+    return { grade: lead.phone || lead.paid === true || lead.booked === true ? 'A' : 'B', reason: 'desk fuori Roma — voto a regola, mai il prompt di Roma', final: true };
   }
 
   let score = 0;

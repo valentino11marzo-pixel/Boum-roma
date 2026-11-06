@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {execFileSync} from 'node:child_process';
+import vm from 'node:vm';
 import BUYING from '../../js/buying-engine.js';
 let passed=0;
 function check(label,condition){assert.ok(condition,label);passed++;console.log('  ✓ '+label);}
@@ -147,7 +148,7 @@ check('country, city, international contact and words retained',lead.buying.coun
 const counts=[docsIn('leads').length,docsIn('activityLog').length];
 const retry=await post(handler,{...base,city:'Changed after uncertain response'});
 check('retry returns original reference and never overwrites or duplicates',retry.body.duplicate && retry.body.id===first.body.id && docOf('leads/'+first.body.id).buying.city==='London' && counts[0]===docsIn('leads').length && counts[1]===docsIn('activityLog').length);
-for(const [patch,error] of [[{country:'US'},'country_required'],[{country:'__proto__'},'country_required'],[{city:''},'city_required'],[{currency:'XYZ'},'currency_required'],[{purchase_budget:'650,000'},'budget_invalid'],[{purchase_budget:'-1'},'budget_invalid'],[{purchase_budget:'0'},'budget_invalid'],[{purchase_budget:'650000.5'},'budget_invalid'],[{phone:'07700900123'},'phone_international'],[{privacy:false},'privacy_required']]){
+for(const [patch,error] of [[{country:'US'},'country_required'],[{country:'ITwrong'},'country_required'],[{country:'__proto__'},'country_required'],[{city:''},'city_required'],[{currency:'XYZ'},'currency_required'],[{currency:'EURwrong'},'currency_required'],[{purchase_budget:'650,000'},'budget_invalid'],[{purchase_budget:'-1'},'budget_invalid'],[{purchase_budget:'0'},'budget_invalid'],[{purchase_budget:'650000.5'},'budget_invalid'],[{phone:'07700900123'},'phone_international'],[{phone:'+1------'},'phone_international'],[{privacy:false},'privacy_required']]){
   const r=await post(handler,{...base,...patch});check('rejects '+JSON.stringify(patch),r.statusCode===400 && r.body.error===error);
 }
 check('unknown budget remains unknown; no invented purpose/time',BUYING.parse({...base,purchase_budget:'',purpose:'x',timeline:'x'}).value.budget===null && BUYING.parse({...base,purpose:'x',timeline:'x'}).value.purpose==='undecided');
@@ -183,6 +184,18 @@ for(const [file,lang,alternate] of [['buy-property-europe','en','comprare-casa-e
   check(lang+' privacy unchecked and no assumed purpose/time',html.includes('name="privacy" value="yes" required') && html.includes('value="undecided" selected') && html.includes('value="exploring" selected'));
 }
 check('buyer model source is actually used in the intake',read('api/leads/web.js').includes('BUYING.parse(body)'));
+const engineSource=read('js/buying-engine.js');
+for(const [name,from,to,detect] of [
+  ['privacy omitted',"if (body.privacy !== true && body.privacy !== 'yes')",'if (false)',e=>e.parse({...base,privacy:false}).error==='privacy_required'],
+  ['missing funds become zero','budget:raw ? +raw : null','budget:raw ? +raw : 0',e=>e.parse({...base,purchase_budget:''}).value.budget===null],
+  ['mandate becomes active',"mandateStatus:'not_started'","mandateStatus:'active'",e=>e.parse(base).value.mandateStatus==='not_started'],
+  ['buyer marker lost',"lead.leadType === 'buyer'",'false',e=>e.isBuyer({leadType:'buyer'})],
+]){
+  assert.ok(engineSource.includes(from),'mutation anchor '+name);
+  check('valid source passes '+name,detect(BUYING));
+  const context={module:{exports:{}}};vm.runInNewContext(engineSource.replace(from,to),context);
+  check('test catches restored defect: '+name,!detect(context.module.exports));
+}
 execFileSync(process.execPath,['scripts/build-buying.mjs','--check'],{cwd:new URL('../..',import.meta.url)});
 console.log(`Buying: ${passed} passed, 0 failed`);
 
