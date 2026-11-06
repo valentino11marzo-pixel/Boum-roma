@@ -9,6 +9,7 @@ import {loadChromium,launchOptions} from '../_browser.mjs';
 import {quickToolsHtml} from '../oggi/home-harness.mjs';
 const root=new URL('../../',import.meta.url),source=readFileSync(new URL('js/portal-app.js',root),'utf8');
 const extract=name=>{const m=new RegExp('^    (?:async )?function '+name+'\\(','m').exec(source);assert(m,'Missing '+name);const next=source.slice(m.index+5).search(/^    (?:async )?function /m);assert(next>=0);return source.slice(m.index,m.index+5+next)};
+assert.doesNotMatch(readFileSync(new URL('portal.html',root),'utf8').match(/<meta name="viewport"[^>]+>/)?.[0]||'',/user-scalable=no|maximum-scale=1/,'Users can zoom on their phone');
 const functions=['buildNav','isOverdue','daysUntil','boomBusinessInvoices','accessDenied','toggleSidebar','closeSidebar'].map(extract).join('\n');
 const shell='<div class="app active" id="app"><header class="header"><div class="header-left"><button class="menu-btn" onclick="toggleSidebar()" aria-label="Menu">☰</button><span class="logo-text">BOOM</span></div><span style="color:var(--text-secondary);font-size:11px">ANTEPRIMA LOCALE · DATI DEMO</span><span id="headerName">Valentino</span><span hidden id="headerBadge">Admin</span></header><div class="layout"><aside class="sidebar" id="sidebar"></aside><div class="sidebar-overlay" id="sidebarOverlay"></div><main id="main" class="main"></main></div></div>';
 const html=quickToolsHtml
@@ -27,7 +28,15 @@ summary:'Il tecnico propone domani dalle 10 alle 12 per la perdita in cucina. Ma
 recommendation:'Chiarire chi apre al tecnico',sources:[{id:'source-demo',kind:'message'}],uncertainties:[{text:'Chi avvisa il portiere prima dell’arrivo?'},{text:'Chi sarà presente per aprire al tecnico?'}],
 nextAction:{text:'Confermare chi apre al tecnico',reason:'Confermare l’accesso evita un intervento a vuoto.',checkAt:new Date(Date.now()+86400000).toISOString(),waitingOn:'valentino',waitingLabel:'Valentino'}};
 `+boot);
-const server=createServer((req,res)=>{const path=new URL(req.url,'http://localhost').pathname;if(req.method!=='GET'){res.writeHead(405).end();return}if(path==='/mail-source-api'){res.setHeader('Content-Type','application/json');res.end(JSON.stringify({ok:true,email:{configured:false,lastScan:null},whatsapp:{bridgeFresh:false}}));return}if(path==='/'){res.setHeader('Content-Type','text/html; charset=utf-8');res.end(new URL(req.url,'http://localhost').searchParams.has('briefing')?briefingHtml:html);return}if(/^\/(css|js)\/[a-z0-9-]+\.(css|js)$/.test(path)){res.setHeader('Content-Type',path.endsWith('.css')?'text/css':'text/javascript');res.end(readFileSync(new URL(path.slice(1),root)));return}res.writeHead(404).end()});
+const showcaseHtml=briefingHtml.replace(boot,`// Separate visual fixture; the single-proposal assertions above stay unchanged.
+S.conversations.push(...[
+  { id: 'demo-doc-request', channel: 'email', contactName: 'Elena · richiesta documenti', lastMessagePreview: 'Ho inviato i documenti per la casa. Potete verificare se manca qualcosa?' },
+  { id: 'demo-visit-request', channel: 'whatsapp', contactName: 'Marco · visita a Roma', lastMessagePreview: 'Possiamo organizzare una visita giovedì nel pomeriggio?' }
+].map((row, i) => ({ ...row, status: 'open', contactType: row.channel, contactId: row.id,
+  needsReply: true, lastDirection: 'in', lastMessageAt: new Date(Date.now() - (3+i)*3600000).toISOString() })));
+
+`+boot);
+const server=createServer((req,res)=>{const path=new URL(req.url,'http://localhost').pathname;if(req.method!=='GET'){res.writeHead(405).end();return}if(path==='/mail-source-api'){res.setHeader('Content-Type','application/json');res.end(JSON.stringify({ok:true,email:{configured:false,lastScan:null},whatsapp:{bridgeFresh:false}}));return}if(path==='/'){res.setHeader('Content-Type','text/html; charset=utf-8');res.end(new URL(req.url,'http://localhost').searchParams.has('showcase')?showcaseHtml:new URL(req.url,'http://localhost').searchParams.has('briefing')?briefingHtml:html);return}if(/^\/(css|js)\/[a-z0-9-]+\.(css|js)$/.test(path)){res.setHeader('Content-Type',path.endsWith('.css')?'text/css':'text/javascript');res.end(readFileSync(new URL(path.slice(1),root)));return}res.writeHead(404).end()});
 await new Promise(r=>server.listen(Number(process.env.PORT)||0,'127.0.0.1',r));const base='http://127.0.0.1:'+server.address().port;
 if(process.argv.includes('--serve')){console.log('Real Home/catalogue/nav · synthetic IO: '+base);await new Promise(()=>{})}
 let browser,checks=0;const measurements=[],artifacts=await mkdtemp(join(tmpdir(),'boom-home-navigation-'));
@@ -37,12 +46,13 @@ try{
   const page=await browser.newPage({viewport:{width,height:844}}),errors=[],external=[];page.setDefaultTimeout(6000);page.on('pageerror',e=>errors.push(e.message));await page.route('**/*',r=>r.request().url().startsWith(base)?r.continue():(external.push(r.request().url()),r.abort()));
   const check=async(name,fn)=>{await fn();checks++;console.log('PASS '+width+' '+name)};
   await page.goto(base);await page.waitForFunction(()=>window.testReady&&document.querySelector('.od-case')&&S.mailSources&&!S.mailSources.checking);await page.waitForTimeout(100);
-  await check('all sixteen tools, expanded actual work, no horizontal overflow',async()=>{
+  await check('one focal action, four daily tools and a closed complete catalogue',async()=>{
    assert.equal(await page.locator('#ogQuickTools [data-og-tool]').count(),16);assert.equal(await page.locator('#ogDeskFold').evaluate(e=>e.open),true);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
-   const tools=await page.locator('#ogQuickTools').boundingBox(),work=await page.locator('#ogDeskFold').boundingBox();measurements.push({width,toolsHeight:tools.height,workTop:work.y,columns:await page.locator('#ogQuickTools').evaluate(e=>getComputedStyle(e).gridTemplateColumns.split(' ').length)});assert(work.y<680);const priority=await page.locator('[data-desk-key="urgent"]').boundingBox();assert(priority&&priority.y+priority.height<(width<=920?784:844),'Priority action is visible above the phone tab bar');assert((await page.locator('#ogQuickTools [data-og-tool]').first().boundingBox()).height>=44);
+   assert.equal(await page.locator('#ogDailyTools [data-og-shortcut]').count(),4);assert.equal(await page.locator('.ow-more-tools').evaluate(e=>e.open),false);assert.equal(await page.locator('.od-focus').count(),1);assert(await page.locator('.od-compact').count()<=2);const work=await page.locator('#ogDeskFold').boundingBox();measurements.push({width,workTop:work.y});assert(work.y<680);const priority=await page.locator('[data-desk-key="urgent"]').boundingBox();assert(priority&&priority.y+priority.height<(width<=920?784:844),'Priority action is visible above the phone tab bar');assert((await page.locator('#ogDailyTools [data-og-shortcut]').first().boundingBox()).height>=44);
    await page.screenshot({path:join(artifacts,'home-'+width+'.png')});
   });
   await check('search targets stay reachable and expanded sources do not sit under the email action',async()=>{
+   await page.locator('.ow-search-options>summary').click();
    const email=page.locator('.portal-mailbox-entry>button'),sources=page.locator('.portal-mailbox-entry>.ow-search-sources'),summary=sources.locator(':scope>summary');
    for(const target of [email,summary,page.locator('#ogWorkKind'),page.locator('#ogWorkQuery')])assert((await target.boundingBox()).height>=44,'Search controls retain a 44px touch target');
    const action=await email.boundingBox(),sourceTarget=await summary.boundingBox();assert(sourceTarget.x+sourceTarget.width<=action.x,'Source and email touch targets never overlap');
@@ -53,7 +63,7 @@ try{
    const contents=await page.locator('#ogSearchSources').boundingBox();assert(contents.y>=action.y+action.height,'Expanded sources start below the email button');
    assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
    const firstSource=page.locator('[data-search-source]').first();await firstSource.scrollIntoViewIfNeeded();assert(await firstSource.evaluate(button=>{const r=button.getBoundingClientRect();return button.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2))}),'Expanded source action is not covered');
-   await page.screenshot({path:join(artifacts,'sources-'+width+'.png')});await summary.click();await page.evaluate(()=>scrollTo(0,0));
+   await page.screenshot({path:join(artifacts,'sources-'+width+'.png')});await summary.click();await page.locator('.ow-search-options>summary').click();await page.evaluate(()=>scrollTo(0,0));
   });
   await check('six daily destinations and all thirty-nine navigation actions (the 38 originals plus Catalogo) remain accessible',async()=>{
    assert.equal(await page.locator('#sidebar .nav-item').count(),39);assert.equal(await page.locator('#sidebar .portal-nav-primary .nav-item').count(),6);assert.equal(await page.locator('#sidebar .portal-nav-group').count(),4);
@@ -62,7 +72,7 @@ try{
    else{await page.locator('#sidebar .portal-nav-group[data-nav-group="tools"]>summary').click();assert(await page.locator('#sidebar [onclick="goTo(\'boom-tools\')"]').isVisible());await page.screenshot({path:join(artifacts,'menu-'+width+'.png')})}
   });
   await check('Home catalogue entry opens the shared sixteen tools and the explicit payment form',async()=>{
-   await page.locator('.ow-shortcuts [onclick="goTo(\'boom-tools\')"]').click();await page.waitForTimeout(250);assert.equal(await page.locator('[data-catalog-tool]').count(),16);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.screenshot({path:join(artifacts,'catalogue-'+width+'.png')});
+   await page.locator('.ow-more-tools>summary').click();await page.locator('.ow-shortcuts [onclick="goTo(\'boom-tools\')"]').click();await page.waitForTimeout(250);assert.equal(await page.locator('[data-catalog-tool]').count(),16);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.screenshot({path:join(artifacts,'catalogue-'+width+'.png')});
    await page.getByRole('button',{name:'＋ Nuova rata',exact:true}).click();await page.locator('#mForm select[name="contractId"]').waitFor({state:'visible'});assert.equal(await page.locator('#mForm select[name="contractId"]').inputValue(),'');assert(await page.locator('#mForm input[name="amount"]').isVisible());await page.evaluate(()=>closeModal());
   });
   await check('secondary specialist handlers survive and catalogue remains admin-only',async()=>{
@@ -78,7 +88,6 @@ try{
    assert.equal(await evidence.evaluate(e=>e.open),false);
    assert.equal(await card.locator('.od-ai-summary').innerText(),await page.evaluate(()=>testIO.followUps[0].preparation.summary));
    assert.match(await card.locator('.od-next').innerText(),/Passo proposto:\s+Confermare chi apre al tecnico/);
-   assert.match(await card.innerText(),/Confermare l’accesso evita un intervento a vuoto/);
    const button=card.getByRole('button',{name:'Rivedi proposta ↗',exact:true});
    const geometry=await button.evaluate(el=>{
     const r=el.getBoundingClientRect(),bar=document.querySelector('.pm-tabbar')?.getBoundingClientRect(),header=document.querySelector('.header').getBoundingClientRect();
@@ -94,6 +103,7 @@ try{
    await page.screenshot({path:join(artifacts,'proposal-'+width+'.png')});
    await evidence.locator('summary').click();
    assert(await evidence.locator('.sg-questions').isVisible());
+   assert.match(await evidence.innerText(),/Confermare l’accesso evita un intervento a vuoto/);
    for(const question of await page.evaluate(()=>testIO.followUps[0].preparation.uncertainties.map(q=>q.text)))assert((await evidence.innerText()).includes(question));
    assert.match(await evidence.innerText(),/allegati non sono stati letti/i);
    assert.match(await evidence.innerText(),/Fonte ricevuta:.*Proposta preparata/s);
@@ -103,6 +113,41 @@ try{
    assert.equal(await evidence.evaluate(e=>e.open),true,'A real data refresh preserves the expanded evidence');
    for(const question of await page.evaluate(()=>testIO.followUps[0].preparation.uncertainties.map(q=>q.text)))assert((await evidence.innerText()).includes(question));
    assert.deepEqual(await page.evaluate(()=>[testIO.writes,testIO.demoWrites,testIO.responses]),[[],[],[]]);
+  });
+  if(width===390)await check('opening the exact case and resizing preserves the unsaved work',async()=>{
+   await page.locator('.od-focus [data-desk-act]').click();
+   await page.locator('#sgFollowModal .pm-more-btn').waitFor({state:'visible'});
+   assert.equal(await page.evaluate(()=>oggiSegretaria.modal.task.id),'sg_'+ 'a'.repeat(32));
+   await page.locator('#sgFollowModal .pm-more-btn').click();
+   await page.locator('.pm-sheet').getByRole('button',{name:/Correggi seguito/}).click();
+   const draft='Concordare chi apre al tecnico: bozza ancora da confermare.';
+   await page.locator('#sgAction').fill(draft);
+   await page.evaluate(()=>window.retainedDecision=document.getElementById('sgFollowModal'));
+   for(const viewport of [{width:466,height:678},{width:626,height:890},{width:890,height:626},{width:1024,height:768},{width:390,height:844}]){
+    await page.setViewportSize(viewport);await page.waitForTimeout(350);
+    assert.equal(await page.locator('#sgAction').inputValue(),draft);
+    assert.equal(await page.evaluate(()=>window.retainedDecision===document.getElementById('sgFollowModal')),true);
+    assert.equal(await page.evaluate(()=>oggiSegretaria.modal.task.id),'sg_'+ 'a'.repeat(32));
+    assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'No page overflow after resizing');
+    assert(await page.locator('#sgFollowModal .modal').evaluate(el=>el.scrollWidth<=el.clientWidth+1),'Decision stays within the screen');
+    if(viewport.width<=920)assert(await page.locator('#sgAction').evaluate(el=>parseFloat(getComputedStyle(el).fontSize)>=16),'Mobile input avoids forced zoom');
+    for(const target of [page.locator('#sgFollowModal .modal-close'),page.locator('[data-sg-submit]')])assert((await target.boundingBox()).height>=44,'Decision controls retain touch targets');
+    assert.deepEqual(await page.evaluate(()=>[testIO.writes,testIO.demoWrites,testIO.responses]),[[],[],[]]);
+    await page.screenshot({path:join(artifacts,'decision-resize-'+viewport.width+'.png')});
+   }
+   await page.locator('#sgFollowModal .modal-close').click();
+  });
+  await check('one decision and two requests remain distinct in the complete Portal shell',async()=>{
+   await page.goto(base+'/?showcase=1');
+   await page.waitForFunction(()=>window.testReady&&oggiSegretaria.loaded&&!oggiSegretaria.loading&&S.mailSources&&!S.mailSources.checking);
+   assert.equal(await page.locator('.od-focus').count(),1);assert.equal(await page.locator('.od-compact').count(),2);
+   assert.match(await page.locator('.od-focus .od-next').innerText(),/Confermare chi apre al tecnico/);
+   assert.equal(await page.locator('#ogDailyTools [data-og-shortcut]').count(),4);
+   assert.equal(await page.locator('#ogQueueArchive').evaluate(el=>el.open),false);
+   assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+   if(width<=600){await page.locator('.ow-tools-jump').click();assert.equal(await page.evaluate(()=>document.activeElement.dataset.ogShortcut),'home:whatsapp');await page.evaluate(()=>scrollTo(0,0));}
+   assert.deepEqual(await page.evaluate(()=>[testIO.writes,testIO.demoWrites,testIO.responses]),[[],[],[]]);
+   await page.screenshot({path:join(artifacts,'nuova-oggi-'+width+'.png'),fullPage:true});
   });
   assert.deepEqual(errors,[]);assert.deepEqual(external,[]);assert.deepEqual(await page.evaluate(()=>testIO.writes),[]);await page.close();
  }

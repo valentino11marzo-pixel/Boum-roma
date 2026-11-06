@@ -185,14 +185,19 @@
             const history = signal.needsVerification === true || signal.kind === 'archivio' || oldApproval
                 || (!source && !aggregate && signal.kind !== 'approvazione');
             const action = aggregate ? { label: 'Verifica incassi', fn: 'goTo', args: ['payments'] } : navigation(record, state, signal.kind);
-            const next = ({ viewContractSignatures: 'Verifica lo stato delle firme', viewContract: 'Apri la pratica e verifica il prossimo passo',
+            const proposalNext = queued ? (queued.kind === 'reply' ? 'Rivedi la risposta proposta prima di inviarla' : 'Rivedi la proposta prima di approvarla') : null;
+            const proposalSummary = queued && text(queued.summary) !== text(signal.title) ? text(queued.summary) : '';
+            const next = proposalNext || ({ viewContractSignatures: 'Verifica lo stato delle firme', viewContract: 'Apri la pratica e verifica il prossimo passo',
                 viewMaintenance: 'Verifica e organizza l’intervento', viewLead: 'Apri la richiesta del cliente', oggiOpenPa: 'Verifica la proposta in console' })[action?.fn]
                 || (signal.kind === 'incassi' ? 'Verifica gli incassi' : signal.kind === 'visita' ? 'Verifica l’appuntamento' : 'Apri il dettaglio');
             push({ key: record ? record.kind + ':' + record.id : 'signal:' + signal.id,
                 area: source ? areaFor(signal.kind === 'archivio' ? source.kind : signal.kind) : areaFor(signal.kind),
                 bucket: history ? 'history' : 'current', record, title: text(signal.title) || 'Segnale da verificare', nextAction: next, action,
-                signal, original: true, caseId: null, reason: oldApproval ? 'Proposta precedente da verificare' : history ? text(signal.reason) || 'Dati da verificare' : text(signal.title) || 'Segnale operativo da verificare',
+                signal, original: true, caseId: null, reason: oldApproval ? 'Proposta precedente da verificare' : history ? text(signal.reason) || 'Dati da verificare'
+                    : queued ? proposalSummary || 'Proposta da verificare prima dell’approvazione' : text(signal.title) || 'Segnale operativo da verificare',
                 ...signalContext(signal, source, state),
+                focusEvidence: { kind: signal.kind === 'manutenzione' ? 'maintenance' : 'administrative',
+                    action: navigation(source, state, signal.kind), sourceAt: null },
                 score: Number.isFinite(signal.score) ? signal.score : 0, urgent: !history && signalUrgent(signal, source, state, now) });
         });
         list(rows).forEach(task => {
@@ -235,6 +240,8 @@
                     ? text(f.waitingLabel) || ({ valentino: 'Valentino', boom: 'BOOM', client: 'Cliente', collaborator: 'Collaboratore' })[f.waitingOn] : 'Da confermare',
                 timing: reason === 'Richiesta da esaminare' ? { label: 'Ricevuta', value: f.lastInboundAt } : { label: 'Ricontrollo', value: record && confirmed && reason !== 'Proposta da rivedere' && at !== null ? f.checkAt : null },
                 sourceLabel: reason === 'Richiesta da esaminare' ? 'Messaggio ricevuto' : !record ? 'Collegamento da verificare' : reason === 'Proposta da rivedere' ? 'Proposta da rivedere' : 'Seguito confermato',
+                focusEvidence: { kind: pending ? 'proposal' : 'case', sourceAt: f.lastInboundAt, delivery,
+                    verification: task.source !== 'segretaria' || list(rows).filter(other => other?.id === task.id).length !== 1 },
                 score: reason === 'Richiesta da esaminare' ? 65 : delivery === 'failed' ? 96 : reason === 'Proposta da rivedere' ? 94 : reason.startsWith('Azione affidata a ') ? 45 : bucket === 'current' ? 90 : 20, urgent: false });
         });
         // Headers are an explicit input: this projection never reads messages,
@@ -294,6 +301,8 @@
                 reason: conflicted ? 'Identità da verificare prima di procedere' : 'Messaggio ricevuto da esaminare',
                 ownership: 'Da confermare', timing: { label: 'Ricevuta', value: new Date(received).toISOString() },
                 sourceLabel: conv.channel === 'email' ? 'Email' : conv.channel === 'whatsapp' ? 'WhatsApp' : 'Conversazione',
+                focusEvidence: { kind: 'request', sourceAt: new Date(received).toISOString(), verification: conflicted,
+                    delivery: linked.map(receipt).find(state => ['unknown', 'queued', 'pending_execution'].includes(state)) || '' },
                 score: 65, urgent: false });
         });
         // The financial total remains reachable as a summary, but cannot take
@@ -335,6 +344,16 @@
                 reason: request?.reason || first.reason, ownership: request?.ownership || first.ownership, timing: request?.timing || first.timing, sourceLabel: request?.sourceLabel || first.sourceLabel,
                 preview: request?.preview ?? first.preview ?? '', conversationIds: [...new Set(group.flatMap(entry => entry.conversationIds || []))],
                 hasNewInbound: group.some(entry => entry.hasNewInbound === true),
+                // Keep the evidence beside its exact reader: the first signal
+                // in a grouped contract may be administrative, not the case.
+                focusOptions: group.filter(entry => entry.focusEvidence).map(entry => ({
+                    ...entry.focusEvidence, action: entry.focusEvidence.action || entry.action,
+                    nextAction: entry.focusEvidence.kind === 'maintenance' ? 'Verifica e organizza l’intervento' : entry.nextAction,
+                    reason: entry.reason, timing: entry.timing,
+                    ownership: entry.ownership, sourceLabel: entry.sourceLabel, preview: entry.preview || '',
+                    hasNewInbound: entry.hasNewInbound === true, urgent: entry.urgent === true,
+                    caseId: entry.caseId || null
+                })),
                 score: first.score, urgent: group.some(x => x.urgent) };
         }).sort((a, b) => Number(b.urgent) - Number(a.urgent) || b.score - a.score || a.id.localeCompare(b.id));
         const currentItems = items.filter(x => x.bucket === 'current'), history = items.filter(x => x.bucket === 'history'), waiting = items.filter(x => x.bucket === 'waiting');
@@ -345,5 +364,52 @@
             counts: { total: items.length, current: currentItems.length, history: history.length, waiting: waiting.length,
                 unknown: unknownCaseIds.length, urgent: currentItems.filter(x => x.urgent).length } };
     }
-    return Object.freeze({ AREAS, build });
+    // An opening focus, not another queue. No wording/name-based ranking:
+    // urgent maintenance, then recent actionable evidence, then one other
+    // verified urgency. All other obligations remain in the supplied model.
+    function focus(model, { nowISO } = {}) {
+        const now = instant(nowISO);
+        if (now === null) throw new TypeError('focus requires an explicit current ISO instant with timezone');
+        const current = list(model?.currentItems), history = list(model?.history);
+        const unknown = new Set(list(model?.coverage?.unknownCaseIds));
+        const verification = new Set([...history, ...current.filter(item =>
+            list(item.caseIds).some(id => unknown.has(id)) || list(item.signals).some(s => s.needsVerification === true)
+            || list(item.focusOptions).some(option => option.verification === true))].map(item => item.id));
+        const readers = new Set(['oggiSegretariaOpen', 'oggiDeskConversation', 'viewMaintenance',
+            'viewContract', 'viewContractSignatures', 'viewLead', 'oggiOpenPa', 'goTo']);
+        const candidates = [];
+        for (const item of current) for (const option of list(item.focusOptions)) {
+            if (!option.action || !readers.has(option.action.fn) || option.verification
+                || ['unknown', 'queued', 'pending_execution'].includes(option.delivery)) continue;
+            const at = instant(option.sourceAt), fresh = at !== null && at <= now && now - at <= 7 * DAY;
+            let rank;
+            if (option.kind === 'maintenance' && option.urgent) rank = 0;
+            else if (['request', 'case', 'proposal'].includes(option.kind) && fresh
+                && (option.kind === 'request' || !option.hasNewInbound)) rank = 1;
+            else if (option.kind === 'administrative' && option.urgent) rank = 2;
+            else continue;
+            candidates.push({ item, option, rank, at: at ?? 0 });
+        }
+        candidates.sort((a, b) => a.rank - b.rank || b.at - a.at || b.item.score - a.item.score
+            || a.item.id.localeCompare(b.item.id) || text(a.option.caseId).localeCompare(text(b.option.caseId)));
+        const items = [], seen = new Set();
+        let administrative = false;
+        for (const { item, option, rank } of candidates) {
+            if (seen.has(item.id) || (rank === 2 && administrative)) continue;
+            if (rank === 2) administrative = true;
+            seen.add(item.id);
+            const { kind, sourceAt, delivery, verification: needsVerification, caseId, ...presentation } = option;
+            // Copy containers so a renderer cannot reorder the original queue
+            // or mutate its exact action while laying out the compact focus.
+            items.push({ ...item, ...presentation, urgent: item.urgent,
+                action: { ...option.action, args: [...list(option.action.args)] },
+                timing: option.timing ? { ...option.timing } : null,
+                caseIds: [...list(item.caseIds)], signalIds: [...list(item.signalIds)],
+                conversationIds: [...list(item.conversationIds)], signals: [...list(item.signals)],
+                focusOptions: [...list(item.focusOptions)] });
+            if (items.length === 3) break;
+        }
+        return { items, urgentCount: current.filter(item => item.urgent).length, verificationCount: verification.size };
+    }
+    return Object.freeze({ AREAS, build, focus });
 }));

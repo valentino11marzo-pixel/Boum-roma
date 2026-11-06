@@ -121,7 +121,9 @@
         Q.filter((a) => (a.status || '') === 'pending' || (a.status || '') === 'pending_approval')
             .forEach((a) => out.push({
                 id: 'aq_' + a.id, kind: 'approvazione', icon: '🤖', tint: 'gold',
-                title: a.title || a.actionType || 'Proposta della Squadra',
+                // Commerciale and the shared producer save the human title
+                // in summary, not title/actionType. Keep that saved context.
+                title: a.title || a.summary || a.actionType || 'Proposta della Squadra',
                 sub: (a.summary || a.preview || a.description || '').slice(0, 120),
                 score: 90 + ageBoost(days(a.createdAt, now), 8, 15),
                 actions: [
