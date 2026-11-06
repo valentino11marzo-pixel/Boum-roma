@@ -7674,6 +7674,15 @@ nessun documento pagabile.
   resta gratuito. Il caricamento di un PDF non lo legge: la verifica dei termini è dell'operatore (due spunte).
 Test: `node tests/pa-external/run.mjs` (16 scenari, handler veri), `mutate.mjs` (10 mutazioni prese),
 `ui.mjs` (Chromium 390/1280, 38 controlli).
+**6/11/2026 (Thao, Via Vittoria 69)**: «Carica e continua» era `disabled` finché il passo 1 (profili) non
+era fatto, col perché solo nel `title`, invisibile su iPhone: sembrava rotto. Ora si preme sempre e, coi
+profili da creare, lo dice accanto al bottone senza chiamare il server. Nello stesso caso il portal
+dell'inquilino mostrava «Missing or insufficient permissions» e «No Active Lease»: la casa, non ancora
+sua (`currentContractId` assente o del contratto prima), veniva letta con una query `in` sugli id, negata
+per intero, e con lei cadeva tutto il caricamento (contratti e rate). Ora `fetchReadableByIds` legge una
+casa per volta e una casa negata manca e basta; ogni altro errore risale. Test: `tests/portal-tenant/run.mjs`.
+Da sapere: `/login` senza `next` porta TUTTI a `/portal`, inquilini compresi; l'area pensata per loro è
+`/casa` (chi la apre da sloggato passa da `/login?next=/casa`).
 
 ### Le regole IN VIGORE ≠ le regole nel file (31/08/2026)
 Il difetto più caro trovato in questa tornata, e nessuna suite poteva

@@ -1061,6 +1061,7 @@ function extRender(d,st){
       +profs.map(function(x){return '<div class="cvlink" style="margin-top:6px"><b>'+esc(extWho(x))+'</b><span class="u">'+esc(x.name||'—')+(x.email?' · '+esc(x.email):'')+' — '+esc(EXT_ACT[x.action]||x.action)+(x.why?' <span style="color:#ff8a70">('+esc(x.why)+')</span>':'')+'</span></div>';}).join('')
       +(conflict?'<div class="sub2" style="color:#ffb27a;margin-top:8px">I conflitti si risolvono dal portal (Persone: correggi email o ruolo), poi riapri questo pannello. Le altre parti si possono già creare.</div>':'')
       +'<button class="pbtn prim" id="extProf" style="margin-top:10px">👤 '+(profs.some(function(x){return x.action!=='conflict';})?'Crea / collega i profili':'Nessun profilo da creare')+'</button>'
+      +'<div class="sub2" style="color:#ffb27a;margin:8px 0 0">Il caricamento del PDF (passo 3) parte dopo questo passo.</div>'
     :'<div class="sub2" style="color:var(--green);margin:0">✓ Tutte le parti hanno il loro profilo nel portal.</div>';
   var row=function(k,v){return v?'<div style="display:flex;gap:10px;font-size:12.5px;padding:3px 0;border-bottom:1px solid var(--line-soft)"><span style="color:var(--t3);min-width:112px">'+k+'</span><span style="color:var(--t1)">'+v+'</span></div>':'';};
   var p2=row('Inquilino',esc(T.tenantName))+row('Co-conduttori',esc((T.coTenants||[]).join(', ')))+row('Proprietario',esc(T.landlordName))
@@ -1084,7 +1085,7 @@ function extRender(d,st){
     +'<p id="extMsg" role="status" style="font-size:12.5px;color:var(--gold-light);margin-top:12px;line-height:1.6;white-space:pre-wrap"></p>'
     +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">'
     +(adopted?'<button class="pbtn prim" id="extGo">'+((rv.preparation&&rv.preparation.status==='ready')&&on.welcomeEmailSent&&on.paymentsGenerated?'Riprendi il recupero':'Completa i passi di dopo')+'</button>'
-      :'<button class="pbtn prim" id="extGo" '+(profs.length?'disabled title="Prima i profili (passo 1)"':'')+'>Carica e continua</button>')
+      :'<button class="pbtn prim" id="extGo">Carica e continua</button>')
     +(st.contractId?'<a class="pbtn" href="/portal#aspi='+encodeURIComponent(st.contractId)+'" target="_blank" rel="noopener">🏛 Registrazione nel portal</a>':'')
     +'<button class="pbtn" id="extClose">Chiudi</button></div></div>';
   ov.addEventListener('click',function(e){if(e.target===ov)ov.remove();});
@@ -1108,6 +1109,17 @@ function extRender(d,st){
     var go=this;
     var flags={welcome:!!(ov.querySelector('#extWel')&&ov.querySelector('#extWel').checked&&!on.welcomeEmailSent),schedule:!!(ov.querySelector('#extSch')&&ov.querySelector('#extSch').checked&&!on.paymentsGenerated)};
     var lines=[];
+    /* Il bottone non è MAI spento in silenzio (6/11/2026 — «faccio Carica e
+       continua ma non fa niente»: era disabled con il perché solo nel title,
+       che su iPhone non si vede). Coi profili ancora da creare lo DICE qui,
+       accanto al bottone, e non chiama il server. */
+    if(!adopted&&profs.length){
+      say(profs.some(function(x){return x.action!=='conflict';})
+        ?'Prima il passo 1: premi «👤 Crea / collega i profili» qui sopra, poi di nuovo «Carica e continua».'
+        :'Prima risolvi i conflitti del passo 1 dal portal (Persone), poi riapri questo pannello.',true);
+      if(bp){try{bp.focus({preventScroll:true});}catch(_){}}
+      return;
+    }
     go.disabled=true;
     try{
       if(!adopted){

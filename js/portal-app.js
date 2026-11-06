@@ -2703,20 +2703,23 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         return loadDataFresh(false);
     }
     
+    // Una lettura PER CASA, ognuna col suo esito (6/11/2026 — Miss Thao,
+    // Via Vittoria 69: «Missing or insufficient permissions», «No Active
+    // Lease», niente rate). Per un inquilino la regola di properties ammette
+    // solo la casa il cui currentContractId è un SUO contratto; col contratto
+    // appena nato (immobile non ancora affittato, o ancora del contratto
+    // precedente) quella casa è negata. Con la query `in` di prima (sugli id)
+    // il rifiuto di una sola casa faceva fallire la query e, con lei, l'intero
+    // caricamento: contratti e pagamenti compresi. Ora una casa negata manca
+    // e basta; ogni altro errore risale come prima.
+    async function fetchReadableByIds(collection, ids) {
+        const unique = Array.from(new Set(ids)).filter(Boolean);
+        const snaps = await Promise.all(unique.map(id => db.collection(collection).doc(id).get({ source: 'server' })
+            .catch(e => { if (e && e.code === 'permission-denied') return null; throw e; })));
+        return snaps.filter(d => d && d.exists).map(d => ({ id: d.id, ...d.data() }));
+    }
     // Firestore `in` queries cap at 30 values — chunk + merge so a landlord
     // with many properties (or a query over many ids) doesn't throw.
-    async function fetchByIdsChunked(collection, ids) {
-        const out = [];
-        const unique = Array.from(new Set(ids)).filter(Boolean);
-        for (let i = 0; i < unique.length; i += 30) {
-            const chunk = unique.slice(i, i + 30);
-            if (!chunk.length) continue;
-            const snap = await db.collection(collection)
-                .where(firebase.firestore.FieldPath.documentId(), 'in', chunk).get({ source: 'server' });
-            snap.docs.forEach(d => out.push({ id: d.id, ...d.data() }));
-        }
-        return out;
-    }
     async function fetchWhereInChunked(collection, field, values) {
         const out = [];
         const unique = Array.from(new Set(values)).filter(Boolean);
@@ -2767,7 +2770,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             next.contracts = contracts.docs.map(d => ({ id: d.id, ...d.data() }));
             const propIds = next.contracts.map(c => c.propertyId);
             const [props, payments, maint] = await Promise.all([
-                fetchByIdsChunked('properties', propIds),
+                fetchReadableByIds('properties', propIds),
                 db.collection('payments').where('tenantId', '==', myUid).get({ source: 'server' })
                     .then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))),
                 db.collection('maintenance').where('userId', '==', myUid).get({ source: 'server' })
