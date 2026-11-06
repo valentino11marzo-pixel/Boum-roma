@@ -38,7 +38,7 @@
       if(slug==='rome') input.dispatchEvent(new Event('input',{bubbles:true}));
     });
   }
-  function editionURL(path){var u=new URL(path,location.origin),q=new URLSearchParams(location.search);if(['club','perspective'].includes(q.get('edition')))u.searchParams.set('edition',q.get('edition'));if(q.get('edition')==='club'&&q.get('experience')==='panorama'){u.searchParams.set('experience','panorama');if(['airframe','signal','orbit'].includes(q.get('vision'))){u.searchParams.set('vision',q.get('vision'));u.searchParams.delete('variant');}else{u.searchParams.delete('vision');if(q.get('variant')==='terminal')u.searchParams.set('variant','terminal');else u.searchParams.delete('variant');}}if(q.get('duo')==='1')u.searchParams.set('duo','1');return u.pathname+u.search+u.hash;}
+  function editionURL(path){var u=new URL(path,location.origin),q=new URLSearchParams(location.search);if(['club','perspective'].includes(q.get('edition')))u.searchParams.set('edition',q.get('edition'));if(q.get('edition')==='club'&&q.get('experience')==='panorama'){u.searchParams.set('experience','panorama');if(['airframe','signal','orbit','dispatch','gate','connection'].includes(q.get('vision'))){u.searchParams.set('vision',q.get('vision'));u.searchParams.delete('variant');}else{u.searchParams.delete('vision');if(q.get('variant')==='terminal')u.searchParams.set('variant','terminal');else u.searchParams.delete('variant');}}if(q.get('duo')==='1')u.searchParams.set('duo','1');return u.pathname+u.search+u.hash;}
   function canonicalHome(slug) { return editionURL('/flight-next?direction=club&city='+slug); }
   function cleanQuery(params) {
     Array.from(params.keys()).forEach(function(key){
@@ -255,7 +255,7 @@
     if(step){showRailCard(cards[index+Number(step.dataset.europeHomeStep)]);return;}
     if(e.target.closest('[data-europe-locate]')&&cards[index]&&window.BoomNextMap){
       window.BoomNextMap.select(cards[index].dataset.homeId);
-      if(innerWidth<761)el('nextHomeMap').scrollIntoView({block:'center',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});
+      if(innerWidth<761||document.body.dataset.homeVision==='connection')el('nextHomeMap').scrollIntoView({block:'center',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});
     }
   });
   rail.addEventListener('scroll',syncRail,{passive:true});

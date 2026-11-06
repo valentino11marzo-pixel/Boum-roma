@@ -1,8 +1,8 @@
-/* Three visual worlds, using the original BOOM geography, photographs and forms. */
+/* Alternative entrances to the original BOOM geography, photographs and forms. */
 (function () {
   'use strict';
   var query=new URLSearchParams(location.search),vision=query.get('vision');
-  if(!['airframe','signal','orbit'].includes(vision)||document.body.dataset.experience!=='panorama')return;
+  if(!['airframe','signal','orbit','dispatch','gate','connection'].includes(vision)||document.body.dataset.experience!=='panorama')return;
   var byId=function(id){return document.getElementById(id);};
   var hero=byId('nextHero'),ticket=byId('directionClubTicket'),atlas=byId('boomGlobeMount'),media=byId('clubMedia');
   if(!hero||!ticket||!atlas||!media)return;
@@ -12,9 +12,10 @@
   hero.dataset.nextField='off';
   if(window.BoomFlightNextMotion)window.BoomFlightNextMotion.setFieldEnabled(false);
   if(vision==='orbit')atlas.dataset.globeFraming='horizon';
-  var light=vision!=='orbit';
-  document.querySelector('meta[name="theme-color"]').content=vision==='signal'?'#ffd700':light?'#fcfcf8':'#000000';
-  document.querySelectorAll('.next-nav .europe-brand-lockup,#clubCompany .club-company-brand img').forEach(function(mark){mark.src=light?'/assets/boom-brand-lockup-ink.svg':'/assets/boom-brand-lockup.svg';});
+  var light=['airframe','signal'].includes(vision);
+  document.querySelector('meta[name="theme-color"]').content=vision==='signal'?'#ffd700':vision==='connection'?'#123fd6':light?'#fcfcf8':'#000000';
+  document.querySelectorAll('.next-nav .europe-brand-lockup').forEach(function(mark){mark.src=light?'/assets/boom-brand-lockup-ink.svg':'/assets/boom-brand-lockup.svg';});
+  document.querySelectorAll('#clubCompany .club-company-brand img').forEach(function(mark){mark.src=light||vision==='dispatch'?'/assets/boom-brand-lockup-ink.svg':'/assets/boom-brand-lockup.svg';});
 
   // The 300-weight city name and the original mechanical Solari have separate
   // visual roles. Only the textual heading announces the destination.
@@ -32,20 +33,42 @@
   var anchor=document.querySelector('[data-panorama-anchor]');
   if(anchor)scene.appendChild(anchor);
   scene.appendChild(atlas);scene.appendChild(media);ticket.appendChild(scene);
-  var romeScene=vision==='airframe'?'homes':'world',lastCity='';
+  var cityScene=null,guideEntry=null;
+  if(vision==='connection'){
+    cityScene=document.querySelector('#clubHomes .next-city-scene');
+    if(cityScene){
+      cityScene.id='visionCityScene';scene.appendChild(cityScene);
+      tabs.insertAdjacentHTML('afterbegin','<button type="button" data-vision-scene="city" aria-pressed="false">Skyline Rome</button>');
+      tabs.setAttribute('aria-label','Explore Rome, the homes or the destinations');
+    }
+    guideEntry=document.querySelector('#clubHomes [data-guide]');
+    if(guideEntry){guideEntry.classList.add('connection-guide-entry');guideEntry.textContent='Choose your everyday destination';ticket.querySelector('.edition-plan-link').before(guideEntry);}
+    byId('nextDiscovery').before(byId('nextBalance'));
+  }
+  if(vision==='gate')ticket.insertBefore(byId('services'),scene);
+  var romeScene=vision==='connection'&&cityScene?'city':['airframe','dispatch'].includes(vision)?'homes':'world',lastCity='';
   var reduce=matchMedia('(prefers-reduced-motion: reduce)'),transition=null;
   function cancelTransition(){if(transition){transition.cancel();transition=null;}}
   function motionAllowed(){return !reduce.matches&&!document.hidden&&byId('nextMotionToggle').getAttribute('aria-pressed')!=='true';}
+  function syncMapScene(){
+    // Apartments/Detail keep ownership of the same Skyline frame. Presentation
+    // only changes its visibility while the native home is the current view.
+    if(!cityScene||!window.BoomNextMap||document.body.dataset.view!=='home')return;
+    if(document.body.dataset.visionScene==='city'&&document.body.dataset.europeCity==='rome')window.BoomNextMap.mount(byId('nextHomeMap'));
+    else window.BoomNextMap.hide();
+  }
   function showScene(value,animate){
     cancelTransition();
     var foreign=document.body.dataset.europeCity!=='rome';
     if(foreign)value='world';
     document.body.dataset.visionScene=value;
     atlas.hidden=value!=='world';media.hidden=value!=='homes';tabs.hidden=foreign;
+    if(cityScene)cityScene.hidden=value!=='city';
     tabs.querySelectorAll('button').forEach(function(button){button.setAttribute('aria-pressed',String(button.dataset.visionScene===value));});
+    syncMapScene();
     window.dispatchEvent(new Event('resize'));
     if(animate&&motionAllowed()){
-      var panel=value==='world'?atlas:media;
+      var panel=value==='world'?atlas:value==='city'?cityScene:media;
       transition=panel.animate([{opacity:.35,transform:'translateY(10px)'},{opacity:1,transform:'translateY(0)'}],{duration:320,easing:'cubic-bezier(.16,1,.3,1)'});
       transition.onfinish=function(){transition=null;};
     }
@@ -74,6 +97,7 @@
     var city=document.body.dataset.europeCity||'rome';
     var selected=document.querySelector('.europe-city-switch button[data-europe-city="'+city+'"]');
     cityName.textContent=selected?selected.querySelector('span:last-child').textContent:'Rome';
+    if(guideEntry)guideEntry.hidden=city!=='rome';
     if(city!==lastCity){lastCity=city;chooseNeed('all');showScene(romeScene,false);}
   }
   new MutationObserver(syncCity).observe(document.body,{attributes:true,attributeFilter:['data-europe-city']});
@@ -83,6 +107,12 @@
   document.addEventListener('keydown',cancelTransition);
   window.addEventListener('pagehide',cancelTransition);
   window.addEventListener('popstate',cancelTransition);
-  window.addEventListener('boom:flight-view',cancelTransition);
+  window.addEventListener('boom:flight-view',function(){cancelTransition();syncMapScene();});
+  if(cityScene){
+    document.addEventListener('click',function(event){
+      if(document.body.dataset.view==='home'&&event.target.closest('[data-europe-locate]')){romeScene='city';showScene('city',false);}
+    },true);
+    byId('nextGuideDialog').addEventListener('close',function(){queueMicrotask(syncMapScene);});
+  }
   syncCity();
 })();

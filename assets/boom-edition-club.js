@@ -25,7 +25,7 @@
   var compactHome=matchMedia('(max-width: 650px)');
   function arrangeHome(){
     var presentation=new URLSearchParams(location.search),panorama=presentation.get('experience')==='panorama';
-    var vision=['airframe','signal','orbit'].includes(presentation.get('vision'));
+    var vision=['airframe','signal','orbit','dispatch','gate','connection'].includes(presentation.get('vision'));
     var terminal=panorama&&!vision&&presentation.get('variant')==='terminal';
     // Terminal keeps the actual planner beside the destination on desktop and
     // ahead of the globe in the phone's DOM/focus order. No second form.
@@ -138,7 +138,10 @@
     var positions=stops.map(function(el){return el.getBoundingClientRect().top;});
     var steps=document.querySelector('.next-journey'),box=foreign?null:steps.getBoundingClientRect();
     var progress=box?Math.max(0,Math.min(1,(innerHeight*.8-box.top)/Math.max(1,box.height))):1;
-    positions.forEach(function(top,index){if(top<innerHeight*.4&&(!foreign||index<2))active=index;});
+    // Presentation may move support before homes. The nearest passed physical
+    // section owns the current chapter, regardless of the navigation's order.
+    var nearest=-Infinity;
+    positions.forEach(function(top,index){if(top<innerHeight*.4&&top>=nearest&&(!foreign||index<2)){active=index;nearest=top;}});
     flightline.querySelectorAll('[data-flight-stop]').forEach(function(link,index){if(index===active){if(!link.hasAttribute('aria-current'))link.setAttribute('aria-current','location');}else if(link.hasAttribute('aria-current'))link.removeAttribute('aria-current');});
     var nextProgress=String(allowed?progress:1);if(steps.style.getPropertyValue('--journey-progress')!==nextProgress)steps.style.setProperty('--journey-progress',nextProgress);
     if(document.body.dataset.editionMotion!==motionState)document.body.dataset.editionMotion=motionState;

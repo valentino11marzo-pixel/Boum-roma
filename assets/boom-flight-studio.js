@@ -5,7 +5,7 @@
   var status=document.getElementById('studioStatus'),error=document.getElementById('studioError'),open=document.getElementById('studioOpen');
   var query=new URLSearchParams(location.search);
   var publicKeys=['view','home','city','need','moveIn','moveOut','stay','budget','currency','people','type','place','homes','saved','layout'];
-  var visions=['airframe','signal','orbit'];
+  var visions=['airframe','signal','orbit','dispatch','gate','connection'];
   var experience=visions.includes(query.get('experience'))?query.get('experience'):query.get('experience')==='panorama'&&visions.includes(query.get('vision'))?query.get('vision'):query.get('experience')==='terminal'||(query.get('experience')==='panorama'&&query.get('variant')==='terminal')?'terminal':query.get('experience')==='club'?'club':query.get('experience')==='panorama'?'panorama':query.has('experience')?'club':'airframe';
   var device=query.get('device')==='mobile'?'mobile':'desktop',brief=publicQuery(query),loading=false,detach=null;
 
@@ -14,7 +14,7 @@
     publicKeys.forEach(function(key){var value=source.get(key);if(value&&value.length<=310)out.set(key,value);});
     return out;
   }
-  function name(){return {airframe:'Airframe',signal:'Signal',orbit:'Orbit',terminal:'Terminal',panorama:'Panorama',club:'Club'}[experience];}
+  function name(){return {airframe:'Airframe',signal:'Signal',orbit:'Orbit',dispatch:'Dispatch',gate:'Gate',connection:'Connection',terminal:'Terminal',panorama:'Panorama',club:'Club'}[experience];}
   function previewURL(){
     var out=new URLSearchParams(brief);out.set('direction','club');out.set('edition','club');
     if(experience!=='club')out.set('experience','panorama');
@@ -32,7 +32,7 @@
     history.replaceState(null,'','/flight-studio?'+out);
     status.textContent=loading?'Apertura di '+name()+'…':name()+' · '+(device==='mobile'?'390 px':'1280 px');
     document.getElementById('studioVariantTitle').textContent=name();
-    document.getElementById('studioVariantNote').textContent={airframe:'Luce, spazio e case reali. Una superficie chiara collega destinazione, vita quotidiana e assistenza.',signal:'Il giallo diventa identità. Una grande composizione tipografica guida dalla città al prossimo passo.',orbit:'La geografia diventa ambiente. Esplora le destinazioni, entra nelle case e costruisci il tuo arrivo.',terminal:'La precedente composizione a banco partenze, conservata per il confronto.',panorama:'La precedente apertura Solari e globo, conservata per il confronto.',club:'La composizione Club originale, conservata per il confronto.'}[experience];
+    document.getElementById('studioVariantNote').textContent={airframe:'Luce, spazio e case reali. Una superficie chiara collega destinazione, vita quotidiana e assistenza.',signal:'Il giallo diventa identità. Una grande composizione tipografica guida dalla città al prossimo passo.',orbit:'La geografia diventa ambiente. Esplora le destinazioni, entra nelle case e costruisci il tuo arrivo.',dispatch:'Le destinazioni diventano la composizione. Un grande indice delle città affianca fotografie e informazioni reali.',gate:'Il prossimo passo prima di tutto. Parti dalla tua situazione, confronta il servizio e vedi subito ambito e costo.',connection:'La città entra nel progetto. Skyline e il tuo punto quotidiano guidano la scelta; poi confronti affitto, spazio e tragitto.',terminal:'La precedente composizione a banco partenze, conservata per il confronto.',panorama:'La precedente apertura Solari e globo, conservata per il confronto.',club:'La composizione Club originale, conservata per il confronto.'}[experience];
     resize();
   }
   function resize(){

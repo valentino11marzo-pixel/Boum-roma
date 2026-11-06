@@ -5061,6 +5061,12 @@ Orbit inquadra lo stesso canvas come orizzonte: disegno e origine del volo condi
 Studio e navigazione mantengono solo la presentazione ammessa e la bozza pubblica valida; Apply, servizi e desk non ricevono `vision` né luoghi privati. Nessun nuovo form, archivio cliente, tracciamento o dipendenza.
 Verifica `flightpanoramaui`: tre direzioni390/1440, identità dei nodi, foto/globo/full view/volo, peso300, filtro servizi, link nativi e Studio; regressioni Club motion/flight, Europe, edizioni e Next. Motivazioni in `design/flight-visions-direction.md`.
 
+Flight altre possibilità 06/11: Studio aggiunge Dispatch, Gate e Connection alle tre direzioni precedenti, con Helvetica Neue300 e redirect `/home-dispatch|gate|connection` alla presentazione canonica.
+Dispatch apre con l'indice delle sei città e la scena originale; Gate porta i quattro servizi e il selettore della situazione nell'apertura, conservando prezzi, condizioni, link e ordine di lettura.
+Connection apre con Skyline sul fondo cobalto e promuove la guida alla destinazione quotidiana; il confronto affitto/spazio/tragitto precede i risultati solo dopo il percorso originale. Il singolo iframe viene montato/nascosto dalla scena, senza ricaricarlo né cambiare l'autorità delle viste Apartments/Detail.
+Foto e geografia restano alternative della scena; Locate rivela Skyline, le città estere conservano il proprio desk e i luoghi privati non entrano negli URL pubblici. Nessun nuovo form, motore, archivio, dipendenza o invio.
+Verifica `flightpanoramaui`: sei direzioni390/1440, mappa unica e dimensionata, guida→confronto→scheda→Back, servizi anticipati, filtro e Studio; controlli visivi320/390/1440. Regia in `design/flight-possibilities-direction.md`.
+
 Flight Lab 31/10: `/flight-lab` confronta Atlas, Residence e Club sulle stesse viste reali di `/flight-next?direction=…`, senza cambiare il sito pubblico.
 Le composizioni riusano catalogo, Solari, iframe Skyline, salvataggi e Apply; nessun secondo catalogo o nuovo handler di invio.
 Residence usa una foto realmente restituita dal catalogo pubblico (fallback a una casa pubblica non chiusa); Atlas sposta la stessa mappa nel primo schermo.

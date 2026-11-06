@@ -62,6 +62,8 @@ noscript a{text-decoration:underline}
  .studio-toolbar{gap:12px}
  .studio-controls{flex:1 1 170px}
  .studio-controls button{padding:0 12px;min-width:0;flex:1;font-size:13px}
+ .studio-controls[aria-label="Esperienza"]{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));flex-basis:100%}
+ .studio-controls[aria-label="Esperienza"] button{padding-inline:8px}
  #studioStatus{width:100%;margin:0}
  .studio-viewport{height:max(560px,calc(100svh - 320px))}
 }
