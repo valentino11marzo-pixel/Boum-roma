@@ -326,8 +326,14 @@ PASS_KEY_BASE64
 PASS_KEY_PASSPHRASE
 
 # Email (Nodemailer)
-GMAIL_USER
+GMAIL_USER                   # the sending Gmail account (valentino@boom-rome.com)
 GMAIL_APP_PASS
+ADMIN_NOTIFY_EMAIL           # optional — the operator's mailbox for EVERY operator
+                             # email, portal "[Portal]" copies (to:'operator' in
+                             # /api/notify/send), PFS alerts and viewing alerts
+                             # included; default valentino@boom-rome.com. NEVER an
+                             # address on boomrome.com: see «La casella che non
+                             # esiste». NOTIFY_OWNER_EMAIL is no longer read.
 EMAILJS_PRIVATE_KEY          # server-side EmailJS REST (api/stripe-webhook.js:
                              # PFS, SERVICE/city orders, RESERVE). Without it the
                              # paid client's confirmation fails — recorded on the
@@ -441,6 +447,22 @@ ELEVENLABS_WEBHOOK_SECRET    # via B (receptionist): signing secret del
                              # post-call webhook ElevenLabs (HMAC t=,v0= sui
                              # byte grezzi). Senza, la porta rifiuta tutto.
 ```
+
+### La casella che non esiste (6/11/2026)
+`boomrome.com` (senza trattino) è il dominio del SITO e non riceve posta: nessun MX, Gmail bussa agli IP di
+Vercel, va in timeout (4.4.1), riprova 48 ore e rinuncia. La posta vera è `boom-rome.com` (valentino@, hello@
+che arriva nella stessa casella). Letto nelle DSN della casella, non dedotto: le copie «[Portal]» del portal
+(pagamenti ricevuti compresi) andavano a valentino@ su boomrome.com almeno da metà luglio, e fra aprile e
+giugno circa 200 «New lead.» del modulo intake erano andati a info@ sullo stesso dominio. Nessuno lo ha visto:
+una DSN finisce fra gli «Aggiornamenti». Ora la copia per l'operatore parte come `to:'operator'` e la risolve
+`/api/notify/send` con `ADMIN_NOTIFY_EMAIL`, come ogni altra email all'operatore; gli avvisi PFS
+(`api/portal/_notify.js`) e la visita prenotata (`api/notify-viewing-created.js`) seguono la stessa convenzione,
+col Reply-To del cliente quando ha un indirizzo valido, altrimenti dell'operatore; `COMPANY.email` del portal
+è `hello@boom-rome.com`, salvo `settings/company` in Firestore, che vince e va controllato in Impostazioni →
+Dati aziendali. `FIREBASE_ADMIN_EMAIL` e le whitelist di login possono restare su boomrome.com: sono
+identificativi, non caselle, ma una email di recupero password per quell'account non arriverebbe.
+`tests/caselle/run.mjs` legge l'intero repository (tranne le suite) e cade su qualsiasi casella @boomrome.com
+fuori da un'eccezione nominata per riga; poi segue la copia di un pagamento dal portal a nodemailer.
 
 ## API Endpoints
 
@@ -4309,6 +4331,73 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
   calendar 126, signing 274, cityterms 142, withdraw 122, withdrawui 87 nei due font; `npm test` 296
   suite, rosse solo `portalnavigationui` in Inter (Oggi, il font) e `magicsigncustomui` /
   `magicsigncustomsigner` (cdn.jsdelivr.net irraggiungibile), preesistenti.
+- **IL CREDITO DELL'APPLICATION PACK (06/11/2026 — «costruiamo la C, così la uso oggi stesso con
+  Daniel»).** Il primo caso è Madrid, fascicolo BM BEAEV: il cliente ha pagato l'Application Pack
+  (€199, «Start now» spuntato) e in chiamata il fondatore gli ha promesso che, passando al Full
+  Search, i €199 sarebbero stati accreditati. La cassa non sapeva farlo: l'unica via era incassare
+  €500 e rimborsare a mano. Ora un pack pagato su un desk che incassa alla cassa diventa Full Search
+  con quanto pagato accreditato, UNA volta, entro 30 giorni dal pagamento (a Madrid €301).
+  1. **La regola** (`api/_upgrade.js`, pura: `upgradeOffer(lead, id, ora)`): solo un ordine
+     `leads/svc_<sessione>` di un desk del registro, `intent:'city_order'`, pagato (`paid` e
+     `city.paid`), del piano in `UPGRADE_PATHS` (`application-pack` → `full-search`). Il desk deve
+     incassare alla cassa: Parigi e Berlino non incassano niente all'ordine, quindi non c'è niente da
+     accreditare. Il credito è ciò che il cliente ha PAGATO (`amount_eur`, nella valuta del desk, mai
+     quanto il listino d'arrivo o di più). `credit.usedBy` lo chiude, e scade a `paid_at` + 30 giorni.
+     Stati: `open`, `used`, `expired`, `not_upgradable`, `not_found`.
+  2. **Il link è personale e derivato** (`upgradeToken`/`upgradeLink` in `api/payments/_token.js`,
+     come `orderToken`): sha256 dell'id con `HOMIE_SECRET`, 24 hex, confronto a tempo costante, mai
+     salvato, fuori da `KINDS` (`/api/payments/link` non lo accetta). Forma: `/upgrade?l=<svc_…>&t=<token>`.
+  3. **La pagina** `/upgrade` (`upgrade.html`, noindex, no-referrer, nessun tracciamento) mostra solo
+     ciò che risponde `GET /api/city-lead?upgrade=&t=` (`publicUpgrade`: mai nome, email o telefono).
+     Token sbagliato e ordine sconosciuto danno lo stesso 404, credito usato o scaduto 410; 30 richieste
+     ogni 10′ per IP. In pagina: listino, credito, «You pay today», cosa compra il Full Search, fino a
+     quando vale. Poi la cassa nell'ordine CRD dei desk:
+     - la spunta «Start now», mai pre-spuntata (nemmeno dall'URL);
+     - la riga del recesso, col modulo e il link online;
+     - il bottone che segue la spunta («Pay and book» → «Pay and start · €301»);
+     - a Madrid, Barcellona e Valencia «Optional, chosen in writing» (LAU art. 20).
+     Al ritorno da Stripe il pagamento lo conferma il server (`GET ?paid=` a 0/1,5/3/6/12 s), e la
+     card promette il brief «nella prima ora di apertura del desk», mai «oggi».
+  4. **La cassa** (`api/service-checkout.js`, `{city, kind, upgrade:{lead, t}, startNow}`): il server
+     rilegge l'ordine e calcola l'importo, dal browser non arriva nessun prezzo. Desk o piano diversi
+     dal credito danno 400 `upgrade_mismatch`; nome, email e telefono vengono dall'ordine pagato.
+     Prodotto Stripe «Full Search — €199 Application Pack credited», metadata
+     `credit_from/credit_amount/credit_plan`, ritorno su `/upgrade`.
+  5. **Il webhook** (`handleService`):
+     - rilegge l'ordine del pack (`upgradeCreditFor`, due tentativi). Il credito è «verificato» solo
+       se è un ordine pagato dello STESSO desk, e allora il Full Search tiene il fascicolo del pack
+       (una persona, un fascicolo);
+     - `markUpgradeCredit` scrive `credit {usedBy, usedAt, amount, currency}` sul lead del pack, col
+       solo campo `credit` nella maschera e la precondizione di versione. Lo fa anche sul ramo del
+       doppione: un primo giro morto prima del segno lo segna al retry;
+     - un credito già usato da un'ALTRA sessione (due casse pagate in parallelo) non si riscrive mai:
+       parte l'avviso urgente `agentNotifications/upgrade-double-<id>` e la differenza si regola su
+       Stripe a mano;
+     - il riassunto del lead e le email dicono «€301 paid (€199 Application Pack credited)», e un
+       credito non verificabile lo scrivono all'operatore; l'email all'operatore dice di fatturare
+       quanto pagato (€301);
+     - ogni ordine di Application Pack pagato porta il link personale dell'upgrade nell'email
+       ALL'OPERATORE, mai al cliente.
+  6. **Il bot** (`api/telegram/_upgrade.js`): `/upgrade BM XXXXX` (o `svc_…`) cerca gli ordini PAGATI
+     di quel fascicolo (non la porta gratuita con lo stesso numero). Risponde con lo stato del credito,
+     il link e il messaggio pronto in inglese («your personal … link»), che non promette «oggi»: dice
+     cosa fa la spunta. È sola lettura: niente parte verso il cliente. Un credito usato o scaduto non
+     ha link; il Full Search pagato col credito tiene lo stesso fascicolo, quindi il bot lo trova
+     anche lui e dice «è già l'upgrade».
+  **Da sapere**:
+  - la fattura Egidi del Full Search è di quanto incassato (€301), quella del pack resta €199;
+  - un rimborso del pack (`charge.refunded`) non tocca il lead, quindi `/upgrade` darebbe ancora il
+    link: non mandarlo a chi ha avuto il pack rimborsato;
+  - il credito non è nei Termini §12: è un'offerta personale dell'operatore, non un prezzo pubblico;
+  - la GET non restituisce mai nome, email o telefono, ma la cassa Stripe mostra l'email del cliente
+    precompilata: il link è suo, e il messaggio pronto lo chiama «personal»;
+  - senza JavaScript la pagina lo dice e dà l'email (mai un «Checking…» infinito).
+  Test: `node tests/upgrade/run.mjs` (70): regola pura, token, GET, cassa con l'importo del server e
+  corpi falsificati, webhook (fascicolo, segno, retry, doppio uso), bot, pagina, giunzioni. Mutazioni
+  prese: token non controllato, credito riusabile, fascicolo nuovo, «today» nel messaggio e in pagina.
+  La revisione avversaria a sub-agenti non è girata (limite di spesa fino all'11/11): la revisione è
+  stata fatta a mano, sui cinque punti di vista (soldi, sicurezza, consumatore, regressioni, casi
+  limite).
 - **IL DESK AVIAZIONE COMPLETO (v1.6, 03/11/2026 — il fondatore: «questo stile è
   troppo sintetizzato… itera lo stile del biglietto… anche per una pagina
   completa»).** Il primo schermo resta UNA carta d'imbarco, rifatta come oggetto

@@ -69,3 +69,32 @@ export function verifyOrderToken(id, token) {
   if (want.length !== got.length) return false;
   try { return crypto.timingSafeEqual(want, got); } catch (_) { return false; }
 }
+
+// ── Il credito di upgrade di un desk (06/11/2026) ──────────────────────────
+// Chi ha pagato l'Application Pack su un desk che incassa alla cassa può
+// passare al Full Search entro 30 giorni col prezzo già pagato accreditato
+// (api/_upgrade.js decide importo, validità e uso unico). Il link personale è
+// /upgrade?l=<svc_…>&t=<token>: stesso schema degli altri, DERIVATO dall'id +
+// il segreto server, mai salvato, confronto a tempo costante; ruotando
+// HOMIE_SECRET si revocano tutti. NON è un tipo di KINDS: /api/payments/link
+// non apre mai una cassa con questo token.
+/** Token opaco del link di upgrade. 24 hex = 96 bit. */
+export function upgradeToken(id) {
+  return crypto.createHash('sha256')
+    .update(`boom-city-upgrade:${id}:${salt()}`)
+    .digest('hex').slice(0, 24);
+}
+
+/** Confronto a tempo costante, come verifyPayToken. */
+export function verifyUpgradeToken(id, token) {
+  const want = Buffer.from(upgradeToken(id));
+  const got = Buffer.from(String(token || ''));
+  if (want.length !== got.length) return false;
+  try { return crypto.timingSafeEqual(want, got); } catch (_) { return false; }
+}
+
+/** L'URL personale dell'upgrade (la pagina /upgrade lo legge e apre la cassa). */
+export function upgradeLink(id, origin) {
+  const base = origin || 'https://www.boomrome.com';
+  return `${base}/upgrade?l=${encodeURIComponent(id)}&t=${upgradeToken(id)}`;
+}

@@ -634,7 +634,9 @@ check(/Refunded in full if we decline the search in the first call/.test(CITY_PL
   const refuse = src.indexOf("if (!offer.ok) return res.status(400).json({ ok: false, error: offer.error });");
   const create = src.indexOf('stripe.checkout.sessions.create(');
   check(refuse > -1 && create > -1 && refuse < create, 'the offer is refused BEFORE a Stripe session can be created');
-  check(/import \{ cityOffer \} from '\.\/_market\.js'/.test(src) && !/CITY_PLANS\s*=/.test(src) && /unit_amount: svc\.eur \* 100/.test(src) && !/body\.(eur|price|amount)/.test(src),
+  // the amount is the registry's price, or what the server's upgrade credit
+  // leaves of it (api/_upgrade.js, 06/11/2026): never a number from the body
+  check(/import \{ cityOffer(, moneyOf)? \} from '\.\/_market\.js'/.test(src) && !/CITY_PLANS\s*=/.test(src) && /const charge = upgrade \? upgrade\.pay : svc\.eur;/.test(src) && /unit_amount: Math\.round\(charge \* 100\)/.test(src) && /const up = upgradeOffer\(src, lid, Date\.now\(\)\);/.test(src) && !/body\.(eur|price|amount)/.test(src),
     'the endpoint carries no price of its own: the amount is the registry\'s, never the body\'s');
   const wh = read('api/stripe-webhook.js');
   check(/const cityDesk = CITY_MARKETS\[cityKey\] \|\| null;/.test(wh) && /market: cityKey,\s*sourceRef: `city-\$\{cityKey\}`,/.test(wh) && /intent: cityDesk \? 'city_order' : 'service'/.test(wh),
