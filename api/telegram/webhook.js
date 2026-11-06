@@ -21,6 +21,7 @@ import { handleViewingCallback, sendAgenda } from './_viewings.js';
 import { handleTaskCallback, handleTaskText, sendBrief } from '../regista/_telegram.js';
 import { handleRichiamoCallback, handleRichiamaCommand } from './_richiamo.js';
 import { handleFirmatoCallback, handleFirmatoCommand, handleChiudiCommand, VERBS as FIRMATO_VERBS } from './_firmato.js';
+import { handleUpgradeCommand } from './_upgrade.js';
 import { handleScrivanoCallback } from './_scrivano.js';
 import { scrivanoEligible, offerKeyboard, offerLine } from '../scrivano/_offer.js';
 import crypto from 'node:crypto';
@@ -369,6 +370,7 @@ export default async function handler(req, res) {
           '• /segretaria — le chat in mano alla Segretaria (🤖 sulla card del lead per consegnargliene una)',
           '• /vendi — manda a un cliente il link di pagamento di un servizio',
           '• /firmato — un ordine di Parigi o Berlino ha firmato: la fattura con un tap · /chiudi per chiuderlo',
+          '• /upgrade BM XXXXX — il link personale per passare dall\'Application Pack al Full Search col prezzo pagato accreditato',
           '• /recensione — chi ringraziare oggi, con il messaggio già pronto',
           '• /visite — agenda dei prossimi 7 giorni + richieste da confermare',
           '• /giornata — il Foglio di Chiamata di oggi (visite, viaggi, task)',
@@ -587,6 +589,13 @@ export default async function handler(req, res) {
       }
       if (text === '/chiudi' || text.startsWith('/chiudi ')) {
         await handleChiudiCommand(chatId, text.slice(7).trim());
+        return res.status(200).json({ ok: true });
+      }
+      // /upgrade BM XXXXX — un Application Pack pagato diventa Full Search col
+      // prezzo già pagato accreditato (api/_upgrade.js): il bot risponde col
+      // link personale e un messaggio pronto. Sola lettura.
+      if (text === '/upgrade' || text.startsWith('/upgrade ')) {
+        await handleUpgradeCommand(chatId, text.slice(8).trim());
         return res.status(200).json({ ok: true });
       }
 
