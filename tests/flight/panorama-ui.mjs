@@ -71,7 +71,7 @@ async function check(name,width,fn,motion='reduce'){
   for(const ping of blockedAnalytics)assert.deepEqual(ping,{consent:'G100',storage:'denied'},'the blocked legacy analytics ping never claims granted consent');
   assert.deepEqual(missing,[],'all actual assets loaded');assert.deepEqual(privateReads,[],'no private city configuration read');
   passed++;console.log('  ✓ '+name);
- }catch(error){failed++;console.log('  ✗ '+name+' — '+error.message);}
+ }catch(error){failed++;console.log('  ✗ '+name+' — '+error.message);console.log(error.stack);}
  finally{await page.close();}
 }
 async function start(page,query=''){
@@ -216,6 +216,20 @@ async function stableFrames(page){
  const frames=await page.evaluate(()=>BoomFlightGlobe.state().frames);
  await page.waitForTimeout(180);
  assert.equal(await page.evaluate(()=>BoomFlightGlobe.state().frames),frames,'a paused or settled globe does not keep drawing');
+}
+async function cameraSnapshot(page){
+ return page.evaluate(()=>{
+  const canvas=document.querySelector('.boom-flight-globe-canvas'),pixels=canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data;
+  let fingerprint=2166136261;for(let i=0;i<pixels.length;i+=128)fingerprint=Math.imul(fingerprint^pixels[i],16777619)>>>0;
+  return {camera:BoomFlightGlobe.state(),fingerprint,url:location.href,history:history.length,
+   draft:[...document.querySelectorAll('#nextMoveIn,#nextMoveOut,#nextBudget,#nextPeople')].map(node=>node.value)};
+ });
+}
+async function releaseGlobe(page){
+ // Focus moves to a real control outside the canvas; there is no activation,
+ // synthetic camera action or forced application state in this helper.
+ await page.locator('.europe-city-switch [data-europe-city="rome"]').focus();
+ await page.locator('#boomGlobeMount').scrollIntoViewIfNeeded();await page.mouse.move(0,0);
 }
 try{
  browser=await chromium.launch(await launchOptions());
@@ -443,6 +457,87 @@ try{
   assert.equal(catalogueReads(),reads,'fullscreen does not reload the catalogue');assert.equal(await page.evaluate(()=>document.getElementById('nextSearchForm')===window.__panoramaOriginalForm),true);
   assert.deepEqual(await page.locator('#nextMoveIn,#nextMoveOut,#nextBudget,#nextPeople').evaluateAll(nodes=>nodes.map(node=>node.value)),[arrival,departure,'1500','couple'],'fullscreen preserves the unsubmitted planner');
  });
+ await check('Ambient camera: the real globe moves gently, yields to hover and keyboard, and zoom never changes the journey',1440,async({page})=>{
+  await start(page);await releaseGlobe(page);
+  await page.waitForFunction(()=>BoomFlightGlobe.state().ambientActive);
+  const before=await cameraSnapshot(page);await page.waitForTimeout(700);const moving=await cameraSnapshot(page);
+  assert.equal(moving.camera.ambient,true,'continuous camera motion is an explicit Panorama option');
+  assert.notDeepEqual(moving.camera.angle,before.camera.angle,'the actual geographic camera continues moving at rest');
+  assert.notEqual(moving.fingerprint,before.fingerprint,'ambient motion is painted into the real geographic canvas');
+  assert.ok(moving.camera.frames>before.camera.frames,'visible ambient motion draws frames');
+  assert.ok(moving.camera.frames-before.camera.frames<=24,'ambient painting remains capped below display refresh rate');
+  for(const key of ['url','history','draft'])assert.deepEqual(moving[key],before[key],'ambient camera leaves '+key+' alone');
+  const box=await page.locator('.boom-flight-globe-canvas').boundingBox();
+  await page.mouse.move(box.x+box.width*.5,box.y+box.height*.7);
+  await page.waitForFunction(()=>!BoomFlightGlobe.state().ambientActive&&!BoomFlightGlobe.state().rafPending);await stableFrames(page);
+  const hoverAngle=await page.evaluate(()=>BoomFlightGlobe.state().angle);await page.waitForTimeout(300);
+  assert.deepEqual(await page.evaluate(()=>BoomFlightGlobe.state().angle),hoverAngle,'the globe stops beneath the pointer');
+  await page.mouse.move(0,0);await page.waitForFunction(()=>BoomFlightGlobe.state().ambientActive);
+  await page.getByRole('button',{name:'Reset globe to selected city'}).focus();await page.keyboard.press('Tab');
+  await page.waitForFunction(()=>!BoomFlightGlobe.state().ambientActive&&!BoomFlightGlobe.state().rafPending);await stableFrames(page);
+  const zoomIn=page.getByRole('button',{name:'Zoom in',exact:true}),zoomOut=page.getByRole('button',{name:'Zoom out',exact:true});
+  assert.equal(await zoomOut.isEnabled(),false,'the minimum camera distance is clearly disabled');
+  await zoomIn.press('Enter');
+  const zoomed=await page.evaluate(()=>BoomFlightGlobe.state());
+  assert.ok(zoomed.zoom>1,'keyboard zoom changes the visible camera immediately');
+  assert.equal(zoomed.zoom,zoomed.zoomTarget,'keyboard zoom has no waiting animation');
+  assert.equal(await zoomOut.isEnabled(),true,'zooming in enables the return control');
+  await zoomIn.click();await page.waitForFunction(()=>BoomFlightGlobe.state().zoom===BoomFlightGlobe.state().zoomTarget);
+  assert.equal(await zoomIn.isEnabled(),false,'the maximum camera distance is clearly disabled');
+  await zoomOut.click();await page.waitForFunction(()=>BoomFlightGlobe.state().zoom===BoomFlightGlobe.state().zoomTarget);
+  await page.getByRole('button',{name:'Reset globe to selected city'}).press('Enter');
+  await page.waitForFunction(()=>BoomFlightGlobe.state().zoom===1&&!BoomFlightGlobe.state().rafPending);
+  const reset=await cameraSnapshot(page);
+  for(const key of ['url','history','draft'])assert.deepEqual(reset[key],before[key],'zoom and reset leave '+key+' alone');
+  await oneGlobe(page);await geometry(page,['[data-panorama-zoom]','#nextMotionToggle']);
+ },'no-preference');
+ await check('Ambient lifecycle: pause, reduced motion, offscreen, hidden and data saving stop work without disabling cities',1440,async({page})=>{
+  await start(page);await releaseGlobe(page);await page.waitForFunction(()=>BoomFlightGlobe.state().ambientActive);
+  assert.equal(await page.locator('#boomGlobeMount #nextMotionToggle').count(),1,'the original pause is beside the globe, not duplicated');
+  await page.locator('#nextMotionToggle').click();await page.waitForFunction(()=>BoomFlightGlobe.state().paused);await stableFrames(page);
+  assert.equal(await page.evaluate(()=>BoomFlightGlobe.state().ambientPending),false,'pause clears any idle restart');
+  await page.locator('#nextMotionToggle').click();await releaseGlobe(page);await page.waitForFunction(()=>BoomFlightGlobe.state().ambientActive);
+  await page.emulateMedia({reducedMotion:'reduce'});await page.waitForFunction(()=>BoomFlightGlobe.state().reducedMotion);await stableFrames(page);
+  assert.equal(await page.evaluate(()=>BoomFlightGlobe.state().ambientPending),false,'reduced motion clears any idle restart');
+  await page.emulateMedia({reducedMotion:'no-preference'});await page.waitForFunction(()=>BoomFlightGlobe.state().ambientActive);
+  await page.locator('#services').scrollIntoViewIfNeeded();await page.waitForFunction(()=>!BoomFlightGlobe.state().visible);await stableFrames(page);
+  assert.equal(await page.evaluate(()=>BoomFlightGlobe.state().ambientPending),false,'offscreen camera has no pending restart');
+  await releaseGlobe(page);await page.waitForFunction(()=>BoomFlightGlobe.state().ambientActive);
+  // Headless Chromium has no OS tab visibility. Supply that platform boundary
+  // and dispatch its native event; the real controller and frame loop run.
+  await page.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,get:()=>true});document.dispatchEvent(new Event('visibilitychange'));});
+  await stableFrames(page);assert.equal(await page.evaluate(()=>BoomFlightGlobe.state().ambientPending),false,'hidden camera has no pending restart');
+  await page.evaluate(()=>{delete document.hidden;document.dispatchEvent(new Event('visibilitychange'));});
+  await page.waitForFunction(()=>BoomFlightGlobe.state().ambientActive);
+  // NetworkInformation is another environment preference, not application state.
+  await page.addInitScript(()=>{const connection=new EventTarget();Object.defineProperty(connection,'saveData',{get:()=>true});Object.defineProperty(navigator,'connection',{configurable:true,get:()=>connection});});
+  await start(page);await releaseGlobe(page);await page.waitForFunction(()=>BoomFlightGlobe.state().saveData&&!BoomFlightGlobe.state().rafPending);await stableFrames(page);
+  assert.equal(await page.evaluate(()=>BoomFlightGlobe.state().ambientActive),false,'data saving suppresses ambient painting');
+  await page.locator('.europe-city-switch [data-europe-city="madrid"]').press('Enter');
+  await page.waitForFunction(()=>document.body.dataset.europeCity==='madrid'&&BoomFlightGlobe.state().city==='madrid'&&!BoomFlightGlobe.state().rafPending);
+  await stableFrames(page);assert.equal((await page.locator('#nextDestinationBoard').getAttribute('aria-label')).toLowerCase(),'madrid','the quieter mode preserves the real city and Solari control');
+  await oneGlobe(page);
+ },'no-preference');
+ await check('Idle invitation: one quiet hint appears without taking focus, moving the page or repeating after exploration',1440,async({page})=>{
+  await start(page);await page.locator('#boomGlobeMount').scrollIntoViewIfNeeded();await page.mouse.move(0,0);
+  const hint=page.locator('.panorama-globe-hint');
+  assert.equal(await hint.getAttribute('aria-hidden'),'true','redundant visual guidance is not an unsolicited screen-reader announcement');
+  await page.locator('#nextMotionToggle').click();
+  await page.waitForTimeout(3400);assert.equal(await hint.getAttribute('data-visible'),'false','idle guidance does not appear while motion is paused');
+  await page.locator('#nextMotionToggle').click();
+  // Clicking the empty page margin ends interaction without choosing a city.
+  await page.mouse.click(8,160);await page.mouse.move(0,0);
+  const before=await page.evaluate(()=>({url:location.href,scroll:scrollY,focus:document.activeElement.tagName}));
+  await page.waitForFunction(()=>document.querySelector('.panorama-globe-hint').dataset.visible==='true');
+  await page.waitForFunction(()=>Number(getComputedStyle(document.querySelector('.panorama-globe-hint')).opacity)>.99);
+  assert.equal(await hint.innerText(),'Drag to rotate. Choose a city to continue.');
+  assert.deepEqual(await page.evaluate(()=>({url:location.href,scroll:scrollY,focus:document.activeElement.tagName})),before,'the idle detail never redirects, scrolls or takes keyboard focus');
+  await page.keyboard.press('Escape');assert.equal(await hint.getAttribute('data-visible'),'false','keyboard activity immediately dismisses the invitation');
+  await page.locator('.europe-city-switch [data-europe-city="madrid"]').click();await page.waitForFunction(()=>document.body.dataset.europeCity==='madrid');
+  await page.locator('#boomGlobeMount').scrollIntoViewIfNeeded();await page.mouse.click(8,160);await page.mouse.move(0,0);
+  await page.waitForTimeout(3500);assert.equal(await hint.getAttribute('data-visible'),'false','a city change cannot restart an already-seen invitation');
+  await oneGlobe(page);await geometry(page,['[data-panorama-zoom]','#nextMotionToggle']);
+ },'no-preference');
  await check('Motion: fullscreen pause shares the original control; reduced motion keeps city choices usable',1440,async({page})=>{
   await start(page);await openGlobe(page);
   await page.locator('[data-panorama-motion]').click();await page.waitForFunction(()=>BoomFlightGlobe.state().paused);

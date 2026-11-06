@@ -9,13 +9,13 @@ body[data-direction="club"][data-experience="panorama"][data-edition="club"].eur
  & .button.gold:not(.search-submit):not(#europeDeskContinue)>span:last-child::after{content:"";width:20px;height:20px;background:var(--p-yellow);mask:var(--p-arrow-mask) center/20px 20px no-repeat;-webkit-mask:var(--p-arrow-mask) center/20px 20px no-repeat}
  & .detail-decision .decision-cta .button{min-height:56px;height:auto;border-radius:var(--p-radius);padding:10px 10px 10px 18px}
  & .next-section{padding:88px var(--edition-gutter);max-width:1600px}
- & .chapter-heading{gap:48px;margin-bottom:32px;align-items:end}
+ & .chapter-heading{gap:48px;margin-bottom:40px;align-items:end}
  & :is(.chapter-heading,.next-journey,.detail-support,.europe-story-lead,.europe-service-copy,.edition-brief-head)>.eyebrow,
  & .chapter-heading .eyebrow{display:none}
  & :is(.chapter-heading h2,.next-journey h2,.balance-heading h2){font:500 clamp(32px,3.5vw,48px)/1.1 var(--p-font);letter-spacing:-.025em;color:var(--p-text)}
  & .chapter-aside{max-width:370px;color:var(--p-muted);font-size:16px;line-height:1.6}
  & .chapter-aside .text-button{font-size:15px;margin-top:12px}
- & .europe-trustbar{padding:24px 0;border-color:var(--p-line);color:var(--p-muted);font-size:14px;gap:16px 32px}
+ & .europe-trustbar{padding:24px 0;border-color:var(--p-hairline);color:var(--p-muted);font-size:14px;gap:16px 32px}
  & .europe-trust-person{gap:6px 16px}
  & .europe-trust-person>span:first-child{display:none}
  & .europe-trust-person strong{color:var(--p-text);font-size:15px;font-weight:600}
@@ -64,7 +64,7 @@ body[data-direction="club"][data-experience="panorama"][data-edition="club"].eur
  & .club-media-open>span{display:none}
 
  /* The published ticket family: one gold flagship and three distinct services. */
- & .services-chapter{border-top:1px solid var(--p-line);background:var(--p-bg)}
+ & .services-chapter{border-top:1px solid var(--p-hairline);background:var(--p-bg)}
  & .next-tickets.panorama-ticketing{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-items:stretch;gap:24px;perspective:none}
  & .panorama-ticket,& .panorama-ticket:hover{--ticket-accent:var(--p-yellow);position:relative;display:grid;grid-template-columns:22px minmax(0,1fr);grid-template-rows:1fr auto;min-width:0;min-height:0;gap:0;padding:0;overflow:hidden;isolation:isolate;background:var(--p-surface);border:1px solid var(--p-line);border-radius:16px;color:var(--p-text);box-shadow:none;transform:none;transition:border-color var(--p-state) var(--p-ease)}
  & .panorama-ticket[data-rome-service="virtual-viewing"]{--ticket-accent:#00ff88}
@@ -76,19 +76,19 @@ body[data-direction="club"][data-experience="panorama"][data-edition="club"].eur
  & .next-ticket::before,& .decision-cta::before,& .decision-cta::after{display:none}
  & .panorama-ticket-band{grid-column:1;grid-row:1;display:flex;align-items:center;justify-content:center;overflow:hidden;writing-mode:vertical-rl;white-space:nowrap;font:600 12px/1 var(--p-font);letter-spacing:.04em;color:#000;background:linear-gradient(180deg,color-mix(in srgb,var(--ticket-accent) 60%,#000),color-mix(in srgb,var(--ticket-accent) 62%,#fff) 19%,color-mix(in srgb,var(--ticket-accent) 65%,#000) 43%,var(--ticket-accent) 72%,color-mix(in srgb,var(--ticket-accent) 48%,#000))}
  & .panorama-ticket-body{position:relative;grid-column:2;grid-row:1;display:flex;flex-direction:column;min-width:0;padding:28px}
- & .panorama-ticket h3{min-height:2.3em;padding:0;margin:0;font:500 30px/1.15 var(--p-font);letter-spacing:-.025em;color:var(--p-text);text-wrap:balance}
+ & .panorama-ticket h3{min-height:2.3em;padding:0;margin:0;font:500 28px/1.15 var(--p-font);letter-spacing:-.025em;color:var(--p-text);text-wrap:balance}
  & .panorama-ticket[data-rome-service="contract-check-express"] h3{text-wrap:wrap}
  & .panorama-ticket-situation{margin:8px 0 0;font:400 14px/1.5 var(--p-font);color:var(--p-muted)}
- & .panorama-ticket-route{position:relative;display:flex;align-items:center;gap:12px;margin:24px 0;font:500 16px/1.2 var(--p-font);letter-spacing:.015em;color:var(--p-text);white-space:nowrap}
+ & .panorama-ticket-route{position:relative;display:flex;align-items:center;gap:12px;margin:20px 0;font:500 16px/1.2 var(--p-font);letter-spacing:.015em;color:var(--p-text);white-space:nowrap}
  & .panorama-ticket-route>span:last-child{color:var(--ticket-accent)}
  & .panorama-ticket-route>i{position:relative;display:grid;place-items:center;flex:1;min-width:28px;height:28px;color:var(--ticket-accent)}
  & .panorama-ticket-route>i::before{content:"";position:absolute;inset:50% 0 auto;border-top:1px dashed color-mix(in srgb,var(--ticket-accent) 48%,transparent)}
  & .panorama-ticket-route svg{position:relative;width:28px;height:28px;padding:4px;background:var(--p-surface);fill:none;stroke:currentColor;stroke-width:1.6}
  & .panorama-ticket-description{flex:1;margin:0;font:400 16px/1.6 var(--p-font);color:var(--p-muted);max-width:65ch}
- & .panorama-ticket-facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:24px 0 0;padding-top:20px;border-top:1px solid var(--p-line)}
+ & .panorama-ticket-facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:24px 0 0;padding-top:20px;border-top:1px solid var(--p-hairline)}
  & .panorama-ticket-facts dt{font:400 12px/1.5 var(--p-font);color:var(--p-muted)}
  & .panorama-ticket-facts dd{margin:6px 0 0;font:500 14px/1.45 var(--p-font);color:var(--p-text)}
- & .panorama-ticket .ticket-terms{min-height:4.65em;margin:20px 0 0;padding:0;max-width:76ch;font:400 13px/1.55 var(--p-font);color:var(--p-muted);opacity:1}
+ & .panorama-ticket .ticket-terms{min-height:3.1em;margin:20px 0 0;padding:0;max-width:76ch;font:400 13px/1.55 var(--p-font);color:var(--p-muted);opacity:1}
  & .panorama-ticket .ticket-stub{position:relative;grid-column:1/-1;grid-row:2;display:grid;grid-template-columns:auto minmax(0,1fr);grid-template-rows:auto auto auto;align-items:center;gap:12px 20px;padding:24px 28px 28px;margin:0;border:0;border-top:1px dashed color-mix(in srgb,var(--ticket-accent) 48%,transparent);background:var(--p-bg);color:var(--p-text)}
  & .panorama-ticket .ticket-stub::before,& .panorama-ticket .ticket-stub::after{content:"";display:block;position:absolute;top:-10px;bottom:auto;left:-10px;right:auto;width:20px;height:20px;border:0;border-radius:50%;background:var(--p-bg)}
  & .panorama-ticket .ticket-stub::after{left:auto;right:-10px}
@@ -100,10 +100,10 @@ body[data-direction="club"][data-experience="panorama"][data-edition="club"].eur
  & .panorama-ticket-action>b svg{width:20px;height:20px;stroke-width:1.6;transition:transform var(--p-state) var(--p-ease)}
  & .panorama-ticket[data-rome-service="property-finding"]{grid-column:1/-1;grid-template-columns:28px minmax(0,1fr) 320px;grid-template-rows:1fr}
  & [data-rome-service="property-finding"] .panorama-ticket-band{grid-row:1/-1}
- & [data-rome-service="property-finding"] .panorama-ticket-body{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(250px,.9fr);grid-template-rows:auto auto auto auto auto;gap:0 32px;padding:36px}
+ & [data-rome-service="property-finding"] .panorama-ticket-body{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(250px,.9fr);grid-template-rows:auto auto auto auto auto;gap:0 32px;padding:32px 36px}
  & [data-rome-service="property-finding"] .panorama-ticket-body::after{content:"";position:absolute;inset:0;pointer-events:none;background:url('/assets/boom-logo-mark.svg') right 32px center/250px 250px no-repeat;opacity:.065;z-index:0}
  & [data-rome-service="property-finding"] .panorama-ticket-body>*{position:relative;z-index:1}
- & [data-rome-service="property-finding"] h3{grid-column:1;grid-row:1;min-height:0;font-size:42px}
+ & [data-rome-service="property-finding"] h3{grid-column:1;grid-row:1;min-height:0;font-size:38px}
  & [data-rome-service="property-finding"] .panorama-ticket-situation{grid-column:1;grid-row:2;font-size:16px}
  & [data-rome-service="property-finding"] .panorama-ticket-route{grid-column:2;grid-row:1/3;align-self:center;margin:0;font-size:23px}
  & [data-rome-service="property-finding"] .panorama-ticket-route svg{width:32px;height:32px;fill:currentColor;stroke:none;transform:rotate(90deg)}
@@ -120,17 +120,17 @@ body[data-direction="club"][data-experience="panorama"][data-edition="club"].eur
  & .panorama-catalogue-note{margin:24px 0 0;max-width:76ch;font:400 14px/1.65 var(--p-font);color:var(--p-muted)}
  & .panorama-catalogue-note a{color:var(--p-text);text-decoration:underline;text-decoration-color:var(--p-yellow);text-underline-offset:4px}
  & .service-foot{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));padding:24px 0 0;border:0;gap:16px}
- & .service-foot a{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:0 0 0 20px;border:1px solid var(--p-line);border-radius:var(--p-radius);overflow:hidden;background:var(--p-bg);text-decoration:none;font-size:15px;font-weight:500;line-height:1.4;color:var(--p-text);min-height:64px;transition:border-color var(--p-state) var(--p-ease),background-color var(--p-state) var(--p-ease)}
- & .service-foot span{display:grid;place-items:center;align-self:stretch;flex:none;width:56px;min-height:62px;border-left:1px dashed #786500;background:var(--p-yellow);color:#000}
+ & .service-foot a{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:0 0 0 20px;border:1px solid var(--p-line);border-radius:var(--p-radius);overflow:hidden;background:var(--p-bg);text-decoration:none;font-size:15px;font-weight:500;line-height:1.4;color:var(--p-text);min-height:56px;transition:border-color var(--p-state) var(--p-ease),background-color var(--p-state) var(--p-ease)}
+ & .service-foot span{display:grid;place-items:center;align-self:stretch;flex:none;width:52px;min-height:54px;border-left:1px solid var(--p-hairline);background:var(--p-surface);color:var(--p-yellow)}
  & .service-foot span svg{width:20px;height:20px;stroke-width:1.6}
- & .europe-service-proof{margin-top:24px;padding:24px 0;background:none;border:0;border-block:1px solid var(--p-line);border-radius:0;box-shadow:none;color:var(--p-text)}
+ & .europe-service-proof{margin-top:32px;padding:28px 0;background:none;border:0;border-block:1px solid var(--p-hairline);border-radius:0;box-shadow:none;color:var(--p-text)}
  & .europe-service-proof>span:first-child{display:grid;grid-template-columns:1fr;gap:10px}
  & .europe-service-proof strong{font-size:24px;font-weight:500;line-height:1.25;letter-spacing:-.02em;color:var(--p-text)}
  & .europe-service-proof small{display:none}
  & .europe-service-proof>span[aria-hidden]{display:flex;align-items:center;justify-content:center;flex:none;width:44px;height:44px;color:var(--p-text)}
  & .europe-service-proof>span[aria-hidden] svg{width:24px;height:24px;stroke-width:1.6}
  & .europe-service-proof>span:first-child>span{font:400 14px/1.6 var(--p-font);letter-spacing:0;color:var(--p-muted)}
- & .next-journey{grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:64px;border-color:var(--p-line)}
+ & .next-journey{grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:64px;border-color:var(--p-hairline)}
  & .next-journey ol::before,& .next-journey ol::after{display:none}
  & .next-journey li{gap:24px;padding-bottom:32px}
  & .next-journey li:last-child{padding-bottom:0}
@@ -331,6 +331,10 @@ body[data-direction="club"][data-experience="panorama"][data-edition="club"].eur
  & :is(.europe-home-controls button,.club-media-controls button,.photo-controls button,#europeDeskContinue):disabled{opacity:.5;cursor:not-allowed;transform:none}
  &[data-panorama-motion-state="quiet"] :is(.panorama-ticket-action,.panorama-ticket-action svg,.card-save,.europe-home-controls button,.club-media-controls button,.next-view-switch button,.detail-actions button,.photo-controls button,.balance-tools button,.balance-card-actions button,[data-europe-need]){transition:none;transform:none}
 }
+
+@media(min-width:1400px){body[data-direction="club"][data-experience="panorama"][data-edition="club"].europe-ready{
+ & .panorama-ticket h3{min-height:0}
+}}
 
 @media(max-width:1150px){body[data-direction="club"][data-experience="panorama"][data-edition="club"].europe-ready{
  & .panorama-ticket-body{padding:24px}

@@ -1,5 +1,6 @@
 /* BOOM desk globe. Natural Earth public-domain geography; city centres, not office locations.
-   A finite, on-demand canvas renderer. It does not own journey state or navigation. */
+   An on-demand canvas renderer, with an opt-in, pausable Panorama orbit.
+   It does not own journey state or navigation. */
 (function (global) {
   'use strict';
   var CITIES = [
@@ -63,7 +64,10 @@
     var s = instance = {
       root: root, city: city, data: null, ready: false, failed: false, visible: false,
       apiPaused: false, raf: 0, frames: 0, dirty: true, transition: null, width: 0, height: 0,
-      angle: [8, 43], target: [8, 43], scroll: 0, reduced: reduced, listeners: [], observers: [], destroyed: false
+      angle: [8, 43], target: [8, 43], scroll: 0, reduced: reduced, listeners: [], observers: [], destroyed: false,
+      ambient: root.dataset.globeAmbient === 'true', ambientTimer: 0, ambientResumeAt: 0, ambientOrigin: null, ambientPhase: 0, ambientLast: 0,
+      pointerWithin: false, focusWithin: false, connection: global.navigator && global.navigator.connection, motionState: '',
+      zoom: 1, zoomTarget: 1, zoomTransition: null, lastPaint: 0
     };
     root.classList.add('boom-flight-globe');
     root.dataset.globeState = 'loading';
@@ -93,7 +97,8 @@
     var drag=null;
     function endDrag(event){
       if(!drag || (event && event.pointerId!==drag.id))return;
-      var prior=drag;drag=null;s.dragging=false;root.dataset.globeDragging='false';
+      var prior=drag;drag=null;s.dragging=false;s.dragActive=false;root.dataset.globeDragging='false';
+      if(s.ambient)holdAmbient(s,1400);
       if(s.canvas.hasPointerCapture(prior.id))s.canvas.releasePointerCapture(prior.id);
       if(prior.moved && canMove(s) && event && event.type==='pointerup'){
         var carry=performance.now()-prior.time<90?clamp(prior.velocity*100,-12,12):0;
@@ -106,7 +111,8 @@
     listen(s.canvas,'pointerdown',function(event){
       if(!s.ready || flight || paused(s) || event.button!==0 || drag)return;
       s.transition=null;
-      drag={id:event.pointerId,x:event.clientX,y:event.clientY,angle:s.angle.slice(),lastX:event.clientX,time:performance.now(),velocity:0,moved:false};
+      if(s.ambient){holdAmbient(s,1400);s.ambientOrigin=null;s.zoomTransition=null;s.zoomTarget=s.zoom;s.root.dispatchEvent(new CustomEvent('boom-globe-camera',{detail:{zoom:s.zoom,min:1,max:1.25}}));}
+      s.dragActive=true;drag={id:event.pointerId,x:event.clientX,y:event.clientY,angle:s.angle.slice(),lastX:event.clientX,time:performance.now(),velocity:0,moved:false};
     });
     listen(s.canvas,'pointermove',function(event){
       if(!drag || event.pointerId!==drag.id)return;
@@ -119,12 +125,26 @@
     });
     listen(s.canvas,'pointerup',endDrag);listen(s.canvas,'pointercancel',endDrag);listen(s.canvas,'lostpointercapture',endDrag);
     listen(global,'pointerup',endDrag);
-    listen(root.querySelector('.boom-globe-reset'),'click',function(){
+    listen(root.querySelector('.boom-globe-reset'),'click',function(event){
       endDrag();s.target=orientation(s,s.city);
-      if(canMove(s))s.transition={from:s.angle.slice(),to:s.target.slice(),start:performance.now(),duration:650};
+      if(s.ambient){holdAmbient(s,900);s.ambientOrigin=null;setZoom(1,{animate:event.detail>0});}
+      if(canMove(s)&&(!s.ambient||event.detail>0))s.transition={from:s.angle.slice(),to:s.target.slice(),start:performance.now(),duration:650};
       else{s.angle=s.target.slice();s.transition=null;}
       requestDraw(s);
     });
+    // Ambient motion belongs only to the explicit Panorama presentation. The
+    // globe freezes under the pointer and keyboard focus, so choosing never chases a target.
+    listen(root,'pointerenter',function(event){if(event.pointerType==='touch')return;s.pointerWithin=true;if(s.ambient)holdAmbient(s,900);});
+    listen(root,'pointerleave',function(event){if(event.pointerType==='touch')return;s.pointerWithin=false;s.focusWithin=!!(document.activeElement&&root.contains(document.activeElement)&&document.activeElement.matches(':focus-visible'));if(s.ambient){holdAmbient(s,900);scheduleAmbient(s);}});
+    listen(root,'focusin',function(event){s.focusWithin=event.target.matches(':focus-visible');if(s.ambient&&s.focusWithin)holdAmbient(s,900);});
+    listen(root,'focusout',function(event){s.focusWithin=!!(event.relatedTarget&&root.contains(event.relatedTarget)&&event.relatedTarget.matches(':focus-visible'));if(s.ambient&&!s.focusWithin){holdAmbient(s,900);scheduleAmbient(s);}});
+    var ambientObserver=new MutationObserver(function(){
+      s.ambient=root.dataset.globeAmbient==='true';s.ambientOrigin=null;s.ambientLast=0;if(s.ambient)s.scroll=0;
+      if(!s.ambient){stopAmbient(s);s.zoom=s.zoomTarget=1;s.zoomTransition=null;}
+      measure(s);requestDraw(s);
+    });
+    ambientObserver.observe(root,{attributes:true,attributeFilter:['data-globe-ambient']});s.observers.push(ambientObserver);
+    if(s.connection&&s.connection.addEventListener)listen(s.connection,'change',function(){if(s.connection.saveData)stopAmbient(s);else scheduleAmbient(s);});
     s.pauseButton = document.getElementById('nextMotionToggle');
     if (s.pauseButton) {
       var pauseObserver = new MutationObserver(function () { syncMotion(s); });
@@ -144,7 +164,7 @@
       visibilityObserver.observe(root); s.observers.push(visibilityObserver);
     } else s.visible = true;
     listen(global, 'scroll', function () {
-      if (s.visible && !paused(s) && !s.reduced.matches) { s.scrollDirty = true; requestDraw(s); }
+      if (!s.ambient && s.visible && !paused(s) && !s.reduced.matches) { s.scrollDirty = true; requestDraw(s); }
     }, { passive: true });
     listen(document, 'visibilitychange', function () { if (document.hidden && flight) arrive(flight, 'hidden'); syncMotion(s); });
     listen(global, 'pagehide', function () { cancelFlight(); settle(s); });
@@ -184,11 +204,39 @@
   }
   function paused(s) { return s.apiPaused || !!(s.pauseButton && s.pauseButton.getAttribute('aria-pressed') === 'true'); }
   function canMove(s) { return !paused(s) && !s.reduced.matches && !document.hidden && s.visible; }
+  function motionState(s,value){if(s.motionState!==value){s.motionState=value;s.root.dataset.globeMotion=value;}}
+  function ambientAllowed(s){return s.ambient&&s.ready&&!s.destroyed&&!s.failed&&canMove(s)&&!flight&&!s.pointerWithin&&!s.focusWithin&&!s.dragActive&&!(s.connection&&s.connection.saveData);}
+  function stopAmbient(s){
+    clearTimeout(s.ambientTimer);s.ambientTimer=0;s.ambientLast=0;
+    if(!s.transition&&!s.zoomTransition){
+      // A resize clears the canvas. Hover/focus must stop an orbit frame, never
+      // cancel the one required repaint after moving the same canvas out of Full view.
+      if(s.raf&&!s.dirty){cancelAnimationFrame(s.raf);s.raf=0;}motionState(s,'still');
+    }
+  }
+  function holdAmbient(s,delay){s.ambientResumeAt=performance.now()+delay;stopAmbient(s);}
+  function scheduleAmbient(s){
+    if(!ambientAllowed(s)||s.ambientTimer||s.transition||s.zoomTransition)return;
+    // A timeout arms one rAF at a maximum of 24 paints/second. There is no
+    // hidden/offscreen polling, no per-frame layout read and no moving HTML label.
+    var wait=Math.max(0,s.ambientResumeAt-performance.now(),1000/24-(performance.now()-s.lastPaint));
+    s.ambientTimer=global.setTimeout(function(){s.ambientTimer=0;if(ambientAllowed(s))requestDraw(s,true);},wait);
+  }
+  function setZoom(value,options){
+    var s=instance;options=options||{};
+    if(!s||s.destroyed||!s.ambient||!Number.isFinite(value))return null;
+    var next=clamp(value,1,1.25);holdAmbient(s,900);s.zoomTarget=next;
+    if(canMove(s)&&options.animate!==false&&Math.abs(next-s.zoom)>.001)s.zoomTransition={from:s.zoom,to:next,start:performance.now(),duration:260};
+    else{s.zoom=next;s.zoomTransition=null;}
+    s.root.dispatchEvent(new CustomEvent('boom-globe-camera',{detail:{zoom:next,min:1,max:1.25}}));
+    requestDraw(s);return next;
+  }
   function settle(s) {
     if(s.cancelDrag)s.cancelDrag();
+    stopAmbient(s);
     if (s.raf) cancelAnimationFrame(s.raf);
     s.raf = 0; s.transition = null; s.angle = s.target.slice(); s.dirty = true;
-    s.root.dataset.globeMotion = 'still';
+    s.zoomTransition=null;s.zoom=s.zoomTarget;motionState(s,'still');
   }
   function syncMotion(s) {
     if (flight && (paused(s) || s.reduced.matches)) arrive(flight, 'motion-disabled');
@@ -201,6 +249,7 @@
     if (s.city === slug) return true;
     if(s.cancelDrag)s.cancelDrag();
     s.city = slug; updateButtons(s); s.target = orientation(s, slug);
+    if(s.ambient){holdAmbient(s,900);s.ambientOrigin=null;}
     if (s.ready && canMove(s)) s.transition = { from: s.angle.slice(), to: s.target.slice(), start: performance.now(), duration: 850 };
     else { s.transition = null; s.angle = s.target.slice(); }
     requestDraw(s); return true;
@@ -231,8 +280,8 @@
       s.labelPositions[item.slug] = [x, y];
     });
   }
-  function requestDraw(s) {
-    s.dirty = true;
+  function requestDraw(s,ambientOnly) {
+    if(!ambientOnly)s.dirty = true;
     if (s.destroyed || s.raf || flight || !s.visible || document.hidden || !s.width || !s.height || !s.context) return;
     s.raf = requestAnimationFrame(function (time) { frame(s, time); });
   }
@@ -244,21 +293,33 @@
       else {
         var p = clamp((time-s.transition.start)/s.transition.duration, 0, 1), eased = 1-Math.pow(1-p, 3);
         s.angle = [s.transition.from[0]+(s.transition.to[0]-s.transition.from[0])*eased, s.transition.from[1]+(s.transition.to[1]-s.transition.from[1])*eased];
-        if (p === 1) s.transition = null;
+        if (p === 1) {s.transition = null;if(s.ambient)s.ambientOrigin=null;}
       }
     }
+    if(s.zoomTransition){
+      if(!canMove(s)){s.zoom=s.zoomTarget;s.zoomTransition=null;}
+      else{var zp=clamp((time-s.zoomTransition.start)/s.zoomTransition.duration,0,1),ze=1-Math.pow(1-zp,3);s.zoom=s.zoomTransition.from+(s.zoomTransition.to-s.zoomTransition.from)*ze;if(zp===1)s.zoomTransition=null;}
+    }
+    var orbit=ambientAllowed(s)&&!s.transition&&!s.zoomTransition&&time>=s.ambientResumeAt;
+    if(orbit){
+      if(!s.ambientOrigin){s.ambientOrigin=s.angle.slice();s.ambientPhase=0;s.ambientLast=0;}
+      if(s.ambientLast)s.ambientPhase+=Math.min(100,time-s.ambientLast)/1000*.045;
+      s.ambientLast=time;
+      s.angle=[s.ambientOrigin[0]+Math.sin(s.ambientPhase)*8,s.ambientOrigin[1]+Math.sin(s.ambientPhase*.7)*1.5];
+      s.target=s.angle.slice();
+    }else s.ambientLast=0;
     if (s.scrollDirty) {
       s.scrollDirty = false;
-      if (canMove(s) && !s.dragging) { var rect = s.root.getBoundingClientRect(); s.scroll = clamp((innerHeight*.45-rect.top-rect.height*.5)/Math.max(1, innerHeight), -1, 1)*4; }
+      if (!s.ambient && canMove(s) && !s.dragging) { var rect = s.root.getBoundingClientRect(); s.scroll = clamp((innerHeight*.45-rect.top-rect.height*.5)/Math.max(1, innerHeight), -1, 1)*4; }
     }
-    s.root.dataset.globeMotion = s.transition ? 'transition' : 'still';
-    paint(s); s.frames++; s.dirty = false;
-    if (s.transition) requestDraw(s);
+    motionState(s,s.transition||s.zoomTransition?'transition':orbit?'ambient':'still');
+    paint(s); s.frames++; s.dirty = false;s.lastPaint=time;
+    if (s.transition||s.zoomTransition) requestDraw(s);else scheduleAmbient(s);
   }
   function paint(s, view) {
     view = view || {};
     var ctx = view.context || s.context, w = view.width || s.width, h = view.height || s.height;
-    var cx = view.cx == null ? w*.5 : view.cx, cy = view.cy == null ? h*.47 : view.cy, r = view.radius || Math.min(w*.455, h*.465);
+    var cx = view.cx == null ? w*.5 : view.cx, cy = view.cy == null ? h*(s.ambient?.5:.47) : view.cy, r = view.radius || (s.ambient?Math.min(w,h)*.40*s.zoom:Math.min(w*.455,h*.465));
     var angle = view.angle || [s.angle[0]+s.scroll, s.angle[1]+s.scroll*.4], selectedCity = view.city || s.city;
     var zoom = view.radius ? Math.min(2, r / Math.min(w,h)) : 1;
     ctx.setTransform(view.dpr || s.dpr, 0, 0, view.dpr || s.dpr, 0, 0); ctx.clearRect(0, 0, w, h);
@@ -411,12 +472,13 @@
     if (!s || !s.ready || s.destroyed || s.failed || document.hidden || paused(s) || s.reduced.matches) {
       arrive(f,'instant'); return promise;
     }
+    var cameraAngle=s.angle.slice(),cameraZoom=s.zoom;
     settle(s); // The globe and the immersive handoff never own simultaneous frame loops.
     try {
       var rect = s.stage.getBoundingClientRect(), visible = rect.bottom > 0 && rect.top < innerHeight && rect.right > 0 && rect.left < innerWidth;
-      f.origin = visible ? { x:rect.left+rect.width*.5,y:rect.top+rect.height*.47,radius:Math.min(rect.width*.455,rect.height*.465) }
+      f.origin = visible ? { x:rect.left+rect.width*.5,y:rect.top+rect.height*(s.ambient?.5:.47),radius:s.ambient?Math.min(rect.width,rect.height)*.40*cameraZoom:Math.min(rect.width*.455,rect.height*.465) }
         : { x:innerWidth*.5,y:innerHeight*.5,radius:Math.min(innerWidth,innerHeight)*.36 };
-      f.angle = [s.angle[0]+s.scroll,s.angle[1]+s.scroll*.4];
+      f.angle = s.ambient?cameraAngle:[s.angle[0]+s.scroll,s.angle[1]+s.scroll*.4];
       f.destination = s.data.cities[slug].coordinate.slice();
       var item = CITIES.find(function (city) { return city.slug === slug; });
       f.overlay = document.createElement('dialog'); f.overlay.className = 'boom-globe-flight';
@@ -441,7 +503,7 @@
   function setPaused(value) { if (instance) { instance.apiPaused = !!value; syncMotion(instance); } }
   function state() {
     var s = instance;
-    var current = s ? { city:s.city, ready:s.ready, visible:s.visible, paused:paused(s), reducedMotion:s.reduced.matches, rafPending:!!s.raf, frames:s.frames, error:s.failed, dragging:!!s.dragging, angle:s.angle.slice() } : { ready:false, visible:false, paused:false, reducedMotion:false, rafPending:false, frames:0 };
+    var current = s ? { city:s.city, ready:s.ready, visible:s.visible, paused:paused(s), reducedMotion:s.reduced.matches, rafPending:!!s.raf, frames:s.frames, error:s.failed, dragging:!!s.dragging, angle:s.angle.slice(),ambient:s.ambient,ambientActive:s.motionState==='ambient',ambientPending:!!s.ambientTimer,saveData:!!(s.connection&&s.connection.saveData),zoom:s.zoom,zoomTarget:s.zoomTarget,zoomMin:1,zoomMax:1.25 } : { ready:false, visible:false, paused:false, reducedMotion:false, rafPending:false, frames:0 };
     current.flying = !!flight; current.flightCity = flight ? flight.city : null; current.flightCovered = !!(flight && flight.covered);
     current.flightRafPending = !!(flight && flight.raf); current.flightFrames = flight ? flight.frames : 0;
     return current;
@@ -450,12 +512,12 @@
     cancelFlight();
     var s = instance; if (!s) return;
     if(s.cancelDrag)s.cancelDrag();
-    s.destroyed = true; if (s.raf) cancelAnimationFrame(s.raf); if (s.abort) s.abort.abort(); clearTimeout(s.timeout);
+    s.destroyed = true; stopAmbient(s); if (s.raf) cancelAnimationFrame(s.raf); if (s.abort) s.abort.abort(); clearTimeout(s.timeout);
     s.observers.forEach(function (observer) { observer.disconnect(); }); s.listeners.forEach(function (remove) { remove(); });
     s.root.replaceChildren(); s.root.classList.remove('boom-flight-globe');
     ['globeState','globeCity','globeMotion','globeCompact'].forEach(function (name) { delete s.root.dataset[name]; });
     s.root.style.removeProperty('--globe-label-width');
     instance = null;
   }
-  var api = global.BoomFlightGlobe = { mount:mount, selectCity:selectCity, flyTo:flyTo, cancelFlight:cancelFlight, setPaused:setPaused, destroy:destroy, state:state };
+  var api = global.BoomFlightGlobe = { mount:mount, selectCity:selectCity, flyTo:flyTo, cancelFlight:cancelFlight, setPaused:setPaused, setZoom:setZoom, destroy:destroy, state:state };
 })(window);

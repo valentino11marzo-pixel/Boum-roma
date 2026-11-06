@@ -5043,6 +5043,12 @@ I due hook del brief estero vivono ora in `assets/src/boom-city.js` e sono rigen
 VV/DAS/CCE e `/services` caricano `boom-navigation-boundary.js` anche dalle basi sorgenti: solo verso Flight salta lo snapshot nativo che Chromium rifiuta al ritorno. Form, prezzi, navigazione e checkout restano originali.
 Le otto suite UI principali passano86 scenari; `flightcityhandoff` passa16 prove, incluse Valencia, Parigi aperta con ordine alla firma e una fixture esplicita di desk chiuso. `flightpanoramaui` verifica il Back senza errori browser e senza invii; il solo ping Google di consenso negato è identificato e bloccato.
 
+Flight Panorama orbita 06/11: fondale Solari più quieto, selettore città meno incorniciato e testata planner scura; lettere originali, azioni gialle e quattro biglietti reali conservati. Le proporzioni sono documentate in `design/panorama-orbit-refinement.md`.
+Solo `data-globe-ambient=true` attiva una rotazione geografica lenta, limitata a24 fotogrammi/s; si ferma sotto puntatore/focus, fuori vista, in background, durante gesti/volo, in pausa, con reduced-motion e risparmio dati. Club resta on-demand.
+Zoom+/− modifica soltanto la camera, con260ms interrompibili e tastiera immediata; Reset ripristina distanza/orientamento. La pausa originale sta accanto al globo, anche sul telefono; Full view sposta ancora lo stesso canvas.
+Un suggerimento dopo3,2s di inattività visibile appare una volta sola; attività/pausa lo eliminano, senza focus, scroll, annunci o stato cliente. Nessuna nuova dipendenza o telemetria.
+`flightpanoramaui` aggiunge tre prove su pittura reale, zoom, lifecycle e suggerimento; `flightclubflight` conserva la quiete finita del Club. Il merge di main f6663503 conserva credito upgrade e correzioni delle caselle operative.
+
 Flight Lab 31/10: `/flight-lab` confronta Atlas, Residence e Club sulle stesse viste reali di `/flight-next?direction=…`, senza cambiare il sito pubblico.
 Le composizioni riusano catalogo, Solari, iframe Skyline, salvataggi e Apply; nessun secondo catalogo o nuovo handler di invio.
 Residence usa una foto realmente restituita dal catalogo pubblico (fallback a una casa pubblica non chiusa); Atlas sposta la stessa mappa nel primo schermo.

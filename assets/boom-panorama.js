@@ -11,6 +11,7 @@
   document.querySelector('meta[name="theme-color"]').content='#000';
   var anchor=document.createElement('span');anchor.hidden=true;anchor.dataset.panoramaAnchor='';atlas.before(anchor);
   atlas.dataset.globeLabels='selected';
+  atlas.dataset.globeAmbient='true';
   var toolbar=document.createElement('div');toolbar.className='panorama-globe-toolbar';
   toolbar.innerHTML='<span>Explore the BOOM destinations</span><button type="button" data-panorama-expand aria-haspopup="dialog" aria-controls="panoramaGlobeDialog">Full view <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg></button>';
   atlas.prepend(toolbar);
@@ -49,7 +50,55 @@
   document.body.appendChild(dialog);
   var opener=null,restored=true,returnFocus=true,entrance=null,reduce=matchMedia('(prefers-reduced-motion: reduce)');
   var pause=byId('nextMotionToggle'),motion=dialog.querySelector('[data-panorama-motion]');
-  function syncMotion(){var paused=pause.getAttribute('aria-pressed')==='true';document.body.dataset.panoramaMotionState=paused||reduce.matches?'quiet':'active';motion.setAttribute('aria-pressed',String(paused));motion.textContent=paused?'Resume motion':'Pause motion';if((paused||reduce.matches)&&entrance){entrance.cancel();entrance=null;}}
+  // Keep the real pause control beside the moving object, including on phones.
+  var globeTools=document.createElement('div');globeTools.className='panorama-globe-tools';
+  globeTools.setAttribute('role','group');globeTools.setAttribute('aria-label','Globe view controls');
+  globeTools.innerHTML='<button type="button" data-panorama-zoom="out" aria-label="Zoom out" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg></button><button type="button" data-panorama-zoom="in" aria-label="Zoom in"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M12 5v14"/></svg></button>';
+  var caption=atlas.querySelector('.boom-globe-caption');caption.prepend(globeTools);
+  globeTools.appendChild(atlas.querySelector('.boom-globe-reset'));globeTools.appendChild(pause);
+  var zoomOut=globeTools.querySelector('[data-panorama-zoom="out"]'),zoomIn=globeTools.querySelector('[data-panorama-zoom="in"]');
+  function syncZoom(){
+    var camera=window.BoomFlightGlobe.state(),ready=camera.ready&&!camera.error;
+    zoomOut.disabled=!ready||camera.zoomTarget<=camera.zoomMin;
+    zoomIn.disabled=!ready||camera.zoomTarget>=camera.zoomMax;
+  }
+  globeTools.addEventListener('click',function(event){
+    var control=event.target.closest('[data-panorama-zoom]');if(!control)return;
+    var camera=window.BoomFlightGlobe.state();
+    var step=(camera.zoomMax-camera.zoomMin)/2;
+    window.BoomFlightGlobe.setZoom(camera.zoomTarget+(control.dataset.panoramaZoom==='in'?step:-step),{animate:event.detail>0});
+    syncZoom();
+  });
+  atlas.addEventListener('boom-globe-camera',syncZoom);
+  // One quiet invitation after a genuine pause in exploration; never an alert,
+  // a new step, or a repeating attention loop. Essential controls stay visible.
+  var hint=document.createElement('p');hint.className='panorama-globe-hint';hint.dataset.visible='false';hint.setAttribute('aria-hidden','true');
+  hint.textContent='Drag to rotate. Choose a city to continue.';atlas.querySelector('.boom-globe-stage').appendChild(hint);
+  var hintTimer=0,hintShown=false,hintVisible=false,atlasVisible=false,pageAway=false;
+  function clearHint(){
+    clearTimeout(hintTimer);hintTimer=0;
+    if(hintVisible){hintVisible=false;hint.dataset.visible='false';}
+  }
+  function hintAllowed(){
+    return !hintShown&&!pageAway&&atlasVisible&&!document.hidden&&!reduce.matches&&pause.getAttribute('aria-pressed')!=='true'&&atlas.dataset.globeState==='ready'&&atlas.dataset.globeDragging!=='true'&&!document.activeElement?.matches('input,select,textarea,button,a,[contenteditable="true"]');
+  }
+  function scheduleHint(){
+    clearHint();if(!hintAllowed())return;
+    hintTimer=setTimeout(function(){hintTimer=0;if(!hintAllowed())return;hintShown=true;hintVisible=true;hint.dataset.visible='true';},3200);
+  }
+  function syncMotion(){var paused=pause.getAttribute('aria-pressed')==='true';document.body.dataset.panoramaMotionState=paused||reduce.matches?'quiet':'active';motion.setAttribute('aria-pressed',String(paused));motion.textContent=paused?'Resume motion':'Pause motion';if((paused||reduce.matches)&&entrance){entrance.cancel();entrance=null;}scheduleHint();}
+  new MutationObserver(function(){syncZoom();scheduleHint();}).observe(atlas,{attributes:true,attributeFilter:['data-globe-state']});
+  if(window.IntersectionObserver)new IntersectionObserver(function(entries){atlasVisible=entries[0].isIntersecting&&entries[0].intersectionRatio>=.35;scheduleHint();},{threshold:[0,.35]}).observe(atlas);
+  document.addEventListener('pointerdown',clearHint,{passive:true});
+  document.addEventListener('pointerup',scheduleHint,{passive:true});
+  document.addEventListener('keydown',clearHint);
+  document.addEventListener('focusin',clearHint);
+  document.addEventListener('focusout',function(){queueMicrotask(scheduleHint);});
+  atlas.addEventListener('pointermove',scheduleHint,{passive:true});
+  document.addEventListener('visibilitychange',scheduleHint);
+  window.addEventListener('pagehide',function(){pageAway=true;clearHint();});
+  window.addEventListener('pageshow',function(){pageAway=false;scheduleHint();});
+  syncZoom();
   function restore(){
     if(restored)return;restored=true;
     if(entrance){entrance.cancel();entrance=null;}
