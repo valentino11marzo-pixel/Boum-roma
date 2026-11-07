@@ -370,9 +370,14 @@ const CITY_SERVICE_META = {
 // Valencia two languages are local (Valencian is co-official) and the page
 // promises the letter in Spanish.
 // The desks not listed keep the line above, byte for byte.
-const CITY_LETTER_LANG = { london: 'in English', milan: 'in Italian and English', valencia: 'in Spanish and English' };
+const CITY_LETTER_LANG = { london: 'in English', milan: 'in Italian and English', valencia: 'in Spanish and English', paris: 'in French', berlin: 'in German' };
+// Berlin's Full Search works only on homes a landlord lets BOOM offer to the
+// tenant alone (the page's first line, WoVermRG §2(1a)): its third step says
+// that, not "applications as listings appear" (06/11, the desk takes the card)
+const CITY_FS_NEXT3 = { berlin: ['Homes offered to you alone', "From landlords who let us offer a home to you alone, with their go-ahead — you see every one"] };
 function cityServiceMeta(cityKey, kind) {
   const base = CITY_SERVICE_META[kind] || { emoji: '✓' };
+  if (kind === 'full-search' && CITY_FS_NEXT3[cityKey]) return { ...base, next3: CITY_FS_NEXT3[cityKey] };
   const lang = CITY_LETTER_LANG[cityKey];
   if (kind !== 'application-pack' || !lang) return base;
   return { ...base, next2: [base.next2[0], `From your papers — local format, cover letter ${lang}`] };

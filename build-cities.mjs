@@ -1957,21 +1957,26 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
   // (v1.8: not asked of a desk that charges at signing — Paris states its
   // extra viewings by data, Berlin may state none: WoVermRG §3(3))
   const avPrice = pr(plans[2].price);
-  need(fsPlan.includes.some((x) => x.includes(`(more: ${avPrice} each)`)) || waitlist || signing, where, `Full Search on a desk that sells says "(more: ${avPrice} each)": one viewing is included, the rest are priced at the Attended Viewing's own price`);
+  // Germany prices no extra viewing around a Full Search (WoVermRG §3(3), below): exempt
+  const inDE = String(city.country || '').toUpperCase() === 'DE';
+  need(fsPlan.includes.some((x) => x.includes(`(more: ${avPrice} each)`)) || waitlist || signing || inDE, where, `Full Search on a desk that sells says "(more: ${avPrice} each)": one viewing is included, the rest are priced at the Attended Viewing's own price`);
   need(fsPlan.includes.some((x) => /Until you sign, or you say stop/.test(x)) || waitlist, where, 'Full Search says how long it runs: "Until you sign, or you say stop"');
   // Berlin, a desk still opening: both condition strings say "sign" (the
   // draft's pin). A desk that SELLS cannot ("a sell desk's condition never
   // says sign", above): there the law is pinned by data, below.
   if (city.slug === 'berlin' && waitlist) need(/sign/i.test(fsPlan.condition) && /sign/i.test(fsPlan.conditionLong), where, 'berlin: Full Search is due only once a lease is signed (WoVermRG §2–§3) — both condition strings must say "sign"');
-  // v1.8 — the law of the country, by data, on a desk that sells there:
-  // France (loi Hoguet art. 6: nothing is taken before the operation is
-  // concluded) and Germany (WoVermRG §2(4): no advance) charge at signing.
+  // v1.8 required France and Germany to charge at signing (loi Hoguet art. 6:
+  // nothing is taken before the operation is concluded; WoVermRG §2(4): no
+  // advance). 06/11/2026: the founder decided that Paris and Berlin take the
+  // card at the order like the six, after being told the exposure in writing
+  // (France: art. 16 loi Hoguet; Germany: §8 fines and §5 refund claims) — the
+  // decision and its risk are in CLAUDE.md. The guard is gone on purpose; the
+  // copy rules of the two countries below stay (they say true things).
   const FR = String(city.country || '').toUpperCase() === 'FR', DE = String(city.country || '').toUpperCase() === 'DE';
-  if (sell && (FR || DE)) need(signing, where, `${FR ? 'France: loi Hoguet art. 6' : 'Germany: WoVermRG §2(4)'} — a desk that sells there takes nothing before the lease: it charges at signing (CITY_MARKETS.${city.slug}.chargeAt "signing")`);
   if (sell && FR) {
     // loi Hoguet art. 7 (spec D5): a search mandate runs for a limited time
     need(fsPlan.includes.some((x) => /\(six months at most\)/.test(x)), where, 'France: Full Search says how long the mandate runs, "(six months at most)" (loi Hoguet art. 7, spec D5)');
-    need(/six months at most/.test(String(city.checkoutCopy && city.checkoutCopy.order)), where, 'France: the order line before the button says the mandate runs "six months at most" (loi Hoguet art. 7, spec D5)');
+    if (signing) need(/six months at most/.test(String(city.checkoutCopy && city.checkoutCopy.order)), where, 'France: the order line before the button says the mandate runs "six months at most" (loi Hoguet art. 7, spec D5)');
   }
   if (sell && DE) {
     // WoVermRG: every fee only once a lease is signed (§2: the shape above,
@@ -3588,8 +3593,9 @@ export function renderHub({ template, shared, hub, cities, assetVersion, frags, 
   const fr = hub.fares;
   const spain = fr.spain ? Topt(fr.spain, 'fares.spain note') : null;
   // v1.8 (H1): the fares are the same at every desk, the TIMING is not — the desks that charge at signing are named
-  // before the first price (dropped, with a warning, when no live desk charges at signing)
-  const signNote = fr.signing ? Topt(fr.signing, 'fares.signing note') : null;
+  // before the first price. With no live desk charging at signing (since 06/11/2026) the note has nothing to say:
+  // silently absent, never a warning (a warning is for an item that should be there)
+  const signNote = fr.signing && tok.signDesks ? Topt(fr.signing, 'fares.signing note') : null;
   const gbpDesk = gbp.length ? `at the ${listJoin(gbp.map((c) => c.city))} desk${gbp.length > 1 ? 's' : ''}` : '';
   const tickets = plans.map((p) => {
     const hp = fr.plans[p.id];

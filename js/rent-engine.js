@@ -111,8 +111,9 @@
     return /^canone locazione(?: \d{4}-(?:0[1-9]|1[0-2]))?$/.test(key(i.service)) && /^ricevuta canone di locazione(?:\s*·|$)/.test(key(i.description));
   }
   function businessInvoices(invoices) { return list(invoices).filter(function (i) { return !isRentReceipt(i); }); }
-  // A fee invoiced for a desk abroad (v1.8: Paris and Berlin bill at the
-  // signing of a lease, `invoices/cityfee_*` with vatCountry 'FR'|'DE'): its
+  // A fee invoiced for a desk abroad (v1.8: Paris and Berlin billed at the
+  // signing of a lease the orders booked until 06/11/2026,
+  // `invoices/cityfee_*` with vatCountry 'FR'|'DE'): its
   // VAT is the country's of the property, not Italy's (place of supply still
   // with the accountant, spec §16 O13). It stays a company invoice, but the
   // Italian IVA estimate must not count it: the readers (contabile,

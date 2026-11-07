@@ -11,8 +11,10 @@
 //     by a hand-made POST (400 checkout_closed, no Stripe call) — shown is
 //     not charged; since the v1.8 flip there is no waitlist left, so the
 //     refusal runs on Paris patched back to its draft (try/finally);
-//   - a desk charged at signing (Paris, Berlin since the v1.8 flip) ever
-//     opening a payment session: its order answers BOOKED, Stripe untouched;
+//   - a desk charged at signing ever opening a payment session: its order
+//     answers BOOKED, Stripe untouched (since the card flip of 06/11 Paris
+//     and Berlin take the card like the six; the signing rail runs with the
+//     registry patched, try/finally);
 //   - the price coming from the browser instead of CITY_PLANS;
 //   - the paid lead filed as a Rome service (no market → the Commerciale
 //     drafts a Rome reply to someone who just paid for Amsterdam);
@@ -155,12 +157,18 @@ const ANNA = { name: 'Anna Keller', email: 'anna@example.com' };
 // ── 1 · the offer resolver: what may be sold, and why not ──────────────────
 check(cityOffer('amsterdam', 'full-search').ok === true && cityOffer('amsterdam', 'full-search').eur === 500 && cityOffer('Madrid', 'attended-viewing').eur === 149,
   'cityOffer: a search desk with the till open sells its plans at CITY_PLANS prices (city key case-insensitive)');
-// v1.8 FLIP: the pin moved (spec §13.2) — Paris and Berlin were waitlists (checkout_closed); since the flip they sell
-// the same grid, charged at signing, and the offer says so. The waitlist refusal keeps its test on Paris patched back
-// to its draft registry entry (try/finally): no waitlist desk is left in the registry
-check(['paris', 'berlin'].every((c) => { const o = cityOffer(c, 'full-search'); return o.ok === true && o.chargeAt === 'signing' && o.eur === CITY_PLANS['full-search'].eur && o.currency === 'eur'; })
-  && cityOffer('amsterdam', 'full-search').chargeAt === 'checkout',
-  'cityOffer: Paris and Berlin sell the grid charged at signing (chargeAt "signing"); the six charge at the checkout');
+// v1.8 FLIP moved this pin (Paris and Berlin charged at signing); the card flip (06/11, the founder's decision) moved it
+// again: the eight sell the same grid at the checkout. The offer still says "signing" when the registry does (patched,
+// try/finally), and the waitlist refusal keeps its test on Paris patched back to its draft registry entry
+check(['paris', 'berlin', 'amsterdam'].every((c) => { const o = cityOffer(c, 'full-search'); return o.ok === true && o.chargeAt === 'checkout' && o.eur === CITY_PLANS['full-search'].eur && o.currency === 'eur'; }),
+  'cityOffer: Paris and Berlin sell the grid at the checkout since 06/11, like the six (chargeAt "checkout")');
+{
+  const keep = CITY_MARKETS.paris;
+  try {
+    CITY_MARKETS.paris = { ...keep, chargeAt: 'signing' };
+    check(cityOffer('paris', 'full-search').chargeAt === 'signing', 'cityOffer: a desk the registry charges at signing (Paris patched) says so');
+  } finally { CITY_MARKETS.paris = keep; }
+}
 {
   const keep = CITY_MARKETS.paris;
   try {
@@ -185,19 +193,34 @@ check(/Refunded in full if we decline the search in the first call/.test(CITY_PL
   check(r.code === 200 && r.body.url === '/' && globalThis.__stripeCalls.length === 0, 'honeypot: 200, Stripe never called');
 }
 {
-  const before = globalThis.__stripeCalls.length;
-  // v1.8 FLIP: the pins moved (spec §13.2) — Berlin and Paris were waitlists (400 checkout_closed); since the flip they
-  // are charged at signing: a signing desk never opens a payment session and answers BOOKED. A hand-made POST without
-  // the order terms the page shows is refused by the order rail; an order with them is booked, and Stripe is untouched
-  const r = await post(checkout, { city: 'berlin', kind: 'full-search', ...ANNA });
-  check(r.code === 409 && r.body.error === 'terms_changed' && !('url' in r.body) && globalThis.__stripeCalls.length === before,
-    'berlin (charged at signing): a hand-made POST without the order terms is 409 terms_changed — no Stripe session, never a payment', JSON.stringify(r.body));
+  // v1.8 FLIP: Berlin and Paris went from waitlists (400 checkout_closed) to desks charged at signing (BOOKED, never a
+  // session); the card flip (06/11, the founder's decision) gives them the six's checkout: a Stripe session at the grid
+  // prices, never BOOKED. The signing rail keeps its pins with the registry patched (try/finally): a hand-made POST
+  // without the order terms is refused, an order with them is booked, and Stripe is untouched
+  const before0 = globalThis.__stripeCalls.length;
+  const rb = await post(checkout, { city: 'berlin', kind: 'full-search', ...ANNA });
+  const rp = await post(checkout, { city: 'paris', kind: 'application-pack', ...ANNA, requestId: 'chkcard00001', startNow: false });
+  const [cb, cp] = globalThis.__stripeCalls.slice(before0);
+  check(rb.code === 200 && rb.body.ok === true && !!rb.body.url && rp.code === 200 && rp.body.ok === true && !!rp.body.url && !rp.body.booked
+    && globalThis.__stripeCalls.length === before0 + 2 && cb && cb.metadata.city === 'berlin' && cb.line_items[0].price_data.unit_amount === 50000
+    && cp && cp.metadata.city === 'paris' && cp.metadata.kind === 'application-pack' && cp.line_items[0].price_data.unit_amount === 19900 && !store.has('leads/book_chkcard00001'),
+    'paris and berlin (card at the order, 06/11): a Stripe session at the grid prices like the six — never BOOKED, no order lead', JSON.stringify([rb.body, rp.body]));
   const { ORDER_TERMS } = await import('../../api/_cityterms.js');
-  const r2 = await post(checkout, { city: 'paris', kind: 'application-pack', ...ANNA, requestId: 'chkflip00001', termsV: ORDER_TERMS.paris.v, startNow: false });
-  const booked = store.get('leads/book_chkflip00001');
-  check(r2.code === 200 && r2.body.ok === true && r2.body.booked === true && !('url' in r2.body) && /^PAR-\d{4}-0001$/.test(r2.body.number || '') && r2.body.plan === 'application-pack'
-    && booked && booked.booked === true && booked.paid !== true && booked.market === 'paris' && globalThis.__stripeCalls.length === before,
-    'paris (charged at signing): an order with its terms answers BOOKED (its register number, no payment URL), the lead is booked and not paid, and no Stripe session is opened', JSON.stringify(r2.body));
+  const keepP = CITY_MARKETS.paris, keepB = CITY_MARKETS.berlin;
+  try {
+    CITY_MARKETS.paris = { ...keepP, chargeAt: 'signing' }; CITY_MARKETS.berlin = { ...keepB, chargeAt: 'signing' };
+    const before = globalThis.__stripeCalls.length;
+    const r = await post(checkout, { city: 'berlin', kind: 'full-search', ...ANNA });
+    check(r.code === 409 && r.body.error === 'terms_changed' && !('url' in r.body) && globalThis.__stripeCalls.length === before,
+      'berlin charged at signing (the registry patched): a hand-made POST without the order terms is 409 terms_changed — no Stripe session, never a payment', JSON.stringify(r.body));
+    const r2 = await post(checkout, { city: 'paris', kind: 'application-pack', ...ANNA, requestId: 'chkflip00001', termsV: ORDER_TERMS.paris.v, startNow: false });
+    const booked = store.get('leads/book_chkflip00001');
+    check(r2.code === 200 && r2.body.ok === true && r2.body.booked === true && !('url' in r2.body) && /^PAR-\d{4}-0001$/.test(r2.body.number || '') && r2.body.plan === 'application-pack'
+      && booked && booked.booked === true && booked.paid !== true && booked.market === 'paris' && globalThis.__stripeCalls.length === before,
+      'paris charged at signing (the registry patched): an order with its terms answers BOOKED (its register number, no payment URL), the lead is booked and not paid, and no Stripe session is opened', JSON.stringify(r2.body));
+  } finally { CITY_MARKETS.paris = keepP; CITY_MARKETS.berlin = keepB; }
+  check(CITY_MARKETS.paris === keepP && CITY_MARKETS.berlin === keepB, '(the registry is restored: Paris and Berlin at the checkout)');
+  const before = globalThis.__stripeCalls.length;
   const r4 = await post(checkout, { city: 'rome', kind: 'full-search', ...ANNA });
   const r5 = await post(checkout, { city: 'amsterdam', kind: 'virtual-viewing', ...ANNA });
   check(r4.code === 400 && r4.body.error === 'unknown_city' && r5.code === 400 && r5.body.error === 'unknown_service' && globalThis.__stripeCalls.length === before,
@@ -570,13 +593,23 @@ check(/Refunded in full if we decline the search in the first call/.test(CITY_PL
   check(other.code === 200 && other.body.pending === true && !('file' in other.body) && Object.keys(other.body).sort().join() === 'ok,pending',
     'the same session asked for ANOTHER city: pending — nothing leaks across desks', JSON.stringify(other.body));
   const bads = await Promise.all([
-    getPaid({ paid: sid, city: 'paris' }), getPaid({ paid: sid, city: 'berlin' }), getPaid({ paid: sid, city: 'gotham' }), getPaid({ paid: sid, city: 'constructor' }),
+    getPaid({ paid: sid, city: 'gotham' }), getPaid({ paid: sid, city: 'constructor' }),
     getPaid({ paid: 'cs_live_short', city: 'amsterdam' }), getPaid({ paid: 'pi_123456789abc', city: 'amsterdam' }), getPaid({ paid: 'cs_test_abc/../x1234', city: 'amsterdam' }), getPaid({ city: 'amsterdam' }),
   ]);
   check(bads.every((r) => r.code === 400 && r.body.ok === false && r.headers['cache-control'] === 'no-store'),
-    // v1.8 FLIP: Paris and Berlin are no longer waitlists — charged at signing, they have no session at the order, so
-    // their ?paid= is still a malformed request (api/city-lead.js)
-    'a desk charged at signing (Paris, Berlin), an unknown city, a malformed or missing session id: 400 (still no-store)', JSON.stringify(bads.map((r) => r.code)));
+    'an unknown city, a malformed or missing session id: 400 (still no-store)', JSON.stringify(bads.map((r) => r.code)));
+  // v1.8 FLIP: Paris and Berlin, charged at signing, had no session at the order (their ?paid= a 400); since the card
+  // flip (06/11) they sell at the checkout, so an Amsterdam session asked as Paris or Berlin is only pending, and the
+  // signing 400 keeps its pin with the registry patched (try/finally)
+  const pb = await Promise.all([getPaid({ paid: sid, city: 'paris' }), getPaid({ paid: sid, city: 'berlin' })]);
+  check(pb.every((r) => r.code === 200 && r.body.pending === true && Object.keys(r.body).sort().join() === 'ok,pending'),
+    'Paris and Berlin at the checkout: an Amsterdam session asked there is pending — nothing leaks across desks', JSON.stringify(pb.map((r) => r.body)));
+  {
+    const keepP = CITY_MARKETS.paris;
+    let sg;
+    try { CITY_MARKETS.paris = { ...keepP, chargeAt: 'signing' }; sg = await getPaid({ paid: sid, city: 'paris' }); } finally { CITY_MARKETS.paris = keepP; }
+    check(sg.code === 400 && sg.body.ok === false && sg.headers['cache-control'] === 'no-store', 'a desk charged at signing (Paris, the registry patched): ?paid= is 400, no-store');
+  }
   // a lead under that id that is NOT a paid city order answers pending
   store.set('leads/' + serviceLeadId('cs_test_NotPaid00001'), { market: 'amsterdam', name: 'X', city: { paid: false, service: 'full-search', file: 'BM AAAAA' } });
   store.set('leads/' + serviceLeadId('cs_test_RomeOrder0001'), { intent: 'service', paid: true, name: 'Ada' });

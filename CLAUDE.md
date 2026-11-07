@@ -4340,8 +4340,8 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
   1. **La regola** (`api/_upgrade.js`, pura: `upgradeOffer(lead, id, ora)`): solo un ordine
      `leads/svc_<sessione>` di un desk del registro, `intent:'city_order'`, pagato (`paid` e
      `city.paid`), del piano in `UPGRADE_PATHS` (`application-pack` → `full-search`). Il desk deve
-     incassare alla cassa: Parigi e Berlino non incassano niente all'ordine, quindi non c'è niente da
-     accreditare. Il credito è ciò che il cliente ha PAGATO (`amount_eur`, nella valuta del desk, mai
+     incassare alla cassa: un desk che incassa alla firma non ha niente da accreditare (Parigi e
+     Berlino fino al 6/11; da allora prendono la carta all'ordine e accreditano come gli altri). Il credito è ciò che il cliente ha PAGATO (`amount_eur`, nella valuta del desk, mai
      quanto il listino d'arrivo o di più). `credit.usedBy` lo chiude, e scade a `paid_at` + 30 giorni.
      Stati: `open`, `used`, `expired`, `not_upgradable`, `not_found`.
   2. **Il link è personale e derivato** (`upgradeToken`/`upgradeLink` in `api/payments/_token.js`,
@@ -4440,6 +4440,48 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
   chiusi qui (le due frasi del recesso, la densità legale delle FAQ di Barcellona). Test: `run.mjs`
   1327, `ui.mjs` 651 (sul commit prima delle correzioni della revisione), cassa 118, calendario 128,
   firma 301, termini 149, recesso 124, upgrade 70, seo 21, llms 12, verità 24, crawl 60, faq 78.
+- **LA CARTA ALL'ORDINE A PARIGI E BERLINO (06/11/2026 — decisione del fondatore: «i soldi dobbiamo
+  incassarli subito, anche in Francia e in Germania»).** Presa DOPO essere stato informato dei rischi
+  (loi Hoguet art. 6 e 16; WoVermRG §2(4), §5, §8): Parigi e Berlino incassano con carta all'ordine
+  come i sei. Stripe, recesso di 14 giorni dal pagamento con la spunta «Start now», Full Search
+  rimborsato se lo decliniamo nella prima chiamata. È superata, per questi due desk, la strada v1.8
+  (ordine sulla pagina, addebito alla firma). Nessuna frase in pagina dice che è lecito: niente formula
+  inventata. Se un avvocato ne darà una, si inserisce.
+  1. **Cosa resta delle regole del paese.**
+     - Parigi: Full Search «(six months at most)» e «One attended viewing (more: €149 each)»; i
+       Termini §12.5 lo chiamano mandat de recherche non exclusif, sei mesi dal pagamento.
+     - Berlino: Full Search solo sulle case offerte al solo cliente col go-ahead del proprietario,
+       visite comprese, niente «(more:» e mai «No percentage». Il compenso resta entro due mensilità
+       nette fredde + IVA, e la differenza si rimborsa (Termini §12.2).
+     - Il build non rifiuta più un desk francese o tedesco alla cassa, ma controlla ancora queste
+       regole. Un desk NUOVO in Francia o Germania è una decisione del fondatore, con un avvocato.
+  2. **Il codice.**
+     - Il registro non ha più `chargeAt` per i due desk. Tiene `order` (e i campi tedeschi) per gli
+       ordini PRENOTATI fra il 5 e il 6/11.
+     - `orderChargeAt(lead)` (`api/_market.js`) legge la modalità sull'ordine (`book_` +
+       `city.chargeAt:'signing'`). La usano il biglietto gestito (`?order=`), `/firmato`, i registri
+       della conservazione e le risposte pronte.
+     - JSON di Parigi e Berlino nella forma dei sei: niente `trigger`, niente `booked`; `paid`, `till`
+       e il recesso come Amsterdam.
+     - Hub: nessuna nota sulla firma, e il build non avvisa se manca.
+     - Il credito dell'upgrade vale anche lì.
+     - Il webhook scrive la lettera «in French» / «in German», e il terzo passo del Full Search di
+       Berlino è «Homes offered to you alone».
+     - Aggiornati Termini §12 (6 novembre), privacy, `/withdrawal`, `llms.txt`, la skill `city-desk`.
+     - La strada alla firma resta provata su desk di prova col registro patchato (`run.mjs` B1, `ui.mjs`
+       §15 con Parigi E Berlino di prova, `signing.mjs`, `checkout.mjs`).
+  3. **Rischi aperti** (del fondatore e dell'avvocato, dichiarati):
+     - Parigi: pagamento prima dell'operazione conclusa (Hoguet art. 6, sanzioni art. 16) senza carte
+       professionnelle.
+     - Berlino: Vorschuss vietato (§2(4)), rimborso su richiesta (§5), multe (§8), senza §34c.
+     - Per gli ordini con carta non c'è più il registro dei mandati di Parigi (décret 72-678 art. 72),
+       né il «Confirmed» di Berlino, né il PDF dell'ordine. Il supporto durevole è l'email di conferma
+       del webhook.
+     - Le aperte O1–O19 del v1.8 restano, salvo quelle sulla firma.
+  Test: `run.mjs` 1333, `checkout.mjs` 123, `signing.mjs` 298, `upgrade` 71, `cityterms` 149,
+  `withdraw` 124, `calendar` 128, `conservazione` 9; seo, llms, verità, crawl, faq verdi. Il log
+  «[city-order] pdf failed: ERR_INVALID_ARG_TYPE» di `checkout.mjs` c'era già prima (strada alla firma,
+  ambiente di test).
 - **IL DESK AVIAZIONE COMPLETO (v1.6, 03/11/2026 — il fondatore: «questo stile è
   troppo sintetizzato… itera lo stile del biglietto… anche per una pagina
   completa»).** Il primo schermo resta UNA carta d'imbarco, rifatta come oggetto

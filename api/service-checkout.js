@@ -33,7 +33,8 @@
 // before reusing its file number. Anything else is ignored in silence (a
 // bad reference must never block a payment); Rome services ignore it.
 //
-// THE DESKS THAT CHARGE AT SIGNING (v1.8, Paris and Berlin from the flip):
+// THE DESKS THAT CHARGE AT SIGNING (v1.8; Paris and Berlin from 05/11 until
+// the card flip of 06/11/2026, when they moved to this checkout like the six):
 // cityOffer says `chargeAt: 'signing'` and the order goes to
 // api/_cityorder.js — BOOKED on our button, the email is the contract, the
 // fee is invoiced only when a lease is signed. Such a desk NEVER opens a

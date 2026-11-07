@@ -7,8 +7,9 @@
 // contract here", a confirmation "Confirm withdrawal", and an acknowledgement
 // of receipt on a durable medium with the statement's content and the date and
 // time it was received. withdrawal.html is the page (stream C); this is the
-// server. Every desk (the six that sell, Paris and Berlin, which order and
-// charge at signing) and the Rome Pacchetto post here.
+// server. Every desk (all eight take the card at the order since 06/11/2026;
+// Paris and Berlin orders booked before then were charged at signing) and the
+// Rome Pacchetto post here.
 //
 // What it does, in order:
 //   1. honeypot `company` → the same answer as a real statement, nothing done;
