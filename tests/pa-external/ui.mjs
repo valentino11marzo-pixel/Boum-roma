@@ -92,7 +92,13 @@ try {
     await ov.waitFor({ timeout: 15000 });
     ok(ops.some(o => o.op === 'ext-contract' && o.createProperty === true), width + 'px: il contratto nasce dalla proposta (con conferma), immobile compreso');
     const go = ov.getByRole('button', { name: 'Carica e continua' });
-    ok(await go.isDisabled(), width + 'px: senza profili il caricamento è fermo, e il pannello dice perché');
+    // 6/11/2026: era `disabled` col perché solo nel title (invisibile su
+    // iPhone) e questo check verificava il disabled, non il perché. Ora il
+    // bottone si preme e lo DICE, senza chiamare il server.
+    ok(!(await go.isDisabled()), width + 'px: il bottone non è mai spento in silenzio');
+    await go.click();
+    ok(/Prima il passo 1[\s\S]*Crea \/ collega i profili/.test(await ov.locator('#extMsg').innerText()), width + 'px: senza profili il pannello dice perché, accanto al bottone');
+    ok(!ops.some(o => o.op === 'ext-adopt' || o.op === 'ext-prepare'), width + 'px: senza profili nessuna chiamata di caricamento');
     ok(/Proprietario[\s\S]*Maria Verdi/.test(await ov.innerText()), width + 'px: il piano nomina il proprietario da creare');
     await ov.getByRole('button', { name: /Crea \/ collega i profili/ }).click();
     await page.waitForFunction(() => /Tutte le parti hanno il loro profilo/.test((document.getElementById('extov') || {}).innerText || ''), null, { timeout: 15000 });

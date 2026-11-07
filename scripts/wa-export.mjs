@@ -224,7 +224,7 @@ export function renderDoc() {
   L.push('- **Da verificare una volta, tu:**');
   L.push('  - il link recensione in `/enrev` (`g.page/r/…/review`): aprilo e controlla che si apra');
   L.push('    la scatola delle stelle di BOOM. È lo stesso che deve stare in `REVIEW_URL` su Vercel.');
-  L.push('  - `/enpay` cita il bonifico: in `/casa` compare solo se hai impostato `settings/payout`');
+  L.push('  - `/enpay` cita il bonifico: in `/casa` compare il conto di `payout/default` (da `/banca`) o, se manca, quello di Egidi Immobiliare su Banca Sella, sempre con la rata + €1,50');
   L.push('    (beneficiario + IBAN) dalle impostazioni del portale.');
   L.push('- **Cose che già fa la macchina**, e che quindi non serve mandare a mano:');
   L.push('  la prima risposta a un lead (il Commerciale la propone su Telegram),');

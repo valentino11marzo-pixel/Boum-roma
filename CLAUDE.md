@@ -5330,6 +5330,23 @@ sugli europei e **perdeva su ogni carta estera** (−€26,50 su un canone da
   questa formula elimina. `/casa` mostra quel seed come **massimo**, così
   l'addebito reale può solo essere più basso.
 
+### Il bonifico sul conto di BOOM: rata + €1,50 (6/11/2026)
+Decisione del fondatore: chi paga con bonifico versa sempre la rata + **€1,50 fissi** (il canone
+passa da Egidi Immobiliare al proprietario). Una copia sola in `js/rent-engine.js`:
+`BANK_TRANSFER_FEE`, `bankTransferTotal(amount)`, `bankReceived(due, received)` e `DEFAULT_PAYOUT`
+(Egidi Immobiliare S.r.l., Banca Sella, IBAN IT54O0326803200052861450580, BIC SELBIT2BXXX).
+- `/casa`: il pannello Bonifico mostra rata, commissione e «Importo da bonificare» (il totale, anche
+  in «Copia tutti i dati»); l'etichetta del metodo dice «Commissione fissa €1,50». Il conto è
+  `payout/default` scritto da `/banca`; se il documento non c'è vale `DEFAULT_PAYOUT`; se la lettura
+  fallisce non si mostra nessun conto.
+- La riconciliazione (`api/banking/_lib.js reconcile`) accetta la rata + €1,50 o la rata sola (chi
+  dimentica la commissione ha pagato il canone: niente sollecito per 1,50), dice `fee` sul match e
+  scrive `paidAmountEur` sulla rata; ogni altra cifra resta un suggerimento.
+- Il portal ha lo stesso IBAN in `COMPANY.iban` (test d'uguaglianza in `tests/bonifico`):
+  promemoria WhatsApp ed email del canone dicono «importo + €1,50»; `settings/company`, se scritto,
+  vince ancora. `/enpay` non offre più l'addebito automatico (chiuso ai nuovi dal 5/10).
+Test: `tests/bonifico/run.mjs`, `tests/tenant-payments/run.mjs`.
+
 ### Il canone automatico SEPA (`api/payments/_sdd.js` + `sdd-setup.js` + webhook)
 Il cerchio dei soldi chiuso: l'inquilino autorizza UNA volta e ogni rata
 parte da sola. Capability `sepa_debit_payments` attivata sull'account
@@ -7702,6 +7719,16 @@ nessun documento pagabile.
   resta gratuito. Il caricamento di un PDF non lo legge: la verifica dei termini è dell'operatore (due spunte).
 Test: `node tests/pa-external/run.mjs` (16 scenari, handler veri), `mutate.mjs` (10 mutazioni prese),
 `ui.mjs` (Chromium 390/1280, 38 controlli).
+**6/11/2026 (Thao, Via Vittoria 69)**: «Carica e continua» era `disabled` finché il passo 1 (profili) non
+era fatto, col perché solo nel `title`, invisibile su iPhone: sembrava rotto. Ora si preme sempre e, coi
+profili da creare, lo dice accanto al bottone senza chiamare il server. Nello stesso caso il portal
+dell'inquilino mostrava «Missing or insufficient permissions» e «No Active Lease»: la casa, non ancora
+sua (`currentContractId` assente o del contratto prima), veniva letta con una query `in` sugli id, negata
+per intero, e con lei cadeva tutto il caricamento (contratti e rate). Ora `fetchReadableByIds` legge una
+casa per volta e una casa negata manca e basta; ogni altro errore risale. Test: `tests/portal-tenant/run.mjs`.
+`/login` senza `next` porta tutti a `/portal`: da qui un inquilino passa da solo a `/casa`
+(`tenantGoesHome` in `js/portal-app.js`; restano sul portal `?csign=` e `?portal=1` per l'assistenza;
+`tests/safari/boot.mjs` lo prova, con mutazione).
 
 ### Le regole IN VIGORE ≠ le regole nel file (31/08/2026)
 Il difetto più caro trovato in questa tornata, e nessuna suite poteva
