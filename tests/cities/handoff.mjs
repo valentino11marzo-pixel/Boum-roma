@@ -13,8 +13,8 @@ const require=createRequire(import.meta.url),J=require('../../js/journey-engine.
 const root=fileURLToPath(new URL('../../',import.meta.url));
 const year=new Date().getFullYear()+1,arrival=year+'-02-01',departure=year+'-03-01';
 const brief={need:'application',moveIn:arrival,moveOut:departure,budget:1500,currency:'EUR',people:'couple',place:'sapienza',homes:['private-reference'],privatePlace:'poi:0',address:'Private office',lat:41.9,lng:12.4};
-let passed=0,failed=0;
-async function check(name,fn){try{await fn();passed++;console.log('  ✓ '+name);}catch(error){failed++;console.log('  ✗ '+name+' — '+error.message);}}
+let passed=0,failed=0;const focus=process.argv[2]||'';
+async function check(name,fn){if(focus&&!name.includes(focus))return;try{await fn();passed++;console.log('  ✓ '+name);}catch(error){failed++;console.log('  ✗ '+name+' — '+error.message);}}
 console.log('\n▸ city handoff  Public plans, actual city, original request and checkout');
 await check('desk route vocabulary matches city data; unknown routes and untrusted context are refused',()=>{
   const cities=readdirSync(root+'cities').filter(f=>f.endsWith('.json')&&!f.startsWith('_')).map(f=>f.slice(0,-5));
@@ -79,7 +79,7 @@ else{
   });
   await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(0,'127.0.0.1',resolve);});
   const origin='http://127.0.0.1:'+server.address().port;let browser;
-  async function run(path,fn,{width=390,hold=false,failAsset=false}={}){
+  async function run(path,fn,{width=390,hold=false,failAsset=false,preview=false,manifestError=false}={}){
     const page=await browser.newPage({viewport:{width,height:900},isMobile:width<500,hasTouch:width<500,reducedMotion:'reduce'}),posts=[],errors=[],assets=[];
     let held;
     page.setDefaultTimeout(9000);page.on('pageerror',e=>errors.push(e.message));
@@ -94,6 +94,8 @@ else{
         throw Error('Unexpected write '+url.pathname);
       }
       if(url.origin!==origin)return route.abort();
+      if(url.pathname==='/api/listings')return route.fulfill({contentType:'application/json',body:'{"ok":true,"listings":[]}'});
+      if(manifestError&&url.pathname==='/assets/boom-desks-public.json')return route.fulfill({status:503,contentType:'application/json',body:'{}'});
       if(/stay-engine|journey-engine|boom-journey-handoff/.test(url.pathname))assets.push(url.pathname);
       if(url.pathname==='/assets/boom-journey-handoff.js'){
         if(failAsset)return route.abort();
@@ -102,7 +104,8 @@ else{
       return route.continue();
     });
     try{
-      await page.goto(origin+path,{waitUntil:'domcontentloaded'});await page.waitForFunction(()=>!!window.BOOM_TICKET);
+      await page.goto(origin+path,{waitUntil:'domcontentloaded'});
+      if(preview)await page.waitForFunction(()=>!!document.body.dataset.homeVision&&!!window.BoomFlightEurope);else await page.waitForFunction(()=>!!window.BOOM_TICKET);
       await fn({page,posts,assets,release:async()=>{await page.waitForFunction(()=>document.querySelector('script[src*="boom-journey-handoff"]'));assert.ok(held);await held.continue();}});
       assert.deepEqual(errors,[],'no unhandled browser error');
     }finally{await page.close();}
@@ -111,6 +114,34 @@ else{
   async function identity(page){await page.locator('#door').click();await page.fill('#fName','Fixture Person');await page.fill('#fContact','fixture@example.invalid');}
   try{
     browser=await chromium.launch(await launchOptions());
+    await check('Dispatch review hands each published Milan and London fare to its original closed till',async()=>{
+      for(const city of ['milan','london'])for(const [need,plan] of [['search','full-search'],['application','application-pack'],['viewing','attended-viewing']]){
+        const currency=city==='london'?'GBP':'EUR',q=new URLSearchParams({direction:'club',edition:'club',experience:'panorama',vision:'dispatch',city,need,moveIn:arrival,moveOut:departure,budget:'1500',currency,people:'couple'});
+        await run('/flight-next?'+q,async({page,posts})=>{
+          await page.locator('#europeServicePass .europe-service-price strong').waitFor();
+          const expected='#fare-'+plan,link=page.locator('#europeServicePass [data-europe-desk-link]');
+          assert.equal(await link.evaluate(node=>new URL(node.href).hash),expected,city+' '+need+' source link targets exact fare');
+          await page.locator('#europeDeskContinue').click();await page.waitForURL(url=>url.pathname==='/'+city);await page.waitForFunction(()=>!!window.BOOM_TICKET);await loaded(page);
+          assert.equal(new URL(page.url()).hash,'','the original deep-link controller consumes the reviewed fare fragment');assert.equal(await page.locator(expected).evaluate(node=>node.open),true);
+          await page.waitForFunction(selector=>document.querySelector(selector+' [data-pay]')===document.activeElement,expected);
+          assert.equal(await page.locator('#till').isVisible(),false,'review never opens checkout');assert.equal(posts.length,0,'review never submits');
+          for(const [key,value] of Object.entries({city,need,moveIn:arrival,moveOut:departure,budget:'1500',currency,people:'couple'}))assert.equal(new URL(page.url()).searchParams.get(key),value);
+          assert.equal(await page.locator('#cityJourney-budget').inputValue(),'1500');assert.doesNotMatch(page.url(),/privatePlace|address|lat=|lng=|vision=/);
+        },{preview:true,width:city==='london'?1440:390});
+      }
+    });
+    await check('Dispatch missing public service data keeps a canonical desk handoff without a promised fare',()=>run('/flight-next?direction=club&edition=club&experience=panorama&vision=dispatch&city=london&need=application',async({page,posts})=>{
+      await page.waitForFunction(()=>document.getElementById('europeServicePass').textContent.includes('Check the current service'));
+      assert.equal(await page.locator('#europeServicePass [data-europe-desk-link]').evaluate(node=>new URL(node.href).hash),'');
+      await page.locator('#europeDeskContinue').click();await page.waitForURL(url=>url.pathname==='/london');await page.waitForFunction(()=>!!window.BOOM_TICKET);await loaded(page);
+      assert.equal(new URL(page.url()).hash,'');assert.equal(await page.locator('#till').isVisible(),false);assert.equal(posts.length,0);
+    },{preview:true,manifestError:true}));
+    await check('Dispatch fare deep links remain scoped away from the other six visions',async()=>{
+      for(const vision of ['airframe','signal','orbit','gate','connection','vector'])await run('/flight-next?direction=club&edition=club&experience=panorama&vision='+vision+'&city=milan&need=application',async({page,posts})=>{
+        await page.locator('#europeServicePass .europe-service-price strong').waitFor();
+        assert.equal(await page.locator('#europeServicePass [data-europe-desk-link]').evaluate(node=>new URL(node.href).hash),'',vision+' preserves the original route');assert.equal(posts.length,0);
+      },{preview:true});
+    });
     await check('Madrid accepts the reviewed one-month request in the original free-call contract; no automatic submit',()=>run(J.deskURL('madrid',brief),async({page,posts})=>{
       await loaded(page);assert.equal(posts.length,0);assert.equal(await page.locator('#fare-application-pack').evaluate(n=>n.open),true);
       assert.equal(await page.locator('#boomJourneyBrief summary').innerText(),'1 Feb → 1 Mar '+year+' · review your plans');

@@ -36,6 +36,19 @@
   var anchor=document.querySelector('[data-panorama-anchor]');
   if(anchor)scene.appendChild(anchor);
   scene.appendChild(atlas);scene.appendChild(media);ticket.appendChild(scene);
+  if(vision==='dispatch'){
+    // One selected-service ticket contains the existing offer and original
+    // brief. Selection, validation and checkout remain with their owners.
+    var serviceTicket=document.createElement('div');serviceTicket.className='dispatch-service-ticket';
+    var servicePass=byId('europeServicePass'),deskForm=byId('europeDeskForm');
+    servicePass.before(serviceTicket);serviceTicket.append(servicePass,deskForm);
+    // Club creates this header after Europe's first synchronous render. The
+    // selected offer owns its name; the stub owns the next action's explanation.
+    byId('europeSelectedService').textContent='Your next step';
+    var nextStep=servicePass.querySelector('.europe-service-facts>div:last-child');
+    deskForm.querySelector('.edition-brief-head>p:last-child').textContent=servicePass.querySelector('.europe-service-price')?'Review the service, then choose paid support or request a free call.':'Open the city desk to check its current service and conditions.';
+    if(nextStep&&nextStep.querySelector('dt').textContent==='Your next step')nextStep.remove();
+  }
   var cityScene=null,guideEntry=null;
   if(vision==='connection'){
     cityScene=document.querySelector('#clubHomes .next-city-scene');

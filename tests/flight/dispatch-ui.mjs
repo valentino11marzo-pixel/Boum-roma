@@ -60,11 +60,16 @@ async function start(page,query=''){
  await page.goto(origin+'/flight-next?direction=club&edition=club&experience=panorama&vision=dispatch'+query,{waitUntil:'domcontentloaded'});
  await page.waitForFunction(()=>document.body.dataset.homeVision==='dispatch'&&window.BoomFlightGlobe?.state().ready);
  await page.locator('#nextHomeRail .next-card').first().waitFor({state:'attached'});
- await ticket(page).waitFor({state:'visible'});
+ await ticket(page).waitFor({state:'attached'});
 }
 async function city(page,slug){await page.locator('.europe-city-switch [data-europe-city="'+slug+'"]').click();await page.waitForFunction(value=>document.body.dataset.europeCity===value,slug);}
 async function scene(page,value){await page.locator('#visionSceneTabs [data-vision-scene="'+value+'"]').click();await page.waitForFunction(scene=>document.body.dataset.visionScene===scene,value);}
 async function settled(page){await page.waitForFunction(()=>!['clubMedia','boomGlobeMount'].some(id=>document.getElementById(id).getAnimations().some(a=>a.playState==='running')));}
+async function boardFits(page,width){
+ const rects=await page.locator('#nextHeroTitle').evaluate(node=>{const cells=[...node.querySelectorAll('#nextDestinationBoard .fc2')],promise=document.querySelector('#directionClubTicket .hero-promise');return {heading:node.getBoundingClientRect().toJSON(),first:cells[0].getBoundingClientRect().toJSON(),last:cells.at(-1).getBoundingClientRect().toJSON(),promise:promise.getBoundingClientRect().toJSON()};});
+ assert.ok(rects.first.left>=rects.heading.left-.5&&rects.last.right<=rects.heading.right+.5,'every actual flap fits inside its heading: '+JSON.stringify(rects));
+ if(width===1440)assert.ok(rects.last.right+16<=rects.promise.left,'the city and its supporting promise retain separate reading space: '+JSON.stringify(rects));
+}
 async function noOverflow(page){const size=await page.evaluate(()=>({width:innerWidth,scroll:document.documentElement.scrollWidth}));assert.ok(size.scroll<=size.width+1,'no horizontal overflow: '+JSON.stringify(size));}
 async function controls(page,selector){
  const rects=await page.locator(selector).evaluateAll(nodes=>nodes.filter(n=>n.getClientRects().length&&!n.closest('[hidden]')).map(n=>({text:n.textContent.trim(),width:n.getBoundingClientRect().width,height:n.getBoundingClientRect().height})));
@@ -80,10 +85,11 @@ async function publicOnly(page){
 }
 async function foreignOffer(page){
  await serviceState(page,'available');
- const native=await page.locator('#europeServicePass').evaluate(node=>({fee:node.querySelector('.europe-service-price strong').textContent,condition:node.querySelector('.europe-service-price small').textContent,selected:document.getElementById('europeSelectedService').textContent}));
+ const native=await page.locator('#europeServicePass').evaluate(node=>({fee:node.querySelector('.europe-service-price strong').textContent,condition:node.querySelector('.europe-service-price small').textContent,selected:node.querySelector('.europe-service-copy h3').textContent}));
  assert.equal(await summary(page,'Support'),native.selected,'the ticket uses the actual selected native service');
  const fee=await summary(page,'Fee');assert.ok(fee.includes(native.fee)&&fee.includes(native.condition),'the actual fee and its condition stay together: '+fee);
- assert.equal(await page.locator('#dispatchJourneyFee').isVisible(),true);
+ assert.equal(await page.locator('#dispatchJourneyFee').evaluate(node=>node.hidden),false,'a confirmed fee remains available when a real brief reveals the ticket');
+ assert.equal(await page.locator('#europeServicePass .europe-service-price strong').isVisible(),true,'the original service fee is visible even with no personal plan');
 }
 // Observe original browser animations without replacing animate or controllers.
 async function observe(page){return page.locator('#visionScene').evaluateHandle(node=>{
@@ -110,11 +116,12 @@ try{
  browser=await chromium.launch(await launchOptions());
  for(const width of [320,390,900,1440])await check('Dispatch '+width+': compact opening and stable original scene',width,async({page,requests})=>{
   await start(page);await page.evaluate(()=>document.fonts.ready);
+  assert.equal(await ticket(page).isVisible(),false,'empty entry shows no duplicate plan ticket');
   assert.equal(await page.locator('.europe-city-switch [data-europe-city]').count(),6,'the destination directory has six real cities');
   assert.equal(await page.locator('#nextDestinationBoard').count(),1,'there is one original Solari board');
   assert.equal(await page.locator('#nextHeroTitle #nextDestinationBoard').count(),1,'the original board now belongs to the destination heading');
   const heading=await page.locator('#visionCityName').evaluate(node=>({text:node.textContent,box:node.getBoundingClientRect().toJSON(),position:getComputedStyle(node).position,weight:getComputedStyle(node).fontWeight,family:getComputedStyle(node).fontFamily}));
-  assert.equal(heading.text,'Rome');assert.equal(heading.weight,'300');assert.ok(heading.family.startsWith('"Helvetica Neue"'),'the established brand family remains');
+  await boardFits(page,width);assert.equal(heading.text,'Rome');assert.equal(heading.weight,'300');assert.ok(heading.family.startsWith('"Helvetica Neue"'),'the established brand family remains');
   assert.ok(heading.box.width<=1&&heading.box.height<=1&&heading.position==='absolute','the duplicate city text remains accessible but is visually hidden');
   assert.equal(await page.locator('#nextHeroTitle .vision-departure-record').getAttribute('aria-hidden'),'true','mechanical letters do not duplicate the spoken heading');
   assert.equal(await page.locator('body').getAttribute('data-vision-scene'),'homes','Rome still opens with a genuine home');
@@ -132,7 +139,7 @@ try{
   assert.ok(header.stage>=Math.max(header.toolbar,header.landmark)-1,'geography has reserved space below its landmark and Full view controls: '+JSON.stringify(header));
   await page.locator('[data-panorama-expand]').click();await page.locator('#panoramaGlobeDialog').waitFor({state:'visible'});
   await page.keyboard.press('Escape');await page.locator('#panoramaGlobeDialog').waitFor({state:'hidden'});
-  await scene(page,'homes');await city(page,'amsterdam');await page.locator('#visionSceneTabs').waitFor({state:'hidden'});await foreignOffer(page);await noOverflow(page);
+  await scene(page,'homes');await city(page,'amsterdam');await page.locator('#visionSceneTabs').waitFor({state:'hidden'});await foreignOffer(page);assert.equal(await ticket(page).isVisible(),false,'city selection alone never invents a personal plan');assert.equal(await page.locator('#europeBriefSummary').isVisible(),false,'the native empty brief is compact too');await boardFits(page,width);await noOverflow(page);
   assert.equal(await page.locator('#clubMedia').isVisible(),false,'foreign service does not imply Rome home inventory');
   await city(page,'rome');
   assert.equal(await page.evaluate(()=>Object.entries(window.__dispatchNodes).every(([key,node])=>node===({ticket:document.getElementById('dispatchJourneyTicket'),form:document.getElementById('nextSearchForm'),media:document.getElementById('clubMedia'),atlas:document.getElementById('boomGlobeMount'),canvas:document.querySelector('.boom-flight-globe-canvas')})[key])),true,'scene, full view and city return retain every original node');
@@ -144,7 +151,7 @@ try{
   await start(page);await fieldState(page,'open');await serviceState(page,'unselected');
   assert.equal(await row(page,'rent').isVisible(),false,'an unset rent does not occupy a duplicate empty summary row');assert.equal(await row(page,'household').isVisible(),false,'an unset household stays compact');
   await page.locator('#nextDestinationSummary').click();await page.locator('[data-destination-mode="work"]').click();await page.locator('[data-private-place="0"]').click();await page.locator('#nextDestinationDialog').waitFor({state:'hidden'});
-  await publicOnly(page);await fillRome(page);await fieldState(page,'valid');
+  await publicOnly(page);await fillRome(page);await fieldState(page,'valid');await ticket(page).waitFor({state:'visible'});
   assert.equal(await row(page,'rent').isVisible(),true);assert.equal(await row(page,'household').isVisible(),true,'native selections reveal their real values');
   assert.match(await summary(page,'Dates'),new RegExp(year));assert.match(await summary(page,'Rent'),/1,500/);assert.match(await summary(page,'Household'),/couple/i);
   await page.locator('#visionNeedChooser [data-vision-need="search"]').click();await serviceState(page,'unselected');
@@ -155,10 +162,10 @@ try{
   await page.locator('#dispatchJourneyEdit').click();assert.equal(await page.locator('#nextMoveOut').evaluate(node=>node===document.activeElement),true,'Edit focuses the native invalid field');
   const invalidURL=page.url();await page.locator('#nextSearchForm button[type="submit"]').click();assert.equal(page.url(),invalidURL,'the native validator blocks invalid navigation');
   await page.locator('#nextMoveIn').fill('');await fieldState(page,'invalid');
-  await page.locator('#nextMoveOut').fill('');await fieldState(page,'open');assert.equal(await page.locator('#dispatchJourneyDateIssue').isVisible(),false,'clearing dates removes a stale error');
+  await page.locator('#nextMoveOut').fill('');await fieldState(page,'open');await page.locator('#nextBudget').selectOption('');await page.locator('#nextPeople').selectOption('');await ticket(page).waitFor({state:'hidden'});assert.equal(await page.locator('#dispatchJourneyDateIssue').isVisible(),false,'clearing dates removes a stale error');
   await page.locator('#nextMoveIn').focus();await page.keyboard.press('ArrowUp');
   assert.deepEqual(await page.locator('#nextMoveIn').evaluate(node=>({value:node.value,badInput:node.validity.badInput})),{value:'',badInput:true},'a genuinely partial native date can have an empty value');
-  await fieldState(page,'invalid');assert.equal(await page.locator('#dispatchJourneyDateIssue').isVisible(),true,'partial native input is not described as an open-date plan');
+  await fieldState(page,'invalid');await ticket(page).waitFor({state:'visible'});assert.equal(await page.locator('#dispatchJourneyDateIssue').isVisible(),true,'partial native input is not described as an open-date plan');
   await page.locator('#nextBudget').selectOption('');await page.locator('#nextPeople').selectOption('');
   assert.equal(await row(page,'rent').isVisible(),false);assert.equal(await row(page,'household').isVisible(),false,'clearing native values returns the summary to its compact state');
   await fillRome(page);await fieldState(page,'valid');await publicOnly(page);
@@ -174,16 +181,24 @@ try{
  });
  await check('Dispatch foreign brief: actual offer, currency clearing and native desk handoff',900,async({page})=>{
   await start(page);await fillRome(page);await city(page,'london');await foreignOffer(page);
+  assert.equal(await page.locator('#europeServicePass .europe-service-bottom p').isVisible(),true,'Full Search refund remains visible outside the collapsed inclusions');assert.equal(await page.locator('#europeServicePass .europe-service-bottom p').innerText(),JSON.parse(manifest).refund.rule);
   assert.equal(await row(page,'rent').isVisible(),false,'EUR to GBP clearing also hides the obsolete rent row');assert.equal(await row(page,'household').isVisible(),true,'a currency boundary retains the applicable household');
   assert.equal(await page.locator('#europeBudget').inputValue(),'');assert.doesNotMatch(await summary(page,'Rent'),/1,500|£|€/,'a currency boundary never reuses an amount');
   await page.locator('#dispatchJourneyEdit').click();assert.equal(await page.locator('#europeOptionalBrief').getAttribute('open'),'','Edit opens the native optional brief');
   await page.locator('#europeBudget').selectOption('3000');await page.locator('#europePeople').selectOption('family');await page.locator('[data-europe-need="application"]').click();await foreignOffer(page);
   assert.equal(await row(page,'rent').isVisible(),true,'a supplied GBP budget restores the rent row');
+  assert.equal(await page.locator('.dispatch-service-ticket #europeServicePass').count(),1);assert.equal(await page.locator('.dispatch-service-ticket #europeDeskForm').count(),1,'the coherent service ticket contains the original form');
+  const inclusions=page.locator('details.dispatch-service-inclusions');assert.equal(await inclusions.evaluate(node=>node.open),false);assert.equal(await inclusions.locator('ul li').count()>0,true);
+  assert.equal(await page.locator('#europeSelectedService').innerText(),'Your next step','the form heading does not duplicate the selected plan title');
+  await inclusions.locator('summary').click();assert.equal(await inclusions.locator('ul').isVisible(),true);await inclusions.locator('summary').click();
+  assert.equal(await page.locator('#europeBriefSummary').isVisible(),true);
   assert.match(await summary(page,'Rent'),/£3,000/);assert.match(await summary(page,'Household'),/family/i);
+  await page.locator('#europeMoveIn').fill('');await page.locator('#europeMoveOut').fill('');await page.locator('#europeMoveIn').focus();await page.keyboard.press('ArrowUp');assert.equal(await page.locator('#europeMoveIn').evaluate(node=>node.validity.badInput),true);await fieldState(page,'invalid');assert.match(await page.locator('#europeBriefSummary').innerText(),/Check your dates/,'native partial dates stay explicit in the compact service summary');await page.locator('#europeMoveIn').fill(arrival);await page.locator('#europeMoveOut').fill(departure);await fieldState(page,'valid');
   await page.locator('#europeMoveOut').fill(year+'-01-01');await fieldState(page,'invalid');await page.locator('#dispatchJourneyEdit').click();assert.equal(await page.locator('#europeMoveOut').evaluate(node=>node===document.activeElement),true);
   await page.locator('#europeDeskContinue').click();assert.equal(new URL(page.url()).pathname,'/flight-next','the original desk validator owns invalid submission');
   await page.locator('#europeMoveOut').fill(departure);await fieldState(page,'valid');await page.locator('#dispatchJourneyReview').click();assert.equal(await page.locator('#europeServicePass').isVisible(),true);
   await page.locator('#europeDeskContinue').click();await page.waitForURL(url=>url.pathname==='/london');
+  assert.equal(new URL(page.url()).hash,'#fare-application-pack','handoff reviews the exact fare without opening payment');
   for(const [key,value] of Object.entries({city:'london',need:'application',moveIn:arrival,moveOut:departure,budget:'3000',currency:'GBP',people:'family'}))assert.equal(new URL(page.url()).searchParams.get(key),value,'the real desk receives '+key);
   await page.goBack();await ticket(page).waitFor({state:'visible'});await foreignOffer(page);assert.match(await summary(page,'Rent'),/£3,000/);
   await city(page,'madrid');await foreignOffer(page);assert.equal(await page.locator('#europeBudget').inputValue(),'');assert.doesNotMatch(await summary(page,'Rent'),/3,000|£|€/);
@@ -197,6 +212,7 @@ try{
   data.mode='error';for(const route of data.pending.splice(0))await route.fulfill({status:503,contentType:'application/json',body:'{}'}).catch(()=>{});
   await city(page,'barcelona');await serviceState(page,'unavailable');assert.equal(await page.locator('#dispatchJourneyFee').isVisible(),false);
   assert.doesNotMatch(await ticket(page).innerText(),/[€£]\s*\d/,'failure never leaves a numerical service fee');
+  assert.equal(await page.locator('#europeServicePass [data-europe-desk-link]').evaluate(node=>new URL(node.href).hash),'','unavailable data never promises an exact fare');
   data.mode='hold';await city(page,'amsterdam');await city(page,'london');await serviceState(page,'unavailable');
   // Two real fetches share a manifest. Resolve the latest selection first,
   // then the superseded request, while leaving the native abort/token logic intact.
@@ -220,6 +236,26 @@ try{
   await page.locator('#nextMotionToggle').evaluate(node=>node.click());await city(page,'london');await settled(page);
   trace=await observe(page);await city(page,'madrid');await begun(page,trace);await page.goBack();result=await finish(trace);assert.ok(result.motions.every(a=>a.state==='idle'),'Back cancels feedback without adding a history animation');
   assert.equal(await summary(page,'City'),'London');assert.equal(await page.locator('.boom-flight-globe-canvas').count(),1);
+ },'no-preference');
+ await check('Dispatch globe: multi-turn dragging returns by the shortest camera route',1440,async({page})=>{
+  await start(page);await scene(page,'world');await settled(page);
+  const canvas=page.locator('.boom-flight-globe-canvas');await canvas.scrollIntoViewIfNeeded();
+  async function turn(direction){
+   const box=await canvas.boundingBox(),distance=Math.min(600,box.width-60),left=box.x+30,right=left+distance,y=box.y+box.height*.7;
+   const before=await page.evaluate(()=>BoomFlightGlobe.state().angle[0]);
+   for(let i=0;i<4;i++){await page.mouse.move(direction>0?right:left,y);await page.mouse.down();await page.mouse.move(direction>0?left:right,y,{steps:12});await page.waitForTimeout(110);await page.mouse.up();}
+   const after=await page.evaluate(()=>BoomFlightGlobe.state().angle[0]);assert.ok(Math.abs(after-before)>360,'actual native drag crosses a full turn: '+(after-before));
+  }
+  async function shortest(action){
+   const trace=await page.evaluateHandle(()=>{const value={angles:[BoomFlightGlobe.state().angle[0]],raf:0};function tick(){value.angles.push(BoomFlightGlobe.state().angle[0]);value.raf=requestAnimationFrame(tick);}tick();return value;});
+   await action();const box=await canvas.boundingBox();await page.mouse.move(box.x+box.width/2,box.y+box.height*.7);await page.waitForTimeout(920);
+   const angles=await trace.evaluate(value=>{cancelAnimationFrame(value.raf);return value.angles;});await trace.dispose();
+   const steps=angles.slice(1).map((a,i)=>Math.abs(a-angles[i])),total=steps.reduce((a,b)=>a+b,0);
+   assert.ok(total>1&&total<=180.5&&Math.max(...steps)<=180.5,'camera follows the equivalent nearby longitude: '+JSON.stringify({total,max:Math.max(...steps)}));assert.ok(angles.slice(-3).every(angle=>Math.abs(angle-angles.at(-1))<.01),'camera settles at the selected orientation');assert.equal(await page.evaluate(()=>BoomFlightGlobe.state().rafPending),false,'hovered settled geography has no pending frame loop');
+  }
+  await turn(1);await shortest(()=>page.locator('.boom-globe-reset').click());assert.equal(await page.evaluate(()=>BoomFlightGlobe.state().city),'rome');
+  await turn(-1);await shortest(()=>city(page,'london'));assert.equal(await page.evaluate(()=>BoomFlightGlobe.state().city),'london');
+  assert.equal(await page.locator('.boom-flight-globe-canvas').count(),1);assert.equal(await page.evaluate(()=>BoomFlightGlobe.state().error),false);
  },'no-preference');
  await check('Dispatch reduced motion: cities and scenes update without extra animation',390,async({page})=>{
   await start(page);const trace=await observe(page);await scene(page,'world');await city(page,'amsterdam');await foreignOffer(page);await city(page,'rome');await scene(page,'homes');const result=await finish(trace);

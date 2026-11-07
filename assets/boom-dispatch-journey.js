@@ -11,6 +11,7 @@
   var ticket = document.createElement('aside');
   ticket.id = 'dispatchJourneyTicket';
   ticket.className = 'dispatch-journey-ticket';
+  ticket.hidden = true;
   ticket.setAttribute('aria-labelledby', 'dispatchJourneyTitle');
   ticket.innerHTML = '<h2 id="dispatchJourneyTitle">Your move</h2>' +
     '<dl class="dispatch-journey-fields">' +
@@ -82,6 +83,8 @@
     setText('dispatchJourneyHousehold', selectedLabel(current.prefix + 'People', 'Household open'));
     setRowHidden('rent', !byId(current.prefix + 'Budget').value);
     setRowHidden('household', !byId(current.prefix + 'People').value);
+    setHidden('dispatchJourneyTicket', !(current.dates.moveIn || current.dates.moveOut || current.issue ||
+      byId(current.prefix + 'Budget').value || byId(current.prefix + 'People').value));
 
     var support, detail, fee = '', available = false;
     if (foreign) {
@@ -90,7 +93,7 @@
       var condition = text(pass && pass.querySelector('.europe-service-price small'));
       var choice = document.querySelector('#europeDeskPlanner [data-europe-need][aria-pressed="true"] strong');
       available = !!(price && condition);
-      support = available ? text(byId('europeSelectedService')) : text(pass && pass.querySelector('.europe-service-copy h3'));
+      support = text(pass && pass.querySelector('.europe-service-copy h3'));
       if (!support) support = 'Review the city desk';
       detail = available ? text(choice) : text(pass && pass.querySelector('.europe-service-copy>p:not(.eyebrow)'));
       if (available) fee = price + ' · ' + condition;

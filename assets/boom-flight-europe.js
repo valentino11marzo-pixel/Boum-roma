@@ -17,6 +17,7 @@
     viewing:{label:'Visit it for me',hint:'See a home while you’re away',plan:'attended-viewing'}
   };
   var query = new URLSearchParams(location.search);
+  var dispatch = query.get('edition') === 'club' && query.get('experience') === 'panorama' && query.get('vision') === 'dispatch';
   var city = places[query.get('city')] ? query.get('city') : 'rome';
   if (query.get('view') === 'apartments' || query.get('view') === 'detail') city = 'rome';
   var need = needs[query.get('need')] ? query.get('need') : 'search';
@@ -59,7 +60,16 @@
     history[push?'pushState':'replaceState'](history.state,'',url.pathname+url.search+url.hash);
     updateHomeLinks();
   }
-  function deskURL() { return J && J.deskURL ? J.deskURL(city,values(city)) : '/'+city; }
+  function deskURL() {
+    var path=J&&J.deskURL?J.deskURL(city,values(city)):'/'+city,data=loaded[city];
+    // Dispatch carries the reviewed offer to the city's original ticket. The
+    // native #fare route reveals its scope and action; it never opens the till.
+    if(dispatch&&data&&data.slug===city&&data.live===true&&data.mode==='search'&&validConfig(data)) {
+      var plan=data.pricing.plans.find(function(p){return p.id===needs[need].plan;});
+      if(plan)return path+'#fare-'+plan.id;
+    }
+    return path;
+  }
   function updateHomeLinks() {
     var brief=Object.assign({},J?J.read(location.search):{},values(city));
     var path=J?J.withIntent(canonicalHome(city),brief):canonicalHome(city);
@@ -79,9 +89,24 @@
     var start=date(brief.moveIn),end=date(brief.moveOut),dates=start?(start+' → '+(end||'Departure date needed')):(end?'Arrival date needed → '+end:'Dates open');
     var rent=brief.budget?new Intl.NumberFormat('en-GB',{style:'currency',currency:currency(city),maximumFractionDigits:0}).format(Number(brief.budget)):'Budget open';
     summary.innerHTML='<div><dt>Your dates</dt><dd>'+esc(dates)+'</dd></div><div><dt>Monthly rent</dt><dd>'+esc(brief.budget?'Up to '+rent:rent)+'</dd></div><div><dt>Who’s moving</dt><dd>'+esc(household[brief.people]||'Household open')+'</dd></div>';
+    if(dispatch) {
+      var badDate=el('europeMoveIn').validity.badInput||el('europeMoveOut').validity.badInput;
+      var empty=[!(brief.moveIn||brief.moveOut||badDate),!brief.budget,!brief.people];
+      Array.from(summary.children).forEach(function(row,i){row.hidden=empty[i];});
+      summary.hidden=empty.every(Boolean);
+      if(badDate&&!start&&!end)summary.firstElementChild.querySelector('dd').textContent='Check your dates';
+    }
   }
   function fitBoard() {
     var host=el('nextDestinationBoard'),centre=document.querySelector('.hero-centre');
+    if(dispatch) {
+      var heading=host.closest('h1'),letters=places[city].name.length;
+      if(heading&&heading.clientWidth>0) {
+        var available=heading.clientWidth-8-3*(letters-1);
+        host.style.setProperty('--europe-board-size',Math.max(0,available/(.91*letters-.07))+'px');
+      }
+      return;
+    }
     var width=Math.max(210,centre.clientWidth-24);
     var size=Math.min(innerWidth<650?84:132,width/(places[city].name.length*.91));
     host.style.setProperty('--europe-board-size',Math.max(26,size)+'px');
@@ -104,14 +129,29 @@
     });
     if(!validConfig(data) || data.live!==true || data.mode!=='search') {
       pass.innerHTML='<div class="europe-service-copy"><p class="eyebrow">'+esc(places[city].name)+' / SERVICE DETAILS</p><h3>Speak with the '+esc(places[city].name)+' desk.</h3><p>Check the current service, price and availability on the city page.</p></div><a class="europe-service-action text-button" data-europe-desk-link href="'+esc(deskURL())+'">Open the desk ↗</a>';
-      if(currentClub){el('europeDeskContinue').textContent='Open '+places[city].name+' desk ↗';if(el('europeSelectedService'))el('europeSelectedService').textContent='Your move';}
+      if(currentClub){el('europeDeskContinue').textContent='Open '+places[city].name+' desk ↗';if(el('europeSelectedService'))el('europeSelectedService').textContent=dispatch?'Your next step':'Your move';}
+      if(dispatch){var fallbackCopy=document.querySelector('.edition-brief-head>p:last-child');if(fallbackCopy)fallbackCopy.textContent='Open the city desk to check its current service and conditions.';}
       return;
     }
     var plan=data.pricing.plans.find(function(p){return p.id===needs[need].plan;});
     if(!plan) { paintService(null);return; }
     var price=new Intl.NumberFormat('en-GB',{style:'currency',currency:currency(city),maximumFractionDigits:0}).format(plan.price);
+    var nextStep=dispatch?'Review the service, then choose paid support or request a free call.':'Discuss your plans on a free call. Choose a paid service when its scope is clear.';
     pass.innerHTML='<div class="europe-service-copy"><p class="eyebrow">'+esc(places[city].code)+' / '+esc(plan.label)+'</p><h3>'+esc(needs[need].label)+'.</h3><p>'+esc(plan.offerDescription)+'</p></div><div class="europe-service-price"><strong>'+esc(price)+'</strong><small>'+esc(plan.condition)+'</small><p>'+esc(data.hero.faresHead.b)+'</p></div><dl class="europe-service-facts"><div class="europe-service-includes"><dt>What you receive</dt><dd><ul>'+plan.includes.map(function(item){return '<li>'+esc(item)+'</li>';}).join('')+'</ul></dd></div><div><dt>Who answers</dt><dd>'+(currentClub?'<figure class="club-desk-person"><img src="/img/founder-terrazza.jpg" alt="Valentino Egidi, founder of BOOM, photographed in Rome" width="1100" height="1648" loading="lazy" decoding="async"><figcaption><strong>Valentino Egidi</strong><p>Founder of BOOM<br><span>Based in Rome</span></p><a href="/about">Meet the agency ↗</a></figcaption></figure>':'Valentino Egidi · BOOM, based in Rome')+'</dd></div><div><dt>Your next step</dt><dd>Discuss your plans on a free call. Choose a paid service when its scope is clear.</dd></div></dl><div class="europe-service-bottom">'+(need==='search'&&shared&&shared.refund?'<p>'+esc(shared.refund.rule)+'</p>':'')+'<a class="europe-service-action text-button" data-europe-desk-link href="'+esc(deskURL())+'">See the full '+esc(places[city].name)+' service ↗</a></div>';
-    if(currentClub){el('europeDeskContinue').textContent='Continue with '+plan.label+' ↗';if(el('europeSelectedService'))el('europeSelectedService').textContent=plan.label;}
+    if(dispatch) {
+      pass.querySelector('.europe-service-copy h3').textContent=plan.label;
+      var nextLine=pass.querySelector('.europe-service-facts>div:last-child dd'),briefCopy=document.querySelector('.edition-brief-head>p:last-child');
+      nextLine.textContent=nextStep;
+      // The Club adapter can create this header after the first service paint;
+      // its initial arrangement completes the same move if the header is absent.
+      if(briefCopy){briefCopy.textContent=nextStep;nextLine.parentElement.remove();}
+      var inclusions=pass.querySelector('.europe-service-includes'),disclosure=document.createElement('details'),label=document.createElement('summary');
+      disclosure.className='dispatch-service-inclusions';label.textContent='What’s included';
+      disclosure.append(label,inclusions.querySelector('ul'));
+      pass.querySelector('.europe-service-facts').before(disclosure);inclusions.remove();
+    }
+    if(currentClub){el('europeDeskContinue').textContent=(dispatch?'Review ':'Continue with ')+plan.label+' ↗';if(el('europeSelectedService'))el('europeSelectedService').textContent=dispatch?'Your next step':plan.label;}
+    if(dispatch)updateLinks();
   }
   function loadService() {
     var n=++loadNumber,slug=city;
@@ -211,6 +251,7 @@
   var desk=document.createElement('section');desk.id='europeDeskPlanner';desk.hidden=true;desk.setAttribute('aria-labelledby','europeDeskTitle');
   desk.innerHTML='<div class="europe-planner-top"><span id="europePlannerCity"></span><span id="europePlannerCode"></span></div><h2 id="europeDeskTitle">What do you need?</h2><div class="europe-needs" role="group" aria-label="Choose the support you need">'+Object.keys(needs).map(function(key,i){return '<button type="button" data-europe-need="'+key+'" aria-pressed="'+(key===need)+'"><span>0'+(i+1)+'</span><div><strong>'+needs[key].label+'</strong><small>'+needs[key].hint+'</small></div><span aria-hidden="true">↗</span></button>';}).join('')+'</div><form id="europeDeskForm"><details id="europeOptionalBrief"><summary>Add dates &amp; budget <span>optional</span></summary><div class="europe-fields"><label>Move in<input id="europeMoveIn" type="date" aria-label="Desk move-in date"></label><label>Move out<input id="europeMoveOut" type="date" aria-label="Desk move-out date"></label><label><span id="europeBudgetLabel">Monthly rent (€)</span><select id="europeBudget" aria-label="Desk monthly rent budget"><option value="">Choose later</option><option value="1000">Up to €1,000</option><option value="1500">Up to €1,500</option><option value="2000">Up to €2,000</option><option value="3000">Up to €3,000</option><option value="5000">Up to €5,000</option></select></label><label>Who’s moving?<select id="europePeople" aria-label="Desk household"><option value="">Choose later</option><option value="solo">Just me</option><option value="couple">A couple</option><option value="family">A family</option><option value="flatmates">Flatmates</option></select></label></div></details><p id="europeCurrencyNote" class="europe-form-note" hidden></p><p id="europeDeskError" class="form-error" role="alert" hidden></p><button id="europeDeskContinue" class="button gold" type="submit"></button><p class="europe-next-step">See the service and speak with the desk. No payment at this step.</p></form>';
   planner.appendChild(desk);
+  if(dispatch)desk.querySelector('.europe-next-step').textContent='Your selected service opens next. No request or payment is sent here.';
   var trust=document.createElement('section');trust.className='europe-trustbar';trust.setAttribute('aria-label','Who is behind BOOM');
   trust.innerHTML='<div class="europe-trust-person"><span>YOUR CONTACT</span><strong>Valentino Egidi</strong><span>Egidi Immobiliare S.r.l. · Rome</span></div><a href="/about">Meet BOOM ↗</a><p id="europeContextNote" class="sr-only"></p>';
   hero.insertAdjacentElement('afterend',trust);
@@ -282,6 +323,16 @@
   dialog.addEventListener('close',function(){if(opener&&opener.isConnected)opener.focus({preventScroll:true});});
   el('europeDeskForm').addEventListener('submit',function(e){e.preventDefault();var error=formError();el('europeDeskError').textContent=error;el('europeDeskError').hidden=!error;if(error){el('europeOptionalBrief').open=true;return;}location.href=deskURL();});
   el('europeDeskForm').addEventListener('input',function(){el('europeDeskError').hidden=true;updateLinks();writeURL(false);});
+  if(dispatch) {
+    el('europeBudget').addEventListener('change',function(){
+      if(this.value&&this.validity.valid)el('europeCurrencyNote').hidden=true;
+    });
+    ['keyup','focusout'].forEach(function(name){
+      el('europeDeskForm').addEventListener(name,function(event){
+        if(event.target.matches('#europeMoveIn,#europeMoveOut'))updateBrief();
+      });
+    });
+  }
   window.addEventListener('resize',fitBoard,{passive:true});
   window.addEventListener('boom:flight-view',function(e){
     view=e.detail.view;

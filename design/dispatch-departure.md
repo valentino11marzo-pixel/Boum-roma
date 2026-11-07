@@ -1,5 +1,9 @@
 # Dispatch: a destination and a useful next step
 
+Historical iteration. The later rendered review supersedes this composition's
+white hero and empty ticket; current decisions and validation belong to
+[dispatch-continuity.md](dispatch-continuity.md).
+
 7 November 2026. Mode: Persuade at the entrance, Operate when choosing a home
 or service. Valentino selected Dispatch as the next direction to develop and
 authorized all five concrete recommendations: compact proportions, a meaningful

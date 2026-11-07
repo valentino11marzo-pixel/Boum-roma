@@ -5089,6 +5089,12 @@ Edit e Review riportano ai controlli originali: nessun nuovo form, URL di serviz
 `boom-dispatch-refinement` isola proporzioni e grammatica delle azioni; solo la scena Dispatch sfuma220ms al cambio da puntatore, interrompibile con nuova scelta, tastiera, history, pausa, reduced-motion e pagina nascosta.
 `flightdispatchui` verifica proporzioni, Solari, brief valido/invalido, prezzi e guasti, privacy, percorsi nativi e movimento; `flightpanoramaui` conserva le altre sei direzioni. Regia e fonti in `design/dispatch-departure.md`.
 
+Flight Dispatch continuità 07/11: apertura nera senza il pannello bianco, Solari originale più grande e globo con luce sulle coordinate reali; nessun nuovo clock. I rientri della camera scelgono la longitudine equivalente più vicina dopo il trascinamento.
+Your move e i riepiloghi esteri vuoti non occupano l'ingresso: compaiono con preferenze reali o date incomplete, spariscono su clear e mantengono validazione, valuta e privacy.
+Il servizio estero e il form originale condividono un biglietto bianco; nome reale, prezzo, condizione e rimborso restano visibili, inclusioni in details nativo. Nessun modulo o pagamento duplicato.
+Solo Dispatch aggiunge il frammento nativo `#fare-<piano>` al collegamento del motore, dopo configurazione valida: il desk apre il servizio scelto, senza aprire automaticamente la cassa. Guasto dati conserva la porta ordinaria.
+Verifiche in `flightdispatchui`, `flightcityhandoff`, `flightpanoramaui` e `flightclubmotion`; regia in `design/dispatch-continuity.md`. `design/dispatch-launch-readiness.md` distingue la Preview noindex dai requisiti della futura home `/`.
+
 Flight Lab 31/10: `/flight-lab` confronta Atlas, Residence e Club sulle stesse viste reali di `/flight-next?direction=…`, senza cambiare il sito pubblico.
 Le composizioni riusano catalogo, Solari, iframe Skyline, salvataggi e Apply; nessun secondo catalogo o nuovo handler di invio.
 Residence usa una foto realmente restituita dal catalogo pubblico (fallback a una casa pubblica non chiusa); Atlas sposta la stessa mappa nel primo schermo.

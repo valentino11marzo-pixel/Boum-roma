@@ -117,7 +117,7 @@
     queueFit();queueScroll();
   }
   var fitFrame=0;
-  function fitDestination(){fitFrame=0;var host=byId('nextDestinationBoard'),heading=byId('nextHeroTitle'),letters=(host.getAttribute('aria-label')||'ROME').length,width=heading.clientWidth;if(width>0)host.style.setProperty('--europe-board-size',Math.max(23,Math.min(innerWidth<650?78:110,(width-6)/(letters*.91)))+'px');}
+  function fitDestination(){fitFrame=0;if(document.body.dataset.homeVision==='dispatch')return;var host=byId('nextDestinationBoard'),heading=byId('nextHeroTitle'),letters=(host.getAttribute('aria-label')||'ROME').length,width=heading.clientWidth;if(width>0)host.style.setProperty('--europe-board-size',Math.max(23,Math.min(innerWidth<650?78:110,(width-6)/(letters*.91)))+'px');}
   function queueFit(){if(!fitFrame)fitFrame=requestAnimationFrame(fitDestination);}
   new MutationObserver(syncCity).observe(document.body,{attributes:true,attributeFilter:['data-europe-city']});
   window.addEventListener('resize',queueFit,{passive:true});

@@ -14,6 +14,10 @@
   var RAD = Math.PI / 180, instance = null, cached = null, flight = null, flightSerial = 0;
   function allowed(slug) { return CITIES.some(function (city) { return city.slug === slug; }); }
   function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
+  function dispatchAtlas() { return document.body.dataset.homeVision === 'dispatch'; }
+  // A drag can cross any number of turns. The equivalent camera longitude
+  // preserves the real destination without spinning through those turns again.
+  function nearestLongitude(longitude, reference) { return longitude + Math.round((reference-longitude)/360)*360; }
   function vector(coordinate) {
     var lon = coordinate[0] * RAD, lat = coordinate[1] * RAD, cos = Math.cos(lat);
     return [cos * Math.cos(lon), cos * Math.sin(lon), Math.sin(lat)];
@@ -200,7 +204,9 @@
     if (!s.data) return [8, 43];
     var coordinate = s.data.cities[city].coordinate;
     // All six desks remain in view; the camera responds to each real city centre.
-    return [coordinate[0] * .72 + 1, 37 + (coordinate[1] - 40) * .7];
+    var target = [coordinate[0] * .72 + 1, 37 + (coordinate[1] - 40) * .7];
+    if (dispatchAtlas()) target[0] = nearestLongitude(target[0], s.angle[0]);
+    return target;
   }
   function paused(s) { return s.apiPaused || !!(s.pauseButton && s.pauseButton.getAttribute('aria-pressed') === 'true'); }
   function canMove(s) { return !paused(s) && !s.reduced.matches && !document.hidden && s.visible; }
@@ -324,6 +330,7 @@
   }
   function paint(s, view) {
     view = view || {};
+    var dispatch = dispatchAtlas();
     var ctx = view.context || s.context, w = view.width || s.width, h = view.height || s.height;
     var framing=cameraFrame(s,w,h,s.zoom);
     var cx = view.cx == null ? framing.cx : view.cx, cy = view.cy == null ? framing.cy : view.cy, r = view.radius || framing.radius;
@@ -353,27 +360,51 @@
     }
     // The globe has no generated or guessed outlines: every coastline and land dot is Natural Earth.
     ctx.save();
-    ctx.shadowColor = 'rgba(174,189,223,.24)'; ctx.shadowBlur = Math.min(40,r*.12);
-    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.fillStyle = '#08090b'; ctx.fill(); ctx.restore();
+    if (!dispatch) { ctx.shadowColor = 'rgba(174,189,223,.24)'; ctx.shadowBlur = Math.min(40,r*.12); }
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.fillStyle = dispatch ? '#000' : '#08090b'; ctx.fill(); ctx.restore();
     ctx.save(); ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.clip();
     var globeFill = ctx.createRadialGradient(cx-r*.4, cy-r*.48, r*.1, cx+r*.18, cy+r*.15, r*1.25);
-    globeFill.addColorStop(0, '#343b40'); globeFill.addColorStop(.42, '#1a2025'); globeFill.addColorStop(.8, '#0a0e12'); globeFill.addColorStop(1, '#020304');
+    globeFill.addColorStop(0, dispatch ? '#25271f' : '#343b40'); globeFill.addColorStop(.42, dispatch ? '#11140f' : '#1a2025'); globeFill.addColorStop(.8, dispatch ? '#050705' : '#0a0e12'); globeFill.addColorStop(1, dispatch ? '#000' : '#020304');
     ctx.fillStyle = globeFill; ctx.fillRect(cx-r, cy-r, r*2, r*2);
     if (s.data) {
-      ctx.beginPath(); s.data.grid.forEach(function (points) { path(points, 0); }); ctx.lineWidth = .65; ctx.strokeStyle = 'rgba(197,208,224,.13)'; ctx.stroke();
-      ctx.beginPath();
-      s.data.dots.forEach(function (point) { var p = project(point); if (p[2] > .025) { var size = (.55 + p[2]*.19)*zoom; ctx.moveTo(cx+p[0]*r+size, cy+p[1]*r); ctx.arc(cx+p[0]*r, cy+p[1]*r, size, 0, Math.PI*2); } });
-      ctx.fillStyle = 'rgba(236,219,173,.70)'; ctx.fill();
-      ctx.beginPath(); s.data.rings.forEach(function (ring) { path(ring, 0); }); ctx.lineWidth = .8; ctx.strokeStyle = 'rgba(224,220,201,.55)'; ctx.stroke();
+      ctx.beginPath(); s.data.grid.forEach(function (points) { path(points, 0); }); ctx.lineWidth = .65; ctx.strokeStyle = dispatch ? 'rgba(231,226,203,.11)' : 'rgba(197,208,224,.13)'; ctx.stroke();
+      if (dispatch) {
+        // Project the same 3,700 geographic samples once, then batch their
+        // light bands. Reuse the buffer: no extra frame loop or point objects.
+        var land = s.dispatchLand || (s.dispatchLand = new Float32Array(s.data.dots.length*4));
+        s.data.dots.forEach(function (point, index) {
+          var p = project(point), offset = index*4;
+          land[offset+3] = -1;
+          if (p[2] <= .025) return;
+          var light = -p[0]*.32-p[1]*.48+p[2]*.80;
+          land[offset] = cx+p[0]*r; land[offset+1] = cy+p[1]*r; land[offset+2] = (.45+p[2]*.32)*zoom;
+          land[offset+3] = p[2] < .22 || light < .42 ? 0 : light < .72 ? 1 : 2;
+        });
+        ['rgba(205,195,153,.26)','rgba(226,215,174,.53)','rgba(245,234,198,.82)'].forEach(function (color, band) {
+          ctx.beginPath();
+          for (var offset = 0; offset < land.length; offset += 4) {
+            if (land[offset+3] !== band) continue;
+            ctx.moveTo(land[offset]+land[offset+2],land[offset+1]); ctx.arc(land[offset],land[offset+1],land[offset+2],0,Math.PI*2);
+          }
+          ctx.fillStyle = color; ctx.fill();
+        });
+      } else {
+        ctx.beginPath();
+        s.data.dots.forEach(function (point) { var p = project(point); if (p[2] > .025) { var size = (.55 + p[2]*.19)*zoom; ctx.moveTo(cx+p[0]*r+size, cy+p[1]*r); ctx.arc(cx+p[0]*r, cy+p[1]*r, size, 0, Math.PI*2); } });
+        ctx.fillStyle = 'rgba(236,219,173,.70)'; ctx.fill();
+      }
+      ctx.beginPath(); s.data.rings.forEach(function (ring) { path(ring, 0); }); ctx.lineWidth = dispatch ? .7 : .8; ctx.strokeStyle = dispatch ? 'rgba(241,232,203,.58)' : 'rgba(224,220,201,.55)'; ctx.stroke();
     }
     var shade=ctx.createRadialGradient(cx-r*.38,cy-r*.36,r*.12,cx-r*.12,cy-r*.12,r*1.12);
     shade.addColorStop(0,'rgba(0,0,0,0)');shade.addColorStop(.65,'rgba(0,0,0,.08)');shade.addColorStop(1,'rgba(0,0,0,.88)');
     ctx.fillStyle=shade;ctx.fillRect(cx-r,cy-r,r*2,r*2);ctx.restore();
-    ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.lineWidth=1;ctx.strokeStyle='rgba(203,214,231,.4)';ctx.stroke();
+    var rim = 'rgba(203,214,231,.4)';
+    if (dispatch) { rim = ctx.createLinearGradient(cx-r*.7,cy-r*.7,cx+r*.7,cy+r*.7); rim.addColorStop(0,'rgba(241,232,203,.5)'); rim.addColorStop(.55,'rgba(220,208,162,.16)'); rim.addColorStop(1,'rgba(220,208,162,0)'); }
+    ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.lineWidth=1;ctx.strokeStyle=rim;ctx.stroke();
     if(s.data)Object.keys(s.data.routes).forEach(function(slug){
-      ctx.save();ctx.beginPath();path(s.data.routes[slug],.12);ctx.lineWidth=slug===selectedCity?2:.7;
-      if(slug===selectedCity){ctx.shadowColor='#ffd700';ctx.shadowBlur=12;}
-      ctx.strokeStyle=slug===selectedCity?'#ffd700':'rgba(207,191,139,.24)';ctx.stroke();ctx.restore();
+      ctx.save();ctx.beginPath();path(s.data.routes[slug],.12);ctx.lineWidth=slug===selectedCity?(dispatch?1.5:2):(dispatch?.65:.7);
+      if(slug===selectedCity&&!dispatch){ctx.shadowColor='#ffd700';ctx.shadowBlur=12;}
+      ctx.strokeStyle=slug===selectedCity?'#ffd700':dispatch?'rgba(207,191,139,.16)':'rgba(207,191,139,.24)';ctx.stroke();ctx.restore();
     });
     if (!s.data || (!view.flight && !s.labelPositions)) return;
     CITIES.forEach(function (city) {
@@ -385,9 +416,9 @@
         ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(elbow,label[1]); ctx.lineTo(edge,label[1]);
         ctx.lineWidth = selected ? 1 : .65; ctx.strokeStyle = selected ? 'rgba(255,215,0,.72)' : 'rgba(214,212,199,.3)'; ctx.stroke();
       }
-      if (selected) { ctx.beginPath(); ctx.arc(x,y,view.flight?13:8,0,Math.PI*2); ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(255,215,0,.55)'; ctx.stroke(); }
-      ctx.save(); ctx.beginPath(); ctx.arc(x,y,selected?3.5:2.8,0,Math.PI*2); ctx.fillStyle = selected ? '#ffd700' : '#c9b887';
-      if (selected) { ctx.shadowColor = '#ffd700'; ctx.shadowBlur = 12; } ctx.fill(); ctx.restore();
+      if (selected) { ctx.beginPath(); ctx.arc(x,y,view.flight?13:8,0,Math.PI*2); ctx.lineWidth = 1; ctx.strokeStyle = dispatch ? 'rgba(255,215,0,.8)' : 'rgba(255,215,0,.55)'; ctx.stroke(); }
+      ctx.save(); ctx.beginPath(); ctx.arc(x,y,selected?3.5:dispatch?2.2:2.8,0,Math.PI*2); ctx.fillStyle = selected ? (dispatch ? '#fff6d8' : '#ffd700') : (dispatch ? '#b0a375' : '#c9b887');
+      if (selected && !dispatch) { ctx.shadowColor = '#ffd700'; ctx.shadowBlur = 12; } ctx.fill(); ctx.restore();
       ctx.lineWidth = 1.2; ctx.strokeStyle = '#08090b'; ctx.stroke();
     });
   }
@@ -488,6 +519,7 @@
         : { x:innerWidth*.5,y:innerHeight*.5,radius:Math.min(innerWidth,innerHeight)*.36 };
       f.angle = s.ambient?cameraAngle:[s.angle[0]+s.scroll,s.angle[1]+s.scroll*.4];
       f.destination = s.data.cities[slug].coordinate.slice();
+      if (dispatchAtlas()) f.destination[0] = nearestLongitude(f.destination[0], f.angle[0]);
       var item = CITIES.find(function (city) { return city.slug === slug; });
       f.overlay = document.createElement('dialog'); f.overlay.className = 'boom-globe-flight';
       f.overlay.setAttribute('aria-label',(slug === 'rome' ? 'Entering ' : 'Exploring ')+item.name);
