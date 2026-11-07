@@ -332,7 +332,7 @@ JS = r'''/* ══ QUADRANTE:JS ══ */
 })();
 /* ══ /QUADRANTE:JS ══ */
 '''
-AGO_JS = '\n(function loadMapLibre(){'
+AGO_JS = '\nvar SKY_CATALOGUE_REQUEST=fetchCatalogue();'
 uno(s, AGO_JS)
 s = s.replace(AGO_JS, '\n' + JS + AGO_JS)
 
@@ -346,7 +346,7 @@ s = s.replace(AGO_JS, '\n' + JS + AGO_JS)
 A = ".then(function(d){TEMPI_DATI=d&&BOOM_TEMPI.daDoc(d)})"
 uno(s, A)
 s = s.replace(A, ".then(function(d){TEMPI_DATI=d&&BOOM_TEMPI.daDoc(d);"
-                 "window.__TEMPI_DATI=TEMPI_DATI;"
+                 "window.__TEMPI_DATI=TEMPI_DATI;skyEvent('journeys',{available:!!TEMPI_DATI});"
                  "if(window.__quadrante)window.__quadrante.applica();})")
 
 A = "    el.classList.toggle('dim',!ok); if(ok)shown++;"
@@ -362,33 +362,21 @@ uno(s, A)
 s = s.replace(A, A + "\n"
   "  /* il Quadrante lavora su lat/lng, non su [lng,lat]: si consegna gia'\n"
   "     nella forma giusta, cosi' nessuno converte due volte */\n"
-  "  (function(){var _n=(L&&(L.name||L.title))||'This home';\n"
+  "  (function(){var _n=(l&&(l.name||l.title))||'This home';\n"
   "    (window.__SKY_CASE=window.__SKY_CASE||[]).push({id:el.__id,el:el,\n"
-  "      lat:co[1],lng:co[0],nome:_n});\n"
+  "      lat:actualCo[1],lng:actualCo[0],nome:_n});\n"
   "    function _q(){if(window.__quadrante)\n"
-  "      window.__quadrante.perCasa({lat:co[1],lng:co[0],nome:_n});}\n"
-  "    el.addEventListener('mouseenter',_q); el.addEventListener('click',_q);})();")
+  "      window.__quadrante.perCasa({lat:actualCo[1],lng:actualCo[0],nome:_n});}\n"
+  "    el.addEventListener('click',_q);})();")
 
 A = "function applyFilter(){"
 uno(s, A)
 s = s.replace(A, "window.__skyRicalcola=function(){applyFilter();};\nfunction applyFilter(){")
 
-# 5f · se MapLibre non carica, la pagina non e' un vicolo cieco: il
-# Quadrante e' informazione pura e non ha bisogno della mappa. Si toglie il
-# velo e si dice cosa resta — invece di lasciare un cartello d'errore sopra
-# uno strumento che funziona.
-A = "s.onerror=function(){ msg('Map engine unavailable"
-uno(s, A)
-s = s.replace(A,
-  "s.onerror=function(){ var _q=document.getElementById('quad');\n"
-  "    if(_q){var _l=document.getElementById('load');if(_l)_l.style.display='none';\n"
-  "      _q.classList.remove('chiuso');\n"
-  "      var _n=document.getElementById('quadN');\n"
-  "      if(_n)_n.innerHTML='The 3D map needs a connection it could not get. '\n"
-  "        +'The distances below still work \\u2014 or open the '\n"
-  "        +'<a href=\"/apartments\" style=\"color:var(--gold)\">list view</a>.';\n"
-  "      return;}\n"
-  "    msg('Map engine unavailable")
+# 5f · il boot Flight nella base possiede gia' il fallback condiviso per
+# errore CDN, stile e WebGL. Verificarlo senza innestare un secondo onerror.
+uno(s, "function mapFailure(code){")
+uno(s, "if(box)box.style.display='none';")
 
 A = ".sky-pin.dim{opacity:.16;filter:grayscale(.7)}"
 uno(s, A)

@@ -40,6 +40,54 @@
     { slug: 'lumsa',      nome: 'LUMSA',      che: 'Borgo campus',         lat: 41.9032, lng: 12.4593, tipo: 'ateneo' }
   ];
 
+  /* Public destinations are broader than the nine GTFS grid keys above.
+     An official postal address is useful even without verified coordinates:
+     never borrow another campus's point or its journey model. */
+  var CHECKED = '2026-10-28';
+  var LUISS = 'https://www.luiss.it/en/contacts';
+  var RUFA = 'https://www.unirufa.it/en/about/campuses/';
+  var TOR = 'https://web.uniroma2.it/it/contenuto/dove_siamo';
+  function campus(slug, nome, institution, address, source, extra) {
+    return Object.assign({slug:slug,nome:nome,institution:institution,group:institution,
+      tipo:'ateneo',address:address,source:source,checked:CHECKED,lat:null,lng:null,
+      che:'Confirm the teaching venue on your timetable'},extra||{});
+  }
+  var DESTINATIONS = METE.map(function(m){
+    var d=Object.assign({group:m.tipo==='ateneo'?'Other universities':'Rome landmarks',gridSlug:m.slug},m);
+    if(m.slug==='luiss')Object.assign(d,{nome:'Luiss · Viale Romania',institution:'Luiss',group:'Luiss',address:'Viale Romania 32, Rome',source:LUISS,checked:CHECKED});
+    if(m.slug==='sapienza')Object.assign(d,{nome:'Sapienza · Città Universitaria',institution:'Sapienza',group:'Sapienza',address:'Piazzale Aldo Moro 5, Rome',source:'https://www.uniroma1.it/it/node/24128',checked:CHECKED});
+    return d;
+  }).concat([
+    campus('luiss-parenzo','Luiss · Via Parenzo','Luiss','Via Parenzo 11, Rome',LUISS),
+    campus('luiss-pola','Luiss · Viale Pola','Luiss','Viale Pola 12, Rome',LUISS),
+    campus('luiss-villa-blanc','Luiss · Villa Blanc / Business School','Luiss','Via Nomentana 216, Rome',LUISS),
+    campus('luiss-villa-emiliani','Luiss · Villa Emiliani','Luiss','Viale di Villa Emiliani 14, Rome','https://www.luiss.it/en/university/about-us/ranking-and-numbers'),
+    campus('sapienza-valle-giulia','Sapienza · Architecture / Valle Giulia','Sapienza','Via Antonio Gramsci 53, Rome','https://app.arc.uniroma1.it/didattica/orario/gpcse'),
+    campus('sapienza-borghese','Sapienza · Architecture / Borghese','Sapienza','Piazza Borghese 9, Rome','https://app.arc.uniroma1.it/didattica/orario/gpcse'),
+    campus('sapienza-eudossiana','Sapienza · Engineering / San Pietro in Vincoli','Sapienza','Via Eudossiana 18, Rome','https://cdaingedilearchitettura.web.uniroma1.it/node/5607'),
+    campus('sapienza-scarpa','Sapienza · Engineering / Castro Laurenziano','Sapienza','Via del Castro Laurenziano 7A, Rome','https://cdaingedilearchitettura.web.uniroma1.it/node/5607'),
+    campus('rufa-trieste','RUFA · Trieste / Via Benaco','RUFA','Via Benaco 2, Rome',RUFA,{che:'Distributed campus: also Via Benaco 1B and 12, Via Lariana 8 and Via Taro 14. Check your classroom.'}),
+    campus('rufa-san-lorenzo','RUFA · San Lorenzo','RUFA','Via degli Ausoni 7, Rome',RUFA),
+    campus('rufa-ostiense','RUFA · Ostiense','RUFA','Via Giuseppe Libetta 7, Rome',RUFA),
+    campus('rome-business-school','Rome Business School · Prati','Rome Business School','Via Giuseppe Montanelli 5, Rome','https://romebusinessschool.com/campus-facilities/'),
+    campus('tor-vergata-economics','Tor Vergata · Economics','Tor Vergata','Via Columbia 2, Rome','https://economia.uniroma2.it/it/la-sede/'),
+    campus('tor-vergata-engineering','Tor Vergata · Engineering','Tor Vergata','Via del Politecnico 1, Rome','https://web.uniroma2.it/en/contenuto/about_tor_vergata_school_of_engineering'),
+    campus('tor-vergata-law','Tor Vergata · Law','Tor Vergata','Via Cracovia snc, Rome',TOR),
+    campus('tor-vergata-humanities','Tor Vergata · Humanities','Tor Vergata','Via Columbia 1, Rome',TOR),
+    campus('tor-vergata-medicine','Tor Vergata · Medicine','Tor Vergata','Via Montpellier 1, Rome',TOR),
+    campus('tor-vergata-sciences','Tor Vergata · Sciences','Tor Vergata','Via della Ricerca Scientifica 1, Rome',TOR),
+    campus('naba-rome','NABA · Rome / Ostiense','NABA','Via Ostiense 92, Rome','https://www.naba.it/en/about-us/campus-rome',{
+      lat:41.8676743653,lng:12.478980984561316,
+      coordinateSource:'https://www.turismoroma.it/it/luoghi/naba-nuova-accademia-di-belle-arti',coordinatePrecision:'campus'})
+  ]);
+  function destination(slug){return DESTINATIONS.find(function(d){return d.slug===slug;})||null;}
+  function mappedDestination(d){return !!d&&typeof d.lat==='number'&&isFinite(d.lat)&&Math.abs(d.lat)<=90&&typeof d.lng==='number'&&isFinite(d.lng)&&Math.abs(d.lng)<=180;}
+  function destinationMap(d){
+    d=d&&destination(d.slug);if(!d)return null;
+    var q=d.address?d.nome+', '+d.address:mappedDestination(d)?d.lat+','+d.lng:null;
+    return q?'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(q):null;
+  }
+
   /* ── la geometria ─────────────────────────────────────────────────── */
   function km(lat1, lng1, lat2, lng2) {
     var R = 6371, r = Math.PI / 180;
@@ -167,7 +215,7 @@
   }
 
   return {
-    METE: METE, CHIAVE: CHIAVE, MAX_POSTI: MAX_POSTI,
+    METE: METE, DESTINATIONS: DESTINATIONS, destination: destination, mappedDestination: mappedDestination, destinationMap: destinationMap, CHIAVE: CHIAVE, MAX_POSTI: MAX_POSTI,
     KMH_PIEDI: KMH_PIEDI, SOGLIA_PIEDI_KM: SOGLIA_PIEDI_KM,
     km: km, minPiedi: minPiedi, minStima: minStima, tempo: tempo,
     vicine: vicine, posti: posti, salvaPosto: salvaPosto,

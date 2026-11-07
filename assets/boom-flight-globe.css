@@ -1,0 +1,44 @@
+/* BOOM's night globe. Geographic connections between city centres, never airline routes. */
+.boom-flight-globe{position:relative;width:100%;min-width:0;height:100%;color:#f1efe9;isolation:isolate;font-family:"Helvetica Neue",Helvetica,Arial,sans-serif}
+.boom-globe-stage{position:relative;width:100%;height:calc(100% - 44px);min-height:250px;isolation:isolate}
+.boom-flight-globe-canvas{display:block;position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.boom-globe-cities{position:absolute;inset:0;z-index:2}
+.boom-globe-cities button{position:absolute;display:flex;align-items:center;justify-content:space-between;gap:8px;transform:translate(-50%,-50%);width:var(--globe-label-width,112px);min-width:0;min-height:44px;padding:8px 7px 8px 9px;margin:0;border:0;border-bottom:1px solid rgba(228,221,200,.22);border-radius:0;background:rgba(5,6,7,.86);color:#eeeae0;box-shadow:none;font-family:inherit;font-size:14px;font-weight:400;line-height:1.2;letter-spacing:-.025em;text-align:left;cursor:pointer;touch-action:manipulation;transition:background .16s,color .16s,border-color .16s}
+.boom-globe-cities button:hover{background:#151510;border-bottom-color:#b7a36b;color:#fff}
+.boom-globe-cities button[aria-pressed="true"]{background:rgba(255,215,0,.08);border-bottom:2px solid #ffd700;color:#ffd700}
+.boom-globe-cities button:focus-visible{outline:2px solid #ffd700;outline-offset:3px}
+.boom-globe-city-code{font-family:"Courier New",monospace;font-size:9px;font-weight:400;letter-spacing:.035em;color:#b2aa93}
+.boom-globe-caption{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:44px;padding:0 6px;color:#a6a39b;font-family:inherit;font-size:11px;line-height:1.4;letter-spacing:0}
+.boom-globe-caption-label:before{content:"";display:inline-block;width:5px;height:5px;margin-right:7px;border-radius:50%;background:#c8aa3d;vertical-align:1px}
+.boom-globe-caption a{display:inline-flex;align-items:center;justify-content:center;gap:5px;flex-shrink:0;min-height:44px;min-width:44px;color:inherit;text-decoration:none;text-underline-offset:3px}
+.boom-globe-credit-icon{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border:1px solid #74736d;border-radius:50%;font-family:Georgia,serif;font-size:10px;font-style:italic;line-height:1}
+.boom-globe-caption a:hover{text-decoration:underline;color:#ddd9ce}
+.boom-globe-status{position:absolute;left:50%;bottom:3%;width:80%;margin:0;transform:translateX(-50%);color:#b2aea2;font-size:11px;font-weight:400;line-height:1.5;text-align:center}
+.boom-globe-status[hidden],.boom-flight-globe-canvas[hidden]{display:none}
+.boom-flight-globe[data-globe-state="error"] .boom-globe-stage{background:radial-gradient(ellipse at center,#17191c,transparent 65%)}
+.boom-flight-globe[data-globe-compact="true"] .boom-globe-cities button{font-size:12px;padding-right:6px;padding-left:7px;gap:4px}
+.boom-flight-globe[data-globe-compact="true"] .boom-globe-city-code{font-size:8px}
+.boom-globe-flight{position:fixed;inset:0;z-index:2147483646;box-sizing:border-box;width:100vw;max-width:none;height:100vh;height:100dvh;max-height:none;margin:0;padding:0;border:0;border-radius:0;background:transparent;color:#fff;overflow:hidden;overscroll-behavior:contain;font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;isolation:isolate}
+.boom-globe-flight[open]{animation:none;transform:none;box-shadow:none}
+.boom-globe-flight::backdrop{background:transparent;backdrop-filter:none;-webkit-backdrop-filter:none}
+.boom-globe-flight>canvas{position:absolute;inset:0;display:block;width:100%;height:100%;pointer-events:none}
+.boom-globe-flight-label{position:absolute;left:max(24px,6vw);bottom:max(34px,9vh);display:flex;flex-direction:column;gap:10px;margin:0;pointer-events:none;text-shadow:0 2px 30px #050607}
+.boom-globe-flight-label>span{font-family:"Courier New",monospace;font-size:11px;letter-spacing:.24em;color:#ffd700}
+.boom-globe-flight-label>strong{font-size:clamp(44px,7vw,96px);font-weight:300;letter-spacing:-.055em;line-height:.98}
+.boom-globe-flight-label>small{font-size:13px;font-weight:300;letter-spacing:.02em;color:#d0c9b7}
+.boom-globe-flight [data-globe-skip]{position:absolute;top:max(20px,env(safe-area-inset-top));right:max(20px,env(safe-area-inset-right));display:inline-flex;align-items:center;justify-content:center;gap:20px;min-width:120px;min-height:44px;padding:11px 15px;border:1px solid rgba(237,229,210,.38);border-radius:0;background:rgba(5,6,7,.86);color:#f4f1e7;font-family:inherit;font-size:13px;line-height:1.3;cursor:pointer;touch-action:manipulation}
+.boom-globe-flight [data-globe-skip]:focus-visible{outline:2px solid #ffd700;outline-offset:4px}
+.boom-globe-flight [data-globe-skip]:hover{border-color:#ffd700;color:#ffd700}
+@media(max-width:640px){.boom-globe-stage{min-height:250px}.boom-globe-caption{font-size:11px;padding:0 2px;gap:5px}.boom-globe-flight-label{bottom:max(32px,7vh);gap:8px}}
+@media(prefers-reduced-motion:reduce){.boom-globe-cities button{transition:none}}
+/* The canvas owns gestures; HTML city controls remain above it and fully operable. */
+.boom-flight-globe-canvas{pointer-events:auto;touch-action:pan-y;cursor:grab}
+.boom-globe-cities{pointer-events:none}
+.boom-globe-cities button{pointer-events:auto}
+.boom-flight-globe[data-globe-dragging="true"] .boom-flight-globe-canvas{cursor:grabbing}
+.boom-globe-reset{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 9px;background:none;color:#b7b8af;font:inherit;border:0;text-decoration:underline;text-underline-offset:4px;cursor:pointer;white-space:nowrap}
+.boom-globe-reset:hover{color:#ffd700}
+.boom-globe-reset:focus-visible{outline:2px solid #ffd700;outline-offset:2px}
+.boom-globe-caption{font-size:10px;gap:6px;flex-wrap:wrap;justify-content:center}
+.boom-globe-caption>a{font-size:9px;color:#898d88}
+.boom-flight-globe[data-globe-state="loading"] .boom-globe-reset,.boom-flight-globe[data-globe-state="error"] .boom-globe-reset{display:none}

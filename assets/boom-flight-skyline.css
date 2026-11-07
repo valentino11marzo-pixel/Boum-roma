@@ -1,0 +1,188 @@
+/* Flight / Skyline · real city, quiet controls, the same BOOM gold. */
+:root{--sky-gold:#FFD700;--sky-surface:rgba(13,15,19,.9);--sky-line:rgba(255,255,255,.13);--sky-muted:#a2a5ae}
+html body{background:#030303;--gold2:#ffe55c;--bg:#030303;--card:#0e1014;--t2:#b5b7c1;--t3:#969ba6;--t4:#9599a3}
+html .bar{padding:18px 27px;background:linear-gradient(180deg,rgba(3,3,3,.95),rgba(3,3,3,.7) 70%,transparent);height:80px;align-items:flex-start}
+html .brand .ttl{display:none}html .brand .logo{font-weight:300;letter-spacing:.25em;font-size:24px}html .bar-back{min-height:42px;display:flex;align-items:center;letter-spacing:.08em;font-size:11px;padding:10px 16px;background:#14161cbd;border-color:var(--sky-line)}
+.sky-flight{position:absolute;inset:0;pointer-events:none;z-index:10;font-family:Inter,-apple-system,BlinkMacSystemFont,sans-serif}
+.sky-flight button,.sky-flight a,.sky-flight-home,.sky-share-context{pointer-events:auto}
+.sky-flight-heading{position:absolute;top:100px;left:28px;max-width:340px;pointer-events:none;text-shadow:0 2px 18px #030303}
+.sky-flight-heading>span,.sky-share-label{font-size:9px;font-weight:500;letter-spacing:.23em;color:#d9c96d}
+.sky-flight-heading h1{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:43px;font-weight:200;letter-spacing:-1.5px;line-height:1.1;margin-top:8px}
+.sky-flight-heading h1 span{font-family:Inter,sans-serif;font-size:10px;letter-spacing:.12em;font-weight:400;color:#9b9fa9;margin-left:8px}
+.sky-flight-heading p{font-size:11px;line-height:1.6;color:#b7b9c1;margin-top:8px;max-width:280px}
+html .filters{top:23px;left:220px;right:150px;padding:0;gap:5px;justify-content:flex-start;flex-wrap:nowrap;overflow:auto;scrollbar-width:none;max-width:calc(100% - 380px);pointer-events:auto}
+html .filters .chip{flex:none;min-height:40px;padding:8px 13px;background:#14161cdb;border-color:var(--sky-line);font-size:11px;white-space:nowrap}
+html .filters .chip.on{background:#ffe35b;color:#15130b;box-shadow:inset 0 1px 0 #ffffff60;border-color:transparent}
+html .filters .chip.invito{border-style:solid;border-color:#ffd70040;background:#ffd7000b}
+.sky-flight-tools{position:absolute;right:27px;top:106px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end;max-width:430px;pointer-events:auto}
+.sky-flight-tools button{font:inherit;font-size:11px;color:#d2d4db;background:#11141bdb;border:1px solid var(--sky-line);padding:10px 13px;border-radius:10px;min-height:42px;cursor:pointer;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);transition:background .2s,border-color .2s}
+.sky-flight-tools button:hover{background:#24272d;border-color:#ffffff40}.sky-flight-tools button:disabled{opacity:.4;cursor:default}
+.sky-flight-tools .sky-share-button{border-color:#e3c8445c;color:#ecd875;background:#342f168c}
+.sky-view-toggle{display:flex;padding:3px;border:1px solid var(--sky-line);border-radius:11px;background:#0d1015d9}
+.sky-view-toggle button{border:0;background:transparent;min-height:34px;padding:7px 11px;border-radius:7px;color:#989eab}
+.sky-view-toggle button[aria-pressed=true],.sky-flight-tools button[aria-pressed=true]{background:#ffd70019;color:#ffe55c}
+html .quad{left:27px;bottom:33px;width:305px;background:linear-gradient(140deg,rgba(26,28,33,.94),rgba(11,13,17,.94));border-color:#ffffff20;border-radius:17px;box-shadow:inset 0 1px 0 #ffffff0a,0 22px 70px #0008}
+html .quad-capo{padding:14px 15px;border-bottom-color:#ffffff10}html .quad-capo b{font-size:17px;letter-spacing:-.3px}html .quad-capo small{font-size:8px;margin-top:5px;line-height:1.4;color:#c2b16e}
+html .quad-corpo{max-height:min(30vh,245px)}html .qr{padding:7px 8px;gap:9px}html .qr .ic{font-size:12px;background:#ffffff07;box-shadow:inset 0 0 0 1px #ffffff0b}html .qr .nm b{font-size:11px}html .qr .nm span{font-size:9px}html .qr .tm b{font-size:14px;color:#e2d291}html .qr .tm i{font-size:8px;letter-spacing:.05em}
+html .quad-nota{font-size:9px;line-height:1.55;padding:5px 14px 12px;color:#a5a7b2}html .quad-filtro{padding:12px;border-top-color:#ffffff12}html .qf-t{font-size:8px;letter-spacing:.16em}html .qf-r{flex-wrap:wrap;gap:7px}html .qf-r select{max-width:100%;font-size:12px;min-height:43px}html .qf-esito{font-size:9px}html .qf-min{gap:4px}html .qf-min button{min-width:40px;padding:7px 8px;font-size:11px}
+html .sky-pin{outline:none}html .sky-pin .p{background:linear-gradient(180deg,#ffe785,#e4c43d);font-family:Inter,sans-serif;font-weight:500;font-size:11px;letter-spacing:.01em;padding:8px 12px;border-radius:9px;box-shadow:inset 0 1px 0 #ffffff80,0 6px 20px #000a,0 0 0 1px #0005}
+html .sky-pin::after{background:linear-gradient(#ffe55c,transparent);height:15px}html .sky-pin.selected .p{background:#fff1ae;box-shadow:0 0 0 3px #ffe55c30,0 9px 28px #000b}
+html .sky-pin[hidden]{display:none!important}html .sky-pin:focus-visible .p{outline:2px solid #fff;outline-offset:4px}
+html .sky-anchor{font-size:10px;opacity:.65;border-color:#ffffff18;color:#d0d4dd;background:#10151ad9;box-shadow:0 6px 20px #0004}html .sky-anchor .ic{font-size:10px}html .sky-mine{background:#fff0a5;color:#211c07;font-size:10px}
+html .count{left:27px;top:221px;bottom:auto;transform:none;padding:7px 11px;font-size:10px;background:#0c0f13cc;border-color:#ffffff17;border-radius:7px;max-width:calc(100vw - 54px)}html .count .hint{display:none}
+.sky-flight-home{position:absolute;right:27px;bottom:33px;width:min(440px,calc(100% - 390px));padding:12px;display:flex;align-items:center;gap:15px;background:linear-gradient(140deg,rgba(30,32,38,.96),rgba(12,14,18,.96));border:1px solid #ffffff26;border-radius:18px;box-shadow:inset 0 1px 0 #ffffff12,0 25px 70px #0009;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
+.sky-flight-home[hidden]{display:none}.sky-flight-home>.sky-home-media{width:100px;height:119px;object-fit:cover;border-radius:10px;flex:none}.sky-home-copy{flex:1;min-width:0}.sky-home-zone{font-size:8px;letter-spacing:.18em;color:#c3b575;text-transform:uppercase;display:block;padding-right:24px}.sky-home-copy h2{font-family:'Helvetica Neue',Helvetica,sans-serif;font-size:26px;font-weight:200;letter-spacing:-.7px;line-height:1.1;margin:7px 0 6px}.sky-home-precision{font-size:9px;line-height:1.5;color:#b0b3be;max-width:245px}.sky-home-bottom{margin-top:12px;display:flex;gap:8px;align-items:flex-end;justify-content:space-between;flex-wrap:wrap}.sky-home-price{display:flex;align-items:center;gap:2px;font-size:18px;color:#ffe497}.sky-home-price small{font-size:8px;color:#9c9faa}.sky-home-bottom a{display:flex;align-items:center;justify-content:center;min-height:37px;padding:9px 12px;font-size:10px;color:#191609;background:#ffe36e;border:1px solid #ffedaa;border-radius:9px;white-space:nowrap;text-decoration:none;font-weight:500}.sky-home-close,.sky-dialog-close{position:absolute;top:9px;right:9px;width:32px;height:32px;border:1px solid #ffffff1c;border-radius:50%;background:#101216bd;color:#d0d2da;font-size:21px;cursor:pointer}
+.sky-price-board{display:inline-flex;gap:1px;font-family:'Helvetica Neue',Helvetica,sans-serif;font-weight:300;line-height:1.25}.sky-price-cell{position:relative;display:inline-block;background:linear-gradient(#252625 49%,#090a09 50%,#171916 53%);border:1px solid #ffffff0c;border-radius:3px;padding:2px 2px;min-width:.58em;text-align:center}
+.sky-share-context{position:absolute;right:27px;top:165px;padding:10px 13px;display:flex;gap:12px;align-items:center;border:1px solid #e2c64738;border-radius:9px;background:#17170fdb;font-size:10px;color:#dad3ad}.sky-share-context[hidden]{display:none}.sky-share-context button{border:0;background:transparent;color:#ffe55c;font:inherit;cursor:pointer;min-height:28px}
+.sky-flight-status{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+html .maplibregl-ctrl-bottom-right{bottom:185px;right:19px}html .maplibregl-ctrl-group{background:#171b22;border:1px solid #ffffff1f;border-radius:10px;overflow:hidden;box-shadow:0 10px 24px #0008}html .maplibregl-ctrl-group button{width:36px;height:38px;border-color:#ffffff13}html .maplibregl-ctrl-group button span{filter:invert(1);opacity:.8}html .maplibregl-ctrl-attrib{opacity:1;background:#0b0e12e6!important;color:#a4a7b0;font-size:9px!important}html .maplibregl-ctrl-attrib a{color:#bfc2cd}
+html .load{background:radial-gradient(ellipse at 50% 55%,#181b20,#030303 65%)}.sky-load-list{margin-top:7px;font-size:11px;color:#e5d376;text-decoration:none;border-bottom:1px solid #e5d37650;padding:8px 3px}.sky-share-dialog{position:fixed;margin:auto;padding:30px;width:min(480px,calc(100vw - 32px));max-height:calc(100dvh - 32px);overflow:auto;background:radial-gradient(at 100% 0%,#3b331b44,transparent 60%),linear-gradient(145deg,#1c1e23,#0c0e12);border:1px solid #ffffff2b;border-radius:22px;color:#f5f5f7;box-shadow:0 35px 100px #000c;font-family:Inter,sans-serif}.sky-share-dialog::backdrop{background:#030303b5;backdrop-filter:blur(9px)}.sky-share-dialog h2{font-family:'Helvetica Neue',Helvetica,sans-serif;font-size:44px;font-weight:200;letter-spacing:-1.5px;line-height:1.05;margin:19px 0}.sky-share-dialog p{font-size:12px;line-height:1.7;color:#b4b6c0}.sky-share-place{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:11px;line-height:1.6;color:#c4c6ce;padding:18px 0;margin:17px 0;border-block:1px solid #ffffff13}.sky-share-place input{accent-color:#ffd700;width:17px;height:17px}.sky-share-place strong{font-weight:500;color:#e9d482}.sky-link-label{display:block;font-size:10px;color:#adafb8;margin-bottom:8px}.sky-share-url{width:100%;border:1px solid #ffffff26;border-radius:9px;padding:12px;color:#b8bcc8;background:#080a0e;font-size:11px}.sky-share-actions{display:flex;gap:8px;margin-top:16px}.sky-share-actions button{min-height:44px;padding:11px 20px;border:1px solid #ffe789;border-radius:10px;background:#ffe375;color:#15130c;font:inherit;font-weight:500;font-size:12px;cursor:pointer}.sky-share-actions button+button{background:transparent;border-color:#ffffff26;color:#e0e1e6}.sky-share-dialog .sky-share-result{font-size:10px;color:#dacb7c;margin-top:14px}
+.sky-flight button:focus-visible,.sky-flight a:focus-visible,.sky-share-dialog :focus-visible,html .filters button:focus-visible{outline:2px solid #fff0a4;outline-offset:4px}
+html.emb .sky-flight-heading{top:23px;left:20px}html.emb .sky-flight-heading h1{font-size:30px}html.emb .sky-flight-heading>span,html.emb .sky-flight-heading p{display:none}html.emb .filters{left:20px;right:20px;top:77px;max-width:calc(100% - 40px)}html.emb .sky-flight-tools{top:20px;right:20px;max-width:calc(100% - 200px)}html.emb .sky-flight-tools .sky-share-button{display:none}html.emb .count{top:129px;left:20px}html.emb .quad{left:20px;bottom:28px;width:265px}html.emb .quad-corpo{max-height:150px}html.emb .sky-flight-home{right:20px;bottom:28px;width:min(390px,calc(100% - 320px))}html.emb .sky-flight-home>.sky-home-media{width:75px;height:100px}html.emb .sky-home-copy h2{font-size:21px}html.emb .sky-home-bottom{margin-top:9px}html.emb .sky-home-precision{font-size:8px}html.emb .sky-home-price{font-size:16px}html.emb .sky-home-bottom a{font-size:9px;padding:7px 10px}html.emb .sky-share-context{top:128px;right:20px}
+@media(max-width:900px){html .filters{left:185px;right:135px;max-width:calc(100% - 330px)}.sky-flight-heading h1{font-size:36px}.sky-flight-tools{max-width:355px;gap:4px}.sky-flight-tools button{font-size:10px;padding:9px 11px}.sky-flight-home{width:calc(100% - 375px);gap:10px}.sky-flight-home>.sky-home-media{width:70px;height:110px}.sky-home-copy h2{font-size:22px}.sky-home-bottom{gap:5px}.sky-home-price{font-size:16px}}
+@media(max-width:640px){html .bar{height:61px;padding:13px 16px}html .brand .logo{font-size:21px}html .bar-back{font-size:9px;min-height:35px;padding:8px 12px}html .filters{top:68px;left:15px;right:15px;max-width:calc(100% - 30px);gap:5px;padding-bottom:3px}html .filters .chip{font-size:10px;padding:8px 11px;min-height:38px}.sky-flight-heading{top:121px;left:17px}.sky-flight-heading>span{font-size:7px;letter-spacing:.17em}.sky-flight-heading h1{font-size:30px;margin-top:5px}.sky-flight-heading h1 span{font-size:7px;margin-left:4px}.sky-flight-heading p{display:none}.sky-flight-tools{top:195px;right:15px;left:15px;max-width:none;justify-content:flex-start;gap:5px}.sky-flight-tools button{min-height:38px;padding:8px 10px;font-size:10px;border-radius:8px}.sky-view-toggle{padding:2px;border-radius:9px}.sky-view-toggle button{min-height:32px;padding:6px 8px}.sky-flight-tools .sky-share-button{margin-left:auto}.sky-flight-tools #skyReset{font-size:0;min-width:38px;padding:8px}.sky-flight-tools #skyReset:after{content:'↺';font-size:18px}html .count{top:161px;left:auto;right:16px;padding:5px 7px;font-size:9px;max-width:150px}html .quad{left:12px;right:12px;bottom:calc(23px + env(safe-area-inset-bottom));width:auto;border-radius:14px}html .quad-capo{padding:12px 13px}html .quad-capo b{font-size:15px}html .quad-corpo{max-height:23vh}html .quad-nota{font-size:9px}html .quad-filtro{padding:10px 12px}html .qf-r{flex-wrap:nowrap}html .qf-r select{min-height:44px;font-size:12px}html .qf-min button{min-width:40px}html.sky-has-home .quad{bottom:calc(172px + env(safe-area-inset-bottom))}html.sky-has-home .quad:not(.sky-expanded) .quad-corpo,html.sky-has-home .quad:not(.sky-expanded) .quad-nota,html.sky-has-home .quad:not(.sky-expanded) .quad-filtro{display:none}.sky-flight-home{left:12px;right:12px;bottom:calc(23px + env(safe-area-inset-bottom));width:auto;gap:12px;padding:10px;border-radius:15px;min-height:139px}.sky-flight-home>.sky-home-media{width:86px;height:115px}.sky-home-copy h2{font-size:23px;margin:5px 0}.sky-home-zone{font-size:7px;max-width:210px}.sky-home-precision{font-size:8px;max-width:210px;padding-right:5px}.sky-home-price{font-size:17px}.sky-home-price small{font-size:8px}.sky-home-bottom{margin-top:8px;gap:6px;align-items:center}.sky-home-bottom a{min-height:33px;font-size:9px;padding:8px 10px}.sky-home-close{top:6px;right:6px;width:29px;height:29px}html .maplibregl-ctrl-bottom-right{bottom:265px;right:9px}html .maplibregl-ctrl-group button{width:33px;height:35px}.sky-share-context{top:244px;left:16px;right:16px;font-size:9px;justify-content:space-between}.sky-share-context button{font-size:9px}.sky-share-dialog{padding:25px}.sky-share-dialog h2{font-size:39px}.sky-share-dialog p{font-size:11px}html.emb .sky-flight-heading{top:15px;left:16px}html.emb .sky-flight-heading h1{font-size:27px}html.emb .filters{top:59px;left:15px;right:15px;max-width:calc(100% - 30px)}html.emb .sky-flight-tools{top:108px;left:15px;right:15px;max-width:none}html.emb .sky-flight-tools .sky-share-button{display:block}html.emb .count{top:24px;left:auto;right:16px}html.emb .quad{left:12px;right:12px;bottom:23px;width:auto}html.emb.sky-has-home .quad{bottom:170px}html.emb .sky-flight-home{left:12px;right:12px;width:auto;bottom:23px}html.emb .sky-flight-home>.sky-home-media{width:78px;height:106px}html.emb .sky-share-context{top:157px;left:15px;right:15px}}
+@media(max-width:360px){.sky-flight-tools button{padding:7px 8px;font-size:9px}.sky-flight-home>.sky-home-media{width:65px;height:100px}.sky-home-copy h2{font-size:21px}.sky-home-price{font-size:15px}.sky-home-bottom a{font-size:8px;padding:7px 8px}.sky-home-precision{font-size:7.5px}html .qf-min button{min-width:35px;padding:7px 5px}}
+@media(prefers-reduced-motion:reduce){.sky-flight *,html .load,html .sky-pin,html .pin-peek,html .quad{transition:none!important;animation:none!important;scroll-behavior:auto!important}}
+@media(forced-colors:active){.sky-flight-tools button,.sky-flight-home,.sky-share-dialog,html .quad,html .sky-pin .p{border:1px solid ButtonText}.sky-price-cell{background:Canvas}}
+
+/* In an apartment/home embed the host owns filters and consent UI. Consent
+   collection and analytics gates are unchanged; only the duplicate panel hides. */
+html.emb #filters [data-max],html.emb #vicinoChip{display:none}
+html.emb .quad:not(.sky-expanded) .quad-corpo,html.emb .quad:not(.sky-expanded) .quad-nota,html.emb .quad:not(.sky-expanded) .quad-filtro{display:none}
+html.emb.sky-consent-parent .boomcst{display:none!important}
+html.emb .quad-capo{cursor:pointer}
+html.emb .quad:not(.sky-expanded) .quad-capo{border-bottom:0}
+html.emb .quad:not(.sky-expanded) .quad-capo:after{content:'+';font-size:18px;font-weight:200;color:#ffe55c}
+html.sky-has-home .quad:not(.sky-expanded) .quad-capo:after{content:'Connections +';font-size:9px;color:#d8c674;white-space:nowrap}
+@media(max-height:680px) and (max-width:640px){html.sky-has-home .quad.sky-expanded .quad-corpo{max-height:100px}html.sky-has-home .quad.sky-expanded .quad-nota{display:none}}
+
+/* The shared Your move entry joins the existing full-page chrome. */
+html .bar{justify-content:flex-start;gap:12px}html .bar-back{margin-left:auto}
+@media(min-width:641px){html:not(.emb) .filters{right:290px;max-width:calc(100% - 520px)}}
+@media(max-width:640px){html .bar{gap:8px}html .bar .flight-move{font-size:10px;min-height:35px;padding:0 10px}}
+
+/* One save action, on the photograph; the underlying shortlist is boomSalvate. */
+.sky-home-media{position:relative;overflow:hidden;background:#1c2027}
+.sky-home-media>img{width:100%;height:100%;object-fit:cover;display:block}
+.sky-home-media>img[hidden]{display:none}
+.sky-home-save{position:absolute;left:6px;right:6px;bottom:6px;min-height:36px;padding:7px 3px;border:1px solid #ffffff42;border-radius:7px;background:#080b10dc;color:#fff0a4;backdrop-filter:blur(8px);font:500 9px/1.2 Inter,sans-serif;cursor:pointer;white-space:nowrap}
+.sky-home-save[aria-pressed=true]{border-color:#ffe55c80;background:#28240ee8;color:#ffe77e}
+.sky-home-save:disabled{opacity:.55;cursor:default}
+@media(pointer:coarse){.sky-home-save{min-height:44px}}
+@media(max-width:360px){.sky-home-save{font-size:8px;left:4px;right:4px}}
+
+/* Embedded hosts supply the Skyline title; keep the map's controls clear. */
+html.emb .sky-flight-heading{display:none}
+html.emb .filters{top:20px}
+html.emb .count{top:72px}
+@media(max-width:640px){
+  html.emb .filters{top:16px}
+  html.emb .sky-flight-tools{top:64px}
+  html.emb .count{top:113px;left:16px;right:auto}
+  html.emb .sky-share-context{top:151px}
+  html.emb .maplibregl-ctrl-bottom-right{bottom:90px;right:8px}
+}
+
+/* Compare: the map stays quiet until the visitor opens their saved shortlist. */
+.sky-flight-tools .sky-compare-button{border-color:#ffe55c40;background:#201e15ed;color:#f3df8c;font-variant-numeric:tabular-nums;white-space:nowrap}
+.sky-compare-dialog{position:fixed;margin:auto;width:min(1040px,calc(100vw - 40px));max-height:calc(100dvh - 40px);padding:0;overflow:auto;background:radial-gradient(ellipse at 90% 0%,#3f351827,transparent 45%),linear-gradient(140deg,#181b21,#080a0e 75%);border:1px solid #ffffff29;border-radius:23px;color:#f5f5f8;box-shadow:inset 0 1px 0 #ffffff13,0 40px 130px #000d;font-family:Inter,-apple-system,BlinkMacSystemFont,sans-serif;animation:skyCompareIn .36s cubic-bezier(.16,1,.3,1)}
+.sky-compare-dialog::backdrop{background:#020304b8;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+.sky-compare-head{position:relative;display:flex;align-items:flex-start;justify-content:space-between;gap:20px;padding:28px 30px 20px}
+.sky-compare-head h2{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:43px;font-weight:200;line-height:1.08;letter-spacing:-1.4px;margin:11px 0 0;padding-right:35px}
+.sky-compare-head .sky-dialog-close{top:23px;right:24px;width:36px;height:36px}
+.sky-compare-steps{display:flex;gap:25px;list-style:none;margin:0;padding:0 30px 21px;border-bottom:1px solid #ffffff12;flex-wrap:wrap}
+.sky-compare-steps li{display:flex;align-items:center;gap:7px;font-size:10px;color:#989da9;line-height:1.6}
+.sky-compare-steps b{font-size:10px;font-weight:500;color:#696d78;font-variant-numeric:tabular-nums}
+.sky-compare-steps .current{color:#fff0ad}.sky-compare-steps .current b{color:#ffd700}
+#skyCompareBody{padding:22px 30px 0}
+.sky-compare-intro{display:flex;align-items:center;justify-content:space-between;gap:15px;margin-bottom:16px;flex-wrap:wrap}
+.sky-compare-intro p{margin:0;font-size:12px;color:#d4d6dd}.sky-compare-intro>span{font-size:10px;color:#999eaa;line-height:1.5}
+.sky-compare-picker{border:1px solid #ffffff16;background:#090c1199;border-radius:10px;margin-bottom:18px}
+.sky-compare-picker summary{padding:12px 14px;font-size:11px;color:#c6c9d2;cursor:pointer;min-height:42px;line-height:1.6}
+.sky-compare-choices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;max-height:180px;overflow-y:auto;border-top:1px solid #ffffff0f;padding:12px 14px}
+.sky-compare-choices label{display:flex;align-items:flex-start;gap:8px;font-size:11px;color:#e1e2e8;line-height:1.5;min-height:37px;padding:6px 0;cursor:pointer;overflow-wrap:anywhere}
+.sky-compare-choices input{accent-color:#ffd700;width:16px;height:16px;margin:1px 0 0;flex:none}.sky-compare-choices small{display:block;color:#9a9fab;font-size:9px;margin-top:2px}
+.sky-compare-columns{display:grid;grid-template-columns:repeat(var(--compare-count),minmax(0,1fr));gap:15px;padding-bottom:2px;outline-offset:4px}
+.sky-compare-card{min-width:0;border:1px solid #ffffff1c;border-radius:14px;overflow:hidden;background:linear-gradient(155deg,#2023297a,#0e1016a6);animation:skyCompareCard .42s cubic-bezier(.16,1,.3,1) both}
+.sky-compare-card:nth-child(2){animation-delay:45ms}.sky-compare-card:nth-child(3){animation-delay:90ms}
+.sky-compare-media{position:relative;height:155px;background:linear-gradient(140deg,#282c32,#11141b);overflow:hidden}
+.sky-compare-media:after{content:'';position:absolute;inset:35% 0 0;background:linear-gradient(transparent,#0406099c);pointer-events:none}
+.sky-compare-media img{width:100%;height:100%;display:block;object-fit:cover}.sky-compare-media img[hidden]{display:none}
+.sky-compare-number{position:absolute;z-index:1;left:15px;bottom:10px;font-family:'Helvetica Neue',Helvetica,sans-serif;font-size:29px;font-weight:200;letter-spacing:-1px;color:#fff4bf;text-shadow:0 2px 10px #0008}
+.sky-compare-no-photo{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:10px;color:#9198a7;letter-spacing:.04em}
+.sky-compare-card-head{padding:17px 17px 12px;min-height:108px}.sky-compare-zone{display:block;color:#c9b86e;font-size:8px;text-transform:uppercase;letter-spacing:.14em;line-height:1.6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sky-compare-card h3{font-family:'Helvetica Neue',Helvetica,sans-serif;font-weight:200;font-size:26px;line-height:1.12;letter-spacing:-.6px;margin:8px 0 0;overflow-wrap:anywhere}
+.sky-compare-facts{margin:0;padding:0 17px}.sky-compare-facts>div{min-height:66px;display:flex;flex-direction:column;justify-content:center;border-top:1px solid #ffffff10;padding:11px 0}.sky-compare-facts dt{font-size:9px;color:#979da9;line-height:1.5}.sky-compare-facts dd{margin:4px 0 0;font-size:14px;font-weight:400;color:#e0e2e8;line-height:1.4;font-variant-numeric:tabular-nums}
+.sky-compare-facts>.sky-compare-rent{min-height:81px}.sky-compare-rent dd{font-family:'Helvetica Neue',Helvetica,sans-serif;font-size:30px;font-weight:200;letter-spacing:-.6px;color:#ffe18a}.sky-compare-facts>.sky-compare-availability{min-height:76px}.sky-compare-availability dd{font-size:12px}
+.sky-compare-card-actions{display:flex;gap:7px;padding:15px 17px 16px;border-top:1px solid #ffffff10;margin-top:3px}
+.sky-compare-card-actions button,.sky-compare-card-actions a,.sky-compare-return{display:inline-flex;align-items:center;justify-content:center;font:500 10px/1.2 Inter,sans-serif;min-height:42px;padding:11px 13px;border-radius:8px;border:1px solid #ffffff26;text-decoration:none;white-space:nowrap;cursor:pointer;transition:background .2s,border-color .2s,transform .2s}
+.sky-compare-fly{background:#12151c;color:#e6d28b}.sky-compare-fly:disabled{opacity:.42;cursor:default}
+.sky-compare-card-actions .sky-compare-explore,.sky-compare-return{background:#ffe27b;border-color:#ffeda9;color:#17140c;flex:1}
+.sky-compare-card-actions a:hover,.sky-compare-return:hover{background:#ffecaa;transform:translateY(-1px)}.sky-compare-fly:not(:disabled):hover{border-color:#ffe55c80;background:#26251c}
+.sky-compare-map-note{font-size:9px;line-height:1.6;color:#9b9fab;padding:0 17px 14px;margin:0}
+.sky-compare-note{font-size:10px;line-height:1.8;color:#a4a8b4;margin:20px 0 0;padding-bottom:3px;max-width:760px}.sky-compare-status{font-size:11px;line-height:1.6;color:#ffe18b;margin:0;padding:14px 30px 20px;min-height:35px}
+.sky-compare-empty{padding:20px 0 25px;max-width:490px}.sky-compare-empty-number{font-family:'Helvetica Neue',Helvetica,sans-serif;font-size:53px;font-weight:200;color:#e0c962;letter-spacing:-2px;display:block}.sky-compare-empty h3{font-family:'Helvetica Neue',Helvetica,sans-serif;font-size:31px;font-weight:200;letter-spacing:-.6px;line-height:1.2;margin:15px 0}.sky-compare-empty p{font-size:12px;line-height:1.8;color:#aeb3bf;margin:0 0 22px}.sky-compare-return{min-width:170px;font-size:11px}
+.sky-compare-swipe{display:none}.sky-compare-dialog :focus-visible{outline:2px solid #ffe55c;outline-offset:4px}
+@keyframes skyCompareIn{from{opacity:0;transform:translateY(18px) scale(.975)}to{opacity:1;transform:none}}
+@keyframes skyCompareCard{from{opacity:0;transform:translateY(13px)}to{opacity:1;transform:none}}
+@media(max-width:760px){.sky-compare-dialog{width:calc(100vw - 24px);max-height:calc(100dvh - 24px);border-radius:19px}.sky-compare-head{padding:23px 20px 18px}.sky-compare-head h2{font-size:34px;letter-spacing:-1px;max-width:300px;padding-right:20px}.sky-compare-head .sky-dialog-close{top:17px;right:15px;width:34px;height:34px}.sky-compare-head .sky-share-label{font-size:8px}.sky-compare-steps{gap:8px 17px;padding:0 20px 18px}.sky-compare-steps li{font-size:9px;gap:5px}.sky-compare-steps li:last-child{width:100%}.sky-compare-steps b{font-size:9px}#skyCompareBody{padding:18px 20px 0}.sky-compare-intro{gap:8px}.sky-compare-intro p{font-size:11px}.sky-compare-intro>span{font-size:9px}.sky-compare-choices{grid-template-columns:1fr;max-height:180px}.sky-compare-picker summary{font-size:10px}.sky-compare-swipe{display:block;font-size:9px;color:#c8b87a;margin:0 0 10px;letter-spacing:.02em}.sky-compare-columns{grid-template-columns:none;grid-auto-flow:column;grid-auto-columns:min(77vw,310px);overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x mandatory;padding-bottom:13px;gap:12px;scrollbar-color:#b8a348 #ffffff0a;scrollbar-width:thin}.sky-compare-card{scroll-snap-align:start;border-radius:12px}.sky-compare-media{height:143px}.sky-compare-card-head{min-height:104px;padding:15px 15px 11px}.sky-compare-card h3{font-size:25px}.sky-compare-facts{padding:0 15px}.sky-compare-facts>div{min-height:62px}.sky-compare-facts>.sky-compare-rent{min-height:76px}.sky-compare-facts>.sky-compare-availability{min-height:76px}.sky-compare-card-actions{padding:14px 15px}.sky-compare-note{font-size:9px;margin-top:15px}.sky-compare-status{font-size:10px;padding:12px 20px 17px}.sky-compare-empty{padding-top:6px}.sky-compare-empty h3{font-size:28px}.sky-compare-empty p{font-size:11px}}
+@media(max-width:640px){.sky-flight-tools{gap:4px}.sky-flight-tools .sky-share-button{font-size:0;width:38px;min-width:38px;padding:8px;margin-left:0}.sky-flight-tools .sky-share-button:after{content:'↗';font-size:18px}.sky-flight-tools .sky-compare-button{font-size:9px;padding:8px 9px;margin-left:auto}}
+@media(prefers-reduced-motion:reduce){.sky-compare-dialog,.sky-compare-card,.sky-compare-card-actions a,.sky-compare-card-actions button,.sky-compare-return{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+@media(forced-colors:active){.sky-compare-dialog,.sky-compare-card,.sky-compare-picker,.sky-compare-card-actions button,.sky-compare-card-actions a{border:1px solid ButtonText}.sky-compare-facts>div{border-color:ButtonText}}
+
+@media(min-width:761px){.sky-compare-dialog[data-home-count='0'],.sky-compare-dialog[data-home-count='1']{width:min(560px,calc(100vw - 40px))}.sky-compare-dialog[data-home-count='2']{width:min(760px,calc(100vw - 40px))}.sky-compare-dialog[data-home-count='1'] .sky-compare-choices{grid-template-columns:1fr 1fr}}
+@media(max-width:760px){.sky-compare-dialog[data-home-count='1'] .sky-compare-columns{grid-auto-columns:100%}}
+
+/* On a phone, connections open by choice. The selected-home height reserves
+   actual space, including longer names, instead of assuming a fixed card. */
+@media(max-width:640px){
+  html .quad:not(.sky-expanded) .quad-corpo,html .quad:not(.sky-expanded) .quad-nota,html .quad:not(.sky-expanded) .quad-filtro{display:none}
+  html .quad:not(.sky-expanded) .quad-capo{border-bottom:0;cursor:pointer}
+  html .quad:not(.sky-expanded) .quad-capo:after{content:'Connections +';font-size:9px;font-weight:400;color:#d8c674;white-space:nowrap}
+  html .quad.sky-expanded .quad-capo{cursor:pointer}
+  html .quad.sky-expanded .quad-capo:after{content:'−';font-size:18px;font-weight:200;color:#ffe55c}
+  html.sky-has-home .quad,html.emb.sky-has-home .quad{bottom:calc(var(--sky-home-height,139px) + 33px + env(safe-area-inset-bottom))}
+  html .quad.sky-expanded{max-height:max(84px,calc(100dvh - 250px));overflow-y:auto;overscroll-behavior:contain}
+  html.sky-has-home .quad.sky-expanded{max-height:max(84px,calc(100dvh - var(--sky-home-height,139px) - 250px))}
+}
+
+/* Loading is a small, honest status surface. The city, pins and navigation
+   remain usable while third-party tiles complete or a retry is offered. */
+html .load{inset:auto;left:50%;top:50%;transform:translate(-50%,-50%);width:min(310px,calc(100vw - 48px));padding:17px 20px;gap:8px;border:1px solid #ffffff21;border-radius:14px;background:#10141be8;box-shadow:0 15px 50px #0007;backdrop-filter:blur(12px);pointer-events:none;transition:opacity .2s,visibility .2s}
+html .load .t{display:none}html .load .dot{width:6px;height:6px;box-shadow:0 0 15px #ffd70050}
+html .load .s{font-size:11px;line-height:1.6;color:#c9cdd7;text-align:center}
+html .load .sky-load-list{font-size:10px;margin-top:0;padding:4px 0;pointer-events:auto;min-height:32px;display:flex;align-items:center}
+.sky-load-retry{pointer-events:auto;font:500 11px Inter,sans-serif;min-height:38px;padding:8px 15px;background:#ffe27b;border:1px solid #ffedaa;border-radius:8px;color:#17140c;cursor:pointer}
+.sky-load-retry[hidden]{display:none}html .load.failed .dot{animation:none;background:#a1a6b1;box-shadow:none}
+html .load.off{pointer-events:none}html .load.off a,html .load.off button{pointer-events:none}
+@media(max-width:640px){html .load{top:47%;width:min(285px,calc(100vw - 48px));padding:14px 18px}html.emb .load{top:47%;max-width:270px}}
+
+/* Reveal the base cartography only after Flight's palette is applied at
+   style.load; pins and controls do not wait for the tile-complete load event. */
+#map .maplibregl-canvas{opacity:0}
+html.sky-map-styled #map .maplibregl-canvas{opacity:1}
+html.sky-map-fallback:not(.sky-map-styled) #map .maplibregl-canvas{opacity:1;filter:brightness(.45) saturate(.7)}
+
+/* The embedding page owns its initial loader; failures remain actionable. */
+html.emb .load:not(.failed){display:none}
+
+/* A Home city preview has one view choice and one clear route into the full
+   workspace. Pins still open their real home, with the original save action. */
+.sky-preview-expand{display:none}
+html.sky-preview #filters,html.sky-preview .quad,html.sky-preview .count,html.sky-preview .sky-share-context,html.sky-preview .maplibregl-ctrl-group{display:none!important}
+html.sky-preview .sky-flight-tools{inset:14px 14px auto auto;max-width:none;gap:7px;flex-wrap:nowrap;justify-content:flex-end}
+html.sky-preview .sky-flight-tools>button{display:none!important}
+html.sky-preview .sky-preview-expand{display:inline-flex;align-items:center;justify-content:center;pointer-events:auto;min-height:42px;padding:9px 13px;border:1px solid #ffffff26;border-radius:10px;background:#11141be8;color:#f2e7b2;font-size:11px;white-space:nowrap;text-decoration:none}
+html.sky-preview .sky-view-toggle button{min-width:38px;min-height:36px;font-size:11px}
+html.sky-preview .sky-flight-home{left:12px;right:12px;bottom:23px;width:auto;max-width:440px;margin-left:auto;gap:12px;padding:10px}
+html.sky-preview .sky-flight-home>.sky-home-media{width:78px;height:100px}
+html.sky-preview .sky-home-copy h2{font-size:21px}
+html.sky-preview .sky-flight-home[hidden]{display:none}
+html.sky-preview .sky-home-bottom a{min-height:38px}
+html.sky-preview .maplibregl-ctrl-attrib{font-size:8px!important}
+/* The preview has no bottom workspace; attribution belongs at the map edge. */
+html.sky-preview .maplibregl-ctrl-bottom-right{bottom:5px;right:6px}
+html .load.usable:not(.off){top:auto;bottom:14px;transform:translateX(-50%);max-width:330px;padding:9px 13px;gap:5px}
+html .load.usable .dot,html .load.usable:not(.partial):not(.failed) .sky-load-list{display:none}
+html.emb .load.partial{display:flex}
+@media(pointer:coarse){html.sky-preview .sky-preview-expand,html.sky-preview .sky-view-toggle button{min-height:44px}}

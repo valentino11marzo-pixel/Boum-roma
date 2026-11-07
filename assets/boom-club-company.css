@@ -1,0 +1,77 @@
+/* The company is a useful final destination, with real places, people and services. */
+body[data-direction="club"][data-edition="club"].europe-ready #clubCompany{
+ display:block;max-width:none;margin:0;padding:64px var(--edition-gutter) 26px;background:#0d0f11;border-top:1px solid #41433d;color:#f3f2ec;
+ & a{color:inherit;text-decoration:none;min-height:44px;display:inline-flex;align-items:center;line-height:1.4}
+ & a:hover{color:#ffd700}
+ & :is(a,button):focus-visible{outline:2px solid #ffd700;outline-offset:4px}
+ & :is(h2,h3,p){margin:0}
+ & h3{font-size:16px;line-height:1.25;font-weight:400;letter-spacing:-.02em}
+ & p{color:#b9bcb7;font-size:14px;line-height:1.6}
+ & .club-company-intro{display:grid;grid-template-columns:1fr 1.25fr;gap:50px;align-items:start;padding-bottom:42px}
+ & .club-company-brand{width:240px;max-width:85%;padding:8px 0}
+ & .club-company-brand img{width:100%;height:auto}
+ & .club-company-intro h2{font-size:clamp(38px,4.4vw,68px);font-weight:300;line-height:1.03;letter-spacing:-.045em;margin-bottom:23px}
+ & .club-principles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:32px;padding:32px 0 38px;border-top:1px solid #373a35;border-bottom:1px solid #373a35}
+ & .club-principles article{display:grid;grid-template-columns:20px minmax(0,1fr);gap:12px 8px;align-content:start}
+ & .club-principles article>span{color:#ffd700;font-size:22px;line-height:1}
+ & .club-principles h3{font-size:21px;font-weight:300;line-height:1.2;letter-spacing:-.025em}
+ & .club-principles :is(p,a){grid-column:2}
+ & .club-principles p{font-size:13px;max-width:330px}
+ & .club-principles a{font-size:12px;gap:18px;align-self:end;justify-content:space-between}
+ & .club-principles a>span{color:#ffd700}
+ & .club-destinations{display:grid;grid-template-columns:1fr 1.25fr;gap:50px;padding:38px 0 42px;border-bottom:1px solid #373a35}
+ & .club-destinations-title h3{font-size:34px;font-weight:300;margin-bottom:16px;letter-spacing:-.035em}
+ & .club-destinations-title p{max-width:320px;font-size:13px}
+ & .club-destination-board{border-top:1px solid #373a35}
+ & .club-destination-board button{display:grid;grid-template-columns:48px minmax(100px,1fr) minmax(120px,1fr) 24px;align-items:center;gap:14px;width:100%;min-height:52px;padding:4px 0;border:0;border-bottom:1px solid #373a35;background:transparent;color:#f3f2ec;text-align:left;font:inherit;cursor:pointer;touch-action:manipulation}
+ & .club-destination-code{display:grid;place-items:center;min-height:31px;background:#1b1d1e;color:#cbc9b9;border-radius:2px;font:12px/1 "Courier New",monospace;letter-spacing:.08em}
+ & .club-destination-board strong{font-size:18px;font-weight:300;letter-spacing:-.025em}
+ & .club-destination-board button>span:not(.club-destination-code){font-size:11px;color:#b9bcb7}
+ & .club-destination-board i{font-size:20px;font-style:normal;color:#999d94;text-align:right}
+ & .club-destination-board button[aria-pressed="true"] .club-destination-code{color:#ffd700;box-shadow:inset 2px 0 #ffd700}
+ & .club-destination-board button:hover{background:#191c1c}
+ & .club-destination-board button:hover i{color:#ffd700}
+ & .club-company-links{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:36px;padding:36px 0}
+ & .club-company-links h3{font-size:12px;color:#a9ad9f;margin-bottom:10px;letter-spacing:0}
+ & .club-company-links a{font-size:13px;display:flex;overflow-wrap:anywhere;align-items:center;padding:6px 0}
+ & .club-company-legal{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:20px 40px;border-top:1px solid #373a35;padding-top:25px}
+ & .club-company-legal p{font-size:11px;line-height:1.8;max-width:none}
+ & .club-company-legal strong{font-weight:400;color:#e1e2da}
+ & .club-company-legal>div{display:flex;gap:25px;align-items:flex-start}
+ & .club-company-legal a{font-size:11px}
+ & .club-company-legal small{grid-column:1/-1;font-size:10px;color:#8f938b;padding-top:6px}
+}
+@media(max-width:800px){body[data-direction="club"][data-edition="club"].europe-ready #clubCompany{
+ & .club-company-intro,& .club-destinations{grid-template-columns:.75fr 1.25fr;gap:26px}
+ & .club-principles{gap:20px}
+ & .club-principles article{grid-template-columns:1fr}
+ & .club-principles article>span{display:none}
+ & .club-principles :is(p,a){grid-column:1}
+ & .club-company-links{grid-template-columns:repeat(2,minmax(0,1fr));gap:25px 35px}
+}}
+@media(max-width:650px){body[data-direction="club"][data-edition="club"].europe-ready #clubCompany{
+ padding:38px 20px 25px;
+ & .club-company-intro{display:flex;flex-direction:column;gap:25px;padding-bottom:30px}
+ & .club-company-brand{width:165px}
+ & .club-company-intro h2{font-size:42px;margin-bottom:20px}
+ & .club-company-intro p{font-size:13px;max-width:350px}
+ & .club-principles{display:block;padding:10px 0 21px}
+ & .club-principles article{display:grid;grid-template-columns:18px 1fr;gap:8px;padding:23px 0 4px}
+ & .club-principles article>span{display:block;font-size:20px}
+ & .club-principles :is(p,a){grid-column:2}
+ & .club-principles h3{font-size:22px}
+ & .club-principles a{justify-content:flex-start;gap:15px}
+ & .club-destinations{display:block;padding:28px 0 32px}
+ & .club-destinations-title h3{font-size:30px;margin-bottom:10px}
+ & .club-destinations-title p{margin-bottom:22px}
+ & .club-destination-board button{grid-template-columns:41px minmax(80px,1fr) minmax(100px,1fr) 16px;gap:9px;min-height:55px}
+ & .club-destination-board strong{font-size:17px}
+ & .club-destination-board button>span:not(.club-destination-code){font-size:10px}
+ & .club-destination-code{font-size:10px}
+ & .club-company-links{gap:28px 22px;padding:30px 0}
+ & .club-company-links h3{font-size:11px}
+ & .club-company-links a{font-size:12px}
+ & .club-company-legal{display:block;padding-top:20px}
+ & .club-company-legal>div{gap:25px;margin-top:12px}
+ & .club-company-legal small{display:block;margin-top:16px}
+}}

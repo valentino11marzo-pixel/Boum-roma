@@ -1,0 +1,439 @@
+{
+  "refund": {
+    "rule": "Full Search is refunded in full if we decline the search in the first call."
+  },
+  "cities": {
+    "amsterdam": {
+      "slug": "amsterdam",
+      "live": true,
+      "mode": "search",
+      "hero": {
+        "faresHead": {
+          "b": "Flat fees"
+        }
+      },
+      "pricing": {
+        "plans": [
+          {
+            "id": "full-search",
+            "label": "Full Search",
+            "price": 500,
+            "condition": "flat · incl. VAT",
+            "offerDescription": "Search, Dutch-format dossier and motivation letter, applications as listings appear, one attended viewing, negotiation and contract check, until the tenant signs or stops the search.",
+            "includes": [
+              "Every working day: Pararius, Funda, agencies",
+              "Motivation letter, applications as listings appear",
+              "One attended viewing (more: €149 each)",
+              "Rent negotiated, contract checked, BRP supported",
+              "Until you sign, or you say stop"
+            ]
+          },
+          {
+            "id": "application-pack",
+            "label": "Application Pack",
+            "price": 199,
+            "condition": "flat · incl. VAT",
+            "offerDescription": "Dutch-format rental dossier within one working day of your papers, motivation letter, income and guarantor strategy, contract review.",
+            "includes": [
+              "Dutch-format dossier, one working day from your papers",
+              "Motivation letter, Dutch + English",
+              "Income and guarantor strategy",
+              "Contract review before you sign"
+            ]
+          },
+          {
+            "id": "attended-viewing",
+            "label": "Attended Viewing",
+            "price": 149,
+            "condition": "per viewing · incl. VAT",
+            "offerDescription": "A BOOM person attends the viewing in your place, with live video and a written report.",
+            "includes": [
+              "A BOOM person attends in your place",
+              "Live video walkthrough",
+              "Written report: light, noise, damp, neighbours, commute",
+              "A straight recommendation"
+            ]
+          }
+        ]
+      }
+    },
+    "barcelona": {
+      "slug": "barcelona",
+      "live": true,
+      "mode": "search",
+      "hero": {
+        "faresHead": {
+          "b": "Optional, chosen in writing"
+        }
+      },
+      "pricing": {
+        "plans": [
+          {
+            "id": "full-search",
+            "label": "Full Search",
+            "price": 500,
+            "condition": "flat · incl. VAT",
+            "offerDescription": "Search, Spanish-format application file and presentation letter, applications as listings appear, one attended viewing, negotiation, rent-cap and contract check, until the tenant signs or stops the search.",
+            "includes": [
+              "Every working day: Idealista, Fotocasa, Habitaclia, agencies",
+              "Presentation letter, applications as listings appear",
+              "One attended viewing (more: €149 each)",
+              "Negotiation, cap and contract checks",
+              "Until you sign, or you say stop"
+            ]
+          },
+          {
+            "id": "application-pack",
+            "label": "Application Pack",
+            "price": 199,
+            "condition": "flat · incl. VAT",
+            "offerDescription": "Spanish-format rental application file within one working day of your papers, presentation letter, income and guarantor strategy, contract review.",
+            "includes": [
+              "Spanish-format file, one working day from your papers",
+              "Presentation letter in Spanish",
+              "Income, aval and guarantor strategy",
+              "Contract review before you sign"
+            ]
+          },
+          {
+            "id": "attended-viewing",
+            "label": "Attended Viewing",
+            "price": 149,
+            "condition": "per viewing · incl. VAT",
+            "offerDescription": "A BOOM person attends the viewing in your place, with live video and a written report.",
+            "includes": [
+              "A BOOM person attends in your place",
+              "Live video walkthrough",
+              "Written report: light, noise, damp, neighbours, commute",
+              "A straight recommendation"
+            ]
+          }
+        ]
+      }
+    },
+    "berlin": {
+      "slug": "berlin",
+      "live": true,
+      "mode": "search",
+      "hero": {
+        "faresHead": {
+          "b": "Flat fees"
+        }
+      },
+      "pricing": {
+        "plans": [
+          {
+            "id": "full-search",
+            "label": "Full Search",
+            "price": 500,
+            "condition": "flat · incl. VAT",
+            "offerDescription": "Search for homes whose landlord lets us offer them to you alone, German-format application and self-disclosure, attended viewings, rent brake and lease check, until the tenant signs or stops the search.",
+            "includes": [
+              "Homes offered to you alone, with the landlord's go-ahead",
+              "Self-disclosure and German-format application",
+              "Attended viewings included",
+              "Rent brake and lease checked, Nebenkosten read",
+              "Until you sign, or you say stop"
+            ]
+          },
+          {
+            "id": "application-pack",
+            "label": "Application Pack",
+            "price": 199,
+            "condition": "flat · incl. VAT",
+            "offerDescription": "German-format rental dossier within one working day of your papers, a SCHUFA and guarantor strategy, self-disclosure and cover note in German, lease review before you sign.",
+            "includes": [
+              "German-format dossier, one working day from your papers",
+              "SCHUFA and guarantor strategy for newcomers",
+              "Self-disclosure and cover note in German",
+              "Lease review before you sign"
+            ]
+          },
+          {
+            "id": "attended-viewing",
+            "label": "Attended Viewing",
+            "price": 149,
+            "condition": "per viewing · incl. VAT",
+            "offerDescription": "A BOOM person attends the viewing in your place, with live video and a written report.",
+            "includes": [
+              "A BOOM person attends in your place",
+              "Live video walkthrough",
+              "Written report: light, noise, damp, neighbours, commute",
+              "A straight recommendation"
+            ]
+          }
+        ]
+      }
+    },
+    "london": {
+      "slug": "london",
+      "live": true,
+      "mode": "search",
+      "hero": {
+        "faresHead": {
+          "b": "Flat fees"
+        }
+      },
+      "pricing": {
+        "plans": [
+          {
+            "id": "full-search",
+            "label": "Full Search",
+            "price": 500,
+            "condition": "flat · incl. VAT",
+            "offerDescription": "Search, tenant file and cover letter, applications as listings appear, one attended viewing, negotiation and tenancy check, until the tenant signs or stops the search.",
+            "includes": [
+              "Every working day: Rightmove, Zoopla, OpenRent, agencies",
+              "Cover letter, applications as listings appear",
+              "One attended viewing (more: £149 each)",
+              "Terms negotiated, tenancy checked before you sign",
+              "Until you sign, or you say stop"
+            ]
+          },
+          {
+            "id": "application-pack",
+            "label": "Application Pack",
+            "price": 199,
+            "condition": "flat · incl. VAT",
+            "offerDescription": "Tenant file within one working day of your papers, cover letter, income and guarantor strategy, tenancy review before signing.",
+            "includes": [
+              "Tenant file, one working day from your papers",
+              "Cover letter for the landlord",
+              "Income and guarantor strategy",
+              "Tenancy reviewed before you sign"
+            ]
+          },
+          {
+            "id": "attended-viewing",
+            "label": "Attended Viewing",
+            "price": 149,
+            "condition": "per viewing · incl. VAT",
+            "offerDescription": "A BOOM person attends the viewing in your place, with live video and a written report.",
+            "includes": [
+              "A BOOM person attends in your place",
+              "Live video walkthrough",
+              "Written report: light, noise, damp, neighbours, commute",
+              "A straight recommendation"
+            ]
+          }
+        ]
+      }
+    },
+    "madrid": {
+      "slug": "madrid",
+      "live": true,
+      "mode": "search",
+      "hero": {
+        "faresHead": {
+          "b": "Optional, chosen in writing"
+        }
+      },
+      "pricing": {
+        "plans": [
+          {
+            "id": "full-search",
+            "label": "Full Search",
+            "price": 500,
+            "condition": "flat · incl. VAT",
+            "offerDescription": "Search, Spanish-format application file and presentation letter, applications as listings appear, one attended viewing, negotiation and contract check, until the tenant signs or stops the search.",
+            "includes": [
+              "Every working day: Idealista, Fotocasa, agencies",
+              "Presentation letter, applications as listings appear",
+              "One attended viewing (more: €149 each)",
+              "Rent negotiated, contract checked, padrón supported",
+              "Until you sign, or you say stop"
+            ]
+          },
+          {
+            "id": "application-pack",
+            "label": "Application Pack",
+            "price": 199,
+            "condition": "flat · incl. VAT",
+            "offerDescription": "Spanish-format rental application file within one working day of your papers, presentation letter, income and guarantor strategy, contract review.",
+            "includes": [
+              "Spanish-format file, one working day from your papers",
+              "Presentation letter in Spanish",
+              "Income, aval and guarantor strategy",
+              "Contract review before you sign"
+            ]
+          },
+          {
+            "id": "attended-viewing",
+            "label": "Attended Viewing",
+            "price": 149,
+            "condition": "per viewing · incl. VAT",
+            "offerDescription": "A BOOM person attends the viewing in your place, with live video and a written report.",
+            "includes": [
+              "A BOOM person attends in your place",
+              "Live video walkthrough",
+              "Written report: light, noise, damp, neighbours, commute",
+              "A straight recommendation"
+            ]
+          }
+        ]
+      }
+    },
+    "milan": {
+      "slug": "milan",
+      "live": true,
+      "mode": "search",
+      "hero": {
+        "faresHead": {
+          "b": "Flat fees"
+        }
+      },
+      "pricing": {
+        "plans": [
+          {
+            "id": "full-search",
+            "label": "Full Search",
+            "price": 500,
+            "condition": "flat · incl. VAT",
+            "offerDescription": "Search on Immobiliare.it, Idealista, Casa.it and agencies, rental file and presentation letter in Italian and English, applications as listings appear, one attended viewing, negotiation, lease checked and explained in English, until the tenant signs or stops the search.",
+            "includes": [
+              "Every working day: Immobiliare.it, Idealista, Casa.it, agencies",
+              "Presentation letter in Italian and English; applications as listings appear",
+              "One attended viewing (more: €149 each)",
+              "Rent negotiated, lease checked and explained in English",
+              "Until you sign, or you say stop"
+            ]
+          },
+          {
+            "id": "application-pack",
+            "label": "Application Pack",
+            "price": 199,
+            "condition": "flat · incl. VAT",
+            "offerDescription": "Rental file within one working day of your papers, presentation letter in Italian and English, income and guarantor strategy, lease, deposit and registration checked and explained in English before signing.",
+            "includes": [
+              "Your rental file, one working day from your papers",
+              "Presentation letter, Italian and English",
+              "Income and guarantor (garante) strategy",
+              "Lease, deposit and registration checked before you sign"
+            ]
+          },
+          {
+            "id": "attended-viewing",
+            "label": "Attended Viewing",
+            "price": 149,
+            "condition": "per viewing · incl. VAT",
+            "offerDescription": "A BOOM person attends the viewing in your place, with live video and a written report.",
+            "includes": [
+              "A BOOM person attends in your place",
+              "Live video walkthrough",
+              "Written report: light, noise, damp, heating, commute",
+              "A straight recommendation, before any deposit"
+            ]
+          }
+        ]
+      }
+    },
+    "paris": {
+      "slug": "paris",
+      "live": true,
+      "mode": "search",
+      "hero": {
+        "faresHead": {
+          "b": "Flat fees"
+        }
+      },
+      "pricing": {
+        "plans": [
+          {
+            "id": "full-search",
+            "label": "Full Search",
+            "price": 500,
+            "condition": "flat · incl. VAT",
+            "offerDescription": "Search, French-format dossier and one-page presentation, applications as listings appear, one attended viewing, rent cap and lease check, until the tenant signs or stops the search.",
+            "includes": [
+              "Every working day: SeLoger, PAP, Leboncoin, agencies",
+              "One-page presentation, applications as listings appear",
+              "One attended viewing (more: €149 each)",
+              "Rent cap and lease checked, charges read",
+              "Until you sign, or you say stop (six months at most)"
+            ]
+          },
+          {
+            "id": "application-pack",
+            "label": "Application Pack",
+            "price": 199,
+            "condition": "flat · incl. VAT",
+            "offerDescription": "French-format rental dossier within one working day of your papers, a guarantor or Visale strategy, a one-page presentation in French, lease review before you sign.",
+            "includes": [
+              "French-format dossier locatif, one working day from your papers",
+              "Guarantor or Visale strategy",
+              "One-page presentation in French",
+              "Lease review before you sign"
+            ]
+          },
+          {
+            "id": "attended-viewing",
+            "label": "Attended Viewing",
+            "price": 149,
+            "condition": "per viewing · incl. VAT",
+            "offerDescription": "A BOOM person attends the viewing in your place, with live video and a written report.",
+            "includes": [
+              "A BOOM person attends in your place",
+              "Live video walkthrough",
+              "Written report: light, noise, damp, neighbours, commute",
+              "A straight recommendation"
+            ]
+          }
+        ]
+      }
+    },
+    "valencia": {
+      "slug": "valencia",
+      "live": true,
+      "mode": "search",
+      "hero": {
+        "faresHead": {
+          "b": "Optional, chosen in writing"
+        }
+      },
+      "pricing": {
+        "plans": [
+          {
+            "id": "full-search",
+            "label": "Full Search",
+            "price": 500,
+            "condition": "flat · incl. VAT",
+            "offerDescription": "Search, Spanish-format application file and presentation letter, applications as listings appear, one attended viewing, negotiation and contract check, until the tenant signs or stops the search.",
+            "includes": [
+              "Every working day: Idealista, Fotocasa, agencies",
+              "Presentation letter, applications as listings appear",
+              "One attended viewing (more: €149 each)",
+              "Rent negotiated, contract checked, padrón supported",
+              "Until you sign, or you say stop"
+            ]
+          },
+          {
+            "id": "application-pack",
+            "label": "Application Pack",
+            "price": 199,
+            "condition": "flat · incl. VAT",
+            "offerDescription": "Spanish-format rental application file within one working day of your papers, presentation letter, income and guarantor strategy, contract review.",
+            "includes": [
+              "Spanish-format file, one working day from your papers",
+              "Presentation letter in Spanish",
+              "Income, aval and guarantor strategy",
+              "Contract review before you sign"
+            ]
+          },
+          {
+            "id": "attended-viewing",
+            "label": "Attended Viewing",
+            "price": 149,
+            "condition": "per viewing · incl. VAT",
+            "offerDescription": "A BOOM person attends the viewing in your place, with live video and a written report.",
+            "includes": [
+              "A BOOM person attends in your place",
+              "Live video walkthrough",
+              "Written report: light, noise, damp, neighbours, commute",
+              "A straight recommendation"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

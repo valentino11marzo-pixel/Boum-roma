@@ -1434,13 +1434,49 @@ tplRefuses('<p class="proof">', '<p class="proof">Pay by bank transfer · ', /no
       refuses((c) => { c.service.description += ' Approved by the Generalitat Valenciana as an agent.'; }, /not reviewed in cities\/_claims\.json: "Approved by the Generalitat Valenciana as an agent" \(ld\)/, 'build: "Approved by the Generalitat Valenciana as an agent." in the Service (JSON-LD only) is refused', 'valencia');
       refuses((c) => { c.checks.items[0].text += ' We are on the Generalitat list of agents.'; }, /not reviewed in cities\/_claims\.json: "We are on the Generalitat list of agents"/, 'build: "We are on the Generalitat list of agents." in a check with no reviewed label is refused (the authority is in the vocabulary)', 'valencia');
       refuses((c) => { c.meta.description = 'Apartment search for expats in Valencia, an approved agent: a Spanish-format file, applications as listings appear, viewings attended.'; }, /not reviewed in cities\/_claims\.json: "Apartment search for expats in Valencia, an approved agent: a Spanish-format file, applications as listings appear, viewings attended" \(meta/, 'build: "an approved agent" in the meta description is refused', 'valencia');
-      // (h8) the served assets: no string of assets/boom-*.js and no CSS content string carries the vocabulary
+      // (h8) Every BOOM asset remains covered. These exact, asset-scoped phrases
+      // describe listed property facts, not an agency's registration. The one
+      // company exception is the verified Rome registered-office address.
+      const propertyPhrases = {
+        'boom-flight-club.js': ['Not listed', 'm² more listed space', 'More listed space', 'Listed home', 'Listed area'],
+        'boom-flight-next.js': ['Bills included as listed.'],
+        'boom-flight-skyline.js': ['Not listed'],
+        'boom-skyline-guide.js': ['Space is as listed.', 'Comparisons use the same listed home type', 'Listed space', 'Listed monthly rent', 'Type as listed', 'Listed area', 'More listed space first', 'No currently offered homes with a listed rent fit this budget']
+      };
+      const office = 'Registered office: Viale Liegi 42, 00198 Roma';
+      const exactPattern = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      function assetHasUnreviewedClaim(file, value) {
+        // This fragment is concatenated only with the compared property kind.
+        // It is not a general exemption for the word "Listed" in another string.
+        if (file === 'boom-skyline-guide.js' && value === '. Listed ') return false;
+        let remaining = value;
+        if (file === 'boom-club-company.js') {
+          remaining = remaining.replace(new RegExp('(?<![\\p{L}\\p{N}])' + exactPattern(office) + '(?=$|<br\\s*\\/?>)', 'gu'), '');
+        }
+        for (const phrase of propertyPhrases[file] || []) {
+          remaining = remaining.replace(new RegExp('(?<![\\p{L}\\p{N}])' + exactPattern(phrase) + '(?![\\p{L}\\p{N}])', 'gu'), '');
+        }
+        return hasClaimVocab(remaining);
+      }
+      const reviewed = [];
       for (const f of fs.readdirSync(path.join(R, 'assets')).filter((x) => /^boom-[\w-]+\.(?:js|css)$/.test(x))) {
         const src = read(`assets/${f}`);
         const strs = f.endsWith('.js') ? [...src.matchAll(/"((?:[^"\\\n]|\\.)*)"|'((?:[^'\\\n]|\\.)*)'|`((?:[^`\\]|\\.)*)`/g)].map((x) => x[1] ?? x[2] ?? x[3]) : [...src.matchAll(/\bcontent\s*:\s*(?:"((?:[^"\\]|\\.)*)"|'((?:[^'\\]|\\.)*)')/g)].map((x) => x[1] ?? x[2]);
-        const hit = strs.filter((x) => hasClaimVocab(x));
-        check(strs.length > 0 && !hit.length, `assets/${f}: none of its ${strs.length} ${f.endsWith('.js') ? 'string literals' : 'content strings'} carries registration, licence or authority vocabulary`, hit.join(' | '));
+        const hit = strs.filter((x) => assetHasUnreviewedClaim(f, x));
+        reviewed.push(...strs.filter((x) => hasClaimVocab(x) && !assetHasUnreviewedClaim(f, x)).map((value) => ({ file: f, value })));
+        // A stylesheet with no content strings generates no copy to review.
+        check((f.endsWith('.css') || strs.length > 0) && !hit.length, `assets/${f}: none of its ${strs.length} ${f.endsWith('.js') ? 'string literals' : 'content strings'} carries unreviewed registration, licence or authority vocabulary`, hit.join(' | '));
       }
+      check(reviewed.length > 0 && reviewed.every(({ file, value }) => assetHasUnreviewedClaim(file, value + ' BOOM is registered in Spain.')),
+        'each reviewed property phrase and the company markup still refuses an appended foreign registration claim');
+      check(Object.entries(propertyPhrases).every(([file, phrases]) => phrases.every((phrase) => !assetHasUnreviewedClaim(file, phrase) && assetHasUnreviewedClaim(file, phrase + ' BOOM is licensed in Spain.')))
+        && !assetHasUnreviewedClaim('boom-club-company.js', office + '<br>')
+        && assetHasUnreviewedClaim('boom-club-company.js', office + ', Valencia<br>')
+        && assetHasUnreviewedClaim('boom-club-company.js', office.replace('Roma', 'Valencia') + '<br>')
+        && assetHasUnreviewedClaim('boom-skyline-guide.js', '. Listed BOOM is registered in Spain.')
+        && assetHasUnreviewedClaim('another-asset.js', 'Not listed')
+        && assetHasUnreviewedClaim('boom-flight-club.js', 'We are listed in the RAICV'),
+        'reviewed exceptions retain exact wording, asset and address boundaries; foreign claims and the bare Listed fragment remain refused');
     }
     // ── fifth round (04/11/2026): the number shapes read whole, the splitter's belt, the value next to a reviewed label,
     //    the local words for a licence, a certificate or a membership ──

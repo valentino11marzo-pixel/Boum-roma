@@ -1,0 +1,46 @@
+/* A contact sheet, not a backdrop: photographs keep their native proportions. */
+body[data-direction="club"][data-edition="club"].europe-ready{
+ & .club-media{min-width:0;width:100%;margin-top:60px;padding-top:25px;border-top:1px solid #33363a;position:relative;z-index:1;background:#08090b}
+ & .club-media [hidden]{display:none!important}
+ &[data-europe-city="rome"] .club-desk-person{display:none}
+ &:not([data-europe-city="rome"]) .club-home-story{display:none}
+ & .club-media-heading{display:flex;justify-content:space-between;gap:14px;padding:3px 0 14px;font-size:12px;color:#bbbcb6}
+ & .club-media-heading>span:first-child{color:#f3f2ec}
+ & .club-media-rail{display:flex;position:relative;gap:12px;--club-photo-height:clamp(360px,36vw,520px);height:var(--club-photo-height);overflow-x:auto;scroll-snap-type:x mandatory;overscroll-behavior-x:contain;scrollbar-width:none;background:#101113}
+ & .club-media-rail::-webkit-scrollbar{display:none}
+ & .club-media-rail figure{flex:0 0 auto;width:calc(var(--club-photo-height) * var(--photo-ratio,.75));max-width:100%;min-width:0;height:100%;margin:0;scroll-snap-align:start;display:flex;align-items:center;justify-content:center;position:relative}
+ & .club-media-rail figure:last-child{margin-right:max(0px,calc(100% - var(--club-photo-height) * var(--photo-ratio,.75)))}
+ & .club-media-rail img{display:block;width:100%;height:100%;object-fit:contain;filter:none;transform:none}
+ & .club-media-rail figcaption,& .club-media-empty{padding:28px;font-size:15px;line-height:1.5;color:#bbbcb6;max-width:360px}
+ & .club-media-controls{display:flex;justify-content:space-between;align-items:center;min-height:54px;border-bottom:1px solid #33363a}
+ & .club-media-count{font-size:12px;font-variant-numeric:tabular-nums;color:#bbbcb6}
+ & .club-media-controls>div{display:flex;gap:8px}
+ & .club-media-controls button{width:44px;height:44px;background:transparent;border:0;color:#f3f2ec;font-size:21px;cursor:pointer}
+ & .club-media-controls button:disabled{opacity:.35;cursor:default}
+ & .club-media-caption{display:flex;justify-content:space-between;align-items:end;gap:20px;padding:15px 0 18px}
+ & .club-media-zone{font-size:12px;color:#bbbcb6;margin:0 0 7px}
+ & .club-media-name{font-size:clamp(23px,2.3vw,34px);font-weight:300;letter-spacing:-.035em;line-height:1.1;color:#f3f2ec;display:block}
+ & .club-media-facts{font-size:12px;color:#bbbcb6;margin:10px 0 0;line-height:1.6}
+ & .club-media-open{display:flex;gap:20px;align-items:center;min-height:44px;font-size:12px;color:#f3f2ec;flex-shrink:0}
+ & .club-media-open span{color:#e8ce75}
+ & .club-desk-person{margin:0;padding:0;border:0;display:grid;grid-template-columns:66px minmax(0,1fr);gap:15px;align-items:start}
+ & .club-desk-person>img{width:66px;height:88px;object-fit:cover;object-position:center 35%;border-radius:2px}
+ & .club-desk-person figcaption{display:flex;flex-direction:column;gap:7px;min-width:0}
+ & .club-desk-person strong{font-size:17px;line-height:1.2;font-weight:300;letter-spacing:-.02em}
+ & .club-desk-person p{font-size:12px;line-height:1.5;margin:0;color:#bbbcb6}
+ & .club-desk-person a{display:flex;gap:12px;align-items:center;min-height:44px;font-size:12px;color:#f3f2ec}
+ /* The same photographs remain uncropped in the detailed visit. */
+ & .next-photo-rail img{object-fit:contain;background:#101113;filter:none}
+ & .next-photo-rail{height:clamp(420px,47vw,680px)}
+}
+@media(max-width:650px){body[data-direction="club"][data-edition="club"].europe-ready{
+ & .club-media{margin-top:40px}
+ & .club-media-heading{font-size:11px;padding-bottom:12px}
+ & .club-media-heading>span:last-child{display:none}
+ & .club-media-rail{--club-photo-height:365px;height:var(--club-photo-height);margin:0 -20px;padding:0 20px;scroll-padding-left:20px;gap:10px}
+ & .club-media-caption{display:block;padding:15px 0 0}
+ & .club-media-name{font-size:29px}
+ & .club-media-open{justify-content:space-between;border-bottom:1px solid #33363a;margin-top:10px}
+ & .next-photo-rail{height:460px}
+}}
+@media(max-width:360px){body[data-direction="club"][data-edition="club"].europe-ready{& .club-media-rail{--club-photo-height:320px}& .next-photo-rail{height:410px}}}
