@@ -5083,6 +5083,12 @@ Studio mette Dispatch (default), Orbit e Vector nei tre controlli principali; co
 Locate rivela la mappa originale anche su desktop nelle tre direzioni; scene e filtri dichiarano i pannelli controllati, conservando cambio tastiera immediato, pausa e movimento ridotto.
 `flightpanoramaui` copre sette direzioni, le tre anche a900px, identità del canvas/form, handoff e Studio; verifiche visive320/390/900/1440 e decisioni in `design/dispatch-orbit-vector.md`.
 
+Flight Dispatch destinazione e brief 07/11: il solo Dispatch compatta l'indice città, usa il Solari originale come destinazione visibile nell'h1 e conserva il nome accessibile; foto e globo/orizzonte condividono uno spazio stabile, con Roma ancora aperta sulle case reali.
+`boom-dispatch-journey` legge campi, validatori e offerta già resa dal desk nel biglietto Your move; date incomplete restano da correggere, il cambio EUR/GBP non converte importi e i luoghi privati non vengono letti. Roma distingue il filtro della situazione da un servizio scelto.
+Edit e Review riportano ai controlli originali: nessun nuovo form, URL di servizio, archivio, calcolo o invio. La lettura segue input, cambio città/servizio e history; l'ordine mobile resta città, contesto, riepilogo, planner.
+`boom-dispatch-refinement` isola proporzioni e grammatica delle azioni; solo la scena Dispatch sfuma220ms al cambio da puntatore, interrompibile con nuova scelta, tastiera, history, pausa, reduced-motion e pagina nascosta.
+`flightdispatchui` verifica proporzioni, Solari, brief valido/invalido, prezzi e guasti, privacy, percorsi nativi e movimento; `flightpanoramaui` conserva le altre sei direzioni. Regia e fonti in `design/dispatch-departure.md`.
+
 Flight Lab 31/10: `/flight-lab` confronta Atlas, Residence e Club sulle stesse viste reali di `/flight-next?direction=…`, senza cambiare il sito pubblico.
 Le composizioni riusano catalogo, Solari, iframe Skyline, salvataggi e Apply; nessun secondo catalogo o nuovo handler di invio.
 Residence usa una foto realmente restituita dal catalogo pubblico (fallback a una casa pubblica non chiusa); Atlas sposta la stessa mappa nel primo schermo.

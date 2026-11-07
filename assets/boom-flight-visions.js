@@ -11,7 +11,7 @@
   document.documentElement.dataset.homeVision=vision;
   hero.dataset.nextField='off';
   if(window.BoomFlightNextMotion)window.BoomFlightNextMotion.setFieldEnabled(false);
-  if(vision==='orbit'||vision==='vector')atlas.dataset.globeFraming='horizon';
+  if(['orbit','vector','dispatch'].includes(vision))atlas.dataset.globeFraming='horizon';
   var light=['airframe','signal'].includes(vision);
   document.querySelector('meta[name="theme-color"]').content=vision==='signal'?'#ffd700':vision==='connection'?'#123fd6':light?'#fcfcf8':'#000000';
   document.querySelectorAll('.next-nav .europe-brand-lockup').forEach(function(mark){mark.src=light?'/assets/boom-brand-lockup-ink.svg':'/assets/boom-brand-lockup.svg';});
@@ -22,8 +22,11 @@
   var board=byId('nextDestinationBoard'),cityName=document.createElement('span');
   cityName.id='visionCityName';cityName.className='vision-city-name';
   board.before(cityName);
-  var record=document.createElement('div');record.className='vision-departure-record';record.setAttribute('aria-hidden','true');
+  var record=document.createElement(vision==='dispatch'?'span':'div');record.className='vision-departure-record';record.setAttribute('aria-hidden','true');
   record.appendChild(board);byId('nextHeroTitle').after(record);
+  // Dispatch gives the original board the visible heading's job. The plain
+  // city remains in the h1 for assistive technology; no second Solari exists.
+  if(vision==='dispatch')byId('nextHeroTitle').appendChild(record);
 
   var scene=document.createElement('div');scene.id='visionScene';scene.className='vision-scene';
   var tabs=document.createElement('div');tabs.id='visionSceneTabs';tabs.setAttribute('role','group');tabs.setAttribute('aria-label','Explore the homes or the destinations');
@@ -47,8 +50,8 @@
   }
   if(vision==='gate')ticket.insertBefore(byId('services'),scene);
   var romeScene=vision==='connection'&&cityScene?'city':['airframe','dispatch'].includes(vision)?'homes':'world',lastCity='';
-  var reduce=matchMedia('(prefers-reduced-motion: reduce)'),transition=null;
-  function cancelTransition(){if(transition){transition.cancel();transition=null;}}
+  var reduce=matchMedia('(prefers-reduced-motion: reduce)'),transition=null,pointerCity='';
+  function cancelTransition(){pointerCity='';if(transition){transition.cancel();transition=null;}}
   function motionAllowed(){return !reduce.matches&&!document.hidden&&byId('nextMotionToggle').getAttribute('aria-pressed')!=='true';}
   function syncMapScene(){
     // Apartments/Detail keep ownership of the same Skyline frame. Presentation
@@ -69,7 +72,8 @@
     window.dispatchEvent(new Event('resize'));
     if(animate&&motionAllowed()){
       var panel=value==='world'?atlas:value==='city'?cityScene:media;
-      transition=panel.animate([{opacity:.35,transform:'translateY(10px)'},{opacity:1,transform:'translateY(0)'}],{duration:320,easing:'cubic-bezier(.16,1,.3,1)'});
+      var frames=vision==='dispatch'?[{opacity:.55},{opacity:1}]:[{opacity:.35,transform:'translateY(10px)'},{opacity:1,transform:'translateY(0)'}];
+      transition=panel.animate(frames,{duration:vision==='dispatch'?220:320,easing:'cubic-bezier(.16,1,.3,1)'});
       transition.onfinish=function(){transition=null;};
     }
   }
@@ -99,8 +103,13 @@
     var selected=document.querySelector('.europe-city-switch button[data-europe-city="'+city+'"]');
     cityName.textContent=selected?selected.querySelector('span:last-child').textContent:'Rome';
     if(guideEntry)guideEntry.hidden=city!=='rome';
-    if(city!==lastCity){lastCity=city;chooseNeed('all');showScene(romeScene,false);}
+    if(city!==lastCity){lastCity=city;chooseNeed('all');showScene(romeScene,vision==='dispatch'&&pointerCity===city);pointerCity='';}
   }
+  if(vision==='dispatch')document.addEventListener('click',function(event){
+    var control=event.target.closest('[data-europe-city],[data-globe-city]');
+    var target=control&&(control.dataset.europeCity||control.dataset.globeCity);
+    pointerCity=event.detail>0&&target!==document.body.dataset.europeCity?target:'';
+  },true);
   new MutationObserver(syncCity).observe(document.body,{attributes:true,attributeFilter:['data-europe-city']});
   new MutationObserver(function(){if(!motionAllowed())cancelTransition();}).observe(byId('nextMotionToggle'),{attributes:true,attributeFilter:['aria-pressed']});
   reduce.addEventListener('change',cancelTransition);
