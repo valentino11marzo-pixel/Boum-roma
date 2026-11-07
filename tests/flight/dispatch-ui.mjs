@@ -56,8 +56,11 @@ async function check(name,width,fn,motion='reduce'){
 }
 const ticket=page=>page.locator('#dispatchJourneyTicket');
 const row=(page,name)=>ticket(page).locator('[data-journey-field="'+name+'"]');
-async function start(page,query=''){
- await page.goto(origin+'/flight-next?direction=club&edition=club&experience=panorama&vision=dispatch'+query,{waitUntil:'domcontentloaded'});
+async function start(page,query='',{generic=false}={}){
+ // Native journey scenarios start with an intentional destination. The generic
+ // entrance and its presentation-only tour have their own untouched tests.
+ const params=new URLSearchParams(query);if(!generic&&!params.has('city'))params.set('city','rome');
+ await page.goto(origin+'/flight-next?direction=club&edition=club&experience=panorama&vision=dispatch&'+params,{waitUntil:'domcontentloaded'});
  await page.waitForFunction(()=>document.body.dataset.homeVision==='dispatch'&&window.BoomFlightGlobe?.state().ready);
  await page.locator('#nextHomeRail .next-card').first().waitFor({state:'attached'});
  await ticket(page).waitFor({state:'attached'});
@@ -143,6 +146,18 @@ async function carrierAligned(page){
  assert.equal(geometry.background,'rgba(0, 0, 0, 0)','the decorative outline never replaces the readable native selected color');
  assert.equal(geometry.hidden,'true','the visual carrier adds no duplicate spoken destination');assert.equal(geometry.interactive,false,'the decorative carrier adds no tab stop or second control');
 }
+async function nativeTourSnapshot(page){return page.evaluate(()=>({
+ url:location.href,history:history.length,city:document.body.dataset.europeCity,need:document.body.dataset.europeNeed||'',
+ selection:[...document.querySelectorAll('[data-europe-city]')].map(node=>[node.dataset.europeCity,node.getAttribute('aria-pressed')]),
+ fields:[...document.querySelectorAll('#nextSearchForm input,#nextSearchForm select,#europeDeskForm input,#europeDeskForm select')].map(node=>[node.id,node.value]),
+ offer:document.getElementById('europeServicePass').textContent,globeCity:BoomFlightGlobe.state().city,
+ summary:document.getElementById('dispatchJourneyTicket').textContent
+}));}
+async function tourStopped(page){
+ await page.waitForFunction(()=>window.BoomDispatchTour&&!BoomDispatchTour.state().playing&&!BoomDispatchTour.state().timerPending&&!BoomFlightGlobe.state().previewCity);
+ const restored=await page.evaluate(()=>({word:document.getElementById('nextDestinationBoard').getAttribute('aria-label'),name:document.querySelector('.europe-city-switch [aria-pressed="true"] span:last-child').textContent.trim(),playing:document.body.dataset.dispatchTour,choose:document.getElementById('dispatchChooseCity').hidden,heading:document.getElementById('nextHeroTitle').getAttribute('aria-label')}));
+ assert.equal(restored.word,restored.name.toUpperCase(),'stopping restores the actual selected city on the original board');assert.equal(restored.playing,undefined);assert.equal(restored.choose,true);assert.notEqual(restored.heading,'Real homes in Rome. Rental support across Europe.');
+}
 
 try{
  browser=await chromium.launch(await launchOptions());
@@ -170,11 +185,15 @@ try{
   assert.ok(before.width>0&&before.height>=200,'the original geography has a useful departure stage: '+JSON.stringify(before));
   const geography=await page.locator('.boom-globe-stage').boundingBox();
   assert.ok(geography.height>(width>=900?350:200),'the actual canvas area retains the new departure proportions: '+JSON.stringify(geography));
-  const rail=await page.locator('.europe-city-switch').evaluate(node=>({box:node.getBoundingClientRect().toJSON(),buttons:[...node.querySelectorAll('[data-europe-city]')].map(n=>{const text=document.createRange();text.selectNodeContents(n.querySelector('span:last-child'));return {...n.getBoundingClientRect().toJSON(),name:text.getBoundingClientRect().toJSON()};}),hero:document.getElementById('directionClubTicket').getBoundingClientRect().toJSON()}));
-  assert.ok(rail.box.top>=rail.hero.bottom-1,'the six-city directory follows the departure stage');
+  const rail=await page.locator('.europe-city-switch').evaluate(node=>({box:node.getBoundingClientRect().toJSON(),buttons:[...node.querySelectorAll('[data-europe-city]')].map(n=>{const text=document.createRange();text.selectNodeContents(n.querySelector('span:last-child'));return {...n.getBoundingClientRect().toJSON(),name:text.getBoundingClientRect().toJSON()};}),heading:document.getElementById('nextHeroTitle').getBoundingClientRect().toJSON(),inHeadingColumn:node.parentElement.matches('.hero-centre'),beforeScene:!!(node.compareDocumentPosition(document.getElementById('visionScene'))&Node.DOCUMENT_POSITION_FOLLOWING)}));
+  assert.ok(rail.inHeadingColumn&&rail.beforeScene&&rail.box.top>=rail.heading.bottom-1,'the original city choice follows the Solari and precedes the globe in reading and focus order');
   assert.ok(rail.buttons.every(box=>box.left>=rail.box.left-1&&box.right<=rail.box.right+1),'every destination stays inside its rail');
   assert.ok(rail.buttons.every(box=>box.name.left>=box.left-1&&box.name.right<=box.right+1),'every complete city name fits its actual destination target, including Amsterdam');
-  if(width===1440)assert.ok(rail.buttons.every(box=>Math.abs(box.top-rail.buttons[0].top)<1),'desktop presents the six cities in one horizontal rail');
+  assert.ok(rail.buttons.every((box,index)=>Math.abs(box.top-rail.buttons[index<3?0:3].top)<1)&&rail.buttons[3].top>=rail.buttons[0].bottom-1,'the six real cities form two compact rows of three');
+  assert.equal(await page.locator('.next-journey').isVisible(),true,'Rome retains its native application-to-home explanation');
+  const companyPaths=await page.locator('#clubCompany .club-company-links a').evaluateAll(nodes=>nodes.map(node=>new URL(node.href).pathname));
+  for(const path of ['/desks','/contract-check-express','/buy-property-europe'])assert.equal(companyPaths.filter(value=>value===path).length,1,'the company keeps one real '+path+' door');
+  if(width===390){const choices=page.locator('.europe-city-switch [data-europe-city]');await choices.first().focus();for(let index=1;index<6;index++){await page.keyboard.press('Tab');assert.equal(await choices.nth(index).evaluate(node=>node===document.activeElement),true,'keyboard follows the visible city sequence');}}
   await controls(page,'.dispatch-lenses button,.panorama-globe-tools button');
   const console=await page.locator('#visionScene .panorama-globe-tools button').evaluateAll(nodes=>nodes.map(node=>node.getBoundingClientRect().toJSON()));
   assert.ok(console.every(box=>Math.abs(box.top-console[0].top)<1),'zoom, reset and Pause remain one usable console row');
@@ -188,6 +207,7 @@ try{
   await page.locator('[data-panorama-expand]').click();await page.locator('#panoramaGlobeDialog').waitFor({state:'visible'});
   await page.keyboard.press('Escape');await page.locator('#panoramaGlobeDialog').waitFor({state:'hidden'});
   await city(page,'amsterdam');await foreignOffer(page);assert.equal(await ticket(page).isVisible(),false,'city selection alone never invents a personal plan');assert.equal(await page.locator('#europeBriefSummary').isVisible(),false,'the native empty brief is compact too');await boardFits(page,width);await noOverflow(page);
+  assert.equal(await page.locator('.next-journey').isVisible(),false,'a foreign support ticket does not inherit Rome’s application-to-keys story');
   assert.equal(await page.locator('body').getAttribute('data-vision-scene'),'world','long Amsterdam keeps the departure geography');
   if(process.env.BOOM_DISPATCH_CAPTURE_PREFIX){
    await page.locator('#nextHero').screenshot({path:process.env.BOOM_DISPATCH_CAPTURE_PREFIX+'-'+width+'-amsterdam-departure.png'});
@@ -227,6 +247,13 @@ try{
   await page.locator('#nextSearchForm button[type="submit"]').click();await page.locator('#nextApartments').waitFor({state:'visible'});
   for(const [key,value] of Object.entries({vision:'dispatch',moveIn:arrival,moveOut:departure,budget:'1500',people:'couple'}))assert.equal(new URL(page.url()).searchParams.get(key),value,'native catalogue keeps '+key);
   await page.locator('#nextResults [data-home="dispatch-home"]').first().click();await page.locator('#nextDetail').waitFor({state:'visible'});
+  const decision=page.locator('#nextDetail .detail-decision');
+  assert.equal(await decision.evaluate(node=>getComputedStyle(node).backgroundColor),'rgb(255, 255, 255)','the native decision is a readable paper ticket');
+  assert.equal(await decision.locator('.club-application-next').count(),1,'the application expectation has one owner');
+  assert.match(await decision.locator('.club-application-next').innerText(),/does not reserve the home\. No payment is taken/);
+  assert.equal(await decision.locator('.decision-cta > small').isVisible(),false,'the free-application reassurance is not repeated');
+  assert.ok(await decision.locator('.club-application-next p').first().evaluate(node=>parseFloat(getComputedStyle(node).fontSize)>=15),'the next step remains readable at phone size');
+  assert.match(await decision.locator('.edition-costs').innerText(),/Agency fee|Deposit/i);await controls(page,'#nextDetail [data-next-apply]');
   await page.locator('[data-next-apply]').click();await page.waitForURL(url=>url.pathname==='/listing/dispatch-home');
   assert.doesNotMatch(page.url(),/privatePlace|lat=|lng=|Synthetic|vision=/,'the native application handoff excludes preview and private information');
   await page.goBack();await page.locator('#nextDetail').waitFor({state:'visible'});await page.locator('.next-nav .next-brand[data-view="home"]').click();await ticket(page).waitFor({state:'visible'});await fieldState(page,'valid');
@@ -240,6 +267,7 @@ try{
   assert.equal(await page.locator('#europeBudget').inputValue(),'');assert.doesNotMatch(await summary(page,'Rent'),/1,500|£|€/,'a currency boundary never reuses an amount');
   await page.locator('#dispatchJourneyEdit').click();assert.equal(await page.locator('#europeOptionalBrief').getAttribute('open'),'','Edit opens the native optional brief');
   await page.locator('#europeBudget').selectOption('3000');await page.locator('#europePeople').selectOption('family');await page.locator('[data-europe-need="application"]').click();await foreignOffer(page);
+  assert.equal(await page.locator('#clubCompany [data-club-rome-service="/contract-check-express"]').getAttribute('href'),'/contract-check-express','a foreign brief never leaks its budget or currency into the new Rome footer door');
   assert.equal(await row(page,'rent').isVisible(),true,'a supplied GBP budget restores the rent row');
   assert.equal(await page.locator('.dispatch-service-ticket #europeServicePass').count(),1);assert.equal(await page.locator('.dispatch-service-ticket #europeDeskForm').count(),1,'the coherent service ticket contains the original form');
   const inclusions=page.locator('details.dispatch-service-inclusions');assert.equal(await inclusions.evaluate(node=>node.open),false);assert.equal(await inclusions.locator('ul li').count()>0,true);
@@ -505,6 +533,79 @@ try{
   await interrupted('rome',()=>page.locator('#nextSearchForm button[type="submit"]').evaluate(node=>node.click()),'The original catalogue transition');await page.locator('#nextApartments').waitFor({state:'visible'});await page.locator('.next-nav .next-brand[data-view="home"]').click();
   await interrupted('milan',()=>page.evaluate(()=>window.dispatchEvent(new PageTransitionEvent('pagehide'))),'Pagehide');assert.equal(await page.evaluate(()=>BoomFlightGlobe.state().rafPending),false);
   await page.addInitScript(()=>{const connection=new EventTarget();Object.defineProperty(connection,'saveData',{get:()=>true});Object.defineProperty(navigator,'connection',{configurable:true,get:()=>connection});});await start(page);await city(page,'madrid');assert.equal(await page.evaluate(()=>BoomFlightGlobe.state().routeTrace),false,'data saving does not add the decorative route');assert.equal(await page.evaluate(()=>BoomFlightGlobe.state().city),'madrid');assert.equal(await page.locator('.boom-flight-globe-canvas').count(),1);
+ },'no-preference');
+ await check('Dispatch tour: untouched entry presents all six cities without choosing for the visitor',1440,async({page,requests})=>{
+  await start(page,'',{generic:true});await page.waitForFunction(()=>window.BoomDispatchTour?.state().playing);
+  const initial=await nativeTourSnapshot(page),reads={...requests},seen=[];
+  await page.evaluate(()=>{window.__tourNodes=[document.getElementById('nextDestinationBoard'),document.querySelector('.boom-flight-globe-canvas'),document.getElementById('nextSearchForm'),document.getElementById('europeDeskForm')];});
+  assert.equal(new URL(page.url()).searchParams.has('city'),false,'the generic entrance stays generic');
+  assert.equal(await page.locator('#nextHeroTitle').getAttribute('aria-label'),'Real homes in Rome. Rental support across Europe.','the spoken proposition does not advertise homes in every preview city');
+  assert.equal(await page.locator('#dispatchChooseCity').isVisible(),true);assert.equal(await page.locator('.edition-plan-link').isVisible(),false,'tour presentation does not pair a foreign city with Rome’s original CTA');
+  assert.equal(await page.locator('#europeCitySignature').isVisible(),false,'native Rome art is not labelled as a touring city');
+  for(let index=0;index<6;index++){
+   if(index)await page.waitForFunction(previous=>BoomDispatchTour.state().city!==previous,seen.at(-1));
+   const state=await page.evaluate(()=>({tour:BoomDispatchTour.state(),camera:BoomFlightGlobe.state(),word:document.getElementById('nextDestinationBoard').getAttribute('aria-label')}));
+   seen.push(state.tour.city);assert.equal(state.tour.timerPending,true);assert.equal(state.camera.previewCity,state.tour.city);assert.equal(state.camera.city,'rome','the presentation camera retains the native Rome selection');
+   assert.equal(state.word,state.tour.city.toUpperCase());assert.deepEqual(await nativeTourSnapshot(page),initial,'each preview leaves URL,history,choices,brief and real offer untouched');
+   if(state.tour.city==='amsterdam')await boardFits(page,1440);
+  }
+  assert.equal(new Set(seen).size,6,'all six actual destinations are shown');
+  assert.deepEqual([...seen].sort(),await page.locator('.europe-city-switch [data-europe-city]').evaluateAll(nodes=>nodes.map(node=>node.dataset.europeCity).sort()));
+  assert.deepEqual(requests,reads,'the tour does not refetch inventory or maps');
+  assert.equal(await page.evaluate(()=>__tourNodes.every((node,index)=>node===[document.getElementById('nextDestinationBoard'),document.querySelector('.boom-flight-globe-canvas'),document.getElementById('nextSearchForm'),document.getElementById('europeDeskForm')][index])),true,'one Solari,one canvas and the original forms survive the entire tour');
+  await page.locator('#dispatchCityTourToggle').click();await tourStopped(page);assert.deepEqual(await nativeTourSnapshot(page),initial);await noOverflow(page);
+ },'no-preference');
+ await check('Dispatch tour phone: neutral choice and genuine destination intent restore the native journey',390,async({page})=>{
+  await start(page,'',{generic:true});await page.waitForFunction(()=>window.BoomDispatchTour?.state().playing);
+  const before=await nativeTourSnapshot(page);await page.waitForFunction(()=>BoomDispatchTour.state().city==='amsterdam');await boardFits(page,390);
+  await page.locator('#dispatchChooseCity').click();await tourStopped(page);
+  assert.equal(await page.locator('.europe-city-switch [data-europe-city="rome"]').evaluate(node=>node===document.activeElement),true,'Choose city focuses the original selection without choosing another destination');assert.deepEqual(await nativeTourSnapshot(page),before);
+  await page.locator('#dispatchCityTourToggle').click();await page.waitForFunction(()=>BoomDispatchTour.state().playing);await city(page,'london');await tourStopped(page);await foreignOffer(page);
+  assert.equal(await page.locator('#nextDestinationBoard').getAttribute('aria-label'),'LONDON');assert.equal(await page.locator('.edition-plan-link').isVisible(),true);assert.equal(await page.locator('.next-journey').isVisible(),false);
+  const chosen=await nativeTourSnapshot(page);await page.waitForTimeout(5200);assert.deepEqual(await nativeTourSnapshot(page),chosen,'the first real choice permanently releases the idle tour');assert.equal(await page.evaluate(()=>BoomDispatchTour.state().playing),false);
+ },'no-preference');
+ await check('Dispatch tour deep link: explicit Play preserves the actual foreign brief and fee',900,async({page,requests})=>{
+  await start(page,'&city=london&need=application&moveIn='+arrival+'&moveOut='+departure+'&budget=3000&currency=GBP&people=family');await foreignOffer(page);await tourStopped(page);
+  assert.equal(await page.evaluate(()=>BoomDispatchTour.state().explicitEntry),true);const before=await nativeTourSnapshot(page),reads={...requests};
+  await page.locator('#dispatchCityTourToggle').click();await page.waitForFunction(()=>BoomDispatchTour.state().playing);await page.waitForFunction(()=>BoomDispatchTour.state().city!=='london');assert.deepEqual(await nativeTourSnapshot(page),before);
+  await page.keyboard.press('Escape');await tourStopped(page);assert.deepEqual(await nativeTourSnapshot(page),before);assert.deepEqual(requests,reads);await foreignOffer(page);
+ },'no-preference');
+ await check('Dispatch tour lifecycle: motion preferences and page boundaries release the presentation',1440,async({page})=>{
+  await start(page);await tourStopped(page);
+  async function interrupt(action,reason){
+   await page.evaluate(()=>scrollTo({top:0,behavior:'instant'}));await page.locator('#dispatchCityTourToggle').click();await page.waitForFunction(()=>BoomDispatchTour.state().playing);
+   await action();await tourStopped(page);assert.equal(await page.evaluate(()=>BoomDispatchTour.state().timerPending),false,reason+' leaves no scheduled tour');
+  }
+  await interrupt(()=>page.locator('.europe-city-switch [data-europe-city="rome"]').focus(),'Native keyboard focus');
+  await interrupt(()=>page.locator('#nextDestinationBoard').hover(),'Reading the board');
+  await interrupt(()=>page.locator('[data-panorama-expand]').click(),'Full view');await page.keyboard.press('Escape');await page.locator('#panoramaGlobeDialog').waitFor({state:'hidden'});
+  await interrupt(()=>page.evaluate(()=>BoomFlightGlobe.setZoom(1.15)),'Native camera API');
+  await interrupt(()=>page.emulateMedia({reducedMotion:'reduce'}),'Reduced motion');assert.equal(await page.locator('#dispatchCityTourToggle').isDisabled(),true);await page.emulateMedia({reducedMotion:'no-preference'});
+  await interrupt(()=>page.locator('#nextMotionToggle').evaluate(node=>node.click()),'Original Pause');assert.equal(await page.locator('#dispatchCityTourToggle').isDisabled(),true);await page.locator('#nextMotionToggle').evaluate(node=>node.click());
+  await interrupt(()=>page.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,get:()=>true});document.dispatchEvent(new Event('visibilitychange'));}),'Hidden document');await page.evaluate(()=>{delete document.hidden;document.dispatchEvent(new Event('visibilitychange'));});
+  await interrupt(()=>page.evaluate(()=>window.dispatchEvent(new PageTransitionEvent('pagehide'))),'Pagehide');await page.evaluate(()=>window.dispatchEvent(new PageTransitionEvent('pageshow')));
+  await interrupt(()=>page.locator('#clubCompany').evaluate(node=>node.scrollIntoView({behavior:'instant'})),'Leaving the hero');
+  await page.evaluate(()=>scrollTo({top:0,behavior:'instant'}));await city(page,'london');await foreignOffer(page);
+  await interrupt(()=>page.goBack(),'Native history');assert.equal(await page.locator('body').getAttribute('data-europe-city'),'rome');
+  await interrupt(()=>page.locator('#nextSearchForm button[type="submit"]').evaluate(node=>node.click()),'Original catalogue navigation');await page.locator('#nextApartments').waitFor({state:'visible'});await page.locator('.next-nav .next-brand[data-view="home"]').click();await tourStopped(page);
+  await page.waitForTimeout(5200);assert.equal(await page.evaluate(()=>BoomDispatchTour.state().playing),false,'returning to visibility does not restart a stopped tour');
+ },'no-preference');
+ await check('Dispatch tour restrictions: reduced motion, explicit intent and save-data never auto-play',390,async({page})=>{
+  await start(page,'',{generic:true});await tourStopped(page);assert.equal(await page.locator('#dispatchCityTourToggle').isDisabled(),true);await page.waitForTimeout(5200);await tourStopped(page);
+  await page.emulateMedia({reducedMotion:'no-preference'});await start(page,'&need=search',{generic:true});await tourStopped(page);assert.equal(await page.evaluate(()=>BoomDispatchTour.state().explicitEntry),true);
+  await page.addInitScript(()=>{const connection=new EventTarget();Object.defineProperty(connection,'saveData',{get:()=>true});Object.defineProperty(navigator,'connection',{configurable:true,get:()=>connection});});await start(page,'',{generic:true});await tourStopped(page);assert.equal(await page.locator('#dispatchCityTourToggle').isDisabled(),true);assert.equal(await page.locator('#nextDestinationBoard').count(),1);assert.equal(await page.locator('.boom-flight-globe-canvas').count(),1);
+ });
+ await check('Dispatch tour keyboard: Enter and Space activate Pause and Choose city exactly once',390,async({page})=>{
+  await start(page);await tourStopped(page);const before=await nativeTourSnapshot(page);
+  for(const key of ['Enter','Space']){
+   await page.locator('#dispatchCityTourToggle').click();await page.waitForFunction(()=>BoomDispatchTour.state().playing);
+   await page.keyboard.press(key);await tourStopped(page);
+   assert.equal(await page.locator('#dispatchCityTourToggle').evaluate(node=>node===document.activeElement),true,'pausing keeps keyboard focus on its control');
+   await page.keyboard.press(key);await page.waitForFunction(()=>BoomDispatchTour.state().playing);
+   await page.locator('#dispatchChooseCity').focus();await page.keyboard.press(key);await tourStopped(page);
+   assert.equal(await page.locator('.europe-city-switch [aria-pressed="true"]').evaluate(node=>node===document.activeElement),true,'Choose city sends keyboard focus to the original selected destination');
+   assert.deepEqual(await nativeTourSnapshot(page),before,'keyboard tour controls neither select a city nor change the native brief');
+  }
  },'no-preference');
 }finally{if(browser)await browser.close();await new Promise(resolve=>server.close(resolve));}
 console.log('\n  '+passed+' passed · '+failed+' failed');if(failed)process.exitCode=1;

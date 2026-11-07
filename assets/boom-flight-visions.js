@@ -43,7 +43,11 @@
     // Geography owns the departure stage. The same catalogue-backed photo
     // story returns to the Rome chapter, ahead of the existing home collection.
     byId('clubHomes').appendChild(media);
-    ticket.after(document.querySelector('.europe-city-switch'));
+    // The same six native destinations are visible beside the introduction,
+    // before the geographic stage, including on a narrow phone.
+    var cityDirectory=document.querySelector('.europe-city-switch');
+    cityDirectory.id='dispatchCities';
+    byId('nextHeroTitle').after(cityDirectory);
     // One selected-service ticket contains the existing offer and original
     // brief. Selection, validation and checkout remain with their owners.
     var serviceTicket=document.createElement('div');serviceTicket.className='dispatch-service-ticket';

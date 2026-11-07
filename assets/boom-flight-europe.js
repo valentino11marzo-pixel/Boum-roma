@@ -100,7 +100,7 @@
   function fitBoard() {
     var host=el('nextDestinationBoard'),centre=document.querySelector('.hero-centre');
     if(dispatch) {
-      var heading=host.closest('h1'),letters=places[city].name.length;
+      var heading=host.closest('h1'),letters=(host.getAttribute('aria-label')||places[city].name).length;
       if(heading&&heading.clientWidth>0) {
         var available=heading.clientWidth-8-3*(letters-1);
         host.style.setProperty('--europe-board-size',Math.max(0,available/(.91*letters-.07))+'px');
@@ -334,6 +334,9 @@
     });
   }
   window.addEventListener('resize',fitBoard,{passive:true});
+  // The original board can present the city directory without selecting a
+  // customer destination. Its displayed word, not the brief, owns its width.
+  if(dispatch)new MutationObserver(fitBoard).observe(el('nextDestinationBoard'),{attributes:true,attributeFilter:['aria-label']});
   window.addEventListener('boom:flight-view',function(e){
     view=e.detail.view;
     var params=new URLSearchParams(location.search),selected=places[params.get('city')]?params.get('city'):'rome';

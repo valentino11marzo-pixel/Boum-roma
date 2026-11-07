@@ -480,3 +480,46 @@ body[data-direction="club"][data-edition="club"][data-experience="panorama"][dat
     & #services .panorama-ticket-route { font-size: 14px; gap: 10px; }
   }
 }
+
+/* Carry the paper-ticket hierarchy into the actual Rome home review.
+   The original listing owns prices, availability and the application. */
+body[data-direction="club"][data-edition="club"][data-experience="panorama"][data-home-vision="dispatch"].europe-ready {
+  &:not([data-europe-city="rome"]) .next-journey { display: none; }
+  & #nextDetail .detail-decision {
+    background: #fff;
+    color: #11130c;
+    border: 1px solid #fff;
+    border-radius: 12px;
+    box-shadow: none;
+    color-scheme: light;
+  }
+  & #nextDetail .decision-price strong {
+    color: #11130c;
+    font-size: clamp(36px, 3.8vw, 48px);
+    font-weight: 300;
+    line-height: 1.1;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  & #nextDetail .decision-price small,
+  & #nextDetail .decision-status,
+  & #nextDetail .decision-status small,
+  & #nextDetail .edition-costs dt,
+  & #nextDetail .edition-costs small,
+  & #nextDetail .decision-cta > small {
+    color: #535846;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  & #nextDetail .decision-status,
+  & #nextDetail .edition-costs > div { border-color: #dce0d3; }
+  & #nextDetail .edition-costs dd { color: #11130c; font-size: 17px; line-height: 1.4; }
+  & #nextDetail .decision-cta { border-color: #8a907b; }
+  & #nextDetail .decision-cta::before,
+  & #nextDetail .decision-cta::after { background: #000; border: 0; }
+  & #nextDetail .decision-cta > small[hidden] { display: none; }
+  & #nextDetail .club-application-next { border-color: #dce0d3; padding-top: 20px; margin-top: 24px; }
+  & #nextDetail .club-application-next h3 { color: #11130c; font-size: 24px; font-weight: 300; line-height: 1.2; }
+  & #nextDetail .club-application-next p { color: #535846; font-size: 15px; line-height: 1.55; }
+  & #nextDetail .club-application-next p + p { margin-top: 12px; }
+}

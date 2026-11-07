@@ -493,14 +493,14 @@ function createSolari() {
         else if (misura()) staticField();
         sync();
       },
-      setDestination: function (word) {
-        if (word === destinationWord) return;
+      setDestination: function (word, options) {
+        if (word === destinationWord) { if (options && options.animate === false) settleBoard(); return; }
         settleBoard();
         destinationWord = word;
         board = new solari.Board(host, word.length, drum);
         host.setAttribute('aria-label', word);
         Array.prototype.forEach.call(host.children, function (cell) { cell.setAttribute('aria-hidden', 'true'); });
-        board.show(word, 45, running && !ridotto);
+        board.show(word, 45, running && !ridotto && !(options && options.animate === false));
       },
       setPaused: function (paused) {
         manuallyPaused = Boolean(paused);
@@ -543,10 +543,10 @@ function createSolari() {
       return true;
     },
     state: function () { return instance ? instance.state() : {theme:theme,cityPattern:cityPattern||'classic',paused:manuallyPaused,running:false,elapsedMs:null,nextPulseAt:null,rafPending:false}; },
-    setDestination: function (word) {
+    setDestination: function (word, options) {
       word = String(word || '').toUpperCase();
       if (!/^[A-Z ]{3,12}$/.test(word)) return;
-      if (instance) instance.setDestination(word);
+      if (instance) instance.setDestination(word, options);
       else destinationWord = word;
     },
     setPaused: function (paused) {

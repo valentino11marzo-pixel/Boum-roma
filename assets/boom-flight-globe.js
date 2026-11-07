@@ -71,7 +71,7 @@
       angle: [8, 43], target: [8, 43], scroll: 0, reduced: reduced, listeners: [], observers: [], destroyed: false,
       ambient: root.dataset.globeAmbient === 'true', ambientTimer: 0, ambientResumeAt: 0, ambientOrigin: null, ambientPhase: 0, ambientLast: 0,
       pointerWithin: false, focusWithin: false, connection: global.navigator && global.navigator.connection, motionState: '',
-      zoom: 1, zoomTarget: 1, zoomTransition: null, lastPaint: 0, routeTrace: null, pointerCity: '',
+      zoom: 1, zoomTarget: 1, zoomTransition: null, lastPaint: 0, routeTrace: null, pointerCity: '', previewCity: null,
       framing: root.dataset.globeFraming === 'horizon' ? 'horizon' : 'globe',
       framingMix: root.dataset.globeFraming === 'horizon' && root.dataset.globeLabels === 'selected' ? 1 : 0,
       framingTarget: 0, framingTransition: null, fullView: root.dataset.globeLabels === 'all'
@@ -84,7 +84,7 @@
     s.context = s.canvas.getContext('2d');
     s.status = root.querySelector('.boom-globe-status');
     s.buttons = {};
-    var nav = root.querySelector('.boom-globe-cities');
+    var nav = s.nav = root.querySelector('.boom-globe-cities');
     CITIES.forEach(function (item) {
       var button = document.createElement('button');
       button.type = 'button'; button.dataset.globeCity = item.slug;
@@ -107,9 +107,16 @@
       s.pointerCity = dispatchAtlas() && event.detail > 0 && control ? control.dataset.europeCity : '';
     }, true);
     listen(document, 'click', function () { queueMicrotask(function () { s.pointerCity = ''; }); });
-    listen(document, 'keydown', function () { cancelRouteTrace(s); });
-    listen(global, 'popstate', function () { cancelRouteTrace(s); });
-    listen(global, 'boom:flight-view', function () { cancelRouteTrace(s); });
+    listen(document, 'keydown', function (event) {
+      cancelRouteTrace(s);
+      // Space activates a button on keyup. Let the two presentation controls
+      // finish their own native click before restoring the city underneath.
+      var tourControl = event.target.closest && event.target.closest('#dispatchCityTourToggle,#dispatchChooseCity');
+      if (tourControl && (event.key === 'Enter' || event.key === ' ')) return;
+      clearPreview(s);
+    });
+    listen(global, 'popstate', function () { cancelRouteTrace(s); clearPreview(s); });
+    listen(global, 'boom:flight-view', function (event) { cancelRouteTrace(s); if (!event.detail || event.detail.view !== 'home') clearPreview(s); });
     // Direct manipulation changes only the camera. City buttons retain keyboard navigation.
     var drag=null;
     function endDrag(event){
@@ -127,6 +134,7 @@
     s.cancelDrag=function(){endDrag();};
     listen(s.canvas,'pointerdown',function(event){
       if(!s.ready || flight || paused(s) || event.button!==0 || drag)return;
+      clearPreview(s);
       cancelRouteTrace(s);
       s.transition=null;
       if(s.ambient){holdAmbient(s,1400);s.ambientOrigin=null;s.zoomTransition=null;s.zoomTarget=s.zoom;s.root.dispatchEvent(new CustomEvent('boom-globe-camera',{detail:{zoom:s.zoom,min:1,max:1.25}}));}
@@ -144,6 +152,7 @@
     listen(s.canvas,'pointerup',endDrag);listen(s.canvas,'pointercancel',endDrag);listen(s.canvas,'lostpointercapture',endDrag);
     listen(global,'pointerup',endDrag);
     listen(root.querySelector('.boom-globe-reset'),'click',function(event){
+      clearPreview(s);
       cancelRouteTrace(s);
       endDrag();s.target=orientation(s,s.city);
       if(s.ambient){holdAmbient(s,900);s.ambientOrigin=null;setZoom(1,{animate:event.detail>0});}
@@ -153,9 +162,9 @@
     });
     // Ambient motion belongs only to the explicit Panorama presentation. The
     // globe freezes under the pointer and keyboard focus, so choosing never chases a target.
-    listen(root,'pointerenter',function(event){if(event.pointerType==='touch')return;s.pointerWithin=true;if(s.ambient)holdAmbient(s,900);});
+    listen(root,'pointerenter',function(event){if(event.pointerType==='touch')return;clearPreview(s);s.pointerWithin=true;if(s.ambient)holdAmbient(s,900);});
     listen(root,'pointerleave',function(event){if(event.pointerType==='touch')return;s.pointerWithin=false;s.focusWithin=!!(document.activeElement&&root.contains(document.activeElement)&&document.activeElement.matches(':focus-visible'));if(s.ambient){holdAmbient(s,900);scheduleAmbient(s);}});
-    listen(root,'focusin',function(event){s.focusWithin=event.target.matches(':focus-visible');if(s.ambient&&s.focusWithin)holdAmbient(s,900);});
+    listen(root,'focusin',function(event){s.focusWithin=event.target.matches(':focus-visible');if(s.focusWithin)clearPreview(s);if(s.ambient&&s.focusWithin)holdAmbient(s,900);});
     listen(root,'focusout',function(event){s.focusWithin=!!(event.relatedTarget&&root.contains(event.relatedTarget)&&event.relatedTarget.matches(':focus-visible'));if(s.ambient&&!s.focusWithin){holdAmbient(s,900);scheduleAmbient(s);}});
     var ambientObserver=new MutationObserver(function(){
       s.ambient=root.dataset.globeAmbient==='true';s.ambientOrigin=null;s.ambientLast=0;if(s.ambient)s.scroll=0;
@@ -173,7 +182,7 @@
       s.framing = mode; s.fullView = full; changeFraming(s, false);
     });
     framingObserver.observe(root,{attributes:true,attributeFilter:['data-globe-framing','data-globe-labels']});s.observers.push(framingObserver);
-    if(s.connection&&s.connection.addEventListener)listen(s.connection,'change',function(){if(s.connection.saveData){cancelRouteTrace(s);stopAmbient(s);}else scheduleAmbient(s);});
+    if(s.connection&&s.connection.addEventListener)listen(s.connection,'change',function(){if(s.connection.saveData){clearPreview(s);cancelRouteTrace(s);stopAmbient(s);}else scheduleAmbient(s);});
     s.pauseButton = document.getElementById('nextMotionToggle');
     if (s.pauseButton) {
       var pauseObserver = new MutationObserver(function () { syncMotion(s); });
@@ -261,6 +270,7 @@
   function setZoom(value,options){
     var s=instance;options=options||{};
     if(!s||s.destroyed||!s.ambient||!Number.isFinite(value))return null;
+    clearPreview(s);
     cancelRouteTrace(s);
     var next=clamp(value,1,1.25);holdAmbient(s,900);s.zoomTarget=next;
     if(canMove(s)&&options.animate!==false&&Math.abs(next-s.zoom)>.001)s.zoomTransition={from:s.zoom,to:next,start:performance.now(),duration:260};
@@ -269,6 +279,7 @@
     requestDraw(s);return next;
   }
   function changeFraming(s, animate) {
+    clearPreview(s);
     cancelRouteTrace(s);
     var target = s.framing === 'horizon' && !s.fullView ? 1 : 0;
     holdAmbient(s,900); s.framingTarget = target;
@@ -287,6 +298,7 @@
     return value;
   }
   function settle(s) {
+    clearPreview(s);
     cancelRouteTrace(s);
     if(s.cancelDrag)s.cancelDrag();
     stopAmbient(s);
@@ -303,6 +315,7 @@
   function selectCity(slug) {
     var s = instance;
     if (!s || s.destroyed || !allowed(slug)) return false;
+    clearPreview(s);
     if (s.city === slug) return true;
     var previous = s.city, trace = dispatchAtlas() && s.pointerCity === slug && document.body.dataset.europeCity === slug;
     cancelRouteTrace(s);
@@ -321,6 +334,29 @@
       }
     }
     else { s.transition = null; s.angle = s.target.slice(); }
+    requestDraw(s); return true;
+  }
+  // A tour aims the original camera at real coordinates. It never commits a
+  // city, presses a choice, paints a selected route or starts a flight.
+  function clearPreview(s) {
+    if (!s || !s.previewCity) return false;
+    s.previewCity = null; delete s.root.dataset.globePreview; s.nav.hidden = false;
+    s.target = orientation(s, s.city); s.angle = s.target.slice(); s.transition = null;
+    s.ambientOrigin = null; if (s.ambient) holdAmbient(s, 900);
+    requestDraw(s); return true;
+  }
+  function previewCity(slug, options) {
+    var s = instance; options = options || {};
+    if (!s || s.destroyed || !dispatchAtlas()) return false;
+    if (slug == null) { clearPreview(s); return true; }
+    if (!allowed(slug) || !s.ready || s.failed || !canMove(s) || flight || s.fullView || s.dragActive ||
+        (s.connection && s.connection.saveData)) return false;
+    cancelRouteTrace(s);
+    s.previewCity = slug; s.root.dataset.globePreview = slug; s.nav.hidden = true;
+    s.target = orientation(s, slug); s.ambientOrigin = null;
+    if (s.ambient) holdAmbient(s, 900);
+    if (options.animate !== false) s.transition = {from:s.angle.slice(),to:s.target.slice(),start:performance.now(),duration:850};
+    else { s.angle = s.target.slice(); s.transition = null; }
     requestDraw(s); return true;
   }
   function updateButtons(s) {
@@ -410,7 +446,7 @@
     var ctx = view.context || s.context, w = view.width || s.width, h = view.height || s.height;
     var framing=cameraFrame(s,w,h,s.zoom);
     var cx = view.cx == null ? framing.cx : view.cx, cy = view.cy == null ? framing.cy : view.cy, r = view.radius || framing.radius;
-    var angle = view.angle || [s.angle[0]+s.scroll, s.angle[1]+s.scroll*.4], selectedCity = view.city || s.city;
+    var angle = view.angle || [s.angle[0]+s.scroll, s.angle[1]+s.scroll*.4], selectedCity = view.city || (s.previewCity ? '' : s.city);
     var zoom = view.radius ? Math.min(2, r / Math.min(w,h)) : 1;
     ctx.setTransform(view.dpr || s.dpr, 0, 0, view.dpr || s.dpr, 0, 0); ctx.clearRect(0, 0, w, h);
     if (view.flight) { ctx.fillStyle = 'rgba(5,6,7,'+view.cover+')'; ctx.fillRect(0,0,w,h); }
@@ -500,7 +536,7 @@
       var p = project(s.data.cities[city.slug].vector), selected = city.slug === selectedCity, label = s.labelPositions && s.labelPositions[city.slug];
       if (p[2] <= 0) return;
       var x = cx+p[0]*r, y = cy+p[1]*r, labelWidth = w < 430 ? 94 : 112;
-      if (!view.flight && (s.root.dataset.globeLabels!=='selected'||selected)) {
+      if (!view.flight && !s.previewCity && (s.root.dataset.globeLabels!=='selected'||selected)) {
         var edge = label[0] < cx ? label[0]+labelWidth*.36 : label[0]-labelWidth*.36, elbow = edge+(x-edge)*.25;
         ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(elbow,label[1]); ctx.lineTo(edge,label[1]);
         ctx.lineWidth = selected ? 1 : .65; ctx.strokeStyle = selected ? 'rgba(255,215,0,.72)' : 'rgba(214,212,199,.3)'; ctx.stroke();
@@ -586,6 +622,7 @@
   function flyTo(slug, options) {
     options = options || {};
     if (!allowed(slug)) return Promise.resolve({status:'invalid',city:slug,animated:false,covered:false,reason:'unknown-city'});
+    if (instance) clearPreview(instance);
     if (flight) finishFlight(flight,'superseded','superseded');
     var s = instance, resolve, promise = new Promise(function (done) { resolve = done; });
     var f = flight = { id:++flightSerial,city:slug,source:s,onCovered:options.onCovered,resolve:resolve,
@@ -641,6 +678,7 @@
     current.framingMix = s ? s.framingMix : 0; current.framingTransition = !!(s && s.framingTransition);
     current.routeTrace = !!(s && s.routeTrace); current.routeProgress = s && s.routeTrace ? s.routeTrace.progress : 1;
     current.routeFrom = s && s.routeTrace ? s.routeTrace.from : null; current.routeCity = s && s.routeTrace ? s.routeTrace.city : null;
+    current.previewCity = s ? s.previewCity : null;
     return current;
   }
   function destroy() {
@@ -650,9 +688,9 @@
     s.destroyed = true; stopAmbient(s); if (s.raf) cancelAnimationFrame(s.raf); if (s.abort) s.abort.abort(); clearTimeout(s.timeout);
     s.observers.forEach(function (observer) { observer.disconnect(); }); s.listeners.forEach(function (remove) { remove(); });
     s.root.replaceChildren(); s.root.classList.remove('boom-flight-globe');
-    ['globeState','globeCity','globeMotion','globeCompact'].forEach(function (name) { delete s.root.dataset[name]; });
+    ['globeState','globeCity','globeMotion','globeCompact','globePreview'].forEach(function (name) { delete s.root.dataset[name]; });
     s.root.style.removeProperty('--globe-label-width');
     instance = null;
   }
-  var api = global.BoomFlightGlobe = { mount:mount, selectCity:selectCity, flyTo:flyTo, cancelFlight:cancelFlight, setPaused:setPaused, setZoom:setZoom, setFraming:setFraming, destroy:destroy, state:state };
+  var api = global.BoomFlightGlobe = { mount:mount, selectCity:selectCity, previewCity:previewCity, flyTo:flyTo, cancelFlight:cancelFlight, setPaused:setPaused, setZoom:setZoom, setFraming:setFraming, destroy:destroy, state:state };
 })(window);

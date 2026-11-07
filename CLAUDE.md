@@ -5111,6 +5111,12 @@ Il canvas Dispatch traccia in850ms il collegamento geografico Roma↔destinazion
 `boom-dispatch-motion.css` rifinisce le rotte vere dei pass e il taglio offerta/prossimo passo; al passaggio del puntatore si muove solo la freccia. Prezzi, condizioni, moduli e feedback originale del servizio restano dei loro controller.
 Copertura in `flightdispatchui`, regressioni `flightpanoramaui`/`flightclubmotion`, regia in `design/dispatch-motion.md`.
 
+Flight Dispatch città 07/11: un fondale petrolio unifica Solari e geografia; i sei pulsanti città originali precedono il globo, subito sotto il titolo, in tre colonne anche su telefono. Il vano Solari conserva altezza durante cambio parola e arresto.
+`boom-dispatch-tour` presenta le città col Solari originale e una camera temporanea: non seleziona destinazioni, moduli o servizi, non cambia valuta, URL o history. Un ingresso con città/bisogno/brief esplicito conserva la propria scelta; interazione, pausa, reduced-motion, invisibilità e navigazione fermano il tour.
+`BoomFlightGlobe.previewCity` muove soltanto la camera originale e rende neutra la geografia; `setDestination(...,{animate:false})` assesta il tabellone quando la persona riprende il controllo. Il selettore originale resta l'unica scelta effettiva.
+Nel dettaglio Roma il biglietto decisione diventa bianco e leggibile; la spiegazione della candidatura resta unica e conserva stato incerto/chiuso. Le città estere non mostrano il percorso Roma→chiavi; il footer include Contract Check e acquisti europei reali.
+`flightdispatchui` verifica scoperta iniziale, assenza di effetti sul brief, interruzioni e continuità; regressioni Panorama/motion e handoff originali. Regia in `design/dispatch-cities-presentation.md`, sistema e perimetro del lancio in `design/dispatch-launch-system.md`; `/` conserva il proprio proprietario e richiede ancora la verifica SEO prevista.
+
 Flight Lab 31/10: `/flight-lab` confronta Atlas, Residence e Club sulle stesse viste reali di `/flight-next?direction=…`, senza cambiare il sito pubblico.
 Le composizioni riusano catalogo, Solari, iframe Skyline, salvataggi e Apply; nessun secondo catalogo o nuovo handler di invio.
 Residence usa una foto realmente restituita dal catalogo pubblico (fallback a una casa pubblica non chiusa); Atlas sposta la stessa mappa nel primo schermo.

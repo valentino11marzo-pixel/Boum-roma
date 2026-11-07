@@ -83,6 +83,12 @@
       : 'An application does not reserve the home. No payment is taken at this step.';
     next.append(title, action, expectation);
     decision.appendChild(next);
+    // Dispatch presents the state-aware explanation once. The closed listing
+    // keeps its original status note; all application links remain untouched.
+    if (document.body.dataset.homeVision === 'dispatch' && !closed) {
+      var repeatedNote = decision.querySelector('.decision-cta > small');
+      if (repeatedNote) repeatedNote.hidden = true;
+    }
   }
 
   // The owner calls this again after an in-place detail refresh (dates/destination).

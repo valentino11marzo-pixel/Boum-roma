@@ -24,7 +24,7 @@
       '<a id="dispatchJourneyEdit" href="#nextSearch">Edit your plan</a>' +
       '<a id="dispatchJourneyReview" href="#services">Review options</a>' +
     '</nav>';
-  (document.querySelector('#nextHero>.europe-city-switch') || context).after(ticket);
+  context.after(ticket);
 
   var queued = false;
   var dateFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });

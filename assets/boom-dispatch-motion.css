@@ -2,11 +2,11 @@
    The original buttons own the state; JS measures the frame, never the copy.
    Without the ready marker, the existing filled selection remains intact. */
 body[data-direction="club"][data-edition="club"][data-experience="panorama"][data-home-vision="dispatch"].europe-ready {
-  & #nextHero > .europe-city-switch .europe-cities {
+  & #nextHero .europe-city-switch .europe-cities {
     position: relative;
     isolation: isolate;
   }
-  & #nextHero > .europe-city-switch .dispatch-city-carrier {
+  & #nextHero .europe-city-switch .dispatch-city-carrier {
     position: absolute;
     top: 0;
     left: 0;
@@ -21,39 +21,69 @@ body[data-direction="club"][data-edition="club"][data-experience="panorama"][dat
     transform-origin: 0 0;
     pointer-events: none;
   }
-  & #nextHero > .europe-city-switch .europe-cities.dispatch-carrier-ready > .dispatch-city-carrier {
+  & #nextHero .europe-city-switch .europe-cities.dispatch-carrier-ready > .dispatch-city-carrier {
     display: block;
   }
-  & #nextHero > .europe-city-switch .europe-cities.dispatch-carrier-ready > button {
+  & #nextHero .europe-city-switch .europe-cities.dispatch-carrier-ready > button {
     position: relative;
     z-index: 1;
     background: transparent;
-    border-color: #303326;
+    border-color: var(--dispatch-terminal-line, #303326);
     transform: none;
     transition: background-color var(--p-fast) ease;
   }
-  & #nextHero > .europe-city-switch .europe-cities.dispatch-carrier-ready > button[aria-pressed="true"] {
+  & #nextHero .europe-city-switch .europe-cities.dispatch-carrier-ready > button[aria-pressed="true"] {
     background: transparent;
     color: #ffd700;
-    border-color: #303326;
+    border-color: var(--dispatch-terminal-line, #303326);
   }
-  & #nextHero > .europe-city-switch .europe-cities.dispatch-carrier-ready > button[aria-pressed="true"] > span,
-  & #nextHero > .europe-city-switch .europe-cities.dispatch-carrier-ready > button[aria-pressed="true"] .europe-city-code {
+  & #nextHero .europe-city-switch .europe-cities.dispatch-carrier-ready > button[aria-pressed="true"] > span,
+  & #nextHero .europe-city-switch .europe-cities.dispatch-carrier-ready > button[aria-pressed="true"] .europe-city-code {
     color: #ffd700;
   }
-  & #nextHero > .europe-city-switch .europe-cities.dispatch-carrier-ready > button:focus-visible {
+  & #nextHero .europe-city-switch .europe-cities.dispatch-carrier-ready > button:focus-visible {
     outline: 2px solid #fff;
     outline-offset: -6px;
     transform: none;
     transition: none;
   }
-  & #nextHero > .europe-city-switch .europe-cities.dispatch-carrier-ready > button:active {
+  & #nextHero .europe-city-switch .europe-cities.dispatch-carrier-ready > button:active {
     transform: none;
   }
   /* The decorative carrier is the last DOM child. Keep the real sixth tile's
      divider rules independent from that presentation-only insertion. */
-  & #nextHero > .europe-city-switch .europe-cities.dispatch-carrier-ready > button:nth-of-type(6) {
+  & #nextHero .europe-city-switch .europe-cities.dispatch-carrier-ready > button:nth-of-type(6) {
     border-right: 0;
+  }
+  /* A presentation tour is not a city selection. Keep the original aria state
+     intact while the controller previews the network on the original board. */
+  &[data-dispatch-tour="playing"] #nextHero .europe-city-switch .dispatch-city-carrier {
+    visibility: hidden;
+  }
+  &[data-dispatch-tour="playing"] #nextHero .europe-city-switch .europe-cities button[aria-pressed="true"],
+  &[data-dispatch-tour="playing"] #nextHero .europe-city-switch .europe-cities button[aria-pressed="true"] > span:last-child {
+    background: transparent;
+    color: #fff;
+    border-color: var(--dispatch-terminal-line, #303326);
+    transition: none;
+  }
+  &[data-dispatch-tour="playing"] #nextHero .europe-city-switch .europe-cities button[aria-pressed="true"] .europe-city-code {
+    color: var(--dispatch-terminal-muted, #c6c9b8);
+  }
+  &[data-dispatch-tour="playing"] #nextHero .europe-city-switch .europe-cities button[aria-pressed="true"]::after {
+    opacity: 0;
+  }
+  &[data-dispatch-tour="playing"] #nextHero .europe-city-switch .europe-cities button:focus-visible {
+    outline-color: #fff;
+  }
+
+  & :is(.button.gold, .edition-plan-link, #nextSearchForm .search-submit, #europeDeskStory #europeDeskContinue, #services .panorama-ticket .ticket-stub > .panorama-ticket-action) {
+    min-height: 56px;
+    border-radius: 8px;
+  }
+  & #services .panorama-ticket-action > b,
+  & #europeDeskStory #europeDeskContinue::before {
+    border-radius: 4px;
   }
 
   /* The real route becomes a destination line, not another metadata label.
@@ -109,7 +139,7 @@ body[data-direction="club"][data-edition="club"][data-experience="panorama"][dat
     transition: border-color var(--p-fast) ease;
   }
   & #services .panorama-ticket .ticket-stub > .panorama-ticket-action {
-    min-height: 58px;
+    min-height: 56px;
   }
   & #services .panorama-ticket-action > b {
     overflow: hidden;
@@ -186,8 +216,14 @@ body[data-direction="club"][data-edition="club"][data-experience="panorama"][dat
 /* Pointer feedback belongs to the existing action. The fare never moves. */
 @media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
   body[data-direction="club"][data-edition="club"][data-experience="panorama"][data-home-vision="dispatch"].europe-ready:not([data-panorama-motion-state="quiet"]):not([data-edition-motion="still"]) {
-    & #nextHero > .europe-city-switch .europe-cities.dispatch-carrier-ready > button:hover:not(:focus-visible) {
-      background: #17180e;
+    & #nextHero .europe-city-switch .europe-cities.dispatch-carrier-ready > button:hover:not(:focus-visible) {
+      background: #132b33;
+    }
+    & .dispatch-tour-action:hover:not(:focus-visible):not(:active):not(:disabled) {
+      background: #ffe44a;
+    }
+    & #dispatchCityTourToggle:hover:not(:focus-visible):not(:disabled) {
+      background: #132b33;
     }
     & #services .panorama-ticket:hover:not(:focus-visible):not(:active) {
       border-color: var(--ticket-accent);
@@ -211,6 +247,8 @@ body[data-direction="club"][data-edition="club"][data-experience="panorama"][dat
   & #services .panorama-ticket-action > b svg { transition: none; }
   & #services .panorama-ticket-action > b svg { transform: none; }
   & #europeDeskStory #europeDeskContinue::after { transform: translateY(-50%); transition: none; }
+  & .dispatch-tour-action,
+  & .dispatch-tour-action:active:not(:focus-visible) { transform: none; transition: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -219,18 +257,27 @@ body[data-direction="club"][data-edition="club"][data-experience="panorama"][dat
     & #services .panorama-ticket-action > b svg { transition: none; }
     & #services .panorama-ticket-action > b svg { transform: none; }
     & #europeDeskStory #europeDeskContinue::after { transform: translateY(-50%); transition: none; }
+    & .dispatch-tour-action,
+    & .dispatch-tour-action:active:not(:focus-visible) { transform: none; transition: none; }
   }
 }
 
 @media (forced-colors: active) {
   body[data-direction="club"][data-edition="club"][data-experience="panorama"][data-home-vision="dispatch"].europe-ready {
-    & #nextHero > .europe-city-switch .dispatch-city-carrier { border-color: Highlight; }
-    & #nextHero > .europe-city-switch .europe-cities.dispatch-carrier-ready > button[aria-pressed="true"],
-    & #nextHero > .europe-city-switch .europe-cities.dispatch-carrier-ready > button[aria-pressed="true"] > span,
-    & #nextHero > .europe-city-switch .europe-cities.dispatch-carrier-ready > button[aria-pressed="true"] .europe-city-code { color: Highlight; }
-    & #nextHero > .europe-city-switch .europe-cities.dispatch-carrier-ready > button:focus-visible { outline-color: CanvasText; }
+    & #nextHero .europe-city-switch .dispatch-city-carrier { border-color: Highlight; }
+    & #nextHero .europe-city-switch .europe-cities.dispatch-carrier-ready > button[aria-pressed="true"],
+    & #nextHero .europe-city-switch .europe-cities.dispatch-carrier-ready > button[aria-pressed="true"] > span,
+    & #nextHero .europe-city-switch .europe-cities.dispatch-carrier-ready > button[aria-pressed="true"] .europe-city-code { color: Highlight; }
+    & #nextHero .europe-city-switch .europe-cities.dispatch-carrier-ready > button:focus-visible { outline-color: CanvasText; }
     & #services .panorama-ticket-route > span { color: CanvasText; }
     & #europeDeskStory .dispatch-service-ticket #europeDeskForm::before,
     & #europeDeskStory .dispatch-service-ticket #europeDeskForm::after { background: Canvas; }
+  }
+}
+
+/* Presentation never makes the original controller's hidden controls visible. */
+body[data-direction="club"][data-edition="club"][data-experience="panorama"][data-home-vision="dispatch"].europe-ready {
+  & :is(.edition-plan-link, #europeCitySignature, .dispatch-tour-action)[hidden] {
+    display: none !important;
   }
 }

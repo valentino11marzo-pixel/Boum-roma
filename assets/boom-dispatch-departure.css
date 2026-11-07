@@ -1,52 +1,93 @@
-/* A departure hall: one destination, one geographic stage, six real choices.
+/* A midnight departure hall: one destination, one stage, six real choices.
    The existing canvas and controls keep their owners and their Full view. */
 body[data-direction="club"][data-edition="club"][data-experience="panorama"][data-home-vision="dispatch"].europe-ready{
  --dispatch-scene-height:620px;
- & #nextHero{display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto;gap:0;padding-top:12px}
- & #directionClubTicket{display:grid;grid-template-columns:minmax(0,.4fr) minmax(0,.6fr);grid-column:1;grid-row:1;align-items:center;gap:28px;width:100%;min-width:0;padding:0;margin:0}
- & #directionClubTicket>.hero-centre{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:0;min-width:0;padding:48px 0 64px;text-align:left}
+ --dispatch-terminal:#071014;
+ --dispatch-terminal-light:#152b32;
+ --dispatch-terminal-line:#3b555e;
+ --dispatch-terminal-muted:#c6d2d5;
+ --dispatch-action-height:56px;
+ --dispatch-action-radius:8px;
+ /* A lit upper plane and one grounded horizon belong to the geographic stage.
+    They are static surfaces: no fog, texture loop or second canvas. */
+ & #nextHero{position:relative;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto;gap:0;padding-top:12px;background:linear-gradient(118deg,var(--dispatch-terminal) 0%,#0c191f 43%,var(--dispatch-terminal-light) 72%,#0a151a 100%);isolation:isolate}
+ & #nextHero::after{content:"";display:block;position:absolute;inset:auto 0 0;height:96px;border-top:1px solid #30464e;background:linear-gradient(180deg,#0a151a,#000);pointer-events:none;z-index:-1}
+ & #directionClubTicket{display:grid;grid-template-columns:minmax(0,.4fr) minmax(0,.6fr);grid-column:1;grid-row:1;align-items:center;gap:28px;width:100%;min-width:0;padding:0;margin:0;background:transparent}
+ & #directionClubTicket>.hero-centre{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:0;min-width:0;padding:32px 0 48px;text-align:left}
  & .hero-centre h1{width:100%;gap:20px}
  & .hero-pretitle{max-width:14ch;font-size:clamp(30px,3.1vw,44px);line-height:1.12;letter-spacing:-.035em;color:#fff;text-wrap:balance}
+ /* A fixed mechanical bay keeps the native city targets still when the
+    original fitter changes the size of a short or long destination. */
+ & #nextHero .vision-departure-record{display:flex;align-items:center;width:100%;min-height:calc(clamp(52px,6.2vw,88px)*1.26)}
  & #nextHero .vision-departure-record #nextDestinationBoard{font-size:min(clamp(52px,6.2vw,88px),var(--europe-board-size,88px))!important;gap:3px;line-height:1.26}
- & .hero-promise{align-self:flex-start;max-width:34ch;margin:26px 0 0;font-size:18px;line-height:1.55;font-weight:300;color:#c6c9b8;text-wrap:pretty}
- & .edition-plan-link{display:flex;flex-direction:row;align-items:center;justify-content:space-between;width:fit-content;min-width:260px;max-width:100%;margin:28px 0 0;padding:10px 10px 10px 20px;gap:24px;min-height:60px}
+ & .hero-promise{align-self:flex-start;max-width:34ch;margin:20px 0 0;font-size:18px;line-height:1.55;font-weight:300;color:var(--dispatch-terminal-muted);text-wrap:pretty}
+ & .edition-plan-link{display:flex;flex-direction:row;align-items:center;justify-content:space-between;width:fit-content;min-width:260px;max-width:100%;margin:24px 0 0;padding:10px 10px 10px 20px;gap:24px;min-height:56px;border-radius:8px}
  & .edition-pass-action{font-size:16px;flex:1}
- & .edition-pass-arrow{position:static;flex:0 0 40px;width:40px;height:40px}
- & .panorama-proof{align-self:flex-start;justify-content:flex-start;margin:12px 0 0;gap:0 24px}
+ & .edition-pass-arrow{position:static;flex:0 0 36px;width:36px;height:36px;border-radius:4px}
+ & .panorama-proof{align-self:flex-start;justify-content:flex-start;margin:8px 0 0;gap:0 24px}
+ & .panorama-proof a{color:var(--dispatch-terminal-muted);text-decoration-color:#7a9198}
 
  /* The map is the scene, not a framed preview. Its caption is a small console. */
  & #visionScene{grid-column:2;grid-row:1;margin:0;padding:0;border:0;min-width:0;width:100%;align-self:center}
  & #visionScene>.edition-atlas,
- &:not([data-europe-city="rome"]) #visionScene>.edition-atlas{height:var(--dispatch-scene-height);min-height:var(--dispatch-scene-height);display:grid;grid-template-columns:auto minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto auto;gap:0 16px;padding:0 0 20px;overflow:hidden}
+ &:not([data-europe-city="rome"]) #visionScene>.edition-atlas{height:var(--dispatch-scene-height);min-height:var(--dispatch-scene-height);display:grid;grid-template-columns:auto minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto auto;gap:0 16px;padding:0 0 20px;overflow:hidden;background:transparent;--p-muted:var(--dispatch-terminal-muted);--p-line:var(--dispatch-terminal-line)}
  & #visionScene>.edition-atlas #europeCitySignature{top:12px;left:0;max-width:calc(100% - 120px);gap:10px}
  & #visionScene>.edition-atlas #europeCitySignature .europe-city-icon{width:56px;height:40px;flex-basis:56px}
  & #visionScene>.edition-atlas .panorama-globe-toolbar{inset:12px 0 auto;min-height:44px}
  & #visionScene>.edition-atlas .boom-globe-stage{grid-row:1;grid-column:1/-1;height:calc(100% - 60px);width:100%;min-height:0;margin:60px 0 0}
- & #visionScene>.edition-atlas .panorama-route{grid-column:1/-1;grid-row:2;padding:12px 0;min-height:46px;border-color:#303326}
- & #visionScene>.edition-atlas .dispatch-lenses{grid-column:1;grid-row:3;align-self:start;margin:4px 0 0}
+ & #visionScene>.edition-atlas .boom-globe-stage::before{content:none}
+ & #visionScene>.edition-atlas .panorama-route{grid-column:1/-1;grid-row:2;padding:12px 0;min-height:46px;border-color:var(--dispatch-terminal-line);background:transparent}
+ & #visionScene>.edition-atlas .dispatch-lenses{grid-column:1;grid-row:3;align-self:start;margin:4px 0 0;border-color:var(--dispatch-terminal-line);border-radius:8px;background:var(--dispatch-terminal)}
+ & #visionScene>.edition-atlas .dispatch-lenses button{background:transparent;color:var(--dispatch-terminal-muted)}
+ & #visionScene>.edition-atlas .dispatch-lenses button[aria-pressed="true"]{background:#ffd700;color:#000}
  & #visionScene>.edition-atlas .dispatch-lenses button{min-width:96px;padding-inline:12px}
  & #visionScene>.edition-atlas .boom-globe-caption{grid-column:2;grid-row:3;display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:0 12px;padding:4px 0 0;min-height:48px}
- & #visionScene>.edition-atlas .panorama-globe-tools{display:flex;width:auto;justify-content:flex-start;flex-wrap:nowrap}
+ & #visionScene>.edition-atlas .panorama-globe-tools{display:flex;width:auto;justify-content:flex-start;flex-wrap:nowrap;border-color:var(--dispatch-terminal-line);border-radius:8px;background:var(--dispatch-terminal)}
+ & #visionScene>.edition-atlas .panorama-globe-toolbar button{border-color:#6c858e;border-radius:8px;background:var(--dispatch-terminal);color:#fff}
  & #visionScene>.edition-atlas .panorama-globe-tools #nextMotionToggle{width:auto;flex:0 0 auto;border-top:0}
- & #visionScene>.edition-atlas .boom-globe-caption>a{margin:0;min-height:44px;color:#c6c9b8}
+ & #visionScene>.edition-atlas .boom-globe-caption>a{margin:0;min-height:44px;color:var(--dispatch-terminal-muted)}
+ & #visionScene>.edition-atlas .boom-globe-city-code{font-family:var(--p-font);font-size:11px;letter-spacing:.02em}
+ & #visionScene>.edition-atlas .boom-globe-cities button{border-radius:8px;background:var(--dispatch-terminal);border-color:#6c858e}
+ & #visionScene>.edition-atlas .boom-globe-cities button[aria-pressed="true"]{background:#ffd700;border-color:#ffd700;color:#000}
 
- /* A six-stop directory at the foot of the stage, with no hidden destinations. */
- & #nextHero>.europe-city-switch{grid-column:1;grid-row:2;width:100%;margin:0 0 28px;align-self:stretch}
- & #nextHero>.europe-city-switch .europe-cities{height:auto;grid-template-columns:repeat(6,minmax(0,1fr));grid-template-rows:auto;border-top:1px solid #545747;border-bottom:1px solid #545747}
- & #nextHero>.europe-city-switch button{grid-template-columns:minmax(0,1fr) 18px;grid-template-rows:auto auto;gap:8px;min-height:96px;padding:18px 16px;border:0;border-right:1px solid #303326;align-content:center}
- & #nextHero>.europe-city-switch button:last-child{border-right:0}
- & #nextHero>.europe-city-switch button>span:last-child{grid-column:1/-1;grid-row:2;font-size:clamp(20px,2vw,28px);line-height:1.1;letter-spacing:-.03em}
- & #nextHero>.europe-city-switch .europe-city-code{grid-column:1;grid-row:1;font-size:11px;letter-spacing:.035em}
- & #nextHero>.europe-city-switch button::after{grid-column:2;grid-row:1;width:18px;height:18px}
- & #nextHero>.europe-city-switch button[aria-pressed="true"]{border-color:#ffd700}
+ /* The same six native choices now sit immediately after the original h1.
+    Three columns keep every destination visible before the phone globe. */
+ & #nextHero .europe-city-switch{display:block;width:100%;max-width:none;margin:24px 0 0;padding:0;align-self:stretch;border:0;background:transparent}
+ & #nextHero .europe-city-switch .europe-switch-label{display:none}
+ & #nextHero .europe-city-switch .europe-cities{display:grid;height:auto;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(2,auto);gap:0;border:1px solid var(--dispatch-terminal-line);border-radius:8px;overflow:hidden;background:rgba(7,16,20,.35)}
+ & #nextHero .europe-city-switch button{display:grid;grid-template-columns:minmax(0,1fr) 16px;grid-template-rows:auto auto;gap:6px 8px;width:100%;min-width:0;min-height:72px;padding:12px;border:0;border-right:1px solid var(--dispatch-terminal-line);border-bottom:1px solid var(--dispatch-terminal-line);border-radius:0;align-content:center;text-align:left;background:transparent;color:#fff;transform:none}
+ & #nextHero .europe-city-switch button:nth-of-type(3n){border-right:0}
+ & #nextHero .europe-city-switch button:nth-of-type(n+4){border-bottom:0}
+ & #nextHero .europe-city-switch button>span:last-child{grid-column:1/-1;grid-row:2;order:0;min-width:0;font:300 clamp(17px,1.6vw,22px)/1.12 var(--p-font);letter-spacing:-.025em;white-space:nowrap}
+ & #nextHero .europe-city-switch .europe-city-code{display:block;grid-column:1;grid-row:1;margin:0;padding:0;border:0;font:400 11px/1.2 var(--p-font);letter-spacing:.025em;color:var(--dispatch-terminal-muted)}
+ & #nextHero .europe-city-switch button::after{content:"";display:block;grid-column:2;grid-row:1;width:16px;height:16px;background:currentColor;mask:var(--p-arrow-mask) center/contain no-repeat;-webkit-mask:var(--p-arrow-mask) center/contain no-repeat;opacity:0}
+ & #nextHero .europe-city-switch button[aria-pressed="true"]{background:#ffd700;color:#000;border-color:#ffd700}
+ & #nextHero .europe-city-switch button[aria-pressed="true"] .europe-city-code{color:#000}
+ & #nextHero .europe-city-switch button[aria-pressed="true"]::after{opacity:1}
+ & #nextHero .europe-city-switch button:focus-visible{outline:2px solid #fff;outline-offset:-6px;transform:none}
+ & #nextHero .europe-city-switch button[aria-pressed="true"]:focus-visible{outline-color:#000}
+
+ & #dispatchCityTour{display:flex;flex-wrap:wrap;align-items:center;gap:8px 20px;margin:12px 0 0;padding:0;border:0;background:transparent}
+ & #dispatchCityTourToggle{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:8px 12px;border:1px solid #6c858e;border-radius:8px;background:var(--dispatch-terminal);color:#fff;font:400 14px/1.3 var(--p-font);text-align:left;touch-action:manipulation}
+ & #dispatchCityTourToggle svg{width:16px;height:16px;flex:0 0 16px;stroke-width:1.5}
+ & #dispatchCityTourToggle:focus-visible{outline:2px solid #ffd700;outline-offset:4px}
+ & #dispatchCityTourToggle[aria-pressed="true"]{border-color:#ffd700;color:#ffd700}
+ & #dispatchCityTour>a{display:inline-flex;align-items:center;min-height:44px;color:var(--dispatch-terminal-muted);font-size:14px;text-decoration:underline;text-underline-offset:4px;text-decoration-color:#7a9198}
+ & .dispatch-tour-action{display:none;align-items:center;justify-content:space-between;gap:24px;min-width:260px;min-height:56px;max-width:100%;margin:24px 0 0;padding:10px 10px 10px 20px;border:0;border-radius:8px;background:#ffd700;color:#000;font:500 16px/1.35 var(--p-font);text-align:left;touch-action:manipulation;transition:background-color var(--p-fast) ease,transform var(--p-fast) var(--p-ease)}
+ & .dispatch-tour-action>span:last-child{display:grid;place-items:center;flex:0 0 36px;width:36px;height:36px;border-radius:4px;background:#000;color:#ffd700}
+ & .dispatch-tour-action svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.5}
+ & .dispatch-tour-action:focus-visible{outline:2px solid #fff;outline-offset:5px}
+ & .dispatch-tour-action:active:not(:focus-visible){background:#e6c100;transform:scale(.985)}
+ & #dispatchCityTourToggle:active{background:#132b33}
+ &[data-dispatch-tour="playing"] .dispatch-tour-action{display:flex}
 
  /* A filled brief is a compact manifest, never another empty hero panel. */
- & #dispatchJourneyTicket{grid-column:1;grid-row:3;padding:24px 0;margin:0;border-top:0;border-bottom:1px solid #545747}
+ & #dispatchJourneyTicket{grid-column:1;grid-row:2;padding:24px 0;margin:0;border-top:0;border-bottom:1px solid var(--dispatch-terminal-line)}
  & #dispatchJourneyTitle{font-size:26px;margin-bottom:16px}
  & .dispatch-journey-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px 28px}
  & .dispatch-journey-field{grid-template-columns:minmax(0,1fr);gap:6px;padding:0;border:0;align-content:start}
  & .dispatch-journey-actions{justify-content:flex-start;gap:24px;margin-top:16px;padding-top:8px}
- & #nextHero>.europe-planner.edition-club-runway{grid-column:1;grid-row:4;margin:0}
+ & #nextHero>.europe-planner.edition-club-runway{grid-column:1;grid-row:3;margin:0}
 
  /* Rome's photography belongs to the real homes chapter, with its own space. */
  & #clubHomes>#clubMedia{width:100%;margin:44px 0 0;padding:0;border:0;background:transparent}
@@ -67,20 +108,22 @@ body[data-direction="club"][data-edition="club"][data-experience="panorama"][dat
  &:not([data-europe-city="rome"]) #visionScene>.edition-atlas{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto auto auto}
  & #visionScene>.edition-atlas .dispatch-lenses{grid-column:1;grid-row:3;margin:4px 0 0}
  & #visionScene>.edition-atlas .boom-globe-caption{grid-column:1;grid-row:4;justify-content:space-between;flex-wrap:nowrap}
- & #nextHero>.europe-city-switch button{padding-inline:12px;min-height:88px}
- & #nextHero>.europe-city-switch button>span:last-child{font-size:clamp(18px,2.2vw,22px)}
+ & #nextHero .europe-city-switch button{padding-inline:8px;min-height:68px}
+ & #nextHero .europe-city-switch button>span:last-child{font-size:clamp(16px,1.9vw,20px)}
 }}
 
 @media(max-width:760px){body[data-direction="club"][data-edition="club"][data-experience="panorama"][data-home-vision="dispatch"].europe-ready{
  --dispatch-scene-height:480px;
  & #nextHero{display:flex;flex-direction:column;gap:0;padding-top:0}
  & #directionClubTicket{display:flex;flex-direction:column;gap:0;align-items:stretch}
- & #directionClubTicket>.hero-centre{padding:28px 0 20px;align-items:flex-start}
+ & #directionClubTicket>.hero-centre{padding:28px 0 24px;align-items:flex-start}
  & .hero-centre h1{gap:14px}
  & .hero-pretitle{max-width:none;font-size:clamp(26px,6.9vw,36px);line-height:1.15}
+ & #nextHero .vision-departure-record{min-height:calc(64px*1.26)}
  & #nextHero .vision-departure-record #nextDestinationBoard{font-size:min(64px,var(--europe-board-size,64px))!important}
  & .hero-promise{max-width:42ch;margin:18px 0 0;font-size:16px;line-height:1.5}
- & .edition-plan-link{width:100%;max-width:none;min-height:56px;margin-top:20px;padding-block:8px}
+ & .edition-plan-link,& .dispatch-tour-action{width:100%;min-width:0;max-width:none;min-height:56px;margin-top:20px;padding-block:8px}
+ & .dispatch-tour-action{padding-left:16px;font-size:15px}
  & .edition-pass-action{font-size:15px}
  & .panorama-proof{margin-top:6px;gap:0 24px}
  & #visionScene{width:100%;margin:0;padding:0}
@@ -93,13 +136,11 @@ body[data-direction="club"][data-edition="club"][data-experience="panorama"][dat
  & #visionScene>.edition-atlas .panorama-globe-tools{grid-row:4;grid-column:1/-1;justify-self:start;margin-top:8px}
  & #visionScene>.edition-atlas .boom-globe-caption>a{grid-row:3;grid-column:2;justify-self:end;align-self:center}
  & #visionScene>.edition-atlas #europeCitySignature .europe-city-icon{width:44px;flex-basis:44px;height:36px}
- & #nextHero>.europe-city-switch{margin:0 0 24px}
- & #nextHero>.europe-city-switch .europe-cities{grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(2,auto)}
- & #nextHero>.europe-city-switch button{min-height:82px;padding:12px 10px;gap:7px;border-right:1px solid #303326;border-bottom:1px solid #303326}
- & #nextHero>.europe-city-switch button:nth-child(3n){border-right:0}
- & #nextHero>.europe-city-switch button:nth-child(n+4){border-bottom:0}
- & #nextHero>.europe-city-switch button>span:last-child{font-size:clamp(18px,4.8vw,25px)}
- & #nextHero>.europe-city-switch .europe-city-code{font-size:10px}
+ & #nextHero .europe-city-switch{margin:20px 0 0}
+ & #nextHero .europe-city-switch button{min-height:64px;padding:10px 8px;gap:5px 8px}
+ & #nextHero .europe-city-switch button>span:last-child{font-size:clamp(16px,4.45vw,20px)}
+ & #nextHero .europe-city-switch .europe-city-code{font-size:10px}
+ & #dispatchCityTour{margin-top:8px}
  & #dispatchJourneyTicket{width:100%;padding:4px 0 24px;margin-bottom:24px}
  & .dispatch-journey-fields{grid-template-columns:repeat(2,minmax(0,1fr));gap:20px 16px}
  & .dispatch-journey-field:last-child{grid-column:1/-1}
@@ -108,12 +149,8 @@ body[data-direction="club"][data-edition="club"][data-experience="panorama"][dat
 }}
 
 @media(max-width:360px){body[data-direction="club"][data-edition="club"][data-experience="panorama"][data-home-vision="dispatch"].europe-ready{
- & #nextHero>.europe-city-switch .europe-cities{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(3,auto)}
- & #nextHero>.europe-city-switch button{min-height:74px;border-right:1px solid #303326;border-bottom:1px solid #303326}
- & #nextHero>.europe-city-switch button:nth-child(3){border-right:1px solid #303326}
- & #nextHero>.europe-city-switch button:nth-child(4){border-bottom:1px solid #303326}
- & #nextHero>.europe-city-switch button:nth-child(2n){border-right:0}
- & #nextHero>.europe-city-switch button>span:last-child{font-size:22px}
+ & #nextHero .europe-city-switch button{padding-inline:6px}
+ & #nextHero .europe-city-switch button>span:last-child{font-size:16px}
  & #visionScene>.edition-atlas .panorama-globe-tools .boom-globe-reset{padding-inline:8px}
  & #visionScene>.edition-atlas .panorama-globe-tools #nextMotionToggle{padding-inline:8px}
 }}

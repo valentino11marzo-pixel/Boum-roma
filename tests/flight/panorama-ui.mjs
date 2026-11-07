@@ -173,7 +173,7 @@ async function typeQuality(page,view){
  const samples={
   home:[['body',16],['.hero-promise',16],['#nextSearchForm>label>span',13],['#nextSearchForm input,#nextSearchForm select',16],['.search-caption',12]],
   apartments:[['.club-explore-note',14]],
-  detail:[['.detail-copy',16],['.decision-cta>small',12],['.club-application-next p',14],['.edition-costs dt,.edition-costs small',12]]
+  detail:[['.detail-copy',16],[font.vision==='dispatch'?'.club-application-next p:last-child':'.decision-cta>small',font.vision==='dispatch'?15:12],['.club-application-next p',14],['.edition-costs dt,.edition-costs small',12]]
  };
  for(const [selector,floor] of samples[view]){
   const measured=await page.locator(selector).evaluateAll(nodes=>nodes.filter(node=>node.getClientRects().length&&getComputedStyle(node).visibility!=='hidden').map(node=>({font:parseFloat(getComputedStyle(node).fontSize),text:node.textContent.trim().slice(0,75)})));
