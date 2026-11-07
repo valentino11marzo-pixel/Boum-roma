@@ -14,8 +14,10 @@
 // The Stripe webhook marks the credit as used on the pack's lead
 // (credit.usedBy), under a version precondition.
 //
-// A desk that charges at signing (Paris, Berlin) never qualifies: nothing was
-// paid at the order, so there is nothing to credit.
+// A desk that charges at signing never qualifies: nothing was paid at the
+// order, so there is nothing to credit. (Paris and Berlin charged at signing
+// until 06/11/2026; since then they take the card at the order, and a pack
+// paid there is credited like any other.)
 
 import { CITY_MARKETS, CITY_PLANS, cityOffer } from './_market.js';
 

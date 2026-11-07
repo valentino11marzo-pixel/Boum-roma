@@ -787,6 +787,26 @@ export function feesRowOf(c, shared, extra = '') {
     + '.' + (same ? ' ' + esc(plans[0].conditionLong) : '') + (extra ? ' ' + extra : '')
     + (c.checkout === true ? ' ' + esc(ruleOf(c, shared)) : '');
 }
+// The fact sheet's withdrawal row (audit, 06/11): the 14 days were said only
+// inside the till, to whoever opened it; "can I cancel after paying?" is
+// asked before. DERIVED from the desk's mode, never typed per desk: the six
+// count from payment, Paris and Berlin from the order and take nothing before
+// the lease. Same three ways as the till ({online}, email, model form); no
+// tick to speak of here, so "without the tick" becomes "if you did not".
+// Terms §12.4, word for word: the right ends once the service is fully
+// performed (CRD art. 16(a); UK CCR 2013 reg. 36) — the start-now tick says it
+// at the till, the fact sheet says it too (review, 06/11)
+export const WITHDRAW_END = 'Once the service is fully performed, the right to withdraw ends.';
+export function withdrawalRowOf(c, contact) {
+  if (c.checkout !== true) return '';
+  const desk = encodeURIComponent(c.city);
+  const ways = `withdraw <a class="lnk" href="${WITHDRAWAL_PATH}?desk=${desk}#online">online</a>, by email to `
+    + `<a class="lnk" href="mailto:${esc(contact.email)}">${esc(contact.email)}</a> or with the `
+    + `<a class="lnk" href="${WITHDRAWAL_PATH}?desk=${desk}">model withdrawal form</a>.`;
+  return isSigning(c)
+    ? `<b>14 days from your order</b>: ${ways} Nothing is charged before you sign a lease, so withdrawing before then costs nothing. Unless you ask us to start sooner, we start when the 14 days end. ${WITHDRAW_END}`
+    : `<b>14 days from payment</b>: ${ways} If you asked us to start and then withdraw, we refund the price minus the work already done. If you did not, we start when the 14 days end. ${WITHDRAW_END}`;
+}
 
 // The calendar a desk's window reads: the webhook's own key (CITY_MARKETS
 // holidays || country), so the page never says "desk open" on a day the
@@ -1205,16 +1225,23 @@ const R = {
   // The fact sheet: the fees row is DERIVED from the plans (with each plan's
   // own condition and, on a sell desk, the refund rule) and the contact row
   // from _shared.json, so the quotable ledger cannot drift from the page.
-  bref: (c, shared, pageUrl, contact = shared.contact) => list(c, 'bref.rows').map((r) => {
+  // A desk that sells adds the Withdrawal row right after the fees: the
+  // money, then how to take it back (withdrawalRowOf).
+  bref: (c, shared, pageUrl, contact = shared.contact) => list(c, 'bref.rows').flatMap((r) => {
     let dd = r.ddHtml || '';
     if (r.fees) dd = feesRowOf(c, shared, dd);
+    // the reply promise names the clock it runs on, from desk.hours (never
+    // typed in the JSON: "the same working day" said nothing of whose day)
+    if (r.hours) dd = `${dd.replace(/\.\s*$/, '')} (desk hours: ${esc(deskHoursText(c.desk))}).`;
     if (r.contact) {
       const k = contact;
       dd = `<a class="lnk" href="mailto:${esc(k.email)}">${esc(k.email)}</a> · <a class="lnk" href="${esc(waHref(k, c.city))}">WhatsApp ${esc(k.phoneDisplay)}</a>`
         + ` · <a class="lnk" href="${esc(pageUrl)}">${esc(pageUrl.replace(/^https:\/\/(www\.)?/, ''))}</a>`;
     }
     need(dd, `cities/${c.slug}.json`, `bref row "${r.dt}" has no content`);
-    return `          <dt>${esc(r.dt)}</dt><dd>${dd}</dd>`;
+    const row = `          <dt>${esc(r.dt)}</dt><dd>${dd}</dd>`;
+    const wd = r.fees ? withdrawalRowOf(c, contact) : '';
+    return wd ? [row, `          <dt>Withdrawal</dt><dd>${wd}</dd>`] : [row];
   }).join('\n'),
 
   // §D THE FOOTER: the statement under the mark, then three columns — this
@@ -1329,7 +1356,9 @@ export function serviceNode(c, shared, pageUrl, orgId) {
   const dont = (c.bref.rows.find((r) => r.dt === "What we don't do") || {}).ddHtml || '';
   return {
     '@type': 'Service', '@id': pageUrl + '#service', name: c.service.name, serviceType: c.service.serviceType,
-    description: c.service.description + (dont ? " What we don't do: " + dont.replace(/<[^>]+>/g, '') : ''), provider: { '@id': orgId },
+    // the desk hours in words, zone named: hoursAvailable has no time zone in
+    // schema.org, so "09:00" alone did not say whose 09:00 (audit 06/11)
+    description: c.service.description + (dont ? " What we don't do: " + dont.replace(/<[^>]+>/g, '') : '') + ` Desk hours: ${deskHoursText(c.desk)}.`, provider: { '@id': orgId },
     areaServed: { '@type': 'City', name: c.city },
     audience: { '@type': 'Audience', audienceType: c.service.audience },
     hoursAvailable: { '@type': 'OpeningHoursSpecification', dayOfWeek: c.desk.days.map((d) => DAY_NAMES[d]), opens: c.desk.hours.from, closes: c.desk.hours.to },
@@ -1352,11 +1381,19 @@ export function serviceNode(c, shared, pageUrl, orgId) {
           ...(unitWord ? { unitText: unitWord, referenceQuantity: { '@type': 'QuantitativeValue', value: 1, unitText: unitWord } } : {}) },
         url: pageUrl + '#fare-' + p.id,
         seller: { '@id': orgId },
-        itemOffered: { '@type': 'Service', name: p.label, description: `For: ${p.when}.` }
+        // the service it sells, by name: the "For: Haven't started yet." the
+        // fare's situation question printed here read as a definition (audit 06/11)
+        itemOffered: { '@type': 'Service', name: p.label }
       };
     })
   };
 }
+// The page's English, by country: London is British English (og:locale
+// en_GB, inLanguage en-GB); the other desks stay en_US / en. Derived, never a
+// JSON key: hreflang is untouched (one file per desk, no alternates).
+export const isGB = (c) => String(c.country || '').toUpperCase() === 'GB';
+export const ogLocaleOf = (c) => (isGB(c) ? 'en_GB' : 'en_US');
+export const inLanguageOf = (c) => (isGB(c) ? 'en-GB' : 'en');
 function jsonLd(c, shared, pageUrl, ogImage, cities = [c]) {
   const site = shared.siteUrl;
   const orgId = site + '/#organization';
@@ -1365,7 +1402,7 @@ function jsonLd(c, shared, pageUrl, ogImage, cities = [c]) {
     '@graph': [
       orgNode(shared, cities),
       {
-        '@type': 'WebPage', '@id': pageUrl + '#page', url: pageUrl, name: c.meta.ogTitle, description: c.meta.description, inLanguage: 'en',
+        '@type': 'WebPage', '@id': pageUrl + '#page', url: pageUrl, name: c.meta.ogTitle, description: c.meta.description, inLanguage: inLanguageOf(c),
         isPartOf: { '@id': site + '/#website' }, about: { '@id': orgId }, mainEntity: { '@id': pageUrl + '#service' }, breadcrumb: { '@id': pageUrl + '#breadcrumb' },
         primaryImageOfPage: { '@type': 'ImageObject', url: ogImage, width: 1200, height: 630 },
         ...(c.updated ? {
@@ -1376,7 +1413,7 @@ function jsonLd(c, shared, pageUrl, ogImage, cities = [c]) {
       },
       serviceNode(c, shared, pageUrl, orgId),
       {
-        '@type': 'FAQPage', '@id': pageUrl + '#faq', isPartOf: { '@id': pageUrl + '#page' }, inLanguage: 'en',
+        '@type': 'FAQPage', '@id': pageUrl + '#faq', isPartOf: { '@id': pageUrl + '#page' }, inLanguage: inLanguageOf(c),
         mainEntity: list(c, 'faq.items').map((f) => ({
           '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a }
         }))
@@ -1730,7 +1767,7 @@ const ALLOWED = {
   'how.step': ['k', 'h', 'p', 'status'],
   'checks.item': ['id', 'title', 'at', 'text'],
   'faq.item': ['q', 'a'],
-  'bref.row': ['dt', 'ddHtml', 'fees', 'contact'],
+  'bref.row': ['dt', 'ddHtml', 'fees', 'contact', 'hours'],
   meta: ['title', 'description', 'ogTitle', 'ogDescription'],
   service: ['name', 'serviceType', 'description', 'audience'],
   hero: ['h1Before', 'lead', 'leadStrong', 'faresHead'],
@@ -1920,21 +1957,26 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
   // (v1.8: not asked of a desk that charges at signing — Paris states its
   // extra viewings by data, Berlin may state none: WoVermRG §3(3))
   const avPrice = pr(plans[2].price);
-  need(fsPlan.includes.some((x) => x.includes(`(more: ${avPrice} each)`)) || waitlist || signing, where, `Full Search on a desk that sells says "(more: ${avPrice} each)": one viewing is included, the rest are priced at the Attended Viewing's own price`);
+  // Germany prices no extra viewing around a Full Search (WoVermRG §3(3), below): exempt
+  const inDE = String(city.country || '').toUpperCase() === 'DE';
+  need(fsPlan.includes.some((x) => x.includes(`(more: ${avPrice} each)`)) || waitlist || signing || inDE, where, `Full Search on a desk that sells says "(more: ${avPrice} each)": one viewing is included, the rest are priced at the Attended Viewing's own price`);
   need(fsPlan.includes.some((x) => /Until you sign, or you say stop/.test(x)) || waitlist, where, 'Full Search says how long it runs: "Until you sign, or you say stop"');
   // Berlin, a desk still opening: both condition strings say "sign" (the
   // draft's pin). A desk that SELLS cannot ("a sell desk's condition never
   // says sign", above): there the law is pinned by data, below.
   if (city.slug === 'berlin' && waitlist) need(/sign/i.test(fsPlan.condition) && /sign/i.test(fsPlan.conditionLong), where, 'berlin: Full Search is due only once a lease is signed (WoVermRG §2–§3) — both condition strings must say "sign"');
-  // v1.8 — the law of the country, by data, on a desk that sells there:
-  // France (loi Hoguet art. 6: nothing is taken before the operation is
-  // concluded) and Germany (WoVermRG §2(4): no advance) charge at signing.
+  // v1.8 required France and Germany to charge at signing (loi Hoguet art. 6:
+  // nothing is taken before the operation is concluded; WoVermRG §2(4): no
+  // advance). 06/11/2026: the founder decided that Paris and Berlin take the
+  // card at the order like the six, after being told the exposure in writing
+  // (France: art. 16 loi Hoguet; Germany: §8 fines and §5 refund claims) — the
+  // decision and its risk are in CLAUDE.md. The guard is gone on purpose; the
+  // copy rules of the two countries below stay (they say true things).
   const FR = String(city.country || '').toUpperCase() === 'FR', DE = String(city.country || '').toUpperCase() === 'DE';
-  if (sell && (FR || DE)) need(signing, where, `${FR ? 'France: loi Hoguet art. 6' : 'Germany: WoVermRG §2(4)'} — a desk that sells there takes nothing before the lease: it charges at signing (CITY_MARKETS.${city.slug}.chargeAt "signing")`);
   if (sell && FR) {
     // loi Hoguet art. 7 (spec D5): a search mandate runs for a limited time
     need(fsPlan.includes.some((x) => /\(six months at most\)/.test(x)), where, 'France: Full Search says how long the mandate runs, "(six months at most)" (loi Hoguet art. 7, spec D5)');
-    need(/six months at most/.test(String(city.checkoutCopy && city.checkoutCopy.order)), where, 'France: the order line before the button says the mandate runs "six months at most" (loi Hoguet art. 7, spec D5)');
+    if (signing) need(/six months at most/.test(String(city.checkoutCopy && city.checkoutCopy.order)), where, 'France: the order line before the button says the mandate runs "six months at most" (loi Hoguet art. 7, spec D5)');
   }
   if (sell && DE) {
     // WoVermRG: every fee only once a lease is signed (§2: the shape above,
@@ -1998,6 +2040,10 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
   need(city.faq.items.length >= 3 && city.faq.items.length <= 6, where, 'three to six questions');
   need(!list(city, 'faq.items').some((q) => /moving from Rome/i.test(q.q)), where, 'the FAQ item "I\'m moving from Rome with BOOM" left the page (brief v1.3)');
   need(city.bref && str(city.bref.h2) && list(city, 'bref.rows').some((r) => r.fees) && city.bref.rows.some((r) => r.contact) && city.bref.rows.some((r) => r.dt === "What we don't do"), where, 'bref needs h2 and rows with a fees row, a contact row and "What we don\'t do"');
+  // audit 06/11: the withdrawal row and the desk hours are DERIVED (withdrawalRowOf, desk.hours):
+  // a hand-typed "Withdrawal" row would say it twice, and drift from the till
+  need(!city.bref.rows.some((r) => /^withdrawal/i.test(String(r.dt || '').trim())), where, 'the "Withdrawal" row of the fact sheet is derived by the build after the fees row (withdrawalRowOf): no row of that name in the JSON');
+  need(city.bref.rows.every((r) => r.hours === undefined || r.hours === true) && city.bref.rows.filter((r) => r.hours === true).length === 1, where, 'exactly one fact-sheet row carries "hours": true (the reply time, followed by the desk hours from desk.hours)');
   need(str(city.footer.statement), where, 'footer.statement is required (the tenant-side statement)');
 
   // ── the till ──
@@ -2163,6 +2209,8 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
       : '<meta name="robots" content="noindex">',
     jsonLdBreadcrumb: ldJson(jsonLdBreadcrumb(city, shared, pageUrl)),
     jsonLd: ldJson(jsonLd(city, shared, pageUrl, ogImage, cities)),
+    ogLocale: ogLocaleOf(city),
+    htmlLang: inLanguageOf(city),
     configJson: scriptJson(config, '  '),
     assetVersion,
     scrollBlock: frags.scrollBlock,
@@ -3545,8 +3593,9 @@ export function renderHub({ template, shared, hub, cities, assetVersion, frags, 
   const fr = hub.fares;
   const spain = fr.spain ? Topt(fr.spain, 'fares.spain note') : null;
   // v1.8 (H1): the fares are the same at every desk, the TIMING is not — the desks that charge at signing are named
-  // before the first price (dropped, with a warning, when no live desk charges at signing)
-  const signNote = fr.signing ? Topt(fr.signing, 'fares.signing note') : null;
+  // before the first price. With no live desk charging at signing (since 06/11/2026) the note has nothing to say:
+  // silently absent, never a warning (a warning is for an item that should be there)
+  const signNote = fr.signing && tok.signDesks ? Topt(fr.signing, 'fares.signing note') : null;
   const gbpDesk = gbp.length ? `at the ${listJoin(gbp.map((c) => c.city))} desk${gbp.length > 1 ? 's' : ''}` : '';
   const tickets = plans.map((p) => {
     const hp = fr.plans[p.id];

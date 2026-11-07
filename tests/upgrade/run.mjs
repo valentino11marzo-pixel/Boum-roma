@@ -171,7 +171,16 @@ const seed = (id, lead) => { store.set('leads/' + id, JSON.parse(JSON.stringify(
   check(upgradeOffer(apLead({ credit: { usedBy: 'svc_other' } }), AP_ID, NOW).state === 'used', 'a credit already used is used');
   check(upgradeOffer(apLead({ paid_at: new Date(NOW - 31 * DAY).toISOString() }), AP_ID, NOW).state === 'expired', 'after 30 days it has expired');
   check(upgradeOffer(apLead({ kind: 'full-search', city: { ...apLead().city, service: 'full-search' } }), AP_ID, NOW).state === 'not_upgradable', 'a Full Search order has nothing to upgrade to');
-  check(upgradeOffer(apLead({ market: 'paris', city: { ...apLead().city, key: 'paris' } }), AP_ID, NOW).state === 'not_upgradable', 'a desk charged at signing (Paris) never credits: nothing was paid at the order');
+  // the card flip (06/11): Paris takes the card at the order, so a Paris pack paid by card is credited like Madrid's;
+  // a desk the registry charges at signing (Paris patched, try/finally) still never credits: nothing was paid there
+  check(upgradeOffer(apLead({ market: 'paris', city: { ...apLead().city, key: 'paris' } }), AP_ID, NOW).state === 'open', 'a Paris pack paid by card (since 06/11) is credited like any desk that charges at the checkout');
+  {
+    const { CITY_MARKETS } = await import('../../api/_market.js');
+    const keep = CITY_MARKETS.paris;
+    let st;
+    try { CITY_MARKETS.paris = { ...keep, chargeAt: 'signing' }; st = upgradeOffer(apLead({ market: 'paris', city: { ...apLead().city, key: 'paris' } }), AP_ID, NOW).state; } finally { CITY_MARKETS.paris = keep; }
+    check(st === 'not_upgradable' && CITY_MARKETS.paris === keep, 'a desk charged at signing (Paris, the registry patched) never credits: nothing was paid at the order');
+  }
   check(upgradeOffer(apLead({ paid: false }), AP_ID, NOW).state === 'not_found' && upgradeOffer(apLead({ intent: 'city_search' }), AP_ID, NOW).state === 'not_found', 'an unpaid lead or a free-door lead is not an order');
   check(upgradeOffer(apLead({ currency: 'gbp' }), AP_ID, NOW).state === 'not_upgradable', 'a credit in another currency than the desk\'s is refused');
   check(upgradeOffer(apLead({ amount_eur: 500 }), AP_ID, NOW).state === 'not_upgradable', 'a credit that would cover the whole price is refused');

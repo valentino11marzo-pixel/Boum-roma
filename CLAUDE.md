@@ -4346,8 +4346,8 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
   1. **La regola** (`api/_upgrade.js`, pura: `upgradeOffer(lead, id, ora)`): solo un ordine
      `leads/svc_<sessione>` di un desk del registro, `intent:'city_order'`, pagato (`paid` e
      `city.paid`), del piano in `UPGRADE_PATHS` (`application-pack` → `full-search`). Il desk deve
-     incassare alla cassa: Parigi e Berlino non incassano niente all'ordine, quindi non c'è niente da
-     accreditare. Il credito è ciò che il cliente ha PAGATO (`amount_eur`, nella valuta del desk, mai
+     incassare alla cassa: un desk che incassa alla firma non ha niente da accreditare (Parigi e
+     Berlino fino al 6/11; da allora prendono la carta all'ordine e accreditano come gli altri). Il credito è ciò che il cliente ha PAGATO (`amount_eur`, nella valuta del desk, mai
      quanto il listino d'arrivo o di più). `credit.usedBy` lo chiude, e scade a `paid_at` + 30 giorni.
      Stati: `open`, `used`, `expired`, `not_upgradable`, `not_found`.
   2. **Il link è personale e derivato** (`upgradeToken`/`upgradeLink` in `api/payments/_token.js`,
@@ -4404,6 +4404,96 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
   La revisione avversaria a sub-agenti non è girata (limite di spesa fino all'11/11): la revisione è
   stata fatta a mano, sui cinque punti di vista (soldi, sicurezza, consumatore, regressioni, casi
   limite).
+- **L'AUDIT GEO/SEO/AI DEI DESK (06/11/2026 — «ritorniamo alla conclusione delle città»).** Un audit a
+  più agenti sugli otto desk e sull'hub; chiusi qui i rilievi che non aspettano una decisione.
+  1. **`llms.txt`**: la frase «does BOOM operate outside Rome» nomina gli otto desk (il test la deriva
+     dai desk `live`); «Pricing/Payments in Rome» (il 10% e il bonifico valgono solo a Roma); una riga
+     «Pricing on the desks» (tre tariffe IVA inclusa, il rimborso dei sei, la regola della firma di
+     Parigi e Berlino); i contatti per ruolo (hello@ per desk, ordini e recesso; valentino@ per Roma).
+  2. **La riga Withdrawal della scheda dei fatti**, DERIVATA (`withdrawalRowOf`) subito dopo le
+     tariffe su ogni desk che vende: i sei «14 days from payment» (rimborso meno il lavoro fatto se si
+     è chiesto di iniziare), Parigi e Berlino «14 days from your order… withdrawing before then costs
+     nothing»; online, email, modulo tipo; chiude con `WITHDRAW_END`, la frase dei Termini §12.4 («Once
+     the service is fully performed, the right to withdraw ends.»). La cassa di Parigi e Berlino dice
+     ora «before then» come i Termini (la revisione: senza era più larga dei Termini). Il build
+     rifiuta una riga «Withdrawal» scritta nel JSON; il test legge le due frasi nei Termini.
+  3. **Le ore del desk**: la riga «Reply time» porta `"hours": true` (esattamente una per desk, anche
+     nelle bozze di prova) e il build aggiunge «(desk hours: Mon–Fri 09:00–19:00, Rome time)» da
+     `desk.hours`; la descrizione del `Service` finisce con le stesse ore (schema.org non ha il fuso in
+     `OpeningHoursSpecification`).
+  4. **JSON-LD e lingua**: `itemOffered` = il servizio per nome (via «For: Haven't started yet.», 24
+     volte sull'hub). Londra `<html lang="en-GB">`, `og:locale en_GB`, `inLanguage en-GB`
+     (`ogLocaleOf`/`inLanguageOf`, dal paese, nessuna chiave nel JSON); il banner cookie legge le prime
+     due lettere di `lang`, quindi resta inglese.
+  5. **Le FAQ del nuovo arrivato**: Berlino SCHUFA, Parigi garante in Francia (Visale di Action
+     Logement, «if you qualify»), Londra «or credit history» col referencing, Madrid NIE, Barcellona
+     tetto del canone e contratto temporaneo (asciugate dalla revisione: le eccezioni restano nel
+     controllo della pagina). Ogni risposta promette solo ciò che il piano vende (le parole di
+     `includes`) e nessuna promette il sì di un locatore («No landlord is obliged to accept a file»).
+     Amsterdam: i segnali della truffa. Titolo FAQ «Questions about renting in <City>.». Barcellona:
+     lead suo («…and the rent cap», card social rigenerata) ed etichetta «zona tensionada · índice de
+     referencia». Madrid: meta con «(alquiler de pisos) in English».
+  6. **L'hub**: la tabella delle regole è a schede fino a 959px (misurato: fra 760 e 943 px la tabella
+     era larga 912 e le colonne di Parigi e Valencia uscivano dalla pagina senza scroll); link delle
+     regole alti 44px; il codice del desk centrato accanto al link (`:has()`; senza, resta in alto).
+  Date: `updated` e `<lastmod>` 2026-11-06 sugli otto desk e su /desks.
+  **Non fatto, di proposito**: Milano (6 FAQ, il massimo; il codice fiscale è già fra i documenti); la
+  frase «not a law firm» (il fondatore non vuole disclaimer di quel tipo); «chasseur d'appartement» a
+  Parigi (nome di un mestiere regolato); la Wohnungsgeberbestätigung di Berlino (del fondatore); la FAQ
+  «cosa pago alla firma» di Madrid e Valencia (dopo il voto del 12/11 sul RDL 29/2026); i difetti di
+  Flight (#320) restano a quella PR.
+  Revisione avversaria (sei lenti, tre confutatori per rilievo, un critico): 8 rilievi, 3 confermati e
+  chiusi qui (le due frasi del recesso, la densità legale delle FAQ di Barcellona). Test: `run.mjs`
+  1327, `ui.mjs` 651 (sul commit prima delle correzioni della revisione), cassa 118, calendario 128,
+  firma 301, termini 149, recesso 124, upgrade 70, seo 21, llms 12, verità 24, crawl 60, faq 78.
+- **LA CARTA ALL'ORDINE A PARIGI E BERLINO (06/11/2026 — decisione del fondatore: «i soldi dobbiamo
+  incassarli subito, anche in Francia e in Germania»).** Presa DOPO essere stato informato dei rischi
+  (loi Hoguet art. 6 e 16; WoVermRG §2(4), §5, §8): Parigi e Berlino incassano con carta all'ordine
+  come i sei. Stripe, recesso di 14 giorni dal pagamento con la spunta «Start now», Full Search
+  rimborsato se lo decliniamo nella prima chiamata. È superata, per questi due desk, la strada v1.8
+  (ordine sulla pagina, addebito alla firma). Nessuna frase in pagina dice che è lecito: niente formula
+  inventata. Se un avvocato ne darà una, si inserisce.
+  1. **Cosa resta delle regole del paese.**
+     - Parigi: Full Search «(six months at most)» e «One attended viewing (more: €149 each)»; i
+       Termini §12.5 lo chiamano mandat de recherche non exclusif, sei mesi dal pagamento.
+     - Berlino: Full Search solo sulle case offerte al solo cliente col go-ahead del proprietario,
+       visite comprese, niente «(more:» e mai «No percentage». Il compenso resta entro due mensilità
+       nette fredde + IVA, e la differenza si rimborsa (Termini §12.2).
+     - Il build non rifiuta più un desk francese o tedesco alla cassa, ma controlla ancora queste
+       regole. Un desk NUOVO in Francia o Germania è una decisione del fondatore, con un avvocato.
+  2. **Il codice.**
+     - Il registro non ha più `chargeAt` per i due desk. Tiene `order` (e i campi tedeschi) per gli
+       ordini PRENOTATI fra il 5 e il 6/11.
+     - `orderChargeAt(lead)` (`api/_market.js`) legge la modalità sull'ordine (`book_` +
+       `city.chargeAt:'signing'`). La usano il biglietto gestito (`?order=`), `/firmato`, i registri
+       della conservazione e le risposte pronte.
+     - JSON di Parigi e Berlino nella forma dei sei: niente `trigger`, niente `booked`; `paid`, `till`
+       e il recesso come Amsterdam.
+     - Hub: nessuna nota sulla firma, e il build non avvisa se manca.
+     - Il credito dell'upgrade vale anche lì.
+     - Il webhook scrive la lettera «in French» / «in German», e il terzo passo del Full Search di
+       Berlino è «Homes offered to you alone».
+     - Aggiornati Termini §12 (6 novembre), privacy, `/withdrawal`, `llms.txt`, la skill `city-desk`.
+     - La strada alla firma resta provata su desk di prova col registro patchato (`run.mjs` B1, `ui.mjs`
+       §15 con Parigi E Berlino di prova, `signing.mjs`, `checkout.mjs`).
+     - Le card social (7/11): `og-paris.png` e `og-berlin.png` dicevano ancora «AT SIGNING · FROM €149»
+       dopo il flip. Il generatore legge `chargeAt`, ma nessuno l'aveva rilanciato, e nessun test
+       confrontava una card coi suoi dati. Ora `genera-og-cities.py` disegna ogni card dai suoi «fatti»
+       e li scrive in `design/pages-deco/og-cities-facts.json` con lo sha256 del PNG; `run.mjs` li
+       confronta con `--facts`. Se cambiano frase, prezzi, modo, paese o `chargeAt`, la card è rossa
+       finché non si ridisegna. Ridisegnate tutte e nove: sette sono uscite identiche byte per byte.
+  3. **Rischi aperti** (del fondatore e dell'avvocato, dichiarati):
+     - Parigi: pagamento prima dell'operazione conclusa (Hoguet art. 6, sanzioni art. 16) senza carte
+       professionnelle.
+     - Berlino: Vorschuss vietato (§2(4)), rimborso su richiesta (§5), multe (§8), senza §34c.
+     - Per gli ordini con carta non c'è più il registro dei mandati di Parigi (décret 72-678 art. 72),
+       né il «Confirmed» di Berlino, né il PDF dell'ordine. Il supporto durevole è l'email di conferma
+       del webhook.
+     - Le aperte O1–O19 del v1.8 restano, salvo quelle sulla firma.
+  Test: `run.mjs` 1346, `checkout.mjs` 123, `signing.mjs` 298, `upgrade` 71, `cityterms` 149,
+  `withdraw` 124, `calendar` 128, `conservazione` 9; seo, llms, verità, crawl, faq verdi. Il log
+  «[city-order] pdf failed: ERR_INVALID_ARG_TYPE» di `checkout.mjs` c'era già prima (strada alla firma,
+  ambiente di test).
 - **IL DESK AVIAZIONE COMPLETO (v1.6, 03/11/2026 — il fondatore: «questo stile è
   troppo sintetizzato… itera lo stile del biglietto… anche per una pagina
   completa»).** Il primo schermo resta UNA carta d'imbarco, rifatta come oggetto

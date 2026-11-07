@@ -48,7 +48,8 @@ export function payLink(kind, id, origin) {
 }
 
 // ── Il biglietto dell'ordine di un desk che incassa alla firma (v1.8) ──────
-// L'email d'ordine di Parigi e Berlino porta «Manage your order»:
+// L'email d'ordine di Parigi e Berlino (gli ordini presi alla firma, fino al
+// 6/11/2026) porta «Manage your order»:
 // /<desk>?order=<book_…>&t=<token> → GET /api/city-lead?order= (lo stato
 // del biglietto: BOOKED, DUE col link di pagamento, PAID, CLOSED). Stesso
 // schema del payToken: DERIVATO dall'id + il segreto server, mai salvato,

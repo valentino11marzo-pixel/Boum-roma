@@ -266,10 +266,13 @@ const flipped = CITY_MARKETS.paris.chargeAt === 'signing' && CITY_MARKETS.berlin
 const saved = { paris: { ...CITY_MARKETS.paris }, berlin: { ...CITY_MARKETS.berlin } };
 if (!PROBE) {
   section('0 · dark until the flip');
-  if (flipped) console.log('    · the registry has flipped: Paris and Berlin charge at signing for real');
+  if (flipped) console.log('    · the registry charges Paris and Berlin at signing for real');
   else {
-    check(['paris', 'berlin'].every((c) => cityOffer(c, 'full-search').error === 'checkout_closed') && chargeAtOf('paris') === 'checkout' && chargeAtOf('berlin') === 'checkout',
-      'before the flip production is unchanged: Paris and Berlin are checkout_closed, chargeAtOf says checkout');
+    // the v1.8 flip charged Paris and Berlin at signing; the card flip (06/11/2026, the founder's decision) moved them to
+    // the checkout like the six, keeping their order registers for the orders booked before that day (the managed
+    // ticket, /firmato, the monthly register). This suite runs the signing rail with the registry patched (FLIP)
+    check(['paris', 'berlin'].every((c) => cityOffer(c, 'full-search').ok === true && cityOffer(c, 'full-search').chargeAt === 'checkout' && chargeAtOf(c) === 'checkout' && !!CITY_MARKETS[c].order),
+      'since the card flip (06/11) Paris and Berlin sell at the checkout (cityOffer, chargeAtOf), their order registers kept for the orders booked before');
   }
   check(['amsterdam', 'madrid', 'barcelona', 'london', 'milan', 'valencia'].every((c) => chargeAtOf(c) === 'checkout' && cityOffer(c, 'full-search').chargeAt === 'checkout'),
     'the six desks charge at checkout: chargeAtOf and cityOffer say so');
@@ -855,9 +858,11 @@ try {
       const cl = read('api/city-lead.js');
       const paidFn = cl.slice(cl.indexOf('async function paidStatus'), cl.indexOf('async function orderStatus'));
       const orderFn = cl.slice(cl.indexOf('async function orderStatus'), cl.indexOf('const clip = '));
-      check(/chargeAtOf\(cityKey\) === 'signing'/.test(paidFn) && /chargeAtOf\(cityKey\) !== 'signing'/.test(orderFn)
+      // the card flip (06/11): ?order= reads a desk that keeps an order register (Paris, Berlin) and an order booked at
+      // signing (orderChargeAt: the book_ id and city.chargeAt on the order), so the tickets booked before stay manageable
+      check(/chargeAtOf\(cityKey\) === 'signing'/.test(paidFn) && /!CITY_MARKETS\[cityKey\]\.order/.test(orderFn) && /orderChargeAt\(\{ \.\.\.lead, id \}\) !== 'signing'/.test(orderFn)
         && orderFn.indexOf('verifyOrderToken(id, token)') > -1 && orderFn.indexOf('verifyOrderToken(id, token)') < orderFn.indexOf("fsGet('leads/' + id)"),
-        'city-lead: ?paid= refuses a signing desk, ?order= accepts only one, and the token is checked BEFORE any read');
+        'city-lead: ?paid= refuses a signing desk, ?order= accepts only a desk with an order register and an order booked at signing, and the token is checked BEFORE any read');
       const tk = read('api/payments/_token.js');
       check(/const KINDS = \{ pay: 'payments', inv: 'invoices' \};/.test(tk), 'the order token is not a pay-link kind (KINDS unchanged)');
     }

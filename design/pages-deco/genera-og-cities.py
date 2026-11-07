@@ -10,11 +10,12 @@
 # Senza `sharp` nel sandbox, la quantizzazione la fa Pillow: la card è due
 # tinte e del testo, a palette resta identica e sta sotto i 120 KB del
 # budget «card social» di tests/media/hosts.mjs.
-import json, os, re, subprocess, sys
+import hashlib, html, json, os, re, subprocess, sys
 
 QUI = os.path.dirname(os.path.abspath(__file__))
 RADICE = os.path.dirname(os.path.dirname(QUI))
 CITTA = os.path.join(RADICE, 'cities')
+FATTI = os.path.join(QUI, 'og-cities-facts.json')
 
 STILE = '''* { margin:0; padding:0; box-sizing:border-box; }
 body { width:1200px; height:630px; background:#050505; overflow:hidden;
@@ -62,26 +63,32 @@ h1 b.lunga { display:block; font-size:36px; line-height:1.25; margin-top:14px; l
   box-shadow:0 0 14px rgba(0,255,136,.8); }'''
 
 
-def card(c):
+# WHAT A CARD SAYS (07/11/2026). og-paris.png and og-berlin.png kept
+# «AT SIGNING · FROM €149» after the two desks moved to the card at the order
+# (06/11): the generator reads the data, but nobody ran it again, and nothing
+# compared a card with the data it was drawn from. Now every card is drawn
+# from these facts, a render records them in og-cities-facts.json next to the
+# PNG's sha256, and tests/cities/run.mjs asks `--facts` what the cards should
+# say today: a PNG that is not the recorded one, or recorded facts the data has
+# moved away from, stays red until the card is drawn again.
+def facts(c):
     parola = re.sub(r'[^A-Z]', '', c.get('word', c['city']).upper())
-    celle = ''.join(f'<i>{ch}</i>' for ch in parola)
     # every desk shows its list prices (v1.1, 14/10); a waitlist card says the
     # desk is opening next to the "from", because the card has no room for
     # the sentence the page carries ("charged only when the desk opens")
     da = min(p['price'] for p in c['pricing']['plans'])
-    da_label = 'from' if c.get('mode') == 'search' else 'opening &middot; from'
+    label = 'from' if c.get('mode') == 'search' else 'opening · from'
     # LAU art. 20 (the build refuses a Spanish price outside #fares without its
     # own "optional", 03/11/2026): the card is a price outside the page too
     if str(c.get('country', '')).upper() == 'ES':
-        da_label = 'optional &middot; ' + da_label
-    # v1.8 (05/11/2026): a desk charged at signing (Paris, Berlin) says WHEN
-    # the fare is paid next to the "from" — the card is a price outside the
-    # page too, and the page's must-state is "only when you sign". The JSON
-    # mirrors the registry's chargeAt (the build refuses a disagreement).
+        label = 'optional · ' + label
+    # v1.8 (05/11/2026): a desk charged at signing says WHEN the fare is paid
+    # next to the "from" — the card is a price outside the page too. The JSON
+    # mirrors the registry's chargeAt (the build refuses a disagreement). Since
+    # 06/11 no live desk charges at signing, and no card says it.
     if c.get('chargeAt') == 'signing':
-        da_label = 'at signing &middot; ' + da_label
-    sym = {'GBP': '&pound;'}.get(str(c.get('currency', 'EUR')).upper(), '&euro;')
-    prezzo = f'<div class="prezzo"><u>{da_label}</u><s>{sym}{da}</s></div>'
+        label = 'at signing · ' + label
+    sym = {'GBP': '£'}.get(str(c.get('currency', 'EUR')).upper(), '€')
     # the proof line says only what every desk page says too (the v1.2
     # `machine` strip it used to read is gone, and with it "dossier 24h ·
     # apply <1h" — speed promises the pages dropped on 21/10 and the card
@@ -91,29 +98,57 @@ def card(c):
     # does today (it takes a file), the selling desks what they deliver
     prova = ('tenant side · flat fees · viewing attended · contract checked'
              if c.get('mode') == 'search' else 'tenant side · flat fees · your file open today')
-    em = re.split(r'(?<=[.!?])\s', c['hero']['lead'].strip())[0].replace('<', '&lt;')
-    lunga = ' class="lunga"' if len(em) > 40 else ''
+    return {
+        'side': f"{c['city']} · tenant side",
+        'word': parola,
+        'line': re.split(r'(?<=[.!?])\s', c['hero']['lead'].strip())[0],
+        'label': label,
+        'price': f'{sym}{da}',
+        'proof': prova,
+        'site': f"BOOMROME.COM/{c['slug'].upper()}",
+    }
+
+
+def t(s):
+    return html.escape(s, quote=False)
+
+
+def card(c):
+    f = facts(c)
+    celle = ''.join(f'<i>{ch}</i>' for ch in f['word'])
+    lunga = ' class="lunga"' if len(f['line']) > 40 else ''
     return f'''<!DOCTYPE html><html><head><meta charset="utf-8">
 <style>{STILE}</style></head><body>
 <div class="griglia"></div><div class="velo"></div>
 <div class="dentro">
-  <div class="marchio"><span>BOOM</span><i>{c['city']} &middot; tenant side</i></div>
-  <h1>Your home in<br><span class="tab">{celle}</span><br><b{lunga}>{em}</b></h1>
-  {prezzo}
+  <div class="marchio"><span>BOOM</span><i>{t(f['side'])}</i></div>
+  <h1>Your home in<br><span class="tab">{celle}</span><br><b{lunga}>{t(f['line'])}</b></h1>
+  <div class="prezzo"><u>{t(f['label'])}</u><s>{t(f['price'])}</s></div>
   <div class="fondo">
-    <span><span class="punto"></span>{prova}</span>
-    <span class="sito">BOOMROME.COM/{c['slug'].upper()}</span>
+    <span><span class="punto"></span>{t(f['proof'])}</span>
+    <span class="sito">{t(f['site'])}</span>
   </div>
 </div></body></html>'''
 
 
 # BOOM DESKS (03/11/2026): the hub's card, `--hub`. It reads only what the hub
 # page reads: _hub.json hero.word (the board word) and the LIVE desks' codes
-# from cities/*.json — no price, no desk that is not open.
+# from cities/*.json — no fare, no desk that is not open.
+def facts_hub(hub, codes):
+    return {
+        'side': 'desks · tenant side',
+        'codes': list(codes),
+        'title': 'A rental agent on your side, in',
+        'word': re.sub(r'[^A-Z]', '', hub['hero']['word'].upper()),
+        'line': 'Three flat fares · paid by you, never by landlords',
+        'site': 'BOOMROME.COM/DESKS',
+    }
+
+
 def card_hub(hub, codes):
-    parola = re.sub(r'[^A-Z]', '', hub['hero']['word'].upper())
-    celle = ''.join(f'<i>{ch}</i>' for ch in parola)
-    fila = ''.join(f'<span class="cod">{"".join(f"<i>{ch}</i>" for ch in k)}</span>' for k in codes)
+    f = facts_hub(hub, codes)
+    celle = ''.join(f'<i>{ch}</i>' for ch in f['word'])
+    fila = ''.join(f'<span class="cod">{"".join(f"<i>{ch}</i>" for ch in k)}</span>' for k in f['codes'])
     return f'''<!DOCTYPE html><html><head><meta charset="utf-8">
 <style>{STILE}
 .codici {{ display:flex; gap:22px; }}
@@ -126,38 +161,58 @@ h1.hubh {{ font-size:60px; max-width:none; }}
 </style></head><body>
 <div class="griglia"></div><div class="velo"></div>
 <div class="dentro">
-  <div class="marchio"><span>BOOM</span><i>desks &middot; tenant side</i></div>
+  <div class="marchio"><span>BOOM</span><i>{t(f['side'])}</i></div>
   <div class="codici">{fila}</div>
-  <h1 class="hubh">A rental agent on your side, in<br><span class="tab">{celle}</span></h1>
+  <h1 class="hubh">{t(f['title'])}<br><span class="tab">{celle}</span></h1>
   <div class="fondo">
-    <span><span class="punto"></span>Three flat fares &middot; paid by you, never by landlords</span>
-    <span class="sito">BOOMROME.COM/DESKS</span>
+    <span><span class="punto"></span>{t(f['line'])}</span>
+    <span class="sito">{t(f['site'])}</span>
   </div>
 </div></body></html>'''
 
 
-lavoro = []
-HUB = '--hub' in sys.argv[1:]
-FILTRO = [a for a in sys.argv[1:] if a != '--hub']
-cities = []
-for f in sorted(os.listdir(CITTA)):
-    if not f.endswith('.json') or f.startswith('_'):
-        continue
-    c = json.load(open(os.path.join(CITTA, f), encoding='utf-8'))
-    cities.append(c)
-    if HUB or (FILTRO and c['slug'] not in FILTRO):
-        continue
-    p = os.path.join(QUI, f"og-{c['slug']}-card.html")
-    open(p, 'w', encoding='utf-8').write(card(c))
-    lavoro.append((p, os.path.join(RADICE, f"og-{c['slug']}.png")))
-if HUB:
-    hub = json.load(open(os.path.join(CITTA, '_hub.json'), encoding='utf-8'))
-    codes = [c['iata'] for c in sorted(cities, key=lambda c: c['slug']) if c.get('live') is True]
-    p = os.path.join(QUI, 'og-desks-card.html')
-    open(p, 'w', encoding='utf-8').write(card_hub(hub, codes))
-    lavoro.append((p, os.path.join(RADICE, 'og-desks.png')))
+def load_cities():
+    out = []
+    for f in sorted(os.listdir(CITTA)):
+        if f.endswith('.json') and not f.startswith('_'):
+            out.append(json.load(open(os.path.join(CITTA, f), encoding='utf-8')))
+    return out
 
-JS = '''
+
+def live_codes(cities):
+    return [c['iata'] for c in sorted(cities, key=lambda c: c['slug']) if c.get('live') is True]
+
+
+def main(argv):
+    cities = load_cities()
+    hub = json.load(open(os.path.join(CITTA, '_hub.json'), encoding='utf-8'))
+    # --facts: what every card should say today, drawing nothing (the suite
+    # compares it with what each card was drawn saying); --facts --stdin: the
+    # same for the city objects on stdin (the suite's mutations)
+    if '--facts' in argv:
+        if '--stdin' in argv:
+            out = {c['slug']: facts(c) for c in json.loads(sys.stdin.buffer.read().decode('utf-8'))}
+        else:
+            out = {c['slug']: facts(c) for c in cities}
+            out['desks'] = facts_hub(hub, live_codes(cities))
+        sys.stdout.buffer.write((json.dumps(out, ensure_ascii=False, sort_keys=True) + '\n').encode('utf-8'))
+        return
+    hub_only = '--hub' in argv
+    filtro = [a for a in argv if not a.startswith('--')]
+    lavoro = []
+    for c in cities:
+        if hub_only or (filtro and c['slug'] not in filtro):
+            continue
+        p = os.path.join(QUI, f"og-{c['slug']}-card.html")
+        open(p, 'w', encoding='utf-8').write(card(c))
+        lavoro.append((p, os.path.join(RADICE, f"og-{c['slug']}.png"), c['slug'], facts(c)))
+    if hub_only:
+        codes = live_codes(cities)
+        p = os.path.join(QUI, 'og-desks-card.html')
+        open(p, 'w', encoding='utf-8').write(card_hub(hub, codes))
+        lavoro.append((p, os.path.join(RADICE, 'og-desks.png'), 'desks', facts_hub(hub, codes)))
+
+    JS = '''
 const { loadChromium, launchOptions } = require(%r);
 const LAV = %s;
 (async () => {
@@ -173,16 +228,26 @@ const LAV = %s;
   }
   await br.close();
 })();
-''' % (os.path.join(RADICE, 'tests/_browser.cjs'), json.dumps(lavoro))
-sp = os.path.join(QUI, 'og-cities-shot.js')
-open(sp, 'w').write(JS)
-subprocess.run(['node', sp], check=True)
-from PIL import Image
-for p, out in lavoro:
-    im = Image.open(out + '.raw.png').convert('RGB')
-    im.quantize(colors=256, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE).save(out, optimize=True)
-    os.remove(out + '.raw.png')
-    os.remove(p)
-    print('  %s  %d KB' % (os.path.basename(out), os.path.getsize(out) // 1024))
-os.remove(sp)
-print(len(lavoro), 'card generate')
+''' % (os.path.join(RADICE, 'tests/_browser.cjs'), json.dumps([[p, out] for p, out, _, _ in lavoro]))
+    sp = os.path.join(QUI, 'og-cities-shot.js')
+    open(sp, 'w').write(JS)
+    subprocess.run(['node', sp], check=True)
+    from PIL import Image
+    registro = json.load(open(FATTI, encoding='utf-8')) if os.path.exists(FATTI) else {}
+    for p, out, chiave, fatti in lavoro:
+        im = Image.open(out + '.raw.png').convert('RGB')
+        im.quantize(colors=256, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE).save(out, optimize=True)
+        os.remove(out + '.raw.png')
+        os.remove(p)
+        registro[chiave] = {'card': fatti, 'png': hashlib.sha256(open(out, 'rb').read()).hexdigest()}
+        print('  %s  %d KB' % (os.path.basename(out), os.path.getsize(out) // 1024))
+    os.remove(sp)
+    registro['_'] = ('written by design/pages-deco/genera-og-cities.py when it draws a card: what the card says and '
+                     'the sha256 of the PNG it drew. tests/cities/run.mjs compares it with --facts; never edit by hand.')
+    with open(FATTI, 'w', encoding='utf-8') as fh:
+        fh.write(json.dumps(registro, ensure_ascii=False, sort_keys=True, indent=2) + '\n')
+    print(len(lavoro), 'card generate')
+
+
+if __name__ == '__main__':
+    main(sys.argv[1:])

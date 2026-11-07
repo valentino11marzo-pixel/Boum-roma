@@ -200,7 +200,8 @@
       },
       {
         "dt": "Reply time",
-        "ddHtml": "The same working day."
+        "ddHtml": "The same working day.",
+        "hours": true
       },
       {
         "dt": "Contact",

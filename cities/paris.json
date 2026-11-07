@@ -2,7 +2,6 @@
   "slug": "paris",
   "city": "Paris",
   "country": "FR",
-  "chargeAt": "signing",
   "iata": "PAR",
   "geo": {
     "lat": 48.8566,
@@ -11,23 +10,23 @@
   "live": true,
   "mode": "search",
   "config": {},
-  "updated": "2026-11-05",
+  "updated": "2026-11-06",
   "meta": {
     "title": "Tenant-side rental agent for expats in Paris — BOOM",
-    "description": "Apartment search for expats in Paris, tenant side only: French-format dossier, applications as listings appear, viewings attended. Paid only when you sign.",
+    "description": "Apartment search for expats in Paris, tenant side only: French-format dossier, applications as listings appear, viewings attended, rent cap and lease checked.",
     "ogTitle": "BOOM Paris — an agent on your side of the table",
-    "ogDescription": "Tenant-side rental search for expats and internationals moving to Paris. French-format dossier within one working day of your papers, applications sent as listings appear, attended viewings, rent cap and lease checked. Flat fees, paid by you only when you sign a lease — never by landlords."
+    "ogDescription": "Tenant-side rental search for expats and internationals moving to Paris. French-format dossier within one working day of your papers, applications sent as listings appear, attended viewings, rent cap and lease checked. Flat fees, paid by you — never by landlords."
   },
   "service": {
     "name": "BOOM Paris — tenant-side rental search (chasseur immobilier)",
     "serviceType": "Tenant-side rental search agent",
     "audience": "Expats and internationals relocating to Paris",
-    "description": "Rental search in Paris on the tenant's side only: French-format dossier locatif within one working day of the tenant's papers, applications sent as listings appear, attended viewings with live video and written report, rent checked against the encadrement des loyers, lease read before signing. Flat fees paid by the tenant, charged only when a lease is signed; nothing from landlords or platforms."
+    "description": "Rental search in Paris on the tenant's side only: French-format dossier locatif within one working day of the tenant's papers, applications sent as listings appear, attended viewings with live video and written report, rent checked against the encadrement des loyers, lease read before signing. Flat fees paid by the tenant; nothing from landlords or platforms."
   },
   "hero": {
     "h1Before": "Your home in",
     "lead": "We search, apply, attend the viewings and check the lease.",
-    "leadStrong": "Paid only by you, and only when you sign.",
+    "leadStrong": "We work only for you; never paid by landlords.",
     "faresHead": {
       "b": "Flat fees",
       "span": "No percentage of your rent"
@@ -41,7 +40,7 @@
         "name": "We search. You choose.",
         "price": 500,
         "condition": "flat · incl. VAT",
-        "conditionLong": "VAT included, charged when you sign a lease. Invoice from Egidi Immobiliare S.r.l.",
+        "conditionLong": "VAT included. Invoice from Egidi Immobiliare S.r.l.",
         "includes": [
           "Every working day: SeLoger, PAP, Leboncoin, agencies",
           "One-page presentation, applications as listings appear",
@@ -50,8 +49,7 @@
           "Until you sign, or you say stop (six months at most)"
         ],
         "offerDescription": "Search, French-format dossier and one-page presentation, applications as listings appear, one attended viewing, rent cap and lease check, until the tenant signs or stops the search.",
-        "when": "Haven't started yet",
-        "trigger": "Nothing is charged before you sign the lease we helped you get, and nothing if you never do."
+        "when": "Haven't started yet"
       },
       {
         "id": "application-pack",
@@ -59,7 +57,7 @@
         "name": "You search. We make you win.",
         "price": 199,
         "condition": "flat · incl. VAT",
-        "conditionLong": "VAT included, charged when you sign a lease. Invoice from Egidi Immobiliare S.r.l.",
+        "conditionLong": "VAT included. Invoice from Egidi Immobiliare S.r.l.",
         "includes": [
           "French-format dossier locatif, one working day from your papers",
           "Guarantor or Visale strategy",
@@ -67,8 +65,7 @@
           "Lease review before you sign"
         ],
         "offerDescription": "French-format rental dossier within one working day of your papers, a guarantor or Visale strategy, a one-page presentation in French, lease review before you sign.",
-        "when": "Found one, or shortlisted and already in Paris",
-        "trigger": "Nothing is charged unless you sign for a home you applied to with our dossier."
+        "when": "Found one, or shortlisted and already in Paris"
       },
       {
         "id": "attended-viewing",
@@ -77,7 +74,7 @@
         "name": "Eyes on the ground.",
         "price": 149,
         "condition": "per viewing · incl. VAT",
-        "conditionLong": "VAT included, charged when you sign a lease. Invoice from Egidi Immobiliare S.r.l.",
+        "conditionLong": "VAT included. Invoice from Egidi Immobiliare S.r.l.",
         "includes": [
           "A BOOM person attends in your place",
           "Live video walkthrough",
@@ -85,8 +82,7 @@
           "A straight recommendation"
         ],
         "offerDescription": "A BOOM person attends the viewing in your place, with live video and a written report.",
-        "when": "Shortlisted, still abroad",
-        "trigger": "Nothing is charged unless you sign for the home we viewed."
+        "when": "Shortlisted, still abroad"
       }
     ]
   },
@@ -125,7 +121,7 @@
         "id": "fees",
         "title": "Who may charge you",
         "at": "loi Hoguet · ALUR",
-        "text": "The landlord's agent may charge you only a capped share of the visit, file, lease and inventory costs. An agent you hire is paid once the lease is signed, never before."
+        "text": "The landlord's agent may charge you only a capped share of the visit, file, lease and inventory costs. We check what you are asked to pay, and by whom."
       },
       {
         "id": "rentcap",
@@ -163,23 +159,27 @@
     "tail": "The rest we go through on the free call."
   },
   "faq": {
-    "h2": "Questions.",
+    "h2": "Questions about renting in Paris.",
     "items": [
       {
-        "q": "When do I pay a rental agent in Paris?",
-        "a": "Only when you sign the lease we helped you get: in France an agent may take nothing before. BOOM Paris works that way on every fare, and if you never sign, you pay nothing."
+        "q": "When do I pay BOOM Paris?",
+        "a": "When you order, by card on this page: three flat fees, VAT included, never a percentage of your rent. Full Search is refunded in full if we decline the search in the first call. The landlord's agent may charge you only a capped share of a few costs."
       },
       {
         "q": "What happens on the free call?",
-        "a": "A call with Valentino, by phone or WhatsApp, at a time that suits you both. We hear your dates, budget and who is moving, say which service fits, or that none does, and which papers you are missing. Nothing is charged for the call, or before you sign a lease."
+        "a": "A call with Valentino, by phone or WhatsApp, at a time that suits you both. We hear your dates, budget and who is moving, say which service fits, or that none does, and which papers you are missing. Nothing is charged for the call. Full Search is refunded in full if we decline the search in the first call."
+      },
+      {
+        "q": "I have no guarantor in France. Can I still rent in Paris?",
+        "a": "Plan for it: many landlords want a guarantor who lives in France and turn down one abroad. If you qualify, Visale, a free guarantee from Action Logement, can stand in; if not, a paid guarantee service. Application Pack sets that guarantor or Visale strategy. No landlord is obliged to accept a file."
       },
       {
         "q": "How do I avoid a rental scam in Paris from abroad?",
-        "a": "Never pay a deposit or first rent for a home nobody on your side has seen, and no agent before the lease is signed. With Attended Viewing (€149) a BOOM person visits it in your place, with live video and a written report, charged only if you sign. With Full Search or Application Pack we also check the lease and the rent cap before you sign."
+        "a": "Never pay a deposit or first rent for a home nobody on your side has seen. With Attended Viewing (€149) a BOOM person visits it in your place, with live video and a written report. With Full Search or Application Pack we also check the lease and the rent cap before you sign."
       },
       {
         "q": "What if you don't find anything?",
-        "a": "Then you pay nothing: every fare is charged only when you sign the lease we helped you get. We tell you in the first call if your budget and timeline don't fit the market. Once we take it on, the search runs until you sign or stop it, six months at most."
+        "a": "We tell you in the first call if your budget and timeline don't fit the market; if BOOM declines the search then, the €500 Full Search fee is refunded in full. Once we take it on, the search runs until you sign or stop it, six months at most, and the fee pays for the work, not for a result."
       }
     ]
   },
@@ -188,7 +188,7 @@
     "rows": [
       {
         "dt": "Who",
-        "ddHtml": "BOOM Paris, the tenant-side rental desk of BOOM — operated by <b>Egidi Immobiliare S.r.l.</b>, an Italian real estate agency registered in Rome. Hired and paid by the tenant only, <b>when the lease is signed, never before</b>."
+        "ddHtml": "BOOM Paris, the tenant-side rental desk of BOOM — operated by <b>Egidi Immobiliare S.r.l.</b>, an Italian real estate agency registered in Rome. Hired by the tenant and paid by the tenant only, <b>never by the landlord or the landlord's agent</b>."
       },
       {
         "dt": "For whom",
@@ -209,11 +209,12 @@
       },
       {
         "dt": "What we don't do",
-        "ddHtml": "We don't list homes, we don't represent landlords, we don't collect your rent or deposit, we don't promise a date, and we charge nothing before you sign."
+        "ddHtml": "We don't list homes, we don't represent landlords, we don't collect your rent or deposit, and we don't promise a date."
       },
       {
         "dt": "Reply time",
-        "ddHtml": "The same working day."
+        "ddHtml": "The same working day.",
+        "hours": true
       },
       {
         "dt": "Contact",
@@ -223,7 +224,7 @@
     ]
   },
   "footer": {
-    "statement": "BOOM Paris acts solely as a tenant-side search agent. We do not list properties, represent landlords, or receive remuneration from landlords or their agents, and we charge nothing before your lease is signed."
+    "statement": "BOOM Paris acts solely as a tenant-side search agent. We do not list properties, represent landlords, or receive remuneration from landlords or their agents."
   },
   "desk": {
     "person": "Valentino Egidi",
@@ -283,66 +284,59 @@
   "checkoutCopy": {
     "noteLabel": "A listing you already found, or anything we should know",
     "notePlaceholder": "https://www.seloger.com/… · move-in 1 February",
-    "btnSubNow": "Starts in the desk’s first open hour · no card",
-    "btnSubWait": "Starts when your 14 days end · no card",
+    "btnSubNow": "Starts in the desk’s first open hour · Stripe",
+    "btnSubWait": "Starts when your 14 days end · Stripe",
     "altLead": "Prefer to talk first?",
     "altLink": "Start with a free call, no card",
     "startNow": "Start now: I ask BOOM to begin before my 14-day withdrawal period ends, and I understand that once the service is fully performed I can no longer withdraw.",
-    "withdrawal": "Withdrawal: 14 days from your order — {online}, by email to {email} or with the {form}. Nothing is charged before you sign, so withdrawing costs nothing. Without the tick, we start when the 14 days end.",
-    "fine": "No card today. Invoice from Egidi Immobiliare S.r.l., VAT included, with a secure payment link when you sign. Nothing is charged before you sign a lease, and nothing if you never do.",
+    "withdrawal": "Withdrawal: 14 days from payment — {online}, by email to {email} or with the {form}. If you asked us to start and then withdraw, we refund the price minus the work already done. Without the tick, we start when the 14 days end.",
+    "fine": "Secure card payment by Stripe. Invoice from Egidi Immobiliare S.r.l., VAT included. Full Search is refunded in full if we decline the search in the first call.",
     "errors": {
       "name": "Your name, so we know who we're working for.",
-      "email": "A valid email — your order and, when you sign, the invoice go there.",
-      "net": "The order did not reach us — try again, or start with a free call instead.",
-      "stale": "This page was just updated — reload it to order with the current terms."
+      "email": "A valid email — the invoice and your file go there.",
+      "net": "Checkout hiccuped on our side — try again, or start with a free call instead."
     },
-    "booked": {
-      "before": "Booked — your file",
+    "paid": {
+      "before": "Paid — your file",
       "em": "is open.",
-      "text": "Nothing is charged until you sign. The Paris desk writes by email, or on WhatsApp if you left a number. Questions? Write to",
+      "text": "The Paris desk writes by email, or on WhatsApp if you left a number. Questions? Write to",
       "next": [
         [
           "First desk hour",
-          "your order by email, with what we need"
+          "an email from the desk with what we need"
         ],
         [
           "Same working day",
-          "your brief: dates, budget, who’s moving"
+          "your brief: dates, budget, who's moving"
         ],
         [
-          "When you sign",
-          "the fee, once, with the invoice"
+          "Then",
+          "the work as written on this page"
         ]
       ],
       "nextWait": [
         [
           "First desk hour",
-          "your order by email, with your start date"
+          "an email with your order and start date"
         ],
         [
           "When the 14 days end",
           "your brief: dates, budget, who’s moving"
         ],
         [
-          "When you sign",
-          "the fee, once, with the invoice"
+          "Then",
+          "the work as written on this page"
         ]
       ],
       "wait": "You did not tick “Start now”: we start when your 14 days end. Sooner? Write to {email}.",
-      "pending": "Order being confirmed. Your copy comes by email.",
+      "pending": "Payment being confirmed. Your confirmation comes by email.",
       "unconfirmed": "Not confirmed yet. If no email reaches you, write to the desk.",
       "startsNow": "The desk’s first open hour",
-      "startsWait": "From {date}, after your 14-day withdrawal period",
-      "withdrawLink": "Withdraw from contract here",
-      "paidText": "Paid on {date}. Invoice from Egidi Immobiliare S.r.l.",
-      "dueText": "Your lease is signed. The BOOM fee: {amount}, VAT included, invoice from Egidi Immobiliare S.r.l.",
-      "payLabel": "Pay the fee securely",
-      "withdrawnText": "Withdrawn on {date}. Nothing was charged.",
-      "closedText": "Closed. Nothing was charged."
-    },
-    "order": "Your order runs six months at most; your copy comes by email."
+      "startsWait": "From {date}, after your 14-day withdrawal period"
+    }
   },
   "till": {
-    "label": "Order, pay on signing"
+    "label": "Pay and start",
+    "labelWait": "Pay and book"
   }
 }

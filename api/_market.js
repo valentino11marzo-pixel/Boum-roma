@@ -264,10 +264,14 @@ export const CITY_MARKETS = {
   amsterdam: { label: 'Amsterdam', flag: '🇳🇱', country: 'nl', url: 'https://www.boomrome.com/amsterdam', mode: 'search', checkout: true, plans: CITY_PLANS },
   madrid:    { label: 'Madrid',    flag: '🇪🇸', country: 'es', url: 'https://www.boomrome.com/madrid',    mode: 'search', checkout: true, plans: CITY_PLANS },
   barcelona: { label: 'Barcelona', flag: '🇪🇸', country: 'es', holidays: 'es-bcn', url: 'https://www.boomrome.com/barcelona', mode: 'search', checkout: true, plans: CITY_PLANS },
+  // 06/11/2026 (the founder): Paris and Berlin take the card at the order like the six — the
+  // decision recorded in CLAUDE.md with its legal exposure (loi Hoguet art. 6, WoVermRG §2(4)).
+  // `order`, `feeCap`, `goAhead`, `noStacking` stay: they run the orders already BOOKED at
+  // signing (orderChargeAt reads the mode on the order), never a new one.
   paris:  { label: 'Paris',  labelIt: 'Parigi',  flag: '🇫🇷', country: 'fr', holidays: 'fr',    url: 'https://www.boomrome.com/paris',
-            mode: 'search', checkout: true, chargeAt: 'signing', order: { prefix: 'PAR', months: 6 }, cardStep: false, plans: CITY_PLANS },
+            mode: 'search', checkout: true, order: { prefix: 'PAR', months: 6 }, cardStep: false, plans: CITY_PLANS },
   berlin: { label: 'Berlin', labelIt: 'Berlino', flag: '🇩🇪', country: 'de', holidays: 'de-be', url: 'https://www.boomrome.com/berlin',
-            mode: 'search', checkout: true, chargeAt: 'signing', order: { prefix: 'BER', months: null },
+            mode: 'search', checkout: true, order: { prefix: 'BER', months: null },
             feeCap: { months: 2, vatPct: 19 }, goAhead: true, noStacking: true, cardStep: false, plans: CITY_PLANS },
   london:    { label: 'London', labelIt: 'Londra', flag: '🇬🇧', country: 'gb', holidays: 'gb-eng', currency: 'gbp', hoursEn: 'Mon–Fri 08:00–18:00, London time', url: 'https://www.boomrome.com/london', mode: 'search', checkout: true, plans: CITY_PLANS },
   milan:     { label: 'Milan',  labelIt: 'Milano', flag: '🇮🇹', country: 'it', holidays: 'it-mi',  currency: 'eur', hoursEn: 'Mon–Fri 09:00–19:00, Italian time', url: 'https://www.boomrome.com/milan', mode: 'search', checkout: true, plans: CITY_PLANS },
@@ -317,15 +321,32 @@ export function chargeAtOf(cityKey) {
 }
 
 /**
+ * The mode an ORDER was sold under. A desk can change mode (Paris and Berlin,
+ * 06/11/2026: from signing to the card at the order) and the orders already
+ * BOOKED keep theirs: a `book_` lead that createCityOrder wrote with
+ * city.chargeAt 'signing' stays a signing order (its /firmato, its managed
+ * ticket, its register). Only the server writes a book_ id, so the field is
+ * read on that id alone; every other lead follows its desk's registry entry.
+ * @param {object} lead
+ * @returns {'signing'|'checkout'}
+ */
+export function orderChargeAt(lead = {}) {
+  const l = lead && typeof lead === 'object' ? lead : {};
+  if (/^book_/.test(String(l.id || '')) && l.city && typeof l.city === 'object' && l.city.chargeAt === 'signing') return 'signing';
+  return chargeAtOf(cityMarketOf(l));
+}
+
+/**
  * Is this lead an order or a client of a desk that charges at signing? The
  * lead's market (cityMarketOf: `market`, then `sourceRef` city-<slug>) read
- * against the registry — never a field the lead carries about itself.
+ * against the registry — or, for an order booked at signing, the mode it was
+ * sold under (orderChargeAt).
  * @param {object} lead
  * @returns {boolean}
  */
 export function isSigningDesk(lead = {}) {
   const k = cityMarketOf(lead);
-  return k !== null && chargeAtOf(k) === 'signing';
+  return k !== null && orderChargeAt(lead) === 'signing';
 }
 
 /**
@@ -604,7 +625,7 @@ export function cityReplyText(lead = {}) {
   // BOOKED, never paid, until a lease is signed and the invoice is paid. These
   // branches come BEFORE the six's paid one: a booking never reads «Payment
   // received», and never a price (the fee is on the invoice, at signing).
-  if (k && chargeAtOf(k) === 'signing' && (lead.booked === true || lead.paid === true)) {
+  if (k && orderChargeAt(lead) === 'signing' && (lead.booked === true || lead.paid === true)) {
     const hi = `Hi${first ? ' ' + first : ''}, Valentino here from BOOM ${c.label}.`;
     if (lead.paid === true) {
       return `${hi} Thank you — the fee is received; the invoice from Egidi Immobiliare S.r.l. is in your email.\n${c.url}`;

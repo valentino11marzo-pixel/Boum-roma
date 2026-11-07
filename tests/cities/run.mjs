@@ -64,7 +64,7 @@ import zlib from 'node:zlib';
 import { spawnSync } from 'node:child_process';
 import {
   buildAll, renderCity, writeAll, fill, findPlaceholders, fragments, familyFor, BuildError, esc, eur, money, currencyOf, GENERATED_MARK, WEIGHT_KB, BUDGET,
-  daysLabel, deskHoursText, feesRowOf, holidayKeyOf, visibleAtLoad, visibleText, sliceOf, words, waHref, WITHDRAWAL_PATH, WITHDRAW_LABEL, TERMS_PATH,
+  daysLabel, deskHoursText, feesRowOf, withdrawalRowOf, WITHDRAW_END, ogLocaleOf, inLanguageOf, holidayKeyOf, visibleAtLoad, visibleText, sliceOf, words, waHref, WITHDRAWAL_PATH, WITHDRAW_LABEL, TERMS_PATH,
   stripComments, emittedAssets, emitAssets, SERVED_ASSETS,
   atLoadParts, longNodes, weightOf, validGeo, sealText, sealPhrase, STATUS_RE, STATUS_BANNED_RE, AVIATION_BAN_RE,
   ARC_CLEAR, ARC_DOT_R, ARC_ME_R, MAP_KB, HZ_CAM, HZ_LIFT, HZ_LEAN, HZ_KEY, HUB_MAP_PX, horizon, hzViolations, hzPathPts, hzCal, holidayKeyOf as hkOf,
@@ -220,11 +220,10 @@ for (const s of SLUGS) {
   check(live ? (!/noindex/.test(head) && /content="index, follow/.test(head)) : /<meta name="robots" content="noindex">/.test(head),
     `${s} is ${live ? 'LIVE: index, follow' : 'a draft: noindex'} in the first 4000 chars (tests/seo rule 8 reads exactly there)`);
 }
-// v1.8 FLIP (05/11/2026): this pin moved — it said "Paris and Berlin are noindex waitlists without a till"; the
-// founder took them live with a till that takes the ORDER and charges at signing (spec v1.8 D1–D20)
-check(['amsterdam', 'madrid', 'barcelona', 'london', 'milan', 'valencia'].every((s) => CITY[s].live && CITY[s].checkout === true && CITY[s].mode === 'search' && CITY[s].chargeAt === undefined)
-  && ['paris', 'berlin'].every((s) => CITY[s].live === true && CITY[s].checkout === true && CITY[s].mode === 'search' && CITY[s].chargeAt === 'signing'),
-  'the live set is pinned: the eight desks are live and sell — Amsterdam, Madrid, Barcelona, London, Milan, Valencia at the checkout, Paris and Berlin at signing (chargeAt "signing")');
+// v1.8 FLIP (05/11/2026) took Paris and Berlin live, charged at signing; the card flip (06/11/2026, the founder's
+// decision) moved this pin again: the eight desks take the card at the order, none carries chargeAt
+check(SLUGS.length === 8 && SLUGS.every((s) => CITY[s].live && CITY[s].checkout === true && CITY[s].mode === 'search' && CITY[s].chargeAt === undefined),
+  'the live set is pinned: the eight desks are live and take the card at the order — Amsterdam, Madrid, Barcelona, London, Milan, Valencia, Paris, Berlin (no chargeAt)');
 const canon = (html.match(/<link rel="canonical" href="([^"]+)"/) || [])[1];
 check(canon === `${shared.siteUrl}/amsterdam` && /^https:\/\/www\.boomrome\.com$/.test(shared.siteUrl), `canonical comes from siteUrl, on www: ${canon}`);
 
@@ -329,15 +328,15 @@ check((html.match(/data-pay="/g) || []).length === 3, 'pay controls live only in
   }
   const li = sliceOf(fares, '<li class="bp eroe">', '</li>\n        <li class="bp">');
   check(/<\/details>\s*<p class="refund fs">[^<]+<\/p>\s*<span class="bp-pay"><\/span>\s*$/.test(li), 'after the Full Search </details>, inside its <li>: the ✓ coupon, then the empty desk-width pay slot');
-  // v1.8 FLIP: this pin moved — Paris and Berlin were waitlists (no coupon, no pay slot, no pay button); they sell
-  // now, charged at signing: the six's three tickets, the coupon under the €500 saying the SIGNING rule, the pay
-  // slot and three order buttons. The waitlist shape keeps its pin on the frozen draft (fixtures/draft-paris.json).
+  // v1.8 FLIP: Paris and Berlin went from waitlists to desks charged at signing; the card flip (06/11) makes them
+  // two more of the six: the coupon under the €500 says the REFUND rule, never the signing rule, three pay buttons.
+  // The waitlist shape keeps its pin on the frozen draft (fixtures/draft-paris.json).
   for (const s of ['paris', 'berlin']) {
     const f = sliceOf(PAGE[s], '<!-- FARES -->', '<!-- /FARES -->');
     const li2 = sliceOf(f, '<li class="bp eroe">', '</li>\n        <li class="bp">');
     check(/<ol class="bps">\s*<li class="bp eroe">/.test(f) && /<\/details>\s*<p class="refund fs">[^<]+<\/p>\s*<span class="bp-pay"><\/span>\s*$/.test(li2)
-      && li2.includes(`<p class="refund fs">${esc(shared.signing.rule)}</p>`) && !f.includes(esc(shared.refund.rule)) && (f.match(/data-pay="/g) || []).length === 3,
-      `${s} (charged at signing): the six's three tickets — the coupon under the €500 says the signing rule, never the refund rule; the pay slot; three order buttons`);
+      && li2.includes(`<p class="refund fs">${esc(shared.refund.rule)}</p>`) && !f.includes(esc(shared.signing.rule)) && (f.match(/data-pay="/g) || []).length === 3,
+      `${s} (card at the order, 06/11): the six's three tickets — the coupon under the €500 says the refund rule, never the signing rule; the pay slot; three pay buttons`);
   }
   {
     const f = sliceOf(renderDraft(DRAFT.paris).html, '<!-- FARES -->', '<!-- /FARES -->');
@@ -500,9 +499,10 @@ check(!/id="contact"/.test(html) && /<article class="pass" id="pass"/.test(html)
 // FILE OPEN / PAID only on the cards the server opens
 {
   // v1.8 FLIP: Paris and Berlin moved from "OPENING WITH A LICENSED PARTNER" (the waitlist phrase, kept on the frozen
-  // draft below) to "PAID ONLY WHEN YOU SIGN" (their must-state "Paid only by you, and only when you sign."), and from
-  // a lone FILE OPEN stamp to FILE OPEN + BOOKED (their order card, never a PAID stamp: no money is taken at the order)
-  const SEAL = { amsterdam: 'NEVER PAID BY LANDLORDS', london: 'NEVER PAID BY LANDLORDS', milan: 'NEVER PAID BY LANDLORDS', madrid: 'WE DO NOT ACT FOR THE LANDLORD', barcelona: 'WE DO NOT ACT FOR THE LANDLORD', valencia: 'WE DO NOT ACT FOR THE LANDLORD', paris: 'PAID ONLY WHEN YOU SIGN', berlin: 'PAID ONLY WHEN YOU SIGN' };
+  // draft below) to "PAID ONLY WHEN YOU SIGN" with a BOOKED stamp; the card flip (06/11) moved them again, to the six's
+  // must-state "never paid by landlords" and the PAID stamp. The signing seal keeps its pin on the synthetic signing
+  // pages further down (SIGN), which the build still knows how to make.
+  const SEAL = { amsterdam: 'NEVER PAID BY LANDLORDS', london: 'NEVER PAID BY LANDLORDS', milan: 'NEVER PAID BY LANDLORDS', madrid: 'WE DO NOT ACT FOR THE LANDLORD', barcelona: 'WE DO NOT ACT FOR THE LANDLORD', valencia: 'WE DO NOT ACT FOR THE LANDLORD', paris: 'NEVER PAID BY LANDLORDS', berlin: 'NEVER PAID BY LANDLORDS' };
   for (const s of SLUGS) {
     const h = PAGE[s], C = CITY[s].city.toUpperCase();
     const seal = sliceOf(h, '<svg class="seal"', '</svg>');
@@ -1096,13 +1096,13 @@ tplRefuses('<p class="proof">', '<p class="proof">Pay by bank transfer · ', /no
     // signing, so "the six" are the desks without chargeAt, and the two signing desks get their own pin: their line
     // says "14 days from your order" and "costs nothing" (spec §3.2), with the same {online} link to their own desk
     const linksOnline = (s) => sliceOf(sliceOf(PAGE[s], '<dialog class="till"', '</dialog>'), '<p class="wd">', '</p>').includes(`href="${WITHDRAWAL_PATH}?desk=${encodeURIComponent(CITY[s].city)}#online" target="_blank" rel="noopener">online</a>`);
-    const sixSell = SLUGS.filter((s) => CITY[s].checkout === true && CITY[s].chargeAt !== 'signing');
-    const twoSign = SLUGS.filter((s) => CITY[s].checkout === true && CITY[s].chargeAt === 'signing');
-    check(sixSell.length === 6 && sixSell.every((s) => /^Withdrawal: 14 days from payment — \{online\}, by email to \{email\} or with the \{form\}\. /.test(CITY[s].checkoutCopy.withdrawal) && linksOnline(s)),
-      'every one of the six carries {online} after "14 days from payment" (spec §4.5) and its till links the online function with its own desk');
-    check(twoSign.join() === 'berlin,paris' && twoSign.every((s) => /^Withdrawal: 14 days from your order — \{online\}, by email to \{email\} or with the \{form\}\. /.test(CITY[s].checkoutCopy.withdrawal)
-      && /costs nothing/.test(CITY[s].checkoutCopy.withdrawal) && linksOnline(s)),
-      'Paris and Berlin carry {online} after "14 days from your order" and say withdrawing costs nothing (spec §3.2); their till links the online function with their own desk');
+    // the card flip (06/11) made the eight one shape again: every desk that sells takes the card at the order, and
+    // the "14 days from your order … costs nothing" line lives only on the synthetic signing desks (section B1)
+    const sellers = SLUGS.filter((s) => CITY[s].checkout === true && CITY[s].chargeAt !== 'signing');
+    check(sellers.length === 8 && sellers.every((s) => /^Withdrawal: 14 days from payment — \{online\}, by email to \{email\} or with the \{form\}\. /.test(CITY[s].checkoutCopy.withdrawal) && linksOnline(s)),
+      'every one of the eight carries {online} after "14 days from payment" (spec §4.5) and its till links the online function with its own desk');
+    check(SLUGS.every((s) => CITY[s].chargeAt === undefined && !/from your order|costs nothing/.test(CITY[s].checkoutCopy.withdrawal)),
+      'no desk says "14 days from your order" or "costs nothing" since the card flip (06/11): the money is taken at the order');
     // the two output guards, each proven by putting the pre-W markup back
     // through the template (a function replacement: the markup holds no $-patterns to expand)
     const tplTill = template.includes('{{{tillHtml}}}'), tplFoot = template.includes('{{{footHtml}}}');
@@ -1125,12 +1125,68 @@ tplRefuses('<p class="proof">', '<p class="proof">Pay by bank transfer · ', /no
   const fsRow = sliceOf(html, '<details class="fare" name="fare" id="fare-full-search"', '<!-- /FARES -->');
   check(fsRow.includes(`<p class="refund">${esc(shared.refund.rule)}</p>`) && fsRow.includes(`<p class="refund fs">${esc(shared.refund.rule)}</p>`), 'the refund rule sits inside the Full Search ticket and under its closed row');
   check(sliceOf(html, '<dt>Fees</dt>', '</dd>').includes(shared.refund.rule), 'and on the fees row of the fact sheet');
-  // v1.8 FLIP: Berlin's three plans agree since the flip (one conditionLong, the signing rule after it); "each plan's
-  // own when they differ" keeps its pin on the frozen draft Berlin (List price / Due only once you sign)
+  // Berlin's three plans agree (one conditionLong); since the card flip (06/11) the refund rule follows, as on the six.
+  // "Each plan's own when they differ" keeps its pin on the frozen draft Berlin (List price / Due only once you sign)
   check(feesRowOf(ams, shared).startsWith('<b>Full Search €500</b> · <b>Application Pack €199</b> · <b>Attended Viewing €149</b> per viewing.')
-    && feesRowOf(CITY.berlin, shared) === '<b>Full Search €500</b> · <b>Application Pack €199</b> · <b>Attended Viewing €149</b> per viewing. VAT included, charged when you sign a lease. Invoice from Egidi Immobiliare S.r.l. ' + shared.signing.rule
+    && feesRowOf(CITY.berlin, shared) === '<b>Full Search €500</b> · <b>Application Pack €199</b> · <b>Attended Viewing €149</b> per viewing. VAT included. Invoice from Egidi Immobiliare S.r.l. ' + shared.refund.rule
     && drafted(() => feesRowOf(DRAFT.berlin, shared)).includes('<b>Full Search €500</b> (List price. Due only once you sign a lease; nothing before.)'),
-    'the fees row is DERIVED from the plans: one condition when they agree (Berlin since the flip, with the signing rule), each plan\'s own when they differ (the draft Berlin)');
+    'the fees row is DERIVED from the plans: one condition when they agree (Berlin since the card flip, with the refund rule), each plan\'s own when they differ (the draft Berlin)');
+}
+{
+  // audit 06/11 — the fact sheet says how to withdraw, right after the fees
+  // (the 14 days were said only inside the till): the six count from payment,
+  // Paris and Berlin from the order and take nothing. DERIVED from the mode
+  // (withdrawalRowOf), never typed per desk. The reply time names its clock;
+  // the Service says the hours with the zone in words; each Offer's
+  // itemOffered is the service by name, no "For: Haven't started yet." filler;
+  // London is British English; the FAQ heading names the city.
+  const graphOf = (h) => [...h.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => JSON.parse(m[1])).find((b) => b['@graph'])['@graph'];
+  for (const s of SLUGS) {
+    const h = PAGE[s], c = CITY[s], desk = encodeURIComponent(c.city), sign = c.chargeAt === 'signing';
+    const br = sliceOf(h, '<dl class="enbref" id="enbref">', '</dl>');
+    const ddOf = (dt) => sliceOf(br, `<dt>${dt}</dt><dd>`, '</dd>').slice(`<dt>${dt}</dt><dd>`.length);
+    const wd = ddOf('Withdrawal');
+    check(wd && br.indexOf('<dt>Fees</dt>') < br.indexOf('<dt>Withdrawal</dt>') && br.indexOf('<dt>Withdrawal</dt>') < br.indexOf('<dt>What we do</dt>')
+      && wd.startsWith(sign ? '<b>14 days from your order</b>' : '<b>14 days from payment</b>')
+      && wd.includes(`href="${WITHDRAWAL_PATH}?desk=${desk}#online">online</a>`) && wd.includes(`href="mailto:${shared.contact.email}"`) && wd.includes(`href="${WITHDRAWAL_PATH}?desk=${desk}">model withdrawal form</a>`)
+      && (sign ? /Nothing is charged before you sign a lease, so withdrawing before then costs nothing\./.test(wd) && !/refund|work already done/.test(wd) : /minus the work already done/.test(wd))
+      && wd.endsWith(' Once the service is fully performed, the right to withdraw ends.'),
+      `${s}: the fact sheet's Withdrawal row follows the fees — ${sign ? '14 days from the order, withdrawing before the lease costs nothing' : '14 days from payment, the price minus the work already done'} — with the online function, the email, the model form, and the end of the right once the service is fully performed (Terms §12.4)`, wd);
+    const rt = ddOf('Reply time');
+    check(rt === `The same working day (desk hours: ${esc(deskHoursText(c.desk))}).`, `${s}: the reply time names its clock — "${deskHoursText(c.desk)}", from desk.hours`, rt);
+    const g = graphOf(h), svc = g.find((n) => n['@type'] === 'Service');
+    check(svc.description.endsWith(` Desk hours: ${deskHoursText(c.desk)}.`) && svc.offers.every((o) => JSON.stringify(o.itemOffered) === JSON.stringify({ '@type': 'Service', name: o.name })) && !/For: /.test(JSON.stringify(svc)),
+      `${s}: the Service says the desk hours, zone in words; each Offer's itemOffered is the service by name (no "For: …")`);
+    const gb = s === 'london';
+    check(h.includes(`<meta property="og:locale" content="${gb ? 'en_GB' : 'en_US'}">`) && ogLocaleOf(c) === (gb ? 'en_GB' : 'en_US') && h.includes(`<html lang="${gb ? 'en-GB' : 'en'}">`)
+      && ['WebPage', 'FAQPage'].every((t) => g.find((n) => n['@type'] === t).inLanguage === (gb ? 'en-GB' : 'en')) && inLanguageOf(c) === (gb ? 'en-GB' : 'en'),
+      `${s}: <html lang>, og:locale and inLanguage say ${gb ? 'British English (en-GB, en_GB)' : 'English (en, en_US)'} — derived from the country, not a JSON key`);
+    check(c.faq.h2 === `Questions about renting in ${c.city}.` && h.includes(`<h2 id="faqH"><span class="g">Questions about renting in ${esc(c.city)}.</span></h2>`), `${s}: the FAQ heading names the city ("Questions about renting in ${c.city}.")`);
+  }
+  check(withdrawalRowOf({ ...clone(ams), checkout: false }, shared.contact) === '', 'a desk that does not sell has no Withdrawal row (nothing to withdraw from)');
+  {
+    // the row and the till say what Terms §12.4 says, in its words (review 06/11: "withdrawing costs nothing"
+    // without "before then" was wider than the terms; the end of the right was missing on the fact sheet)
+    // the card flip (06/11): every desk counts the 14 days from payment; §12.5 keeps the earlier Paris/Berlin orders
+    // on the terms they were placed under (nothing charged before the lease)
+    const t124 = visibleText(sliceOf(read('terms.html'), '12.4', '12.5')), t125 = visibleText(sliceOf(read('terms.html'), '12.5', '12.6'));
+    check(t124.includes(WITHDRAW_END) && t124.includes('within 14 days from the day you pay') && !/from the day you order|from your order/i.test(t124)
+      && t125.includes('before 6 November 2026, when they charged at signing, keep the terms they were placed under'),
+      'Terms §12.4 carries the sentences the Withdrawal row repeats (14 days from the day you pay; the end of the right); §12.5 keeps the pre-06/11 Paris/Berlin orders on their signing terms');
+  }
+  refuses((c) => { c.bref.rows.splice(4, 0, { dt: 'Withdrawal', ddHtml: '14 days from payment.' }); }, /"Withdrawal" row of the fact sheet is derived/, 'a hand-typed Withdrawal row is refused (the build derives it after the fees)');
+  refuses((c) => { c.bref.rows.forEach((r) => { delete r.hours; }); }, /exactly one fact-sheet row carries "hours": true/, 'a fact sheet without its hours row is refused');
+  refuses((c) => { c.bref.rows[0].hours = true; }, /exactly one fact-sheet row carries "hours": true/, 'two hours rows are refused');
+  // the newcomer's blockers have their own question, and no answer promises a landlord's yes
+  const BLOCKER = { berlin: /SCHUFA/, paris: /guarantor in France/, london: /credit history/, madrid: /without a NIE/, barcelona: /rent cap|temporary contract/ };
+  for (const [s, re] of Object.entries(BLOCKER)) {
+    const fs0 = CITY[s].faq.items.filter((x) => re.test(x.q));
+    check(fs0.length >= 1 && (s !== 'barcelona' || fs0.length === 2) && fs0.every((f) => !/\b(?:will|we) (?:be )?accept|guarantee(?:d|s)? (?:you|a home|acceptance)|\bapproved\b|no SCHUFA needed/i.test(f.a)),
+      `${s}: the FAQ answers the newcomer's blocker (${re.source}) and promises no landlord's yes`);
+  }
+  check(['berlin', 'paris', 'madrid'].every((s) => CITY[s].faq.items.some((x) => / No landlord is obliged to accept a file[.;]/.test(x.a))), 'berlin, paris, madrid: the newcomer answers say no landlord is obliged to accept a file');
+  check(CITY.barcelona.hero.lead !== CITY.madrid.hero.lead && /rent cap/.test(CITY.barcelona.hero.lead) && CITY.barcelona.checks.items.find((k) => k.id === 'rentcap').at === 'zona tensionada · índice de referencia',
+    'barcelona: its own lead (the rent cap), not the line the Spanish desks share, and the rent-cap label names the zona tensionada');
 }
 
 // ── 8 · the five desks, each its own truth ────────────────────────────────
@@ -1150,20 +1206,22 @@ tplRefuses('<p class="proof">', '<p class="proof">Pay by bank transfer · ', /no
     check(c.pricing.plans.every((p) => h.includes(`data-plan-price="${p.id}">${money(p.price, currencyOf(s))}</span>`)), `${s}: every desk shows its list prices, in its own currency`);
     check(!/two months at most|extra guarantees two months/i.test(JSON.stringify(c)), `${s}: no "extra guarantees two months at most" (it waits for counsel after the 12/11 vote on RDL 29/2026)`);
   }
-  // v1.8 FLIP: this block moved. Paris and Berlin were waitlists (no till, "Open my file", no call, PreOrder Offers);
-  // they sell now, charged at signing: a till that takes the ORDER (no Stripe word, no PAID card, the BOOKED one),
-  // the free call at the door, InStock Offers that say the signing rule. The waitlist pins keep their test on the
-  // frozen drafts below, rendered as waitlists (registry patched in try/finally).
+  // v1.8 FLIP took Paris and Berlin from waitlists to a till that took the ORDER (BOOKED card, signing rule); the card
+  // flip (06/11, the founder's decision) moved this block again: the six's till (Stripe, the PAID card, the refund rule
+  // on Full Search), InStock Offers. The signing till keeps its pins on the synthetic desks of section B1; the waitlist
+  // pins keep theirs on the frozen drafts below, rendered as waitlists (registry patched in try/finally).
   const ldOf2 = (h) => [...h.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => JSON.parse(m[1]));
   for (const s of ['paris', 'berlin']) {
     const h = PAGE[s];
-    check(/id="till"/.test(h) && (h.match(/data-pay="/g) || []).length === 3 && /id="cBooked"/.test(h) && !/id="cPaid"/.test(h) && !/stripe/i.test(h) && h.includes('"CHECKOUT": true') && h.includes('"CHARGE_AT": "signing"'),
-      `${s}: a till that takes the order (three order buttons, the BOOKED card, never the PAID card), no Stripe word`);
-    check(!/refunded in full|bank transfer|work already done|minus the work/i.test(h), `${s}: no refund rule, no bank transfer, no "work already done": nothing is taken before the lease`);
+    check(/id="till"/.test(h) && (h.match(/data-pay="/g) || []).length === 3 && /id="cPaid"/.test(h) && !/id="cBooked"/.test(h) && /stripe/i.test(h) && h.includes('"CHECKOUT": true') && !h.includes('"CHARGE_AT"'),
+      `${s}: the six's till since the card flip (three pay buttons, the PAID card, never the BOOKED card, Stripe), no CHARGE_AT`);
+    check(!/bank transfer/i.test(h) && !h.includes(esc(shared.signing.rule)) && !/only when you sign|charged when you sign|pay on signing/i.test(h),
+      `${s}: no bank transfer and no signing promise left on the page (the money is taken at the order)`);
     check(h.includes(`<b id="doorL">Start with a free call</b><small data-window="no card · {w}">no card · ${deskHoursText(CITY[s].desk)}</small>`), `${s}: the door reads "Start with a free call", no card (as the six)`);
     const svcLd = ldOf2(h).find((b) => b['@graph'])['@graph'].find((n) => n['@type'] === 'Service');
-    check(svcLd.offers.length === 3 && svcLd.offers.every((o) => o.availability === 'https://schema.org/InStock' && o.description.endsWith(' ' + shared.signing.rule) && !/refunded|PreOrder/.test(JSON.stringify(o))),
-      `${s}: its Offers are InStock (it sells) and say the signing rule — never PreOrder, never the refund rule`);
+    check(svcLd.offers.length === 3 && svcLd.offers.every((o) => o.availability === 'https://schema.org/InStock' && !/PreOrder|only when you sign|Nothing is charged before/.test(JSON.stringify(o)))
+      && svcLd.offers.find((o) => o.name === 'Full Search').description.endsWith(' ' + shared.refund.rule),
+      `${s}: its Offers are InStock and Full Search's says the refund rule — never PreOrder, never the signing rule`);
   }
   for (const s of ['paris', 'berlin']) {
     const h = renderDraft(DRAFT[s]).html, nm = `draft-${s}`;
@@ -1185,11 +1243,15 @@ tplRefuses('<p class="proof">', '<p class="proof">Pay by bank transfer · ', /no
   { const css = read('assets/src/boom-city.css');
     check(/@media \(min-width:360px\) and \(max-width:389px\)\{\.bps:not\(\.pair-open\)[^{]*\.f-cond\{letter-spacing:\.03em\}\}/.test(css) && /@media \(min-width:360px\) and \(max-width:599px\)\{\.bps:not\(\.pair-open\)[^{]*\.f-c3 br\{display:inline\}\}/.test(css),
       'the closed pair: .03em tracking under 390, and the three-part condition breaks after its first part below 600 (CI fonts: the stubs stood 11.7 px apart)'); }
-  // v1.8 FLIP: Berlin sells now, charged at signing — "Nothing charged today" and the "on signing" row were the
-  // waitlist's (kept below on the frozen draft); the live desk says when on the pass and on every ticket instead
-  check(CITY.berlin.hero.faresHead.span === 'Always within the legal cap' && CITY.berlin.hero.leadStrong === 'Paid only by you, and only when you sign.'
-    && /data-plan-price="full-search">€500<\/span><span class="f-cond">flat ·<br> incl\. VAT<\/span>/.test(PAGE.berlin) && PAGE.berlin.includes(`<p class="refund">${esc(CITY.berlin.pricing.plans[0].trigger)}</p>`),
-    'berlin: the fares say "Always within the legal cap", the pass "Paid only by you, and only when you sign.", and the Full Search ticket its trigger (WoVermRG §2–§3)');
+  // Berlin since the card flip (06/11): the fares head keeps "Always within the legal cap" (Terms §12.2: over the
+  // cap, the difference is refunded), the pass says the six's must-state, the Full Search ticket the refund rule; the
+  // German shape stays — Full Search only on homes offered to the tenant alone, viewings included, no "(more: …)"
+  const bfs = CITY.berlin.pricing.plans[0];
+  check(CITY.berlin.hero.faresHead.span === 'Always within the legal cap' && CITY.berlin.hero.leadStrong === 'We work only for you; never paid by landlords.'
+    && /data-plan-price="full-search">€500<\/span><span class="f-cond">flat ·<br> incl\. VAT<\/span>/.test(PAGE.berlin) && PAGE.berlin.includes(`<p class="refund">${esc(shared.refund.rule)}</p>`)
+    && CITY.berlin.pricing.plans.every((p) => p.trigger === undefined) && bfs.includes.includes('Attended viewings included') && !bfs.includes.some((x) => /\(more:/.test(x))
+    && bfs.includes[0] === "Homes offered to you alone, with the landlord's go-ahead",
+    'berlin: "Always within the legal cap", the six\'s must-state, the refund rule on the Full Search ticket; Full Search only on homes offered to the tenant alone, viewings included, no "(more: …)"');
   check(DRAFT.berlin.hero.faresHead.span === 'Nothing charged today' && /data-plan-price="full-search">€500<\/span><span class="f-cond">flat ·<br> incl\. VAT · on signing<\/span>/.test(renderDraft(DRAFT.berlin).html),
     'draft-berlin: nothing is charged today, and Full Search says on its own row that it is due only once you sign (WoVermRG §2–§3)');
   check(/Catalan or Spanish/.test(CITY.barcelona.checkoutCopy.fine) && /fulls oficials/i.test(PAGE.barcelona), 'barcelona: documents in Catalan or Spanish on request, the official complaint forms named');
@@ -2154,6 +2216,43 @@ tplRefuses('<p class="proof">', '<p class="proof">Pay by bank transfer · ', /no
   const gen = read('design/pages-deco/genera-og-cities.py');
   check(!/\['nav'\]|\['glance'\]|\['machine'\]|h1Em/.test(gen), 'the card generator reads no key the JSON lost (it silently stopped running once: the cards kept promises the pages had dropped)');
   check(/'tenant side · flat fees · viewing attended · contract checked'/.test(gen) && /'tenant side · flat fees · your file open today'/.test(gen), 'the card\'s proof line follows the mode: a waitlist card never says "viewing attended"');
+
+  // a card says what the data says TODAY (07/11/2026): og-paris.png and
+  // og-berlin.png kept «AT SIGNING · FROM €149» after the two desks moved to
+  // the card at the order — the checks above saw a real 1200×630 PNG and
+  // nothing compared what it says with the data it was drawn from. The
+  // generator records what each card says next to the PNG's sha256
+  // (og-cities-facts.json); here it is asked what the cards should say now.
+  const PY = ['python3', 'python'].find((p) => spawnSync(p, ['--version'], { encoding: 'utf8' }).status === 0);
+  if (!PY) console.log('  \x1b[33m⊘\x1b[0m what the cards say: python3 is not on this machine — comparison skipped');
+  else {
+    const GEN = 'design/pages-deco/genera-og-cities.py';
+    const factsOf = (args, input) => {
+      const r = spawnSync(PY, ['-B', path.join(R, GEN), '--facts', ...args], { encoding: 'utf8', input });
+      if (r.status !== 0) throw new Error(`${GEN} --facts ${args.join(' ')}: ${r.stderr}`);
+      return JSON.parse(r.stdout);
+    };
+    const kept = JSON.parse(read('design/pages-deco/og-cities-facts.json'));
+    const now = factsOf([]);
+    const sha = (k) => crypto.createHash('sha256').update(fs.readFileSync(path.join(R, `og-${k}.png`))).digest('hex');
+    const redraw = (k) => `python3 ${GEN} ${k === 'desks' ? '--hub' : k}`;
+    const keys = [...SLUGS, 'desks'];
+    check(JSON.stringify(Object.keys(now).sort()) === JSON.stringify(keys.slice().sort()), `--facts covers the eight desk cards and the hub card (${Object.keys(now).length})`);
+    for (const k of keys) {
+      const rec = kept[k] || {};
+      const says = now[k] ? (now[k].price ? `"${now[k].label} ${now[k].price}" · "${now[k].line}"` : `${now[k].codes.join(' ')}`) : 'nothing';
+      check(rec.png === sha(k) && JSON.stringify(rec.card) === JSON.stringify(now[k]), `og-${k}.png says what the data says now: ${says}`,
+        rec.png !== sha(k) ? `the PNG is not the one the generator recorded — draw it again: ${redraw(k)}` : `the card was drawn saying ${JSON.stringify(rec.card)} — draw it again: ${redraw(k)}`);
+    }
+    // the guard bites on the defect that made it: Paris back at signing (or a
+    // new lead, or a new price) is no longer the card that was drawn
+    const back = clone(CITY.paris); back.chargeAt = 'signing';
+    const lead = clone(CITY.paris); lead.hero.lead = 'We find it. You sign it.';
+    const dear = clone(CITY.paris); dear.pricing.plans.forEach((p) => { p.price += 10; });
+    const m = factsOf(['--stdin'], JSON.stringify([back]));
+    check(m.paris.label === 'at signing · from' && [back, lead, dear].every((c) => JSON.stringify(factsOf(['--stdin'], JSON.stringify([c])).paris) !== JSON.stringify(kept.paris && kept.paris.card)),
+      'mutation: Paris back at signing, a new lead or new prices — the recorded card no longer matches and the guard asks for a new one');
+  }
 }
 
 // ── 10b · the companions: Terms §12, the withdrawal form, privacy, caching ──
@@ -2333,14 +2432,19 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
   check(waReply.startsWith('Hi Luis, Valentino here from BOOM 👋 Thanks for your message about your move to Madrid. The first step is a free call.') && /which day and time suit you\?/.test(waReply) && !/this week|your file|budget|come back today/.test(waReply),
     'a desk lead that came from WhatsApp (no door, no file) is thanked for its message and offered the same free call', waReply);
   check(waReply.endsWith(`${CITY_MARKETS.madrid.url}\nIf you'd rather start now: ${CITY_MARKETS.madrid.url}#pay-full-search`), 'the WhatsApp-born lead of a selling desk gets the same till link');
-  // v1.8 FLIP: this pin moved. Paris and Berlin were waitlists (no till, no call); they sell now, charged at signing:
-  // the ready reply offers the free call and the ORDER alias (#order-full-search, "nothing is charged before you sign
-  // a lease"), never #pay- — that branch is stream A's (api/_market.js cityReplyText, stage A2). The waitlist reply
-  // keeps its pin with the registry patched back to the waitlist entries (a future waitlist desk reads the same code).
+  // v1.8 FLIP moved this pin (the #order- alias, "nothing is charged before you sign a lease"); the card flip (06/11)
+  // moved it again: Paris and Berlin get the six's reply — the free call and the till link (#pay-full-search). An order
+  // BOOKED before 06/11 (book_…, city.chargeAt "signing") keeps its own reply: booked, nothing charged before the lease.
+  // The waitlist reply keeps its pin with the registry patched back to the waitlist entries.
   for (const s of ['paris', 'berlin']) {
     const r = cityReplyText({ market: s, name: 'Ana', message: '' });
-    check(r.includes(`${CITY_MARKETS[s].url}#order-full-search`) && /nothing is charged before you sign a lease/i.test(r) && !/#pay-/.test(r) && /free call/.test(r),
-      `${s} (charged at signing): the ready reply offers the free call and the order link (#order-full-search, nothing charged before the lease), never #pay-`, r);
+    check(r.endsWith(`${CITY_MARKETS[s].url}\nIf you'd rather start now: ${CITY_MARKETS[s].url}#pay-full-search`) && !/#order-|before you sign/i.test(r) && /free call/.test(r),
+      `${s} (card at the order, 06/11): the ready reply offers the free call and the till link (#pay-full-search), never #order- nor a signing promise`, r);
+    const bk = cityReplyText({ id: 'book_' + s + '0123456789ab', market: s, name: 'Ana', booked: true, intent: 'city_booking',
+      city: { chargeAt: 'signing', file: 'BM ABCDE', serviceLabel: 'Full Search', order: { number: (s === 'paris' ? 'PAR' : 'BER') + '-2026-0001' } } });
+    check(/Nothing is charged before you sign a lease\./.test(bk) && bk.includes('file BM ABCDE') && bk.includes((s === 'paris' ? 'PAR' : 'BER') + '-2026-0001') && !/#pay-|Payment received/.test(bk)
+      && (s === 'berlin') === /reply 'Confirmed'/.test(bk),
+      `${s}: an order BOOKED before the card flip (book_…, chargeAt "signing" on the order) keeps its signing reply — booked, nothing charged before the lease, never a pay link`, bk);
     const wl = drafted(() => cityReplyText({ market: s, name: 'Ana', intent: 'city_waitlist', message: '' }));
     check(wl.length > 40 && !/#pay-|call/i.test(wl) && wl.includes(CITY_MARKETS[s].url), `${s} as a waitlist (the registry patched back): the ready reply never carries #pay- (no till exists) nor "call"`, wl);
   }
@@ -2402,12 +2506,19 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
     city: { paid: true, service: 'full-search', file: 'BM 7K2QX', startNow: false, workFromLabel: '4 November 2026', amount: 500 } });
   seed('leads/' + serviceLeadId(SID2), { market: 'madrid', name: 'Lucía', city: { paid: true, service: 'application-pack', file: 'BM AAAAA', startNow: true } });
   const bad1 = await get({ paid: 'not-a-session', city: 'amsterdam' });
-  const bad2 = await get({ paid: SID, city: 'paris' });
   const bad3 = await get({ paid: SID, city: 'rome' });
-  // v1.8 FLIP: Paris was a waitlist here; it is a desk that charges at signing now — still a 400 (no Stripe session is
-  // ever opened at its order: api/city-lead.js, stream A stage A1), a waitlist keeps its 400 with the registry patched
+  // v1.8 FLIP made Paris a desk that charged at signing (a 400 here: no Stripe session at its order); the card flip
+  // (06/11) gives it the six's till, so an Amsterdam session asked as Paris is only "pending" — never Amsterdam's
+  // order. The signing 400 keeps its pin with the registry patched (Paris at signing), the waitlist 400 likewise.
+  const crossParis = await get({ paid: SID, city: 'paris' });
+  const { CITY_MARKETS: CMp } = await import('../../api/_market.js');
+  const savedParis = CMp.paris;
+  let bad2s;
+  try { CMp.paris = { ...savedParis, chargeAt: 'signing' }; bad2s = await get({ paid: SID, city: 'paris' }); } finally { CMp.paris = savedParis; }
   const bad2w = await draftedAsync(() => get({ paid: SID, city: 'paris' }));
-  check(bad1.code === 400 && bad2.code === 400 && bad3.code === 400, 'GET ?paid=: a malformed session id, a city that charges at signing (Paris) or a city outside the list is a 400');
+  check(bad1.code === 400 && bad3.code === 400 && crossParis.code === 200 && crossParis.payload.pending === true && !('paid' in crossParis.payload) && !/7K2QX|full-search/.test(crossParis.raw),
+    'GET ?paid=: a malformed session id or a city outside the list is a 400; an Amsterdam session asked as Paris is pending, never Amsterdam\'s order');
+  check(bad2s.code === 400 && CMp.paris === savedParis, 'GET ?paid= on a desk that charges at signing (Paris with the registry patched) is a 400 — and the patch is undone');
   check(bad2w.code === 400, 'GET ?paid= on a waitlist city (Paris with the registry patched back) is a 400');
   const unk = await get({ paid: 'cs_test_unknown00000000', city: 'amsterdam' });
   check(unk.code === 200 && unk.payload.ok === true && unk.payload.pending === true && !('paid' in unk.payload), 'an unknown session is pending (the webhook may not have landed yet)');
@@ -2605,7 +2716,8 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
       `og-desks.png is a real 1200×630 PNG (${Math.round(png.length / 1024)} KB ≤ 120), its URL carries the content hash`);
     const gen = read('design/pages-deco/genera-og-cities.py');
     const keys = [...gen.matchAll(/hub\['(\w+)'\]\['(\w+)'\]/g)].map((m) => `${m[1]}.${m[2]}`);
-    check(/--hub/.test(gen) && keys.length && keys.every((k) => k.split('.').reduce((o, x) => (o == null ? undefined : o[x]), HUBJ) !== undefined) && /c\.get\('live'\) is True/.test(gen) && !/price/.test(gen.slice(gen.indexOf('def card_hub'), gen.indexOf('lavoro = []'))),
+    check(/--hub/.test(gen) && keys.length && keys.every((k) => k.split('.').reduce((o, x) => (o == null ? undefined : o[x]), HUBJ) !== undefined) && /c\.get\('live'\) is True/.test(gen)
+      && gen.indexOf('def facts_hub') > 0 && gen.indexOf('def load_cities') > gen.indexOf('def facts_hub') && !/price/.test(gen.slice(gen.indexOf('def facts_hub'), gen.indexOf('def load_cities'))),
       `the card generator (--hub) reads only _hub.json keys that exist (${keys.join(', ')}), the live codes, no price`);
   }
 
@@ -2770,10 +2882,21 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
       'the gates send each reader to /<slug>#fares; the 14-day strip item links the online withdrawal function (/withdrawal#online)');
     // v1.8 FLIP (H3): landed with stage W — the pin above is the stricter form of the FLIP's own (the <li>, and no
     // link to the bare /withdrawal)
-    // v1.8 FLIP (H1): the timing differs, the fares do not — the signing desks are named before the first price
-    check(fa.includes('<p class="hnote sign">In Berlin and Paris every fare is charged only when you sign a lease.</p>') && fa.indexOf('class="hnote sign"') < fa.search(/[€£]\d/)
-      && !sliceOf(HD, '<section class="sec" id="fares"', '</section>').includes('hnote sign'),
-      'the signing note names Berlin and Paris before the first price (H1); a hub with no signing desk has none (the synthetic hub)');
+    // v1.8 FLIP (H1) named the signing desks before the first price; since the card flip (06/11) no live desk charges at
+    // signing, so the real hub has no note and no warning. The note keeps its pin on the real data with the registry
+    // patched (Paris and Berlin at signing, restored in finally): named, before the first price
+    const { CITY_MARKETS: CMh } = await import('../../api/_market.js');
+    const saveH = { paris: CMh.paris, berlin: CMh.berlin };
+    let signHub = null;
+    try {
+      CMh.paris = { ...saveH.paris, chargeAt: 'signing' }; CMh.berlin = { ...saveH.berlin, chargeAt: 'signing' };
+      signHub = renderHub({ template: HUBT, shared, hub: clone(HUBJ), cities: SLUGS.map((s) => clone(CITY[s])), assetVersion: { css: 'testcss000', desksCss: 'testdcss00', desksJs: 'testdjs000' }, frags, root: R, weigh: false });
+    } catch (e) { signHub = { html: '', err: e.message }; } finally { Object.assign(CMh, saveH); }
+    const sfa = sliceOf(signHub.html, '<section class="sec" id="fares"', '</section>');
+    check(!fa.includes('hnote sign') && !HB.warnings.some((w) => /signing/.test(w))
+      && sfa.includes('<p class="hnote sign">In Berlin and Paris every fare is charged only when you sign a lease.</p>') && sfa.indexOf('class="hnote sign"') < sfa.search(/[€£]\d/)
+      && CMh.paris === saveH.paris && CMh.berlin === saveH.berlin,
+      'no signing note on the real hub since the card flip (and no warning); with the registry patched the note names Berlin and Paris before the first price', signHub.err || '');
     // v1.8 FLIP (H2, H4): the Full Search line true at every desk; "One company" and "One person" cut from the strip
     check(sliceOf(fa, 'id="hf-full-search"', '</li>\n').includes('<li>Contract checked before you sign</li>') && !/Applications sent as listings appear/.test(fa) && !/One company|One person/.test(fa),
       'the Full Search ticket says "Contract checked before you sign" (true at every desk: H2); the strip lost "One company" and "One person" (H4)');
@@ -2836,7 +2959,8 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
   };
   const hubRefuses = (mutHub, re, t, mutCity = null, tpl = HUBT) => { const r = throws(() => hubRender(mutHub, mutCity, tpl), re); check(r === true, t, r === true ? '' : r); };
   check(throws(() => hubRender(), /^$/) === 'did not throw', '(the real data renders through renderHub with the test asset versions)');
-  check(HDR.warnings.every((w) => /dropped/.test(w)) && HDR.warnings.some((w) => /signing/.test(w)), '(the synthetic hub over the frozen drafts builds; with no signing desk the signing note and its FAQ are dropped, with warnings)', HDR.warnings.join(' | '));
+  // since the card flip (06/11) a hub with no signing desk simply has no signing note: nothing is dropped, nothing warned
+  check(HDR.warnings.every((w) => /dropped/.test(w)) && !HDR.warnings.some((w) => /signing/.test(w)), '(the synthetic hub over the frozen drafts builds; with no signing desk there is no signing note, and no warning about it)', HDR.warnings.join(' | '));
   // v1.8 FLIP: Paris is live, so the same row on the real hub meets the plain-text guard (the next pin); the not-open guard
   // reads the synthetic hub, where Paris is a frozen draft
   {
@@ -2946,6 +3070,17 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
   check(new RegExp(`^## BOOM Desks \\(tenant-side rental desks in Europe: ${listJoin(LIVE.map((s2) => CITY[s2].city))}\\)$`, 'm').test(llms) && llms.includes('- [BOOM Desks](https://www.boomrome.com/desks):') && !/BOOM Cities/.test(llms)
     && (offNames.length ? llms.includes(`${listJoin(offNames)} desks are not open.`) : !/desks? (?:is|are) not open/.test(llms)) && /BOOM Milan is the home-country desk/.test(llms),
     `llms.txt: the section is "BOOM Desks" over the ${LIVE.length} live desks, /desks first, Milan the home-country desk; "BOOM Cities" gone; ${offNames.length ? 'the "not open" sentence kept' : 'no "not open" sentence (no draft)'}`);
+  // audit 06/11: the sentence llms.txt points engines to for "does BOOM operate outside Rome" named six desks
+  // two days after Paris and Berlin went live, and Key facts gave Rome's 10% fee as the price everywhere
+  const liveList = listJoin(LIVE.map((s2) => CITY[s2].city));
+  check(llms.includes(`For "does BOOM operate outside Rome": Réunion Island (this section) and the tenant-side desks in ${liveList} (BOOM Desks, below).`),
+    `llms.txt: "does BOOM operate outside Rome" names every live desk (${liveList})`);
+  const deskPrice = (llms.match(/^- Pricing on the desks \(([^)]*)\):(.*)$/m) || []);
+  check(/^- Pricing in Rome: /m.test(llms) && !/^- Pricing: /m.test(llms) && /^- Payments in Rome: /m.test(llms)
+    && deskPrice.length && deskPrice[1] === LIVE.map((s2) => CITY[s2].city).join(', ') && !/10%/.test(deskPrice[2])
+    && /refunded in full if BOOM declines the search in the first call/.test(deskPrice[2]) && deskPrice[2].endsWith(' Paid by card on the desk page, when the tenant orders.')
+    && !/when the tenant signs|only when .* sign/i.test(deskPrice[2]),
+    'llms.txt Key facts: the 10% fee and bank transfer are scoped to Rome; the desks line lists every live desk with the flat fees, the refund rule, and the card at the order (no signing rule since 06/11)');
   const FOOT8 = ['index.html', 'apartments.html', 'try.html', 'your-money.html', 'how-it-works.html', 'apartment-detail.html', 'design/pages-deco/pt.html', 'design/pages-deco/patch-lotto2.py'];
   const noHub = FOOT8.filter((f) => { const s = read(f); const i = s.search(/<a href="\/desks(?:\.html)?">BOOM Desks · Europe<\/a>/); return i < 0 || i > s.search(/<a href="\/amsterdam(?:\.html)?">/); });
   check(!noHub.length, 'the eight "Company & Markets" footers link /desks ("BOOM Desks · Europe"), just above Amsterdam', noHub.join(', '));
@@ -3033,9 +3168,10 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
   };
 
   // the word, read from the registry like the currency
-  // v1.8 FLIP: this pin moved, as it said it would — Paris and Berlin charge at signing, the six at the checkout
-  check(SLUGS.every((s) => chargeAtOf(s) === (['paris', 'berlin'].includes(s) ? 'signing' : 'checkout')) && SLUGS.filter((s) => isSigning(CITY[s])).join() === 'berlin,paris' && chargeAtOf('nowhere') === 'checkout',
-    'Paris and Berlin charge at signing, the six at the checkout: chargeAtOf reads CITY_MARKETS, an unknown desk is "checkout"');
+  // v1.8 FLIP moved this pin (Paris and Berlin at signing); the card flip (06/11) moved it back: every desk charges at
+  // the checkout, and the signing shape lives only on the synthetic desks of this section (registry patched in try/finally)
+  check(SLUGS.every((s) => chargeAtOf(s) === 'checkout') && SLUGS.filter((s) => isSigning(CITY[s])).join() === '' && chargeAtOf('nowhere') === 'checkout',
+    'every desk charges at the checkout since the card flip (06/11): chargeAtOf reads CITY_MARKETS, an unknown desk is "checkout"');
   {
     const before = [chargeAtOf('paris'), chargeAtOf('berlin')].join();
     check(signed(() => chargeAtOf('paris') === 'signing' && chargeAtOf('berlin') === 'signing' && chargeAtOf('amsterdam') === 'checkout') && [chargeAtOf('paris'), chargeAtOf('berlin')].join() === before,
@@ -3087,21 +3223,23 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
       'the Fees row says the signing rule; the seal says the desk\'s must-state, "PAID ONLY WHEN YOU SIGN"');
     check(!/\(more:/.test(fares(BS)) && !/No percentage/i.test(BS) && /offered to you alone/.test(BS) && /\(six months at most\)/.test(fares(PS)),
       'Berlin: no "(more:" around Full Search, no "No percentage", the Bestellerprinzip lane says "offered to you alone"; Paris: "(six months at most)"');
-    // v1.8 FLIP (§13.2): the same shape on the REAL pages, built from cities/paris.json and cities/berlin.json (= the spec's JSONs)
+    // v1.8 FLIP (§13.2) pinned this shape on the REAL Paris and Berlin pages; the card flip (06/11, the founder's
+    // decision) gave them the six's till, so the real pages now carry the six's config — the signing shape lives on the
+    // synthetic pages above (PS, BS) and on the managed ticket of the orders booked before 06/11
+    const cfgA = JSON.parse(PAGE.amsterdam.match(/window\.BOOM_CITY = (\{[\s\S]*?\});\n<\/script>/)[1]);
     for (const s of ['paris', 'berlin']) {
-      const h = PAGE[s], bk = sliceOf(h, '<div id="cBooked"', '<!-- /THE DOOR -->');
+      const h = PAGE[s];
       const cfgR = JSON.parse(h.match(/window\.BOOM_CITY = (\{[\s\S]*?\});\n<\/script>/)[1]);
-      const trigR = Object.fromEntries(CITY[s].pricing.plans.map((p) => [p.id, p.trigger]));
-      check(!!bk && /<p class="k">Booked<\/p>/.test(bk) && !/\b(?:paid|payments?)\b/i.test(visibleText(bk)) && /<div id="cConfirm"[^>]*>\s*<p class="k">Order<\/p>/.test(h)
-        && cfgR.CHARGE_AT === 'signing' && cfgR.ORDER_TERMS_V === ORDER_TERMS[s].v && cfgR.PAID === null && JSON.stringify(cfgR.TILL) === '{"label":"Order, pay on signing"}'
-        && Object.entries(cfgR.PLANS).every(([id, p]) => p.rule === true && p.trigger === trigR[id] && SIGN_RULE_RE.test(p.trigger)) && sliceOf(h, '<dt>Fees</dt>', '</dd>').includes(esc(SIGN_RULE)),
-        `${s} (the real page): the BOOKED card never says "paid" or "payment", the waiting card says "Order"; the config carries CHARGE_AT, the order terms ${ORDER_TERMS[s].v}, no PAID, one label, every fare's rule and trigger; the Fees row says the signing rule`);
+      check(!/id="cBooked"/.test(h) && /id="cPaid"/.test(h) && cfgR.CHARGE_AT === undefined && cfgR.ORDER_TERMS_V === undefined && cfgR.BOOKED === undefined
+        && JSON.stringify(cfgR.TILL) === JSON.stringify(cfgA.TILL) && cfgR.PAID && typeof cfgR.PAID === 'object'
+        && Object.values(cfgR.PLANS).every((p) => p.trigger === undefined) && sliceOf(h, '<dt>Fees</dt>', '</dd>').includes(shared.refund.rule),
+        `${s} (the real page, card flip 06/11): the six's till config — no CHARGE_AT, no order terms, no BOOKED strings, the PAID card, Amsterdam's labels, no trigger; the Fees row says the refund rule`);
     }
     check(!/\(more:/.test(fares(PAGE.berlin)) && !/No percentage/i.test(PAGE.berlin) && /offered to you alone/.test(PAGE.berlin) && /\(six months at most\)/.test(fares(PAGE.paris)),
       'the real pages: Berlin has no "(more:" around Full Search, no "No percentage", and its Bestellerprinzip lane says "offered to you alone"; Paris says "(six months at most)"');
   }
   // the six carry none of it
-  check(TILL_DESKS.length === 6, `six desks take the fee at their till (${TILL_DESKS.join(', ')})`);
+  check(TILL_DESKS.length === 8, `every desk takes the fee at its till since the card flip, 06/11 (${TILL_DESKS.join(', ')})`);
   for (const s of SLUGS.filter((x) => chargeAtOf(x) !== 'signing')) check(!/id="cBooked"|"CHARGE_AT"|"ORDER_TERMS_V"|"BOOKED"|"trigger"|id="tOrder"|data-err-stale/.test(PAGE[s]), `${s}: no BOOKED card, no order config, no trigger, no order line, no stale-page words (the shape of a desk that charges at signing)`);
 
   // ── the refusals (spec v1.8 §3.2), each a mutation of a scratch copy ──
@@ -3172,14 +3310,19 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
   refusesS((c) => { c.hero.faresHead.span = 'No percentage of your rent'; }, /Germany: never "No percentage"/, 'Germany: "No percentage" is refused (WoVermRG §3(1), D2)', 'berlin');
   refusesS((c) => { c.checks.items.find((k) => k.id === 'fees').text = 'Whoever orders the agent pays: a landlord\'s agent cannot charge you.'; }, /Germany: the Bestellerprinzip check says a Full Search is paid only for a home "offered to you alone"/, 'Germany: a Bestellerprinzip lane that does not say "offered to you alone" is refused (D3)', 'berlin');
   {
-    // a French or German desk that sells must charge at signing: the registry says checkout here
+    // v1.8 refused a French or German desk at the checkout (loi Hoguet art. 6, WoVermRG §2(4)); the founder took both
+    // to the card at the order on 06/11/2026, informed of that exposure — the guard is gone. What stays, at the till as
+    // at signing: in France Full Search says how long the mandate runs; in Germany nothing is added around a Full Search.
+    // Amsterdam's data made French or German, at the checkout, meets those two rules; the real Paris and Berlin pass them.
     const tillReg = (s) => { const { chargeAt, partner, ...m } = CM[s]; return { ...m, mode: 'search', checkout: true }; };
     const fr = { ...clone(ams), slug: 'paris', city: 'Paris', iata: 'PAR', country: 'FR', geo: clone(CITY.paris.geo), live: false };
-    const r = withReg({ paris: tillReg('paris') }, () => throws(() => render(fr, sharedS), /France: loi Hoguet art\. 6 — a desk that sells there takes nothing before the lease: it charges at signing/));
-    check(r === true, 'a desk that sells in France without charging at signing is refused (loi Hoguet art. 6)', r === true ? '' : r);
+    const r = withReg({ paris: tillReg('paris') }, () => throws(() => render(fr, shared), /France: Full Search says how long the mandate runs, "\(six months at most\)"/));
+    check(r === true, 'a desk at the checkout in France still says how long the mandate runs: without "(six months at most)" it is refused (loi Hoguet art. 7)', r === true ? '' : r);
     const de = { ...clone(ams), slug: 'berlin', city: 'Berlin', iata: 'BER', country: 'DE', geo: clone(CITY.berlin.geo), live: false };
-    const r2 = withReg({ berlin: tillReg('berlin') }, () => throws(() => render(de, sharedS), /Germany: WoVermRG §2\(4\) — a desk that sells there takes nothing before the lease/));
-    check(r2 === true, 'a desk that sells in Germany without charging at signing is refused (WoVermRG §2(4))', r2 === true ? '' : r2);
+    const r2 = withReg({ berlin: tillReg('berlin') }, () => throws(() => render(de, shared), /Germany: no extra fee around a Full Search \(WoVermRG §3\(3\)\)/));
+    check(r2 === true, 'a desk at the checkout in Germany still adds nothing around a Full Search: "(more: …)" is refused (WoVermRG §3(3))', r2 === true ? '' : r2);
+    check(['paris', 'berlin'].every((s) => chargeAtOf(s) === 'checkout' && /id="tGo"/.test(PAGE[s]) && /stripe/i.test(PAGE[s])),
+      'the real Paris and Berlin build at the checkout (the card at the order, 06/11) and meet both rules');
   }
   // the €500 and its rule, and the output guards (each by a mutation of the page)
   refusesS((c) => { c.faq.items[3].a += ' Full Search costs €500.'; }, /€500 stands without the signing rule in its own block/, 'a €500 in a FAQ answer without the signing rule in its block is refused');
