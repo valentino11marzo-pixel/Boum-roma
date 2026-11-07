@@ -71,7 +71,10 @@
       angle: [8, 43], target: [8, 43], scroll: 0, reduced: reduced, listeners: [], observers: [], destroyed: false,
       ambient: root.dataset.globeAmbient === 'true', ambientTimer: 0, ambientResumeAt: 0, ambientOrigin: null, ambientPhase: 0, ambientLast: 0,
       pointerWithin: false, focusWithin: false, connection: global.navigator && global.navigator.connection, motionState: '',
-      zoom: 1, zoomTarget: 1, zoomTransition: null, lastPaint: 0
+      zoom: 1, zoomTarget: 1, zoomTransition: null, lastPaint: 0,
+      framing: root.dataset.globeFraming === 'horizon' ? 'horizon' : 'globe',
+      framingMix: root.dataset.globeFraming === 'horizon' && root.dataset.globeLabels === 'selected' ? 1 : 0,
+      framingTarget: 0, framingTransition: null, fullView: root.dataset.globeLabels === 'all'
     };
     root.classList.add('boom-flight-globe');
     root.dataset.globeState = 'loading';
@@ -148,6 +151,16 @@
       measure(s);requestDraw(s);
     });
     ambientObserver.observe(root,{attributes:true,attributeFilter:['data-globe-ambient']});s.observers.push(ambientObserver);
+    // Full view temporarily shows the complete sphere. The inline lens remains
+    // a presentation preference, independent of city, angle, zoom and brief.
+    s.framingTarget = s.framingMix;
+    var framingObserver = new MutationObserver(function () {
+      if (!dispatchAtlas()) return;
+      var mode = root.dataset.globeFraming === 'horizon' ? 'horizon' : 'globe', full = root.dataset.globeLabels === 'all';
+      if (mode === s.framing && full === s.fullView) return;
+      s.framing = mode; s.fullView = full; changeFraming(s, false);
+    });
+    framingObserver.observe(root,{attributes:true,attributeFilter:['data-globe-framing','data-globe-labels']});s.observers.push(framingObserver);
     if(s.connection&&s.connection.addEventListener)listen(s.connection,'change',function(){if(s.connection.saveData)stopAmbient(s);else scheduleAmbient(s);});
     s.pauseButton = document.getElementById('nextMotionToggle');
     if (s.pauseButton) {
@@ -214,7 +227,7 @@
   function ambientAllowed(s){return s.ambient&&s.ready&&!s.destroyed&&!s.failed&&canMove(s)&&!flight&&!s.pointerWithin&&!s.focusWithin&&!s.dragActive&&!(s.connection&&s.connection.saveData);}
   function stopAmbient(s){
     clearTimeout(s.ambientTimer);s.ambientTimer=0;s.ambientLast=0;
-    if(!s.transition&&!s.zoomTransition){
+    if(!s.transition&&!s.zoomTransition&&!s.framingTransition){
       // A resize clears the canvas. Hover/focus must stop an orbit frame, never
       // cancel the one required repaint after moving the same canvas out of Full view.
       if(s.raf&&!s.dirty){cancelAnimationFrame(s.raf);s.raf=0;}motionState(s,'still');
@@ -222,7 +235,7 @@
   }
   function holdAmbient(s,delay){s.ambientResumeAt=performance.now()+delay;stopAmbient(s);}
   function scheduleAmbient(s){
-    if(!ambientAllowed(s)||s.ambientTimer||s.transition||s.zoomTransition)return;
+    if(!ambientAllowed(s)||s.ambientTimer||s.transition||s.zoomTransition||s.framingTransition)return;
     // A timeout arms one rAF at a maximum of 24 paints/second. There is no
     // hidden/offscreen polling, no per-frame layout read and no moving HTML label.
     var wait=Math.max(0,s.ambientResumeAt-performance.now(),1000/24-(performance.now()-s.lastPaint));
@@ -237,12 +250,30 @@
     s.root.dispatchEvent(new CustomEvent('boom-globe-camera',{detail:{zoom:next,min:1,max:1.25}}));
     requestDraw(s);return next;
   }
+  function changeFraming(s, animate) {
+    var target = s.framing === 'horizon' && !s.fullView ? 1 : 0;
+    holdAmbient(s,900); s.framingTarget = target;
+    if (animate && canMove(s) && !flight && Math.abs(target-s.framingMix) > .001) {
+      s.framingTransition = {from:s.framingMix,to:target,start:performance.now(),duration:320};
+    } else { s.framingMix = target; s.framingTransition = null; }
+    s.root.dispatchEvent(new CustomEvent('boom-globe-camera',{detail:{zoom:s.zoomTarget,min:1,max:1.25,framing:s.framing}}));
+    requestDraw(s);
+  }
+  function setFraming(value, options) {
+    var s = instance; options = options || {};
+    if (!s || s.destroyed || !s.ready || s.failed || !dispatchAtlas() || !['globe','horizon'].includes(value)) return null;
+    s.framing = value; s.fullView = s.root.dataset.globeLabels === 'all';
+    s.root.dataset.globeFraming = value;
+    changeFraming(s, options.animate === true);
+    return value;
+  }
   function settle(s) {
     if(s.cancelDrag)s.cancelDrag();
     stopAmbient(s);
     if (s.raf) cancelAnimationFrame(s.raf);
     s.raf = 0; s.transition = null; s.angle = s.target.slice(); s.dirty = true;
-    s.zoomTransition=null;s.zoom=s.zoomTarget;motionState(s,'still');
+    s.zoomTransition=null;s.zoom=s.zoomTarget;
+    s.framingTransition=null;s.framingMix=s.framingTarget;motionState(s,'still');
   }
   function syncMotion(s) {
     if (flight && (paused(s) || s.reduced.matches)) arrive(flight, 'motion-disabled');
@@ -306,7 +337,11 @@
       if(!canMove(s)){s.zoom=s.zoomTarget;s.zoomTransition=null;}
       else{var zp=clamp((time-s.zoomTransition.start)/s.zoomTransition.duration,0,1),ze=1-Math.pow(1-zp,3);s.zoom=s.zoomTransition.from+(s.zoomTransition.to-s.zoomTransition.from)*ze;if(zp===1)s.zoomTransition=null;}
     }
-    var orbit=ambientAllowed(s)&&!s.transition&&!s.zoomTransition&&time>=s.ambientResumeAt;
+    if(s.framingTransition){
+      if(!canMove(s)){s.framingMix=s.framingTarget;s.framingTransition=null;}
+      else{var fp=clamp((time-s.framingTransition.start)/s.framingTransition.duration,0,1),fe=1-Math.pow(1-fp,3);s.framingMix=s.framingTransition.from+(s.framingTransition.to-s.framingTransition.from)*fe;if(fp===1)s.framingTransition=null;}
+    }
+    var orbit=ambientAllowed(s)&&!s.transition&&!s.zoomTransition&&!s.framingTransition&&time>=s.ambientResumeAt;
     if(orbit){
       if(!s.ambientOrigin){s.ambientOrigin=s.angle.slice();s.ambientPhase=0;s.ambientLast=0;}
       if(s.ambientLast)s.ambientPhase+=Math.min(100,time-s.ambientLast)/1000*.045;
@@ -318,13 +353,18 @@
       s.scrollDirty = false;
       if (!s.ambient && canMove(s) && !s.dragging) { var rect = s.root.getBoundingClientRect(); s.scroll = clamp((innerHeight*.45-rect.top-rect.height*.5)/Math.max(1, innerHeight), -1, 1)*4; }
     }
-    motionState(s,s.transition||s.zoomTransition?'transition':orbit?'ambient':'still');
+    motionState(s,s.transition||s.zoomTransition||s.framingTransition?'transition':orbit?'ambient':'still');
     paint(s); s.frames++; s.dirty = false;s.lastPaint=time;
-    if (s.transition||s.zoomTransition) requestDraw(s);else scheduleAmbient(s);
+    if (s.transition||s.zoomTransition||s.framingTransition) requestDraw(s);else scheduleAmbient(s);
   }
   // A presentation can frame the same real globe as a horizon. The flight
   // origin uses this same geometry, so entering a city never jumps cameras.
-  function cameraFrame(s,w,h,zoom) {
+  function cameraFrame(s,w,h,zoom,framingMix) {
+    if(dispatchAtlas()){
+      var mix = framingMix == null ? s.framingMix : framingMix;
+      var globeY = h*(s.ambient?.5:.47), globeRadius = s.ambient?Math.min(w,h)*.40*zoom:Math.min(w*.455,h*.465);
+      return {cx:w*.5,cy:globeY+(h*.80-globeY)*mix,radius:globeRadius+(Math.min(w*.72,h*.78)*zoom-globeRadius)*mix};
+    }
     if(s.root.dataset.globeFraming==='horizon'&&s.root.dataset.globeLabels==='selected')return {cx:w*.5,cy:h*.80,radius:Math.min(w*.72,h*.78)*zoom};
     return {cx:w*.5,cy:h*(s.ambient?.5:.47),radius:s.ambient?Math.min(w,h)*.40*zoom:Math.min(w*.455,h*.465)};
   }
@@ -510,11 +550,11 @@
     if (!s || !s.ready || s.destroyed || s.failed || document.hidden || paused(s) || s.reduced.matches) {
       arrive(f,'instant'); return promise;
     }
-    var cameraAngle=s.angle.slice(),cameraZoom=s.zoom;
+    var cameraAngle=s.angle.slice(),cameraZoom=s.zoom,cameraFramingMix=s.framingMix;
     settle(s); // The globe and the immersive handoff never own simultaneous frame loops.
     try {
       var rect = s.stage.getBoundingClientRect(), visible = rect.bottom > 0 && rect.top < innerHeight && rect.right > 0 && rect.left < innerWidth;
-      var framing=cameraFrame(s,rect.width,rect.height,cameraZoom);
+      var framing=cameraFrame(s,rect.width,rect.height,cameraZoom,cameraFramingMix);
       f.origin = visible ? { x:rect.left+framing.cx,y:rect.top+framing.cy,radius:framing.radius }
         : { x:innerWidth*.5,y:innerHeight*.5,radius:Math.min(innerWidth,innerHeight)*.36 };
       f.angle = s.ambient?cameraAngle:[s.angle[0]+s.scroll,s.angle[1]+s.scroll*.4];
@@ -546,6 +586,9 @@
     var current = s ? { city:s.city, ready:s.ready, visible:s.visible, paused:paused(s), reducedMotion:s.reduced.matches, rafPending:!!s.raf, frames:s.frames, error:s.failed, dragging:!!s.dragging, angle:s.angle.slice(),ambient:s.ambient,ambientActive:s.motionState==='ambient',ambientPending:!!s.ambientTimer,saveData:!!(s.connection&&s.connection.saveData),zoom:s.zoom,zoomTarget:s.zoomTarget,zoomMin:1,zoomMax:1.25 } : { ready:false, visible:false, paused:false, reducedMotion:false, rafPending:false, frames:0 };
     current.flying = !!flight; current.flightCity = flight ? flight.city : null; current.flightCovered = !!(flight && flight.covered);
     current.flightRafPending = !!(flight && flight.raf); current.flightFrames = flight ? flight.frames : 0;
+    current.framing = s ? s.framing : null;
+    current.effectiveFraming = s ? s.fullView ? 'globe' : s.framing : null;
+    current.framingMix = s ? s.framingMix : 0; current.framingTransition = !!(s && s.framingTransition);
     return current;
   }
   function destroy() {
@@ -559,5 +602,5 @@
     s.root.style.removeProperty('--globe-label-width');
     instance = null;
   }
-  var api = global.BoomFlightGlobe = { mount:mount, selectCity:selectCity, flyTo:flyTo, cancelFlight:cancelFlight, setPaused:setPaused, setZoom:setZoom, destroy:destroy, state:state };
+  var api = global.BoomFlightGlobe = { mount:mount, selectCity:selectCity, flyTo:flyTo, cancelFlight:cancelFlight, setPaused:setPaused, setZoom:setZoom, setFraming:setFraming, destroy:destroy, state:state };
 })(window);

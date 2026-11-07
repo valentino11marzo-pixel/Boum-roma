@@ -132,8 +132,10 @@ try{
   await controls(page,'.europe-city-switch button,#visionSceneTabs button,#dispatchJourneyTicket a');await noOverflow(page);
   await page.evaluate(()=>{window.__dispatchNodes={ticket:document.getElementById('dispatchJourneyTicket'),form:document.getElementById('nextSearchForm'),media:document.getElementById('clubMedia'),atlas:document.getElementById('boomGlobeMount'),canvas:document.querySelector('.boom-flight-globe-canvas')};});
   const before=await page.locator('#visionScene').boundingBox(),reads=requests.catalogue;
+  if(process.env.BOOM_DISPATCH_CAPTURE_PREFIX)await page.locator('#directionClubTicket').screenshot({path:process.env.BOOM_DISPATCH_CAPTURE_PREFIX+'-'+width+'-rome-photo-layout.png'});
   await scene(page,'world');await settled(page);const world=await page.locator('#visionScene').boundingBox();
   assert.ok(Math.abs(world.height-before.height)<=2,'homes and geography share a stable stage: '+JSON.stringify({homes:before.height,world:world.height}));
+  if(process.env.BOOM_DISPATCH_CAPTURE_PREFIX)await page.locator('#directionClubTicket').screenshot({path:process.env.BOOM_DISPATCH_CAPTURE_PREFIX+'-'+width+'-rome-world-layout.png'});
   await controls(page,'#boomGlobeMount .boom-globe-caption>a');
   const header=await page.locator('#boomGlobeMount').evaluate(node=>({stage:node.querySelector('.boom-globe-stage').getBoundingClientRect().top,toolbar:node.querySelector('.panorama-globe-toolbar').getBoundingClientRect().bottom,landmark:node.querySelector('#europeCitySignature').getBoundingClientRect().bottom}));
   assert.ok(header.stage>=Math.max(header.toolbar,header.landmark)-1,'geography has reserved space below its landmark and Full view controls: '+JSON.stringify(header));
@@ -262,5 +264,108 @@ try{
   assert.equal(result.motions.length,0,'reduced motion never starts the new scene entrance');assert.equal(await summary(page,'City'),'Rome');assert.equal(await page.locator('#clubMedia').isVisible(),true);
   assert.equal(await page.evaluate(()=>BoomFlightNextMotion.state().rafPending),false,'the absent field starts no frame loop');await noOverflow(page);
  });
+
+ // Optics are a presentation of the same camera, not a new journey or canvas.
+ for(const width of [320,390,900,1440])await check('Dispatch optics and wayfinding '+width,width,async({page})=>{
+  await start(page,'&city=milan&need=application');await foreignOffer(page);
+  await page.locator('.dispatch-lenses').waitFor({state:'visible'});
+  await page.locator('.dispatch-lenses').scrollIntoViewIfNeeded();
+  await page.evaluate(()=>{window.__opticsNodes={canvas:document.querySelector('.boom-flight-globe-canvas'),form:document.getElementById('europeDeskForm'),pass:document.getElementById('europeServicePass')};});
+  await controls(page,'.dispatch-lenses button');
+  if(width===390)assert.ok((await page.locator('.boom-globe-stage').boundingBox()).height>=200,'phone desk geography retains its prior 200px readable canvas after the additional lens controls');
+  const beforeURL=page.url(),before=await page.evaluate(()=>BoomFlightGlobe.state());
+  assert.equal(before.framing,'horizon');
+  await page.locator('[data-panorama-zoom="in"]').click();await page.waitForFunction(()=>BoomFlightGlobe.state().zoom===BoomFlightGlobe.state().zoomTarget&&!BoomFlightGlobe.state().rafPending);
+  const zoom=await page.evaluate(()=>BoomFlightGlobe.state().zoom);
+  const horizon=await page.locator('.boom-flight-globe-canvas').evaluate(n=>n.toDataURL());
+  await page.locator('[data-dispatch-lens="globe"]').click();
+  await page.waitForFunction(()=>BoomFlightGlobe.state().framingMix===0&&!BoomFlightGlobe.state().rafPending);
+  assert.equal(await page.locator('[data-dispatch-lens="globe"]').getAttribute('aria-pressed'),'true');
+  assert.notEqual(await page.locator('.boom-flight-globe-canvas').evaluate(n=>n.toDataURL()),horizon,'the original renderer actually paints a different optical frame');
+  assert.equal(await page.evaluate(()=>BoomFlightGlobe.state().zoom),zoom,'lens preserves the original zoom');
+  assert.equal(page.url(),beforeURL,'lens changes neither URL nor customer preferences');
+  await page.locator('[data-dispatch-lens="horizon"]').click();await page.waitForFunction(()=>BoomFlightGlobe.state().framingMix===1&&!BoomFlightGlobe.state().rafPending);
+  await page.locator('[data-panorama-expand]').click();await page.locator('#panoramaGlobeDialog').waitFor({state:'visible'});
+  await page.waitForFunction(()=>{
+   const state=BoomFlightGlobe.state(),canvas=document.querySelector('.boom-flight-globe-canvas');
+   if(state.effectiveFraming!=='globe'||state.framingMix!==0||state.rafPending||!canvas.width||!canvas.height)return false;
+   // Resizing clears pixels before the original renderer's next frame. State
+   // alone does not prove the visitor can actually see a painted globe.
+   return canvas.getContext('2d').getImageData(Math.floor(canvas.width/2),Math.floor(canvas.height/2),1,1).data[3]>0;
+  });
+  assert.equal(await page.locator('.dispatch-lenses').isVisible(),false,'full view does not mislabel its whole globe as Horizon');
+  assert.equal(await page.evaluate(()=>BoomFlightGlobe.state().framing),'horizon','full view retains the chosen perspective');
+  if(process.env.BOOM_DISPATCH_CAPTURE_PREFIX)await page.screenshot({path:process.env.BOOM_DISPATCH_CAPTURE_PREFIX+'-'+width+'-fullview.png'});
+  await page.keyboard.press('Escape');await page.locator('#panoramaGlobeDialog').waitFor({state:'hidden'});
+  await page.waitForFunction(()=>BoomFlightGlobe.state().effectiveFraming==='horizon'&&BoomFlightGlobe.state().framingMix===1);
+  assert.equal(await page.evaluate(()=>Object.entries(__opticsNodes).every(([name,node])=>node===({canvas:document.querySelector('.boom-flight-globe-canvas'),form:document.getElementById('europeDeskForm'),pass:document.getElementById('europeServicePass')})[name])),true,'lens/full view preserve the original canvas, offer and form');
+  assert.equal(await page.evaluate(()=>BoomFlightGlobe.state().city),'milan');
+  assert.equal(await page.locator('#europeDeskPlanner [aria-pressed="true"]').getAttribute('data-europe-need'),'application');
+  if(process.env.BOOM_DISPATCH_CAPTURE_PREFIX){
+   await page.locator('#directionClubTicket').screenshot({path:process.env.BOOM_DISPATCH_CAPTURE_PREFIX+'-'+width+'-horizon.png'});
+   await page.locator('[data-dispatch-lens="globe"]').click();await page.waitForFunction(()=>!BoomFlightGlobe.state().rafPending);
+   await page.locator('#directionClubTicket').screenshot({path:process.env.BOOM_DISPATCH_CAPTURE_PREFIX+'-'+width+'-globe.png'});
+  }
+  await page.locator('.edition-flightline [data-flight-stop="homes"]').click();
+  await page.waitForFunction(()=>document.querySelector('.edition-flightline [data-flight-stop="homes"]').getAttribute('aria-current')==='location');
+  const foreign=await page.locator('#europeStoryCity').evaluate(node=>{const text=document.createRange();text.selectNodeContents(node);return {text:text.getBoundingClientRect().top,nav:document.querySelector('.next-nav').getBoundingClientRect().bottom,line:document.querySelector('.edition-flightline').getBoundingClientRect().toJSON()};});
+  assert.ok(foreign.line.top>=foreign.nav-.5&&foreign.text>=foreign.line.bottom+8,'foreign heading clears both measured bars: '+JSON.stringify(foreign));
+  if(process.env.BOOM_DISPATCH_CAPTURE_PREFIX)await page.screenshot({path:process.env.BOOM_DISPATCH_CAPTURE_PREFIX+'-'+width+'-service.png'});
+  await page.locator('.edition-flightline [data-flight-stop="departure"]').click();await city(page,'rome');
+  await page.locator('.edition-flightline [data-flight-stop="support"]').click();
+  await page.waitForFunction(()=>document.querySelector('.edition-flightline [data-flight-stop="support"]').getAttribute('aria-current')==='location');
+  const native=await page.locator('#nextServicesTitle').evaluate(node=>{const text=document.createRange();text.selectNodeContents(node);return {text:text.getBoundingClientRect().top,line:document.querySelector('.edition-flightline').getBoundingClientRect().toJSON()};});
+  assert.ok(native.text>=native.line.bottom+8,'Rome support text clears the actual sticky line: '+JSON.stringify(native));
+  await noOverflow(page);
+ });
+ await check('Dispatch optics motion: reversal and lifecycle keep the original finite clock',1440,async({page})=>{
+  await start(page,'&city=milan');await page.locator('.dispatch-lenses').scrollIntoViewIfNeeded();
+  await page.mouse.move(0,0);await page.locator('[data-dispatch-lens="horizon"]').hover();
+  await page.waitForFunction(()=>!BoomFlightGlobe.state().rafPending);
+  const trace=await page.evaluateHandle(()=>{const t={mix:[],raf:0};function sample(){const s=BoomFlightGlobe.state();t.mix.push({mix:s.framingMix,transition:s.framingTransition});t.raf=requestAnimationFrame(sample);}sample();return t;});
+  await page.locator('[data-dispatch-lens="globe"]').click();await page.waitForFunction(()=>{const s=BoomFlightGlobe.state();return s.framingTransition&&s.framingMix>0&&s.framingMix<1;});
+  const reversalStart=await page.evaluate(()=>BoomFlightGlobe.state());assert.equal(reversalStart.framingTransition,true,'reverse while the first optical movement is still in progress');
+  await page.locator('[data-dispatch-lens="horizon"]').click();await page.waitForFunction(()=>!BoomFlightGlobe.state().framingTransition&&BoomFlightGlobe.state().framingMix===1);
+  const frames=await trace.evaluate(t=>{cancelAnimationFrame(t.raf);return t.mix;});await trace.dispose();
+  assert.ok(frames.some(f=>f.transition&&f.mix>0&&f.mix<1),'pointer choice produces intermediate real camera frames');
+  const deltas=frames.slice(1).map((f,i)=>Math.abs(f.mix-frames[i].mix));assert.ok(Math.max(...deltas)<.5,'reversal continues from the current perspective without a full-frame jump');
+  await page.waitForFunction(()=>!BoomFlightGlobe.state().rafPending);
+  const settledFrames=await page.evaluate(()=>BoomFlightGlobe.state().frames);await page.waitForTimeout(160);
+  assert.equal(await page.evaluate(()=>BoomFlightGlobe.state().frames),settledFrames,'hovered settled optics has no perpetual clock');
+  if(process.env.BOOM_DISPATCH_CAPTURE_PREFIX){
+   await page.screenshot({path:process.env.BOOM_DISPATCH_CAPTURE_PREFIX+'-motion-settled.png'});
+   await page.locator('[data-dispatch-lens="globe"]').click();await page.waitForFunction(()=>BoomFlightGlobe.state().framingTransition);
+   await page.screenshot({path:process.env.BOOM_DISPATCH_CAPTURE_PREFIX+'-motion-arrival.png'});
+   await page.locator('[data-dispatch-lens="horizon"]').click();await page.waitForFunction(()=>!BoomFlightGlobe.state().framingTransition);
+  }
+  const press=page.locator('[data-dispatch-lens="globe"]'),pressBox=await press.boundingBox();
+  await page.mouse.move(pressBox.x+pressBox.width/2,pressBox.y+pressBox.height/2);await page.mouse.down();await page.waitForTimeout(160);
+  assert.notEqual(await press.evaluate(n=>getComputedStyle(n).transform),'none','enabled pointer control acknowledges a held press');
+  await page.mouse.move(0,0);await page.mouse.up();
+  await page.locator('[data-dispatch-lens="globe"]').click();await page.waitForFunction(()=>BoomFlightGlobe.state().framingTransition);
+  await page.locator('#clubCompany').scrollIntoViewIfNeeded();await page.waitForFunction(()=>!BoomFlightGlobe.state().visible);
+  assert.equal(await page.evaluate(()=>BoomFlightGlobe.state().framingTransition),false,'offscreen cancels and settles the finite lens');
+  assert.equal(await page.evaluate(()=>BoomFlightGlobe.state().rafPending||BoomFlightGlobe.state().ambientPending),false,'offscreen camera schedules no drawing');
+  await page.locator('.dispatch-lenses').scrollIntoViewIfNeeded();await page.locator('[data-dispatch-lens="horizon"]').click();await page.waitForFunction(()=>BoomFlightGlobe.state().framingTransition);
+  // Headless Chromium has no OS tab visibility; supply only that platform boundary.
+  await page.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,get:()=>true});document.dispatchEvent(new Event('visibilitychange'));});
+  assert.deepEqual(await page.evaluate(()=>{const s=BoomFlightGlobe.state();return [s.framingTransition,s.rafPending,s.ambientPending];}),[false,false,false],'hidden document owns no camera work');
+  await page.evaluate(()=>{delete document.hidden;document.dispatchEvent(new Event('visibilitychange'));});
+ },'no-preference');
+ await check('Dispatch optics and controls: keyboard, pause and reduced motion are immediate',390,async({page})=>{
+  await start(page,'&city=london');await page.locator('.dispatch-lenses').scrollIntoViewIfNeeded();
+  const globe=page.locator('[data-dispatch-lens="globe"]'),horizon=page.locator('[data-dispatch-lens="horizon"]');
+  await globe.focus();await page.keyboard.press('Enter');
+  assert.deepEqual(await page.evaluate(()=>{const s=BoomFlightGlobe.state();return [s.framingMix,s.framingTransition];}),[0,false],'keyboard selection is immediate');
+  const focusStyle=await globe.evaluate(n=>({outline:getComputedStyle(n).outlineStyle,transform:getComputedStyle(n).transform}));assert.equal(focusStyle.outline,'solid');assert.equal(focusStyle.transform,'none');
+  await page.locator('#nextMotionToggle').click();await horizon.click();
+  assert.deepEqual(await page.evaluate(()=>{const s=BoomFlightGlobe.state();return [s.framingMix,s.framingTransition];}),[1,false],'pause preserves a useful instant lens change');
+  await page.locator('#nextMotionToggle').click();await page.emulateMedia({reducedMotion:'reduce'});await globe.click();
+  assert.deepEqual(await page.evaluate(()=>{const s=BoomFlightGlobe.state();return [s.framingMix,s.framingTransition];}),[0,false],'reduced motion preserves the resulting state without travel');
+  await page.waitForFunction(()=>!BoomFlightGlobe.state().rafPending);
+  assert.equal(await page.evaluate(()=>BoomFlightGlobe.state().ambientPending),false);
+  const disabled=page.locator('[data-panorama-zoom="out"]');assert.equal(await disabled.isDisabled(),true);
+  assert.equal(await disabled.evaluate(n=>getComputedStyle(n).transform),'none','disabled utility never appears pressed');
+ },'no-preference');
 }finally{if(browser)await browser.close();await new Promise(resolve=>server.close(resolve));}
 console.log('\n  '+passed+' passed · '+failed+' failed');if(failed)process.exitCode=1;

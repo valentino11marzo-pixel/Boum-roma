@@ -273,3 +273,36 @@ body[data-direction="club"][data-edition="club"][data-experience="panorama"][dat
  & #europeDeskStory [data-europe-need] strong{font-size:21px}
  & #europeDeskStory .europe-service-price strong{font-size:40px}
 }}
+
+/* A press confirms the gesture; selection and availability remain native state.
+   The existing Panorama timing scale owns every control, including touch. */
+body[data-direction="club"][data-edition="club"][data-experience="panorama"][data-home-vision="dispatch"].europe-ready{
+ & :is(.edition-plan-link,.button.gold,#nextSearchForm .search-submit,#europeDeskStory #europeDeskContinue,.panorama-ticket-action){touch-action:manipulation;transition:background-color var(--p-fast) ease,color var(--p-fast) ease,transform var(--p-fast) var(--p-ease);transform-origin:center}
+ & :is(#visionSceneTabs button,.panorama-globe-tools button,.panorama-globe-toolbar button,.panorama-full-actions button,.club-media-controls button,.vision-need-options button,.next-view-switch button,.card-save,.detail-actions button,.photo-controls button,.europe-home-controls button,.balance-tools button,.balance-card-actions button){touch-action:manipulation;transition:background-color var(--p-fast) ease,color var(--p-fast) ease,border-color var(--p-fast) ease,transform var(--p-fast) var(--p-ease)}
+ & :is(#nextHero>.europe-city-switch button,#europeDeskStory [data-europe-need]){touch-action:manipulation;transition:background-color var(--p-fast) ease,color var(--p-fast) ease,transform var(--p-fast) var(--p-ease)}
+ & :is(.edition-plan-link,.button.gold,#nextSearchForm .search-submit,#europeDeskStory #europeDeskContinue):not(:disabled):not([aria-disabled="true"]):active:not(:focus-visible){background:#e6c100;color:#000;transform:scale(.985)}
+ & #services .panorama-ticket:active:not(:focus-visible) .panorama-ticket-action{background:#e6c100;color:#000;transform:scale(.985)}
+ & :is(#visionSceneTabs button,.panorama-globe-tools button,.panorama-globe-toolbar button,.panorama-full-actions button,.club-media-controls button,.vision-need-options button,.next-view-switch button,.card-save,.detail-actions button,.photo-controls button,.europe-home-controls button,.balance-tools button,.balance-card-actions button):not(:disabled):not([aria-disabled="true"]):active:not(:focus-visible){transform:scale(.97)}
+ & :is(#nextHero>.europe-city-switch button,#europeDeskStory [data-europe-need]):not(:disabled):not([aria-disabled="true"]):active:not(:focus-visible){transform:scale(.992)}
+ /* Inset rings stay visible inside the joined city, service and utility groups. */
+ & :is(#nextHero>.europe-city-switch button,#europeDeskStory [data-europe-need],#visionSceneTabs button,.panorama-globe-tools button):focus-visible{outline:2px solid #ffd700;outline-offset:-5px}
+ & :is(#nextHero>.europe-city-switch button,#europeDeskStory [data-europe-need])[aria-pressed="true"]:focus-visible{outline-color:#000}
+ & :is(.edition-plan-link,.button.gold,#nextSearchForm .search-submit,#europeDeskStory #europeDeskContinue,.panorama-ticket-action,#visionSceneTabs button,.panorama-globe-tools button,.panorama-globe-toolbar button,.panorama-full-actions button,.club-media-controls button,.vision-need-options button,.next-view-switch button,.card-save,.detail-actions button,.photo-controls button,.europe-home-controls button,.balance-tools button,.balance-card-actions button,#nextHero>.europe-city-switch button,#europeDeskStory [data-europe-need]):is(:disabled,[aria-disabled="true"],:focus-visible){transform:none;transition:none}
+ & #services .panorama-ticket:focus-visible .panorama-ticket-action{transform:none;transition:none}
+ & :is(button,[role="button"]):is(:disabled,[aria-disabled="true"]){cursor:not-allowed}
+}
+
+@media(hover:hover) and (pointer:fine){body[data-direction="club"][data-edition="club"][data-experience="panorama"][data-home-vision="dispatch"].europe-ready{
+ & :is(#visionSceneTabs button,.panorama-globe-tools button,.panorama-globe-toolbar button,.club-media-controls button,.vision-need-options button):not(:disabled):not([aria-disabled="true"]):not([aria-pressed="true"]):hover{background:#17180e;color:#ffd700;border-color:#a99b45}
+ & #europeDeskStory [data-europe-need]:not(:disabled):not([aria-disabled="true"]):not([aria-pressed="true"]):hover{background:#17180e;color:#ffd700}
+ & :is(#nextHero>.europe-city-switch button,#europeDeskStory [data-europe-need])[aria-pressed="true"]:hover{background:#ffe44a;color:#000}
+}}
+
+/* A paused page and reduced-motion preference share an immediate response.
+   Color and focus still confirm the action; spatial feedback never persists. */
+body[data-direction="club"][data-edition="club"][data-experience="panorama"][data-home-vision="dispatch"].europe-ready:is([data-panorama-motion-state="quiet"],[data-edition-motion="still"]){
+ & :is(.edition-plan-link,.button.gold,#nextSearchForm .search-submit,#europeDeskStory #europeDeskContinue,.panorama-ticket-action,#visionSceneTabs button,.panorama-globe-tools button,.panorama-globe-toolbar button,.panorama-full-actions button,.club-media-controls button,.vision-need-options button,.next-view-switch button,.card-save,.detail-actions button,.photo-controls button,.europe-home-controls button,.balance-tools button,.balance-card-actions button,#nextHero>.europe-city-switch button,#europeDeskStory [data-europe-need]){transform:none!important;transition:none!important}
+}
+@media(prefers-reduced-motion:reduce){body[data-direction="club"][data-edition="club"][data-experience="panorama"][data-home-vision="dispatch"].europe-ready{
+ & :is(.edition-plan-link,.button.gold,#nextSearchForm .search-submit,#europeDeskStory #europeDeskContinue,.panorama-ticket-action,#visionSceneTabs button,.panorama-globe-tools button,.panorama-globe-toolbar button,.panorama-full-actions button,.club-media-controls button,.vision-need-options button,.next-view-switch button,.card-save,.detail-actions button,.photo-controls button,.europe-home-controls button,.balance-tools button,.balance-card-actions button,#nextHero>.europe-city-switch button,#europeDeskStory [data-europe-need]){transform:none!important;transition:none!important}
+}}

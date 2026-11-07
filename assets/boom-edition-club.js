@@ -141,7 +141,10 @@
     // Presentation may move support before homes. The nearest passed physical
     // section owns the current chapter, regardless of the navigation's order.
     var nearest=-Infinity;
-    positions.forEach(function(top,index){if(top<innerHeight*.4&&top>=nearest&&(!foreign||index<2)){active=index;nearest=top;}});
+    var readingLine=document.body.dataset.homeVision==='dispatch'
+      ? document.querySelector('.next-nav').getBoundingClientRect().height+flightline.getBoundingClientRect().height+24
+      : innerHeight*.4;
+    positions.forEach(function(top,index){if(top<readingLine&&top>=nearest&&(!foreign||index<2)){active=index;nearest=top;}});
     flightline.querySelectorAll('[data-flight-stop]').forEach(function(link,index){if(index===active){if(!link.hasAttribute('aria-current'))link.setAttribute('aria-current','location');}else if(link.hasAttribute('aria-current'))link.removeAttribute('aria-current');});
     var nextProgress=String(allowed?progress:1);if(steps.style.getPropertyValue('--journey-progress')!==nextProgress)steps.style.setProperty('--journey-progress',nextProgress);
     if(document.body.dataset.editionMotion!==motionState)document.body.dataset.editionMotion=motionState;

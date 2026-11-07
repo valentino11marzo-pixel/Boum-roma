@@ -5095,6 +5095,11 @@ Il servizio estero e il form originale condividono un biglietto bianco; nome rea
 Solo Dispatch aggiunge il frammento nativo `#fare-<piano>` al collegamento del motore, dopo configurazione valida: il desk apre il servizio scelto, senza aprire automaticamente la cassa. Guasto dati conserva la porta ordinaria.
 Verifiche in `flightdispatchui`, `flightcityhandoff`, `flightpanoramaui` e `flightclubmotion`; regia in `design/dispatch-continuity.md`. `design/dispatch-launch-readiness.md` distingue la Preview noindex dai requisiti della futura home `/`.
 
+Flight Dispatch ottiche 07/11: Globe/Horizon cambia l'inquadratura del canvas originale con una transizione finita sullo stesso clock; città, zoom e brief restano. Full view mostra la sfera e al ritorno ripristina la lente scelta, senza URL o archivio aggiuntivo.
+`boom-dispatch-experience` misura testata/barra percorso per gli arrivi alle sezioni; il flightline originale resta visibile e il suo controller continua a possedere aria-current. Scorrimento del browser, nessun motore parallelo.
+Azioni, utility e selezioni condividono risposta alla pressione e focus; tastiera, pausa e reduced-motion conservano lo stato senza movimento spaziale. Nessun nuovo prezzo, invio, tracking o dipendenza.
+Verifica `flightdispatchui` (lenti, interruzione, originali conservati, arrivi e stati), con regressioni `flightpanoramaui`/`flightclubmotion`. Regia e limiti in `design/dispatch-optics.md`.
+
 Flight Lab 31/10: `/flight-lab` confronta Atlas, Residence e Club sulle stesse viste reali di `/flight-next?direction=…`, senza cambiare il sito pubblico.
 Le composizioni riusano catalogo, Solari, iframe Skyline, salvataggi e Apply; nessun secondo catalogo o nuovo handler di invio.
 Residence usa una foto realmente restituita dal catalogo pubblico (fallback a una casa pubblica non chiusa); Atlas sposta la stessa mappa nel primo schermo.
