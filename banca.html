@@ -116,9 +116,10 @@ input:focus, textarea:focus { border-color: rgba(212,175,55,.4); }
   </section>
 
   <!-- Coordinate per il bonifico: è quello che /casa mostra all'inquilino
-       accanto al bottone carta. Senza queste, il blocco bonifico non compare
-       affatto — mai un IBAN inventato. Collezione `payout`, non `settings`,
-       perché quella è leggibile da chiunque via API. -->
+       accanto al bottone carta. Senza questo documento /casa usa il conto di
+       Egidi Immobiliare (BOOM_RENT.DEFAULT_PAYOUT in js/rent-engine.js, dal
+       6/11/2026); l'importo chiesto è sempre la rata + €1,50. Collezione
+       `payout`, non `settings`, perché quella è leggibile da chiunque via API. -->
   <!-- Inquilino di prova: per guardare /casa con i propri occhi. Tutto ciò
        che crea porta demo:true e il contratto ha status:'demo', quindi
        journey, Gestore e Contabile lo ignorano (api/_demo.js). -->
@@ -305,10 +306,10 @@ input:focus, textarea:focus { border-color: rgba(212,175,55,.4); }
         poIban.value = v.iban || '';
         poBic.value = v.bic || '';
         poFeedback();
-        poState.textContent = 'Impostate — l\'inquilino vede il bonifico gratuito in /casa accanto al bottone carta.';
+        poState.textContent = 'Impostate — l\'inquilino le vede in /casa accanto al bottone carta, con la rata + €1,50 di commissione fissa.';
         poState.style.color = '#7bd88f';
       } else {
-        poState.textContent = 'Non impostate: in /casa il blocco bonifico NON compare. Inseriscile e salva.';
+        poState.textContent = 'Non impostate qui: /casa mostra il conto di Egidi Immobiliare S.r.l. su Banca Sella (IBAN …0580), con la rata + €1,50. Salva qui per usarne un altro.';
         poState.style.color = '#e8c06a';
       }
     } catch (e) {

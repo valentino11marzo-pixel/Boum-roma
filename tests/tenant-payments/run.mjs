@@ -299,6 +299,26 @@ await test('bank reference keeps the matching token and the actual deposit type'
   const bank=f.elements.get('bfx').innerHTML;assert.match(bank,/Actual configured beneficiary/);
   assert.match(bank,/BOOM-[A-Z0-9]{6} saldo deposito cauzionale 2026-09/);assert.doesNotMatch(bank,/canone 2026-09/);
 });
+await test('bank transfer asks for the instalment plus the fixed €1.50 fee, in the copied details too',async()=>{
+  const f=fixture();const copied=[];f.ctx.navigator.clipboard={writeText(v){copied.push(v);return Promise.resolve()}};
+  f.render([payment({amount:2000})],{payout:{iban:'IT54O0326803200052861450580',beneficiary:'EGIDI IMMOBILIARE S.R.L.'}});
+  assert.match(f.markup,/id="payMethodBank"[\s\S]*Fixed €1.50 fee/);assert.doesNotMatch(f.markup,/No BOOM fee/);
+  f.elements.get('payMethodBank').onclick();for(let i=0;i<10&&!f.elements.get('bfx').innerHTML;i++)await flush();
+  const bank=f.elements.get('bfx').innerHTML;
+  assert.match(bank,/Instalment<\/span><span class="bfv">€2,000/);assert.match(bank,/Transfer fee<\/span><span class="bfv">€1.50/);
+  assert.match(bank,/Amount to transfer<\/span><span class="bfv">€2,001.50<\/span><button class="bfc" type="button" data-copy="€2,001.50"/);
+  assert.match(bank,/fixed €1.50 fee/);
+  f.elements.get('bfx').onclick({target:element('bfAll')});await flush();
+  assert.match(copied[0],/IT54O0326803200052861450580/);assert.match(copied[0],/€2,001.50/);assert.doesNotMatch(copied[0],/€2,000\b(?!\.)/);
+  f.api.set({lang:'it'});f.api.render();f.elements.get('payMethodBank').onclick();for(let i=0;i<10&&!/1\.?001/.test(f.elements.get('bfx').innerHTML);i++)await flush();
+  assert.match(f.elements.get('bfx').innerHTML,/Importo da bonificare<\/span><span class="bfv">€2.001,50/);assert.match(f.markup,/Commissione fissa €1,50/);
+});
+await test('boot: no payout document means the company account; a failed read shows nothing',()=>{
+  const boot=inline.slice(inline.indexOf(marker));
+  const read=boot.match(/var qPayout=[\s\S]*?;\n/)?.[0]||'';
+  assert.match(read,/d&&d\.exists\)\?d\.data\(\):window\.BOOM_RENT\.DEFAULT_PAYOUT/);
+  assert.match(read,/\.catch\(function\(\)\{\}\)/);assert.doesNotMatch(read.slice(read.indexOf('.catch')),/DEFAULT_PAYOUT/);
+});
 await test('clipboard denial is honest and successful retry clears the prior error',async()=>{
   const f=fixture();f.ctx.navigator.clipboard={writeText(){return Promise.reject(new Error('denied'))}};
   f.render([payment()],{payout:{iban:'SYNTHETIC',beneficiary:'Configured'}});f.elements.get('payMethodBank').onclick();

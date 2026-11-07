@@ -18,6 +18,7 @@
 //   bankRequisitions/<id>          consent flows in progress (audit)
 
 import crypto from 'node:crypto';
+import RENT from '../../js/rent-engine.js';
 import { FS_BASE, getAdminToken, fsGet, fsPatch, fsList, logActivity } from '../homie/_lib.js';
 import { findByRef } from '../payments/_ref.js';
 
@@ -138,17 +139,21 @@ export function reconcile(tx, pendingPayments, tenantNameById) {
   // L'importo si verifica comunque: un codice giusto con la cifra sbagliata
   // (acconto, errore di digitazione) diventa un suggerimento, non un match —
   // segnare pagata una rata pagata a metà sarebbe peggio di non segnarla.
+  //
+  // L'importo giusto è la rata OPPURE la rata + €1,50 (la commissione fissa
+  // del bonifico, RENT.bankReceived — 6/11/2026): /casa chiede la seconda,
+  // chi la dimentica ha comunque pagato il canone.
   const byRef = findByRef(`${tx.description} ${tx.counterparty}`, pendingPayments);
   if (byRef) {
-    const exact = Math.abs((Number(byRef.amount) || 0) - tx.amount) <= 0.01;
-    return exact
-      ? { match: { paymentId: byRef.id, confidence: 'reference' }, suggestions: [] }
+    const hit = RENT.bankReceived(byRef.amount, tx.amount);
+    return hit
+      ? { match: { paymentId: byRef.id, confidence: 'reference', fee: hit.fee }, suggestions: [] }
       : { match: null, suggestions: [byRef.id] };
   }
 
   const booked = Date.parse(tx.bookingDate);
   const candidates = pendingPayments.filter(p => {
-    if (Math.abs((Number(p.amount) || 0) - tx.amount) > 0.01) return false;
+    if (!RENT.bankReceived(p.amount, tx.amount)) return false;
     const due = p.dueDate ? Date.parse(p.dueDate) : null;
     if (!due) return false;
     return booked >= due - 15 * 86400000 && booked <= due + 45 * 86400000;
@@ -161,10 +166,10 @@ export function reconcile(tx, pendingPayments, tenantNameById) {
   const tenantName = (tenantNameById[p.tenantId] || p.tenantName || '').toLowerCase();
   const nameHit = tenantName.split(/\s+/).some(tok => tok.length >= 4 && hay.includes(tok));
   const monthHit = p.month && (hay.includes(p.month) || hay.includes(monthNameIt(p.month)));
-  const amountUnique = pendingPayments.filter(q => Math.abs((Number(q.amount) || 0) - tx.amount) <= 0.01).length === 1;
+  const amountUnique = pendingPayments.filter(q => RENT.bankReceived(q.amount, tx.amount)).length === 1;
 
   if (nameHit || monthHit || amountUnique) {
-    return { match: { paymentId: p.id, confidence: nameHit ? 'name' : monthHit ? 'month' : 'unique-amount' }, suggestions: [] };
+    return { match: { paymentId: p.id, confidence: nameHit ? 'name' : monthHit ? 'month' : 'unique-amount', fee: RENT.bankReceived(p.amount, tx.amount).fee }, suggestions: [] };
   }
   return { match: null, suggestions: [p.id] };
 }
@@ -183,6 +188,8 @@ export async function applyMatch(txDoc, txData, paymentId, confidence, actor = '
     paidDate: txData.bookingDate,
     paidVia: 'bank',
     bankTxId: txDoc,
+    // Quanto è arrivato davvero: rata + €1,50 di commissione, o la rata sola.
+    paidAmountEur: Number(txData.amount) || null,
   });
   await fsPatch(`bankTransactions/${txDoc}`, {
     matchedPaymentId: paymentId,

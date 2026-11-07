@@ -9,9 +9,12 @@ function part(text, from, until) { const a=text.indexOf(from),b=text.indexOf(unt
 function fn(text,name) { const marker=new RegExp('    (?:async )?function '+name+'\\(');const a=text.search(marker);assert(a>=0,name);const tail=text.slice(a+5).search(/\n    (?:async )?function /);return text.slice(a,a+5+tail); }
 const browser = await (await loadChromium()).launch(launchOptions({headless:true}));
 let checks=0;
-async function fixture(text=source, now=null) {
+async function fixture(text=source, now=null, url=null) {
  const page=await browser.newPage({viewport:{width:390,height:900}});page.setDefaultTimeout(2500);
  if(now)await page.clock.setFixedTime(new Date(now));
+ // A tenant entering the portal is sent to /casa (6/11/2026); ?portal=1 keeps
+ // the support view here, which is what the identity scenario exercises.
+ if(url){await page.route('http://boom.test/**',r=>r.fulfill({contentType:'text/html',body:'<!doctype html><title>t</title>'}));await page.goto(url);}
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.setContent('<div id="loading"></div><div id="authScreen" class="hidden"><a id="authLoginLink"></a><div id="authError"></div><div id="authInfo"></div></div><div id="app"><div id="headerName"></div><div id="headerAvatar"></div><div id="headerRole"></div><div id="headerBadge"></div><nav id="nav"></nav><main id="main"></main></div><div id="modals"></div>');
  await page.addScriptTag({content:`
@@ -59,7 +62,7 @@ async function fixture(text=source, now=null) {
 }
 async function check(label,test){await test();checks++;console.log('PASS '+label);}
 async function identityScenario(text=source) {
- const h=await fixture(text),p=h.page;
+ const h=await fixture(text,null,'http://boom.test/portal?portal=1'),p=h.page;
  try{
   await p.evaluate(()=>testIO.login('A'));assert.equal(await p.evaluate(()=>S.profile.id),'A');
   await p.evaluate(()=>{S.page='contracts';startContractsListener();document.getElementById('main').innerHTML='<p>Private A</p>';document.getElementById('modals').innerHTML='<textarea>A draft</textarea>';});

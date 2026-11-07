@@ -355,13 +355,11 @@ The moment it's in, we begin: [QUANDO].`,
     {
       sc: 'enpay', fam: 'casa', bench: true,
       title: 'Come si paga il canone',
-      when: 'Primo mese e ogni volta che lo chiedono. L\'addebito automatico conviene a entrambi: nessuno se lo dimentica più.',
+      when: 'Primo mese e ogni volta che lo chiedono. Il bonifico a BOOM porta sempre €1,50 fissi (6/11/2026); l\'addebito automatico non si offre più ai nuovi.',
       sell: { service: null, anchor: 'il canone dimenticato e il sollecito imbarazzante' },
-      text: `Everything about your rent lives in one place — invoices, receipts, and the button to pay: ${SITE}/casa
+      text: `Everything about your rent lives in one place — receipts, documents, and the button to pay: ${SITE}/casa
 
-Card, if you want it done now. Bank transfer, free, with the reference already written for you. Or automatic debit: you authorise once and it collects itself before each due date.
-
-Want me to set the automatic one up? Then neither of us thinks about it again.`,
+Card, if you want it done now. Or bank transfer to our account, with a fixed €1.50 fee: the amount and the reference are already written for you there.`,
     },
     {
       sc: 'enfix', fam: 'casa', bench: true,
