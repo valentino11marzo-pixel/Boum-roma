@@ -5105,6 +5105,12 @@ Solo Dispatch conserva sempre il mondo in apertura: la stessa galleria Roma torn
 `boom-dispatch-departure` governa la composizione; `boom-dispatch-departure-services` dispone il selettore estero accanto all'unico pass offerta/form e i quattro biglietti Roma in due colonne, una su telefono. Importi, condizioni, rimborsi e invii restano dei motori originali.
 `flightdispatchui` e `flightpanoramaui` verificano il nuovo ordine, mondo persistente, foto nel capitolo, controllo dimensionale e originali conservati; le altre sei visioni mantengono le scene precedenti. Regia in `design/dispatch-departure-hall.md`.
 
+Flight Dispatch movimento 07/11: il selettore città conserva i sei pulsanti originali e aggiunge una sola cornice decorativa misurata; il cambio accettato da puntatore la porta al nuovo pulsante in220ms, dalla posizione corrente anche se interrotta. Testo selezionato giallo su nero durante tutto il tragitto.
+`boom-dispatch-motion` non seleziona città né modifica il brief: legge lo stato originale e assesta subito cornice su tastiera, history, pausa, reduced-motion, resize, fuori schermo, cambio vista e pagina nascosta. Nessun loop di animazione aggiunto.
+Il canvas Dispatch traccia in850ms il collegamento geografico Roma↔destinazione e un singolo anello di arrivo, sul clock e sulle coordinate originali; drag, zoom, lente, Full view e navigazione interrompono il tratto. Non rappresenta un volo o un orario.
+`boom-dispatch-motion.css` rifinisce le rotte vere dei pass e il taglio offerta/prossimo passo; al passaggio del puntatore si muove solo la freccia. Prezzi, condizioni, moduli e feedback originale del servizio restano dei loro controller.
+Copertura in `flightdispatchui`, regressioni `flightpanoramaui`/`flightclubmotion`, regia in `design/dispatch-motion.md`.
+
 Flight Lab 31/10: `/flight-lab` confronta Atlas, Residence e Club sulle stesse viste reali di `/flight-next?direction=…`, senza cambiare il sito pubblico.
 Le composizioni riusano catalogo, Solari, iframe Skyline, salvataggi e Apply; nessun secondo catalogo o nuovo handler di invio.
 Residence usa una foto realmente restituita dal catalogo pubblico (fallback a una casa pubblica non chiusa); Atlas sposta la stessa mappa nel primo schermo.

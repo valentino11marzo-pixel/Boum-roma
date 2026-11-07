@@ -71,7 +71,7 @@
       angle: [8, 43], target: [8, 43], scroll: 0, reduced: reduced, listeners: [], observers: [], destroyed: false,
       ambient: root.dataset.globeAmbient === 'true', ambientTimer: 0, ambientResumeAt: 0, ambientOrigin: null, ambientPhase: 0, ambientLast: 0,
       pointerWithin: false, focusWithin: false, connection: global.navigator && global.navigator.connection, motionState: '',
-      zoom: 1, zoomTarget: 1, zoomTransition: null, lastPaint: 0,
+      zoom: 1, zoomTarget: 1, zoomTransition: null, lastPaint: 0, routeTrace: null, pointerCity: '',
       framing: root.dataset.globeFraming === 'horizon' ? 'horizon' : 'globe',
       framingMix: root.dataset.globeFraming === 'horizon' && root.dataset.globeLabels === 'selected' ? 1 : 0,
       framingTarget: 0, framingTransition: null, fullView: root.dataset.globeLabels === 'all'
@@ -100,6 +100,16 @@
       // The owning city controller decides whether to accept the request. No private or form state here.
       global.dispatchEvent(new CustomEvent('boom-globe-city', { detail: { slug: button.dataset.globeCity } }));
     });
+    // Input intent lasts for this native click only. Europe's existing handler
+    // must commit the city before the geographic selection can acquire a trace.
+    listen(document, 'click', function (event) {
+      var control = event.target.closest('button[data-europe-city]');
+      s.pointerCity = dispatchAtlas() && event.detail > 0 && control ? control.dataset.europeCity : '';
+    }, true);
+    listen(document, 'click', function () { queueMicrotask(function () { s.pointerCity = ''; }); });
+    listen(document, 'keydown', function () { cancelRouteTrace(s); });
+    listen(global, 'popstate', function () { cancelRouteTrace(s); });
+    listen(global, 'boom:flight-view', function () { cancelRouteTrace(s); });
     // Direct manipulation changes only the camera. City buttons retain keyboard navigation.
     var drag=null;
     function endDrag(event){
@@ -117,6 +127,7 @@
     s.cancelDrag=function(){endDrag();};
     listen(s.canvas,'pointerdown',function(event){
       if(!s.ready || flight || paused(s) || event.button!==0 || drag)return;
+      cancelRouteTrace(s);
       s.transition=null;
       if(s.ambient){holdAmbient(s,1400);s.ambientOrigin=null;s.zoomTransition=null;s.zoomTarget=s.zoom;s.root.dispatchEvent(new CustomEvent('boom-globe-camera',{detail:{zoom:s.zoom,min:1,max:1.25}}));}
       s.dragActive=true;drag={id:event.pointerId,x:event.clientX,y:event.clientY,angle:s.angle.slice(),lastX:event.clientX,time:performance.now(),velocity:0,moved:false};
@@ -133,6 +144,7 @@
     listen(s.canvas,'pointerup',endDrag);listen(s.canvas,'pointercancel',endDrag);listen(s.canvas,'lostpointercapture',endDrag);
     listen(global,'pointerup',endDrag);
     listen(root.querySelector('.boom-globe-reset'),'click',function(event){
+      cancelRouteTrace(s);
       endDrag();s.target=orientation(s,s.city);
       if(s.ambient){holdAmbient(s,900);s.ambientOrigin=null;setZoom(1,{animate:event.detail>0});}
       if(canMove(s)&&(!s.ambient||event.detail>0))s.transition={from:s.angle.slice(),to:s.target.slice(),start:performance.now(),duration:650};
@@ -161,7 +173,7 @@
       s.framing = mode; s.fullView = full; changeFraming(s, false);
     });
     framingObserver.observe(root,{attributes:true,attributeFilter:['data-globe-framing','data-globe-labels']});s.observers.push(framingObserver);
-    if(s.connection&&s.connection.addEventListener)listen(s.connection,'change',function(){if(s.connection.saveData)stopAmbient(s);else scheduleAmbient(s);});
+    if(s.connection&&s.connection.addEventListener)listen(s.connection,'change',function(){if(s.connection.saveData){cancelRouteTrace(s);stopAmbient(s);}else scheduleAmbient(s);});
     s.pauseButton = document.getElementById('nextMotionToggle');
     if (s.pauseButton) {
       var pauseObserver = new MutationObserver(function () { syncMotion(s); });
@@ -224,10 +236,15 @@
   function paused(s) { return s.apiPaused || !!(s.pauseButton && s.pauseButton.getAttribute('aria-pressed') === 'true'); }
   function canMove(s) { return !paused(s) && !s.reduced.matches && !document.hidden && s.visible; }
   function motionState(s,value){if(s.motionState!==value){s.motionState=value;s.root.dataset.globeMotion=value;}}
+  function cancelRouteTrace(s) {
+    var active = !!s.routeTrace;
+    s.routeTrace = null; s.pointerCity = '';
+    if (active) requestDraw(s);
+  }
   function ambientAllowed(s){return s.ambient&&s.ready&&!s.destroyed&&!s.failed&&canMove(s)&&!flight&&!s.pointerWithin&&!s.focusWithin&&!s.dragActive&&!(s.connection&&s.connection.saveData);}
   function stopAmbient(s){
     clearTimeout(s.ambientTimer);s.ambientTimer=0;s.ambientLast=0;
-    if(!s.transition&&!s.zoomTransition&&!s.framingTransition){
+    if(!s.transition&&!s.zoomTransition&&!s.framingTransition&&!s.routeTrace){
       // A resize clears the canvas. Hover/focus must stop an orbit frame, never
       // cancel the one required repaint after moving the same canvas out of Full view.
       if(s.raf&&!s.dirty){cancelAnimationFrame(s.raf);s.raf=0;}motionState(s,'still');
@@ -235,7 +252,7 @@
   }
   function holdAmbient(s,delay){s.ambientResumeAt=performance.now()+delay;stopAmbient(s);}
   function scheduleAmbient(s){
-    if(!ambientAllowed(s)||s.ambientTimer||s.transition||s.zoomTransition||s.framingTransition)return;
+    if(!ambientAllowed(s)||s.ambientTimer||s.transition||s.zoomTransition||s.framingTransition||s.routeTrace)return;
     // A timeout arms one rAF at a maximum of 24 paints/second. There is no
     // hidden/offscreen polling, no per-frame layout read and no moving HTML label.
     var wait=Math.max(0,s.ambientResumeAt-performance.now(),1000/24-(performance.now()-s.lastPaint));
@@ -244,6 +261,7 @@
   function setZoom(value,options){
     var s=instance;options=options||{};
     if(!s||s.destroyed||!s.ambient||!Number.isFinite(value))return null;
+    cancelRouteTrace(s);
     var next=clamp(value,1,1.25);holdAmbient(s,900);s.zoomTarget=next;
     if(canMove(s)&&options.animate!==false&&Math.abs(next-s.zoom)>.001)s.zoomTransition={from:s.zoom,to:next,start:performance.now(),duration:260};
     else{s.zoom=next;s.zoomTransition=null;}
@@ -251,6 +269,7 @@
     requestDraw(s);return next;
   }
   function changeFraming(s, animate) {
+    cancelRouteTrace(s);
     var target = s.framing === 'horizon' && !s.fullView ? 1 : 0;
     holdAmbient(s,900); s.framingTarget = target;
     if (animate && canMove(s) && !flight && Math.abs(target-s.framingMix) > .001) {
@@ -268,6 +287,7 @@
     return value;
   }
   function settle(s) {
+    cancelRouteTrace(s);
     if(s.cancelDrag)s.cancelDrag();
     stopAmbient(s);
     if (s.raf) cancelAnimationFrame(s.raf);
@@ -284,10 +304,22 @@
     var s = instance;
     if (!s || s.destroyed || !allowed(slug)) return false;
     if (s.city === slug) return true;
+    var previous = s.city, trace = dispatchAtlas() && s.pointerCity === slug && document.body.dataset.europeCity === slug;
+    cancelRouteTrace(s);
     if(s.cancelDrag)s.cancelDrag();
     s.city = slug; updateButtons(s); s.target = orientation(s, slug);
     if(s.ambient){holdAmbient(s,900);s.ambientOrigin=null;}
-    if (s.ready && canMove(s)) s.transition = { from: s.angle.slice(), to: s.target.slice(), start: performance.now(), duration: 850 };
+    if (s.ready && canMove(s)) {
+      s.transition = { from: s.angle.slice(), to: s.target.slice(), start: performance.now(), duration: 850 };
+      if (trace && !flight && !(s.connection && s.connection.saveData)) {
+        // The already-present Rome connections describe geography, not a flight.
+        // Trace their real great-circle samples; returning Rome reverses that arc.
+        var route = slug === 'rome' ? previous : slug;
+        s.routeTrace = {from:slug === 'rome' ? previous : 'rome',city:slug,route:route,
+          points:slug === 'rome' ? s.data.routes[route].slice().reverse() : s.data.routes[route],
+          start:s.transition.start,duration:s.transition.duration,progress:0};
+      }
+    }
     else { s.transition = null; s.angle = s.target.slice(); }
     requestDraw(s); return true;
   }
@@ -341,7 +373,11 @@
       if(!canMove(s)){s.framingMix=s.framingTarget;s.framingTransition=null;}
       else{var fp=clamp((time-s.framingTransition.start)/s.framingTransition.duration,0,1),fe=1-Math.pow(1-fp,3);s.framingMix=s.framingTransition.from+(s.framingTransition.to-s.framingTransition.from)*fe;if(fp===1)s.framingTransition=null;}
     }
-    var orbit=ambientAllowed(s)&&!s.transition&&!s.zoomTransition&&!s.framingTransition&&time>=s.ambientResumeAt;
+    if(s.routeTrace){
+      if(!canMove(s))s.routeTrace=null;
+      else{s.routeTrace.progress=clamp((time-s.routeTrace.start)/s.routeTrace.duration,0,1);if(s.routeTrace.progress===1)s.routeTrace=null;}
+    }
+    var orbit=ambientAllowed(s)&&!s.transition&&!s.zoomTransition&&!s.framingTransition&&!s.routeTrace&&time>=s.ambientResumeAt;
     if(orbit){
       if(!s.ambientOrigin){s.ambientOrigin=s.angle.slice();s.ambientPhase=0;s.ambientLast=0;}
       if(s.ambientLast)s.ambientPhase+=Math.min(100,time-s.ambientLast)/1000*.045;
@@ -353,9 +389,9 @@
       s.scrollDirty = false;
       if (!s.ambient && canMove(s) && !s.dragging) { var rect = s.root.getBoundingClientRect(); s.scroll = clamp((innerHeight*.45-rect.top-rect.height*.5)/Math.max(1, innerHeight), -1, 1)*4; }
     }
-    motionState(s,s.transition||s.zoomTransition||s.framingTransition?'transition':orbit?'ambient':'still');
+    motionState(s,s.transition||s.zoomTransition||s.framingTransition||s.routeTrace?'transition':orbit?'ambient':'still');
     paint(s); s.frames++; s.dirty = false;s.lastPaint=time;
-    if (s.transition||s.zoomTransition||s.framingTransition) requestDraw(s);else scheduleAmbient(s);
+    if (s.transition||s.zoomTransition||s.framingTransition||s.routeTrace) requestDraw(s);else scheduleAmbient(s);
   }
   // A presentation can frame the same real globe as a horizon. The flight
   // origin uses this same geometry, so entering a city never jumps cameras.
@@ -383,10 +419,12 @@
     function project(point) {
       return [point[0]*east[0]+point[1]*east[1], -(point[0]*north[0]+point[1]*north[1]+point[2]*north[2]), point[0]*front[0]+point[1]*front[1]+point[2]*front[2]];
     }
-    function path(points, lift) {
-      var previous = null;
-      points.forEach(function (point, index) {
-        var p = project(point), altitude = lift ? 1 + Math.sin(index/(points.length-1)*Math.PI)*lift : 1;
+    function path(points, lift, progress) {
+      var previous = null, last = (points.length-1)*(progress == null ? 1 : progress);
+      for (var index = 0; index <= Math.ceil(last); index++) {
+        var at = Math.min(index,last), whole = Math.floor(at), fraction = at-whole, point = points[whole];
+        if(fraction){var next=points[whole+1];point=[point[0]+(next[0]-point[0])*fraction,point[1]+(next[1]-point[1])*fraction,point[2]+(next[2]-point[2])*fraction];}
+        var p = project(point), altitude = lift ? 1 + Math.sin(at/(points.length-1)*Math.PI)*lift : 1;
         var x = cx+p[0]*r*altitude, y = cy+p[1]*r*altitude;
         if (p[2] >= 0) {
           if (previous && previous.p[2] >= 0) ctx.lineTo(x, y);
@@ -396,7 +434,8 @@
           }
         } else if (previous && previous.p[2] >= 0) { var t = previous.p[2]/(previous.p[2]-p[2]); ctx.lineTo(previous.x+(x-previous.x)*t, previous.y+(y-previous.y)*t); }
         previous = { p:p, x:x, y:y };
-      });
+      }
+      return previous;
     }
     // The globe has no generated or guessed outlines: every coastline and land dot is Natural Earth.
     ctx.save();
@@ -441,11 +480,21 @@
     var rim = 'rgba(203,214,231,.4)';
     if (dispatch) { rim = ctx.createLinearGradient(cx-r*.7,cy-r*.7,cx+r*.7,cy+r*.7); rim.addColorStop(0,'rgba(241,232,203,.5)'); rim.addColorStop(.55,'rgba(220,208,162,.16)'); rim.addColorStop(1,'rgba(220,208,162,0)'); }
     ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.lineWidth=1;ctx.strokeStyle=rim;ctx.stroke();
+    var trace = dispatch && !view.flight ? s.routeTrace : null;
     if(s.data)Object.keys(s.data.routes).forEach(function(slug){
       ctx.save();ctx.beginPath();path(s.data.routes[slug],.12);ctx.lineWidth=slug===selectedCity?(dispatch?1.5:2):(dispatch?.65:.7);
       if(slug===selectedCity&&!dispatch){ctx.shadowColor='#ffd700';ctx.shadowBlur=12;}
-      ctx.strokeStyle=slug===selectedCity?'#ffd700':dispatch?'rgba(207,191,139,.16)':'rgba(207,191,139,.24)';ctx.stroke();ctx.restore();
+      ctx.strokeStyle=slug===selectedCity&&(!trace||trace.route!==slug)?'#ffd700':dispatch?'rgba(207,191,139,.16)':'rgba(207,191,139,.24)';ctx.stroke();ctx.restore();
     });
+    var arrival = trace ? clamp((trace.progress*trace.duration-600)/250,0,1) : 0;
+    if(trace){
+      var travel=clamp(trace.progress*trace.duration/600,0,1),drawn=1-Math.pow(1-travel,3);
+      ctx.save();ctx.beginPath();var head=path(trace.points,.12,drawn);
+      ctx.lineCap='round';ctx.lineWidth=1.5+.5*(1-arrival);
+      ctx.strokeStyle='rgba(255,215,0,'+(trace.city==='rome'?1-arrival:1)+')';ctx.stroke();
+      if(head&&head.p[2]>=0){ctx.beginPath();ctx.arc(head.x,head.y,3.2,0,Math.PI*2);ctx.fillStyle='rgba(255,246,216,'+(1-arrival)+')';ctx.fill();}
+      ctx.restore();
+    }
     if (!s.data || (!view.flight && !s.labelPositions)) return;
     CITIES.forEach(function (city) {
       var p = project(s.data.cities[city.slug].vector), selected = city.slug === selectedCity, label = s.labelPositions && s.labelPositions[city.slug];
@@ -457,6 +506,7 @@
         ctx.lineWidth = selected ? 1 : .65; ctx.strokeStyle = selected ? 'rgba(255,215,0,.72)' : 'rgba(214,212,199,.3)'; ctx.stroke();
       }
       if (selected) { ctx.beginPath(); ctx.arc(x,y,view.flight?13:8,0,Math.PI*2); ctx.lineWidth = 1; ctx.strokeStyle = dispatch ? 'rgba(255,215,0,.8)' : 'rgba(255,215,0,.55)'; ctx.stroke(); }
+      if(selected&&trace&&arrival>0){ctx.beginPath();ctx.arc(x,y,8+16*(1-Math.pow(1-arrival,3)),0,Math.PI*2);ctx.lineWidth=1.2;ctx.strokeStyle='rgba(255,215,0,'+(.7*(1-arrival))+')';ctx.stroke();}
       ctx.save(); ctx.beginPath(); ctx.arc(x,y,selected?3.5:dispatch?2.2:2.8,0,Math.PI*2); ctx.fillStyle = selected ? (dispatch ? '#fff6d8' : '#ffd700') : (dispatch ? '#b0a375' : '#c9b887');
       if (selected && !dispatch) { ctx.shadowColor = '#ffd700'; ctx.shadowBlur = 12; } ctx.fill(); ctx.restore();
       ctx.lineWidth = 1.2; ctx.strokeStyle = '#08090b'; ctx.stroke();
@@ -589,6 +639,8 @@
     current.framing = s ? s.framing : null;
     current.effectiveFraming = s ? s.fullView ? 'globe' : s.framing : null;
     current.framingMix = s ? s.framingMix : 0; current.framingTransition = !!(s && s.framingTransition);
+    current.routeTrace = !!(s && s.routeTrace); current.routeProgress = s && s.routeTrace ? s.routeTrace.progress : 1;
+    current.routeFrom = s && s.routeTrace ? s.routeTrace.from : null; current.routeCity = s && s.routeTrace ? s.routeTrace.city : null;
     return current;
   }
   function destroy() {

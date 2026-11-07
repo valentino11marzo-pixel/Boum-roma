@@ -111,6 +111,38 @@ async function finish(trace){
  assert.equal(result.active,0,'scene feedback is finite');assert.ok(result.maxConcurrent<=1,'rapid choices never stack scene entrances');
  assert.ok(result.motions.every(a=>a.end===220&&a.frames.every(frame=>!frame.transform)),'Dispatch feedback is the intended opacity-only 220ms transition');return result;
 }
+// The carrier is a decorative outline around native city controls. Observe its
+// real compositor frames; neither the browser animation nor its owner is mocked.
+const carrier=page=>page.locator('.dispatch-city-carrier');
+async function observeCarrier(page){return carrier(page).evaluateHandle(node=>{
+ const trace={node,seen:new Map(),positions:[],maxConcurrent:0,raf:0};
+ trace.sample=()=>{
+  const active=node.getAnimations().filter(animation=>animation.playState!=='finished'&&animation.playState!=='idle');
+  trace.maxConcurrent=Math.max(trace.maxConcurrent,active.length);
+  for(const animation of active)if(!trace.seen.has(animation))trace.seen.set(animation,animation.effect.getComputedTiming().endTime);
+  if(active.length){const box=node.getBoundingClientRect();trace.positions.push({x:box.x,y:box.y,width:box.width,height:box.height,transform:getComputedStyle(node).transform});}
+ };
+ function sample(){trace.sample();trace.raf=requestAnimationFrame(sample);}sample();return trace;
+});}
+async function carrierQuiet(page){
+ await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+ await page.waitForFunction(()=>document.querySelector('.dispatch-city-carrier').getAnimations().every(animation=>animation.playState!=='running'&&animation.playState!=='pending'));
+}
+async function carrierResult(page,trace){
+ await carrierQuiet(page);
+ const result=await trace.evaluate(value=>{value.sample();cancelAnimationFrame(value.raf);return {motions:[...value.seen].map(([animation,end])=>({state:animation.playState,end,frames:animation.effect.getKeyframes()})),positions:value.positions,maxConcurrent:value.maxConcurrent,active:value.node.getAnimations().filter(animation=>animation.playState==='running').length};});
+ await trace.dispose();
+ assert.equal(result.active,0,'city feedback finishes without a perpetual animation');
+ assert.ok(result.maxConcurrent<=1,'rapid city choices keep one carrier animation');
+ assert.ok(result.motions.every(motion=>motion.end===220&&motion.frames.every(frame=>frame.transform&&!['opacity','left','top','width','height'].some(key=>key in frame))),'the carrier animates only a finite220ms transform, leaving native colors and layout intact');
+ return result;
+}
+async function carrierAligned(page){
+ const geometry=await carrier(page).evaluate(node=>({carrier:node.getBoundingClientRect().toJSON(),selected:document.querySelector('.europe-city-switch [aria-pressed="true"]').getBoundingClientRect().toJSON(),background:getComputedStyle(node).backgroundColor,hidden:node.getAttribute('aria-hidden'),interactive:node.matches('button,a,input,[tabindex]')}));
+ for(const edge of ['left','top','width','height'])assert.ok(Math.abs(geometry.carrier[edge]-geometry.selected[edge])<=1,'the settled carrier matches the actual selected city '+edge+': '+JSON.stringify(geometry));
+ assert.equal(geometry.background,'rgba(0, 0, 0, 0)','the decorative outline never replaces the readable native selected color');
+ assert.equal(geometry.hidden,'true','the visual carrier adds no duplicate spoken destination');assert.equal(geometry.interactive,false,'the decorative carrier adds no tab stop or second control');
+}
 
 try{
  browser=await chromium.launch(await launchOptions());
@@ -393,6 +425,86 @@ try{
   assert.equal(await page.evaluate(()=>BoomFlightGlobe.state().ambientPending),false);
   const disabled=page.locator('[data-panorama-zoom="out"]');assert.equal(await disabled.isDisabled(),true);
   assert.equal(await disabled.evaluate(n=>getComputedStyle(n).transform),'none','disabled utility never appears pressed');
+ },'no-preference');
+ for(const width of [390,1440])await check('Dispatch carrier '+width+': painted selection and rapid reversal preserve the native journey',width,async({page,requests})=>{
+  await start(page);await carrier(page).waitFor({state:'visible'});await page.locator('.europe-city-switch').scrollIntoViewIfNeeded();await carrierAligned(page);
+  await page.evaluate(()=>{window.__carrierNodes={canvas:document.querySelector('.boom-flight-globe-canvas'),search:document.getElementById('nextSearchForm'),desk:document.getElementById('europeDeskForm'),offer:document.getElementById('europeServicePass')};});
+  const reads=requests.catalogue,initial=await carrier(page).boundingBox(),trace=await observeCarrier(page);
+  await city(page,'amsterdam');await begun(page,trace);
+  await page.waitForFunction(value=>value.positions.some(box=>Math.abs(box.x-value.positions[0].x)>1||Math.abs(box.y-value.positions[0].y)>1),trace);
+  await city(page,'madrid');const result=await carrierResult(page,trace);
+  assert.equal(result.motions.length,2,'both genuine pointer choices receive one finite carrier movement');
+  assert.equal(result.motions[0].state,'idle','a rapid reversal cancels the superseded movement');
+  assert.ok(result.positions.some(box=>Math.abs(box.x-initial.x)>1||Math.abs(box.y-initial.y)>1),'the browser actually paints travel away from the starting cell');
+  assert.ok(result.positions.some(box=>box.transform!=='none'),'the moving outline has a real intermediate compositor transform');
+  await carrierAligned(page);await foreignOffer(page);
+  assert.equal(new URL(page.url()).searchParams.get('city'),'madrid','the URL follows the native choice immediately');
+  assert.equal(await page.locator('.europe-city-switch [aria-pressed="true"]').getAttribute('data-europe-city'),'madrid');
+  const same=await observeCarrier(page),history=await page.evaluate(()=>history.length),sameURL=page.url();await city(page,'madrid');const repeated=await carrierResult(page,same);
+  assert.equal(repeated.motions.length,0,'reselecting the same destination does not invent movement');assert.equal(page.url(),sameURL,'the decoration does not change the native destination URL');assert.equal(await page.evaluate(()=>history.length),history+1,'the existing city controller owns its single history entry; the carrier adds none');
+  assert.equal(await page.evaluate(()=>Object.entries(__carrierNodes).every(([key,node])=>node===({canvas:document.querySelector('.boom-flight-globe-canvas'),search:document.getElementById('nextSearchForm'),desk:document.getElementById('europeDeskForm'),offer:document.getElementById('europeServicePass')})[key])),true,'the decoration replaces no original canvas, form or offer');
+  assert.equal(await page.locator('.dispatch-city-carrier').count(),1);assert.equal(await page.locator('.boom-flight-globe-canvas').count(),1);assert.equal(requests.catalogue,reads,'carrier motion fetches no second catalogue');await noOverflow(page);
+ },'no-preference');
+ await check('Dispatch carrier lifecycle: keyboard, pause, reduced motion, geometry and page state settle immediately',390,async({page})=>{
+  await start(page);await carrier(page).waitFor({state:'visible'});await page.locator('.europe-city-switch').scrollIntoViewIfNeeded();
+  let trace=await observeCarrier(page);await page.locator('.europe-city-switch [data-europe-city="amsterdam"]').focus();await page.keyboard.press('Enter');await page.waitForFunction(()=>document.body.dataset.europeCity==='amsterdam');
+  assert.equal((await carrierResult(page,trace)).motions.length,0,'keyboard selection has no pointer travel');await carrierAligned(page);
+  await page.locator('#nextMotionToggle').evaluate(node=>node.click());trace=await observeCarrier(page);await city(page,'madrid');assert.equal((await carrierResult(page,trace)).motions.length,0,'Pause preserves an immediate city choice');await carrierAligned(page);
+  await page.locator('#nextMotionToggle').evaluate(node=>node.click());await page.emulateMedia({reducedMotion:'reduce'});trace=await observeCarrier(page);await city(page,'london');assert.equal((await carrierResult(page,trace)).motions.length,0,'reduced motion preserves the native selected destination without travel');await carrierAligned(page);
+  await page.emulateMedia({reducedMotion:'no-preference'});
+  async function interrupted(slug,action,reason){const active=await observeCarrier(page);await city(page,slug);await begun(page,active);await action();const result=await carrierResult(page,active);assert.ok(result.motions.length&&result.motions.every(motion=>motion.state==='idle'),reason+' cancels the active carrier');}
+  await interrupted('milan',()=>page.keyboard.press('Escape'),'Keyboard input');await carrierAligned(page);
+  await interrupted('barcelona',()=>page.setViewportSize({width:320,height:1000}),'A responsive resize');await carrierAligned(page);await noOverflow(page);
+  await interrupted('london',()=>page.locator('#clubCompany').evaluate(node=>node.scrollIntoView({behavior:'instant'})),'Leaving the destination rail');
+  await page.locator('.europe-city-switch').scrollIntoViewIfNeeded();await carrierQuiet(page);await carrierAligned(page);
+  await interrupted('madrid',()=>page.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,get:()=>true});document.dispatchEvent(new Event('visibilitychange'));}),'A hidden document');
+  await page.evaluate(()=>{delete document.hidden;document.dispatchEvent(new Event('visibilitychange'));});await carrierQuiet(page);await carrierAligned(page);
+  await interrupted('rome',()=>page.locator('#nextSearchForm button[type="submit"]').evaluate(node=>node.click()),'The original catalogue transition');await page.locator('#nextApartments').waitFor({state:'visible'});
+  await page.locator('.next-nav .next-brand[data-view="home"]').click();await page.locator('.europe-city-switch').scrollIntoViewIfNeeded();await carrierQuiet(page);await carrierAligned(page);
+  await interrupted('milan',()=>page.goBack(),'Native Back');await carrierAligned(page);
+  await interrupted('amsterdam',()=>page.evaluate(()=>window.dispatchEvent(new PageTransitionEvent('pagehide'))),'Pagehide');
+  assert.equal(await page.locator('.dispatch-city-carrier').count(),1);assert.equal(await page.locator('#nextSearchForm').count(),1);assert.equal(await page.locator('#europeDeskForm').count(),1);
+ },'no-preference');
+ await check('Dispatch route trace: native pointer choices paint real geography on the original finite clock',1440,async({page})=>{
+  await start(page);assert.equal(await page.evaluate(()=>BoomFlightGlobe.state().routeTrace),false,'initial arrival has no invented route trace');
+  await page.evaluate(()=>{window.__routeNodes={canvas:document.querySelector('.boom-flight-globe-canvas'),search:document.getElementById('nextSearchForm'),desk:document.getElementById('europeDeskForm')};});
+  const camera=await page.evaluate(()=>BoomFlightGlobe.state());
+  await city(page,'madrid');await page.waitForFunction(()=>BoomFlightGlobe.state().routeTrace&&BoomFlightGlobe.state().routeCity==='madrid');
+  await page.locator('#boomGlobeMount').hover({position:{x:8,y:8}});
+  async function painted(){return page.locator('.boom-flight-globe-canvas').evaluate(node=>{const pixels=node.getContext('2d').getImageData(0,0,node.width,node.height).data;let hash=2166136261,ink=0;for(let i=0;i<pixels.length;i+=16){hash=Math.imul(hash^pixels[i],16777619)>>>0;if(pixels[i+3])ink++;}return {hash,ink,camera:BoomFlightGlobe.state()};});}
+  await page.waitForFunction(()=>{const state=BoomFlightGlobe.state();return state.routeTrace&&state.routeProgress>.17&&state.routeProgress<.7;});const travel=await painted();
+  assert.equal(travel.camera.routeFrom,'rome');assert.equal(travel.camera.routeCity,'madrid');assert.ok(travel.ink>0,'the existing geographic canvas contains actual painted pixels');
+  await page.waitForFunction(()=>{const state=BoomFlightGlobe.state();return state.routeTrace&&state.routeProgress>.73;});const arrival=await painted();
+  assert.ok(arrival.camera.frames>travel.camera.frames&&arrival.camera.routeProgress>travel.camera.routeProgress,'route and arrival phases progress on the original renderer frames');assert.notEqual(arrival.hash,travel.hash,'the finite geographic transition changes the actual canvas pixels');
+  await page.waitForFunction(()=>!BoomFlightGlobe.state().routeTrace&&!BoomFlightGlobe.state().rafPending);const settled=await painted();
+  assert.equal(settled.camera.routeFrom,null);assert.equal(settled.camera.routeCity,null);assert.equal(settled.camera.routeProgress,1,'the temporary route is released on arrival');
+  await page.waitForTimeout(160);assert.equal(await page.evaluate(()=>BoomFlightGlobe.state().frames),settled.camera.frames,'hovered arrival schedules no extra drawing loop');
+  assert.equal(settled.camera.zoom,camera.zoom);assert.equal(settled.camera.framing,camera.framing);assert.equal(new URL(page.url()).searchParams.get('city'),'madrid');await foreignOffer(page);
+  await city(page,'rome');await page.waitForFunction(()=>{const s=BoomFlightGlobe.state();return s.routeTrace&&s.routeFrom==='madrid'&&s.routeCity==='rome'&&s.routeProgress>.12;});
+  await city(page,'amsterdam');await page.waitForFunction(()=>{const s=BoomFlightGlobe.state();return s.routeTrace&&s.routeFrom==='rome'&&s.routeCity==='amsterdam';});
+  assert.equal(await page.locator('.boom-globe-flight').count(),0,'a real geographic connection does not invent a flight overlay');
+  await page.locator('#boomGlobeMount').hover({position:{x:8,y:8}});await page.waitForFunction(()=>!BoomFlightGlobe.state().routeTrace&&!BoomFlightGlobe.state().rafPending);
+  assert.equal(await page.evaluate(()=>Object.entries(__routeNodes).every(([key,node])=>node===({canvas:document.querySelector('.boom-flight-globe-canvas'),search:document.getElementById('nextSearchForm'),desk:document.getElementById('europeDeskForm')})[key])),true,'trace and reversal retain the original canvas and native forms');assert.equal(await page.locator('.boom-flight-globe-canvas').count(),1);
+ },'no-preference');
+ await check('Dispatch route lifecycle: non-pointer choices and interruptions remove only the temporary trace',1440,async({page})=>{
+  await start(page);await page.locator('.europe-city-switch').scrollIntoViewIfNeeded();
+  await page.locator('.europe-city-switch [data-europe-city="madrid"]').focus();await page.keyboard.press('Enter');assert.equal(await page.evaluate(()=>BoomFlightGlobe.state().routeTrace),false,'keyboard choice never starts a geographic trace');
+  await page.evaluate(()=>BoomFlightGlobe.selectCity('milan'));assert.equal(await page.evaluate(()=>BoomFlightGlobe.state().routeTrace),false,'the existing camera API is not mistaken for pointer intent');await page.evaluate(()=>BoomFlightGlobe.selectCity('madrid'));
+  await page.locator('#nextMotionToggle').evaluate(node=>node.click());await city(page,'london');assert.equal(await page.evaluate(()=>BoomFlightGlobe.state().routeTrace),false,'Pause preserves the new city without a route animation');
+  await page.locator('#nextMotionToggle').evaluate(node=>node.click());await page.emulateMedia({reducedMotion:'reduce'});await city(page,'milan');assert.equal(await page.evaluate(()=>BoomFlightGlobe.state().routeTrace),false,'reduced motion keeps the native city choice without the new graphic');await page.emulateMedia({reducedMotion:'no-preference'});
+  async function interrupted(slug,action,reason){await city(page,slug);await page.waitForFunction(()=>BoomFlightGlobe.state().routeTrace);await action();await page.waitForFunction(()=>!BoomFlightGlobe.state().routeTrace);assert.equal(await page.evaluate(()=>BoomFlightGlobe.state().routeCity),null,reason+' releases the temporary route');}
+  await interrupted('madrid',()=>page.keyboard.press('Escape'),'Keyboard input');
+  await interrupted('milan',()=>page.locator('[data-panorama-zoom="in"]').click(),'Original zoom');
+  await interrupted('madrid',()=>page.locator('[data-dispatch-lens="globe"]').click(),'Original lens selection');
+  await interrupted('milan',()=>page.locator('.boom-globe-reset').click(),'Original reset');
+  await interrupted('madrid',()=>page.locator('[data-panorama-expand]').click(),'Full view');await page.keyboard.press('Escape');await page.locator('#panoramaGlobeDialog').waitFor({state:'hidden'});
+  await interrupted('milan',async()=>{const point=await page.locator('.boom-flight-globe-canvas').evaluate(node=>{const box=node.getBoundingClientRect();return {x:box.left+15,y:box.top+20,exposed:document.elementFromPoint(box.left+15,box.top+20)===node};});assert.equal(point.exposed,true,'direct manipulation begins on exposed geography');await page.mouse.move(point.x,point.y);await page.mouse.down();await page.mouse.up();},'Direct manipulation');
+  await interrupted('madrid',()=>page.locator('#clubCompany').evaluate(node=>node.scrollIntoView({behavior:'instant'})),'Offscreen geography');await page.waitForFunction(()=>!BoomFlightGlobe.state().visible&&!BoomFlightGlobe.state().rafPending);await page.locator('.europe-city-switch').scrollIntoViewIfNeeded();
+  await interrupted('milan',()=>page.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,get:()=>true});document.dispatchEvent(new Event('visibilitychange'));}),'A hidden document');assert.equal(await page.evaluate(()=>BoomFlightGlobe.state().rafPending),false);await page.evaluate(()=>{delete document.hidden;document.dispatchEvent(new Event('visibilitychange'));});
+  await interrupted('madrid',()=>page.goBack(),'Native history');
+  await interrupted('rome',()=>page.locator('#nextSearchForm button[type="submit"]').evaluate(node=>node.click()),'The original catalogue transition');await page.locator('#nextApartments').waitFor({state:'visible'});await page.locator('.next-nav .next-brand[data-view="home"]').click();
+  await interrupted('milan',()=>page.evaluate(()=>window.dispatchEvent(new PageTransitionEvent('pagehide'))),'Pagehide');assert.equal(await page.evaluate(()=>BoomFlightGlobe.state().rafPending),false);
+  await page.addInitScript(()=>{const connection=new EventTarget();Object.defineProperty(connection,'saveData',{get:()=>true});Object.defineProperty(navigator,'connection',{configurable:true,get:()=>connection});});await start(page);await city(page,'madrid');assert.equal(await page.evaluate(()=>BoomFlightGlobe.state().routeTrace),false,'data saving does not add the decorative route');assert.equal(await page.evaluate(()=>BoomFlightGlobe.state().city),'madrid');assert.equal(await page.locator('.boom-flight-globe-canvas').count(),1);
  },'no-preference');
 }finally{if(browser)await browser.close();await new Promise(resolve=>server.close(resolve));}
 console.log('\n  '+passed+' passed · '+failed+' failed');if(failed)process.exitCode=1;
