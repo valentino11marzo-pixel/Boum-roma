@@ -276,12 +276,12 @@ async function nativeCatalogue(page,variant='panorama',vision=null){
 }
 const visions=['airframe','signal','orbit','dispatch','gate','connection','vector'];
 const refinedVisions=['dispatch','orbit','vector'];
-const visionDefaults={airframe:'homes',signal:'world',orbit:'world',dispatch:'homes',gate:'world',connection:'city',vector:'world'};
+const visionDefaults={airframe:'homes',signal:'world',orbit:'world',dispatch:'world',gate:'world',connection:'city',vector:'world'};
 async function startVision(page,vision,query=''){
  await start(page,'&vision='+vision+query);
  await page.waitForFunction(value=>document.body.dataset.homeVision===value,vision);
  assert.equal(new URL(page.url()).searchParams.get('variant'),null,'new visions do not inherit Terminal presentation');
- assert.equal(await page.locator('#visionScene').count(),1,'one scene owns the original media and geography');
+ assert.equal(await page.locator('#visionScene').count(),1,'one departure scene owns the original geography');
 }
 async function visionScene(page,scene){
  await page.locator('#visionSceneTabs button[data-vision-scene="'+scene+'"]').click();
@@ -307,30 +307,36 @@ try{
   assert.ok(field.rect.top<field.height&&field.rect.bottom>0,'the hidden-field assertion is made while the opening itself is onscreen');
   assert.equal(field.motion.running,false,'the removed Solari background field does not keep a hidden frame loop');
   assert.equal(await page.locator('body').getAttribute('data-vision-scene'),visionDefaults[vision],'each vision opens its intended subject');
-  await geometry(page,['#visionSceneTabs button','#nextSearchForm button[type="submit"]','#visionNeedChooser button']);
+  await geometry(page,[vision==='dispatch'?'.europe-city-switch button':'#visionSceneTabs button','#nextSearchForm button[type="submit"]','#visionNeedChooser button']);
   await plannerBounds(page);await typeQuality(page,'home');await primaryContrast(page,'#nextSearchForm button[type="submit"]');await romeTickets(page);
   await page.evaluate(()=>{window.__visionNodes={form:document.getElementById('nextSearchForm'),field:document.getElementById('nextMoveIn'),media:document.getElementById('clubMedia'),atlas:document.getElementById('boomGlobeMount'),canvas:document.querySelector('.boom-flight-globe-canvas')};});
   await fillRome(page);const before=page.url(),reads=catalogueReads();let photoAdvanced=false;
-  for(const scene of vision==='connection'?['city','homes','world','city','homes','world']:['homes','world','homes','world']){
-   await visionScene(page,scene);
+  for(const scene of vision==='dispatch'?['world']:vision==='connection'?['city','homes','world','city','homes','world']:['homes','world','homes','world']){
+   if(vision==='dispatch'){
+    assert.equal(await page.locator('#visionSceneTabs').count(),0,'Dispatch has no competing scene selector');
+    assert.equal(await page.locator('#visionScene #boomGlobeMount').isVisible(),true,'the original geography remains visible in the departure stage');
+    assert.equal(await page.locator('#clubHomes #clubMedia').isVisible(),true,'the original home photograph has its own Rome chapter');
+    assert.equal(await page.locator('#visionScene #clubMedia').count(),0,'the home evidence is outside the geography stage');
+   }else await visionScene(page,scene);
    assert.equal(await page.evaluate(()=>document.getElementById('nextSearchForm')===window.__visionNodes.form&&document.getElementById('nextMoveIn')===window.__visionNodes.field&&document.getElementById('clubMedia')===window.__visionNodes.media&&document.getElementById('boomGlobeMount')===window.__visionNodes.atlas&&document.querySelector('.boom-flight-globe-canvas')===window.__visionNodes.canvas),true,'changing scene moves no customer state and replaces no original node');
    assert.deepEqual(await page.locator('#nextMoveIn,#nextMoveOut,#nextBudget,#nextPeople').evaluateAll(nodes=>nodes.map(node=>node.value)),[arrival,departure,'1500','couple'],'changing scene preserves the live unsubmitted request');
    assert.equal(page.url(),before,'changing the visual scene does not commit a search or change history');
    await oneGlobe(page);
-   if(scene==='homes'){
-    const photo=page.locator('#visionScene #clubMedia img').first();await photo.waitFor({state:'visible'});await photo.evaluate(node=>node.decode());
+   if(scene==='homes'||vision==='dispatch'){
+    const photoScope=vision==='dispatch'?'#clubHomes #clubMedia':'#visionScene #clubMedia';
+    const photo=page.locator(photoScope+' img').first();await photo.waitFor({state:'visible'});if(vision==='dispatch')await photo.scrollIntoViewIfNeeded();await photo.evaluate(node=>node.decode());
     assert.equal(await photo.getAttribute('src'),'/panorama-photo.svg','the opening photograph comes from the actual public home fixture');
-    assert.match(await page.locator('#visionScene .club-media-name').innerText(),/Fixture Courtyard|Fixture Room/,'the image keeps the actual home identity beside it');
-    if(!photoAdvanced){await page.locator('#visionScene .club-media-rail').focus();await page.keyboard.press('ArrowRight');photoAdvanced=true;}
-    await page.waitForFunction(()=>document.querySelector('#visionScene .club-media-count')?.textContent==='02 / 02');
-    assert.equal(await page.locator('#visionScene .club-media-count').innerText(),'02 / 02','the original photograph controls and chosen frame survive scene switches');
+    assert.match(await page.locator(photoScope+' .club-media-name').innerText(),/Fixture Courtyard|Fixture Room/,'the image keeps the actual home identity beside it');
+    if(!photoAdvanced){await page.locator(photoScope+' .club-media-rail').focus();await page.keyboard.press('ArrowRight');photoAdvanced=true;}
+    await page.waitForFunction(selector=>document.querySelector(selector+' .club-media-count')?.textContent==='02 / 02',photoScope);
+    assert.equal(await page.locator(photoScope+' .club-media-count').innerText(),'02 / 02','the original photograph controls and chosen frame remain usable');
    }
   }
   if(refinedVisions.includes(vision)&&width===1440){
-   assert.deepEqual(await page.locator('#visionSceneTabs button').evaluateAll(nodes=>nodes.map(node=>({scene:node.dataset.visionScene,panel:node.getAttribute('aria-controls')}))),[{scene:'homes',panel:'clubMedia'},{scene:'world',panel:'boomGlobeMount'}],'scene controls identify the original panels they reveal');
+   if(vision!=='dispatch')assert.deepEqual(await page.locator('#visionSceneTabs button').evaluateAll(nodes=>nodes.map(node=>({scene:node.dataset.visionScene,panel:node.getAttribute('aria-controls')}))),[{scene:'homes',panel:'clubMedia'},{scene:'world',panel:'boomGlobeMount'}],'scene controls identify the original panels they reveal');
    const ticketList=page.locator('#services .panorama-ticketing');assert.equal(await ticketList.getAttribute('id'),'visionServiceTickets');
    assert.deepEqual(await page.locator('#visionNeedChooser button').evaluateAll(nodes=>nodes.map(node=>node.getAttribute('aria-controls'))),Array(4).fill('visionServiceTickets'),'support choices identify the same native ticket list');
-   for(const scene of ['homes','world']){
+   for(const scene of vision==='dispatch'?[]:['homes','world']){
     await page.locator('#visionSceneTabs button[data-vision-scene="'+scene+'"]').focus();await page.keyboard.press('Enter');
     await page.waitForFunction(value=>document.body.dataset.visionScene===value,scene);
     const panel=page.locator(scene==='homes'?'#clubMedia':'#boomGlobeMount');
@@ -374,7 +380,12 @@ try{
   assert.equal(new URL(page.url()).searchParams.get('vision'),vision,'the city change retains the selected vision');
   await page.locator('#europeServicePass .europe-service-price strong').waitFor();await geometry(page,['#europeDeskContinue']);
   await page.locator('.europe-city-switch [data-europe-city="rome"]').click();await page.waitForFunction(()=>document.body.dataset.europeCity==='rome');
-  await page.locator('#visionSceneTabs').waitFor({state:'visible'});await plannerBounds(page);await romeTickets(page);
+  if(vision==='dispatch'){
+   assert.equal(await page.locator('#visionSceneTabs').count(),0,'returning to Rome does not reintroduce a scene selector');
+   assert.equal(await page.locator('#clubHomes #clubMedia').isVisible(),true,'returning to Rome restores the original photograph chapter');
+   assert.equal(await page.locator('#clubHomes #clubMedia .club-media-count').innerText(),'02 / 02','the selected original photograph survives a foreign-city visit');
+  }else await page.locator('#visionSceneTabs').waitFor({state:'visible'});
+  await plannerBounds(page);await romeTickets(page);
   if(refinedVisions.includes(vision)&&width===1440){
    await page.locator('[data-europe-locate]').click();
    await page.waitForFunction(()=>{const map=document.getElementById('nextHomeMap').getBoundingClientRect(),nav=document.querySelector('.next-nav').getBoundingClientRect();return map.top>=Math.max(0,nav.bottom)-1&&map.bottom<=innerHeight+1;});

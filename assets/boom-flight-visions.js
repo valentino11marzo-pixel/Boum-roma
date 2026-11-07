@@ -29,14 +29,21 @@
   if(vision==='dispatch')byId('nextHeroTitle').appendChild(record);
 
   var scene=document.createElement('div');scene.id='visionScene';scene.className='vision-scene';
-  var tabs=document.createElement('div');tabs.id='visionSceneTabs';tabs.setAttribute('role','group');tabs.setAttribute('aria-label','Explore the homes or the destinations');
-  tabs.innerHTML='<button type="button" data-vision-scene="homes" aria-controls="clubMedia" aria-pressed="false">Inside a Rome home</button><button type="button" data-vision-scene="world" aria-controls="boomGlobeMount" aria-pressed="false">Explore the destinations</button>';
-  scene.appendChild(tabs);
+  var tabs=null;
+  if(vision!=='dispatch'){
+    tabs=document.createElement('div');tabs.id='visionSceneTabs';tabs.setAttribute('role','group');tabs.setAttribute('aria-label','Explore the homes or the destinations');
+    tabs.innerHTML='<button type="button" data-vision-scene="homes" aria-controls="clubMedia" aria-pressed="false">Inside a Rome home</button><button type="button" data-vision-scene="world" aria-controls="boomGlobeMount" aria-pressed="false">Explore the destinations</button>';
+    scene.appendChild(tabs);
+  }
   // Full view returns the same atlas to its original anchor, now in this scene.
   var anchor=document.querySelector('[data-panorama-anchor]');
   if(anchor)scene.appendChild(anchor);
-  scene.appendChild(atlas);scene.appendChild(media);ticket.appendChild(scene);
+  scene.appendChild(atlas);ticket.appendChild(scene);
   if(vision==='dispatch'){
+    // Geography owns the departure stage. The same catalogue-backed photo
+    // story returns to the Rome chapter, ahead of the existing home collection.
+    byId('clubHomes').appendChild(media);
+    ticket.after(document.querySelector('.europe-city-switch'));
     // One selected-service ticket contains the existing offer and original
     // brief. Selection, validation and checkout remain with their owners.
     var serviceTicket=document.createElement('div');serviceTicket.className='dispatch-service-ticket';
@@ -48,7 +55,7 @@
     var nextStep=servicePass.querySelector('.europe-service-facts>div:last-child');
     deskForm.querySelector('.edition-brief-head>p:last-child').textContent=servicePass.querySelector('.europe-service-price')?'Review the service, then choose paid support or request a free call.':'Open the city desk to check its current service and conditions.';
     if(nextStep&&nextStep.querySelector('dt').textContent==='Your next step')nextStep.remove();
-  }
+  }else scene.appendChild(media);
   var cityScene=null,guideEntry=null;
   if(vision==='connection'){
     cityScene=document.querySelector('#clubHomes .next-city-scene');
@@ -62,7 +69,7 @@
     byId('nextDiscovery').before(byId('nextBalance'));
   }
   if(vision==='gate')ticket.insertBefore(byId('services'),scene);
-  var romeScene=vision==='connection'&&cityScene?'city':['airframe','dispatch'].includes(vision)?'homes':'world',lastCity='';
+  var romeScene=vision==='connection'&&cityScene?'city':vision==='airframe'?'homes':'world',lastCity='';
   var reduce=matchMedia('(prefers-reduced-motion: reduce)'),transition=null,pointerCity='';
   function cancelTransition(){pointerCity='';if(transition){transition.cancel();transition=null;}}
   function motionAllowed(){return !reduce.matches&&!document.hidden&&byId('nextMotionToggle').getAttribute('aria-pressed')!=='true';}
@@ -76,11 +83,12 @@
   function showScene(value,animate){
     cancelTransition();
     var foreign=document.body.dataset.europeCity!=='rome';
-    if(foreign)value='world';
+    if(foreign||vision==='dispatch')value='world';
     document.body.dataset.visionScene=value;
-    atlas.hidden=value!=='world';media.hidden=value!=='homes';tabs.hidden=foreign;
+    atlas.hidden=value!=='world';media.hidden=vision==='dispatch'?foreign:value!=='homes';
+    if(tabs)tabs.hidden=foreign;
     if(cityScene)cityScene.hidden=value!=='city';
-    tabs.querySelectorAll('button').forEach(function(button){button.setAttribute('aria-pressed',String(button.dataset.visionScene===value));});
+    if(tabs)tabs.querySelectorAll('button').forEach(function(button){button.setAttribute('aria-pressed',String(button.dataset.visionScene===value));});
     syncMapScene();
     window.dispatchEvent(new Event('resize'));
     if(animate&&motionAllowed()){
@@ -90,7 +98,7 @@
       transition.onfinish=function(){transition=null;};
     }
   }
-  tabs.addEventListener('click',function(event){
+  if(tabs)tabs.addEventListener('click',function(event){
     var button=event.target.closest('button[data-vision-scene]');
     if(!button||button.getAttribute('aria-pressed')==='true')return;
     romeScene=button.dataset.visionScene;showScene(romeScene,event.detail>0);

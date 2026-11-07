@@ -5100,6 +5100,11 @@ Flight Dispatch ottiche 07/11: Globe/Horizon cambia l'inquadratura del canvas or
 Azioni, utility e selezioni condividono risposta alla pressione e focus; tastiera, pausa e reduced-motion conservano lo stato senza movimento spaziale. Nessun nuovo prezzo, invio, tracking o dipendenza.
 Verifica `flightdispatchui` (lenti, interruzione, originali conservati, arrivi e stati), con regressioni `flightpanoramaui`/`flightclubmotion`. Regia e limiti in `design/dispatch-optics.md`.
 
+Flight Dispatch sala partenze 07/11: il globo originale occupa un grande palco accanto a Solari e azione; le sei città passano alla fascia inferiore. Il riepilogo compilato segue la fascia, prima del planner originale.
+Solo Dispatch conserva sempre il mondo in apertura: la stessa galleria Roma torna in `#clubHomes`, prima della collezione, senza duplicare immagini, controller o dati; resta nascosta nelle città estere. Full view riporta lo stesso atlas al proprio anchor.
+`boom-dispatch-departure` governa la composizione; `boom-dispatch-departure-services` dispone il selettore estero accanto all'unico pass offerta/form e i quattro biglietti Roma in due colonne, una su telefono. Importi, condizioni, rimborsi e invii restano dei motori originali.
+`flightdispatchui` e `flightpanoramaui` verificano il nuovo ordine, mondo persistente, foto nel capitolo, controllo dimensionale e originali conservati; le altre sei visioni mantengono le scene precedenti. Regia in `design/dispatch-departure-hall.md`.
+
 Flight Lab 31/10: `/flight-lab` confronta Atlas, Residence e Club sulle stesse viste reali di `/flight-next?direction=…`, senza cambiare il sito pubblico.
 Le composizioni riusano catalogo, Solari, iframe Skyline, salvataggi e Apply; nessun secondo catalogo o nuovo handler di invio.
 Residence usa una foto realmente restituita dal catalogo pubblico (fallback a una casa pubblica non chiusa); Atlas sposta la stessa mappa nel primo schermo.

@@ -63,12 +63,12 @@ async function start(page,query=''){
  await ticket(page).waitFor({state:'attached'});
 }
 async function city(page,slug){await page.locator('.europe-city-switch [data-europe-city="'+slug+'"]').click();await page.waitForFunction(value=>document.body.dataset.europeCity===value,slug);}
-async function scene(page,value){await page.locator('#visionSceneTabs [data-vision-scene="'+value+'"]').click();await page.waitForFunction(scene=>document.body.dataset.visionScene===scene,value);}
 async function settled(page){await page.waitForFunction(()=>!['clubMedia','boomGlobeMount'].some(id=>document.getElementById(id).getAnimations().some(a=>a.playState==='running')));}
 async function boardFits(page,width){
  const rects=await page.locator('#nextHeroTitle').evaluate(node=>{const cells=[...node.querySelectorAll('#nextDestinationBoard .fc2')],promise=document.querySelector('#directionClubTicket .hero-promise');return {heading:node.getBoundingClientRect().toJSON(),first:cells[0].getBoundingClientRect().toJSON(),last:cells.at(-1).getBoundingClientRect().toJSON(),promise:promise.getBoundingClientRect().toJSON()};});
  assert.ok(rects.first.left>=rects.heading.left-.5&&rects.last.right<=rects.heading.right+.5,'every actual flap fits inside its heading: '+JSON.stringify(rects));
- if(width===1440)assert.ok(rects.last.right+16<=rects.promise.left,'the city and its supporting promise retain separate reading space: '+JSON.stringify(rects));
+ const overlapX=Math.min(rects.last.right,rects.promise.right)-Math.max(rects.first.left,rects.promise.left),overlapY=Math.min(rects.heading.bottom,rects.promise.bottom)-Math.max(rects.heading.top,rects.promise.top);
+ assert.ok(overlapX<=0||overlapY<=0,'the destination and its supporting promise retain separate reading space: '+JSON.stringify(rects));
 }
 async function noOverflow(page){const size=await page.evaluate(()=>({width:innerWidth,scroll:document.documentElement.scrollWidth}));assert.ok(size.scroll<=size.width+1,'no horizontal overflow: '+JSON.stringify(size));}
 async function controls(page,selector){
@@ -114,7 +114,7 @@ async function finish(trace){
 
 try{
  browser=await chromium.launch(await launchOptions());
- for(const width of [320,390,900,1440])await check('Dispatch '+width+': compact opening and stable original scene',width,async({page,requests})=>{
+ for(const width of [320,390,768,900,1440])await check('Dispatch '+width+': departure geography, six-city rail and original Rome evidence',width,async({page,requests})=>{
   await start(page);await page.evaluate(()=>document.fonts.ready);
   assert.equal(await ticket(page).isVisible(),false,'empty entry shows no duplicate plan ticket');
   assert.equal(await page.locator('.europe-city-switch [data-europe-city]').count(),6,'the destination directory has six real cities');
@@ -124,26 +124,46 @@ try{
   await boardFits(page,width);assert.equal(heading.text,'Rome');assert.equal(heading.weight,'300');assert.ok(heading.family.startsWith('"Helvetica Neue"'),'the established brand family remains');
   assert.ok(heading.box.width<=1&&heading.box.height<=1&&heading.position==='absolute','the duplicate city text remains accessible but is visually hidden');
   assert.equal(await page.locator('#nextHeroTitle .vision-departure-record').getAttribute('aria-hidden'),'true','mechanical letters do not duplicate the spoken heading');
-  assert.equal(await page.locator('body').getAttribute('data-vision-scene'),'homes','Rome still opens with a genuine home');
-  await page.locator('#clubMedia img').first().evaluate(node=>node.decode());assert.equal(await page.locator('#clubMedia img').first().getAttribute('src'),'/dispatch-photo.svg');
+  assert.equal(await page.locator('body').getAttribute('data-vision-scene'),'world','the original geography owns the departure stage in Rome too');
+  assert.equal(await page.locator('#visionSceneTabs').count(),0,'Dispatch has no competing photo/geography mode');
+  assert.equal(await page.locator('#clubHomes #clubMedia').isVisible(),true,'the original genuine home story is visible in the Rome homes chapter');
+  assert.equal(await page.locator('#visionScene #clubMedia').count(),0,'the home story does not overlap the departure stage');
+  await page.locator('#clubHomes #clubMedia').scrollIntoViewIfNeeded();await page.locator('#clubMedia img').first().evaluate(node=>node.decode());assert.equal(await page.locator('#clubMedia img').first().getAttribute('src'),'/dispatch-photo.svg');
   assert.equal(await page.locator('#boomGlobeMount').getAttribute('data-globe-framing'),'horizon','the original renderer owns the horizon');
   const order=await ticket(page).evaluate(node=>({tag:node.tagName,after:!!(document.getElementById('directionClubTicket').compareDocumentPosition(node)&Node.DOCUMENT_POSITION_FOLLOWING),before:!!(node.compareDocumentPosition(document.querySelector('.europe-planner'))&Node.DOCUMENT_POSITION_FOLLOWING),forms:node.querySelectorAll('form,input,select,button[type="submit"]').length}));
   assert.deepEqual(order,{tag:'ASIDE',after:true,before:true,forms:0},'the single semantic summary follows context and precedes the original planner');
-  await controls(page,'.europe-city-switch button,#visionSceneTabs button,#dispatchJourneyTicket a');await noOverflow(page);
+  await controls(page,'.europe-city-switch button,#dispatchJourneyTicket a');await noOverflow(page);
   await page.evaluate(()=>{window.__dispatchNodes={ticket:document.getElementById('dispatchJourneyTicket'),form:document.getElementById('nextSearchForm'),media:document.getElementById('clubMedia'),atlas:document.getElementById('boomGlobeMount'),canvas:document.querySelector('.boom-flight-globe-canvas')};});
   const before=await page.locator('#visionScene').boundingBox(),reads=requests.catalogue;
-  if(process.env.BOOM_DISPATCH_CAPTURE_PREFIX)await page.locator('#directionClubTicket').screenshot({path:process.env.BOOM_DISPATCH_CAPTURE_PREFIX+'-'+width+'-rome-photo-layout.png'});
-  await scene(page,'world');await settled(page);const world=await page.locator('#visionScene').boundingBox();
-  assert.ok(Math.abs(world.height-before.height)<=2,'homes and geography share a stable stage: '+JSON.stringify({homes:before.height,world:world.height}));
-  if(process.env.BOOM_DISPATCH_CAPTURE_PREFIX)await page.locator('#directionClubTicket').screenshot({path:process.env.BOOM_DISPATCH_CAPTURE_PREFIX+'-'+width+'-rome-world-layout.png'});
+  assert.ok(before.width>0&&before.height>=200,'the original geography has a useful departure stage: '+JSON.stringify(before));
+  const geography=await page.locator('.boom-globe-stage').boundingBox();
+  assert.ok(geography.height>(width>=900?350:200),'the actual canvas area retains the new departure proportions: '+JSON.stringify(geography));
+  const rail=await page.locator('.europe-city-switch').evaluate(node=>({box:node.getBoundingClientRect().toJSON(),buttons:[...node.querySelectorAll('[data-europe-city]')].map(n=>{const text=document.createRange();text.selectNodeContents(n.querySelector('span:last-child'));return {...n.getBoundingClientRect().toJSON(),name:text.getBoundingClientRect().toJSON()};}),hero:document.getElementById('directionClubTicket').getBoundingClientRect().toJSON()}));
+  assert.ok(rail.box.top>=rail.hero.bottom-1,'the six-city directory follows the departure stage');
+  assert.ok(rail.buttons.every(box=>box.left>=rail.box.left-1&&box.right<=rail.box.right+1),'every destination stays inside its rail');
+  assert.ok(rail.buttons.every(box=>box.name.left>=box.left-1&&box.name.right<=box.right+1),'every complete city name fits its actual destination target, including Amsterdam');
+  if(width===1440)assert.ok(rail.buttons.every(box=>Math.abs(box.top-rail.buttons[0].top)<1),'desktop presents the six cities in one horizontal rail');
+  await controls(page,'.dispatch-lenses button,.panorama-globe-tools button');
+  const console=await page.locator('#visionScene .panorama-globe-tools button').evaluateAll(nodes=>nodes.map(node=>node.getBoundingClientRect().toJSON()));
+  assert.ok(console.every(box=>Math.abs(box.top-console[0].top)<1),'zoom, reset and Pause remain one usable console row');
+  if(process.env.BOOM_DISPATCH_CAPTURE_PREFIX){
+   await page.locator('#nextHero').screenshot({path:process.env.BOOM_DISPATCH_CAPTURE_PREFIX+'-'+width+'-rome-departure.png'});
+   await page.locator('#clubHomes #clubMedia').screenshot({path:process.env.BOOM_DISPATCH_CAPTURE_PREFIX+'-'+width+'-rome-original-photo.png'});
+  }
   await controls(page,'#boomGlobeMount .boom-globe-caption>a');
   const header=await page.locator('#boomGlobeMount').evaluate(node=>({stage:node.querySelector('.boom-globe-stage').getBoundingClientRect().top,toolbar:node.querySelector('.panorama-globe-toolbar').getBoundingClientRect().bottom,landmark:node.querySelector('#europeCitySignature').getBoundingClientRect().bottom}));
   assert.ok(header.stage>=Math.max(header.toolbar,header.landmark)-1,'geography has reserved space below its landmark and Full view controls: '+JSON.stringify(header));
   await page.locator('[data-panorama-expand]').click();await page.locator('#panoramaGlobeDialog').waitFor({state:'visible'});
   await page.keyboard.press('Escape');await page.locator('#panoramaGlobeDialog').waitFor({state:'hidden'});
-  await scene(page,'homes');await city(page,'amsterdam');await page.locator('#visionSceneTabs').waitFor({state:'hidden'});await foreignOffer(page);assert.equal(await ticket(page).isVisible(),false,'city selection alone never invents a personal plan');assert.equal(await page.locator('#europeBriefSummary').isVisible(),false,'the native empty brief is compact too');await boardFits(page,width);await noOverflow(page);
+  await city(page,'amsterdam');await foreignOffer(page);assert.equal(await ticket(page).isVisible(),false,'city selection alone never invents a personal plan');assert.equal(await page.locator('#europeBriefSummary').isVisible(),false,'the native empty brief is compact too');await boardFits(page,width);await noOverflow(page);
+  assert.equal(await page.locator('body').getAttribute('data-vision-scene'),'world','long Amsterdam keeps the departure geography');
+  if(process.env.BOOM_DISPATCH_CAPTURE_PREFIX){
+   await page.locator('#nextHero').screenshot({path:process.env.BOOM_DISPATCH_CAPTURE_PREFIX+'-'+width+'-amsterdam-departure.png'});
+   await page.locator('#europeDeskStory').screenshot({path:process.env.BOOM_DISPATCH_CAPTURE_PREFIX+'-'+width+'-amsterdam-service.png'});
+  }
   assert.equal(await page.locator('#clubMedia').isVisible(),false,'foreign service does not imply Rome home inventory');
   await city(page,'rome');
+  assert.equal(await page.locator('#clubHomes #clubMedia').isVisible(),true,'returning to Rome restores the same genuine home evidence');
   assert.equal(await page.evaluate(()=>Object.entries(window.__dispatchNodes).every(([key,node])=>node===({ticket:document.getElementById('dispatchJourneyTicket'),form:document.getElementById('nextSearchForm'),media:document.getElementById('clubMedia'),atlas:document.getElementById('boomGlobeMount'),canvas:document.querySelector('.boom-flight-globe-canvas')})[key])),true,'scene, full view and city return retain every original node');
   assert.equal(requests.catalogue,reads,'the new presentation does not fetch another home catalogue');
   assert.equal(await page.evaluate(()=>BoomFlightNextMotion.state().fieldEnabled),false,'the hidden background field stays disabled');
@@ -228,24 +248,31 @@ try{
   await city(page,'rome');await serviceState(page,'unselected');assert.equal(await page.locator('#dispatchJourneyFee').isVisible(),false,'returning to Rome clears the confirmed foreign fee');
  });
  await check('Dispatch motion: rapid reversal, keyboard, pause and history keep one finite scene',1440,async({page})=>{
-  await start(page);let trace=await observe(page);await scene(page,'world');await begun(page,trace);await scene(page,'homes');let result=await finish(trace);
-  assert.equal(result.motions.length,2,'rapid reversal animates each genuine scene change');assert.equal(result.motions[0].state,'idle','the superseded entrance is cancelled');assert.equal(result.painted,true,'the actual scene pixels fade');
-  trace=await observe(page);await city(page,'london');await begun(page,trace);await city(page,'rome');result=await finish(trace);assert.equal(result.motions.length,2);assert.equal(result.motions[0].state,'idle');
-  trace=await observe(page);await scene(page,'world');await begun(page,trace);await page.keyboard.press('Escape');result=await finish(trace);assert.equal(result.motions[0].state,'idle','keyboard input cancels active pointer feedback');
-  trace=await observe(page);await page.locator('#visionSceneTabs [data-vision-scene="homes"]').focus();await page.keyboard.press('Enter');result=await finish(trace);assert.equal(result.motions.length,0,'keyboard selection stays immediate');
-  trace=await observe(page);await scene(page,'world');await begun(page,trace);await page.locator('#nextMotionToggle').evaluate(node=>node.click());result=await finish(trace);assert.equal(result.motions[0].state,'idle','the original Pause cancels active feedback');
-  trace=await observe(page);await scene(page,'homes');result=await finish(trace);assert.equal(result.motions.length,0,'paused scene controls remain usable without motion');
+  await start(page);let trace=await observe(page);await city(page,'london');await begun(page,trace);await city(page,'rome');let result=await finish(trace);
+  assert.equal(result.motions.length,2,'rapid city reversal animates each genuine destination change');assert.equal(result.motions[0].state,'idle','the superseded entrance is cancelled');assert.equal(result.painted,true,'the actual scene pixels fade');
+  trace=await observe(page);await city(page,'madrid');await begun(page,trace);await city(page,'amsterdam');result=await finish(trace);assert.equal(result.motions.length,2);assert.equal(result.motions[0].state,'idle');
+  trace=await observe(page);await city(page,'london');await begun(page,trace);await page.keyboard.press('Escape');result=await finish(trace);assert.equal(result.motions[0].state,'idle','keyboard input cancels active pointer feedback');
+  trace=await observe(page);await page.locator('.europe-city-switch [data-europe-city="rome"]').focus();await page.keyboard.press('Enter');await page.waitForFunction(()=>document.body.dataset.europeCity==='rome');result=await finish(trace);assert.equal(result.motions.length,0,'keyboard city selection stays immediate');
+  trace=await observe(page);await city(page,'london');await begun(page,trace);await page.locator('#nextMotionToggle').evaluate(node=>node.click());result=await finish(trace);assert.equal(result.motions[0].state,'idle','the original Pause cancels active feedback');
+  trace=await observe(page);await city(page,'rome');result=await finish(trace);assert.equal(result.motions.length,0,'paused destination controls remain usable without motion');
   await page.locator('#nextMotionToggle').evaluate(node=>node.click());await city(page,'london');await settled(page);
   trace=await observe(page);await city(page,'madrid');await begun(page,trace);await page.goBack();result=await finish(trace);assert.ok(result.motions.every(a=>a.state==='idle'),'Back cancels feedback without adding a history animation');
   assert.equal(await summary(page,'City'),'London');assert.equal(await page.locator('.boom-flight-globe-canvas').count(),1);
  },'no-preference');
  await check('Dispatch globe: multi-turn dragging returns by the shortest camera route',1440,async({page})=>{
-  await start(page);await scene(page,'world');await settled(page);
+  await start(page);await settled(page);
   const canvas=page.locator('.boom-flight-globe-canvas');await canvas.scrollIntoViewIfNeeded();
   async function turn(direction){
-   const box=await canvas.boundingBox(),distance=Math.min(600,box.width-60),left=box.x+30,right=left+distance,y=box.y+box.height*.7;
    const before=await page.evaluate(()=>BoomFlightGlobe.state().angle[0]);
-   for(let i=0;i<4;i++){await page.mouse.move(direction>0?right:left,y);await page.mouse.down();await page.mouse.move(direction>0?left:right,y,{steps:12});await page.waitForTimeout(110);await page.mouse.up();}
+   for(let i=0;i<4;i++){
+    // The larger horizon places genuine city buttons over some canvas pixels.
+    // Start each real drag on exposed geography, never on a destination button.
+    const points=await canvas.evaluate(node=>{const box=node.getBoundingClientRect(),left=box.left+30,right=left+Math.min(600,box.width-60);for(const ratio of [.7,.5,.85,.3,.15]){const y=box.top+box.height*ratio;if(document.elementFromPoint(left,y)===node&&document.elementFromPoint(right,y)===node)return {left,right,y};}return null;});
+    assert.ok(points,'the visible original canvas exposes a full native drag path');
+    const {left,right,y}=points;await page.mouse.move(direction>0?right:left,y);await page.mouse.down();await page.mouse.move(direction>0?left:right,y,{steps:12});
+    assert.equal(await page.evaluate(()=>BoomFlightGlobe.state().dragging),true,'the pointer actually drags the original geographic camera');
+    await page.waitForTimeout(110);await page.mouse.up();
+   }
    const after=await page.evaluate(()=>BoomFlightGlobe.state().angle[0]);assert.ok(Math.abs(after-before)>360,'actual native drag crosses a full turn: '+(after-before));
   }
   async function shortest(action){
@@ -259,9 +286,9 @@ try{
   await turn(-1);await shortest(()=>city(page,'london'));assert.equal(await page.evaluate(()=>BoomFlightGlobe.state().city),'london');
   assert.equal(await page.locator('.boom-flight-globe-canvas').count(),1);assert.equal(await page.evaluate(()=>BoomFlightGlobe.state().error),false);
  },'no-preference');
- await check('Dispatch reduced motion: cities and scenes update without extra animation',390,async({page})=>{
-  await start(page);const trace=await observe(page);await scene(page,'world');await city(page,'amsterdam');await foreignOffer(page);await city(page,'rome');await scene(page,'homes');const result=await finish(trace);
-  assert.equal(result.motions.length,0,'reduced motion never starts the new scene entrance');assert.equal(await summary(page,'City'),'Rome');assert.equal(await page.locator('#clubMedia').isVisible(),true);
+ await check('Dispatch reduced motion: destinations and original home evidence update without extra animation',390,async({page})=>{
+  await start(page);const trace=await observe(page);await city(page,'amsterdam');await foreignOffer(page);await city(page,'rome');const result=await finish(trace);
+  assert.equal(result.motions.length,0,'reduced motion never starts the new scene entrance');assert.equal(await summary(page,'City'),'Rome');assert.equal(await page.locator('#clubHomes #clubMedia').isVisible(),true);assert.equal(await page.locator('body').getAttribute('data-vision-scene'),'world');
   assert.equal(await page.evaluate(()=>BoomFlightNextMotion.state().rafPending),false,'the absent field starts no frame loop');await noOverflow(page);
  });
 
