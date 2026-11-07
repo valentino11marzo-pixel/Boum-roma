@@ -23,7 +23,7 @@ import { postinoStatus } from '../telegram/_postino.js';
 import { readPreparationMonitor } from './_monitor.js';
 import { callClaude, extractJson } from '../agent/_claude.js';
 import { replyLang } from '../_lang.js';
-import { isCityMarket, isReunion, cityLabel } from '../_market.js';
+import { isCityMarket, isReunion, cityLabel, isBuyingLead } from '../_market.js';
 import { loadConfig, busyBlocks, buildSlots, listingCtx } from '../viewings/_avail.js';
 import { CATALOG } from '../_catalog.js';
 import FACTS from '../../js/listing-facts.js';
@@ -317,6 +317,7 @@ export async function segretariaTurn({ cid, conv, lead, text, messageId, opening
 // A historical alias is not moved or merged by granting conversation ownership.
 function outsideRome(lead) {
   if (!lead) return null;
+  if (isBuyingLead(lead)) return 'acquisto: fattibilità, prezzo e incarico sono seguiti da Valentino';
   if (isCityMarket(lead)) return `mercato fuori Roma (${cityLabel(lead)}): la Segretaria parla solo di Roma`;
   if (isReunion(lead)) return 'mercato fuori Roma (La Réunion): la Segretaria parla solo di Roma';
   return null;

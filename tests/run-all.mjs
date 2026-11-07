@@ -10,6 +10,8 @@ import { spawn } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 
 const SUITES = [
+  {name:'buying',file:'tests/buying/run.mjs',what:'European purchase intake, total budget, retry, correct operator card, rental safeguards and static multilingual SEO'},
+  {name:'buyingui',file:'tests/buying/ui.mjs',what:'buying form in a real mobile/desktop browser: error, retry, one saved enquiry, languages, no-JS content'},
   {name:'externalcontract',file:'tests/external-contract/run.mjs',what:'firmato esterno nella stessa pratica: prove, concorrenza, recupero, CAF/RLI, ricevuta e archivi delle parti'},
   {name:'externalcontractmutations',file:'tests/external-contract/mutate.mjs',what:'rifiuta revisione stantia, bozza al CAF, ricevuta senza esito e riapertura Magic Sign'},
   {name:'externalcontractui',file:'tests/external-contract/ui.mjs',what:'controller reali nel browser a 390/1280: originale esterno → RLI/SPID → ricevuta → documenti'},
