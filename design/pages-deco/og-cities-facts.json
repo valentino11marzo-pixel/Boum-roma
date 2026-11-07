@@ -1,0 +1,119 @@
+{
+  "_": "written by design/pages-deco/genera-og-cities.py when it draws a card: what the card says and the sha256 of the PNG it drew. tests/cities/run.mjs compares it with --facts; never edit by hand.",
+  "amsterdam": {
+    "card": {
+      "label": "from",
+      "line": "We search, apply, attend the viewings and check the lease.",
+      "price": "€149",
+      "proof": "tenant side · flat fees · viewing attended · contract checked",
+      "side": "Amsterdam · tenant side",
+      "site": "BOOMROME.COM/AMSTERDAM",
+      "word": "AMSTERDAM"
+    },
+    "png": "4e733ad4aacd2e58ebc468eeb15c240f81933765e6c7a029eecd70f22cfd5b4f"
+  },
+  "barcelona": {
+    "card": {
+      "label": "optional · from",
+      "line": "We search, apply, attend the viewings and check the lease and the rent cap.",
+      "price": "€149",
+      "proof": "tenant side · flat fees · viewing attended · contract checked",
+      "side": "Barcelona · tenant side",
+      "site": "BOOMROME.COM/BARCELONA",
+      "word": "BARCELONA"
+    },
+    "png": "8e519cb735d54d3ecdf6f1dcd7236dca872c050d6dd195b769994076475cb98d"
+  },
+  "berlin": {
+    "card": {
+      "label": "from",
+      "line": "We search, apply, attend the viewings and check the lease.",
+      "price": "€149",
+      "proof": "tenant side · flat fees · viewing attended · contract checked",
+      "side": "Berlin · tenant side",
+      "site": "BOOMROME.COM/BERLIN",
+      "word": "BERLIN"
+    },
+    "png": "def55cc38e662e3af4bb988e5db4d60d2153200492fd529e16b5524d8d90f43f"
+  },
+  "desks": {
+    "card": {
+      "codes": [
+        "AMS",
+        "BCN",
+        "BER",
+        "LON",
+        "MAD",
+        "MIL",
+        "PAR",
+        "VLC"
+      ],
+      "line": "Three flat fares · paid by you, never by landlords",
+      "side": "desks · tenant side",
+      "site": "BOOMROME.COM/DESKS",
+      "title": "A rental agent on your side, in",
+      "word": "EUROPE"
+    },
+    "png": "a9b20ac6f0c9be17c7fa7f3779fc7789f734bec2100523f726f748e45966280d"
+  },
+  "london": {
+    "card": {
+      "label": "from",
+      "line": "We search, apply, attend the viewings and check the tenancy.",
+      "price": "£149",
+      "proof": "tenant side · flat fees · viewing attended · contract checked",
+      "side": "London · tenant side",
+      "site": "BOOMROME.COM/LONDON",
+      "word": "LONDON"
+    },
+    "png": "76905ccc392f6fdc619288833d64f716ddc27e683d4ea88fe492abd24af1b7cd"
+  },
+  "madrid": {
+    "card": {
+      "label": "optional · from",
+      "line": "We search, apply, attend the viewings and check the lease.",
+      "price": "€149",
+      "proof": "tenant side · flat fees · viewing attended · contract checked",
+      "side": "Madrid · tenant side",
+      "site": "BOOMROME.COM/MADRID",
+      "word": "MADRID"
+    },
+    "png": "6ea4353241f95ea104730ac2b06fa1a17e6a8cefea6f57b924eeac3f43462602"
+  },
+  "milan": {
+    "card": {
+      "label": "from",
+      "line": "We search, attend the viewings, check the Italian lease and explain it in English.",
+      "price": "€149",
+      "proof": "tenant side · flat fees · viewing attended · contract checked",
+      "side": "Milan · tenant side",
+      "site": "BOOMROME.COM/MILAN",
+      "word": "MILAN"
+    },
+    "png": "fd22ab7f3bb7753688be6fa9a676cd41b0f3d357dfb7f0a8e0ca04a68b3deed4"
+  },
+  "paris": {
+    "card": {
+      "label": "from",
+      "line": "We search, apply, attend the viewings and check the lease.",
+      "price": "€149",
+      "proof": "tenant side · flat fees · viewing attended · contract checked",
+      "side": "Paris · tenant side",
+      "site": "BOOMROME.COM/PARIS",
+      "word": "PARIS"
+    },
+    "png": "1e748b0b5c45053fe676d1aea6664049e60344fd305501edcec2e2d615694fcb"
+  },
+  "valencia": {
+    "card": {
+      "label": "optional · from",
+      "line": "We search, apply, attend the viewings and check the lease.",
+      "price": "€149",
+      "proof": "tenant side · flat fees · viewing attended · contract checked",
+      "side": "Valencia · tenant side",
+      "site": "BOOMROME.COM/VALENCIA",
+      "word": "VALENCIA"
+    },
+    "png": "2994b3935267aeccc1b801ff591b68d0425fccd9597c0f97c23da22c07589390"
+  }
+}

@@ -2216,6 +2216,43 @@ tplRefuses('<p class="proof">', '<p class="proof">Pay by bank transfer · ', /no
   const gen = read('design/pages-deco/genera-og-cities.py');
   check(!/\['nav'\]|\['glance'\]|\['machine'\]|h1Em/.test(gen), 'the card generator reads no key the JSON lost (it silently stopped running once: the cards kept promises the pages had dropped)');
   check(/'tenant side · flat fees · viewing attended · contract checked'/.test(gen) && /'tenant side · flat fees · your file open today'/.test(gen), 'the card\'s proof line follows the mode: a waitlist card never says "viewing attended"');
+
+  // a card says what the data says TODAY (07/11/2026): og-paris.png and
+  // og-berlin.png kept «AT SIGNING · FROM €149» after the two desks moved to
+  // the card at the order — the checks above saw a real 1200×630 PNG and
+  // nothing compared what it says with the data it was drawn from. The
+  // generator records what each card says next to the PNG's sha256
+  // (og-cities-facts.json); here it is asked what the cards should say now.
+  const PY = ['python3', 'python'].find((p) => spawnSync(p, ['--version'], { encoding: 'utf8' }).status === 0);
+  if (!PY) console.log('  \x1b[33m⊘\x1b[0m what the cards say: python3 is not on this machine — comparison skipped');
+  else {
+    const GEN = 'design/pages-deco/genera-og-cities.py';
+    const factsOf = (args, input) => {
+      const r = spawnSync(PY, ['-B', path.join(R, GEN), '--facts', ...args], { encoding: 'utf8', input });
+      if (r.status !== 0) throw new Error(`${GEN} --facts ${args.join(' ')}: ${r.stderr}`);
+      return JSON.parse(r.stdout);
+    };
+    const kept = JSON.parse(read('design/pages-deco/og-cities-facts.json'));
+    const now = factsOf([]);
+    const sha = (k) => crypto.createHash('sha256').update(fs.readFileSync(path.join(R, `og-${k}.png`))).digest('hex');
+    const redraw = (k) => `python3 ${GEN} ${k === 'desks' ? '--hub' : k}`;
+    const keys = [...SLUGS, 'desks'];
+    check(JSON.stringify(Object.keys(now).sort()) === JSON.stringify(keys.slice().sort()), `--facts covers the eight desk cards and the hub card (${Object.keys(now).length})`);
+    for (const k of keys) {
+      const rec = kept[k] || {};
+      const says = now[k] ? (now[k].price ? `"${now[k].label} ${now[k].price}" · "${now[k].line}"` : `${now[k].codes.join(' ')}`) : 'nothing';
+      check(rec.png === sha(k) && JSON.stringify(rec.card) === JSON.stringify(now[k]), `og-${k}.png says what the data says now: ${says}`,
+        rec.png !== sha(k) ? `the PNG is not the one the generator recorded — draw it again: ${redraw(k)}` : `the card was drawn saying ${JSON.stringify(rec.card)} — draw it again: ${redraw(k)}`);
+    }
+    // the guard bites on the defect that made it: Paris back at signing (or a
+    // new lead, or a new price) is no longer the card that was drawn
+    const back = clone(CITY.paris); back.chargeAt = 'signing';
+    const lead = clone(CITY.paris); lead.hero.lead = 'We find it. You sign it.';
+    const dear = clone(CITY.paris); dear.pricing.plans.forEach((p) => { p.price += 10; });
+    const m = factsOf(['--stdin'], JSON.stringify([back]));
+    check(m.paris.label === 'at signing · from' && [back, lead, dear].every((c) => JSON.stringify(factsOf(['--stdin'], JSON.stringify([c])).paris) !== JSON.stringify(kept.paris && kept.paris.card)),
+      'mutation: Paris back at signing, a new lead or new prices — the recorded card no longer matches and the guard asks for a new one');
+  }
 }
 
 // ── 10b · the companions: Terms §12, the withdrawal form, privacy, caching ──
@@ -2679,7 +2716,8 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
       `og-desks.png is a real 1200×630 PNG (${Math.round(png.length / 1024)} KB ≤ 120), its URL carries the content hash`);
     const gen = read('design/pages-deco/genera-og-cities.py');
     const keys = [...gen.matchAll(/hub\['(\w+)'\]\['(\w+)'\]/g)].map((m) => `${m[1]}.${m[2]}`);
-    check(/--hub/.test(gen) && keys.length && keys.every((k) => k.split('.').reduce((o, x) => (o == null ? undefined : o[x]), HUBJ) !== undefined) && /c\.get\('live'\) is True/.test(gen) && !/price/.test(gen.slice(gen.indexOf('def card_hub'), gen.indexOf('lavoro = []'))),
+    check(/--hub/.test(gen) && keys.length && keys.every((k) => k.split('.').reduce((o, x) => (o == null ? undefined : o[x]), HUBJ) !== undefined) && /c\.get\('live'\) is True/.test(gen)
+      && gen.indexOf('def facts_hub') > 0 && gen.indexOf('def load_cities') > gen.indexOf('def facts_hub') && !/price/.test(gen.slice(gen.indexOf('def facts_hub'), gen.indexOf('def load_cities'))),
       `the card generator (--hub) reads only _hub.json keys that exist (${keys.join(', ')}), the live codes, no price`);
   }
 

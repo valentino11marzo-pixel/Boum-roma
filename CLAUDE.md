@@ -4476,6 +4476,12 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
      - Aggiornati Termini §12 (6 novembre), privacy, `/withdrawal`, `llms.txt`, la skill `city-desk`.
      - La strada alla firma resta provata su desk di prova col registro patchato (`run.mjs` B1, `ui.mjs`
        §15 con Parigi E Berlino di prova, `signing.mjs`, `checkout.mjs`).
+     - Le card social (7/11): `og-paris.png` e `og-berlin.png` dicevano ancora «AT SIGNING · FROM €149»
+       dopo il flip. Il generatore legge `chargeAt`, ma nessuno l'aveva rilanciato, e nessun test
+       confrontava una card coi suoi dati. Ora `genera-og-cities.py` disegna ogni card dai suoi «fatti»
+       e li scrive in `design/pages-deco/og-cities-facts.json` con lo sha256 del PNG; `run.mjs` li
+       confronta con `--facts`. Se cambiano frase, prezzi, modo, paese o `chargeAt`, la card è rossa
+       finché non si ridisegna. Ridisegnate tutte e nove: sette sono uscite identiche byte per byte.
   3. **Rischi aperti** (del fondatore e dell'avvocato, dichiarati):
      - Parigi: pagamento prima dell'operazione conclusa (Hoguet art. 6, sanzioni art. 16) senza carte
        professionnelle.
@@ -4484,7 +4490,7 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
        né il «Confirmed» di Berlino, né il PDF dell'ordine. Il supporto durevole è l'email di conferma
        del webhook.
      - Le aperte O1–O19 del v1.8 restano, salvo quelle sulla firma.
-  Test: `run.mjs` 1333, `checkout.mjs` 123, `signing.mjs` 298, `upgrade` 71, `cityterms` 149,
+  Test: `run.mjs` 1346, `checkout.mjs` 123, `signing.mjs` 298, `upgrade` 71, `cityterms` 149,
   `withdraw` 124, `calendar` 128, `conservazione` 9; seo, llms, verità, crawl, faq verdi. Il log
   «[city-order] pdf failed: ERR_INVALID_ARG_TYPE» di `checkout.mjs` c'era già prima (strada alla firma,
   ambiente di test).
