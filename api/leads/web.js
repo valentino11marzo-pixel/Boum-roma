@@ -40,6 +40,7 @@
 import { fsCreate, logActivity } from '../homie/_lib.js';
 import { attributionFromReq } from '../_attribution.js';
 import { phoneE164 } from '../_market.js';
+import BUYING from '../../js/buying-engine.js';
 
 const HITS = new Map();
 const WINDOW_MS = 10 * 60 * 1000;
@@ -60,6 +61,12 @@ const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 // Un `form` sconosciuto non viene rifiutato (un modulo nuovo non deve
 // rompersi il giorno del deploy): diventa un contatto generico.
 export const FORMS = {
+  'buy-property-europe': {
+    intent: 'purchase_search', label: 'ACQUISTO EUROPA · richiesta di fattibilità', head: true,
+    market: 'europe-buying', leadType: 'buyer',
+    closed: { page_lang: { it: 'italiana', en: 'inglese' } },
+    language: { field: 'page_lang', fallback: 'en' },
+  },
   'contact':         { intent: 'contact',        label: 'Contatto' },
   'contract-check':  { intent: 'contract-check', label: 'Contract check gratuito' },
   'pre-arrival':     { intent: 'concierge',      label: 'Pre-arrivo / concierge' },
@@ -160,6 +167,9 @@ export default async function handler(req, res) {
   const reachable = EMAIL_RE.test(email) || phone.replace(/\D/g, '').length >= 6;
   if (!name || !reachable) return res.status(400).json({ ok: false, error: 'contact_required' });
 
+  const buying = formKey === 'buy-property-europe' ? BUYING.parse(body) : null;
+  if (buying && buying.error) return res.status(400).json({ ok: false, error: buying.error, field: buying.field });
+
   const message = buildMessage(formKey, body);
   // La lingua: null di regola (la decide replyLang dalle parole della
   // persona); il modulo che la conosce la legge da un campo CHIUSO.
@@ -216,6 +226,16 @@ export default async function handler(req, res) {
   if (f.market) lead.market = f.market;
   if (f.origin) lead.origin = f.origin;
   if (f.leadType) lead.leadType = f.leadType;
+  if (buying) {
+    const b = buying.value;
+    lead.buying = b;
+    lead.phone = b.phone;
+    // Purchase funds never enter the legacy monthly-rent budget field.
+    lead.budgetKind = b.budgetKind;
+    lead.service = 'BOOM Property Finding · Acquisto';
+    const context = `${b.city}, ${b.countryLabel} · ${b.budget === null ? 'budget da definire' : b.currency + ' ' + b.budget + ' complessivi'} · ${BUYING.needs[b.need][1]} · ${BUYING.purposes[b.purpose][1]} · ${BUYING.timelines[b.timeline][1]} · copertura e compensi da confermare`;
+    lead.message = lead.notes = `${f.label} — ${context}${message ? '. ' + message : ''}`;
+  }
 
   try {
     let id;

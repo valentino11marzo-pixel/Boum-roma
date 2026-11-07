@@ -18,7 +18,7 @@ import { fmtViewingCard, viewingKeyboard } from './_viewings.js';
 import { loadViewing } from '../viewings/_apply.js';
 import { replyLang } from '../_lang.js';
 import { pendingNewLeads } from '../leads/_fresh.js';
-import { isReunion, reunionReplyText, isB2B, b2bSide, b2bReplyText, isCityMarket, cityMarketOf, cityLabel, cityReplyText, cityPhone, originOf } from '../_market.js';
+import { isReunion, reunionReplyText, isB2B, b2bSide, b2bReplyText, isCityMarket, cityMarketOf, cityLabel, cityReplyText, cityPhone, originOf, isBuyingLead, buyingReplyText } from '../_market.js';
 
 const MAX_PER_RUN = 10; // cap so a backlog doesn't spam Telegram
 const esc = s => String(s || '').replace(/[&<>]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[c]));
@@ -191,7 +191,7 @@ export default async function handler(req, res) {
   // Lo stesso per un desk fuori Roma o la Réunion: il Commerciale non li
   // copre (si astiene), quindi il riepilogo mentirebbe e il tasto col
   // messaggio della SUA città andrebbe perso.
-  const ownCard = l => isB2B(l) || isCityMarket(l) || isReunion(l);
+  const ownCard = l => isB2B(l) || isCityMarket(l) || isReunion(l) || isBuyingLead(l);
   const ldFull = ldToNotify.filter(l => l.grade !== 'C' || ownCard(l));
   const ldLight = ldToNotify.filter(l => l.grade === 'C' && !ownCard(l));
   const ldResults = [];
@@ -199,7 +199,8 @@ export default async function handler(req, res) {
     try {
       // WhatsApp reads as a live thread, not as a source label — the operator
       // must see at a glance that someone is waiting on the other side.
-      const src = isReunion(l) ? '🇷🇪 La Réunion'
+      const src = isBuyingLead(l) ? 'Acquisto Europa · fattibilità'
+        : isReunion(l) ? '🇷🇪 La Réunion'
         : isCityMarket(l) ? cityLabel(l)
         : isB2B(l) ? (b2bSide(l) === 'owner' ? '🔑 proprietario' : '🏢 ente / azienda')
         // Un inquilino di Roma che arriva da İstanbul (/istanbul): la porta
@@ -249,7 +250,7 @@ export default async function handler(req, res) {
         // HR è la stessa figuraccia in un altro vestito.
         // Una città fuori Roma (/amsterdam): il messaggio inglese della SUA
         // pagina, mai il link /apartments di Roma (api/_market.js).
-        const msgTxt = isReunion(l) ? reunionReplyText(l) : isCityMarket(l) ? cityReplyText(l) : isB2B(l) ? b2bReplyText(l) : inThread
+        const msgTxt = isBuyingLead(l) ? buyingReplyText(l) : isReunion(l) ? reunionReplyText(l) : isCityMarket(l) ? cityReplyText(l) : isB2B(l) ? b2bReplyText(l) : inThread
           ? (en
             ? (`Hi${first ? ' ' + first : ''}, Valentino here 👋` +
                (title ? ` Here's everything on "${title}" — photos, video and details: ${link}` : ` ${link}`) +
@@ -278,7 +279,7 @@ export default async function handler(req, res) {
       // d'apertura) sul canale giusto: WhatsApp col numero, email senza.
       // Mai su un desk fuori Roma o sulla Réunion: la Segretaria parla di
       // case, visite e servizi di Roma (api/segretaria/_core.js lo rifiuta).
-      if ((l.phone || l.email) && !isCityMarket(l) && !isReunion(l)) buttons.push([{ text: '🤖 Passa alla Segretaria', callback_data: `sg:${l.id}` }]);
+      if ((l.phone || l.email) && !isCityMarket(l) && !isReunion(l) && !isBuyingLead(l)) buttons.push([{ text: '🤖 Passa alla Segretaria', callback_data: `sg:${l.id}` }]);
       const mid = await tgSend(chatId, bits.join('\n'), { reply_markup: { inline_keyboard: buttons } });
       await fsPatch(`leads/${l.id}`, { telegramNotifiedAt: new Date(), telegramMessageId: mid || null });
       ldResults.push({ id: l.id, ok: true });
