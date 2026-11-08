@@ -479,10 +479,12 @@
     ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.fillStyle = dispatch ? '#000' : '#08090b'; ctx.fill(); ctx.restore();
     ctx.save(); ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.clip();
     var globeFill = ctx.createRadialGradient(cx-r*.4, cy-r*.48, r*.1, cx+r*.18, cy+r*.15, r*1.25);
-    globeFill.addColorStop(0, dispatch ? '#25271f' : '#343b40'); globeFill.addColorStop(.42, dispatch ? '#11140f' : '#1a2025'); globeFill.addColorStop(.8, dispatch ? '#050705' : '#0a0e12'); globeFill.addColorStop(1, dispatch ? '#000' : '#020304');
+    // Dispatch is a lit graphite instrument: neutral silver geography lets
+    // the yellow destination carry the only chromatic signal on the sphere.
+    globeFill.addColorStop(0, dispatch ? '#424242' : '#343b40'); globeFill.addColorStop(.42, dispatch ? '#1c1c1c' : '#1a2025'); globeFill.addColorStop(.8, dispatch ? '#050505' : '#0a0e12'); globeFill.addColorStop(1, dispatch ? '#000' : '#020304');
     ctx.fillStyle = globeFill; ctx.fillRect(cx-r, cy-r, r*2, r*2);
     if (s.data) {
-      ctx.beginPath(); s.data.grid.forEach(function (points) { path(points, 0); }); ctx.lineWidth = .65; ctx.strokeStyle = dispatch ? 'rgba(231,226,203,.11)' : 'rgba(197,208,224,.13)'; ctx.stroke();
+      ctx.beginPath(); s.data.grid.forEach(function (points) { path(points, 0); }); ctx.lineWidth = dispatch ? .5 : .65; ctx.strokeStyle = dispatch ? 'rgba(236,236,234,.065)' : 'rgba(197,208,224,.13)'; ctx.stroke();
       if (dispatch) {
         // Project the same 3,700 geographic samples once, then batch their
         // light bands. Reuse the buffer: no extra frame loop or point objects.
@@ -492,10 +494,10 @@
           land[offset+3] = -1;
           if (p[2] <= .025) return;
           var light = -p[0]*.32-p[1]*.48+p[2]*.80;
-          land[offset] = cx+p[0]*r; land[offset+1] = cy+p[1]*r; land[offset+2] = (.45+p[2]*.32)*zoom;
+          land[offset] = cx+p[0]*r; land[offset+1] = cy+p[1]*r; land[offset+2] = (.36+p[2]*.25)*zoom;
           land[offset+3] = p[2] < .22 || light < .42 ? 0 : light < .72 ? 1 : 2;
         });
-        ['rgba(205,195,153,.26)','rgba(226,215,174,.53)','rgba(245,234,198,.82)'].forEach(function (color, band) {
+        ['rgba(206,206,204,.20)','rgba(232,232,229,.52)','rgba(250,250,247,.88)'].forEach(function (color, band) {
           ctx.beginPath();
           for (var offset = 0; offset < land.length; offset += 4) {
             if (land[offset+3] !== band) continue;
@@ -508,19 +510,19 @@
         s.data.dots.forEach(function (point) { var p = project(point); if (p[2] > .025) { var size = (.55 + p[2]*.19)*zoom; ctx.moveTo(cx+p[0]*r+size, cy+p[1]*r); ctx.arc(cx+p[0]*r, cy+p[1]*r, size, 0, Math.PI*2); } });
         ctx.fillStyle = 'rgba(236,219,173,.70)'; ctx.fill();
       }
-      ctx.beginPath(); s.data.rings.forEach(function (ring) { path(ring, 0); }); ctx.lineWidth = dispatch ? .7 : .8; ctx.strokeStyle = dispatch ? 'rgba(241,232,203,.58)' : 'rgba(224,220,201,.55)'; ctx.stroke();
+      ctx.beginPath(); s.data.rings.forEach(function (ring) { path(ring, 0); }); ctx.lineWidth = dispatch ? .65 : .8; ctx.strokeStyle = dispatch ? 'rgba(242,242,239,.68)' : 'rgba(224,220,201,.55)'; ctx.stroke();
     }
     var shade=ctx.createRadialGradient(cx-r*.38,cy-r*.36,r*.12,cx-r*.12,cy-r*.12,r*1.12);
     shade.addColorStop(0,'rgba(0,0,0,0)');shade.addColorStop(.65,'rgba(0,0,0,.08)');shade.addColorStop(1,'rgba(0,0,0,.88)');
     ctx.fillStyle=shade;ctx.fillRect(cx-r,cy-r,r*2,r*2);ctx.restore();
     var rim = 'rgba(203,214,231,.4)';
-    if (dispatch) { rim = ctx.createLinearGradient(cx-r*.7,cy-r*.7,cx+r*.7,cy+r*.7); rim.addColorStop(0,'rgba(241,232,203,.5)'); rim.addColorStop(.55,'rgba(220,208,162,.16)'); rim.addColorStop(1,'rgba(220,208,162,0)'); }
+    if (dispatch) { rim = ctx.createLinearGradient(cx-r*.7,cy-r*.7,cx+r*.7,cy+r*.7); rim.addColorStop(0,'rgba(250,250,247,.85)'); rim.addColorStop(.42,'rgba(222,222,219,.28)'); rim.addColorStop(1,'rgba(222,222,219,0)'); }
     ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.lineWidth=1;ctx.strokeStyle=rim;ctx.stroke();
     var trace = dispatch && !view.flight ? s.routeTrace : null;
     if(s.data)Object.keys(s.data.routes).forEach(function(slug){
       ctx.save();ctx.beginPath();path(s.data.routes[slug],.12);ctx.lineWidth=slug===selectedCity?(dispatch?1.5:2):(dispatch?.65:.7);
       if(slug===selectedCity&&!dispatch){ctx.shadowColor='#ffd700';ctx.shadowBlur=12;}
-      ctx.strokeStyle=slug===selectedCity&&(!trace||trace.route!==slug)?'#ffd700':dispatch?'rgba(207,191,139,.16)':'rgba(207,191,139,.24)';ctx.stroke();ctx.restore();
+      ctx.strokeStyle=slug===selectedCity&&(!trace||trace.route!==slug)?'#ffd700':dispatch?'rgba(218,218,214,.13)':'rgba(207,191,139,.24)';ctx.stroke();ctx.restore();
     });
     var arrival = trace ? clamp((trace.progress*trace.duration-600)/250,0,1) : 0;
     if(trace){
@@ -543,7 +545,7 @@
       }
       if (selected) { ctx.beginPath(); ctx.arc(x,y,view.flight?13:8,0,Math.PI*2); ctx.lineWidth = 1; ctx.strokeStyle = dispatch ? 'rgba(255,215,0,.8)' : 'rgba(255,215,0,.55)'; ctx.stroke(); }
       if(selected&&trace&&arrival>0){ctx.beginPath();ctx.arc(x,y,8+16*(1-Math.pow(1-arrival,3)),0,Math.PI*2);ctx.lineWidth=1.2;ctx.strokeStyle='rgba(255,215,0,'+(.7*(1-arrival))+')';ctx.stroke();}
-      ctx.save(); ctx.beginPath(); ctx.arc(x,y,selected?3.5:dispatch?2.2:2.8,0,Math.PI*2); ctx.fillStyle = selected ? (dispatch ? '#fff6d8' : '#ffd700') : (dispatch ? '#b0a375' : '#c9b887');
+      ctx.save(); ctx.beginPath(); ctx.arc(x,y,selected?3.5:dispatch?2.2:2.8,0,Math.PI*2); ctx.fillStyle = selected ? (dispatch ? '#fff4b3' : '#ffd700') : (dispatch ? '#b8b8b4' : '#c9b887');
       if (selected && !dispatch) { ctx.shadowColor = '#ffd700'; ctx.shadowBlur = 12; } ctx.fill(); ctx.restore();
       ctx.lineWidth = 1.2; ctx.strokeStyle = '#08090b'; ctx.stroke();
     });

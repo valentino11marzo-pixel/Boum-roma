@@ -1,14 +1,15 @@
 # One BOOM journey, several native surfaces
 
-7 November 2026. A launch system for the Dispatch direction. This records the
+Updated 8 November 2026. A launch system for the Dispatch direction. This records the
 implemented presentation contracts and the remaining production entry work;
 it does not declare the public root replaced.
 
 ## Visual contract
 
-The entrance uses a petrol midnight surface around the real globe. Black Solari
-flaps and BOOM yellow retain their established meaning. White is reserved for
-the service/decision ticket and the company chapter. Keep body copy readable;
+The entrance uses one black instrument within a porcelain architectural shell,
+with silver geography and a mechanical Solari bay. BOOM yellow identifies
+actions and actual selections. The pale perimeter leads into the white service/
+decision tickets and company chapter. Keep body copy readable;
 Helvetica Neue 300 carries destination and product headings, with stronger
 weights for actions and essential facts.
 
@@ -27,7 +28,7 @@ identity, public conditions and usable product demonstrations provide evidence.
 
 | Surface | Design treatment | Native source retained |
 | --- | --- | --- |
-| Dispatch entrance | Midnight background, earlier six-city directory, controlled Solari tour | flight-next.html; original Europe, Solari and globe controllers |
+| Dispatch entrance | Porcelain shell, black instrument, silver globe, native six-city directory and controlled Solari tour | flight-next.html; original Europe, Solari and globe controllers |
 | Rome collection and Skyline | Existing real catalogue, maps, saved homes and public plan | boom-flight-next-data/map; original listing and availability engines |
 | Rome home review | Paper decision ticket, legible costs, one state-aware next-step explanation | boom-flight-next.js; boom-club-journey.js |
 | Original listing and Apply | Existing aviation dossier and original application sheet | apartment-detail.html; boom-flight-detail.js/css; flight-detail.py generator |

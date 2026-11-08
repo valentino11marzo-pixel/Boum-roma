@@ -16,7 +16,7 @@ body[data-direction="club"][data-edition="club"][data-experience="panorama"][dat
     margin: 0;
     padding: 0;
     border: 1px solid #ffd700;
-    border-radius: 0;
+    border-radius: 4px;
     background: transparent;
     transform-origin: 0 0;
     pointer-events: none;

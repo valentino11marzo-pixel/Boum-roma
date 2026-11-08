@@ -59,7 +59,7 @@
   }
   function showPresentation() {
     var copies = [
-      [hero.querySelector('.hero-pretitle'), 'Explore our cities'],
+      [hero.querySelector('.hero-pretitle'), 'Where next?'],
       [hero.querySelector('.hero-promise'), genericHeading],
       [hero.querySelector('.panorama-route-city'), 'Explore our cities'],
       [hero.querySelector('.panorama-route-scope'), 'Homes in Rome · Rental support in Europe']

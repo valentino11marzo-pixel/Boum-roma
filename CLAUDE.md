@@ -5117,6 +5117,11 @@ Flight Dispatch città 07/11: un fondale petrolio unifica Solari e geografia; i 
 Nel dettaglio Roma il biglietto decisione diventa bianco e leggibile; la spiegazione della candidatura resta unica e conserva stato incerto/chiuso. Le città estere non mostrano il percorso Roma→chiavi; il footer include Contract Check e acquisti europei reali.
 `flightdispatchui` verifica scoperta iniziale, assenza di effetti sul brief, interruzioni e continuità; regressioni Panorama/motion e handoff originali. Regia in `design/dispatch-cities-presentation.md`, sistema e perimetro del lancio in `design/dispatch-launch-system.md`; `/` conserva il proprio proprietario e richiede ancora la verifica SEO prevista.
 
+Flight Dispatch strumento 08/11: il fondale petrolio lascia posto a una cornice porcellana attorno a un unico strumento nero; Solari in un vano meccanico, scelte città senza griglia chiusa e console geografica più quieta. La voce resta Helvetica Neue300.
+Solo Dispatch rende il globo argento/grafite, con giallo sulle rotte e destinazioni effettive; dati, proiezione, camera e clock restano originali. Una rivelazione finita800ms muove soltanto il palco geografico e rispetta quiete/reduced-motion.
+Il tour mantiene lo stato del cliente e tutti i suoi arresti; nel solo invito iniziale la domanda diventa «Where next?». Nodi, servizi, prezzi e porte originali restano unici.
+Regia in `design/dispatch-instrument.md`; verifiche dimensionali, tour e continuità nelle suite `flightdispatchui`, `flightpanoramaui` e motion originali. Lo switch della home pubblica resta separato.
+
 Flight Lab 31/10: `/flight-lab` confronta Atlas, Residence e Club sulle stesse viste reali di `/flight-next?direction=…`, senza cambiare il sito pubblico.
 Le composizioni riusano catalogo, Solari, iframe Skyline, salvataggi e Apply; nessun secondo catalogo o nuovo handler di invio.
 Residence usa una foto realmente restituita dal catalogo pubblico (fallback a una casa pubblica non chiusa); Atlas sposta la stessa mappa nel primo schermo.
