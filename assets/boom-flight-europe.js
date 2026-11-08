@@ -39,7 +39,7 @@
       if(slug==='rome') input.dispatchEvent(new Event('input',{bubbles:true}));
     });
   }
-  function editionURL(path){var u=new URL(path,location.origin),q=new URLSearchParams(location.search);if(['club','perspective'].includes(q.get('edition')))u.searchParams.set('edition',q.get('edition'));if(q.get('edition')==='club'&&q.get('experience')==='panorama'){u.searchParams.set('experience','panorama');if(['airframe','signal','orbit','dispatch','gate','connection','vector'].includes(q.get('vision'))){u.searchParams.set('vision',q.get('vision'));u.searchParams.delete('variant');}else{u.searchParams.delete('vision');if(q.get('variant')==='terminal')u.searchParams.set('variant','terminal');else u.searchParams.delete('variant');}}if(q.get('duo')==='1')u.searchParams.set('duo','1');return u.pathname+u.search+u.hash;}
+  function editionURL(path){var u=new URL(path,location.origin),q=new URLSearchParams(location.search);if(['club','perspective'].includes(q.get('edition')))u.searchParams.set('edition',q.get('edition'));if(q.get('edition')==='club'&&q.get('experience')==='panorama'){u.searchParams.set('experience','panorama');if(['airframe','signal','orbit','dispatch','gate','connection','vector'].includes(q.get('vision'))){u.searchParams.set('vision',q.get('vision'));u.searchParams.delete('variant');if(q.get('vision')==='dispatch'&&['open','atlas','concourse','instrument'].includes(q.get('composition')))u.searchParams.set('composition',q.get('composition'));else u.searchParams.delete('composition');}else{u.searchParams.delete('vision');if(q.get('variant')==='terminal')u.searchParams.set('variant','terminal');else u.searchParams.delete('variant');}}if(q.get('duo')==='1')u.searchParams.set('duo','1');return u.pathname+u.search+u.hash;}
   function canonicalHome(slug) { return editionURL('/flight-next?direction=club&city='+slug); }
   function cleanQuery(params) {
     Array.from(params.keys()).forEach(function(key){
@@ -102,7 +102,9 @@
     if(dispatch) {
       var heading=host.closest('h1'),letters=(host.getAttribute('aria-label')||places[city].name).length;
       if(heading&&heading.clientWidth>0) {
-        var available=heading.clientWidth-8-3*(letters-1);
+        // A wide departure heading may place the board in only one column.
+        // Fit the original flaps to their real bay, not the whole heading.
+        var bay=host.parentElement,available=Math.min(heading.clientWidth,bay.clientWidth||heading.clientWidth)-8-3*(letters-1);
         host.style.setProperty('--europe-board-size',Math.max(0,available/(.91*letters-.07))+'px');
       }
       return;

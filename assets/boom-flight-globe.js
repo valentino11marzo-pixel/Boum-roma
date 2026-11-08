@@ -435,7 +435,11 @@
     if(dispatchAtlas()){
       var mix = framingMix == null ? s.framingMix : framingMix;
       var globeY = h*(s.ambient?.5:.47), globeRadius = s.ambient?Math.min(w,h)*.40*zoom:Math.min(w*.455,h*.465);
-      return {cx:w*.5,cy:globeY+(h*.80-globeY)*mix,radius:globeRadius+(Math.min(w*.72,h*.78)*zoom-globeRadius)*mix};
+      // Atlas gives the same geography a wide aperture. Draw, city targets and
+      // flight origins share this projection; Full view keeps the whole sphere.
+      var wideAtlas=document.body.dataset.dispatchComposition==='atlas'&&!s.fullView&&w>h*2;
+      var horizonY=h*(wideAtlas?.98:.80),horizonRadius=(wideAtlas?Math.min(w*.55,h*.94):Math.min(w*.72,h*.78))*zoom;
+      return {cx:w*.5,cy:globeY+(horizonY-globeY)*mix,radius:globeRadius+(horizonRadius-globeRadius)*mix};
     }
     if(s.root.dataset.globeFraming==='horizon'&&s.root.dataset.globeLabels==='selected')return {cx:w*.5,cy:h*.80,radius:Math.min(w*.72,h*.78)*zoom};
     return {cx:w*.5,cy:h*(s.ambient?.5:.47),radius:s.ambient?Math.min(w,h)*.40*zoom:Math.min(w*.455,h*.465)};

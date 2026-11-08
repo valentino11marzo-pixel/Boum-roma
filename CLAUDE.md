@@ -5127,6 +5127,11 @@ Dispatch abilita il campo e limita il lavoro alla sua apertura visibile: lo stes
 Il primo battito e la cadenza8.2s, i fronti, le creste e i disegni per città restano originali; le altre visioni continuano a spegnere il campo. La configurazione considera anche il boot anticipato dei defer e misura il canvas dopo lo spostamento.
 Verifica `flightdispatchui` sui pixel e sul ciclo di vita dell'apertura, `flightclubmotion` sulla meccanica originale e `flightpanoramaui` per il confine fra visioni; regia in `design/dispatch-solari-field.md`.
 
+Flight Dispatch aperture 08/11: dopo il rifiuto della cornice porcellana, `composition=open|atlas|concourse` propone tre composizioni senza involucro; `instrument` conserva il confronto precedente. Aperta è il nuovo default, con Solari pulsante originale e globo nativo.
+Studio aggiunge un selettore dedicato, con lo stesso iframe e la validazione della bozza; il parametro estetico ammesso accompagna solo Flight Dispatch, mai Apply o il desk originale.
+La nuova geometria vive in `boom-dispatch-compositions.css`: nessun nuovo renderer, clock, modulo, dato cliente o dipendenza. Il footer chiaro e il sito pubblico restano invariati.
+Regia in `design/dispatch-open-compositions.md`; `flightdispatchui` verifica dimensioni, originali conservati, Full view, passaggi nativi e cambio composizione con bozza valida/invalida; regressioni in `flightpanoramaui`.
+
 Flight Lab 31/10: `/flight-lab` confronta Atlas, Residence e Club sulle stesse viste reali di `/flight-next?direction=…`, senza cambiare il sito pubblico.
 Le composizioni riusano catalogo, Solari, iframe Skyline, salvataggi e Apply; nessun secondo catalogo o nuovo handler di invio.
 Residence usa una foto realmente restituita dal catalogo pubblico (fallback a una casa pubblica non chiusa); Atlas sposta la stessa mappa nel primo schermo.

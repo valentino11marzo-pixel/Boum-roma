@@ -7,6 +7,10 @@
   var hero=byId('nextHero'),ticket=byId('directionClubTicket'),atlas=byId('boomGlobeMount'),media=byId('clubMedia');
   if(!hero||!ticket||!atlas||!media)return;
   document.body.dataset.homeVision=vision;
+  if(vision==='dispatch'){
+    var composition=query.get('composition');
+    document.body.dataset.dispatchComposition=['open','atlas','concourse','instrument'].includes(composition)?composition:'open';
+  }
   document.body.dataset.homeVariant='panorama';
   document.documentElement.dataset.homeVision=vision;
   // Dispatch keeps the original pulsating Solari field in its title aperture.

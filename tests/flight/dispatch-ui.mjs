@@ -68,8 +68,9 @@ async function start(page,query='',{generic=false}={}){
 async function city(page,slug){await page.locator('.europe-city-switch [data-europe-city="'+slug+'"]').click();await page.waitForFunction(value=>document.body.dataset.europeCity===value,slug);}
 async function settled(page){await page.waitForFunction(()=>!['clubMedia','boomGlobeMount'].some(id=>document.getElementById(id).getAnimations().some(a=>a.playState==='running')));}
 async function boardFits(page,width){
- const rects=await page.locator('#nextHeroTitle').evaluate(node=>{const cells=[...node.querySelectorAll('#nextDestinationBoard .fc2')],promise=document.querySelector('#directionClubTicket .hero-promise');return {heading:node.getBoundingClientRect().toJSON(),first:cells[0].getBoundingClientRect().toJSON(),last:cells.at(-1).getBoundingClientRect().toJSON(),promise:promise.getBoundingClientRect().toJSON()};});
+ const rects=await page.locator('#nextHeroTitle').evaluate(node=>{const cells=[...node.querySelectorAll('#nextDestinationBoard .fc2')],promise=document.querySelector('#directionClubTicket .hero-promise');return {heading:node.getBoundingClientRect().toJSON(),bay:node.querySelector('.vision-departure-record').getBoundingClientRect().toJSON(),first:cells[0].getBoundingClientRect().toJSON(),last:cells.at(-1).getBoundingClientRect().toJSON(),promise:promise.getBoundingClientRect().toJSON()};});
  assert.ok(rects.first.left>=rects.heading.left-.5&&rects.last.right<=rects.heading.right+.5,'every actual flap fits inside its heading: '+JSON.stringify(rects));
+ assert.ok(rects.first.left>=rects.bay.left-.5&&rects.last.right<=rects.bay.right+.5,'every actual flap fits its own mechanical bay: '+JSON.stringify(rects));
  const overlapX=Math.min(rects.last.right,rects.promise.right)-Math.max(rects.first.left,rects.promise.left),overlapY=Math.min(rects.heading.bottom,rects.promise.bottom)-Math.max(rects.heading.top,rects.promise.top);
  assert.ok(overlapX<=0||overlapY<=0,'the destination and its supporting promise retain separate reading space: '+JSON.stringify(rects));
 }
@@ -221,9 +222,82 @@ try{
   assert.equal(await page.evaluate(()=>BoomFlightNextMotion.state().fieldEnabled),true,'Dispatch restores the original Solari background field');
   assert.equal(await page.locator('#nextHeroTitle #nextSolariField').count(),1,'the one original field belongs to the heading aperture');
  });
+ for(const composition of ['open','atlas','concourse'])for(const width of [320,390,768,1440])await check('Dispatch composition '+composition+' '+width+': frameless entrance preserves native destination, pulse and geography',width,async({page,requests})=>{
+  await start(page,'composition='+composition);await page.evaluate(()=>document.fonts.ready);
+  assert.equal(await page.locator('body').getAttribute('data-dispatch-composition'),composition);
+  const shell=await page.locator('#directionClubTicket').evaluate(node=>({radius:getComputedStyle(node).borderRadius,shadow:getComputedStyle(node).boxShadow,border:getComputedStyle(node).borderTopWidth}));
+  assert.equal(shell.radius,'0px','the rejected rounded outer shell is absent');assert.equal(shell.shadow,'none','the outer instrument shadow is absent');
+  for(const selector of ['#nextDestinationBoard','#nextSolariField','.boom-flight-globe-canvas','#nextSearchForm','#europeDeskForm'])assert.equal(await page.locator(selector).count(),1,'one original '+selector);
+  assert.equal(await page.locator('#nextHeroTitle > #nextSolariField').count(),1,'the original pulse keeps its bounded heading aperture');
+  assert.equal(await page.evaluate(()=>BoomFlightNextMotion.state().fieldEnabled),true,'the original pulse remains enabled');
+  await page.evaluate(()=>{window.__compositionOriginals=[document.getElementById('nextSolariField'),document.getElementById('nextDestinationBoard'),document.querySelector('.boom-flight-globe-canvas'),document.getElementById('nextSearchForm'),document.getElementById('europeDeskForm')];});
+  async function fits(){
+   await boardFits(page,width);await noOverflow(page);
+   await controls(page,'.europe-city-switch button,.edition-plan-link,.dispatch-lenses button,.panorama-globe-tools button');
+   const geometry=await page.evaluate(()=>{
+    const box=selector=>document.querySelector(selector).getBoundingClientRect().toJSON();
+    const cities=[...document.querySelectorAll('.europe-city-switch [data-europe-city]')].map(node=>{const name=document.createRange();name.selectNodeContents(node.querySelector('span:last-child'));return {box:node.getBoundingClientRect().toJSON(),name:name.getBoundingClientRect().toJSON()};});
+    return {heading:box('#nextHeroTitle'),cities,citiesGroup:box('.europe-city-switch'),promise:box('.hero-promise'),action:box('.edition-plan-link'),scene:box('#visionScene'),stage:box('#visionScene .boom-globe-stage'),canvas:box('#visionScene .boom-flight-globe-canvas'),field:box('#nextSolariField')};
+   });
+   function noOverlap(a,b,label){assert.ok(Math.min(a.right,b.right)-Math.max(a.left,b.left)<=1||Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top)<=1,label+': '+JSON.stringify({a,b}));}
+   noOverlap(geometry.heading,geometry.citiesGroup,'destination and city targets have separate reading space');
+   noOverlap(geometry.promise,geometry.action,'supporting copy and action never overlap');
+   noOverlap(geometry.field,geometry.citiesGroup,'the original pulse ends before native city choices');
+   for(const {box,name} of geometry.cities){assert.ok(name.left>=box.left-1&&name.right<=box.right+1,'complete city name fits its actual target');assert.ok(box.left>=0&&box.right<=width+1,'native city target is not clipped horizontally');}
+   assert.ok(geometry.canvas.width>=240&&geometry.canvas.height>=200,'the original geography has a useful visible canvas');
+   assert.ok(geometry.stage.left>=geometry.scene.left-1&&geometry.stage.right<=geometry.scene.right+1,'geography stays within its own composition area');
+   const topControls=await page.locator('#visionScene .panorama-globe-toolbar button,#visionScene .dispatch-lenses button,#visionScene .panorama-globe-tools button').evaluateAll(nodes=>nodes.filter(n=>n.getClientRects().length).map(n=>n.getBoundingClientRect().toJSON()));
+   assert.ok(topControls.every(box=>box.left>=geometry.scene.left-1&&box.right<=geometry.scene.right+1),'all map controls stay inside the scene');
+  }
+  await fits();
+  if(composition==='atlas'&&width===1440){
+   const pin=await page.locator('#visionScene button[data-globe-city="rome"]').boundingBox(),canvas=await page.locator('#visionScene .boom-flight-globe-canvas').boundingBox();
+   assert.ok(pin&&pin.x>=canvas.x&&pin.x+pin.width<=canvas.x+canvas.width+1&&pin.y>=canvas.y&&pin.y+pin.height<=canvas.y+canvas.height+1,'the selected city remains inside the enlarged geographic canvas');
+   const horizon=await page.locator('.boom-flight-globe-canvas').evaluate(node=>node.toDataURL()),beforeURL=page.url();
+   await page.locator('[data-dispatch-lens="globe"]').click();await page.waitForFunction(()=>BoomFlightGlobe.state().framingMix===0&&!BoomFlightGlobe.state().rafPending);
+   assert.notEqual(await page.locator('.boom-flight-globe-canvas').evaluate(node=>node.toDataURL()),horizon,'the wide Atlas horizon can return to the actual whole globe');
+   await page.locator('[data-dispatch-lens="horizon"]').click();await page.waitForFunction(()=>BoomFlightGlobe.state().framingMix===1&&!BoomFlightGlobe.state().rafPending);
+   assert.equal(page.url(),beforeURL,'the Atlas lens changes no journey state');
+  }
+  if(process.env.BOOM_COMPOSITION_CAPTURE_PREFIX){await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:process.env.BOOM_COMPOSITION_CAPTURE_PREFIX+'-'+composition+'-'+width+'.png',scale:'css'});if(composition==='atlas'&&width===1440)await page.locator('#directionClubTicket').screenshot({path:process.env.BOOM_COMPOSITION_CAPTURE_PREFIX+'-'+composition+'-'+width+'-hero.png',scale:'css'});}
+  const reads=requests.catalogue;
+  await page.locator('[data-panorama-expand]').click();await page.locator('#panoramaGlobeDialog').waitFor({state:'visible'});
+  assert.equal(await page.locator('#panoramaGlobeDialog .boom-flight-globe-canvas').count(),1,'Full view moves the existing globe');
+  await page.keyboard.press('Escape');await page.locator('#panoramaGlobeDialog').waitFor({state:'hidden'});
+  await city(page,'amsterdam');await foreignOffer(page);await fits();
+  assert.equal(new URL(page.url()).searchParams.get('composition'),composition,'city navigation carries the chosen composition');
+  assert.equal(await page.evaluate(()=>window.__compositionOriginals.every((node,index)=>node===[document.getElementById('nextSolariField'),document.getElementById('nextDestinationBoard'),document.querySelector('.boom-flight-globe-canvas'),document.getElementById('nextSearchForm'),document.getElementById('europeDeskForm')][index])),true,'full view and city selection retain original nodes');
+  assert.equal(requests.catalogue,reads,'no second catalogue is created for a composition');
+  await page.locator('#europeDeskContinue').click();await page.waitForURL(url=>url.pathname==='/amsterdam');
+  assert.doesNotMatch(page.url(),/composition=|vision=|privatePlace|lat=|lng=/,'the native service door excludes preview presentation and private data');
+ });
+ await check('Dispatch composition Studio: four layouts preserve a valid public draft and protect an invalid draft',1440,async({page})=>{
+  await page.goto(origin+'/flight-studio?experience=dispatch&composition=open&city=rome&privatePlace=synthetic-office&lat=41.9123&lng=12.5123',{waitUntil:'domcontentloaded'});
+  const frame=await (await page.locator('#studioFrame').elementHandle()).contentFrame();
+  await frame.waitForFunction(()=>document.body.dataset.dispatchComposition==='open'&&!!window.BoomFlightEurope);
+  await fillRome(frame);
+  for(const composition of ['atlas','concourse','instrument','open']){
+   await page.locator('button[data-studio-composition="'+composition+'"]').click();
+   await frame.waitForFunction(value=>document.body.dataset.dispatchComposition===value&&!!window.BoomFlightEurope,composition);
+   await page.waitForFunction(()=>document.getElementById('studioOpen').getAttribute('aria-disabled')==='false');
+   assert.equal(await page.locator('button[data-studio-composition="'+composition+'"]').getAttribute('aria-pressed'),'true');
+   const current=new URL(frame.url()),full=new URL(await page.locator('#studioOpen').getAttribute('href'),origin);
+   for(const [key,value] of Object.entries({composition,moveIn:arrival,moveOut:departure,budget:'1500',people:'couple'}))assert.equal(current.searchParams.get(key),value,'composition switch retains '+key);
+   for(const key of ['privatePlace','lat','lng']){assert.equal(current.searchParams.has(key),false);assert.equal(new URL(page.url()).searchParams.has(key),false);}
+   current.searchParams.sort();full.searchParams.sort();assert.equal(current.href,full.href,'full view carries the exact selected composition and public draft');
+  }
+  await frame.evaluate(()=>{window.__compositionDraftNode=document.getElementById('nextSearchForm');});
+  await frame.locator('#nextMoveOut').fill(year+'-01-01');await page.locator('button[data-studio-composition="atlas"]').click();await page.locator('#studioError').waitFor({state:'visible'});
+  assert.equal(await frame.evaluate(()=>document.getElementById('nextSearchForm')===window.__compositionDraftNode),true,'invalid dates keep the current form and entered draft');
+  assert.equal(await page.locator('button[data-studio-composition="open"]').getAttribute('aria-pressed'),'true');
+  await frame.locator('#nextMoveOut').fill(departure);
+  for(const device of ['mobile','desktop']){await page.locator('button[data-studio-device="'+device+'"]').click();await frame.waitForFunction(width=>innerWidth===width,device==='mobile'?390:1280);assert.equal(await frame.evaluate(()=>document.getElementById('nextSearchForm')===window.__compositionDraftNode),true,'device changes resize the same form');}
+  for(const width of [320,390,768,1440]){await page.setViewportSize({width,height:1000});await noOverflow(page);await controls(page,'button[data-studio-composition]');}
+  assert.equal(await page.locator('#studioFrame').count(),1,'all compositions share one preview');
+ });
  await check('Dispatch brief: live edits, invalid dates and private places stay truthful through native navigation',390,async({page})=>{
   await page.addInitScript(()=>localStorage.setItem('boom:pois',JSON.stringify([{name:'Synthetic private office',lat:41.9123,lng:12.5123}])));
-  await start(page);await fieldState(page,'open');await serviceState(page,'unselected');
+  await start(page,'composition=atlas');await fieldState(page,'open');await serviceState(page,'unselected');
   assert.equal(await row(page,'rent').isVisible(),false,'an unset rent does not occupy a duplicate empty summary row');assert.equal(await row(page,'household').isVisible(),false,'an unset household stays compact');
   await page.locator('#nextDestinationSummary').click();await page.locator('[data-destination-mode="work"]').click();await page.locator('[data-private-place="0"]').click();await page.locator('#nextDestinationDialog').waitFor({state:'hidden'});
   await publicOnly(page);await fillRome(page);await fieldState(page,'valid');await ticket(page).waitFor({state:'visible'});
@@ -246,7 +320,7 @@ try{
   await fillRome(page);await fieldState(page,'valid');await publicOnly(page);
   await page.locator('#dispatchJourneyReview').click();assert.equal(await page.locator('#visionNeedChooser').isVisible(),true,'Review returns to the existing Rome choices');
   await page.locator('#nextSearchForm button[type="submit"]').click();await page.locator('#nextApartments').waitFor({state:'visible'});
-  for(const [key,value] of Object.entries({vision:'dispatch',moveIn:arrival,moveOut:departure,budget:'1500',people:'couple'}))assert.equal(new URL(page.url()).searchParams.get(key),value,'native catalogue keeps '+key);
+  for(const [key,value] of Object.entries({vision:'dispatch',composition:'atlas',moveIn:arrival,moveOut:departure,budget:'1500',people:'couple'}))assert.equal(new URL(page.url()).searchParams.get(key),value,'native catalogue keeps '+key);
   await page.locator('#nextResults [data-home="dispatch-home"]').first().click();await page.locator('#nextDetail').waitFor({state:'visible'});
   const decision=page.locator('#nextDetail .detail-decision');
   assert.equal(await decision.evaluate(node=>getComputedStyle(node).backgroundColor),'rgb(255, 255, 255)','the native decision is a readable paper ticket');
@@ -256,7 +330,7 @@ try{
   assert.ok(await decision.locator('.club-application-next p').first().evaluate(node=>parseFloat(getComputedStyle(node).fontSize)>=15),'the next step remains readable at phone size');
   assert.match(await decision.locator('.edition-costs').innerText(),/Agency fee|Deposit/i);await controls(page,'#nextDetail [data-next-apply]');
   await page.locator('[data-next-apply]').click();await page.waitForURL(url=>url.pathname==='/listing/dispatch-home');
-  assert.doesNotMatch(page.url(),/privatePlace|lat=|lng=|Synthetic|vision=/,'the native application handoff excludes preview and private information');
+  assert.doesNotMatch(page.url(),/privatePlace|lat=|lng=|Synthetic|vision=|composition=/,'the native application handoff excludes preview and private information');
   await page.goBack();await page.locator('#nextDetail').waitFor({state:'visible'});await page.locator('.next-nav .next-brand[data-view="home"]').click();await ticket(page).waitFor({state:'visible'});await fieldState(page,'valid');
   assert.equal(await row(page,'rent').isVisible(),true);assert.equal(await row(page,'household').isVisible(),true,'native history restoration reveals the restored preferences');
   assert.match(await summary(page,'Rent'),/1,500/);await publicOnly(page);

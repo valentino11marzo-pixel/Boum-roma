@@ -53,6 +53,8 @@ meticulous detail and new opportunities, while respecting the real BOOM identity
 On 8 November he explicitly reaffirmed the original pulsating Solari background as
 an element to retain. Refine its placement and intensity around the destination;
 do not remove or substitute that signature in a later redesign.
+He then rejected the porcelain surround and rounded outer frame. New Dispatch
+compositions should open the scene while retaining the original Solari pulse.
 He has delegated routine design and implementation decisions in this conversation.
 
 ## Evidence on Hand

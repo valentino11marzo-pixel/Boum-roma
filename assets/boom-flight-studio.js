@@ -6,33 +6,44 @@
   var query=new URLSearchParams(location.search);
   var publicKeys=['view','home','city','need','moveIn','moveOut','stay','budget','currency','people','type','place','homes','saved','layout'];
   var visions=['airframe','signal','orbit','dispatch','gate','connection','vector'];
+  var compositions=['open','atlas','concourse','instrument'];
+  var composition=compositionOf(query.get('composition'));
+  var compositionNames={open:'Aperta',atlas:'Atlante',concourse:'Concourse',instrument:'Precedente'};
+  var compositionNotes={open:'Un unico spazio nero, senza cornice. Il Solari e le città affiancano il globo, con il prossimo passo sempre leggibile.',atlas:'Un grande orizzonte a tutta larghezza. Il Solari apre la pagina, le sei città formano un indice e l’azione resta subito disponibile.',concourse:'Una sala partenze aperta. Il tabellone occupa la testata; destinazioni e geografia costruiscono il percorso sotto di lui.',instrument:'La versione precedente, con cornice chiara e pannello nero arrotondato, conservata per il confronto.'};
   var experience=visions.includes(query.get('experience'))?query.get('experience'):query.get('experience')==='panorama'&&visions.includes(query.get('vision'))?query.get('vision'):query.get('experience')==='terminal'||(query.get('experience')==='panorama'&&query.get('variant')==='terminal')?'terminal':query.get('experience')==='club'?'club':query.get('experience')==='panorama'?'panorama':query.has('experience')?'club':'dispatch';
   var device=query.get('device')==='mobile'?'mobile':'desktop',brief=publicQuery(query),loading=false,detach=null;
 
+  function compositionOf(value){return compositions.includes(value)?value:'open';}
   function publicQuery(source){
     var out=new URLSearchParams();
     publicKeys.forEach(function(key){var value=source.get(key);if(value&&value.length<=310)out.set(key,value);});
     return out;
   }
   function name(){return {airframe:'Airframe',signal:'Signal',orbit:'Orbit',dispatch:'Dispatch',gate:'Gate',connection:'Connection',vector:'Vector',terminal:'Terminal',panorama:'Panorama',club:'Club'}[experience];}
+  function previewName(){return name()+(experience==='dispatch'?' · '+compositionNames[composition]:'');}
   function previewURL(){
     var out=new URLSearchParams(brief);out.set('direction','club');out.set('edition','club');
     if(experience!=='club')out.set('experience','panorama');
     if(experience==='terminal')out.set('variant','terminal');
     if(visions.includes(experience))out.set('vision',experience);
+    if(experience==='dispatch')out.set('composition',composition);
     return '/flight-next?'+out;
   }
   function render(){
     document.body.dataset.studioExperience=experience;document.body.dataset.studioDevice=device;
+    document.body.dataset.studioComposition=composition;
+    document.getElementById('studioCompositions').hidden=experience!=='dispatch';
+    document.querySelectorAll('button[data-studio-composition]').forEach(function(button){button.setAttribute('aria-pressed',String(button.dataset.studioComposition===composition));button.disabled=loading;});
     document.querySelectorAll('button[data-studio-experience]').forEach(function(button){button.setAttribute('aria-pressed',String(button.dataset.studioExperience===experience));button.disabled=loading;});
     document.querySelectorAll('button[data-studio-device]').forEach(function(button){button.setAttribute('aria-pressed',String(button.dataset.studioDevice===device));});
-    frame.title='BOOM '+name()+' — anteprima interattiva';
+    frame.title='BOOM '+previewName()+' — anteprima interattiva';
     open.href=previewURL();open.setAttribute('aria-disabled',String(loading));
     var out=new URLSearchParams(brief);out.set('experience',experience);out.set('device',device);
+    if(experience==='dispatch')out.set('composition',composition);
     history.replaceState(null,'','/flight-studio?'+out);
-    status.textContent=loading?'Apertura di '+name()+'…':name()+' · '+(device==='mobile'?'390 px':'1280 px');
-    document.getElementById('studioVariantTitle').textContent=name();
-    document.getElementById('studioVariantNote').textContent={airframe:'Luce, spazio e case reali. Una superficie chiara collega destinazione, vita quotidiana e assistenza.',signal:'Il giallo diventa identità. Una grande composizione tipografica guida dalla città al prossimo passo.',orbit:'La geografia apre il percorso. Un orizzonte immersivo conduce a strumenti, case e servizi con una regia più chiara.',dispatch:'Una cornice architettonica, Solari meccanico e geografia d’argento. Scegli la città e continua nei servizi reali di BOOM.',gate:'Il prossimo passo prima di tutto. Parti dalla tua situazione, confronta il servizio e vedi subito ambito e costo.',connection:'La città entra nel progetto. Skyline e il tuo punto quotidiano guidano la scelta; poi confronti affitto, spazio e tragitto.',vector:'L’indice di Dispatch incontra l’orizzonte di Orbit. Una destinazione, la sua geografia e il prossimo passo nella stessa composizione.',terminal:'La precedente composizione a banco partenze, conservata per il confronto.',panorama:'La precedente apertura Solari e globo, conservata per il confronto.',club:'La composizione Club originale, conservata per il confronto.'}[experience];
+    status.textContent=loading?'Apertura di '+previewName()+'…':previewName()+' · '+(device==='mobile'?'390 px':'1280 px');
+    document.getElementById('studioVariantTitle').textContent=previewName();
+    document.getElementById('studioVariantNote').textContent={airframe:'Luce, spazio e case reali. Una superficie chiara collega destinazione, vita quotidiana e assistenza.',signal:'Il giallo diventa identità. Una grande composizione tipografica guida dalla città al prossimo passo.',orbit:'La geografia apre il percorso. Un orizzonte immersivo conduce a strumenti, case e servizi con una regia più chiara.',dispatch:compositionNotes[composition],gate:'Il prossimo passo prima di tutto. Parti dalla tua situazione, confronta il servizio e vedi subito ambito e costo.',connection:'La città entra nel progetto. Skyline e il tuo punto quotidiano guidano la scelta; poi confronti affitto, spazio e tragitto.',vector:'L’indice di Dispatch incontra l’orizzonte di Orbit. Una destinazione, la sua geografia e il prossimo passo nella stessa composizione.',terminal:'La precedente composizione a banco partenze, conservata per il confronto.',panorama:'La precedente apertura Solari e globo, conservata per il confronto.',club:'La composizione Club originale, conservata per il confronto.'}[experience];
     resize();
   }
   function resize(){
@@ -85,6 +96,7 @@
     var next=publicQuery(current.url.searchParams);
     if(draft&&!captureDraft(current,next))return false;
     brief=next;experience=current.url.searchParams.get('experience')==='panorama'?(visions.includes(current.url.searchParams.get('vision'))?current.url.searchParams.get('vision'):current.url.searchParams.get('variant')==='terminal'?'terminal':'panorama'):'club';
+    if(experience==='dispatch')composition=compositionOf(current.url.searchParams.get('composition'));
     return true;
   }
   function load(){
@@ -115,6 +127,13 @@
       if(loading||option.dataset.studioExperience===experience)return;
       var chosen=option.dataset.studioExperience;if(!visions.concat(['panorama','terminal','club']).includes(chosen)||!capture(true))return;
       experience=chosen;load();return;
+    }
+    option=event.target.closest('button[data-studio-composition]');
+    if(option){
+      if(loading||experience!=='dispatch'||option.dataset.studioComposition===composition)return;
+      var chosenComposition=option.dataset.studioComposition;
+      if(!compositions.includes(chosenComposition)||!capture(true))return;
+      composition=chosenComposition;load();return;
     }
     option=event.target.closest('button[data-studio-device]');
     // While a new direction loads, the iframe may still expose its outgoing
