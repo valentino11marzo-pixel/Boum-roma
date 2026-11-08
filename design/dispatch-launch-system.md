@@ -7,7 +7,8 @@ it does not declare the public root replaced.
 ## Visual contract
 
 The entrance uses one black instrument within a porcelain architectural shell,
-with silver geography and a mechanical Solari bay. BOOM yellow identifies
+with silver geography and a mechanical Solari bay. The original pulsating cell
+field frames the destination heading and ends before the city choices. BOOM yellow identifies
 actions and actual selections. The pale perimeter leads into the white service/
 decision tickets and company chapter. Keep body copy readable;
 Helvetica Neue 300 carries destination and product headings, with stronger

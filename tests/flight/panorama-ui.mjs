@@ -302,10 +302,11 @@ try{
  browser=await chromium.launch(await launchOptions());
  for(const vision of visions)for(const width of refinedVisions.includes(vision)?[390,900,1440]:[390,1440])await check('Vision '+vision+' '+width+': distinct scene presentation keeps original form, photographs, canvas and readable brand type',width,async({page,catalogueReads})=>{
   await startVision(page,vision);
-  await page.waitForFunction(()=>BoomFlightNextMotion.state().fieldEnabled===false&&!BoomFlightNextMotion.state().rafPending);
+  await page.waitForFunction(({enabled,active})=>{const state=BoomFlightNextMotion.state();return state.fieldEnabled===enabled&&state.rafPending===active;},{enabled:vision==='dispatch',active:vision==='dispatch'&&width===1440});
   const field=await page.evaluate(()=>({motion:BoomFlightNextMotion.state(),rect:document.getElementById('nextHero').getBoundingClientRect().toJSON(),height:innerHeight}));
-  assert.ok(field.rect.top<field.height&&field.rect.bottom>0,'the hidden-field assertion is made while the opening itself is onscreen');
-  assert.equal(field.motion.running,false,'the removed Solari background field does not keep a hidden frame loop');
+  assert.ok(field.rect.top<field.height&&field.rect.bottom>0,'the field contract is checked while the opening itself is onscreen');
+  assert.equal(field.motion.running,vision==='dispatch'&&width===1440,vision==='dispatch'?'the restored Dispatch field follows the requested motion preference':'the removed field in the other visions keeps no hidden frame loop');
+  if(vision==='dispatch'){assert.equal(await page.locator('#nextHeroTitle #nextSolariField').count(),1);assert.equal(await page.locator('#nextSolariField').isVisible(),true,'Dispatch alone restores the original visible field');}
   assert.equal(await page.locator('body').getAttribute('data-vision-scene'),visionDefaults[vision],'each vision opens its intended subject');
   await geometry(page,[vision==='dispatch'?'.europe-city-switch button':'#visionSceneTabs button','#nextSearchForm button[type="submit"]','#visionNeedChooser button']);
   await plannerBounds(page);await typeQuality(page,'home');await primaryContrast(page,'#nextSearchForm button[type="submit"]');await romeTickets(page);
@@ -354,7 +355,9 @@ try{
    const beforeGlobe=await cameraSnapshot(page);await page.waitForTimeout(700);const afterGlobe=await cameraSnapshot(page);
    assert.ok(afterGlobe.camera.frames>beforeGlobe.camera.frames,'the visible original globe still paints its deliberate ambient movement');
    assert.notEqual(afterGlobe.fingerprint,beforeGlobe.fingerprint,'ambient movement reaches the real geographic pixels');
-   assert.equal(await page.evaluate(()=>BoomFlightNextMotion.state().rafPending),false,'the moving globe does not restart a hidden Solari field');
+   if(vision==='dispatch'){
+    const state=await page.evaluate(()=>BoomFlightNextMotion.state());assert.equal(state.fieldEnabled,true,'the original Dispatch field remains enabled');assert.equal(state.rafPending,state.fieldVisible&&!state.paused&&!state.saveData,'the Dispatch field runs only while its own aperture permits it');
+   }else assert.equal(await page.evaluate(()=>BoomFlightNextMotion.state().rafPending),false,'the moving globe does not restart a hidden Solari field in the other visions');
   }
   if(['orbit','vector'].includes(vision)&&width===1440){
    assert.equal(await page.locator('#boomGlobeMount').getAttribute('data-globe-framing'),'horizon','the geographic horizon comes from the original renderer');

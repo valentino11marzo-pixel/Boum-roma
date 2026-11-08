@@ -5122,6 +5122,11 @@ Solo Dispatch rende il globo argento/grafite, con giallo sulle rotte e destinazi
 Il tour mantiene lo stato del cliente e tutti i suoi arresti; nel solo invito iniziale la domanda diventa «Where next?». Nodi, servizi, prezzi e porte originali restano unici.
 Regia in `design/dispatch-instrument.md`; verifiche dimensionali, tour e continuità nelle suite `flightdispatchui`, `flightpanoramaui` e motion originali. Lo switch della home pubblica resta separato.
 
+Flight Dispatch fondale Solari 08/11: su richiesta esplicita torna il mosaico pulsante originale, nello stesso canvas `nextSolariField`, ricollocato dentro il titolo. Il campo si dissolve prima delle scelte città; palette tipografiche, pulsanti e geografia conservano i propri nodi e controller.
+Dispatch abilita il campo e limita il lavoro alla sua apertura visibile: lo stesso observer segue hero e canvas; fuori dall'apertura o con risparmio dati il solo fondale si ferma, senza fermare il tabellone. Pausa, movimento ridotto e pagina nascosta restano governati dal motore originale.
+Il primo battito e la cadenza8.2s, i fronti, le creste e i disegni per città restano originali; le altre visioni continuano a spegnere il campo. La configurazione considera anche il boot anticipato dei defer e misura il canvas dopo lo spostamento.
+Verifica `flightdispatchui` sui pixel e sul ciclo di vita dell'apertura, `flightclubmotion` sulla meccanica originale e `flightpanoramaui` per il confine fra visioni; regia in `design/dispatch-solari-field.md`.
+
 Flight Lab 31/10: `/flight-lab` confronta Atlas, Residence e Club sulle stesse viste reali di `/flight-next?direction=…`, senza cambiare il sito pubblico.
 Le composizioni riusano catalogo, Solari, iframe Skyline, salvataggi e Apply; nessun secondo catalogo o nuovo handler di invio.
 Residence usa una foto realmente restituita dal catalogo pubblico (fallback a una casa pubblica non chiusa); Atlas sposta la stessa mappa nel primo schermo.

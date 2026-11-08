@@ -72,3 +72,11 @@ A separate runtime proof observes one running800ms stage effect at geography
 readiness, completion after850ms, and no stage effect under Pause or reduced
 motion. Action controls remain outside that stage with no entrance transforms.
 No physical-device frame-rate, conversion uplift or root migration is claimed.
+
+
+## Follow-up: original Solari background
+
+The user's subsequent clarification restores the original pulsating field around
+the destination heading. See dispatch-solari-field.md for placement and lifecycle.
+This supersedes the decorative-field-disabled part of the earlier direction,
+without replacing the black instrument, silver globe or native journey.

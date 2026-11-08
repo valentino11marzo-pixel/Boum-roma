@@ -9,8 +9,11 @@
   document.body.dataset.homeVision=vision;
   document.body.dataset.homeVariant='panorama';
   document.documentElement.dataset.homeVision=vision;
-  hero.dataset.nextField='off';
-  if(window.BoomFlightNextMotion)window.BoomFlightNextMotion.setFieldEnabled(false);
+  // Dispatch keeps the original pulsating Solari field in its title aperture.
+  // Other visions still remove the field and its drawing work.
+  hero.dataset.nextField=vision==='dispatch'?'on':'off';
+  if(vision==='dispatch')hero.dataset.nextFieldVisibility='canvas';
+  if(vision!=='dispatch'&&window.BoomFlightNextMotion)window.BoomFlightNextMotion.setFieldEnabled(false);
   if(['orbit','vector','dispatch'].includes(vision))atlas.dataset.globeFraming='horizon';
   var light=['airframe','signal'].includes(vision);
   document.querySelector('meta[name="theme-color"]').content=vision==='signal'?'#ffd700':vision==='connection'?'#123fd6':light?'#fcfcf8':'#000000';
@@ -26,7 +29,11 @@
   record.appendChild(board);byId('nextHeroTitle').after(record);
   // Dispatch gives the original board the visible heading's job. The plain
   // city remains in the h1 for assistive technology; no second Solari exists.
-  if(vision==='dispatch')byId('nextHeroTitle').appendChild(record);
+  if(vision==='dispatch'){
+    byId('nextHeroTitle').appendChild(record);
+    byId('nextHeroTitle').prepend(byId('nextSolariField'));
+    if(window.BoomFlightNextMotion)window.BoomFlightNextMotion.setFieldEnabled(true);
+  }
 
   var scene=document.createElement('div');scene.id='visionScene';scene.className='vision-scene';
   var tabs=null;

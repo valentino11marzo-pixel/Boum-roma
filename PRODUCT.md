@@ -50,6 +50,9 @@ the substituted Instrument Sans and asked to recover the original weight300;
 CLAUDE.md identifies that display voice as Helvetica Neue300, with Inter fallback.
 His latest brief authorizes materially different futuristic aviation directions,
 meticulous detail and new opportunities, while respecting the real BOOM identity.
+On 8 November he explicitly reaffirmed the original pulsating Solari background as
+an element to retain. Refine its placement and intensity around the destination;
+do not remove or substitute that signature in a later redesign.
 He has delegated routine design and implementation decisions in this conversation.
 
 ## Evidence on Hand

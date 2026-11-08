@@ -218,7 +218,8 @@ try{
   assert.equal(await page.locator('#clubHomes #clubMedia').isVisible(),true,'returning to Rome restores the same genuine home evidence');
   assert.equal(await page.evaluate(()=>Object.entries(window.__dispatchNodes).every(([key,node])=>node===({ticket:document.getElementById('dispatchJourneyTicket'),form:document.getElementById('nextSearchForm'),media:document.getElementById('clubMedia'),atlas:document.getElementById('boomGlobeMount'),canvas:document.querySelector('.boom-flight-globe-canvas')})[key])),true,'scene, full view and city return retain every original node');
   assert.equal(requests.catalogue,reads,'the new presentation does not fetch another home catalogue');
-  assert.equal(await page.evaluate(()=>BoomFlightNextMotion.state().fieldEnabled),false,'the hidden background field stays disabled');
+  assert.equal(await page.evaluate(()=>BoomFlightNextMotion.state().fieldEnabled),true,'Dispatch restores the original Solari background field');
+  assert.equal(await page.locator('#nextHeroTitle #nextSolariField').count(),1,'the one original field belongs to the heading aperture');
  });
  await check('Dispatch brief: live edits, invalid dates and private places stay truthful through native navigation',390,async({page})=>{
   await page.addInitScript(()=>localStorage.setItem('boom:pois',JSON.stringify([{name:'Synthetic private office',lat:41.9123,lng:12.5123}])));
@@ -349,7 +350,7 @@ try{
  await check('Dispatch reduced motion: destinations and original home evidence update without extra animation',390,async({page})=>{
   await start(page);const trace=await observe(page);await city(page,'amsterdam');await foreignOffer(page);await city(page,'rome');const result=await finish(trace);
   assert.equal(result.motions.length,0,'reduced motion never starts the new scene entrance');assert.equal(await summary(page,'City'),'Rome');assert.equal(await page.locator('#clubHomes #clubMedia').isVisible(),true);assert.equal(await page.locator('body').getAttribute('data-vision-scene'),'world');
-  assert.equal(await page.evaluate(()=>BoomFlightNextMotion.state().rafPending),false,'the absent field starts no frame loop');await noOverflow(page);
+  assert.equal(await page.evaluate(()=>BoomFlightNextMotion.state().rafPending),false,'the restored field stays static under reduced motion');await noOverflow(page);
  });
 
  // Optics are a presentation of the same camera, not a new journey or canvas.
@@ -533,6 +534,57 @@ try{
   await interrupted('rome',()=>page.locator('#nextSearchForm button[type="submit"]').evaluate(node=>node.click()),'The original catalogue transition');await page.locator('#nextApartments').waitFor({state:'visible'});await page.locator('.next-nav .next-brand[data-view="home"]').click();
   await interrupted('milan',()=>page.evaluate(()=>window.dispatchEvent(new PageTransitionEvent('pagehide'))),'Pagehide');assert.equal(await page.evaluate(()=>BoomFlightGlobe.state().rafPending),false);
   await page.addInitScript(()=>{const connection=new EventTarget();Object.defineProperty(connection,'saveData',{get:()=>true});Object.defineProperty(navigator,'connection',{configurable:true,get:()=>connection});});await start(page);await city(page,'madrid');assert.equal(await page.evaluate(()=>BoomFlightGlobe.state().routeTrace),false,'data saving does not add the decorative route');assert.equal(await page.evaluate(()=>BoomFlightGlobe.state().city),'madrid');assert.equal(await page.locator('.boom-flight-globe-canvas').count(),1);
+ },'no-preference');
+ await check('Dispatch Solari field: the original pulse is visible and its aperture owns lifecycle without choosing a city',1440,async({page,requests})=>{
+  await page.addInitScript(()=>{
+   window.__fieldPaints=0;window.__fieldConnection=new EventTarget();__fieldConnection.saveData=false;
+   Object.defineProperty(navigator,'connection',{configurable:true,get:()=>__fieldConnection});
+   const clear=CanvasRenderingContext2D.prototype.clearRect;
+   CanvasRenderingContext2D.prototype.clearRect=function(){if(this.canvas.id==='nextSolariField')__fieldPaints++;return clear.apply(this,arguments);};
+  });
+  await start(page);await page.evaluate(()=>scrollTo({top:0,behavior:'instant'}));
+  await page.waitForFunction(()=>BoomFlightNextMotion.state().fieldVisible&&BoomFlightNextMotion.state().running&&BoomFlightNextMotion.state().rafPending);
+  const native=await nativeTourSnapshot(page),reads={...requests};
+  const aperture=await page.locator('#nextSolariField').evaluate(node=>{
+   window.__originalField=node;window.__originalBoard=document.getElementById('nextDestinationBoard');
+   const field=node.getBoundingClientRect(),title=node.closest('h1').getBoundingClientRect(),choices=document.querySelector('.europe-city-switch').getBoundingClientRect();
+   return {count:document.querySelectorAll('#nextSolariField').length,hidden:node.getAttribute('aria-hidden'),pointer:getComputedStyle(node).pointerEvents,field:field.toJSON(),title:title.toJSON(),choices:choices.toJSON()};
+  });
+  assert.equal(aperture.count,1,'there is one original field canvas');assert.equal(aperture.hidden,'true','the field is decorative');assert.equal(aperture.pointer,'none','the field never intercepts the original controls');
+  assert.ok(aperture.field.width>aperture.title.width&&aperture.field.height>=aperture.title.height,'the real field frames its heading instead of becoming a second page background');
+  assert.ok(aperture.field.bottom<=aperture.choices.top+1,'the pulse ends before the city targets');
+  async function snapshot(){return page.locator('#nextSolariField').evaluate(node=>{
+   const pixels=node.getContext('2d').getImageData(0,0,node.width,node.height).data;let hash=2166136261,lit=0;
+   for(let index=3;index<pixels.length;index+=28){hash=Math.imul(hash^pixels[index],16777619);if(pixels[index]>0)lit++;}
+   return {hash:hash>>>0,lit,paints:__fieldPaints,motion:BoomFlightNextMotion.state()};
+  });}
+  const before=await snapshot();assert.ok(before.lit>20,'the original field paints actual visible pixels');
+  await page.waitForFunction(()=>BoomFlightNextMotion.state().nextPulseAt>700);
+  const beat=await page.evaluate(()=>BoomFlightNextMotion.state().nextPulseAt);
+  await page.waitForFunction(next=>BoomFlightNextMotion.state().elapsedMs>=next+650,beat,{timeout:12000});
+  const pulse=await snapshot();assert.ok(pulse.paints>before.paints,'the same canvas paints the recurring pulse');assert.notEqual(pulse.hash,before.hash,'the recurring pulse changes real canvas pixels');
+  assert.ok(pulse.motion.nextPulseAt>beat,'the original recurring beat remains active');
+  assert.deepEqual(await nativeTourSnapshot(page),native,'ambient field never selects a city, service or plan');assert.deepEqual(requests,reads,'the pulse fetches no catalogue or private data');
+  async function stopped(reason){
+   await page.waitForFunction(()=>!BoomFlightNextMotion.state().rafPending&&!BoomFlightNextMotion.state().running);
+   await page.waitForTimeout(170);const first=await snapshot();await page.waitForTimeout(200);const after=await snapshot();
+   assert.equal(after.paints,first.paints,reason+' stops drawing');assert.equal(after.motion.elapsedMs,first.motion.elapsedMs,reason+' freezes the original field clock');
+  }
+  await page.locator('#nextMotionToggle').evaluate(node=>node.click());await stopped('Original Pause');
+  await page.locator('#nextMotionToggle').evaluate(node=>node.click());await page.waitForFunction(()=>BoomFlightNextMotion.state().running);
+  await page.emulateMedia({reducedMotion:'reduce'});await stopped('Reduced motion');assert.equal(await page.locator('#nextSolariField').isVisible(),true,'reduced motion retains the quiet original field');
+  await page.emulateMedia({reducedMotion:'no-preference'});await page.waitForFunction(()=>BoomFlightNextMotion.state().running);
+  await page.evaluate(()=>{const field=document.getElementById('nextSolariField').getBoundingClientRect();scrollBy({top:field.bottom+20,behavior:'instant'});});
+  await page.waitForFunction(()=>!BoomFlightNextMotion.state().fieldVisible);await stopped('Offscreen aperture');
+  const hero=await page.locator('#nextHero').evaluate(node=>{const box=node.getBoundingClientRect();return {bottom:box.bottom,top:box.top,viewport:innerHeight};});
+  assert.ok(hero.top<hero.viewport&&hero.bottom>0,'the field stops while the larger original hero is still visible');
+  await page.evaluate(()=>scrollTo({top:0,behavior:'instant'}));await page.waitForFunction(()=>BoomFlightNextMotion.state().fieldVisible&&BoomFlightNextMotion.state().running);
+  await page.evaluate(()=>{__fieldConnection.saveData=true;__fieldConnection.dispatchEvent(new Event('change'));});await stopped('Save data');
+  await page.evaluate(()=>{__fieldConnection.saveData=false;__fieldConnection.dispatchEvent(new Event('change'));});await page.waitForFunction(()=>BoomFlightNextMotion.state().running);
+  await page.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,get:()=>true});document.dispatchEvent(new Event('visibilitychange'));});await stopped('Hidden page');
+  await page.evaluate(()=>{delete document.hidden;document.dispatchEvent(new Event('visibilitychange'));});await page.waitForFunction(()=>BoomFlightNextMotion.state().running);
+  assert.equal(await page.evaluate(()=>__originalField===document.getElementById('nextSolariField')&&__originalBoard===document.getElementById('nextDestinationBoard')),true,'every interruption retains the original field and board nodes');
+  assert.deepEqual(await nativeTourSnapshot(page),native,'motion controls preserve the native journey throughout');await noOverflow(page);
  },'no-preference');
  await check('Dispatch tour: untouched entry presents all six cities without choosing for the visitor',1440,async({page,requests})=>{
   await start(page,'',{generic:true});await page.waitForFunction(()=>window.BoomDispatchTour?.state().playing);

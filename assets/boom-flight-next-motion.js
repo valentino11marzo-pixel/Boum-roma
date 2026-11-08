@@ -188,6 +188,11 @@ function createSolari() {
     var clock = 0, lastFrame = 0, lastPaint = -1000, raf = 0;
     var running = false, inView = false, suspended = false, destroyed = false;
     var fieldEnabled = hero.dataset.nextField !== 'off';
+    // Dispatch bounds the original field to its title. Its visible aperture
+    // owns drawing; the hero still owns the mechanical board's lifecycle.
+    var fieldAperture = hero.dataset.nextFieldVisibility === 'canvas';
+    var fieldVisible = !fieldAperture, connection = fieldAperture ? navigator.connection : null;
+    function fieldActive() { return fieldEnabled && fieldVisible && !(connection && connection.saveData); }
     var resizeTimer = 0, observer = null, resizeObserver = null, played = false;
     var listeners = [];
     var solari = createSolari();
@@ -257,17 +262,21 @@ function createSolari() {
       return { x: (p.clientX - r.left) * DPR, y: (p.clientY - r.top) * DPR };
     }
     var fretta = 0;
-    function muovi(e) { if (!fieldEnabled || !running || ridotto) return; var p = localizza(e); px = p.x; py = p.y;
-      fretta = performance.now(); }
+    function muovi(e) {
+      if (!fieldActive() || !running || ridotto) return;
+      var p = localizza(e);
+      if (fieldAperture && (p.x < 0 || p.x > W || p.y < 0 || p.y > H)) { leave(); return; }
+      px = p.x; py = p.y; fretta = performance.now();
+    }
     var scorsa = 0, spinta = 0;
     function scorri() {
-      if (!fieldEnabled || !running || ridotto) return;
+      if (!fieldActive() || !running || ridotto) return;
       fretta = performance.now();
       spinta = Math.min(1, Math.abs(scrollY - scorsa) / 130);
       scorsa = scrollY;
     }
     function tocca(e) {
-      if (!fieldEnabled || !running || ridotto) return;
+      if (!fieldActive() || !running || ridotto) return;
       var p = localizza(e); fretta = performance.now();
       if (p.x < 0 || p.x > W || p.y < 0 || p.y > H) return;
       onde.push({ x: p.x, y: p.y, via: clock });
@@ -398,16 +407,19 @@ function createSolari() {
         cell.busy = false; cell.turns = 0; cell.set(destinationWord[i] || ' ');
       });
     }
-    function stop() {
-      running = false;
+    function stopField() {
       if (raf) cancelAnimationFrame(raf);
       raf = 0; lastFrame = 0;
+    }
+    function stop() {
+      running = false;
+      stopField();
       settleBoard();
       hero.dataset.nextMotion = ridotto ? 'reduced' : 'paused';
     }
     function frame(t) {
       raf = 0;
-      if (!running || !fieldEnabled || !W || !H) return;
+      if (!running || !fieldActive() || !W || !H) return;
       if (lastFrame) clock += Math.min(80, t - lastFrame);
       lastFrame = t;
       // Original pacing: quiet 30fps; a gesture opens the full frame rate.
@@ -427,7 +439,8 @@ function createSolari() {
           played = true; board.giro(65);
         }, 350);
       }
-      if (fieldEnabled && !raf) raf = requestAnimationFrame(frame);
+      if (!fieldActive()) stopField();
+      else if (!raf) raf = requestAnimationFrame(frame);
     }
     function staticField() {
       if (!fieldEnabled || !W || !H) return;
@@ -435,10 +448,26 @@ function createSolari() {
       ridotto = true; onde = []; casc = []; vita.prima = 0; vita(0);
       ridotto = preference;
     }
+    function visible(node) {
+      var rect = node.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.top < innerHeight;
+    }
     function visibility() {
-      var rect = hero.getBoundingClientRect();
-      inView = rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.top < innerHeight;
+      inView = visible(hero);
+      if (fieldAperture) fieldVisible = visible(tela);
       sync();
+    }
+    function configureFieldAperture() {
+      // Deferred scripts can boot this engine while the document is already
+      // interactive, before the later vision controller places the canvas.
+      // Configure that original instance too, without adding another owner.
+      if (fieldAperture || hero.dataset.nextFieldVisibility !== 'canvas') return false;
+      fieldAperture = true; fieldVisible = visible(tela);
+      connection = navigator.connection;
+      if (connection && connection.addEventListener) listen(connection, 'change', sync);
+      if (observer) observer.observe(tela);
+      if (resizeObserver) resizeObserver.observe(tela);
+      return true;
     }
     function resize() {
       clearTimeout(resizeTimer);
@@ -465,21 +494,28 @@ function createSolari() {
     listen(window, 'scroll', function () { scorri(); if (!observer) visibility(); }, { passive: true });
     listen(window, 'resize', resize, { passive: true });
     listen(document, 'visibilitychange', sync);
+    if (connection && connection.addEventListener) listen(connection, 'change', sync);
     listen(window, 'pagehide', function () { suspended = true; stop(); clearTimeout(resizeTimer); });
     listen(window, 'pageshow', function () { suspended = false; visibility(); });
     if (reduceQuery.addEventListener) listen(reduceQuery, 'change', changeMotion);
     else { reduceQuery.addListener(changeMotion); listeners.push(function () { reduceQuery.removeListener(changeMotion); }); }
     if ('IntersectionObserver' in window) {
       observer = new IntersectionObserver(function (entries) {
-        inView = entries[0].isIntersecting; sync();
+        entries.forEach(function (entry) {
+          if (entry.target === tela) fieldVisible = entry.isIntersecting;
+          else if (!entry.target || entry.target === hero) inView = entry.isIntersecting;
+        });
+        sync();
       }, { threshold: .04 });
       observer.observe(hero);
+      if (fieldAperture) observer.observe(tela);
     }
     if ('ResizeObserver' in window) {
       resizeObserver = new ResizeObserver(resize); resizeObserver.observe(hero);
+      if (fieldAperture) resizeObserver.observe(tela);
     }
     instance = {
-      state: function () { return {theme:theme,cityPattern:cityPattern||'classic',paused:manuallyPaused,running:running&&fieldEnabled,elapsedMs:clock,nextPulseAt:battito,rafPending:!!raf,fieldEnabled:fieldEnabled}; },
+      state: function () { return {theme:theme,cityPattern:cityPattern||'classic',paused:manuallyPaused,running:running&&fieldActive(),elapsedMs:clock,nextPulseAt:battito,rafPending:!!raf,fieldEnabled:fieldEnabled,fieldVisible:fieldEnabled&&(fieldAperture?fieldVisible:inView),saveData:!!(connection&&connection.saveData)}; },
       setTheme: function (value) {
         theme = value; hero.dataset.nextTheme = value;
         // Repaint the same buffers. No resize, cell rebuild or clock reset.
@@ -487,11 +523,12 @@ function createSolari() {
       },
       setCityPattern: function (value) { cityPattern = value; hero.dataset.nextPattern = value; },
       setFieldEnabled: function (enabled) {
-        if (enabled === fieldEnabled) return;
+        var scopeChanged = configureFieldAperture();
+        if (enabled === fieldEnabled && !scopeChanged) return;
         fieldEnabled = enabled;
-        if (!enabled) { if (raf) cancelAnimationFrame(raf); raf = 0; lastFrame = 0; }
+        if (!enabled) stopField();
         else if (misura()) staticField();
-        sync();
+        visibility();
       },
       setDestination: function (word, options) {
         if (word === destinationWord) { if (options && options.animate === false) settleBoard(); return; }
