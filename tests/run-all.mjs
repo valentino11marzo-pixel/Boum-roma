@@ -10,6 +10,7 @@ import { spawn } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 
 const SUITES = [
+  {name:'movingbudget',file:'tests/moving-budget/run.mjs',what:'arrival cash, deposits, monthly separation, unknown costs, currencies and generated desk facts'},
   {name:'buying',file:'tests/buying/run.mjs',what:'European purchase intake, total budget, retry, correct operator card, rental safeguards and static multilingual SEO'},
   {name:'buyingui',file:'tests/buying/ui.mjs',what:'buying form in a real mobile/desktop browser: error, retry, one saved enquiry, languages, no-JS content'},
   {name:'externalcontract',file:'tests/external-contract/run.mjs',what:'firmato esterno nella stessa pratica: prove, concorrenza, recupero, CAF/RLI, ricevuta e archivi delle parti'},
