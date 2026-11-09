@@ -1252,6 +1252,26 @@ tplRefuses('<p class="proof">', '<p class="proof">Pay by bank transfer · ', /no
     && CITY.berlin.pricing.plans.every((p) => p.trigger === undefined) && bfs.includes.includes('Attended viewings included') && !bfs.includes.some((x) => /\(more:/.test(x))
     && bfs.includes[0] === "Homes offered to you alone, with the landlord's go-ahead",
     'berlin: "Always within the legal cap", the six\'s must-state, the refund rule on the Full Search ticket; Full Search only on homes offered to the tenant alone, viewings included, no "(more: …)"');
+  // Berlin since the card flip: the €500 is paid at the order, so "within the legal cap" holds only through the refund of
+  // the difference (Terms §12.2: two months' net cold rent plus VAT under €500 → the difference back). Wherever the page
+  // says the cap it says how — the FAQ on paying (visible and FAQPage), the "Who pays the agent" check (also on the hub),
+  // the fees row of the facts sheet (09/11). The same page without those sentences falls (mutation)
+  {
+    const capHow = (c) => {
+      const t = render(c).html.replace(/<script[\s\S]*?<\/script>/g, ' ').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+      return { claims: (t.match(/legal cap|German cap|within two months' net cold rent/g) || []).length, how: /we refund the difference/.test(t) && (t.match(/we refund any excess/g) || []).length >= 2 };
+    };
+    const live = capHow(CITY.berlin);
+    const cut = clone(CITY.berlin);
+    cut.faq.items = cut.faq.items.map((q) => ({ ...q, a: q.a.replace(/ If two months' net cold rent plus VAT come to less than the €500 of Full Search, we refund the difference\./, '') }));
+    cut.checks.items = cut.checks.items.map((k) => (k.id === 'fees' ? { ...k, text: k.text.replace(': we refund any excess.', '.') } : k));
+    cut.bref.rows = cut.bref.rows.map((r) => (r.fees ? { ...r, ddHtml: r.ddHtml.replace(': we refund any excess.', '.') } : r));
+    const mutated = capHow(cut);
+    const termsText = read('terms.html').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+    check(live.claims > 0 && live.how === true && mutated.claims > 0 && mutated.how === false
+      && /if that is less than €500, we refund the difference/.test(termsText) && read('desks.html').includes("our fee stays within two months' net cold rent plus VAT: we refund any excess."),
+      'berlin: the €500 paid at the order stays within the legal cap only through the refund of the difference — the page says how wherever it says the cap (the FAQ on paying, the fees check also on the hub, the facts sheet), as Terms §12.2; without those sentences the check falls (mutation)', JSON.stringify({ live, mutated }));
+  }
   check(DRAFT.berlin.hero.faresHead.span === 'Nothing charged today' && /data-plan-price="full-search">€500<\/span><span class="f-cond">flat ·<br> incl\. VAT · on signing<\/span>/.test(renderDraft(DRAFT.berlin).html),
     'draft-berlin: nothing is charged today, and Full Search says on its own row that it is due only once you sign (WoVermRG §2–§3)');
   check(/Catalan or Spanish/.test(CITY.barcelona.checkoutCopy.fine) && /fulls oficials/i.test(PAGE.barcelona), 'barcelona: documents in Catalan or Spanish on request, the official complaint forms named');

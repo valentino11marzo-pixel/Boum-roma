@@ -4490,7 +4490,19 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
        né il «Confirmed» di Berlino, né il PDF dell'ordine. Il supporto durevole è l'email di conferma
        del webhook.
      - Le aperte O1–O19 del v1.8 restano, salvo quelle sulla firma.
-  Test: `run.mjs` 1346, `checkout.mjs` 123, `signing.mjs` 298, `upgrade` 71, `cityterms` 149,
+  4. **Gli ordini prenotati prima della carta, sul registro di oggi** (9/11). Fino a qui lo provava solo un
+     controllo sul sorgente. Ora `signing.mjs` crea un ordine di Parigi e uno di Berlino il 05/11 col
+     registro di allora e li rilegge il 09/11 col registro vero: biglietto BOOKED, `/firmato` che prezza
+     il Full Search di Parigi a €500, risposta pronta «order is in» (mai «Payment received» né `#pay-`),
+     registro di novembre dei due desk. Lo stesso giorno un ordine nuovo apre la cassa. Quattro mutazioni
+     rimettono ogni lettore a chiedere la modalità di oggi al desk, e tutte e quattro vengono prese.
+  5. **Il tetto di Berlino detto sulla pagina** (9/11). Con la carta all'ordine i €500 si pagano subito, quindi
+     «Always within the legal cap» è vero solo perché la differenza si rimborsa (Termini §12.2). La pagina ora lo
+     dice dove promette il tetto: la FAQ «When do I pay BOOM Berlin?», il controllo «Who pays the agent» (anche
+     sull'hub) e la riga Fees della scheda («we refund the difference» / «we refund any excess»). `run.mjs` lo
+     pretende, con una mutazione che toglie quelle frasi. In `llms.txt` la riga dei prezzi dice che il Full Search
+     di Berlino funziona diversamente.
+  Test: `run.mjs` 1347, `checkout.mjs` 123, `signing.mjs` 307, `upgrade` 71, `cityterms` 149,
   `withdraw` 124, `calendar` 128, `conservazione` 9; seo, llms, verità, crawl, faq verdi. Il log
   «[city-order] pdf failed: ERR_INVALID_ARG_TYPE» di `checkout.mjs` c'era già prima (strada alla firma,
   ambiente di test).

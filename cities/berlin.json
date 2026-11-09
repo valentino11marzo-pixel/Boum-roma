@@ -121,7 +121,7 @@
         "id": "fees",
         "title": "Who pays the agent",
         "at": "Bestellerprinzip · WoVermRG",
-        "text": "Whoever orders the agent pays: a landlord's agent cannot charge you. We work only on homes offered to you alone, with the landlord's go-ahead; our fee stays within two months' net cold rent plus VAT."
+        "text": "Whoever orders the agent pays: a landlord's agent cannot charge you. We work only on homes offered to you alone, with the landlord's go-ahead; our fee stays within two months' net cold rent plus VAT: we refund any excess."
       },
       {
         "id": "rentcap",
@@ -163,7 +163,7 @@
     "items": [
       {
         "q": "When do I pay BOOM Berlin?",
-        "a": "When you order, by card on this page: three flat fees, VAT included. Full Search is refunded in full if we decline the search in the first call. A landlord's agent cannot charge you anything: in Germany whoever orders the agent pays."
+        "a": "When you order, by card on this page: three flat fees, VAT included. If two months' net cold rent plus VAT come to less than the €500 of Full Search, we refund the difference. Full Search is refunded in full if we decline the search in the first call. A landlord's agent cannot charge you anything: in Germany whoever orders the agent pays."
       },
       {
         "q": "What happens on the free call?",
@@ -201,7 +201,7 @@
       {
         "dt": "Fees",
         "fees": true,
-        "ddHtml": "Nothing from landlords or platforms, always inside the German cap."
+        "ddHtml": "Nothing from landlords or platforms. Full Search stays inside the German cap: we refund any excess."
       },
       {
         "dt": "What we do",
