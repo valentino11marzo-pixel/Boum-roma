@@ -352,11 +352,36 @@
     }
     return result;
   }
+  // IL BONIFICO SUL CONTO DI BOOM (decisione del fondatore, 6/11/2026): chi
+  // paga una rata con bonifico versa sempre €1,50 in più, fissi. Il canone
+  // passa da Egidi Immobiliare al proprietario: due bonifici, e il secondo lo
+  // paghiamo noi. Una copia sola: /casa lo mostra, la riconciliazione bancaria
+  // lo riconosce, il portal lo scrive nei promemoria.
+  var BANK_TRANSFER_FEE = 1.5;
+  // Il conto su cui pagare quando payout/default non è stato scritto da /banca
+  // (Banca Sella, coordinate fornite dal fondatore il 6/11/2026). Il documento
+  // in Firestore, se c'è, vince sempre.
+  var DEFAULT_PAYOUT = Object.freeze({ beneficiary: 'EGIDI IMMOBILIARE S.R.L.', iban: 'IT54O0326803200052861450580', bic: 'SELBIT2BXXX', bank: 'Banca Sella' });
+  function bankTransferTotal(value) {
+    var a = amount(value);
+    return a == null ? null : round(a + BANK_TRANSFER_FEE);
+  }
+  // Quello che è arrivato in banca paga la rata? Con l'€1,50 o senza: chi lo
+  // dimentica ha comunque pagato il canone, e una rata lasciata aperta per
+  // 1,50 manderebbe un sollecito a chi ha pagato. Ogni altro importo NO
+  // (acconto, errore): resta un suggerimento per un umano.
+  function bankReceived(due, received) {
+    var d = amount(due), r = Number(received);
+    if (d == null || !Number.isFinite(r)) return null;
+    if (Math.abs(r - round(d + BANK_TRANSFER_FEE)) <= 0.01) return { fee: BANK_TRANSFER_FEE };
+    if (Math.abs(r - d) <= 0.01) return { fee: 0 };
+    return null;
+  }
   function coversMonth(p, month) {
     return isRentPayment(p) && !!monthOf(p.month) && p.month<=month && (monthOf(p.coversTo)||p.month)>=month;
   }
 
-  var API = { civilDay:day, contractRent:contractRent, inputMoney:inputMoney, paymentSnapshot:paymentSnapshot, contractSnapshot:contractSnapshot, sameSnapshot:sameSnapshot, editablePayment:editablePayment, contractSigned:contractSigned, installmentInput:installmentInput, bulkInstallments:bulkInstallments, coversMonth:coversMonth, amount: amount, paymentBlockReason: paymentBlockReason, paymentState: paymentState, canPay: canPay, canReviewReport: canReviewReport, isReceiptDocument: isReceiptDocument, isRentPayment: isRentPayment, isRentReceipt: isRentReceipt, businessInvoices: businessInvoices, isForeignVat: isForeignVat, agencyCollections: agencyCollections, overview: overview, rowsForMonth: rowsForMonth, timeline: timeline, nextAction: nextAction };
+  var API = { BANK_TRANSFER_FEE:BANK_TRANSFER_FEE, DEFAULT_PAYOUT:DEFAULT_PAYOUT, bankTransferTotal:bankTransferTotal, bankReceived:bankReceived, civilDay:day, contractRent:contractRent, inputMoney:inputMoney, paymentSnapshot:paymentSnapshot, contractSnapshot:contractSnapshot, sameSnapshot:sameSnapshot, editablePayment:editablePayment, contractSigned:contractSigned, installmentInput:installmentInput, bulkInstallments:bulkInstallments, coversMonth:coversMonth, amount: amount, paymentBlockReason: paymentBlockReason, paymentState: paymentState, canPay: canPay, canReviewReport: canReviewReport, isReceiptDocument: isReceiptDocument, isRentPayment: isRentPayment, isRentReceipt: isRentReceipt, businessInvoices: businessInvoices, isForeignVat: isForeignVat, agencyCollections: agencyCollections, overview: overview, rowsForMonth: rowsForMonth, timeline: timeline, nextAction: nextAction };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   if (root) root.BOOM_RENT = API;
 })(typeof window !== 'undefined' ? window : typeof globalThis !== 'undefined' ? globalThis : this);

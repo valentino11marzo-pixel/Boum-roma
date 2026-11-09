@@ -289,6 +289,18 @@ const segui = (p) => {
   return null;
 };
 
+// Search Console 09/11/2026: il vecchio /proprietari.html finiva in 404
+// dopo il cleanUrls → /proprietari. Entrambe le forme portano alla pagina vera.
+for (const src of ['/proprietari', '/proprietari.html']) {
+  const route = segui(src);
+  check(route?.dest === '/owners' && route.r.permanent === true,
+    `${src} → /owners, permanente (vecchio URL Search Console)`);
+}
+check(esiste('owners.html') && !noindexMeta(leggi('owners.html')) && consente('/owners'),
+  'la destinazione /owners esiste ed è indicizzabile');
+check(!segui('/proprietari-inesistente') && !segui('/proprietari/privato'),
+  'il recupero proprietari è esatto: non copre prefissi o sottopercorsi');
+
 // I quartieri. /apartments/:id manda a /listing/:id QUALSIASI segmento, anche
 // il nome di una zona che una persona o un crawler scrive a mano:
 // /apartments/trastevere arrivava alla scheda 404 «This home is no longer

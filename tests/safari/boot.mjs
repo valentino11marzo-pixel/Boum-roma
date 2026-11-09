@@ -132,6 +132,10 @@ const CASES = [
   // che intanto dichiarava "nessuna superficie autenticata resta appesa".
   // È esattamente la pagina su cui l'operatore vedeva lo spinner infinito.
   { name: 'portal: boot normale',                       page: 'portal',              role: 'admin',  mode: 'ok',            wait: 6000,  expect: 'app' },
+  // 6/11/2026: un inquilino che arriva al portal (/login senza `next` porta
+  // tutti lì) va a /casa; ?portal=1 lo lascia sulla vista vecchia.
+  { name: 'portal: un inquilino va a /casa',            page: 'portal',              role: 'tenant', mode: 'ok',            wait: 4000,  expect: 'casa' },
+  { name: 'portal: inquilino con ?portal=1 resta qui',  page: 'portal',              role: 'tenant', mode: 'ok',            wait: 6000,  expect: 'app', query: '?portal=1' },
   // Il caso senza uscita: portal-app.js accende la sentinella alla riga 1 e
   // POI muore (su WebKit ne abbiamo di registrati: Notification assente,
   // IndexedDB che salta). Prima di questa suite la pagina restava sullo
@@ -174,12 +178,13 @@ for (const c of CASES) {
       body: 'window.__portalAppLoaded = true;\nthrow new Error("boom durante il boot");',
     }));
   }
-  await page.goto(`http://127.0.0.1:${PORT}/${c.page}.html`, { waitUntil: 'domcontentloaded' });
+  await page.goto(`http://127.0.0.1:${PORT}/${c.page}.html${c.query || ''}`, { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(c.wait);
 
   const url = page.url();
   const bounced = url.indexOf('/login') >= 0;
-  const state = bounced ? 'login' : await page.evaluate(() => {
+  const home = new URL(url).pathname === '/casa';
+  const state = bounced ? 'login' : home ? 'casa' : await page.evaluate(() => {
     if (document.getElementById('bp-recovery')) return 'recovery';
     // portal.html chiama il suo loader #loading e trasforma quel nodo nella
     // card di uscita (data-escape) invece di iniettare #bp-recovery.
