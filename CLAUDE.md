@@ -10200,6 +10200,13 @@ stesso carattere, stessa geometria (±2px), stesso contenuto, zero errori JS.
 
 ## La casa in ordine — SEO/GEO (tests/seo/run.mjs)
 
+**9 novembre 2026 — vecchio URL proprietari.** Search Console segnala ancora
+`/proprietari.html`: in produzione cleanUrls lo porta a `/proprietari`, che
+risponde 404. Entrambe le forme ora hanno un redirect permanente a `/owners`
+in `vercel.json`; `tests/crawl` verifica destinazione, indicizzabilità e confini
+delle regole. Le esclusioni intenzionali delle API e del modulo di recesso,
+e il canonical della variante `/reunion?role=owner`, restano corretti.
+
 Undici regole su **60 pagine dedotte dalla sitemap**, non da una lista a
 mano. Ognuna nata da un difetto VERO trovato in produzione, non da una
 checklist di buone pratiche:
