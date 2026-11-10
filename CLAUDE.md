@@ -5132,6 +5132,12 @@ Studio aggiunge un selettore dedicato, con lo stesso iframe e la validazione del
 La nuova geometria vive in `boom-dispatch-compositions.css`: nessun nuovo renderer, clock, modulo, dato cliente o dipendenza. Il footer chiaro e il sito pubblico restano invariati.
 Regia in `design/dispatch-open-compositions.md`; `flightdispatchui` verifica dimensioni, originali conservati, Full view, passaggi nativi e cambio composizione con bozza valida/invalida; regressioni in `flightpanoramaui`.
 
+Flight Dispatch Observatory 10/11: `composition=observatory` aggiunge una scena geografica aperta e un indice di sei città; Studio la confronta nello stesso iframe, mentre Aperta resta il default.
+Il tour originale possiede anche l’anteprima intenzionale:120ms sul puntatore fine, immediata da tastiera. Solari e camera si accordano solo se il renderer accetta; pausa, movimento ridotto o attesa dati lasciano una nota statica.
+La nota legge nome e capacità dal directory nativo; il contorno bianco sul globo indica la città esplorata, il giallo conserva la scelta reale. Nessun nuovo catalogo, prezzo, clock o dato cliente.
+Choose città passa dal pulsante nativo dopo il ripristino; uscita, Escape, camera, navigazione e invisibilità cancellano l’anteprima. URL, campi, valuta e servizi cambiano solo alla scelta esplicita.
+Regia in `design/dispatch-observatory.md`; `flightdispatchui` copre proporzioni, anticipazione/ripristino, tastiera/tocco, quiete e bozza Studio; regressioni in `flightpanoramaui`.
+
 Flight Lab 31/10: `/flight-lab` confronta Atlas, Residence e Club sulle stesse viste reali di `/flight-next?direction=…`, senza cambiare il sito pubblico.
 Le composizioni riusano catalogo, Solari, iframe Skyline, salvataggi e Apply; nessun secondo catalogo o nuovo handler di invio.
 Residence usa una foto realmente restituita dal catalogo pubblico (fallback a una casa pubblica non chiusa); Atlas sposta la stessa mappa nel primo schermo.

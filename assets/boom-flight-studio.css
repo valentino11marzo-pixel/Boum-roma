@@ -75,7 +75,7 @@ noscript a{text-decoration:underline}
  .studio-controls[aria-label="Esperienza"] button{padding-inline:8px}
  .studio-compositions{display:block;padding-bottom:12px;margin-bottom:16px}
  .studio-compositions legend{float:none;padding:0;margin-bottom:4px;font-size:13px}
- .studio-composition-options{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px}
+ .studio-composition-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}
  .studio-composition-options button{padding-inline:2px;font-size:13px}
  .studio-composition-options button[data-studio-composition=instrument]{font-size:12px}
  #studioStatus{width:100%;margin:0}

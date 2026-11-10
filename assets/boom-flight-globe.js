@@ -113,6 +113,12 @@
       // finish their own native click before restoring the city underneath.
       var tourControl = event.target.closest && event.target.closest('#dispatchCityTourToggle,#dispatchChooseCity');
       if (tourControl && (event.key === 'Enter' || event.key === ' ')) return;
+      // Let native Tab focus reach a manual preview's Choose action. Clearing
+      // here hides it before the browser moves focus; the tour's focus owner
+      // restores the real city when focus leaves this presentation instead.
+      if (event.key === 'Tab' && document.body.dataset.dispatchComposition === 'observatory' &&
+          document.body.dataset.dispatchTour === 'preview' && event.target.closest &&
+          event.target.closest('#dispatchCityChoices button[data-europe-city],#dispatchChooseCity')) return;
       clearPreview(s);
     });
     listen(global, 'popstate', function () { cancelRouteTrace(s); clearPreview(s); });
@@ -447,6 +453,7 @@
   function paint(s, view) {
     view = view || {};
     var dispatch = dispatchAtlas();
+    var observatory = dispatch && document.body.dataset.dispatchComposition === 'observatory';
     var ctx = view.context || s.context, w = view.width || s.width, h = view.height || s.height;
     var framing=cameraFrame(s,w,h,s.zoom);
     var cx = view.cx == null ? framing.cx : view.cx, cy = view.cy == null ? framing.cy : view.cy, r = view.radius || framing.radius;
@@ -539,7 +546,7 @@
     }
     if (!s.data || (!view.flight && !s.labelPositions)) return;
     CITIES.forEach(function (city) {
-      var p = project(s.data.cities[city.slug].vector), selected = city.slug === selectedCity, label = s.labelPositions && s.labelPositions[city.slug];
+      var p = project(s.data.cities[city.slug].vector), selected = city.slug === selectedCity, inspected = observatory && city.slug === s.previewCity, label = s.labelPositions && s.labelPositions[city.slug];
       if (p[2] <= 0) return;
       var x = cx+p[0]*r, y = cy+p[1]*r, labelWidth = w < 430 ? 94 : 112;
       if (!view.flight && !s.previewCity && (s.root.dataset.globeLabels!=='selected'||selected)) {
@@ -548,8 +555,10 @@
         ctx.lineWidth = selected ? 1 : .65; ctx.strokeStyle = selected ? 'rgba(255,215,0,.72)' : 'rgba(214,212,199,.3)'; ctx.stroke();
       }
       if (selected) { ctx.beginPath(); ctx.arc(x,y,view.flight?13:8,0,Math.PI*2); ctx.lineWidth = 1; ctx.strokeStyle = dispatch ? 'rgba(255,215,0,.8)' : 'rgba(255,215,0,.55)'; ctx.stroke(); }
+      // White locates a city being inspected; yellow remains the real choice.
+      if (inspected) { ctx.beginPath(); ctx.arc(x,y,9,0,Math.PI*2); ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(255,255,255,.85)'; ctx.stroke(); }
       if(selected&&trace&&arrival>0){ctx.beginPath();ctx.arc(x,y,8+16*(1-Math.pow(1-arrival,3)),0,Math.PI*2);ctx.lineWidth=1.2;ctx.strokeStyle='rgba(255,215,0,'+(.7*(1-arrival))+')';ctx.stroke();}
-      ctx.save(); ctx.beginPath(); ctx.arc(x,y,selected?3.5:dispatch?2.2:2.8,0,Math.PI*2); ctx.fillStyle = selected ? (dispatch ? '#fff4b3' : '#ffd700') : (dispatch ? '#b8b8b4' : '#c9b887');
+      ctx.save(); ctx.beginPath(); ctx.arc(x,y,selected||inspected?3.5:dispatch?2.2:2.8,0,Math.PI*2); ctx.fillStyle = selected ? (dispatch ? '#fff4b3' : '#ffd700') : inspected ? '#fff' : (dispatch ? '#b8b8b4' : '#c9b887');
       if (selected && !dispatch) { ctx.shadowColor = '#ffd700'; ctx.shadowBlur = 12; } ctx.fill(); ctx.restore();
       ctx.lineWidth = 1.2; ctx.strokeStyle = '#08090b'; ctx.stroke();
     });

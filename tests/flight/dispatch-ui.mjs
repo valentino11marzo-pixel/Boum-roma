@@ -26,9 +26,9 @@ const server=createServer((req,res)=>{
 await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(0,'127.0.0.1',resolve);});
 const origin='http://127.0.0.1:'+server.address().port;
 let browser,passed=0,failed=0;
-async function check(name,width,fn,motion='reduce'){
+async function check(name,width,fn,motion='reduce',height=1000){
  if(focus&&!name.includes(focus))return;
- const page=await browser.newPage({viewport:{width,height:1000},isMobile:width<500,hasTouch:width<500,reducedMotion:motion});
+ const page=await browser.newPage({viewport:{width,height},isMobile:width<500,hasTouch:width<500,reducedMotion:motion});
  const errors=[],writes=[],missing=[],privateReads=[],requests={catalogue:0,map:0},data={mode:'normal',pending:[]};
  page.setDefaultTimeout(10000);page.on('pageerror',error=>errors.push(error.message));
  page.on('response',response=>{if(response.url().startsWith(origin+'/assets/')&&response.status()>=400&&!response.url().includes('/boom-desks-public.json'))missing.push(new URL(response.url()).pathname);});
@@ -160,6 +160,31 @@ async function tourStopped(page){
  assert.equal(restored.word,restored.name.toUpperCase(),'stopping restores the actual selected city on the original board');assert.equal(restored.playing,undefined);assert.equal(restored.choose,true);assert.notEqual(restored.heading,'Real homes in Rome. Rental support across Europe.');
 }
 
+
+async function peekStopped(page){
+ await tourStopped(page);
+ const state=await page.evaluate(()=>({tour:BoomDispatchTour.state(),peek:document.body.dataset.dispatchPeek,candidates:document.querySelectorAll('[data-dispatch-peek="true"]').length}));
+ assert.equal(state.tour.peek,null,'the manual destination is released');assert.equal(state.tour.peekPaired,false);assert.equal(state.tour.intentPending,false,'no hover-intent timer survives');assert.equal(state.peek,undefined);assert.equal(state.candidates,0);
+}
+async function peekGeometry(page){return page.evaluate(()=>Object.fromEntries([['heading','#nextHeroTitle'],['promise','.hero-promise'],['note','#dispatchPeekNote'],['choices','.europe-city-switch'],['action',document.body.dataset.dispatchTour==='preview'?'#dispatchChooseCity':'.edition-plan-link']].map(([name,selector])=>[name,document.querySelector(selector).getBoundingClientRect().toJSON()])));}
+async function stablePeekAction(page,before){
+ const after=await peekGeometry(page);
+ for(const name of ['action','choices'])for(const edge of ['x','y','width','height'])assert.ok(Math.abs(before[name][edge]-after[name][edge])<=1,'the '+name+' preserves its native '+edge+' while inspecting a city: '+JSON.stringify({before,after}));
+}
+async function previewCity(page,slug,{keyboard=false,paired=true}={}){
+ const nativeGeometry=paired&&await page.locator('.edition-plan-link').isVisible()?await peekGeometry(page):null;
+ const button=page.locator('.europe-city-switch [data-europe-city="'+slug+'"]');
+ if(keyboard)await button.focus();else{await page.mouse.move(5,5);await button.hover();}
+ await page.waitForFunction(value=>BoomDispatchTour.state().peek===value.slug&&BoomDispatchTour.state().peekPaired===value.paired,{slug,paired});
+ const name=await button.locator('span:last-child').textContent();
+ assert.equal(await button.getAttribute('data-dispatch-peek'),'true');assert.equal(await page.locator('body').getAttribute('data-dispatch-peek'),slug);
+ assert.match(await page.locator('#dispatchPeekNote').innerText(),new RegExp(name.trim(),'i'));
+ const capability=await page.locator('#clubDestinations button[data-europe-city="'+slug+'"] strong + span').textContent();
+ assert.ok((await page.locator('#dispatchPeekNote').innerText()).includes(capability.trim()),'the preview explains the actual destination capability from the original directory');
+ assert.equal(await page.locator('#dispatchChooseCity').isVisible(),paired);assert.equal(await page.locator('.edition-plan-link').isVisible(),!paired,'the preview never pairs another destination with the native action');
+ if(paired){assert.equal(await page.locator('#nextDestinationBoard').getAttribute('aria-label'),name.trim().toUpperCase());assert.equal(await page.evaluate(()=>BoomFlightGlobe.state().previewCity),slug);if(nativeGeometry)await stablePeekAction(page,nativeGeometry);}
+}
+
 try{
  browser=await chromium.launch(await launchOptions());
  for(const width of [320,390,768,900,1440])await check('Dispatch '+width+': departure geography, six-city rail and original Rome evidence',width,async({page,requests})=>{
@@ -222,7 +247,7 @@ try{
   assert.equal(await page.evaluate(()=>BoomFlightNextMotion.state().fieldEnabled),true,'Dispatch restores the original Solari background field');
   assert.equal(await page.locator('#nextHeroTitle #nextSolariField').count(),1,'the one original field belongs to the heading aperture');
  });
- for(const composition of ['open','atlas','concourse'])for(const width of [320,390,768,1440])await check('Dispatch composition '+composition+' '+width+': frameless entrance preserves native destination, pulse and geography',width,async({page,requests})=>{
+ for(const composition of ['open','atlas','concourse','observatory'])for(const width of [320,390,768,1440])await check('Dispatch composition '+composition+' '+width+': frameless entrance preserves native destination, pulse and geography',width,async({page,requests})=>{
   await start(page,'composition='+composition);await page.evaluate(()=>document.fonts.ready);
   assert.equal(await page.locator('body').getAttribute('data-dispatch-composition'),composition);
   const shell=await page.locator('#directionClubTicket').evaluate(node=>({radius:getComputedStyle(node).borderRadius,shadow:getComputedStyle(node).boxShadow,border:getComputedStyle(node).borderTopWidth}));
@@ -245,10 +270,11 @@ try{
    noOverlap(geometry.field,geometry.citiesGroup,'the original pulse ends before native city choices');
    for(const {box,name} of geometry.cities){assert.ok(name.left>=box.left-1&&name.right<=box.right+1,'complete city name fits its actual target');assert.ok(box.left>=0&&box.right<=width+1,'native city target is not clipped horizontally');}
    assert.ok(geometry.canvas.width>=240&&geometry.canvas.height>=200,'the original geography has a useful visible canvas');
-   assert.ok(geometry.stage.left>=geometry.scene.left-1&&geometry.stage.right<=geometry.scene.right+1,'geography stays within its own composition area');
+   assert.ok(geometry.stage.left>=geometry.scene.left-1&&geometry.stage.right<=geometry.scene.right+1,'geography stays within its own composition area: '+JSON.stringify({scene:geometry.scene,stage:geometry.stage}));
    const topControls=await page.locator('#visionScene .panorama-globe-toolbar button,#visionScene .dispatch-lenses button,#visionScene .panorama-globe-tools button').evaluateAll(nodes=>nodes.filter(n=>n.getClientRects().length).map(n=>n.getBoundingClientRect().toJSON()));
    assert.ok(topControls.every(box=>box.left>=geometry.scene.left-1&&box.right<=geometry.scene.right+1),'all map controls stay inside the scene');
   }
+  if(process.env.BOOM_COMPOSITION_CAPTURE_PREFIX){await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:process.env.BOOM_COMPOSITION_CAPTURE_PREFIX+'-'+composition+'-'+width+'.png',scale:'css'});if(['atlas','observatory'].includes(composition)&&width===1440)await page.locator('#directionClubTicket').screenshot({path:process.env.BOOM_COMPOSITION_CAPTURE_PREFIX+'-'+composition+'-'+width+'-hero.png',scale:'css'});}
   await fits();
   if(composition==='atlas'&&width===1440){
    const pin=await page.locator('#visionScene button[data-globe-city="rome"]').boundingBox(),canvas=await page.locator('#visionScene .boom-flight-globe-canvas').boundingBox();
@@ -259,7 +285,6 @@ try{
    await page.locator('[data-dispatch-lens="horizon"]').click();await page.waitForFunction(()=>BoomFlightGlobe.state().framingMix===1&&!BoomFlightGlobe.state().rafPending);
    assert.equal(page.url(),beforeURL,'the Atlas lens changes no journey state');
   }
-  if(process.env.BOOM_COMPOSITION_CAPTURE_PREFIX){await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:process.env.BOOM_COMPOSITION_CAPTURE_PREFIX+'-'+composition+'-'+width+'.png',scale:'css'});if(composition==='atlas'&&width===1440)await page.locator('#directionClubTicket').screenshot({path:process.env.BOOM_COMPOSITION_CAPTURE_PREFIX+'-'+composition+'-'+width+'-hero.png',scale:'css'});}
   const reads=requests.catalogue;
   await page.locator('[data-panorama-expand]').click();await page.locator('#panoramaGlobeDialog').waitFor({state:'visible'});
   assert.equal(await page.locator('#panoramaGlobeDialog .boom-flight-globe-canvas').count(),1,'Full view moves the existing globe');
@@ -271,12 +296,20 @@ try{
   await page.locator('#europeDeskContinue').click();await page.waitForURL(url=>url.pathname==='/amsterdam');
   assert.doesNotMatch(page.url(),/composition=|vision=|privatePlace|lat=|lng=/,'the native service door excludes preview presentation and private data');
  });
- await check('Dispatch composition Studio: four layouts preserve a valid public draft and protect an invalid draft',1440,async({page})=>{
+ for(const [width,height] of [[1440,900],[1366,768]])await check('Dispatch Observatory laptop '+width+'x'+height+': every destination remains above the fold',width,async({page})=>{
+  await start(page,'composition=observatory');await page.evaluate(()=>document.fonts.ready);
+  if(process.env.BOOM_COMPOSITION_CAPTURE_PREFIX)await page.screenshot({path:process.env.BOOM_COMPOSITION_CAPTURE_PREFIX+'-observatory-'+width+'x'+height+'.png',scale:'css'});
+  await boardFits(page,width);await noOverflow(page);await controls(page,'.europe-city-switch button,.edition-plan-link,.dispatch-lenses button,.panorama-globe-tools button');
+  const deck=await page.locator('.europe-city-switch').boundingBox();assert.ok(deck.y+deck.height<=height+1,'the six actual destination choices remain discoverable at this laptop height: '+JSON.stringify(deck));
+  await page.emulateMedia({reducedMotion:'no-preference'});
+  for(const selected of ['rome','london','amsterdam']){if(selected!=='rome'){await city(page,selected);await foreignOffer(page);}await previewCity(page,'milan');await page.keyboard.press('Escape');await peekStopped(page);}
+ },'reduce',height);
+ await check('Dispatch composition Studio: five layouts preserve a valid public draft and protect an invalid draft',1440,async({page})=>{
   await page.goto(origin+'/flight-studio?experience=dispatch&composition=open&city=rome&privatePlace=synthetic-office&lat=41.9123&lng=12.5123',{waitUntil:'domcontentloaded'});
   const frame=await (await page.locator('#studioFrame').elementHandle()).contentFrame();
   await frame.waitForFunction(()=>document.body.dataset.dispatchComposition==='open'&&!!window.BoomFlightEurope);
   await fillRome(frame);
-  for(const composition of ['atlas','concourse','instrument','open']){
+  for(const composition of ['atlas','concourse','observatory','instrument','open']){
    await page.locator('button[data-studio-composition="'+composition+'"]').click();
    await frame.waitForFunction(value=>document.body.dataset.dispatchComposition===value&&!!window.BoomFlightEurope,composition);
    await page.waitForFunction(()=>document.getElementById('studioOpen').getAttribute('aria-disabled')==='false');
@@ -659,6 +692,102 @@ try{
   await page.evaluate(()=>{delete document.hidden;document.dispatchEvent(new Event('visibilitychange'));});await page.waitForFunction(()=>BoomFlightNextMotion.state().running);
   assert.equal(await page.evaluate(()=>__originalField===document.getElementById('nextSolariField')&&__originalBoard===document.getElementById('nextDestinationBoard')),true,'every interruption retains the original field and board nodes');
   assert.deepEqual(await nativeTourSnapshot(page),native,'motion controls preserve the native journey throughout');await noOverflow(page);
+ },'no-preference');
+ await check('Dispatch Observatory peek: brief, fee and history survive intent, rapid retargeting and explicit choice',1440,async({page,requests})=>{
+  const query='composition=observatory&city=london&need=application&moveIn='+arrival+'&moveOut='+departure+'&budget=3000&currency=GBP&people=family';
+  await start(page,query);await foreignOffer(page);await city(page,'amsterdam');await foreignOffer(page);
+  const nativeChoice={fields:(await nativeTourSnapshot(page)).fields,currency:new URL(page.url()).searchParams.get('currency')};
+  await start(page,query);await foreignOffer(page);await peekStopped(page);const before=await nativeTourSnapshot(page),reads={...requests},nativeGeometry=await peekGeometry(page);
+  await page.evaluate(()=>{window.__peekOriginals=[document.getElementById('nextDestinationBoard'),document.getElementById('nextSolariField'),document.querySelector('.boom-flight-globe-canvas'),document.getElementById('nextSearchForm'),document.getElementById('europeDeskForm')];});
+  const points=await page.locator('.europe-city-switch button').evaluateAll(nodes=>Object.fromEntries(nodes.map(node=>{const box=node.getBoundingClientRect();return [node.dataset.europeCity,{x:box.x+box.width/2,y:box.y+box.height/2}];})));
+  await page.evaluate(()=>{
+   window.__peekIntentTrace={entries:[],previews:[]};
+   document.querySelector('.europe-city-switch').addEventListener('pointerover',event=>{const button=event.target.closest('[data-europe-city]');if(button&&!button.contains(event.relatedTarget))__peekIntentTrace.entries.push({city:button.dataset.europeCity,at:performance.now()});});
+   new MutationObserver(()=>{if(document.body.dataset.dispatchPeek)__peekIntentTrace.previews.push({city:document.body.dataset.dispatchPeek,at:performance.now()});}).observe(document.body,{attributes:true,attributeFilter:['data-dispatch-peek']});
+  });
+  for(const slug of ['amsterdam','milan','madrid','barcelona']){await page.mouse.move(points[slug].x,points[slug].y);if(slug!=='barcelona')await page.waitForTimeout(12);}
+  await page.waitForFunction(()=>BoomDispatchTour.state().peek==='barcelona'&&BoomDispatchTour.state().peekPaired);
+  const intent=await page.evaluate(()=>__peekIntentTrace),finalEntry=intent.entries.at(-1);
+  assert.deepEqual(intent.entries.map(entry=>entry.city),['amsterdam','milan','madrid','barcelona']);
+  assert.ok(intent.entries.slice(1).every((entry,index)=>entry.at-intent.entries[index].at<120),'the real pointer retargeted before each prior120ms intent matured: '+JSON.stringify(intent));
+  assert.deepEqual(intent.previews.map(entry=>entry.city),['barcelona'],'rapid pointer retargets cancel every prior candidate');
+  assert.ok(intent.previews[0].at-finalEntry.at>=115,'the final destination waits the actual120ms browser intent window: '+JSON.stringify(intent));
+  assert.equal(await page.evaluate(()=>BoomDispatchTour.state().timerPending),false,'a completed peek leaves no automatic city clock');await stablePeekAction(page,nativeGeometry);
+  assert.deepEqual(await nativeTourSnapshot(page),before,'preview leaves every native choice, field, fee, currency and URL untouched');
+  await previewCity(page,'amsterdam');await boardFits(page,1440);
+  assert.match(await page.locator('#dispatchChooseCity').innerText(),/^Choose Amsterdam/);
+  if(process.env.BOOM_COMPOSITION_CAPTURE_PREFIX)await page.screenshot({path:process.env.BOOM_COMPOSITION_CAPTURE_PREFIX+'-observatory-peek-1440.png',scale:'css'});
+  await page.locator('#dispatchChooseCity').click();await page.waitForFunction(()=>document.body.dataset.europeCity==='amsterdam');await peekStopped(page);await foreignOffer(page);
+  assert.equal(new URL(page.url()).searchParams.get('city'),'amsterdam','only the explicit Choose action commits the original city handler');
+  assert.equal(await page.locator('.europe-city-switch [aria-pressed="true"]').evaluate(node=>node===document.activeElement),true,'Choose returns focus to its original selected button');
+  const committed=await nativeTourSnapshot(page);assert.deepEqual(committed.fields,nativeChoice.fields,'Choose applies the original city handler’s brief and currency rules');
+  assert.equal(new URL(page.url()).searchParams.get('currency'),nativeChoice.currency);
+  await previewCity(page,'madrid');await city(page,'milan');await peekStopped(page);await foreignOffer(page);
+  assert.equal(await page.locator('#nextDestinationBoard').getAttribute('aria-label'),'MILAN','native city click wins immediately over preview');
+  assert.equal(await page.evaluate(()=>__peekOriginals.every((node,index)=>node===[document.getElementById('nextDestinationBoard'),document.getElementById('nextSolariField'),document.querySelector('.boom-flight-globe-canvas'),document.getElementById('nextSearchForm'),document.getElementById('europeDeskForm')][index])),true,'no duplicate renderer or customer form is introduced');
+  assert.deepEqual(requests,reads,'preview and explicit choice use the single existing catalogue');
+ },'no-preference');
+ await check('Dispatch Observatory peek lifecycle: keyboard, leave, Escape, Full view, Pause and hidden page restore the native scene',1440,async({page})=>{
+  await start(page,'composition=observatory');await peekStopped(page);const before=await nativeTourSnapshot(page);
+  await previewCity(page,'amsterdam',{keyboard:true});
+  assert.equal(await page.evaluate(()=>BoomDispatchTour.state().intentPending),false,'keyboard inspection is instant, without hover delay');
+  assert.equal(await page.locator('#nextDestinationBoard .fc2').evaluateAll(nodes=>nodes.some(node=>node.getAnimations().some(animation=>animation.playState==='running'))),false,'keyboard preview does not flip the board');
+  await page.keyboard.press('Escape');await peekStopped(page);assert.deepEqual(await nativeTourSnapshot(page),before);
+  await previewCity(page,'london');
+  if(process.env.BOOM_COMPOSITION_CAPTURE_PREFIX){await page.locator('#dispatchChooseCity').hover();await page.screenshot({path:process.env.BOOM_COMPOSITION_CAPTURE_PREFIX+'-observatory-rome-london-peek-1440.png',scale:'css'});}
+  await page.mouse.move(5,5);await peekStopped(page);assert.deepEqual(await nativeTourSnapshot(page),before,'leaving the hero restores the actual destination');
+  await previewCity(page,'amsterdam');await page.locator('[data-panorama-expand]').click();await page.locator('#panoramaGlobeDialog').waitFor({state:'visible'});await peekStopped(page);
+  assert.equal(await page.locator('#panoramaGlobeDialog .boom-flight-globe-canvas').count(),1);await page.keyboard.press('Escape');await page.locator('#panoramaGlobeDialog').waitFor({state:'hidden'});assert.deepEqual(await nativeTourSnapshot(page),before);
+  await previewCity(page,'madrid');await page.locator('#nextMotionToggle').evaluate(node=>node.click());await peekStopped(page);await page.waitForFunction(()=>!BoomFlightGlobe.state().rafPending);
+  await previewCity(page,'amsterdam',{paired:false});assert.deepEqual(await nativeTourSnapshot(page),before,'paused inspection is a static capability note');
+  assert.equal(await page.locator('#nextDestinationBoard').getAttribute('aria-label'),'ROME');assert.equal(await page.evaluate(()=>BoomFlightGlobe.state().rafPending),false,'paused inspection creates no camera frame loop');
+  await page.keyboard.press('Escape');await peekStopped(page);await page.locator('#nextMotionToggle').evaluate(node=>node.click());
+  await previewCity(page,'barcelona');await page.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,get:()=>true});document.dispatchEvent(new Event('visibilitychange'));});await peekStopped(page);await page.waitForFunction(()=>!BoomFlightGlobe.state().rafPending);
+  await page.evaluate(()=>{delete document.hidden;document.dispatchEvent(new Event('visibilitychange'));});await page.waitForTimeout(180);await peekStopped(page);assert.deepEqual(await nativeTourSnapshot(page),before,'visibility alone never restarts a manual preview');
+  await previewCity(page,'milan',{keyboard:true});await page.keyboard.press('Enter');await page.waitForFunction(()=>document.body.dataset.europeCity==='milan');await peekStopped(page);await foreignOffer(page);
+ },'no-preference');
+ await check('Dispatch Observatory static inspection: reduced motion explains capability without a presentation or a timer',1440,async({page,requests})=>{
+  await start(page,'composition=observatory&city=london&need=application');await foreignOffer(page);await peekStopped(page);const before=await nativeTourSnapshot(page),reads={...requests};
+  await previewCity(page,'amsterdam',{keyboard:true,paired:false});
+  assert.deepEqual(await nativeTourSnapshot(page),before);assert.equal(await page.locator('#nextDestinationBoard').getAttribute('aria-label'),'LONDON');assert.equal(await page.evaluate(()=>BoomFlightGlobe.state().previewCity),null);assert.equal(await page.evaluate(()=>BoomDispatchTour.state().timerPending),false);
+  await page.keyboard.press('Escape');await peekStopped(page);await previewCity(page,'rome',{paired:false});assert.deepEqual(await nativeTourSnapshot(page),before);await page.mouse.move(5,5);await peekStopped(page);assert.deepEqual(requests,reads);
+ });
+ await check('Dispatch Observatory tablet inspection: the native city deck and action stay fixed beneath a fine pointer',768,async({page,requests})=>{
+  await start(page,'composition=observatory&city=london&need=application');await foreignOffer(page);await peekStopped(page);
+  assert.equal(await page.evaluate(()=>matchMedia('(hover: hover) and (pointer: fine)').matches),true,'this tablet-width check uses an actual fine-pointer browser');
+  const before=await nativeTourSnapshot(page),reads={...requests};await previewCity(page,'rome');assert.deepEqual(await nativeTourSnapshot(page),before);await page.mouse.move(5,5);await peekStopped(page);
+  await city(page,'amsterdam');await foreignOffer(page);await previewCity(page,'rome');await boardFits(page,768);await page.keyboard.press('Escape');await peekStopped(page);assert.deepEqual(requests,reads);await noOverflow(page);
+ },'no-preference');
+ await check('Dispatch Observatory loading geography: static preview cannot become a delayed camera action',1440,async({page})=>{
+  const held=[];await page.route('**/assets/boom-globe-geography.json',route=>{held.push(route);});
+  try{
+   await page.goto(origin+'/flight-next?direction=club&edition=club&experience=panorama&vision=dispatch&composition=observatory&city=rome',{waitUntil:'domcontentloaded'});
+   await page.waitForFunction(()=>!!window.BoomDispatchTour);await page.locator('#nextHomeRail .next-card').first().waitFor({state:'attached'});
+   await previewCity(page,'amsterdam',{keyboard:true,paired:false});const before=await nativeTourSnapshot(page);
+   assert.equal(await page.evaluate(()=>BoomFlightGlobe.state().ready),false);assert.equal(await page.evaluate(()=>BoomDispatchTour.state().timerPending),false);
+   for(const route of held.splice(0))await route.fulfill({contentType:'application/json',body:readFileSync(root+'assets/boom-globe-geography.json','utf8')});
+   await page.waitForFunction(()=>BoomFlightGlobe.state().ready);assert.equal(await page.evaluate(()=>BoomDispatchTour.state().peekPaired),false,'later geography readiness does not replay old intent');assert.equal(await page.evaluate(()=>BoomFlightGlobe.state().previewCity),null);assert.deepEqual(await nativeTourSnapshot(page),before);
+   await page.keyboard.press('Escape');await peekStopped(page);
+  }finally{for(const route of held)await route.abort().catch(()=>{});}
+ },'no-preference');
+ await check('Dispatch Observatory touch: first tap is the native destination choice without hover or a second tap',390,async({page,requests})=>{
+  await start(page,'composition=observatory');await peekStopped(page);const reads={...requests};
+  await page.locator('.europe-city-switch [data-europe-city="amsterdam"]').tap();await page.waitForFunction(()=>document.body.dataset.europeCity==='amsterdam');await peekStopped(page);await foreignOffer(page);await boardFits(page,390);
+  assert.equal(await page.locator('.europe-city-switch [data-europe-city="amsterdam"]').getAttribute('aria-pressed'),'true');assert.equal(await page.locator('.edition-plan-link').isVisible(),true);assert.equal(await page.evaluate(()=>BoomDispatchTour.state().intentPending),false);assert.deepEqual(requests,reads);
+ },'no-preference');
+ await check('Dispatch Observatory keyboard sequence: Tab reaches Choose and Enter or Space commits exactly the inspected destination',1440,async({page})=>{
+  for(const key of ['Enter','Space']){
+   await start(page,'composition=observatory');await peekStopped(page);const before=await nativeTourSnapshot(page);
+   const slug=await page.locator('.europe-city-switch button[data-europe-city]').last().getAttribute('data-europe-city');
+   await previewCity(page,slug,{keyboard:true});await page.keyboard.press('Tab');
+   assert.equal(await page.locator('#dispatchChooseCity').evaluate(node=>node===document.activeElement),true,'native tab order reaches the contextual action');
+   assert.equal(await page.evaluate(()=>BoomDispatchTour.state().peek),slug,'Tab retains the candidate through the original camera key handler');assert.equal(await page.evaluate(()=>BoomDispatchTour.state().peekPaired),true);assert.deepEqual(await nativeTourSnapshot(page),before);
+   await page.keyboard.press(key);await page.waitForFunction(value=>document.body.dataset.europeCity===value,slug);await peekStopped(page);await foreignOffer(page);
+   assert.equal(new URL(page.url()).searchParams.get('city'),slug);assert.equal(await page.locator('.europe-city-switch [aria-pressed="true"]').getAttribute('data-europe-city'),slug);assert.equal(await page.locator('.europe-city-switch [aria-pressed="true"]').evaluate(node=>node===document.activeElement),true,'keyboard choice leaves focus on the real destination, never its now-hidden action');
+  }
+  await start(page,'composition=observatory',{generic:true});await page.waitForFunction(()=>BoomDispatchTour.state().playing);const untouched=await nativeTourSnapshot(page);
+  await page.locator('#dispatchChooseCity').click();await peekStopped(page);assert.deepEqual(await nativeTourSnapshot(page),untouched,'the generic tour’s neutral Choose still stops and focuses without opening a manual preview');
+  assert.equal(await page.locator('.europe-city-switch [aria-pressed="true"]').evaluate(node=>node===document.activeElement),true);
  },'no-preference');
  await check('Dispatch tour: untouched entry presents all six cities without choosing for the visitor',1440,async({page,requests})=>{
   await start(page,'',{generic:true});await page.waitForFunction(()=>window.BoomDispatchTour?.state().playing);
