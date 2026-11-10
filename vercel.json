@@ -524,10 +524,6 @@
       "destination": "/precheck.html"
     },
     {
-      "source": "/seed-listings",
-      "destination": "/seed-listings.html"
-    },
-    {
       "source": "/boom-doc-parser",
       "destination": "/boom_doc_parser"
     },

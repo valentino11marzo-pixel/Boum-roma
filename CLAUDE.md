@@ -266,6 +266,7 @@ Positioning: one buying brief, a documented comparison and a quoted scope; no pr
 - **Build**: None — static files served as-is
 - **outputDirectory**: Must be `"."` (root), NOT `"public"`. All HTML lives in root.
 - **Deploy**: `git push` to main triggers automatic Vercel deployment
+- **Dipendenze e superficie servita (10/11/2026)**: `npm audit` dava 13 vulnerabilità (1 critica, 11 alte). `sharp` 0.35.3 → 0.35.5 (libheif/librsvg: elabora foto caricate), `nodemailer` 6 → 10.5 (parser degli indirizzi, TLS dell'OAuth2), `imapflow` e `mailparser` all'ultima minore, che porta lo stesso `nodemailer`; `node-forge` e `ip-address` chiusi dal lockfile. Il codice usa solo `createTransport({service:'gmail',auth})` e `sendMail`, invariati. Restano 4 avvisi che chiedono una major o un downgrade: `jspdf` 2.5.1 (via `dompurify`) e `joi` dentro `passkit-generator`. `/seed-listings` non è più servita (`.vercelignore`, rewrite tolto): con Firebase Auth caricato, aperta da un admin già loggato riscriveva `listings` con dati di esempio. Fuori dal deploy anche `flats.json`, `flats-2.json`, `smartlink-fix.js`, `motion-preview.html`, mai nominati da un file servito. Prova: `npm ci`, le 48 suite che toccano posta, immagini e pass, più `crawl`, `seo`, `vercelfunctions`.
 - **Produzione da un ramo ≠ main (14/10/2026)**: quando la produzione gira su
   un deploy di un ramo (Codex lo fa per i rilasci in corso), il primo merge
   su main RIAVVIA la produzione da main e toglie dal sito quello che main non
