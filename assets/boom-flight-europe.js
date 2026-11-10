@@ -19,6 +19,7 @@
   var query = new URLSearchParams(location.search);
   var baseClub = query.get('edition') === 'club' && query.get('experience') !== 'panorama';
   var dispatch = query.get('edition') === 'club' && query.get('experience') === 'panorama' && query.get('vision') === 'dispatch';
+  var airspace = dispatch && query.get('composition') === 'airspace';
   var city = places[query.get('city')] ? query.get('city') : 'rome';
   if (query.get('view') === 'apartments' || query.get('view') === 'detail') city = 'rome';
   var need = needs[query.get('need')] ? query.get('need') : 'search';
@@ -26,7 +27,7 @@
   var el = function (id) { return document.getElementById(id); };
   var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); };
   function icon(slug) {
-    if(baseClub)return '<svg class="europe-city-icon" viewBox="0 0 160 120" aria-hidden="true">'+['structure','accent'].map(function(layer){return '<g data-city-art-layer="'+layer+'"><use href="/assets/boom-city-emblems.svg#city-'+slug+'-'+layer+'"></use></g>';}).join('')+'</svg>';
+    if(baseClub||airspace)return '<svg class="europe-city-icon" viewBox="0 0 160 120" aria-hidden="true">'+['structure','accent'].map(function(layer){return '<g data-city-art-layer="'+layer+'"><use href="/assets/boom-city-emblems.svg#city-'+slug+'-'+layer+'"></use></g>';}).join('')+'</svg>';
     return '<svg class="europe-city-icon" viewBox="0 0 160 120" aria-hidden="true"><use href="/assets/boom-city-icons.svg#city-'+slug+'"></use></svg>';
   }
   // A finite response on the existing signature, independent of the Solari clock.
@@ -99,7 +100,7 @@
       if(slug==='rome') input.dispatchEvent(new Event('input',{bubbles:true}));
     });
   }
-  function editionURL(path){var u=new URL(path,location.origin),q=new URLSearchParams(location.search);if(['club','perspective'].includes(q.get('edition')))u.searchParams.set('edition',q.get('edition'));if(q.get('edition')==='club'&&q.get('experience')==='panorama'){u.searchParams.set('experience','panorama');if(['airframe','signal','orbit','dispatch','gate','connection','vector'].includes(q.get('vision'))){u.searchParams.set('vision',q.get('vision'));u.searchParams.delete('variant');if(q.get('vision')==='dispatch'&&['open','atlas','concourse','instrument','observatory'].includes(q.get('composition')))u.searchParams.set('composition',q.get('composition'));else u.searchParams.delete('composition');}else{u.searchParams.delete('vision');if(q.get('variant')==='terminal')u.searchParams.set('variant','terminal');else u.searchParams.delete('variant');}}if(q.get('duo')==='1')u.searchParams.set('duo','1');return u.pathname+u.search+u.hash;}
+  function editionURL(path){var u=new URL(path,location.origin),q=new URLSearchParams(location.search);if(['club','perspective'].includes(q.get('edition')))u.searchParams.set('edition',q.get('edition'));if(q.get('edition')==='club'&&q.get('experience')==='panorama'){u.searchParams.set('experience','panorama');if(['airframe','signal','orbit','dispatch','gate','connection','vector'].includes(q.get('vision'))){u.searchParams.set('vision',q.get('vision'));u.searchParams.delete('variant');if(q.get('vision')==='dispatch'&&['open','atlas','concourse','instrument','observatory','airspace'].includes(q.get('composition')))u.searchParams.set('composition',q.get('composition'));else u.searchParams.delete('composition');}else{u.searchParams.delete('vision');if(q.get('variant')==='terminal')u.searchParams.set('variant','terminal');else u.searchParams.delete('variant');}}if(q.get('duo')==='1')u.searchParams.set('duo','1');return u.pathname+u.search+u.hash;}
   function canonicalHome(slug) { return editionURL('/flight-next?direction=club&city='+slug); }
   function cleanQuery(params) {
     Array.from(params.keys()).forEach(function(key){
@@ -210,6 +211,9 @@
       var inclusions=pass.querySelector('.europe-service-includes'),disclosure=document.createElement('details'),label=document.createElement('summary');
       disclosure.className='dispatch-service-inclusions';label.textContent='What’s included';
       disclosure.append(label,inclusions.querySelector('ul'));
+      // Airspace keeps the full native scope in the same disclosure as its
+      // inclusions, leaving the actual offer name and fee immediately legible.
+      if(airspace)label.after(pass.querySelector('.europe-service-copy>p:not(.eyebrow)'));
       pass.querySelector('.europe-service-facts').before(disclosure);inclusions.remove();
     }
     if(currentClub){el('europeDeskContinue').textContent=(dispatch?'Review ':'Continue with ')+plan.label+' ↗';if(el('europeSelectedService'))el('europeSelectedService').textContent=dispatch?'Your next step':plan.label;}
@@ -267,6 +271,8 @@
     if(baseClub){
       el('europeCitySignature').classList.remove('europe-city-enter');
       if(animate)playCityArt();
+    }else if(airspace){
+      el('europeCitySignature').classList.remove('europe-city-enter');
     }else if(animate&&!matchMedia('(prefers-reduced-motion: reduce)').matches){
       el('europeCitySignature').classList.remove('europe-city-enter');
       requestAnimationFrame(function(){el('europeCitySignature').classList.add('europe-city-enter');});

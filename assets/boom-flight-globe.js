@@ -443,6 +443,9 @@
       var globeY = h*(s.ambient?.5:.47), globeRadius = s.ambient?Math.min(w,h)*.40*zoom:Math.min(w*.455,h*.465);
       // Atlas gives the same geography a wide aperture. Draw, city targets and
       // flight origins share this projection; Full view keeps the whole sphere.
+      // Airspace changes the camera aperture, never the canvas scale: hit targets
+      // and the native city flight use this very same projection.
+      if(document.body.dataset.dispatchComposition==='airspace'&&!s.fullView){globeRadius=Math.min(w*.43,h*(w>600?.68:.49))*zoom;}
       var wideAtlas=document.body.dataset.dispatchComposition==='atlas'&&!s.fullView&&w>h*2;
       var horizonY=h*(wideAtlas?.98:.80),horizonRadius=(wideAtlas?Math.min(w*.55,h*.94):Math.min(w*.72,h*.78))*zoom;
       return {cx:w*.5,cy:globeY+(horizonY-globeY)*mix,radius:globeRadius+(horizonRadius-globeRadius)*mix};

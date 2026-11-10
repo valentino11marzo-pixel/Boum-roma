@@ -9,7 +9,7 @@
   document.body.dataset.homeVision=vision;
   if(vision==='dispatch'){
     var composition=query.get('composition');
-    document.body.dataset.dispatchComposition=['open','atlas','concourse','instrument','observatory'].includes(composition)?composition:'open';
+    document.body.dataset.dispatchComposition=['open','atlas','concourse','instrument','observatory','airspace'].includes(composition)?composition:'open';
   }
   document.body.dataset.homeVariant='panorama';
   document.documentElement.dataset.homeVision=vision;

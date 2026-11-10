@@ -697,6 +697,9 @@ try{
   const query='composition=observatory&city=london&need=application&moveIn='+arrival+'&moveOut='+departure+'&budget=3000&currency=GBP&people=family';
   await start(page,query);await foreignOffer(page);await city(page,'amsterdam');await foreignOffer(page);
   const nativeChoice={fields:(await nativeTourSnapshot(page)).fields,currency:new URL(page.url()).searchParams.get('currency')};
+  // Re-entry starts outside the city rail: the prior native click must not
+  // become a real hover preview before this case begins measuring intent.
+  await page.mouse.move(5,5);
   await start(page,query);await foreignOffer(page);await peekStopped(page);const before=await nativeTourSnapshot(page),reads={...requests},nativeGeometry=await peekGeometry(page);
   await page.evaluate(()=>{window.__peekOriginals=[document.getElementById('nextDestinationBoard'),document.getElementById('nextSolariField'),document.querySelector('.boom-flight-globe-canvas'),document.getElementById('nextSearchForm'),document.getElementById('europeDeskForm')];});
   const points=await page.locator('.europe-city-switch button').evaluateAll(nodes=>Object.fromEntries(nodes.map(node=>{const box=node.getBoundingClientRect();return [node.dataset.europeCity,{x:box.x+box.width/2,y:box.y+box.height/2}];})));

@@ -5144,6 +5144,13 @@ Il cambio città da puntatore/tocco disegna il solo accento giallo in280ms; test
 Studio porta Club tra le scelte principali nello stesso iframe, conservando bozza pubblica e default Dispatch. La Preview resta noindex; lo studio `design/club-europe-launch-study.md` propone il lancio europeo su `/desks` senza perdere le otto città pubbliche.
 Regia in `design/club-city-emblems-motion.md`; `flightclubemblemsui` verifica i sei segni a320/390/1440, gesto, interruzioni, leggibilità, firme originali delle altre visioni e continuità di brief/valuta/prezzi.
 
+Flight Dispatch Airspace 10/11: `composition=airspace` propone una scena nera con Solari/globo nativi e un foglio bianco continuo per il servizio; sul telefono la geografia precede il modulo. Club e Aperta restano confrontabili nello stesso Studio.
+`boom-airspace.js` sposta gli originali, senza duplicare planner, prezzi, firma, stato o canvas; `boom-airspace.css` governa soltanto questa composizione. Il framing più vicino vive nella proiezione nativa e Full view conserva la camera originale.
+Le città estere raccolgono nome, tariffa, condizioni, inclusioni e azione nello stesso foglio; Roma mantiene ricerca, catalogo reale, Skyline e biglietti servizi. Il tour automatico non cambia la città mentre si legge l’offerta.
+Cambio città, valuta, validazione, handoff al desk e limiti dei parametri restano dei controller esistenti; Pausa/movimento ridotto fermano gli stessi motori. Airspace non aggiunge clock o dipendenze.
+`flightairspaceui` verifica cinque larghezze e sei città, nodi originali, contrasto, Full view, fallback, risposta obsoleta, bozza Studio, quiete e passaggi commerciali; regia in `design/airspace-direction.md` e `design/airspace-motion.md`.
+La nuova superficie è una Preview opt-in/noindex; non sostituisce `/` o `/desks` e non anticipa risultati di conversione o posizionamento.
+
 Flight Lab 31/10: `/flight-lab` confronta Atlas, Residence e Club sulle stesse viste reali di `/flight-next?direction=…`, senza cambiare il sito pubblico.
 Le composizioni riusano catalogo, Solari, iframe Skyline, salvataggi e Apply; nessun secondo catalogo o nuovo handler di invio.
 Residence usa una foto realmente restituita dal catalogo pubblico (fallback a una casa pubblica non chiusa); Atlas sposta la stessa mappa nel primo schermo.

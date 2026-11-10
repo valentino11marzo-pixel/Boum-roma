@@ -258,6 +258,9 @@
   window.BoomDispatchTour = { state:function () { return {playing:playing,timerPending:!!(timer || intentTimer),intentPending:!!intentTimer,peek:peek?peek.slug:null,peekPaired:peekPaired,city:playing?cities[index].slug:null,cycles:cycles,order:cities.map(function (city) { return city.slug; }),lastStop:lastStop,interacted:interacted,explicitEntry:explicitEntry}; } };
   function autoStart() {
     updateControl();
+    // Airspace puts the actual selected offer beside the board from the start.
+    // Its automatic presentation must never advertise another destination.
+    if(document.body.dataset.dispatchComposition==='airspace')return;
     if (!interacted && !explicitEntry && !hasBrief() && scrollY < 2 &&
         (!document.activeElement || document.activeElement === document.body)) start();
   }
