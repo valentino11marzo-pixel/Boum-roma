@@ -90,6 +90,16 @@
       "permanent": false
     },
     {
+      "source": "/proprietari",
+      "destination": "/owners",
+      "permanent": true
+    },
+    {
+      "source": "/proprietari.html",
+      "destination": "/owners",
+      "permanent": true
+    },
+    {
       "source": "/(v2-property-finding|v2-property-finding.html)",
       "destination": "/property-finding",
       "permanent": true
