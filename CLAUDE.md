@@ -5151,6 +5151,12 @@ Cambio città, valuta, validazione, handoff al desk e limiti dei parametri resta
 `flightairspaceui` verifica cinque larghezze e sei città, nodi originali, contrasto, Full view, fallback, risposta obsoleta, bozza Studio, quiete e passaggi commerciali; regia in `design/airspace-direction.md` e `design/airspace-motion.md`.
 La nuova superficie è una Preview opt-in/noindex; non sostituisce `/` o `/desks` e non anticipa risultati di conversione o posizionamento.
 
+Flight City Editions 11/11: `composition=cityeditions` sviluppa il riferimento grafico dei reel con grandi architetture originali BOOM, bande concentriche e Solari alla base. Studio la conserva come alternativa distinta da Airspace.
+La firma città originale entra nella scena; City edition/Globe alterna l’opera e il globo nativo senza cambiare destinazione, servizio o preferenze. Pausa originale resta sempre accessibile; Full view usa lo stesso canvas.
+`boom-city-editions.js/css` possiede solo la presentazione: costruzione finita entro420ms, cancellata da nuova scelta, tastiera, quiete, invisibilità o uscita. Non aggiunge clock, form, prezzi, catalogo o stato commerciale.
+Il foglio decisione e la biglietteria ereditano Airspace. Le guardie condivise ammettono entrambe le composizioni, mentre URL commerciali e Apply conservano le allowlist originali.
+Regia in `design/city-editions-direction.md`; `flightcityeditionsui` copre proporzioni, originali, due viste, movimento, handoff e bozza Studio. La variante resta una Preview noindex.
+
 Flight Lab 31/10: `/flight-lab` confronta Atlas, Residence e Club sulle stesse viste reali di `/flight-next?direction=…`, senza cambiare il sito pubblico.
 Le composizioni riusano catalogo, Solari, iframe Skyline, salvataggi e Apply; nessun secondo catalogo o nuovo handler di invio.
 Residence usa una foto realmente restituita dal catalogo pubblico (fallback a una casa pubblica non chiusa); Atlas sposta la stessa mappa nel primo schermo.

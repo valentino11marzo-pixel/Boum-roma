@@ -34,8 +34,8 @@
     // ahead of the globe in the phone's DOM/focus order. No second form.
     var localFirst=document.body.dataset.europeCity==='rome'&&(terminal||(compactHome.matches&&!panorama));
     var focused=planner.contains(document.activeElement)?document.activeElement:null,moved=false;
-    var airspace=panorama&&presentation.get('vision')==='dispatch'&&presentation.get('composition')==='airspace'&&byId('airspaceDecision');
-    // Airspace's decision surface owns this same planner at every breakpoint.
+    var airspace=panorama&&presentation.get('vision')==='dispatch'&&['airspace','cityeditions'].includes(presentation.get('composition'))&&byId('airspaceDecision');
+    // The shared Airspace decision surface owns this planner at every breakpoint.
     if(airspace){
       if(planner.parentElement!==airspace){airspace.appendChild(planner);if(focused)focused.focus({preventScroll:true});}
       return;

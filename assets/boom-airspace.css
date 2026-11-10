@@ -1,5 +1,5 @@
 /* Airspace: native geography and the actual service share one continuous surface. */
-body[data-direction="club"][data-edition="club"][data-experience="panorama"][data-home-vision="dispatch"][data-dispatch-composition="airspace"].europe-ready{
+body[data-direction="club"][data-edition="club"][data-experience="panorama"][data-home-vision="dispatch"]:is([data-dispatch-composition="airspace"],[data-dispatch-composition="cityeditions"]).europe-ready{
  --airspace-gutter:clamp(28px,3.3vw,56px);--airspace-paper:#fff;--airspace-ink:#111;--airspace-muted:#55564f;--airspace-rule:#d9d9d2;--dispatch-action-radius:4px;--dispatch-shell:#000;--p-font:"Helvetica Neue",Helvetica,Arial,sans-serif;
  & #nextHero{display:block;padding:0;margin:0;background:#000;overflow:visible;isolation:isolate;min-height:0}
  & #nextHero::before,& #nextHero::after{content:none}
@@ -164,12 +164,12 @@ body[data-direction="club"][data-edition="club"][data-experience="panorama"][dat
  & :is(button,a):focus-visible{outline:2px solid #ffd700;outline-offset:4px}
  & #nextHero #dispatchCities button:focus-visible{outline-offset:-4px;outline-color:#fff}
 }
-@media(hover:hover) and (pointer:fine){body[data-dispatch-composition="airspace"]{
+@media(hover:hover) and (pointer:fine){body:is([data-dispatch-composition="airspace"],[data-dispatch-composition="cityeditions"]){
  & #airspaceDecision [data-europe-need]:hover{background:#f5f5ef}
  & #airspaceDecision #europeDeskContinue:hover,& #airspaceDecision .search-submit:hover{background:#ffe34a}
  & #nextHero #dispatchCities button:not([aria-pressed="true"]):hover{background:#171710;color:#fff}
 }}
-@media(min-width:761px) and (max-width:1180px){body[data-direction="club"][data-edition="club"][data-experience="panorama"][data-home-vision="dispatch"][data-dispatch-composition="airspace"].europe-ready{
+@media(min-width:761px) and (max-width:1180px){body[data-direction="club"][data-edition="club"][data-experience="panorama"][data-home-vision="dispatch"]:is([data-dispatch-composition="airspace"],[data-dispatch-composition="cityeditions"]).europe-ready{
  --airspace-gutter:28px;
  & #airspaceScene{grid-template-columns:minmax(0,1.25fr) minmax(350px,1fr)}
  & #airspaceDecision{padding-inline:24px}
@@ -187,7 +187,7 @@ body[data-direction="club"][data-edition="club"][data-experience="panorama"][dat
  & #visionScene>.edition-atlas .boom-globe-caption{left:var(--airspace-gutter);right:auto;bottom:-102px}
  & #visionScene>.edition-atlas .boom-globe-caption>a{left:0;right:auto;min-height:24px;font-size:11px;white-space:nowrap}
 }}
-@media(max-width:760px){body[data-direction="club"][data-edition="club"][data-experience="panorama"][data-home-vision="dispatch"][data-dispatch-composition="airspace"].europe-ready{
+@media(max-width:760px){body[data-direction="club"][data-edition="club"][data-experience="panorama"][data-home-vision="dispatch"]:is([data-dispatch-composition="airspace"],[data-dispatch-composition="cityeditions"]).europe-ready{
  --airspace-gutter:20px;
  & .next-nav{display:flex;height:64px;min-height:64px;padding:12px 20px;gap:12px;flex-wrap:nowrap}
  & .next-nav .next-brand{margin:0}
@@ -247,7 +247,7 @@ body[data-direction="club"][data-edition="club"][data-experience="panorama"][dat
  & #clubCompany .club-company-head{padding-top:40px}
  & #clubCompany .club-company-head h2{font-size:42px}
 }}
-@media(max-width:359px){body[data-direction="club"][data-edition="club"][data-experience="panorama"][data-home-vision="dispatch"][data-dispatch-composition="airspace"].europe-ready{
+@media(max-width:359px){body[data-direction="club"][data-edition="club"][data-experience="panorama"][data-home-vision="dispatch"]:is([data-dispatch-composition="airspace"],[data-dispatch-composition="cityeditions"]).europe-ready{
  & #directionClubTicket{height:520px}
  & #nextHeroTitle{margin-top:12px}
  & .hero-pretitle{font-size:23px}
@@ -259,4 +259,4 @@ body[data-direction="club"][data-edition="club"][data-experience="panorama"][dat
  & #visionScene>.edition-atlas .panorama-globe-tools #nextMotionToggle{min-width:74px;font-size:12px}
  & #nextHero #dispatchCities button>span:last-child{font-size:13px}
 }}
-@media(prefers-reduced-motion:reduce){body[data-dispatch-composition="airspace"]{scroll-behavior:auto;& *,& *::before,& *::after{scroll-behavior:auto;transition-duration:0s!important}}}
+@media(prefers-reduced-motion:reduce){body:is([data-dispatch-composition="airspace"],[data-dispatch-composition="cityeditions"]){scroll-behavior:auto;& *,& *::before,& *::after{scroll-behavior:auto;transition-duration:0s!important}}}

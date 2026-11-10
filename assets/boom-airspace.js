@@ -1,7 +1,7 @@
 /* Airspace: the original geography meets the original decision surface. */
 (function () {
   'use strict';
-  if(document.body.dataset.homeVision!=='dispatch'||document.body.dataset.dispatchComposition!=='airspace')return;
+  if(document.body.dataset.homeVision!=='dispatch'||!['airspace','cityeditions'].includes(document.body.dataset.dispatchComposition))return;
   var byId=function(id){return document.getElementById(id);};
   var hero=byId('nextHero'),ticket=byId('directionClubTicket'),atlas=byId('boomGlobeMount');
   var signature=byId('europeCitySignature'),story=byId('europeDeskStory'),planner=document.querySelector('.europe-planner.edition-club-runway');
