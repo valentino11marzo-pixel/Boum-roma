@@ -36,6 +36,7 @@ body[data-direction="club"][data-edition="club"][data-experience="panorama"][dat
  &[data-city-edition-view="globe"] #nextHeroTitle{margin-top:92px}
  &[data-city-edition-view="globe"] #visionScene{inset:278px 0 150px}
  &[data-city-edition-view="globe"] #visionScene>.edition-atlas .panorama-globe-toolbar{inset:8px 24px auto auto}
+ &[data-city-edition-view="globe"] #visionScene>.edition-atlas .boom-globe-caption>a{width:max-content;white-space:nowrap}
  & #nextHero #dispatchCities .dispatch-city-carrier{display:none!important}
 }
 @media(min-width:761px) and (max-width:1180px){body[data-direction="club"][data-edition="club"][data-experience="panorama"][data-home-vision="dispatch"][data-dispatch-composition="cityeditions"].europe-ready{
@@ -53,8 +54,10 @@ body[data-direction="club"][data-edition="club"][data-experience="panorama"][dat
  &[data-city-edition-view="art"] .hero-pretitle{max-width:none;font-size:24px}
  &[data-city-edition-view="art"] #nextHero .vision-departure-record{bottom:154px;min-height:94px}
  &[data-city-edition-view="art"] #nextHero #nextHeroTitle>#nextSolariField{bottom:130px;height:156px}
- &[data-city-edition-view="globe"] #visionScene{inset:278px 0 216px}
+ &[data-city-edition-view="globe"] #visionScene{inset:278px 0 232px}
  &[data-city-edition-view="globe"] #visionScene>.edition-atlas .panorama-globe-toolbar{inset:auto 28px -50px auto}
+ &[data-city-edition-view="globe"] #visionScene>.edition-atlas .boom-globe-caption{left:28px;right:28px;bottom:-104px;min-height:46px;justify-content:space-between}
+ &[data-city-edition-view="globe"] #visionScene>.edition-atlas .boom-globe-caption>a{position:static;min-height:44px}
 }}
 @media(max-width:760px){body[data-direction="club"][data-edition="club"][data-experience="panorama"][data-home-vision="dispatch"][data-dispatch-composition="cityeditions"].europe-ready{
  & #airspaceScene{display:flex}
@@ -82,7 +85,7 @@ body[data-direction="club"][data-edition="club"][data-experience="panorama"][dat
  &[data-city-edition-view="globe"] #visionScene>.edition-atlas .dispatch-lenses{bottom:-32px}
  &[data-city-edition-view="globe"] #visionScene>.edition-atlas .panorama-globe-toolbar{inset:auto 20px -32px auto}
  &[data-city-edition-view="globe"] #visionScene>.edition-atlas .panorama-globe-toolbar button{font-size:12px;width:auto;padding:8px 12px;gap:8px}
- &[data-city-edition-view="globe"] #visionScene>.edition-atlas .boom-globe-caption{bottom:8px}
+ &[data-city-edition-view="globe"] #visionScene>.edition-atlas .boom-globe-caption{bottom:20px}
  &[data-city-edition-view="globe"] #visionScene>.edition-atlas .boom-globe-caption>a{bottom:0}
  & #airspaceDecision{padding-top:28px}
 }}
