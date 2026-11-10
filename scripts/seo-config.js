@@ -44,7 +44,7 @@ const PAGES = {
     path: '/moving-budget', manualHead: true,
     title: 'Moving to Europe: rental move budget calculator — BOOM',
     description: 'Plan your European rental move with your own quotes. Separate moving costs, refundable deposits and monthly spending, then speak to your BOOM city desk.',
-    type: 'website', priority: 0.7, changefreq: 'monthly', lastmod: '2026-11-09'
+    type: 'website', priority: 0.7, changefreq: 'monthly', lastmod: '2026-11-10'
   },
   // ════════════════════════════════════════════════════════════════════
   // CORE PUBLIC PAGES

@@ -10207,6 +10207,11 @@ per città, nessun invio né falsa conversione sul modulo. Link ai desk e tariff
 `api/_market.js` + città live: `node tools/moving-budget/build.mjs` (`--check` in test).
 La sorgente resta l'HTML pubblico; nessuna stima di mercato o giudizio di ammissibilità.
 Test: `movingbudget`, `seo`, `crawl`, `cities`; piano e baseline in `docs/growth/2026-11-09.md`.
+**Rifinitura UX, 10 novembre.** La destinazione è nell'hero; tre tappe con conteggi reali,
+riepilogo mobile ancorato e ritorno con focus alla prossima voce mancante. Le cifre
+restano immediate; movimento ridotto, tastiera, stampa e assenza di JavaScript restano
+utilizzabili. CSS/JS hanno hash di contenuto; `movingbudgetui` prova il controller reale.
+Decisioni e prova visiva in `docs/growth/moving-budget-design.md`.
 
 
 **9 novembre 2026 — vecchio URL proprietari.** Search Console segnala ancora
