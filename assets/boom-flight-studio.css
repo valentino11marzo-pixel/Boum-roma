@@ -71,7 +71,7 @@ noscript a{text-decoration:underline}
  .studio-toolbar{gap:12px}
  .studio-controls{flex:1 1 170px}
  .studio-controls button{padding:0 12px;min-width:0;flex:1;font-size:13px}
- .studio-controls[aria-label="Esperienza"]{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));flex-basis:100%}
+ .studio-controls[aria-label="Esperienza"]{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));flex-basis:100%}
  .studio-controls[aria-label="Esperienza"] button{padding-inline:8px}
  .studio-compositions{display:block;padding-bottom:12px;margin-bottom:16px}
  .studio-compositions legend{float:none;padding:0;margin-bottom:4px;font-size:13px}

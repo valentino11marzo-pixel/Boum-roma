@@ -17,6 +17,7 @@
     viewing:{label:'Visit it for me',hint:'See a home while you’re away',plan:'attended-viewing'}
   };
   var query = new URLSearchParams(location.search);
+  var baseClub = query.get('edition') === 'club' && query.get('experience') !== 'panorama';
   var dispatch = query.get('edition') === 'club' && query.get('experience') === 'panorama' && query.get('vision') === 'dispatch';
   var city = places[query.get('city')] ? query.get('city') : 'rome';
   if (query.get('view') === 'apartments' || query.get('view') === 'detail') city = 'rome';
@@ -24,7 +25,66 @@
   var view = query.get('view') || 'home', loaded = Object.create(null), loadNumber = 0, controller;
   var el = function (id) { return document.getElementById(id); };
   var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); };
-  function icon(slug) { return '<svg class="europe-city-icon" viewBox="0 0 160 120" aria-hidden="true"><use href="/assets/boom-city-icons.svg#city-'+slug+'"></use></svg>'; }
+  function icon(slug) {
+    if(baseClub)return '<svg class="europe-city-icon" viewBox="0 0 160 120" aria-hidden="true">'+['structure','accent'].map(function(layer){return '<g data-city-art-layer="'+layer+'"><use href="/assets/boom-city-emblems.svg#city-'+slug+'-'+layer+'"></use></g>';}).join('')+'</svg>';
+    return '<svg class="europe-city-icon" viewBox="0 0 160 120" aria-hidden="true"><use href="/assets/boom-city-icons.svg#city-'+slug+'"></use></svg>';
+  }
+  // A finite response on the existing signature, independent of the Solari clock.
+  var cityArtAnimations=[],cityArtObserver,cityArtPauseObserver,cityArtSuspended=false;
+  var cityArtReduce=baseClub?matchMedia('(prefers-reduced-motion: reduce)'):null;
+  var cityArtConnection=baseClub?navigator.connection:null;
+  function stopCityArt() {
+    cityArtAnimations.splice(0).forEach(function(animation){animation.onfinish=animation.oncancel=null;animation.cancel();});
+  }
+  function cityArtVisible() {
+    var signature=el('europeCitySignature');if(!signature||!signature.isConnected)return false;
+    var rect=signature.getBoundingClientRect();
+    return rect.width>0&&rect.height>0&&rect.bottom>0&&rect.top<innerHeight&&rect.right>0&&rect.left<innerWidth;
+  }
+  function cityArtAllowed() {
+    var pause=el('nextMotionToggle'),motion=window.BoomFlightNextMotion;
+    return baseClub&&!cityArtSuspended&&view==='home'&&!document.hidden&&!cityArtReduce.matches&&
+      !(cityArtConnection&&cityArtConnection.saveData)&&!(pause&&pause.getAttribute('aria-pressed')==='true')&&
+      !(motion&&motion.isPaused&&motion.isPaused())&&cityArtVisible();
+  }
+  function syncCityArt() { if(cityArtAnimations.length&&!cityArtAllowed())stopCityArt(); }
+  function playCityArt() {
+    if(!cityArtAllowed())return;
+    var signature=el('europeCitySignature'),easing=getComputedStyle(signature).getPropertyValue('--edition-ease').trim()||'cubic-bezier(.23,1,.32,1)';
+    signature.querySelectorAll('[data-city-art-layer]').forEach(function(layer){
+      if(!layer.animate)return;
+      var accent=layer.dataset.cityArtLayer==='accent';
+      // The already-visible structure stays still; its small architectural
+      // strokes inherit these normalized dash values through the SVG use.
+      var frames=accent?[
+        {strokeDasharray:'1',strokeDashoffset:'1'},
+        {strokeDasharray:'1',strokeDashoffset:'0'}
+      ]:[{opacity:.68},{opacity:1}];
+      var animation=layer.animate(frames,{duration:accent?250:220,delay:accent?30:0,easing:easing,fill:'backwards'});
+      cityArtAnimations.push(animation);
+      animation.onfinish=animation.oncancel=function(){var index=cityArtAnimations.indexOf(animation);if(index!==-1)cityArtAnimations.splice(index,1);};
+    });
+  }
+  function observeCityArt() {
+    if(!baseClub||cityArtSuspended)return;
+    if(!cityArtObserver&&window.IntersectionObserver){
+      cityArtObserver=new IntersectionObserver(function(entries){if(entries.some(function(entry){return !entry.isIntersecting;}))stopCityArt();},{threshold:0});
+      cityArtObserver.observe(el('europeCitySignature'));
+    }
+    var pause=el('nextMotionToggle');
+    if(!cityArtPauseObserver){
+      cityArtPauseObserver=new MutationObserver(syncCityArt);
+      if(pause)cityArtPauseObserver.observe(pause,{attributes:true,attributeFilter:['aria-pressed']});
+      // The original API also changes this attribute when paused programmatically.
+      cityArtPauseObserver.observe(el('nextHero'),{attributes:true,attributeFilter:['data-next-motion']});
+    }
+  }
+  function suspendCityArt() {
+    cityArtSuspended=true;stopCityArt();
+    if(cityArtObserver)cityArtObserver.disconnect();
+    if(cityArtPauseObserver)cityArtPauseObserver.disconnect();
+    cityArtObserver=cityArtPauseObserver=null;
+  }
   function buttons() { return Object.keys(places).map(function(slug){return '<button type="button" data-europe-city="'+slug+'" aria-pressed="'+(slug===city)+'"><span class="europe-city-code">'+places[slug].code+'</span><span>'+places[slug].name+'</span></button>';}).join(''); }
   function currency(slug) { return slug === 'london' ? 'GBP' : 'EUR'; }
   function values(slug) {
@@ -178,6 +238,7 @@
     }).catch(function(){if(n===loadNumber)paintService(null);}).finally(function(){clearTimeout(timer);});
   }
   function renderCity(animate) {
+    if(baseClub)stopCityArt();
     var p=places[city],foreign=city!=='rome';
     document.body.dataset.europeCity=city;
     document.querySelectorAll('button[data-europe-city]').forEach(function(b){b.setAttribute('aria-pressed',String(b.dataset.europeCity===city));});
@@ -203,14 +264,17 @@
     document.querySelector('.hero-bottom>a').href='#'+(foreign?'europeDeskStory':'nextSearch');
     if(window.BoomFlightNextMotion)window.BoomFlightNextMotion.setDestination(p.name);
     fitBoard();
-    if(animate&&!matchMedia('(prefers-reduced-motion: reduce)').matches){
+    if(baseClub){
+      el('europeCitySignature').classList.remove('europe-city-enter');
+      if(animate)playCityArt();
+    }else if(animate&&!matchMedia('(prefers-reduced-motion: reduce)').matches){
       el('europeCitySignature').classList.remove('europe-city-enter');
       requestAnimationFrame(function(){el('europeCitySignature').classList.add('europe-city-enter');});
     }
     if(view==='home')document.title='BOOM — Your home in '+p.name;
     updateLinks();loadService();
   }
-  function chooseCity(slug,push) {
+  function chooseCity(slug,push,pointerSelection) {
     if(!places[slug])return;
     if(view!=='home'){
       var current=new URLSearchParams(location.search),target=new URL(canonicalHome(slug),location.origin);
@@ -224,7 +288,7 @@
     city=slug;
     if(currency(old)!==currency(city)) {brief.budget='';el('europeCurrencyNote').hidden=false;el('europeCurrencyNote').textContent='Choose your rent budget in '+currency(city)+'. We haven’t converted the previous amount.';}
     else el('europeCurrencyNote').hidden=true;
-    fill(city,brief);renderCity(true);if(push!==null)writeURL(push);el('europeHomeStatus').textContent=places[city].name+' selected. '+(city==='rome'?'Explore homes in Rome.':'Choose the support you need.');
+    fill(city,brief);renderCity(baseClub?old!==city&&pointerSelection:true);if(push!==null)writeURL(push);el('europeHomeStatus').textContent=places[city].name+' selected. '+(city==='rome'?'Explore homes in Rome.':'Choose the support you need.');
   }
   function chooseNeed(value,push) {
     if(!needs[value])return;
@@ -249,6 +313,16 @@
   switcher.innerHTML='<span class="europe-switch-label">YOUR NEXT CITY</span><div class="europe-cities" role="group" aria-label="Choose your city">'+buttons()+'</div>';
   hero.insertBefore(switcher,ticket);
   var signature=document.createElement('div');signature.id='europeCitySignature';signature.className='europe-city-signature';document.querySelector('.hero-centre').appendChild(signature);
+  if(baseClub){
+    observeCityArt();
+    cityArtReduce.addEventListener('change',syncCityArt);
+    if(cityArtConnection&&cityArtConnection.addEventListener)cityArtConnection.addEventListener('change',syncCityArt);
+    document.addEventListener('visibilitychange',syncCityArt);
+    window.addEventListener('scroll',syncCityArt,{passive:true});
+    window.addEventListener('resize',syncCityArt,{passive:true});
+    window.addEventListener('pagehide',suspendCityArt);
+    window.addEventListener('pageshow',function(){cityArtSuspended=false;observeCityArt();});
+  }
   var planner=document.createElement('div');planner.className='europe-planner';ticket.appendChild(planner);planner.appendChild(search);
   var desk=document.createElement('section');desk.id='europeDeskPlanner';desk.hidden=true;desk.setAttribute('aria-labelledby','europeDeskTitle');
   desk.innerHTML='<div class="europe-planner-top"><span id="europePlannerCity"></span><span id="europePlannerCode"></span></div><h2 id="europeDeskTitle">What do you need?</h2><div class="europe-needs" role="group" aria-label="Choose the support you need">'+Object.keys(needs).map(function(key,i){return '<button type="button" data-europe-need="'+key+'" aria-pressed="'+(key===need)+'"><span>0'+(i+1)+'</span><div><strong>'+needs[key].label+'</strong><small>'+needs[key].hint+'</small></div><span aria-hidden="true">↗</span></button>';}).join('')+'</div><form id="europeDeskForm"><details id="europeOptionalBrief"><summary>Add dates &amp; budget <span>optional</span></summary><div class="europe-fields"><label>Move in<input id="europeMoveIn" type="date" aria-label="Desk move-in date"></label><label>Move out<input id="europeMoveOut" type="date" aria-label="Desk move-out date"></label><label><span id="europeBudgetLabel">Monthly rent (€)</span><select id="europeBudget" aria-label="Desk monthly rent budget"><option value="">Choose later</option><option value="1000">Up to €1,000</option><option value="1500">Up to €1,500</option><option value="2000">Up to €2,000</option><option value="3000">Up to €3,000</option><option value="5000">Up to €5,000</option></select></label><label>Who’s moving?<select id="europePeople" aria-label="Desk household"><option value="">Choose later</option><option value="solo">Just me</option><option value="couple">A couple</option><option value="family">A family</option><option value="flatmates">Flatmates</option></select></label></div></details><p id="europeCurrencyNote" class="europe-form-note" hidden></p><p id="europeDeskError" class="form-error" role="alert" hidden></p><button id="europeDeskContinue" class="button gold" type="submit"></button><p class="europe-next-step">See the service and speak with the desk. No payment at this step.</p></form>';
@@ -317,7 +391,7 @@
   var opener;
   document.addEventListener('click',function(e){
     var cityButton=e.target.closest('button[data-europe-city]');
-    if(cityButton){chooseCity(cityButton.dataset.europeCity,true);if(dialog.open)dialog.close();return;}
+    if(cityButton){chooseCity(cityButton.dataset.europeCity,true,e.detail>0);if(dialog.open)dialog.close();return;}
     var needButton=e.target.closest('[data-europe-need]');if(needButton){chooseNeed(needButton.dataset.europeNeed,true);return;}
     var open=e.target.closest('[data-europe-open]');if(open){opener=open;dialog.showModal();return;}
     if(e.target.closest('[data-europe-close]'))dialog.close();
@@ -341,6 +415,7 @@
   if(dispatch)new MutationObserver(fitBoard).observe(el('nextDestinationBoard'),{attributes:true,attributeFilter:['aria-label']});
   window.addEventListener('boom:flight-view',function(e){
     view=e.detail.view;
+    if(baseClub&&view!=='home')stopCityArt();
     var params=new URLSearchParams(location.search),selected=places[params.get('city')]?params.get('city'):'rome';
     if(view!=='home')selected='rome';
     if(city!==selected){city=selected;renderCity(false);}

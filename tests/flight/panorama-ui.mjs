@@ -447,7 +447,7 @@ try{
   await page.goto(origin+'/flight-studio',{waitUntil:'domcontentloaded'});
   const handle=await page.locator('#studioFrame').elementHandle(),frame=await handle.contentFrame();
   await frame.waitForFunction(()=>document.body.dataset.homeVision==='dispatch'&&!!window.BoomFlightEurope);
-  assert.deepEqual(await page.locator('.studio-toolbar button[data-studio-experience]').evaluateAll(nodes=>nodes.map(node=>node.dataset.studioExperience)),refinedVisions,'the current comparison presents Dispatch, Orbit and Vector together');
+  assert.deepEqual(await page.locator('.studio-toolbar button[data-studio-experience]').evaluateAll(nodes=>nodes.map(node=>node.dataset.studioExperience)),['club',...refinedVisions],'the primary comparison presents Club, Dispatch, Orbit and Vector together');
   assert.equal(await page.locator('body').evaluate(node=>getComputedStyle(node).fontFamily.split(',')[0].replace(/["']/g,'').trim()),'Helvetica Neue','Studio uses the original BOOM family');
   await fillRome(frame);
   for(const vision of ['vector','gate','connection','signal','orbit','dispatch','airframe']){

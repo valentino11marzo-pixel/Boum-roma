@@ -22,6 +22,9 @@
   hero.querySelector('.hero-promise').insertAdjacentElement('afterend',planLink);
   var globe=window.BoomFlightGlobe;if(globe)globe.mount(atlas);
   var bottom=hero.querySelector('.hero-bottom');bottom.querySelector('span').replaceWith(byId('europeCitySignature'));
+  // The city mark belongs beside the destination, before the native service action.
+  // Panorama keeps its own placement and reuses the original node later.
+  if(new URLSearchParams(location.search).get('experience')!=='panorama')hero.querySelector('.hero-centre h1').insertAdjacentElement('afterend',byId('europeCitySignature'));
   var compactHome=matchMedia('(max-width: 650px)');
   function arrangeHome(){
     var presentation=new URLSearchParams(location.search),panorama=presentation.get('experience')==='panorama';

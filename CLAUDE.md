@@ -5138,6 +5138,12 @@ La nota legge nome e capacità dal directory nativo; il contorno bianco sul glob
 Choose città passa dal pulsante nativo dopo il ripristino; uscita, Escape, camera, navigazione e invisibilità cancellano l’anteprima. URL, campi, valuta e servizi cambiano solo alla scelta esplicita.
 Regia in `design/dispatch-observatory.md`; `flightdispatchui` copre proporzioni, anticipazione/ripristino, tastiera/tocco, quiete e bozza Studio; regressioni in `flightpanoramaui`.
 
+Flight Club firme città 10/11: il Club base porta la firma originale accanto alla destinazione; sei emblemi architettonici BOOM, avorio/giallo, sostituiscono i piccoli segni nascosti sul telefono. Panorama e le altre visioni conservano la propria grafica.
+`boom-city-emblems.svg` e `boom-club-city-emblems.css` usano lo stesso nodo e le identità del controller Europe. Nessun ufficio, sede o dato commerciale aggiunto; Helvetica Neue300, Solari, globo e servizi restano originali.
+Il cambio città da puntatore/tocco disegna il solo accento giallo in280ms; testo e azioni sono immediati. Tastiera/storia/API, pausa, movimento ridotto, risparmio dati e invisibilità non avviano o cancellano la risposta; nessun nuovo clock.
+Studio porta Club tra le scelte principali nello stesso iframe, conservando bozza pubblica e default Dispatch. La Preview resta noindex; lo studio `design/club-europe-launch-study.md` propone il lancio europeo su `/desks` senza perdere le otto città pubbliche.
+Regia in `design/club-city-emblems-motion.md`; `flightclubemblemsui` verifica i sei segni a320/390/1440, gesto, interruzioni, leggibilità, firme originali delle altre visioni e continuità di brief/valuta/prezzi.
+
 Flight Lab 31/10: `/flight-lab` confronta Atlas, Residence e Club sulle stesse viste reali di `/flight-next?direction=…`, senza cambiare il sito pubblico.
 Le composizioni riusano catalogo, Solari, iframe Skyline, salvataggi e Apply; nessun secondo catalogo o nuovo handler di invio.
 Residence usa una foto realmente restituita dal catalogo pubblico (fallback a una casa pubblica non chiusa); Atlas sposta la stessa mappa nel primo schermo.
