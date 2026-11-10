@@ -257,6 +257,8 @@ Positioning: one buying brief, a documented comparison and a quoted scope; no pr
   ```
 - **Typography**: Helvetica Neue 300, Inter fallback. Wide letter-spacing (2-6px) for luxury feel.
 - **Dark mode only** — all pages use dark backgrounds with gold accents.
+- **Icone (10/11/2026)**: `assets/icons/*` (icona Home del portal in `manifest.json` e `canone-manifest.json`, precache di `sw.js`, apple-touch/favicon delle pagine servizio) si rigenerano con `python3 scripts/generate-pwa-icons.py` dall'icona quadrata della radice `android-chrome-512x512.png`. Prima la sorgente era la striscia 320×100 di `pass-assets/tenant/logo@2x.png` (RGB su nero pieno): ogni icona usciva col marchio minuscolo dentro un rettangolo nero visibile sul fondo `#08080A`. Il marchio occupa il 61% centrale, quindi la stessa immagine vale da maskable.
+- **`BOOMlogogoldicon512.png` non esiste** (10/11/2026): undici pagine servite la chiedevano come favicon e rispondeva 404 (`about`, `deals`, `s`, `team`, `banca`, `catalogo`, `radar`, `pfs-command`, `cockpit-preview`, `form-tenant`, `form-landlord`). Ora usano il blocco standard (`/favicon.svg`); nei due moduli il logo in testata è `/apple-touch-icon.png` e il ripiego «B» resta se l'immagine non carica. Le copie non servite (legacy/classic, `tenant-registration.html`) non sono state toccate.
 
 ## Deployment
 
