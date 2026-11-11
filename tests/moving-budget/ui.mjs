@@ -70,7 +70,8 @@ try{
     fs.mkdirSync(process.env.BOOM_MOVING_SCREENSHOTS,{recursive:true});
     await page.emulateMedia({media:'screen'});
     for(const width of [390,1440]){
-      await page.setViewportSize({width,height:1000});await page.evaluate(()=>scrollTo(0,0));
+      await page.setViewportSize({width,height:1000});
+      await page.evaluate(async()=>{scrollTo(0,0);await document.fonts.ready;await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));});
       await page.screenshot({path:path.join(process.env.BOOM_MOVING_SCREENSHOTS,`budget-${width}.png`),fullPage:false});
     }
   }

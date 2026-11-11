@@ -4,6 +4,7 @@ import {createHash} from 'node:crypto';
 import {fileURLToPath} from 'node:url';
 import {CITY_MARKETS,CITY_PLANS} from '../../api/_market.js';
 import engine from '../../js/moving-budget-engine.js';
+import {scrollBlock} from '../../scripts/scroll-sync.mjs';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../..');
 const read=f=>fs.readFileSync(path.join(root,f),'utf8');
 const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -12,6 +13,7 @@ const fieldHtml=group=>engine.fields.filter(f=>group==='arrival'?f.group!=='mont
 const cards=desks.map(d=>`<li><a href="/${d.slug}">${escape(d.name)}</a><span>${d.currency==='GBP'?'£':'€'}${CITY_PLANS['full-search'].eur} Full Search · VAT included</span><small>${d.chargeAt==='signing'?'Fee charged only when you sign a lease.':'Fee paid when ordered; refunded in full if we decline the search in the first call.'}</small></li>`).join('\n');
 const version=f=>createHash('sha256').update(read(f)).digest('hex').slice(0,10);
 const tokens={CSSVERSION:version('assets/moving-budget.css'),JSVERSION:version('assets/moving-budget.js'),OPTIONS:desks.map(d=>`<option value="${d.slug}">${d.name} · ${d.currency}</option>`).join(''),ARRIVAL:fieldHtml('arrival'),MONTHLY:fieldHtml('monthly'),DESKS:cards,CONFIG:JSON.stringify(desks).replace(/</g,'\\u003c')};
+tokens.SCROLL=scrollBlock(root);
 let html=read('tools/moving-budget/template.html').replace(/\{\{([A-Z]+)\}\}/g,(_,key)=>{if(!(key in tokens))throw Error('Unknown token '+key);return tokens[key];});
 if(process.argv.includes('--check')){if(read('moving-budget.html')!==html)throw Error('moving-budget.html differs; run node tools/moving-budget/build.mjs');console.log('Moving budget generated page is current');}
 else {fs.writeFileSync(path.join(root,'moving-budget.html'),html);console.log('Built moving-budget.html');}

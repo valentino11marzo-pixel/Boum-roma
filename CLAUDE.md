@@ -10212,6 +10212,10 @@ riepilogo mobile ancorato e ritorno con focus alla prossima voce mancante. Le ci
 restano immediate; movimento ridotto, tastiera, stampa e assenza di JavaScript restano
 utilizzabili. CSS/JS hanno hash di contenuto; `movingbudgetui` prova il controller reale.
 Decisioni e prova visiva in `docs/growth/moving-budget-design.md`.
+**Collaudo completo, 11 novembre.** I selettori di certezza hanno almeno 16px anche
+su telefono: il tap non deve ingrandire la pagina. Il generatore incorpora il contratto
+di scorrimento dalla sorgente condivisa, senza una seconda copia mantenuta a mano.
+Le guardie di sito `telefono` e `scroll` verificano entrambi i difetti emersi in CI.
 
 
 **9 novembre 2026 — vecchio URL proprietari.** Search Console segnala ancora
