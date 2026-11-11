@@ -190,8 +190,10 @@ architecture once. One fetch of the canonical SVG supplies temporary local
 definitions; HTML planes reference those exact source paths. Shallow
 perspective, directional clip reveals and normalized gold stroke drawing follow
 the [six city scores](../city-editions-motion.md), completing within (700ms).
-The bands remain still. WAAPI uses `fill: both` until the temporary assembly is
-removed and the exact original signature is restored. The existing edition
+The bands remain still. Structural WAAPI uses `fill: both`; gold strokes use
+`fill: backwards`, returning to their undashed style at completion without opacity
+fading. The temporary assembly is removed and the exact original signature is
+restored. The existing edition
 easing is authoritative. Structure stays opaque, so overlapping parts do not
 create translucent seams. Phones halve the depth and rotation. There is no
 volumetric model, simulated material or new rendering dependency.

@@ -151,7 +151,7 @@
      animations.push(item.svg.animate([{clipPath:revealClip(p,false)},{clipPath:revealClip(p,true)}],timing));
     });
     Array.from(accents.children).forEach(function(line,index){
-     animations.push(line.animate([{strokeDasharray:'1',strokeDashoffset:'1',opacity:0},{strokeDasharray:'1',strokeDashoffset:'0',opacity:1}],{duration:280,delay:edition.lineDelay(index),easing:ease,fill:'both'}));
+     animations.push(line.animate([{strokeDasharray:'1',strokeDashoffset:'1'},{strokeDasharray:'1',strokeDashoffset:'0'}],{duration:280,delay:edition.lineDelay(index),easing:ease,fill:'backwards'}));
     });
     currentAssembly.style.visibility='';artwork.dataset.cityAssembling=city;
    }catch(error){cancel();return;}
