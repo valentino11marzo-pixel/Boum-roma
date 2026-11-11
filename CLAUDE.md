@@ -10483,6 +10483,24 @@ stesso carattere, stessa geometria (±2px), stesso contenuto, zero errori JS.
 
 ## La casa in ordine — SEO/GEO (tests/seo/run.mjs)
 
+**9 novembre 2026 — budget del trasferimento europeo.** `/moving-budget` distingue spese
+di arrivo, deposito rimborsabile e mese ordinario; ignoto non è zero, le stime sono esplicite.
+Il motore puro è `js/moving-budget-engine.js`; importi solo in memoria nel tab, una scheda
+per città, nessun invio né falsa conversione sul modulo. Link ai desk e tariffe vengono da
+`api/_market.js` + città live: `node tools/moving-budget/build.mjs` (`--check` in test).
+La sorgente resta l'HTML pubblico; nessuna stima di mercato o giudizio di ammissibilità.
+Test: `movingbudget`, `seo`, `crawl`, `cities`; piano e baseline in `docs/growth/2026-11-09.md`.
+**Rifinitura UX, 10 novembre.** La destinazione è nell'hero; tre tappe con conteggi reali,
+riepilogo mobile ancorato e ritorno con focus alla prossima voce mancante. Le cifre
+restano immediate; movimento ridotto, tastiera, stampa e assenza di JavaScript restano
+utilizzabili. CSS/JS hanno hash di contenuto; `movingbudgetui` prova il controller reale.
+Decisioni e prova visiva in `docs/growth/moving-budget-design.md`.
+**Collaudo completo, 11 novembre.** I selettori di certezza hanno almeno 16px anche
+su telefono: il tap non deve ingrandire la pagina. Il generatore incorpora il contratto
+di scorrimento dalla sorgente condivisa, senza una seconda copia mantenuta a mano.
+Le guardie di sito `telefono` e `scroll` verificano entrambi i difetti emersi in CI.
+
+
 **9 novembre 2026 — vecchio URL proprietari.** Search Console segnala ancora
 `/proprietari.html`: in produzione cleanUrls lo porta a `/proprietari`, che
 risponde 404. Entrambe le forme ora hanno un redirect permanente a `/owners`
