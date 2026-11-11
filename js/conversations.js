@@ -15,7 +15,7 @@
  *
  * Schema (Firestore):
  *   conversations/{convId}
- *     contactType: 'lead'|'tenant'|'landlord'|'pfs'|'client'
+ *     contactType: 'lead'|'tenant'|'landlord'|'pfs'|'client'|'email'
  *     contactId:   <doc id of the linked entity>
  *     contactUid:  <Firebase Auth uid if known>          (for rules)
  *     contactName, contactPhone, contactEmail

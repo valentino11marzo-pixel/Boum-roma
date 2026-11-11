@@ -159,6 +159,18 @@ export async function personaDossier({ phone, email, leadId, conversationId } = 
   }));
   if (seedPhones.length && seedEmails.length && contactHits.some(h => h.pm) && contactHits.some(h => h.em)
       && !contactHits.some(h => h.pm && h.em)) note('ambiguity', 'phone_email_not_joined');
+  // An email-only contact has no seed phone to contradict. Still, two personal
+  // records sharing that email with distinct phones do not prove one person.
+  // Compare normalized identifiers, never names or the number of CRM rows.
+  const personalHits = contactHits.filter(h => PERSON_COLLECTIONS.has(h.ref.split('/')[0]));
+  for (const sharedEmail of seedEmails) {
+    if (new Set(personalHits.filter(h => h.e === sharedEmail).map(h => h.p).filter(Boolean)).size > 1)
+      note('ambiguity', 'shared_email_distinct_phones');
+  }
+  for (const sharedPhone of seedPhones) {
+    if (new Set(personalHits.filter(h => h.p === sharedPhone).map(h => h.e).filter(Boolean)).size > 1)
+      note('ambiguity', 'shared_phone_distinct_emails');
+  }
   // Follow only persisted foreign keys, one bounded hop. Never look up a name.
   const refs = [];
   for (const { row, ref } of entries('leads')) {

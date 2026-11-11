@@ -122,7 +122,7 @@ for (const [name, mutate, expected] of [
   ['binding in conflitto', io => io.put('conversations/' + CID, { ...base, conversationBindingConflict: 'email_conflict' }), 'conversation_identity_changed'],
   ['binding indisponibile', io => io.put('conversations/' + CID, { ...base, conversationBindingStatus: 'unavailable' }), 'conversation_identity_changed'],
   ['email duplicata normalizzata', io => io.put('conversations/other', { ...base, contactId: 'other', contactEmail: ' CLIENT@EXAMPLE.INVALID ' }), 'email_identity_ambiguous'],
-  ['scansione identità incompleta', io => { for (let i = 0; i < 499; i++) io.put('conversations/other-' + i, { contactEmail: `other${i}@example.invalid` }); }, 'email_identity_scan_incomplete'],
+  ['scansione identità incompleta', io => { for (let i = 0; i < 1999; i++) io.put('conversations/other-' + i, { contactEmail: `other${i}@example.invalid` }); }, 'email_identity_scan_incomplete'],
 ]) {
   io = setup(); ref = await source(); mutate(io); r = await ingest(ref);
   check(name + ': nessuna scrittura', r.error === expected && r.code >= 400 && io.writes.length === 0, r);
