@@ -405,6 +405,9 @@
          tap; nothing pre-selected otherwise: the server reads "to decide") */
       var picked = planOf(plan) ? plan : '';
       var body = { city: C.SLUG, name: name, service: picked, requestId: requestId, company: ($('fCompany') || {}).value || '' };
+      /* The template loads the brief editor only for a deliberate Flight handoff.
+         Its capture guard blocks premature sends while that download is pending. */
+      if (window.BoomJourneyHandoff) Object.assign(body, BoomJourneyHandoff.cityLead());
       if (c.email) body.email = c.email; else body.phone = c.phone;
       sending = true; door.setAttribute('aria-disabled', 'true'); txt('fNetErr', '');
       var label = $('doorL'), was = label.textContent;
@@ -549,6 +552,7 @@
   function openTill(id, from) {
     var p = planOf(id);
     if (!p || !till || state() !== 'blank' || sending) return;
+    if (window.BoomJourneyHandoff && !BoomJourneyHandoff.cityCheckout()) return;
     opener = from || null;
     /* where the page stood when the till opened: a fragment jump behind the modal is undone (deep) */
     tillX = scrollX; tillY = scrollY;

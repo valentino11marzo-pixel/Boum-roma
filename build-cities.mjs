@@ -776,6 +776,14 @@ export function waHref(contact, city) {
   return `https://wa.me/${contact.whatsapp}?text=${encodeURIComponent(text)}`;
 }
 
+// The page and its public projection share the same configured destination.
+// Only the generated link is public in Flight; contact configuration stays here.
+export function deskContact(shared, city) {
+  const contact = { ...shared.contact, ...(city.config && city.config.WHATSAPP ? { whatsapp: city.config.WHATSAPP } : {}), ...(city.config && city.config.EMAIL ? { email: city.config.EMAIL } : {}) };
+  contact.waHref = waHref(contact, city.city);
+  return contact;
+}
+
 // The fees row of the fact sheet, DERIVED from the plans: each plan's own
 // condition in brackets when the plans differ (Berlin: Full Search on
 // signing), said ONCE after the list when they are all the same.
@@ -2094,8 +2102,7 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
   // the same URL keeps the OLD one in every cache and every scraper.
   const ogFile = path.join(root, `og-${city.slug}.png`);
   const ogImage = `${site}/og-${city.slug}.png${fs.existsSync(ogFile) ? '?v=' + hash(ogFile) : ''}`;
-  const contact = { ...shared.contact, ...(city.config && city.config.WHATSAPP ? { whatsapp: city.config.WHATSAPP } : {}), ...(city.config && city.config.EMAIL ? { email: city.config.EMAIL } : {}) };
-  contact.waHref = waHref(contact, city.city);
+  const contact = deskContact(shared, city);
   const fam = familyFor(city, cities, shared);
   const doorLead = sell ? 'no card' : 'free';
   const holidays = holidayKeyOf(city.slug);
@@ -3986,6 +3993,31 @@ function readJson(file) {
 }
 const hash = (file) => crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex').slice(0, 10);
 
+// cities/ stays private at deployment. Flight reads this generated projection,
+// never source JSON, internal launch notes or a separately maintained price list.
+export const PUBLIC_DESKS_FILE = 'assets/boom-desks-public.json';
+export function publicDeskProjection(shared, cities) {
+  const out = { refund: { rule: shared.refund.rule }, cities: {} };
+  for (const city of [...cities].sort((a, b) => a.slug.localeCompare(b.slug))) {
+    if (city.live !== true || city.mode !== 'search' || city.checkout !== true) continue;
+    out.cities[city.slug] = {
+      slug: city.slug, city: city.city, live: city.live, mode: city.mode,
+      // Source defaults are validated against the market registry by renderCity.
+      // These are already-public page facts, never a second charging policy.
+      currency: city.currency || 'EUR', chargeAt: city.chargeAt || 'checkout',
+      contact: { whatsapp: deskContact(shared, city).waHref },
+      hero: { faresHead: { b: city.hero.faresHead.b } },
+      pricing: { sub: city.pricing.sub || '', plans: city.pricing.plans.map((plan) => ({
+        id: plan.id, label: plan.label, price: plan.price,
+        condition: plan.condition, offerDescription: plan.offerDescription,
+        trigger: plan.trigger || '',
+        includes: plan.includes.slice()
+      })) }
+    };
+  }
+  return out;
+}
+
 export function buildAll({ root = ROOT } = {}) {
   const dir = path.join(root, 'cities');
   const template = fs.readFileSync(path.join(dir, '_template.html'), 'utf8');
@@ -4031,7 +4063,14 @@ export function writeAll({ root = ROOT, check = false } = {}) {
     }
     return { ...p, out, stale: cur !== p.html };
   });
+  const shared = readJson(path.join(root, 'cities', '_shared.json'));
+  const cities = desks.map((p) => readJson(path.join(root, 'cities', `${p.slug}.json`)));
+  const projection = JSON.stringify(publicDeskProjection(shared, cities), null, 2) + '\n';
+  const publicPath = path.join(root, PUBLIC_DESKS_FILE);
+  const publicStale = !fs.existsSync(publicPath) || fs.readFileSync(publicPath, 'utf8') !== projection;
+  if (check && publicStale) throw new BuildError(`${PUBLIC_DESKS_FILE} is stale — run: npm run build:cities`);
   if (!check) for (const r of results) if (r.stale) fs.writeFileSync(r.out, r.html);
+  if (!check && publicStale) fs.writeFileSync(publicPath, projection);
   return results;
 }
 
@@ -4054,6 +4093,7 @@ if (isMain) {
         for (const x of p.placeholders) console.log('   - ' + x);
       }
     }
+    console.log(`${check ? '✓ up to date' : '✓ built'}  ${PUBLIC_DESKS_FILE}  ·  public live-desk projection`);
     if (stale) process.exit(1);
   } catch (e) {
     if (e instanceof BuildError) { console.error('✗ ' + e.message); process.exit(1); }

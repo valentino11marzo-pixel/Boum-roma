@@ -1,0 +1,333 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-10T22:41:36.220338Z",
+  "title": "Design System: BOOM Airspace",
+  "extensions": {
+    "colorMeta": {
+      "primary": {
+        "role": "primary",
+        "displayName": "BOOM yellow",
+        "tonalRamp": [
+          "oklch(15% 0.02 100)",
+          "oklch(26% 0.05 100)",
+          "oklch(38% 0.08 100)",
+          "oklch(49% 0.10 100)",
+          "oklch(61% 0.13 100)",
+          "oklch(72% 0.15 100)",
+          "oklch(84% 0.17 100)",
+          "oklch(95% 0.07 100)"
+        ]
+      },
+      "primary-hover": {
+        "role": "primary",
+        "displayName": "BOOM yellow hover",
+        "tonalRamp": [
+          "oklch(15% 0.02 100)",
+          "oklch(26% 0.05 100)",
+          "oklch(38% 0.08 100)",
+          "oklch(49% 0.10 100)",
+          "oklch(61% 0.13 100)",
+          "oklch(72% 0.15 100)",
+          "oklch(84% 0.17 100)",
+          "oklch(95% 0.07 100)"
+        ]
+      },
+      "scene": {
+        "role": "neutral",
+        "displayName": "Scene black",
+        "tonalRamp": [
+          "oklch(15% 0 0)",
+          "oklch(26% 0 0)",
+          "oklch(38% 0 0)",
+          "oklch(49% 0 0)",
+          "oklch(61% 0 0)",
+          "oklch(72% 0 0)",
+          "oklch(84% 0 0)",
+          "oklch(95% 0 0)"
+        ]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Decision white",
+        "tonalRamp": [
+          "oklch(15% 0 0)",
+          "oklch(26% 0 0)",
+          "oklch(38% 0 0)",
+          "oklch(49% 0 0)",
+          "oklch(61% 0 0)",
+          "oklch(72% 0 0)",
+          "oklch(84% 0 0)",
+          "oklch(95% 0 0)"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Decision ink",
+        "tonalRamp": [
+          "oklch(15% 0 0)",
+          "oklch(26% 0 0)",
+          "oklch(38% 0 0)",
+          "oklch(49% 0 0)",
+          "oklch(61% 0 0)",
+          "oklch(72% 0 0)",
+          "oklch(84% 0 0)",
+          "oklch(95% 0 0)"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Muted ink",
+        "tonalRamp": [
+          "oklch(15% 0.005 105)",
+          "oklch(26% 0.008 105)",
+          "oklch(38% 0.01 105)",
+          "oklch(49% 0.012 105)",
+          "oklch(61% 0.012 105)",
+          "oklch(72% 0.01 105)",
+          "oklch(84% 0.008 105)",
+          "oklch(95% 0.004 105)"
+        ]
+      },
+      "rule": {
+        "role": "neutral",
+        "displayName": "Decision rule",
+        "tonalRamp": [
+          "oklch(15% 0.005 105)",
+          "oklch(26% 0.008 105)",
+          "oklch(38% 0.01 105)",
+          "oklch(49% 0.012 105)",
+          "oklch(61% 0.012 105)",
+          "oklch(72% 0.01 105)",
+          "oklch(84% 0.008 105)",
+          "oklch(95% 0.004 105)"
+        ]
+      },
+      "field-border": {
+        "role": "neutral",
+        "displayName": "Field border",
+        "tonalRamp": [
+          "oklch(15% 0.005 105)",
+          "oklch(26% 0.008 105)",
+          "oklch(38% 0.01 105)",
+          "oklch(49% 0.012 105)",
+          "oklch(61% 0.012 105)",
+          "oklch(72% 0.01 105)",
+          "oklch(84% 0.008 105)",
+          "oklch(95% 0.004 105)"
+        ]
+      },
+      "chrome-rule": {
+        "role": "neutral",
+        "displayName": "Chrome rule",
+        "tonalRamp": [
+          "oklch(15% 0.005 105)",
+          "oklch(26% 0.008 105)",
+          "oklch(38% 0.01 105)",
+          "oklch(49% 0.012 105)",
+          "oklch(61% 0.012 105)",
+          "oklch(72% 0.01 105)",
+          "oklch(84% 0.008 105)",
+          "oklch(95% 0.004 105)"
+        ]
+      },
+      "chrome-text": {
+        "role": "neutral",
+        "displayName": "Chrome text",
+        "tonalRamp": [
+          "oklch(15% 0.005 105)",
+          "oklch(26% 0.008 105)",
+          "oklch(38% 0.01 105)",
+          "oklch(49% 0.012 105)",
+          "oklch(61% 0.012 105)",
+          "oklch(72% 0.01 105)",
+          "oklch(84% 0.008 105)",
+          "oklch(95% 0.004 105)"
+        ]
+      },
+      "selected-scene": {
+        "role": "neutral",
+        "displayName": "Selected scene",
+        "tonalRamp": [
+          "oklch(15% 0.02 100)",
+          "oklch(26% 0.05 100)",
+          "oklch(38% 0.08 100)",
+          "oklch(49% 0.10 100)",
+          "oklch(61% 0.13 100)",
+          "oklch(72% 0.15 100)",
+          "oklch(84% 0.17 100)",
+          "oklch(95% 0.07 100)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Scene introduction",
+        "purpose": "Meaningful introduction above the native Solari; weight 300."
+      },
+      "headline": {
+        "displayName": "Decision headline",
+        "purpose": "The native desk heading on the white surface."
+      },
+      "title": {
+        "displayName": "Service title",
+        "purpose": "The actual selected service name."
+      },
+      "price": {
+        "displayName": "Actual fee",
+        "purpose": "The manifest-supplied fee; no invented sample price."
+      },
+      "body": {
+        "displayName": "Service body",
+        "purpose": "Readable native scope and conditions, including disclosure content."
+      },
+      "label": {
+        "displayName": "Supporting label",
+        "purpose": "Secondary metadata and controls."
+      }
+    },
+    "shadows": [
+      {
+        "name": "selected-city-rule",
+        "value": "inset 0 2px 0 #ffd700",
+        "purpose": "Selection marker on the original city button; not elevation."
+      }
+    ],
+    "motion": [
+      {
+        "name": "native-framing",
+        "value": "320ms",
+        "purpose": "Original Globe/Horizon framing; keyboard immediate. Airspace creates no clock."
+      },
+      {
+        "name": "inherited-control-response",
+        "value": "140ms cubic-bezier(.23,1,.32,1)",
+        "purpose": "Existing utility state transitions; quiet and reduced-motion modes remain native."
+      },
+      {
+        "name": "reduced-motion-transition",
+        "value": "0s",
+        "purpose": "Airspace removes CSS transition duration when reduced motion is requested."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "intermediate-max",
+        "value": "1180px"
+      },
+      {
+        "name": "phone-max",
+        "value": "760px"
+      },
+      {
+        "name": "narrow-phone-max",
+        "value": "359px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary review action",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The original desk review action; the live label is supplied by its service. This token specimen does not carry the inherited text-arrow glyph into a new primitive.",
+      "html": "<button class=\"ds-review\" type=\"button\">Review Full Search</button>",
+      "css": ".ds-review{width:100%;min-height:56px;padding:16px 20px;border:0;border-radius:4px;background:#ffd700;color:#000;font:500 16px/1.4 \"Helvetica Neue\",Helvetica,Arial,sans-serif;cursor:pointer;box-shadow:none}.ds-review:focus-visible{outline:2px solid #111;outline-offset:4px}@media(hover:hover) and (pointer:fine){.ds-review:hover{background:#ffe44a}}"
+    },
+    {
+      "name": "Original brief field",
+      "kind": "input",
+      "refersTo": "field",
+      "description": "White native date field; the real form retains its validation and handoff.",
+      "html": "<label class=\"ds-field-label\">Move in<input class=\"ds-field\" type=\"date\" aria-label=\"Desk move-in date\"></label>",
+      "css": ".ds-field-label{display:grid;gap:8px;color:#55564f;font:400 13px/1.4 \"Helvetica Neue\",Helvetica,Arial,sans-serif}.ds-field{min-height:48px;border:1px solid #aaa99e;border-radius:4px;background:#fff;color:#111;font:400 16px/1.4 \"Helvetica Neue\",Helvetica,Arial,sans-serif;color-scheme:light;accent-color:#111;caret-color:#111}.ds-field:focus-visible{outline:2px solid #111;outline-offset:4px}"
+    },
+    {
+      "name": "City navigation",
+      "kind": "nav",
+      "refersTo": "city-choice-selected",
+      "description": "The original six choices, shown here in the phone layout. Native selection supplies aria-pressed; this static specimen does not select a city.",
+      "html": "<nav class=\"ds-cities\" aria-label=\"Choose your city\"><button type=\"button\" aria-pressed=\"true\">Rome</button><button type=\"button\" aria-pressed=\"false\">Madrid</button><button type=\"button\" aria-pressed=\"false\">Barcelona</button><button type=\"button\" aria-pressed=\"false\">Amsterdam</button><button type=\"button\" aria-pressed=\"false\">London</button><button type=\"button\" aria-pressed=\"false\">Milan</button></nav>",
+      "css": ".ds-cities{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid #55554d;background:#000}.ds-cities button{min-height:44px;padding:8px 2px;border:0;border-radius:0;background:transparent;color:#dfdfd6;text-align:center;font:400 14px/1.2 \"Helvetica Neue\",Helvetica,Arial,sans-serif;letter-spacing:-.015em;cursor:pointer;transform:none}.ds-cities button[aria-pressed=\"true\"]{background:#1b1903;color:#ffd700;box-shadow:inset 0 2px 0 #ffd700}.ds-cities button:focus-visible{outline:2px solid #fff;outline-offset:-4px}@media(hover:hover) and (pointer:fine){.ds-cities button:not([aria-pressed=\"true\"]):hover{background:#171710;color:#fff}}"
+    },
+    {
+      "name": "Globe and Horizon lenses",
+      "kind": "button",
+      "refersTo": "lens-selected",
+      "description": "Native framing choices, shown as the phone text-only pair. Rendering and motion stay with the native globe.",
+      "html": "<div class=\"ds-lenses\" role=\"group\" aria-label=\"Globe perspective\"><button type=\"button\" aria-pressed=\"true\">Globe</button><button type=\"button\" aria-pressed=\"false\">Horizon</button></div>",
+      "css": ".ds-lenses{display:flex;width:fit-content;border:1px solid #454540;border-radius:4px;background:#000}.ds-lenses button{min-width:48px;min-height:44px;padding:8px;border:0;border-radius:5px;background:#000;color:#d4d4cb;font:400 12px/1.3 \"Helvetica Neue\",Helvetica,Arial,sans-serif;cursor:pointer;transition:color 140ms,background-color 140ms,transform 140ms cubic-bezier(.23,1,.32,1)}.ds-lenses button[aria-pressed=\"true\"]{background:#fff;color:#000}.ds-lenses button:active{transform:scale(.97)}.ds-lenses button:focus-visible{outline:2px solid #ffd700;outline-offset:4px;transform:none}@media(hover:hover) and (pointer:fine){.ds-lenses button:not([aria-pressed=\"true\"]):hover{background:#17180e;color:#fff}}@media(prefers-reduced-motion:reduce){.ds-lenses button{transition:none;transform:none}}"
+    },
+    {
+      "name": "Service choice row",
+      "kind": "button",
+      "refersTo": "service-choice",
+      "description": "A ruled native need choice. The native service provides any price label; no fee is invented in the specimen.",
+      "html": "<button class=\"ds-service-choice\" type=\"button\" aria-pressed=\"true\">Find a home for me</button>",
+      "css": ".ds-service-choice{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px;width:100%;min-height:56px;padding:8px 0;border:0;border-bottom:1px solid #d9d9d2;border-radius:0;background:#fff;color:#111;text-align:left;font:400 16px/1.25 \"Helvetica Neue\",Helvetica,Arial,sans-serif;letter-spacing:-.015em;cursor:pointer;box-shadow:none;transform:none}.ds-service-choice::after{content:\"\";width:20px;height:20px;border:1px solid #8c8c80;border-radius:50%;background:transparent}.ds-service-choice[aria-pressed=\"true\"]::after{border:6px solid #111;background:#ffd700}.ds-service-choice:focus-visible{outline:2px solid #111;outline-offset:4px}@media(hover:hover) and (pointer:fine){.ds-service-choice:hover{background:#f5f5ef}}"
+    },
+    {
+      "name": "Phone Full view",
+      "kind": "button",
+      "refersTo": "full-view-phone",
+      "description": "The existing expand control uses its SVG alone on phones and retains Full view as its accessible name and title. The live button opens the original dialog.",
+      "html": "<button class=\"ds-full-view\" type=\"button\" aria-haspopup=\"dialog\" title=\"Full view\">Full view <svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5\"/></svg></button>",
+      "css": ".ds-full-view{display:inline-flex;align-items:center;justify-content:center;gap:0;width:44px;min-height:44px;padding:12px;border:1px solid #454540;border-radius:4px;background:#000;color:#d4d4cb;font:500 0/1.3 \"Helvetica Neue\",Helvetica,Arial,sans-serif;cursor:pointer;transition:background-color 140ms,border-color 140ms,transform 140ms cubic-bezier(.23,1,.32,1)}.ds-full-view svg{width:18px;height:18px;flex:0 0 18px;fill:none;stroke:currentColor;stroke-width:1.5}.ds-full-view:active{transform:scale(.985)}.ds-full-view:focus-visible{outline:2px solid #ffd700;outline-offset:4px;transform:none}@media(hover:hover) and (pointer:fine){.ds-full-view:hover{background:#17180e;color:#fff;border-color:#fff}}@media(prefers-reduced-motion:reduce){.ds-full-view{transition:none;transform:none}}"
+    },
+    {
+      "name": "Decision surface",
+      "kind": "card",
+      "refersTo": "decision-surface",
+      "description": "The flat white content region holding the existing offer or Rome planner. It is not an outer frame or a separate service card.",
+      "html": "<aside class=\"ds-decision\" aria-label=\"Your next step\"><h2>Your next step</h2><details class=\"ds-inclusions\"><summary>What’s included</summary></details></aside>",
+      "css": ".ds-decision{min-width:0;margin:0;padding:18px clamp(24px,3vw,44px) 24px;border:0;border-radius:0;background:#fff;color:#111;box-shadow:none;color-scheme:light;font-family:\"Helvetica Neue\",Helvetica,Arial,sans-serif}.ds-decision h2{margin:0 0 12px;font-size:clamp(30px,2.6vw,38px);font-weight:300;line-height:1.08;letter-spacing:-.03em}.ds-inclusions{border-block:1px solid #d9d9d2}.ds-inclusions summary{display:flex;align-items:center;min-height:44px;font:400 14px/1.4 \"Helvetica Neue\",Helvetica,Arial,sans-serif;cursor:pointer}.ds-inclusions summary:focus-visible{outline:2px solid #111;outline-offset:4px}@media(max-width:760px){.ds-decision{padding:24px 20px 36px}.ds-decision h2{font-size:32px}}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Airspace — geography into a decision",
+    "overview": "Airspace gives the original BOOM destination and service a continuous setting:\nan open black geographic scene meets a white decision surface. The yellow\nidentity, Helvetica Neue light voice, original Solari pulse and native globe\ncarry the established BOOM character. The composition is direct and spacious;\nthe offer is ordinary readable content, with its actual terms and next action.\n\nThis document describes only the opt-in Dispatch Airspace composition. It does\nnot replace the root BOOM design system, PRODUCT.md, Club or the other Flight\ncompositions. Its runtime boundary is Club direction and edition, Panorama\nexperience, Dispatch vision, `composition=airspace`, and Europe readiness.\nThe design choice was delegated in the current direction contract. Tokens below\nare extracted from the implementation, not a new brand proposal.",
+    "keyCharacteristics": [
+      "One native geographic scene and one original decision surface.",
+      "Black, white and BOOM yellow; light headlines and restrained controls.",
+      "Complete city choices without a horizontal carousel.",
+      "Actual service, fee and conditions, followed by the native review action.",
+      "Original motion ownership, pause and reduced-motion paths."
+    ],
+    "rules": [
+      {
+        "name": "The Content White Rule",
+        "body": "In Airspace, white holds the actual decision and company content; it is not a porcelain frame around the geographic scene.",
+        "section": "colors"
+      },
+      {
+        "name": "The Original Voice Rule",
+        "body": "Preserve Helvetica Neue weight (300) for the Airspace headings and keep the original logo and Solari; do not substitute a new display family or redraw those identity assets.",
+        "section": "typography"
+      },
+      {
+        "name": "The Native Depth Rule",
+        "body": "Let the real geography and Solari provide depth; do not add an ornamental HUD, second globe, paper entrance or shadowed shell.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Single Owner Rule",
+        "body": "Change presentation through the original owners; add no animation clock, customer state, catalogue, form or payment path.",
+        "section": "components"
+      }
+    ],
+    "dos": [
+      "Do keep this system scoped to the opt-in Airspace composition.",
+      "Do move the original globe, forms and service nodes with their native owners.",
+      "Do preserve all six city choices, keyboard access, pause and reduced motion.",
+      "Do show actual service conditions and failure states before the native action.",
+      "Do keep the phone Full view icon in the control row with its accessible name.",
+      "Do distinguish implementation evidence from completed visual and browser review."
+    ],
+    "donts": [
+      "Don't apply this composition as a global BOOM rebrand or replace other variants.",
+      "Don't restore the rejected porcelain surround or rounded outer frame in Airspace.",
+      "Don't add another timer, canvas, form, customer state or commercial summary.",
+      "Don't introduce fake proof, invented fees, generated founder imagery or new offices.",
+      "Don't promote inherited glyph arrows or decorative labels into new system primitives."
+    ]
+  }
+}

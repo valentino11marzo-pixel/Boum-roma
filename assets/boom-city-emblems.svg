@@ -1,0 +1,113 @@
+<svg xmlns="http://www.w3.org/2000/svg">
+  <!-- BOOM architectural emblems. Editorial landmarks, never offices or addresses.
+       Each city has one ivory structure and one yellow architectural accent.
+       Geometry is original to BOOM; the names and places retain their native owner. -->
+  <symbol id="city-rome-structure" viewBox="0 0 160 120">
+    <path id="city-rome-part-1" fill="currentColor" fill-rule="evenodd" d="M18 43Q80 13 142 43V94Q80 116 18 94ZM30 43Q80 23 130 43Q80 60 30 43ZM27 63V57Q27 52 32 54Q37 56 37 61V66ZM44 69V62Q44 57 49 58Q54 59 54 64V71ZM62 73V66Q62 61 67 61Q72 62 72 67V74ZM81 74V67Q81 62 86 62Q91 61 91 66V73ZM100 71V64Q100 59 105 58Q110 57 110 62V69ZM118 66V61Q118 56 123 54Q128 52 128 57V63ZM27 88V80Q27 75 32 77Q37 79 37 84V91ZM44 95V86Q44 81 49 82Q54 83 54 88V97ZM62 99V90Q62 85 67 85Q72 86 72 91V100ZM81 100V91Q81 86 86 86Q91 85 91 90V99ZM100 97V88Q100 83 105 82Q110 81 110 86V95ZM118 91V84Q118 79 123 77Q128 75 128 80V88Z"/>
+  </symbol>
+  <symbol id="city-rome-accent" viewBox="0 0 160 120">
+    <g fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="butt">
+      <path id="city-rome-line-1" pathLength="1" d="M18 45Q80 74 142 45"/>
+      <path id="city-rome-line-2" pathLength="1" d="M18 73Q80 98 142 73"/>
+    </g>
+  </symbol>
+
+  <symbol id="city-madrid-structure" viewBox="0 0 160 120">
+    <path id="city-madrid-part-1" fill="currentColor" fill-rule="evenodd" d="M14 52H146V102H14ZM24 102V71Q24 63 32 63Q40 63 40 71V102ZM47 102V70Q47 62 55 62Q63 62 63 70V102ZM70 102V65Q70 55 80 55Q90 55 90 65V102ZM97 102V70Q97 62 105 62Q113 62 113 70V102ZM120 102V71Q120 63 128 63Q136 63 136 71V102Z"/>
+    <path id="city-madrid-part-2" fill="currentColor" d="M10 103H150V109H10ZM18 42H142V48H18ZM48 32H112V38H48ZM54 28L80 14L106 28ZM23 30H39V37H23ZM121 30H137V37H121Z"/>
+  </symbol>
+  <symbol id="city-madrid-accent" viewBox="0 0 160 120">
+    <g fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="butt">
+      <path id="city-madrid-line-1" pathLength="1" d="M14 49H146"/>
+      <path id="city-madrid-line-2" pathLength="1" d="M18 59V99"/>
+      <path id="city-madrid-line-3" pathLength="1" d="M44 59V99"/>
+      <path id="city-madrid-line-4" pathLength="1" d="M67 54V99"/>
+      <path id="city-madrid-line-5" pathLength="1" d="M93 54V99"/>
+      <path id="city-madrid-line-6" pathLength="1" d="M116 59V99"/>
+      <path id="city-madrid-line-7" pathLength="1" d="M142 59V99"/>
+      <path id="city-madrid-line-8" pathLength="1" d="M74 35H86"/>
+    </g>
+  </symbol>
+
+  <symbol id="city-barcelona-structure" viewBox="0 0 160 120">
+    <path id="city-barcelona-part-1" fill="currentColor" d="M20 106V79L28 69L36 79V106ZM35 106V54L40 29H46L51 54V106ZM56 106V39L62 12H68L74 39V106ZM86 106V39L92 12H98L104 39V106ZM109 106V54L114 29H120L125 54V106ZM124 106V79L132 69L140 79V106Z"/>
+    <path id="city-barcelona-part-2" fill="currentColor" fill-rule="evenodd" d="M48 106V83L80 55L112 83V106ZM67 106V91L80 77L93 91V106Z"/>
+    <path id="city-barcelona-part-3" fill="currentColor" d="M14 106H146V112H14Z"/>
+  </symbol>
+  <symbol id="city-barcelona-accent" viewBox="0 0 160 120">
+    <g fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="butt">
+      <path id="city-barcelona-line-1" pathLength="1" d="M43 22V11"/>
+      <path id="city-barcelona-line-2" pathLength="1" d="M38 16H48"/>
+      <path id="city-barcelona-line-3" pathLength="1" d="M65 12V2"/>
+      <path id="city-barcelona-line-4" pathLength="1" d="M60 7H70"/>
+      <path id="city-barcelona-line-5" pathLength="1" d="M95 12V2"/>
+      <path id="city-barcelona-line-6" pathLength="1" d="M90 7H100"/>
+      <path id="city-barcelona-line-7" pathLength="1" d="M117 22V11"/>
+      <path id="city-barcelona-line-8" pathLength="1" d="M112 16H122"/>
+      <path id="city-barcelona-line-9" pathLength="1" d="M40 54H46"/>
+      <path id="city-barcelona-line-10" pathLength="1" d="M40 65H46"/>
+      <path id="city-barcelona-line-11" pathLength="1" d="M40 76H46"/>
+      <path id="city-barcelona-line-12" pathLength="1" d="M62 40H68"/>
+      <path id="city-barcelona-line-13" pathLength="1" d="M62 51H68"/>
+      <path id="city-barcelona-line-14" pathLength="1" d="M62 62H68"/>
+      <path id="city-barcelona-line-15" pathLength="1" d="M92 40H98"/>
+      <path id="city-barcelona-line-16" pathLength="1" d="M92 51H98"/>
+      <path id="city-barcelona-line-17" pathLength="1" d="M92 62H98"/>
+      <path id="city-barcelona-line-18" pathLength="1" d="M114 54H120"/>
+      <path id="city-barcelona-line-19" pathLength="1" d="M114 65H120"/>
+      <path id="city-barcelona-line-20" pathLength="1" d="M114 76H120"/>
+      <path id="city-barcelona-line-21" pathLength="1" d="M58 106V88L80 68L102 88V106"/>
+    </g>
+  </symbol>
+
+  <symbol id="city-amsterdam-structure" viewBox="0 0 160 120">
+    <path id="city-amsterdam-part-1" fill="currentColor" fill-rule="evenodd" d="M17 99V44H23V35H30V27H42V35H49V44H55V99ZM27 52H34V62H27ZM39 52H46V62H39ZM27 71H34V81H27ZM39 71H46V81H39ZM31 99V88H42V99Z"/>
+    <path id="city-amsterdam-part-2" fill="currentColor" fill-rule="evenodd" d="M59 99V36H65V26H72V16H77V8H83V16H88V26H95V36H101V99ZM69 45H76V56H69ZM84 45H91V56H84ZM69 65H76V76H69ZM84 65H91V76H84ZM75 99V86H85V99Z"/>
+    <path id="city-amsterdam-part-3" fill="currentColor" fill-rule="evenodd" d="M105 99V46Q112 46 112 35Q112 24 122 24Q132 24 132 35Q132 46 139 46V99ZM113 54H120V64H113ZM125 54H132V64H125ZM113 73H120V83H113ZM125 73H132V83H125ZM117 99V90H128V99Z"/>
+  </symbol>
+  <symbol id="city-amsterdam-accent" viewBox="0 0 160 120">
+    <g fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="butt">
+      <path id="city-amsterdam-line-1" pathLength="1" d="M12 104H148"/>
+      <path id="city-amsterdam-line-2" pathLength="1" d="M17 112Q27 106 37 112T77 112T117 112T147 112"/>
+    </g>
+  </symbol>
+
+  <symbol id="city-london-structure" viewBox="0 0 160 120">
+    <path id="city-london-part-1" fill="currentColor" fill-rule="evenodd" d="M29 96V39H34V29H38V22L44 11L50 22V29H54V39H59V96ZM38 96V77Q38 71 44 71Q50 71 50 77V96ZM40 46H48V56H40Z"/>
+    <path id="city-london-part-2" fill="currentColor" fill-rule="evenodd" d="M101 96V39H106V29H110V22L116 11L122 22V29H126V39H131V96ZM110 96V77Q110 71 116 71Q122 71 122 77V96ZM112 46H120V56H112Z"/>
+    <path id="city-london-part-3" fill="currentColor" d="M58 48H102V54H58ZM8 96H152V103H8Z"/>
+  </symbol>
+  <symbol id="city-london-accent" viewBox="0 0 160 120">
+    <g fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="butt">
+      <path id="city-london-line-1" pathLength="1" d="M8 86Q21 81 29 60"/>
+      <path id="city-london-line-2" pathLength="1" d="M59 60Q80 90 101 60"/>
+      <path id="city-london-line-3" pathLength="1" d="M131 60Q139 81 152 86"/>
+      <path id="city-london-line-4" pathLength="1" d="M19 80V94"/>
+      <path id="city-london-line-5" pathLength="1" d="M68 70V94"/>
+      <path id="city-london-line-6" pathLength="1" d="M80 75V94"/>
+      <path id="city-london-line-7" pathLength="1" d="M92 70V94"/>
+      <path id="city-london-line-8" pathLength="1" d="M141 80V94"/>
+      <path id="city-london-line-9" pathLength="1" d="M18 111H142"/>
+    </g>
+  </symbol>
+
+  <symbol id="city-milan-structure" viewBox="0 0 160 120">
+    <path id="city-milan-part-1" fill="currentColor" fill-rule="evenodd" d="M18 106V66L33 53L48 66L64 45L80 31L96 45L112 66L127 53L142 66V106ZM28 106V89L33 83L38 89V106ZM69 106V88L80 76L91 88V106ZM122 106V89L127 83L132 89V106ZM28 72L33 66L38 72L33 78ZM75 59L80 53L85 59L80 65ZM122 72L127 66L132 72L127 78Z"/>
+    <path id="city-milan-part-2" fill="currentColor" d="M16 66V48H20V66ZM31 53V30H35V53ZM46 66V45H50V66ZM62 45V23H66V45ZM78 31V7H82V31ZM94 45V23H98V45ZM110 66V45H114V66ZM125 53V30H129V53ZM140 66V48H144V66ZM12 107H148V113H12Z"/>
+  </symbol>
+  <symbol id="city-milan-accent" viewBox="0 0 160 120">
+    <g fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="butt">
+      <path id="city-milan-line-1" pathLength="1" d="M14 54H22"/>
+      <path id="city-milan-line-2" pathLength="1" d="M29 36H37"/>
+      <path id="city-milan-line-3" pathLength="1" d="M44 51H52"/>
+      <path id="city-milan-line-4" pathLength="1" d="M60 29H68"/>
+      <path id="city-milan-line-5" pathLength="1" d="M76 13H84"/>
+      <path id="city-milan-line-6" pathLength="1" d="M92 29H100"/>
+      <path id="city-milan-line-7" pathLength="1" d="M108 51H116"/>
+      <path id="city-milan-line-8" pathLength="1" d="M123 36H131"/>
+      <path id="city-milan-line-9" pathLength="1" d="M138 54H146"/>
+      <path id="city-milan-line-10" pathLength="1" d="M52 102V80L62 67L70 78"/>
+      <path id="city-milan-line-11" pathLength="1" d="M108 102V80L98 67L90 78"/>
+    </g>
+  </symbol>
+</svg>

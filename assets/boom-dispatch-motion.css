@@ -1,0 +1,283 @@
+/* Dispatch motion grammar: the accepted destination has one travelling frame.
+   The original buttons own the state; JS measures the frame, never the copy.
+   Without the ready marker, the existing filled selection remains intact. */
+body[data-direction="club"][data-edition="club"][data-experience="panorama"][data-home-vision="dispatch"].europe-ready {
+  & #nextHero .europe-city-switch .europe-cities {
+    position: relative;
+    isolation: isolate;
+  }
+  & #nextHero .europe-city-switch .dispatch-city-carrier {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 2;
+    display: none;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    border: 1px solid #ffd700;
+    border-radius: 4px;
+    background: transparent;
+    transform-origin: 0 0;
+    pointer-events: none;
+  }
+  & #nextHero .europe-city-switch .europe-cities.dispatch-carrier-ready > .dispatch-city-carrier {
+    display: block;
+  }
+  & #nextHero .europe-city-switch .europe-cities.dispatch-carrier-ready > button {
+    position: relative;
+    z-index: 1;
+    background: transparent;
+    border-color: var(--dispatch-terminal-line, #303326);
+    transform: none;
+    transition: background-color var(--p-fast) ease;
+  }
+  & #nextHero .europe-city-switch .europe-cities.dispatch-carrier-ready > button[aria-pressed="true"] {
+    background: transparent;
+    color: #ffd700;
+    border-color: var(--dispatch-terminal-line, #303326);
+  }
+  & #nextHero .europe-city-switch .europe-cities.dispatch-carrier-ready > button[aria-pressed="true"] > span,
+  & #nextHero .europe-city-switch .europe-cities.dispatch-carrier-ready > button[aria-pressed="true"] .europe-city-code {
+    color: #ffd700;
+  }
+  & #nextHero .europe-city-switch .europe-cities.dispatch-carrier-ready > button:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: -6px;
+    transform: none;
+    transition: none;
+  }
+  & #nextHero .europe-city-switch .europe-cities.dispatch-carrier-ready > button:active {
+    transform: none;
+  }
+  /* The decorative carrier is the last DOM child. Keep the real sixth tile's
+     divider rules independent from that presentation-only insertion. */
+  & #nextHero .europe-city-switch .europe-cities.dispatch-carrier-ready > button:nth-of-type(6) {
+    border-right: 0;
+  }
+  /* A presentation tour is not a city selection. Keep the original aria state
+     intact while the controller previews the network on the original board. */
+  &[data-dispatch-tour="playing"] #nextHero .europe-city-switch .dispatch-city-carrier {
+    visibility: hidden;
+  }
+  &[data-dispatch-tour="playing"] #nextHero .europe-city-switch .europe-cities button[aria-pressed="true"],
+  &[data-dispatch-tour="playing"] #nextHero .europe-city-switch .europe-cities button[aria-pressed="true"] > span:last-child {
+    background: transparent;
+    color: #fff;
+    border-color: var(--dispatch-terminal-line, #303326);
+    transition: none;
+  }
+  &[data-dispatch-tour="playing"] #nextHero .europe-city-switch .europe-cities button[aria-pressed="true"] .europe-city-code {
+    color: var(--dispatch-terminal-muted, #c6c9b8);
+  }
+  &[data-dispatch-tour="playing"] #nextHero .europe-city-switch .europe-cities button[aria-pressed="true"]::after {
+    opacity: 0;
+  }
+  &[data-dispatch-tour="playing"] #nextHero .europe-city-switch .europe-cities button:focus-visible {
+    outline-color: #fff;
+  }
+
+  & :is(.button.gold, .edition-plan-link, #nextSearchForm .search-submit, #europeDeskStory #europeDeskContinue, #services .panorama-ticket .ticket-stub > .panorama-ticket-action) {
+    min-height: 56px;
+    border-radius: 8px;
+  }
+  & #services .panorama-ticket-action > b,
+  & #europeDeskStory #europeDeskContinue::before {
+    border-radius: 4px;
+  }
+
+  /* The real route becomes a destination line, not another metadata label.
+     Product, scope, price and terms keep their original order and wording. */
+  & #services .panorama-ticket-route {
+    min-width: 0;
+    align-items: center;
+    gap: 16px;
+    margin-block: 26px 22px;
+  }
+  & #services .panorama-ticket-route > span:first-child {
+    flex: 0 0 auto;
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 1.3;
+    letter-spacing: .025em;
+    color: #535846;
+  }
+  & #services .panorama-ticket-route > span:last-child {
+    flex: 0 0 auto;
+    font-size: 28px;
+    font-weight: 300;
+    line-height: 1.05;
+    letter-spacing: -.025em;
+    color: #11130c;
+  }
+  & #services .panorama-ticket-route > i {
+    min-width: 24px;
+    height: 32px;
+  }
+  & #services .panorama-ticket-route > i::before {
+    border-top-style: solid;
+    border-color: #aeb49f;
+  }
+  & #services .panorama-ticket .ticket-stub {
+    border-top-color: #8a907b;
+  }
+  & #services .panorama-ticket .ticket-stub::before,
+  & #services .panorama-ticket .ticket-stub::after {
+    top: -7px;
+    left: -7px;
+    right: auto;
+    width: 14px;
+    height: 14px;
+  }
+  & #services .panorama-ticket .ticket-stub::after {
+    left: auto;
+    right: -7px;
+  }
+  & #services .panorama-ticket,
+  & #services .panorama-ticket:hover {
+    transform: none;
+    transition: border-color var(--p-fast) ease;
+  }
+  & #services .panorama-ticket .ticket-stub > .panorama-ticket-action {
+    min-height: 56px;
+  }
+  & #services .panorama-ticket-action > b {
+    overflow: hidden;
+  }
+  & #services .panorama-ticket-action > b svg {
+    transform: none;
+    transition: transform var(--p-state) var(--p-ease);
+  }
+  & #europeDeskStory .dispatch-service-ticket #europeDeskForm {
+    border-left-color: #8a907b;
+    border-top-color: #8a907b;
+  }
+  & #europeDeskStory .dispatch-service-ticket #europeDeskForm::before,
+  & #europeDeskStory .dispatch-service-ticket #europeDeskForm::after {
+    content: "";
+    position: absolute;
+    top: -7px;
+    left: -7px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #000;
+    pointer-events: none;
+  }
+  & #europeDeskStory .dispatch-service-ticket #europeDeskForm::after {
+    top: auto;
+    bottom: -7px;
+  }
+  & #europeDeskStory #europeDeskContinue::after {
+    transition: transform var(--p-state) var(--p-ease);
+  }
+  & #services .panorama-ticket:focus-visible {
+    outline: 2px solid #ffd700;
+    outline-offset: 5px;
+    transition: none;
+  }
+  & #services .panorama-ticket:focus-visible .panorama-ticket-action > b svg,
+  & #services .panorama-ticket:active .panorama-ticket-action > b svg {
+    transform: none;
+    transition: none;
+  }
+  & #europeDeskStory #europeDeskContinue:is(:focus-visible, :active)::after {
+    transform: translateY(-50%);
+    transition: none;
+  }
+}
+
+@media (max-width: 1180px) {
+  body[data-direction="club"][data-edition="club"][data-experience="panorama"][data-home-vision="dispatch"].europe-ready {
+    & #europeDeskStory .dispatch-service-ticket #europeDeskForm::after {
+      top: -7px;
+      bottom: auto;
+      left: auto;
+      right: -7px;
+    }
+  }
+}
+
+@media (max-width: 1000px) {
+  body[data-direction="club"][data-edition="club"][data-experience="panorama"][data-home-vision="dispatch"].europe-ready {
+    & #services .panorama-ticket-route { gap: 12px; }
+    & #services .panorama-ticket-route > span:last-child { font-size: 24px; }
+  }
+}
+
+@media (max-width: 380px) {
+  body[data-direction="club"][data-edition="club"][data-experience="panorama"][data-home-vision="dispatch"].europe-ready {
+    & #services .panorama-ticket-route { gap: 10px; }
+    & #services .panorama-ticket-route > span:first-child { font-size: 12px; }
+    & #services .panorama-ticket-route > span:last-child { font-size: 21px; }
+  }
+}
+
+/* Pointer feedback belongs to the existing action. The fare never moves. */
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  body[data-direction="club"][data-edition="club"][data-experience="panorama"][data-home-vision="dispatch"].europe-ready:not([data-panorama-motion-state="quiet"]):not([data-edition-motion="still"]) {
+    & #nextHero .europe-city-switch .europe-cities.dispatch-carrier-ready > button:hover:not(:focus-visible) {
+      background: #132b33;
+    }
+    & .dispatch-tour-action:hover:not(:focus-visible):not(:active):not(:disabled) {
+      background: #ffe44a;
+    }
+    & #dispatchCityTourToggle:hover:not(:focus-visible):not(:disabled) {
+      background: #132b33;
+    }
+    & #services .panorama-ticket:hover:not(:focus-visible):not(:active) {
+      border-color: var(--ticket-accent);
+    }
+    & #services .panorama-ticket:hover:not(:focus-visible):not(:active) .panorama-ticket-action > b svg {
+      transform: translateX(3px);
+    }
+    & #europeDeskStory #europeDeskContinue:hover:not(:focus-visible):not(:active):not(:disabled) {
+      transform: none;
+    }
+    & #europeDeskStory #europeDeskContinue:hover:not(:focus-visible):not(:active):not(:disabled)::after {
+      transform: translate(3px, -50%);
+    }
+  }
+}
+
+/* JS settles the travelling frame directly when motion is paused. Do not
+   override that transform: it is also the selected tile's static position. */
+body[data-direction="club"][data-edition="club"][data-experience="panorama"][data-home-vision="dispatch"].europe-ready:is([data-panorama-motion-state="quiet"], [data-edition-motion="still"]) {
+  & #services .panorama-ticket,
+  & #services .panorama-ticket-action > b svg { transition: none; }
+  & #services .panorama-ticket-action > b svg { transform: none; }
+  & #europeDeskStory #europeDeskContinue::after { transform: translateY(-50%); transition: none; }
+  & .dispatch-tour-action,
+  & .dispatch-tour-action:active:not(:focus-visible) { transform: none; transition: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body[data-direction="club"][data-edition="club"][data-experience="panorama"][data-home-vision="dispatch"].europe-ready {
+    & #services .panorama-ticket,
+    & #services .panorama-ticket-action > b svg { transition: none; }
+    & #services .panorama-ticket-action > b svg { transform: none; }
+    & #europeDeskStory #europeDeskContinue::after { transform: translateY(-50%); transition: none; }
+    & .dispatch-tour-action,
+    & .dispatch-tour-action:active:not(:focus-visible) { transform: none; transition: none; }
+  }
+}
+
+@media (forced-colors: active) {
+  body[data-direction="club"][data-edition="club"][data-experience="panorama"][data-home-vision="dispatch"].europe-ready {
+    & #nextHero .europe-city-switch .dispatch-city-carrier { border-color: Highlight; }
+    & #nextHero .europe-city-switch .europe-cities.dispatch-carrier-ready > button[aria-pressed="true"],
+    & #nextHero .europe-city-switch .europe-cities.dispatch-carrier-ready > button[aria-pressed="true"] > span,
+    & #nextHero .europe-city-switch .europe-cities.dispatch-carrier-ready > button[aria-pressed="true"] .europe-city-code { color: Highlight; }
+    & #nextHero .europe-city-switch .europe-cities.dispatch-carrier-ready > button:focus-visible { outline-color: CanvasText; }
+    & #services .panorama-ticket-route > span { color: CanvasText; }
+    & #europeDeskStory .dispatch-service-ticket #europeDeskForm::before,
+    & #europeDeskStory .dispatch-service-ticket #europeDeskForm::after { background: Canvas; }
+  }
+}
+
+/* Presentation never makes the original controller's hidden controls visible. */
+body[data-direction="club"][data-edition="club"][data-experience="panorama"][data-home-vision="dispatch"].europe-ready {
+  & :is(.edition-plan-link, #europeCitySignature, .dispatch-tour-action)[hidden] {
+    display: none !important;
+  }
+}

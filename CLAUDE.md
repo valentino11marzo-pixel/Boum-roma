@@ -4898,6 +4898,305 @@ WhatsApp-only. All four pages (`virtual-viewing`, `deal-assistance`,
 (MATERIA ambient, pay-plate + checkout sheet, sticky mobile pay bar,
 JSON-LD Service+Offer+FAQ).
 
+### Flight pubblico · 27/10/2026
+Home, Apartments, scheda e Skyline condividono `assets/boom-flight.*`: Your move legge
+`boomSalvate`/`boom:pois`, senza un secondo catalogo; il link condiviso porta solo ID.
+Skyline è nell’hero, lista+mappa convivono su desktop; su telefono si sceglie la vista.
+La scheda ricompone gli slot SSR e i conti veri nel Landing Plan; `<body>` resta letterale.
+`js/flight-map.js` veste entrambe le mappe; camera interrompibile, orbita volontaria,
+precisione dei pin e tempi reali restano ai motori Geo/Mappa. Generatori conservano i layer.
+Test: `flight`, `mappaflight`, `listingssr`, `vetrina`, `hometruth`, `cielo`, `seo`.
+
+Flight 28/10: il pulso resta quello del canvas Solari originale, prima attenuato
+dal layer Flight; niente anello o secondo clock. Compare deriva fino a 3 salvati da Facts/Dispo/Geo;
+selettore solo in memoria, niente nuovo archivio, Fly to rispetta i filtri attivi.
+Apartments riserva la vista prima del paint e non scrive `view` al boot/resize;
+scheda e ricerca partono a DOM-ready. Transizioni native fra pagine, locali sulle
+tab WebGL; `/flight-preview` mostra il percorso reale in desktop/mobile (noindex).
+Verifica: `vetrina`, `scroll`, `listingssr`, `mappaflight` e percorso browser completo.
+
+Skyline 28/10: catalogo/CDN/stile partono in parallelo; i pin non aspettano tutte le tile.
+Palette a `style.load`, camera già sul centro; DEM solo nel dettaglio ravvicinato,
+canvas mobile limitato e movimento fermo fuori vista. Errori/timeout hanno Retry e lista.
+`BoomSkyline.state()`/evento `state` distinguono catalogo, stile e rendering; `journeyFor`
+riusa Mappa/Tempi e coordinate vere, `setBudget` conserva i filtri; `homes=` resta vuoto.
+Test `mappaflight`: readiness, errori, scope vuoto, viaggio pubblico e mutazione dei pin.
+
+
+Flight 28/10, iterazione Your Rome: Home/Apartments chiedono ingresso e uscita esatti;
+`stay-engine` propaga `moveIn`/`moveOut` fino a saved search e Apply, con scorciatoie mesi e validazione calendario.
+La durata non filtra l’eligibilità delle case; frazioni di mese non producono totali soggiorno inventati.
+`/your-rome` espone directory campus e FAQ indicizzabili; `DESTINATIONS` mantiene indirizzi/fonti separati dai nove punti GTFS.
+Find my balance spiega ordine/compromessi e condivide solo preferenze pubbliche, case/date opzionali; niente punteggi sintetici.
+Home conserva Solari e foil, dà priorità a PFS/DAS e raccoglie gli approfondimenti; Apply ha quattro step e riepilogo senza cambiare submit/idempotenza.
+Foto: swipe solo orizzontale, frecce nel focus gallery. Generator parity, calendario, salvataggi, UI guida e listingssr verificano il percorso.
+
+Flight 28/10, composizione fluida: Home porta date/budget/persone prima della mappa nel DOM;
+Skyline embedded usa preview minima e avvio differito, primo render separato da tile complete e retry parziale.
+Le case precedono il racconto; rail mobile nativa e quattro passi con Play esplicito, pausa fuori vista/riduzione movimento.
+Find my balance apre risultati subito, modifica un campo alla volta, conserva card/focus/brief pubblico tra mappa e ritorno;
+confronti solo fra tipi equivalenti e fonti espandibili. Your Rome mantiene tracker dietro consenso e directory indicizzabile.
+Detail: foto decodificata prima del cambio, ticket compatto, stesso Apply in dialog contestuale con dati/focus preservati;
+no-JS inline, costi e idempotenza originali. Test flighthomeui, flightguideui, mappapreview, flightstayui e listingssr.
+
+Flight Club 03/11: la destinazione quotidiana apre il pass Solari/foil e segue Home→Apartments→Detail; Skyline è il layout iniziale, con foto/ticket prima del tragitto su mobile.
+Il catalogo di Roma esclude città estere esplicite; le date scartano disponibilità note successive all’arrivo e lasciano esplicite le ignote. Un solo iframe/modello Skyline, nessuna seconda richiesta GTFS.
+`skyline-guide-engine.balance` offre fino a tre case distinte per canone/spazio/viaggio: confronto fra tipi equivalenti, tempi solo con modello rete e stessa precisione/meta; niente punteggi o triple forzate.
+`journey-engine` porta campus pubblico, date precise, budget, persone e tipo canonico; la condivisione mantiene shortlist pubblica e non contiene luoghi privati. Back privato usa solo riferimenti opachi in history e oggetti in memoria.
+`boom-journey-handoff` precompila i campi vuoti dei moduli PFS/DAS originali, preserva bozze finché l’utente sceglie Use these details; Apply usa commute già supportato, destinazione modificabile/escludibile, senza distanze inventate.
+Nessun invio automatico, nuovo handler, archivio clienti o pagamento; collegamenti Desks alle città già attive. Il laboratorio resta noindex e conserva anche la meta pubblica.
+`flightclubui`, `flightjourney`, `flightnextdata/map/ui`, `flightdirectionsui` coprono percorso, privacy, errori/risposte tardive, bozza e history, filtri e telefoni 320/390; unità e mutazioni guida in `flight`.
+
+Flight Europe 04/11: Club usa il lockup vettoriale Helvetica Neue Light 300 del kit confermato, oro originale e sei firme architettoniche; il giallo funzionale e il pulso Solari restano distinti. Il tabellone cambia città sul gesto, senza un secondo ciclo di animazione; le firme rispettano reduced-motion.
+La città è visibile da Home e navigazione: Roma conserva catalogo/Skyline/Apply, i cinque desk portano al servizio scelto. Prezzi, inclusioni e condizioni arrivano da `assets/boom-desks-public.json`, proiezione dei soli dati pubblici generata da `build-cities`; `cities/` resta esclusa dal deploy. Errori o dati incompleti mostrano la porta del desk, senza inventare un'offerta.
+`boom-flight-europe` conserva città/bisogno e preferenze pubbliche nella navigazione; cambio EUR/GBP azzera il budget da riconfermare. Foto mobili larghe, titoli concreti, tipi canonici e motivazioni numeriche dei confronti sostituiscono categorie commerciali duplicate.
+`journey-engine.deskURL` crea il collegamento `from=flight`: date, budget, persone e bisogno, mai campus, shortlist o luoghi privati romani. Il desk accetta il brief soltanto se la città coincide con `BOOM_CITY.SLUG`.
+Il riepilogo modificabile segue il modulo originale: `city-lead` riceve ingresso/budget/situazione e uscita nel messaggio; checkout usa le note esistenti. Le date non ereditano il minimo romano; London richiede GBP esplicito, senza conversioni.
+Caricamento lento trattiene l'invio incompleto, un guasto dichiara il fallback; scelte e note già editate, anche cancellate, prevalgono. Nessun nuovo handler, archivio, invio automatico o pagamento.
+`flighteuropeui` verifica città/valute/history/privacy/configurazioni tardive o errate e 320/390; `flightcityhandoff` prova moduli reali, payload, calendario e due mutazioni; `citiespublic` prova parità e whitelist del manifest anche per mutazione, insieme alle regressioni `flightjourney`, `cities` e `flightclubui`.
+Resta una preview noindex sul ramo Flight: non è il rilascio SEO/GEO del sito pubblico, né una promessa di catalogo o Skyline nelle altre città.
+
+Flight Club 04/11, prova prima del racconto: la rail di case e l'unico Skyline condividono una scena; sul telefono foto prima della mappa, controllo esplicito per localizzare la casa, nessun volo automatico durante lo swipe.
+Il referente occupa una fascia compatta; etichette a 12px e capitoli più raccolti. La demo PFS già esistente compare accanto ai servizi, l'accesso clienti nel footer; nessun nuovo portale o invio.
+Find my balance prosegue dopo la scelta della meta; una normale modifica resta locale, annullamento e Back cancellano l'intento e invalidano transizioni vecchie. Ogni selettore restituisce il focus al proprio comando, anche dopo un altro dialog.
+I link Home riflettono subito il cambio città, anche prima di aprire Apartments. Gli stessi nodi/catalogo restano validi per foto, salvataggi, mappa e dettaglio.
+Test `flighteuropeui` 9, `flightclubui` 8 e `flightnextui` 12: foto→mappa→scheda, singolo iframe, controlli 320/390, scelta campus/luogo privato, annullamento e Back senza salti.
+
+Flight Duo 04/11: `/flight-duo` confronta due composizioni complete, `edition=club|perspective`, dello stesso percorso Home→Apartments→Detail, anche a390px; il sito precedente resta disponibile.
+Club porta foto reale e pass orizzontale accanto al Solari originale; Prospettiva sposta lo stesso Skyline nella cover avorio, con ricerca laterale e schede editoriali. Ogni preview conserva un solo iframe e il clock originale con pausa/reduced-motion.
+Il confronto sincronizza solo vista e ID pubblico, controllando origine e finestra; brief indipendenti e salvataggi canonici, apertura a pieno schermo con preferenze pubbliche, nessun luogo privato nella URL.
+Il dettaglio espone commissione dal motore Facts e deposito solo se dichiarato, senza totale inventato; Apply resta quello reale, con date/budget/persone. Nessun nuovo invio o archivio.
+Gli adapter `boom-edition-*` sono opt-in; cambiare città conserva l'edizione, nasconde foto e Skyline romani nei desk. Il pulsante mappa di ogni scheda Prospettiva seleziona il suo ID reale.
+`flighteditionsui` verifica i due percorsi a320/390/1280, costi noti/ignoti, motion, desk, confronto simultaneo e isolamento dei brief; regressioni `flightnextui`, `flightclubui`, `flighteuropeui`, `flightdirectionsui`.
+
+Flight Club bianco 04/11: `edition=club` sostituisce la cover fotografica con Solari originale e globo geografico; il pass con date esatte precede case/Skyline, servizi e percorso. Il logo vettoriale conserva il segno originale, con parola nera per il bianco.
+`boom-flight-globe` usa geografia Natural Earth pubblica locale e rotte fra centri città, non voli o sedi; eventi verso il controller Europe, nessun secondo brief. Rotazione finita e scroll coalescente si fermano fuori vista, in pausa e con reduced-motion; un guasto lascia utilizzabili le città.
+`BoomFlightNextMotion.setTheme/setCityPattern` cambiano soltanto la presentazione: sei geometrie sullo stesso clock Solari da8,2s, senza reset; chi non seleziona il tema chiaro conserva il renderer precedente.
+Foto, salvataggi, catalogo, destinazioni e Apply riusano i controller canonici. Il dettaglio affianca costi e foto su desktop, li ordina sul telefono; controlli e dialog seguono il tema chiaro. Nessuna modifica a prezzi, handler o pagamenti.
+`flightclubmotion` verifica clock, colori e lifecycle anche per mutazione; `flighteditionsui` copre Club320/390/1280, contrasti, città/valute, fallback geografia, pausa e percorso completo. La preview resta noindex e isolata dal lavoro Horizon di Claude.
+
+Flight Club notte 04/11: la direzione confermata è nera; `edition=club` mantiene geometria e Helvetica300, logo chiaro, Solari originale e ticket giallo con testo scuro. Superfici, dialog, dati dinamici e controlli nativi seguono il tema scuro.
+I pulsanti del globo ora entrano nella destinazione: `flyTo` mostra un unico volo geografico finito (1220ms) e rivela la vista reale sotto; Roma apre Apartments/Skyline, gli altri desk il servizio cittadino esistente. Le tab superiori restano selezione della città.
+`BoomFlightNext.enterRome` riusa validazione, brief e navigazione canonici; `BoomFlightEurope.selectCity` può delegare il commit all'arrivo evitando history intermedie. Back conserva la bozza romana; date estere non valide per Roma mostrano il form romano con URL coerente, prima del volo.
+Escape/Skip completano subito; pausa e reduced-motion entrano senza zoom. Back/pagehide o una richiesta successiva annullano callback obsolete; dialog senza animazioni ereditate, un solo ciclo finito, pulizia anche su errore/timeout. Nessun nuovo catalogo, lead o pagamento.
+`flightclubflight` verifica atterraggio, singolo push/catalogo/iframe, bozza, Back/focus, ripetizioni, skip, pausa/ridotto e date estere; regressioni `flighteditionsui`, `flightclubmotion`, `flightclubui`, `flighteuropeui`, `flightnextui`, `flightdirectionsui`.
+
+Flight Club desk 04/11: dopo il globo, scelta del bisogno, servizio e brief stanno nello stesso `europeDeskStory`; il form originale viene spostato, con validazione e handoff invariati. I tre bisogni mostrano prezzi/condizioni del manifest pubblico; il servizio espone tutte le inclusioni, senza scambiare il rimborso Full Search per una garanzia di risultato.
+Il riepilogo di date, budget nella valuta corrente e persone segue i campi esistenti; invio unico dal form validato. Configurazione assente elimina i prezzi e rimanda al desk, mai dati della città precedente. La composizione Club riduce CTA e contatti ripetuti, conserva persona responsabile e termini.
+Roma aggiunge `nextBalanceEntry` prima dei risultati: stesso risultato `G.balance`, conteggio delle alternative evidenziate, tipo e date richieste espliciti; luogo privato resta nel browser. Il pulsante riusa la guida canonica, senza nuove stime o stato.
+`flighteuropeui` prova tutte le inclusioni; `flighteditionsui` prova Amsterdam390/1280, brief modificato/svuotato, date invalide e handoff, più entry Roma320/390/1280 e privacy. `flightclubflight` conserva il percorso globo→servizio/Skyline.
+
+Flight Club composizione 04/11: Roma dichiara case/Skyline, i Desks ricerca/assistenza; su mobile romano il planner originale precede il globo anche nel DOM, mentre sui Desks resta dopo la scelta città. Cambio città/breakpoint sposta gli stessi nodi, conservando campi e listener.
+Apartments riduce altezza di titolo, filtri e brief; un solo ingresso in guida, date esatte senza durata ripetuta, Skyline/Gallery con stato selezionato evidente e controlli da44–48px. La superficie principale torna alle fotografie.
+Grain SVG statico solo al bordo dei pass; hover su puntatore fine, pressioni brevi, pausa/riduzione rispettate. Lo scroll misura prima di scrivere e non calcola sezioni nascoste fuori Home; nessun nuovo clock o dipendenza.
+Verifica: `flighteditionsui` Club320/390/1280, `flightclubmotion`, `flightclubflight`; misure prima/dopo e controllo mobile del passaggio Roma↔Desks. Solo preview Flight, nessuna modifica agli ingressi pubblici `/` o `/desks`.
+
+Flight Club media 04/11: l’apertura affianca Solari/globo a una galleria della stessa casa pubblica; fotografia intera, proporzioni native, scorrimento manuale con frecce/tastiera. Montezebio usa l’ordine editoriale 0/2/4, poi tutte le altre foto; prezzo/stato restano dal catalogo e una casa chiusa non diventa cover.
+`boom-club-media.*` è opt-in su Club; nessuna seconda fetch del catalogo, archivio o clock. Caricamento, guasto/retry, collezione vuota e singola foto fallita hanno stati distinti, senza perdere il collegamento alla scheda.
+Su mobile la fotografia precede il planner, che mantiene i suoi nodi e resta prima del globo; nel dettaglio le immagini non vengono tagliate. I Desks mostrano il ritratto già pubblico del fondatore con base a Roma, mai inventario romano attribuito a un’altra città.
+Il clic Home→Detail valida e conserva la bozza con `readHome` e history canonici; l’arrivo estero dal globo si riallinea dopo l’assestamento del contenuto. Nessun nuovo submit, lead o pagamento; ingressi pubblici e post-submit invariati.
+Verifica `flightclubmediaui`: foto/ID, ordine e proporzioni, 320/390/1280, tastiera, guasti, casa chiusa/vuoto, cambio città e brief; regressioni `flighteditionsui`, `flightclubflight`, `flightclubmotion`, `flighteuropeui`, `flightnextui`. Audit pubblico: 48 record/265 immagini al 04/11, soltanto due Shorts in schede non libere; nessun video aggiunto o foto estera inventata.
+
+
+Flight Club regia 05/11: il globo guida l’apertura con Solari e pass della destinazione; il pass entra tramite lo stesso evento/validazione del globo. Fotografie complete nel capitolo Roma, ritratto piccolo accanto al servizio: nessuna foto estera inventata.
+La sfera proietta coordinate 3D reali con luce/ombra e connessioni rialzate; trascinamento diretto, inerzia finita420ms e Reset650ms cambiano solo la camera. Entrata1100ms, avvicinamento1220ms; nessun loop aggiunto a riposo.
+Pointer capture viene rilasciato su cancel/pausa/fuori vista; pan-y conserva lo scroll touch. Reduced-motion mantiene il gesto diretto, senza inerzia/entrata/zoom; pulsanti città e Reset coprono tastiera e fallback.
+Foto e ritratto caricati lazy; canvas con budget pixel esistente, niente dipendenze. Pass/prospettiva hover solo mouse, titoli/prezzi/moduli fermi e utilizzabili subito. Clock Solari invariato.
+Verifiche aggiunte a `flightclubflight`: drag senza navigazione, reset, quiete, pausa durante gesto, scroll touch e ingresso dal pass; `flightclubmediaui` controlla le nuove collocazioni e guasti foto lazy.
+
+
+Flight Club continuità 05/11: Apartments e dettaglio espongono la tappa reale Explore/Review/Apply, senza avanzamenti finti né nuovi step; legenda Skyline/cuore e spiegazione di Apply accompagnano i controlli esistenti. `boom-club-journey` si aggiorna anche dopo modifica/clear date e destinazione, con un solo ritorno alla raccolta.
+`boom-club-company` ricompone il footer in evidenze (costi/persona/workspace PFS demo), sei destinazioni reali, servizi, persone/organizzazioni e dati societari pubblici. I Desks rispondono da Roma; il catalogo e la gestione restano romani. Nessun ufficio, partner, cliente o numero inventato.
+La rete footer riusa Europe e i confini EUR/GBP/brief pubblico; link servizi e logo riusano gli handoff canonici anche in nuova scheda. Il cambio città da Home riporta anche il focus al titolo. Demo e accesso clienti aprono i prodotti esistenti, senza un portale duplicato. Nessun nuovo backend, archivio, invio o dipendenza.
+Il ritratto del fondatore ora compare una volta in Who answers del servizio, ricostruito col bisogno selezionato; guasto manifest non mostra tariffe inventate. Il vecchio slogan footer resta solo nelle altre edizioni.
+Test `flightclubcompanyui` e `flightclubjourneyui`: 320/390/1280, destinazioni da raccolta/scheda, persona unica, dati pubblici/privati, manifest guasto, rotta, date e Apply originali; regressioni media/edizioni/Europe/Flight.
+
+Flight Panorama 05/11: `edition=club&experience=panorama` apre una seconda regia, con globo prima del planner anche nel DOM mobile e una composizione dedicata. Club resta disponibile senza il parametro.
+Full view sposta lo stesso globo/canvas in un dialog, conserva camera/bozza e ripristina posizione/focus su Escape; sceglie la città tramite il controller originale. Pausa e reduced motion sono condivisi; entrata200ms solo da puntatore, nessun nuovo loop.
+Il parametro estetico accompagna la navigazione Flight tramite `editionURL`, mai l'Apply o il desk originali. Nessuna nuova dipendenza, API, archivio o operazione di invio.
+`/flight-studio` confronta Club/Panorama in un unico iframe, riusando il brief pubblico validato e offrendo desktop/mobile senza ricaricare; dati privati esclusi. Date non valide bloccano il cambio vista conservando i campi.
+Verifica `flightpanoramaui` e regressioni Europe/edizioni/globo/motion/Next/company/journey; direzione e tempi documentati in `design/flight-panorama-notes.md`.
+
+Flight Panorama polish 05/11: interfaccia ricomposta con Instrument Sans variabile locale/OFL, grafite neutra e giallo BOOM per le azioni; logo e Solari originali conservati. Rimosse cornice ad arco e grana ornamentale.
+`boom-panorama-interior.css` porta la stessa scala leggibile a catalogo, costi, servizi, desk e footer; CTA e controlli condividono proporzioni/focus. La UI resta limitata a `experience=panorama`.
+Il primo invito esplicita case di Roma o supporto della città; persona e costi sono accessibili accanto. Il link ai costi romani è nascosto sui desk esteri, che mantengono condizioni e valuta proprie.
+Tablet usa una griglia planner senza sovrapposizioni; reduced motion conserva le trasformazioni di posizionamento del globo. Nessuna nuova automazione, dato commerciale, invio o dipendenza.
+`flightpanoramaui` verifica font realmente caricati, contrasto CTA, dimensioni testo/controlli, planner900px e skip link; regressioni dei percorsi esistenti. Scelte/evidenze in `design/panorama-polish-notes.md`.
+
+Flight Panorama aviation 05/11: mandato corretto da Valentino: nero/giallo BOOM deciso, Solari protagonista, servizi come biglietti. La precedente superficie grigia è superata; leggibilità e famiglia UI restano.
+Il nome destinazione riusa la misura del Solari originale senza tetto riduttivo; il fondale torna visibile. `europeCitySignature` originale si sposta nel globo: sei architetture/didascalie aggiornate dal controller Europe, nascoste solo in Full view.
+Ticket Roma: corpo nero, linea delle attività reali, stacco giallo prezzo/azione e perforazione; servizi accessori hanno lo stesso invito riconoscibile. Desks: bisogno selezionato giallo, tariffa dal manifest e brief coerente, senza nuove condizioni o prezzi.
+La decorazione non duplica stato, nodi d’invio o offerte. Pause, reduced motion, città, date, disponibilità e handoff canonici restano autoritativi.
+`flightpanoramaui` aggiunge sei firme città e quindici combinazioni estere città/servizio, condizioni/valute/contrasto/handoff e ticket Roma. Direzione vincolante in `design/panorama-aviation-notes.md`.
+
+Flight Panorama componenti 06/11: azioni principali con vano freccia, utility da48px e inviti da56px condividono famiglia tipografica, focus e risposta alla pressione anche touch. Le città mantengono selezione gialla e controller originale.
+I servizi Roma diventano due biglietti orizzontali: titolo/condizioni, percorso/ambito e stacco giallo con prezzo, nota e azione nera; tablet/telefono ricompongono gli stessi link senza controlli annidati.
+Il cambio bisogno da puntatore aggiorna subito il servizio e accompagna il contenuto con220ms finiti. Tastiera, pausa, riduzione, history e pagehide annullano la transizione; una nuova scelta cancella quella precedente. Nessun nuovo clock persistente o libreria.
+`flightpanoramaui` verifica animazione realmente dipinta, interruzioni, selezioni rapide, prezzo GBP e focus; restano le dieci prove precedenti. Gerarchia, fonti e decisioni in `design/panorama-component-craft.md`.
+
+Flight Panorama biglietteria 06/11: la seconda home riprende i quattro prodotti della home pubblicata: Property Finding €350, Virtual Viewing €89, Deal Assistance €249 e Contract Check Express €49, con nomi/codici/rotte e famiglie cromatiche originali. Il frammento inerte `panoramaServiceTickets` si monta solo in Panorama.
+Le condizioni restano specifiche e verificabili; visite gratuite alle case BOOM e accesso a `/services` sono espliciti. Link nativi e brief passano ancora dal controller Club alle pagine originali: nessun modulo, pagamento o catalogo nuovo.
+`/home-panorama` è un redirect temporaneo alla URL canonica; Studio offre Home attuale verso il dominio pubblicato, separata dall'iframe Panorama/Club. Conservati validazione, preferenze pubbliche e confine dei luoghi privati.
+`flightpanoramaui` verifica quattro biglietti contro prezzi server, condizioni, 320/390/900/1440, rientro Roma, passaggi alle porte originali senza invii e l'ingresso della seconda home. La regia è documentata in `design/panorama-live-ticketing.md`.
+
+Flight home separate 06/11: `index.html` torna identica a `origin/main` (f5b0b66a, commit verificato anche sul dominio pubblico); la precedente home Flight è conservata noindex in `/home-flight`. Il vecchio percorso `/flight-preview` e le sue prove usano questa porta esplicita.
+Il generatore `costruisci-portale.py` applica Flight solo con `--flight`, producendo un file alternativo; il default conserva la composizione principale. Le altre modifiche già presenti nel ramo a catalogo, schede, Skyline, servizi e API restano parte della revisione PR.
+Il brief dei servizi ora legge anche date/budget/persone modificati nel planner prima della ricerca: href nativi aggiornati, nessun commit durante la modifica. Solo il clic ordinario in uscita conserva il brief valido nella history per Back; nuova scheda non altera la pagina. Date incomplete/non valide escluse; luoghi privati mai serializzati.
+`flight`, `flightstay`, `flighthomeui`, `flightstaydates`, `listing` e `flightpanoramaui` coprono separazione, generatore e handoff; la parità del builder Your Rome riallinea solo il token della guida già pubblicato nella pagina.
+
+Flight integrazione 06/11: il merge f5b0b66a conserva i nuovi desk Parigi/Berlino/Valencia e il pagamento alla firma; il manifest pubblico proietta le otto configurazioni attive. Le sei scelte Flight restano curate, con `/desks` per la rete completa; `journey-engine` riconosce anche Valencia.
+I due hook del brief estero vivono ora in `assets/src/boom-city.js` e sono rigenerati, insieme a pagine e date. `citiespublic` passa6 prove; `cities` passa1330, mantenendo il controllo di tutti gli asset e mutazioni sulle eccezioni testuali esatte.
+VV/DAS/CCE e `/services` caricano `boom-navigation-boundary.js` anche dalle basi sorgenti: solo verso Flight salta lo snapshot nativo che Chromium rifiuta al ritorno. Form, prezzi, navigazione e checkout restano originali.
+Le otto suite UI principali passano86 scenari; `flightcityhandoff` passa16 prove, incluse Valencia, Parigi aperta con ordine alla firma e una fixture esplicita di desk chiuso. `flightpanoramaui` verifica il Back senza errori browser e senza invii; il solo ping Google di consenso negato è identificato e bloccato.
+
+Flight Panorama orbita 06/11: fondale Solari più quieto, selettore città meno incorniciato e testata planner scura; lettere originali, azioni gialle e quattro biglietti reali conservati. Le proporzioni sono documentate in `design/panorama-orbit-refinement.md`.
+Solo `data-globe-ambient=true` attiva una rotazione geografica lenta, limitata a24 fotogrammi/s; si ferma sotto puntatore/focus, fuori vista, in background, durante gesti/volo, in pausa, con reduced-motion e risparmio dati. Club resta on-demand.
+Zoom+/− modifica soltanto la camera, con260ms interrompibili e tastiera immediata; Reset ripristina distanza/orientamento. La pausa originale sta accanto al globo, anche sul telefono; Full view sposta ancora lo stesso canvas.
+Un suggerimento dopo3,2s di inattività visibile appare una volta sola; attività/pausa lo eliminano, senza focus, scroll, annunci o stato cliente. Nessuna nuova dipendenza o telemetria.
+`flightpanoramaui` aggiunge tre prove su pittura reale, zoom, lifecycle e suggerimento; `flightclubflight` conserva la quiete finita del Club. Il merge di main f6663503 conserva credito upgrade e correzioni delle caselle operative.
+
+Flight due home 06/11: Studio confronta A/Panorama e B/Terminal; Club resta accessibile come versione precedente. Panorama amplia il globo e raccoglie i comandi; Terminal affianca ricerca e Solari al globo, con quattro biglietti confrontabili.
+`variant=terminal` è solo presentazione di `experience=panorama`: `editionURL` lo conserva tra home, raccolta, scheda e Back; non entra nei brief o nelle porte dei servizi/desk originali.
+Il controller Club sposta il planner originale prima del globo anche nel DOM Terminal mobile, preservando focus e campi; all'estero resta il modulo desk originale. Nessun secondo form, canvas, stato cliente o dipendenza.
+`/home-terminal` è un redirect temporaneo alla variante; `/flight-studio?experience=terminal` la apre nel confronto con una sola preview. Cambiare A/B conserva la bozza pubblica valida e blocca date invalide senza perdere i campi.
+Verifica `flightpanoramaui`: Terminal320/390/900/1440, canvas dipinto, full view, biglietti, navigazione e privacy, più cambio A/B e formato; regressioni Europe/edizioni/Club flight/Next. Decisioni in `design/panorama-terminal-variants.md`.
+
+Flight nuove direzioni 06/11: `vision=airframe|signal|orbit` in Club/Panorama ripristina Helvetica Neue300 e propone tre composizioni distinte; Studio le confronta, conservando le precedenti, e il suo logo riapre il confronto. `/home-airframe`, `/home-signal` e `/home-orbit` sono redirect alla presentazione canonica.
+`boom-flight-visions` ricolloca globo e fotografie originali in una scena commutabile; all'estero mostra solo la geografia. Il selettore della situazione filtra i quattro biglietti originali senza cambiare prezzi, condizioni o link e si azzera al cambio città.
+Orbit inquadra lo stesso canvas come orizzonte: disegno e origine del volo condividono `cameraFrame`; full view conserva il globo completo. Il fondale ornamentale disabilitato non disegna né mantiene un RAF; calibrazione e transizioni finite del Solari restano indipendenti, anche all'avvio e al resize (`flightclubmotion`).
+Studio e navigazione mantengono solo la presentazione ammessa e la bozza pubblica valida; Apply, servizi e desk non ricevono `vision` né luoghi privati. Nessun nuovo form, archivio cliente, tracciamento o dipendenza.
+Verifica `flightpanoramaui`: tre direzioni390/1440, identità dei nodi, foto/globo/full view/volo, peso300, filtro servizi, link nativi e Studio; regressioni Club motion/flight, Europe, edizioni e Next. Motivazioni in `design/flight-visions-direction.md`.
+
+Flight altre possibilità 06/11: Studio aggiunge Dispatch, Gate e Connection alle tre direzioni precedenti, con Helvetica Neue300 e redirect `/home-dispatch|gate|connection` alla presentazione canonica.
+Dispatch apre con l'indice delle sei città e la scena originale; Gate porta i quattro servizi e il selettore della situazione nell'apertura, conservando prezzi, condizioni, link e ordine di lettura.
+Connection apre con Skyline sul fondo cobalto e promuove la guida alla destinazione quotidiana; il confronto affitto/spazio/tragitto precede i risultati solo dopo il percorso originale. Il singolo iframe viene montato/nascosto dalla scena, senza ricaricarlo né cambiare l'autorità delle viste Apartments/Detail.
+Foto e geografia restano alternative della scena; Locate rivela Skyline, le città estere conservano il proprio desk e i luoghi privati non entrano negli URL pubblici. Nessun nuovo form, motore, archivio, dipendenza o invio.
+Verifica `flightpanoramaui`: sei direzioni390/1440, mappa unica e dimensionata, guida→confronto→scheda→Back, servizi anticipati, filtro e Studio; controlli visivi320/390/1440. Regia in `design/flight-possibilities-direction.md`.
+
+Flight Studio 07/11: durante il caricamento di una nuova direzione, il cambio Desktop/Telefono può ancora leggere il documento uscente dell'iframe.
+Il formato ora cambia senza ricatturare quella vecchia presentazione: titolo, selezione e URL restano sulla nuova scelta mentre arriva la pagina.
+La bozza pubblica già acquisita resta conservata; una prova `flightpanoramaui` trattiene la risposta entrante e verifica il cambio formato prima e dopo il caricamento.
+
+Flight Dispatch/Orbit/Vector 07/11: Dispatch e Orbit mantengono le aperture approvate e portano la stessa gerarchia300 a planner, catalogo, costi, biglietti, desk e footer; i costi delle tre direzioni diventano una sola colonna sul telefono.
+`vision=vector` combina l'indice città con l'orizzonte del canvas originale; riusa le sezioni decisionali Dispatch. `/home-vector` è un redirect temporaneo, senza nuova form o stato cliente.
+Studio mette Dispatch (default), Orbit e Vector nei tre controlli principali; conserva le altre quattro direzioni e le versioni precedenti. Navigazione e bozza pubblica seguono la stessa allowlist e validazione.
+Locate rivela la mappa originale anche su desktop nelle tre direzioni; scene e filtri dichiarano i pannelli controllati, conservando cambio tastiera immediato, pausa e movimento ridotto.
+`flightpanoramaui` copre sette direzioni, le tre anche a900px, identità del canvas/form, handoff e Studio; verifiche visive320/390/900/1440 e decisioni in `design/dispatch-orbit-vector.md`.
+
+Flight Dispatch destinazione e brief 07/11: il solo Dispatch compatta l'indice città, usa il Solari originale come destinazione visibile nell'h1 e conserva il nome accessibile; foto e globo/orizzonte condividono uno spazio stabile, con Roma ancora aperta sulle case reali.
+`boom-dispatch-journey` legge campi, validatori e offerta già resa dal desk nel biglietto Your move; date incomplete restano da correggere, il cambio EUR/GBP non converte importi e i luoghi privati non vengono letti. Roma distingue il filtro della situazione da un servizio scelto.
+Edit e Review riportano ai controlli originali: nessun nuovo form, URL di servizio, archivio, calcolo o invio. La lettura segue input, cambio città/servizio e history; l'ordine mobile resta città, contesto, riepilogo, planner.
+`boom-dispatch-refinement` isola proporzioni e grammatica delle azioni; solo la scena Dispatch sfuma220ms al cambio da puntatore, interrompibile con nuova scelta, tastiera, history, pausa, reduced-motion e pagina nascosta.
+`flightdispatchui` verifica proporzioni, Solari, brief valido/invalido, prezzi e guasti, privacy, percorsi nativi e movimento; `flightpanoramaui` conserva le altre sei direzioni. Regia e fonti in `design/dispatch-departure.md`.
+
+Flight Dispatch continuità 07/11: apertura nera senza il pannello bianco, Solari originale più grande e globo con luce sulle coordinate reali; nessun nuovo clock. I rientri della camera scelgono la longitudine equivalente più vicina dopo il trascinamento.
+Your move e i riepiloghi esteri vuoti non occupano l'ingresso: compaiono con preferenze reali o date incomplete, spariscono su clear e mantengono validazione, valuta e privacy.
+Il servizio estero e il form originale condividono un biglietto bianco; nome reale, prezzo, condizione e rimborso restano visibili, inclusioni in details nativo. Nessun modulo o pagamento duplicato.
+Solo Dispatch aggiunge il frammento nativo `#fare-<piano>` al collegamento del motore, dopo configurazione valida: il desk apre il servizio scelto, senza aprire automaticamente la cassa. Guasto dati conserva la porta ordinaria.
+Verifiche in `flightdispatchui`, `flightcityhandoff`, `flightpanoramaui` e `flightclubmotion`; regia in `design/dispatch-continuity.md`. `design/dispatch-launch-readiness.md` distingue la Preview noindex dai requisiti della futura home `/`.
+
+Flight Dispatch ottiche 07/11: Globe/Horizon cambia l'inquadratura del canvas originale con una transizione finita sullo stesso clock; città, zoom e brief restano. Full view mostra la sfera e al ritorno ripristina la lente scelta, senza URL o archivio aggiuntivo.
+`boom-dispatch-experience` misura testata/barra percorso per gli arrivi alle sezioni; il flightline originale resta visibile e il suo controller continua a possedere aria-current. Scorrimento del browser, nessun motore parallelo.
+Azioni, utility e selezioni condividono risposta alla pressione e focus; tastiera, pausa e reduced-motion conservano lo stato senza movimento spaziale. Nessun nuovo prezzo, invio, tracking o dipendenza.
+Verifica `flightdispatchui` (lenti, interruzione, originali conservati, arrivi e stati), con regressioni `flightpanoramaui`/`flightclubmotion`. Regia e limiti in `design/dispatch-optics.md`.
+
+Flight Dispatch sala partenze 07/11: il globo originale occupa un grande palco accanto a Solari e azione; le sei città passano alla fascia inferiore. Il riepilogo compilato segue la fascia, prima del planner originale.
+Solo Dispatch conserva sempre il mondo in apertura: la stessa galleria Roma torna in `#clubHomes`, prima della collezione, senza duplicare immagini, controller o dati; resta nascosta nelle città estere. Full view riporta lo stesso atlas al proprio anchor.
+`boom-dispatch-departure` governa la composizione; `boom-dispatch-departure-services` dispone il selettore estero accanto all'unico pass offerta/form e i quattro biglietti Roma in due colonne, una su telefono. Importi, condizioni, rimborsi e invii restano dei motori originali.
+`flightdispatchui` e `flightpanoramaui` verificano il nuovo ordine, mondo persistente, foto nel capitolo, controllo dimensionale e originali conservati; le altre sei visioni mantengono le scene precedenti. Regia in `design/dispatch-departure-hall.md`.
+
+Flight Dispatch movimento 07/11: il selettore città conserva i sei pulsanti originali e aggiunge una sola cornice decorativa misurata; il cambio accettato da puntatore la porta al nuovo pulsante in220ms, dalla posizione corrente anche se interrotta. Testo selezionato giallo su nero durante tutto il tragitto.
+`boom-dispatch-motion` non seleziona città né modifica il brief: legge lo stato originale e assesta subito cornice su tastiera, history, pausa, reduced-motion, resize, fuori schermo, cambio vista e pagina nascosta. Nessun loop di animazione aggiunto.
+Il canvas Dispatch traccia in850ms il collegamento geografico Roma↔destinazione e un singolo anello di arrivo, sul clock e sulle coordinate originali; drag, zoom, lente, Full view e navigazione interrompono il tratto. Non rappresenta un volo o un orario.
+`boom-dispatch-motion.css` rifinisce le rotte vere dei pass e il taglio offerta/prossimo passo; al passaggio del puntatore si muove solo la freccia. Prezzi, condizioni, moduli e feedback originale del servizio restano dei loro controller.
+Copertura in `flightdispatchui`, regressioni `flightpanoramaui`/`flightclubmotion`, regia in `design/dispatch-motion.md`.
+
+Flight Dispatch città 07/11: un fondale petrolio unifica Solari e geografia; i sei pulsanti città originali precedono il globo, subito sotto il titolo, in tre colonne anche su telefono. Il vano Solari conserva altezza durante cambio parola e arresto.
+`boom-dispatch-tour` presenta le città col Solari originale e una camera temporanea: non seleziona destinazioni, moduli o servizi, non cambia valuta, URL o history. Un ingresso con città/bisogno/brief esplicito conserva la propria scelta; interazione, pausa, reduced-motion, invisibilità e navigazione fermano il tour.
+`BoomFlightGlobe.previewCity` muove soltanto la camera originale e rende neutra la geografia; `setDestination(...,{animate:false})` assesta il tabellone quando la persona riprende il controllo. Il selettore originale resta l'unica scelta effettiva.
+Nel dettaglio Roma il biglietto decisione diventa bianco e leggibile; la spiegazione della candidatura resta unica e conserva stato incerto/chiuso. Le città estere non mostrano il percorso Roma→chiavi; il footer include Contract Check e acquisti europei reali.
+`flightdispatchui` verifica scoperta iniziale, assenza di effetti sul brief, interruzioni e continuità; regressioni Panorama/motion e handoff originali. Regia in `design/dispatch-cities-presentation.md`, sistema e perimetro del lancio in `design/dispatch-launch-system.md`; `/` conserva il proprio proprietario e richiede ancora la verifica SEO prevista.
+
+Flight Dispatch strumento 08/11: il fondale petrolio lascia posto a una cornice porcellana attorno a un unico strumento nero; Solari in un vano meccanico, scelte città senza griglia chiusa e console geografica più quieta. La voce resta Helvetica Neue300.
+Solo Dispatch rende il globo argento/grafite, con giallo sulle rotte e destinazioni effettive; dati, proiezione, camera e clock restano originali. Una rivelazione finita800ms muove soltanto il palco geografico e rispetta quiete/reduced-motion.
+Il tour mantiene lo stato del cliente e tutti i suoi arresti; nel solo invito iniziale la domanda diventa «Where next?». Nodi, servizi, prezzi e porte originali restano unici.
+Regia in `design/dispatch-instrument.md`; verifiche dimensionali, tour e continuità nelle suite `flightdispatchui`, `flightpanoramaui` e motion originali. Lo switch della home pubblica resta separato.
+
+Flight Dispatch fondale Solari 08/11: su richiesta esplicita torna il mosaico pulsante originale, nello stesso canvas `nextSolariField`, ricollocato dentro il titolo. Il campo si dissolve prima delle scelte città; palette tipografiche, pulsanti e geografia conservano i propri nodi e controller.
+Dispatch abilita il campo e limita il lavoro alla sua apertura visibile: lo stesso observer segue hero e canvas; fuori dall'apertura o con risparmio dati il solo fondale si ferma, senza fermare il tabellone. Pausa, movimento ridotto e pagina nascosta restano governati dal motore originale.
+Il primo battito e la cadenza8.2s, i fronti, le creste e i disegni per città restano originali; le altre visioni continuano a spegnere il campo. La configurazione considera anche il boot anticipato dei defer e misura il canvas dopo lo spostamento.
+Verifica `flightdispatchui` sui pixel e sul ciclo di vita dell'apertura, `flightclubmotion` sulla meccanica originale e `flightpanoramaui` per il confine fra visioni; regia in `design/dispatch-solari-field.md`.
+
+Flight Dispatch aperture 08/11: dopo il rifiuto della cornice porcellana, `composition=open|atlas|concourse` propone tre composizioni senza involucro; `instrument` conserva il confronto precedente. Aperta è il nuovo default, con Solari pulsante originale e globo nativo.
+Studio aggiunge un selettore dedicato, con lo stesso iframe e la validazione della bozza; il parametro estetico ammesso accompagna solo Flight Dispatch, mai Apply o il desk originale.
+La nuova geometria vive in `boom-dispatch-compositions.css`: nessun nuovo renderer, clock, modulo, dato cliente o dipendenza. Il footer chiaro e il sito pubblico restano invariati.
+Regia in `design/dispatch-open-compositions.md`; `flightdispatchui` verifica dimensioni, originali conservati, Full view, passaggi nativi e cambio composizione con bozza valida/invalida; regressioni in `flightpanoramaui`.
+
+Flight Dispatch Observatory 10/11: `composition=observatory` aggiunge una scena geografica aperta e un indice di sei città; Studio la confronta nello stesso iframe, mentre Aperta resta il default.
+Il tour originale possiede anche l’anteprima intenzionale:120ms sul puntatore fine, immediata da tastiera. Solari e camera si accordano solo se il renderer accetta; pausa, movimento ridotto o attesa dati lasciano una nota statica.
+La nota legge nome e capacità dal directory nativo; il contorno bianco sul globo indica la città esplorata, il giallo conserva la scelta reale. Nessun nuovo catalogo, prezzo, clock o dato cliente.
+Choose città passa dal pulsante nativo dopo il ripristino; uscita, Escape, camera, navigazione e invisibilità cancellano l’anteprima. URL, campi, valuta e servizi cambiano solo alla scelta esplicita.
+Regia in `design/dispatch-observatory.md`; `flightdispatchui` copre proporzioni, anticipazione/ripristino, tastiera/tocco, quiete e bozza Studio; regressioni in `flightpanoramaui`.
+
+Flight Club firme città 10/11: il Club base porta la firma originale accanto alla destinazione; sei emblemi architettonici BOOM, avorio/giallo, sostituiscono i piccoli segni nascosti sul telefono. Panorama e le altre visioni conservano la propria grafica.
+`boom-city-emblems.svg` e `boom-club-city-emblems.css` usano lo stesso nodo e le identità del controller Europe. Nessun ufficio, sede o dato commerciale aggiunto; Helvetica Neue300, Solari, globo e servizi restano originali.
+Il cambio città da puntatore/tocco disegna il solo accento giallo in280ms; testo e azioni sono immediati. Tastiera/storia/API, pausa, movimento ridotto, risparmio dati e invisibilità non avviano o cancellano la risposta; nessun nuovo clock.
+Studio porta Club tra le scelte principali nello stesso iframe, conservando bozza pubblica e default Dispatch. La Preview resta noindex; lo studio `design/club-europe-launch-study.md` propone il lancio europeo su `/desks` senza perdere le otto città pubbliche.
+Regia in `design/club-city-emblems-motion.md`; `flightclubemblemsui` verifica i sei segni a320/390/1440, gesto, interruzioni, leggibilità, firme originali delle altre visioni e continuità di brief/valuta/prezzi.
+
+Flight Dispatch Airspace 10/11: `composition=airspace` propone una scena nera con Solari/globo nativi e un foglio bianco continuo per il servizio; sul telefono la geografia precede il modulo. Club e Aperta restano confrontabili nello stesso Studio.
+`boom-airspace.js` sposta gli originali, senza duplicare planner, prezzi, firma, stato o canvas; `boom-airspace.css` governa soltanto questa composizione. Il framing più vicino vive nella proiezione nativa e Full view conserva la camera originale.
+Le città estere raccolgono nome, tariffa, condizioni, inclusioni e azione nello stesso foglio; Roma mantiene ricerca, catalogo reale, Skyline e biglietti servizi. Il tour automatico non cambia la città mentre si legge l’offerta.
+Cambio città, valuta, validazione, handoff al desk e limiti dei parametri restano dei controller esistenti; Pausa/movimento ridotto fermano gli stessi motori. Airspace non aggiunge clock o dipendenze.
+`flightairspaceui` verifica cinque larghezze e sei città, nodi originali, contrasto, Full view, fallback, risposta obsoleta, bozza Studio, quiete e passaggi commerciali; regia in `design/airspace-direction.md` e `design/airspace-motion.md`.
+La nuova superficie è una Preview opt-in/noindex; non sostituisce `/` o `/desks` e non anticipa risultati di conversione o posizionamento.
+
+Flight City Editions 11/11: `composition=cityeditions` sviluppa il riferimento grafico dei reel con grandi architetture originali BOOM, bande concentriche e Solari alla base. Studio la conserva come alternativa distinta da Airspace.
+La firma città originale entra nella scena; City edition/Globe alterna l’opera e il globo nativo senza cambiare destinazione, servizio o preferenze. Pausa originale resta sempre accessibile; Full view usa lo stesso canvas.
+`boom-city-editions.js/css` possiede solo la presentazione: costruzione architettonica finita entro700ms, cancellata da nuova scelta, tastiera, quiete, invisibilità o uscita. Non aggiunge clock, form, prezzi, catalogo o stato commerciale.
+Il foglio decisione e la biglietteria ereditano Airspace. Le guardie condivise ammettono entrambe le composizioni, mentre URL commerciali e Apply conservano le allowlist originali.
+Regia in `design/city-editions-direction.md`; `flightcityeditionsui` copre proporzioni, originali, due viste, movimento, handoff e bozza Studio. La variante resta una Preview noindex.
+Motion città 11/11: le bande ora restano ferme; piani HTML con prospettiva e reveal costruiscono parti nominate dell’unico SVG, poi tracciano gli accenti gialli. Sei regie distinte in `design/city-editions-motion.md`.
+Il nodo firma originale torna su ogni fine/interruzione; una lettura dello SVG fornisce definizioni transitorie esatte, senza seconda geometria scritta a mano. Entrata statica, scelta esplicita animata solo ad asset pronto; nessun replay tardivo.
+Una seconda scelta durante la sequenza mostra subito la nuova città, senza coda; resize con dimensioni cambiate elimina i piani. Clip curve rispettano le arcate di Roma; stroke espliciti conservano bianchi/gialli originali.
+Offerta e controlli restano immediati. Telefono riduce profondità/rotazione; Pausa, movimento ridotto e ingressi non da puntatore conservano il segno completo. La suite verifica costruzione reale, cancellazioni e continuità nativa.
+`design/europe-studio.md` raccoglie brief e collaborazione: Codex integra, Claude revisiona lo stesso ramo senza scritture concorrenti. Le registrazioni browser distinguono il movimento dal solo stato finale.
+
+Flight Dispatch Meridian 11/11: `composition=meridian` apre Solari e globo originali in una scena nera a tutta larghezza; il foglio bianco sottostante allinea scelta, tariffa e continuazione. Desktop usa un indice verticale, telefono sei città in3×2.
+L’adattatore Airspace ricolloca gli stessi nodi; `boom-dispatch-meridian.css` possiede le proporzioni. La proiezione nativa conserva la sfera intera e Full view ripristina la stessa camera, senza nuovi clock o stato commerciale.
+Prezzi, condizioni, brief, catalogo Roma, Skyline e handoff restano dei controller originali. Studio aggiunge Meridian senza sostituire le composizioni precedenti o trasferire parametri estetici al desk.
+`flightmeridianui` verifica cinque larghezze, sei città, originali, GBP, date invalide, Pausa/Full view, fallback e bozza Studio. Le catture con dati pubblici sono separate dalle fixture della suite.
+La viewport reale1280×720 usa una scena più bassa e controlli città da48px: il prezzo e l’azione completa restano visibili anche dopo l’avviso EUR/GBP; una regressione dedicata verifica entrambi gli stati.
+Il suggerimento dopo inattività conserva il timer nativo e appare sopra i comandi; due casi con movimento attivo verificano la separazione reale a1280×720 e390×844.
+Regia in `design/dispatch-meridian-direction.md`; due filoni coordinati in `design/europe-dual-track-2026-11-11.md`. Meridian resta Preview noindex: l’ingresso `/` e il rilascio di produzione richiedono il percorso già documentato.
+
+Flight Dispatch Passage 11/11: `composition=passage` unisce la geografia di Meridian alla gerarchia dei biglietti nativi: scelta del bisogno in una fascia, promessa e contenuto nel corpo, prezzo e continuazione nello stub.
+`boom-dispatch-passage.css` governa la sola presentazione; servizio, modulo, canvas, validazione, tariffa e handoff restano originali. Studio conserva tutte le alternative e collega le esplorazioni editoriali.
+Regia in `design/dispatch-passage-direction.md`; `flightpassageui` verifica journey, stati estesi, condizioni e geometria anche nella viewport1280×720. Il percorso resta opt-in/noindex e non modifica l’index.
+Passage servizi e persone 11/11: il solo adattatore `boom-passage-journey.js` collega bisogno, spiegazione, copertura reale del team e contatto; Inhabit resta la seconda direzione.
+La proiezione pubblica città aggiunge `contact.whatsapp`, derivato dallo stesso `deskContact`/`waHref` delle pagine native: città nel messaggio originale, mai piano, prezzo o brief privato; il click non invia nulla.
+Rebecca e Fausto seguono Spagna/Paesi Bassi, Daniele Paesi Bassi/Inghilterra; Valentino coordina da Roma. Nessuna sede cittadina, lingua o recensione inventata. Il footer rende trovabili tutti gli otto desk europei.
+Dopo le case Roma compare il percorso facoltativo Property Finding con condizioni lette dal biglietto nativo; il demo è esplicitamente Roma con case di esempio. Le visite alle case BOOM restano gratuite e rimandano all’annuncio originale.
+La barra geografica riunisce gli stessi nodi Globe/Close-up, Pause/Play ed Expand; nessun secondo timer, controller, modulo o stato cliente. Full view conserva zoom/reset e ripristina la scena al ritorno.
+Regia in `design/passage-service-journey.md`; `flightpassagejourney`, `flightpassagecontrols` e `citiespublic` verificano isolamento, accessibilità, fallback, routing canonico e mutazioni; i servizi originali e la produzione restano invariati.
+Flight Studies 11/11: `/flight-studies`, `/flight-studies/inhabit` e `/flight-studies/your-move` rendono le due esplorazioni disponibili sulla Preview HTTPS, senza dipendere dal server locale.
+Leggono `boom-desks-public.json`, proiezione generata delle fonti città; nome, valuta, momento di addebito, dichiarazione locale e trigger sono solo fatti già pubblici. Nessun listino parallelo o nuovo modulo cliente.
+Le foto restano originali, Solari e firma riusano gli asset del progetto; i link proseguono sui servizi nativi. `flightstudies` verifica ingressi diretti, tutte le combinazioni e fallback senza prezzi obsoleti.
+
+Flight Lab 31/10: `/flight-lab` confronta Atlas, Residence e Club sulle stesse viste reali di `/flight-next?direction=…`, senza cambiare il sito pubblico.
+Le composizioni riusano catalogo, Solari, iframe Skyline, salvataggi e Apply; nessun secondo catalogo o nuovo handler di invio.
+Residence usa una foto realmente restituita dal catalogo pubblico (fallback a una casa pubblica non chiusa); Atlas sposta la stessa mappa nel primo schermo.
+Il laboratorio mantiene una sola preview, conserva in memoria le preferenze durante il confronto e accetta messaggi solo dall'iframe/origine previsti.
+Le direzioni sono conservate durante il percorso e il layout Skyline esplicito sopravvive a reload/Back; il laboratorio resta noindex.
+
+Flight Next 29/10: `/flight-next` è una proposta interattiva isolata e noindex: Home, ricerca e dettaglio
+ricompongono Solari originale, catalogo pubblico e un solo iframe Skyline conservato tra le viste.
+`boom-flight-next-data` usa Facts/Dispo; prezzi ignoti, guasti e disponibilità rimangono espliciti, nessun secondo archivio.
+Date, filtri e history restano nella URL, cuori in `boomSalvate`; foto scorrono in rail nativa e in fullscreen.
+La CTA apre l’Apply originale con date e `people`: prefill allowlist una sola volta, solo se #apChi vuoto;
+le scelte successive del candidato prevalgono su history, refresh e BFCache. Nessun nuovo submit o calcolo costi.
+`flightnextdata`, `flightnextmap`, `flightnextui`, `flightstayui` verificano il percorso; `telefono` copre anche il select durata a16px.
+
 ### GET `/api/city-lead?order=<book_…>&t=<token>&city=<slug>` — il biglietto gestito (v1.8)
 Solo su un desk che incassa alla firma; token derivato (`orderToken`, `api/payments/_token.js`),
 token sbagliato e ordine sconosciuto = lo stesso 404; 30 ogni 10′ per IP, no-store. Risponde
@@ -4919,11 +5218,16 @@ commercialista non decide il luogo della prestazione.
 
 ### POST `/api/search/save`
 Public save-search endpoint for the apartments discovery page. Body
-`{ email, label?, criteria{q,budgetMax,moveIn,beds,baths,furnished,video,
+`{ email, label?, criteria{q,budgetMax,moveIn,moveOut,durationMonths,beds,baths,furnished,video,
 zones[],feats[]}, resultCount?, company(honeypot) }`. Validates email,
 honeypot + per-IP rate limit (same hardening as `/api/canone-lead`), writes
 to the `savedSearches` collection under admin creds (`status:'active'`,
 `lastNotified:null`). Returns `{ ok, id }`.
+
+Flight collega il form pubblico all’endpoint già esistente, al posto del messaggio
+“Saved — PREVIEW”: attesa senza doppi invii, conferma solo con `ok:true` e ID,
+errori/retry senza cancellare i campi. Nessuna sottoscrizione viene creata dai test;
+`tests/flight/run.mjs` esercita il vero trasporto client con risposte di rete simulate.
 
 ### GET `/api/search/matcher` (cron 3×/day)
 The saved-search alert engine. Matches every active `savedSearches` doc

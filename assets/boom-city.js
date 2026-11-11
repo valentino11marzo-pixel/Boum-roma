@@ -325,6 +325,7 @@
       if (!okC) { ct.focus(); track('form_error', { form: 'file', field: 'contact', market: C.SLUG }); return; }
       var picked = planOf(plan) ? plan : '';
       var body = { city: C.SLUG, name: name, service: picked, requestId: requestId, company: ($('fCompany') || {}).value || '' };
+      if (window.BoomJourneyHandoff) Object.assign(body, BoomJourneyHandoff.cityLead());
       if (c.email) body.email = c.email; else body.phone = c.phone;
       sending = true; door.setAttribute('aria-disabled', 'true'); txt('fNetErr', '');
       var label = $('doorL'), was = label.textContent;
@@ -446,6 +447,7 @@
   function openTill(id, from) {
     var p = planOf(id);
     if (!p || !till || state() !== 'blank' || sending) return;
+    if (window.BoomJourneyHandoff && !BoomJourneyHandoff.cityCheckout()) return;
     opener = from || null;
     tillX = scrollX; tillY = scrollY;
     tf.setAttribute('data-plan', id);

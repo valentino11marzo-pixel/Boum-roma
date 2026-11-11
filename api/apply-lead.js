@@ -51,6 +51,7 @@ import { fsCreate, fsPatch, logActivity } from './homie/_lib.js';
 import { sendEmail } from './agent/_lib.js';
 import { shell, para, fine, btn, btn2, row, hero } from './preagreement/_notify.js';
 import { attributionFromReq } from './_attribution.js';
+import STAY from '../js/stay-engine.js';
 
 // Dove arriva l'avviso di candidatura. Stessa convenzione delle altre email
 // all'operatore (sign/_notify, fiscal/_aspi, ops/*); LEADS_NOTIFY_EMAIL la
@@ -152,8 +153,12 @@ export default async function handler(req, res) {
   const signers    = signersOf(body.signers);
   const household  = HOUSEHOLDS.has(body.household) ? body.household : null;
   const occupation = OCCUPATIONS.has(body.occupation) ? body.occupation : null;
-  const moveIn     = /^\d{4}-\d{2}-\d{2}$/.test(String(body.moveIn || '')) ? body.moveIn : null;
-  const durationM  = num(body.durationMonths);
+  // Preserve legacy arrival-only applications. New explicit date pairs
+  // must be valid before any write or email; dates outrank a stale shortcut.
+  const stayError = body.moveOut ? STAY.validate(body) : null;
+  if (stayError) return res.status(400).json({ ok: false, error: 'invalid_stay', field: stayError.field });
+  const stay = STAY.normalize(body);
+  const moveIn = stay.moveIn, moveOut = stay.moveOut, durationM = stay.durationMonths;
   const kind       = body.kind === 'reserve' ? 'reserve' : 'apply';
   const waitlist   = body.waitlist === true;
   const commute    = (body.commute && typeof body.commute === 'object')
@@ -172,6 +177,7 @@ export default async function handler(req, res) {
   if (household)      parts.push('moving in: ' + household);
   if (signers && signers > 1) parts.push(signers + ' signers');
   if (moveIn)         parts.push('move-in ' + moveIn);
+  if (moveOut)        parts.push('move-out ' + moveOut);
   if (durationM)      parts.push(durationM + ' months');
   if (commute && commute.place) parts.push('commute: ' + commute.place + (commute.label ? ' ' + commute.label : ''));
   const message = parts.join(' · ');
@@ -206,7 +212,7 @@ export default async function handler(req, res) {
     raw: {
       kind, waitlist, income, incomeBand, guarantor, guarantorType,
       household, occupation, signers,
-      moveIn, durationMonths: durationM, commute, ip, requestId,
+      moveIn, moveOut, durationMonths: durationM, commute, ip, requestId,
       ua: clip(req.headers['user-agent'], 300),
     },
     createdAt: now,
@@ -322,6 +328,7 @@ export function operatorEmail(lead, id) {
       ? `<a href="${SITE}/listing/${encodeURIComponent(lead.propertyId)}">${esc(casaTxt)}</a>`
       : esc(casaTxt), lead.propertyPrice ? `€${esc(lead.propertyPrice)}/mese` : null),
     r.moveIn ? row('Ingresso', esc(itDate(r.moveIn))) : '',
+    r.moveOut ? row('Uscita richiesta', esc(itDate(r.moveOut))) : '',
     r.durationMonths ? row('Durata', esc(r.durationMonths) + ' mesi') : '',
     r.household ? row('Chi entra', esc(HOUSEHOLD_IT[r.household] || r.household)) : '',
     r.signers ? row('Firmatari', esc(r.signers)) : '',

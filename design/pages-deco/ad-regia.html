@@ -1,6 +1,7 @@
 <script>
 /* LA REGIA DELLA DISCOVERY — il tabellone è il filtro.
-   Parte al load: il motore Solari è concatenato DOPO questo script. */
+   Parte al DOM pronto: il Solari concatenato dopo è già definito,
+   senza aspettare foto e iframe per attivare filtri e conteggio. */
 (function () {
   'use strict';
   function via() {
@@ -208,8 +209,10 @@
     if (!ridotto) setInterval(function () {
       if (document.hidden || !organi.length) return;
       var o = organi[Math.floor(Math.random() * organi.length)];
-      var quale = ['z', 'q', 'd'][Math.floor(Math.random() * 3)];
-      if (o[quale].flutter) o[quale].flutter();
+      var rect = o.el.getBoundingClientRect();
+      if (rect.bottom < 0 || rect.top > innerHeight || !o.el.getClientRects().length) return;
+      /* A pulse on the destination; prices and counts remain readable facts. */
+      if (o.z.flutter) o.z.flutter();
     }, 14000);
   })();
 
@@ -292,7 +295,8 @@
     var forma = document.getElementById('serbaForma');
     function criteri() {
       return { q: stato.q, budgetMax: stato.budget || null,
-        moveIn: stato.dal, beds: stato.letti === '' ? null : +stato.letti,
+        durationMonths: window.BOOM_STAY ? BOOM_STAY.read(location.search) : null,
+        moveIn: stato.dal, moveOut: window.BOOM_STAY ? BOOM_STAY.intent(location.search, location.hash).moveOut : null, beds: stato.letti === '' ? null : +stato.letti,
         baths: stato.bagni === '' ? null : +stato.bagni,
         furnished: stato.arredata, video: stato.video,
         zones: stato.zona ? [stato.zona] : [], feats: stato.dote.slice() };
@@ -308,6 +312,8 @@
       if (c.video) p.push('video-verified');
       if (c.feats.length) p.push(c.feats.join(', '));
       if (c.moveIn) p.push('from ' + c.moveIn);
+      if (c.moveOut) p.push('until ' + c.moveOut);
+      if (c.durationMonths) p.push(BOOM_STAY.label(c.durationMonths) + ' requested');
       return p.length ? p.join(' · ') : 'Any home in Rome';
     }
     document.getElementById('serba').addEventListener('click', function () {
@@ -324,17 +330,13 @@
       if (e.key === 'Escape' && !velo.hidden) chiudi(); });
     forma.addEventListener('submit', function (e) {
       e.preventDefault();
-      /* la richiesta che il sito vero manda — qui dichiarata, non spedita */
       var corpo = { email: document.getElementById('serbaMail').value.trim(),
         label: document.getElementById('serbaNome').value.trim(),
         criteria: criteri(),
         resultCount: +document.getElementById('conto').textContent,
         company: document.getElementById('serbaEsca').value };
-      if (window.console) console.log('POST /api/search/save', corpo);
-      forma.innerHTML = '<p class="serba-nota" style="font-size:13px;'
-        + 'color:var(--gold);margin-top:0">Saved — PREVIEW. On the live site '
-        + 'you would now get an email the moment a matching home appears.</p>';
-      setTimeout(chiudi, 2200);
+      if (window.BoomSaveSearch) window.BoomSaveSearch.submit(forma, corpo);
+      else document.getElementById('serbaStatus').textContent = 'Please reload this page to save your search.';
     });
   })();
 
@@ -460,8 +462,9 @@
 
   aggiorna();
   }
-  if (document.readyState === 'complete') via();
-  else addEventListener('load', via);
+  if (document.readyState === 'loading')
+    document.addEventListener('DOMContentLoaded', via, { once: true });
+  else via();
 })();
 </script>
 
@@ -568,21 +571,28 @@
   /* ── la vista: griglia ⇄ skyline ── */
   var cieloBox = per('#vistaCielo'), vg = per('#vGriglia'), vc = per('#vCielo');
   var contoRiga = per('.muro-conto'), vuoto = per('#vuoto');
-  function vista(mappa) {
+  function vista(mappa, persist) {
     if (!cieloBox) return;
     if (mappa && window.BoomCielo && BoomCielo.apri) BoomCielo.apri();
+    var split = mappa && matchMedia('(min-width:1050px)').matches;
+    document.body.classList.toggle('flight-split', split);
+    document.documentElement.classList.toggle('flight-apartments-map', !!mappa);
     cieloBox.hidden = !mappa;
-    muro.style.display = mappa ? 'none' : '';
-    if (contoRiga) contoRiga.style.display = mappa ? 'none' : '';
-    if (vuoto) vuoto.style.display = mappa ? 'none' : '';
-    if (vg) vg.classList.toggle('on', !mappa);
-    if (vc) { vc.classList.toggle('on', mappa); vc.classList.remove('pulsa'); }
+    muro.style.display = mappa && !split ? 'none' : '';
+    if (contoRiga) contoRiga.style.display = '';
+    if (vuoto) vuoto.style.display = mappa && !split ? 'none' : '';
+    if (vg) { vg.classList.toggle('on', !mappa); vg.setAttribute('aria-pressed', String(!mappa)); }
+    if (vc) { vc.classList.toggle('on', mappa); vc.classList.remove('pulsa'); vc.setAttribute('aria-pressed', String(mappa)); }
+    // The automatic desktop layout and resizing do not rewrite a search URL.
+    if (persist) try { var u = new URL(location.href); u.searchParams.set('view', mappa ? 'skyline' : 'grid'); history.replaceState(null, '', u.pathname + u.search + u.hash); } catch (_) {}
     if (mappa) sincronia();
   }
-  if (vg) vg.addEventListener('click', function () { vista(false); });
-  if (vc) vc.addEventListener('click', function () { vista(true); });
+  window.BoomApartmentsView = { show: vista };
+  matchMedia('(min-width:1050px)').addEventListener('change', function () { vista(!cieloBox.hidden, false); });
+  if (vg) vg.addEventListener('click', function () { vista(false, true); });
+  if (vc) vc.addEventListener('click', function () { vista(true, true); });
   if (sky) sky.addEventListener('click', function () {
-    vista(true);
+    vista(true, true);
     try { cieloBox.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
     catch (e) {}
   });

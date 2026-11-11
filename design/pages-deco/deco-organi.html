@@ -206,6 +206,7 @@
       b.addEventListener('click', function (e) {
         e.preventDefault(); e.stopPropagation();
         var u = b.dataset.u;
+        try { salvate = new Set(JSON.parse(localStorage.getItem('boomSalvate') || '[]')); } catch (_) {}
         if (salvate.has(u)) salvate.delete(u); else salvate.add(u);
         b.classList.toggle('si', salvate.has(u));
         try { localStorage.setItem('boomSalvate', JSON.stringify(Array.from(salvate))); }

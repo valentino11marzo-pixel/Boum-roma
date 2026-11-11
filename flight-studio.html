@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="robots" content="noindex,nofollow"><meta name="theme-color" content="#000000">
+  <title>BOOM — Studio delle home</title>
+  <link rel="icon" href="/assets/icons/favicon-32.png">
+  <link rel="stylesheet" href="/assets/boom-flight-studio.css?v=20261111passage1">
+  <script src="/assets/boom-flight-studio.js?v=20261111passage1" defer></script>
+</head>
+<body>
+  <a class="studio-skip" href="#studioMain">Vai al confronto</a>
+  <header class="studio-header">
+    <a class="studio-brand" href="/flight-studio" aria-label="BOOM — le home"><img src="/assets/boom-brand-lockup.svg" alt="BOOM" width="600" height="160"></a>
+    <h1>Le home di BOOM</h1>
+    <div class="studio-header-actions">
+      <a id="studioLive" href="https://www.boomrome.com/" target="_blank" rel="noopener">Home attuale <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19 19 5M7 5h12v12"/></svg></a>
+      <a id="studioOpen" href="/flight-next?direction=club&amp;edition=club&amp;experience=panorama" target="_blank" rel="noopener">Apri vista completa <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19 19 5M7 5h12v12"/></svg></a>
+    </div>
+  </header>
+  <main id="studioMain" tabindex="-1">
+    <p class="studio-intro">Passage unisce la scena geografica di Meridian a una scelta diretta e a un unico biglietto di servizio. Confrontala con Meridian, Airspace, City Editions e Club; Inhabit e Your Move esplorano due percorsi diversi.</p>
+    <div class="studio-toolbar">
+      <div class="studio-controls" role="group" aria-label="Esperienza"><button type="button" data-studio-experience="club" aria-pressed="false">Club</button><button type="button" data-studio-experience="dispatch" aria-pressed="true">Dispatch</button><button type="button" data-studio-experience="orbit" aria-pressed="false">Orbit</button><button type="button" data-studio-experience="vector" aria-pressed="false">Vector</button></div>
+      <div class="studio-controls" role="group" aria-label="Formato"><button type="button" data-studio-device="desktop" aria-pressed="true">Desktop</button><button type="button" data-studio-device="mobile" aria-pressed="false">Telefono</button></div>
+      <p id="studioStatus" role="status">Apertura di Dispatch…</p>
+    </div>
+    <fieldset id="studioCompositions" class="studio-compositions" hidden>
+      <legend>Composizione Dispatch</legend>
+      <div class="studio-composition-options">
+        <button type="button" data-studio-composition="passage" aria-pressed="false" aria-controls="studioFrame">Passage</button>
+        <button type="button" data-studio-composition="meridian" aria-pressed="false" aria-controls="studioFrame">Meridian</button>
+        <button type="button" data-studio-composition="cityeditions" aria-pressed="false" aria-controls="studioFrame">City Editions</button>
+        <button type="button" data-studio-composition="airspace" aria-pressed="false" aria-controls="studioFrame">Airspace</button>
+        <button type="button" data-studio-composition="observatory" aria-pressed="false" aria-controls="studioFrame">Observatory</button>
+        <button type="button" data-studio-composition="open" aria-pressed="true" aria-controls="studioFrame">Aperta</button>
+        <button type="button" data-studio-composition="atlas" aria-pressed="false" aria-controls="studioFrame">Atlante</button>
+        <button type="button" data-studio-composition="concourse" aria-pressed="false" aria-controls="studioFrame">Concourse</button>
+        <button type="button" data-studio-composition="instrument" aria-pressed="false" aria-controls="studioFrame">Precedente</button>
+      </div>
+    </fieldset>
+    <p id="studioError" role="alert" hidden></p>
+    <div class="studio-variant-description"><h2 id="studioVariantTitle">Dispatch · Aperta</h2><p id="studioVariantNote">Un unico spazio nero, senza cornice. Il Solari e le città affiancano il globo, con il prossimo passo sempre leggibile.</p></div>
+    <div id="studioViewport" class="studio-viewport"><iframe id="studioFrame" title="BOOM Dispatch — anteprima interattiva" allow="fullscreen"></iframe></div>
+    <p class="studio-note">Cambia direzione mantenendo la vista, le date e le preferenze pubbliche. I luoghi privati restano nella variante in cui li scegli. La home attuale si apre in una scheda separata.</p>
+    <div class="studio-legacy"><a href="/flight-studies">Inhabit e Your Move</a><span>Altre direzioni:</span><button type="button" data-studio-experience="airframe" aria-pressed="false">Airframe</button><button type="button" data-studio-experience="signal" aria-pressed="false">Signal</button><button type="button" data-studio-experience="gate" aria-pressed="false">Gate</button><button type="button" data-studio-experience="connection" aria-pressed="false">Connection</button><button type="button" data-studio-experience="panorama" aria-pressed="false">Panorama</button><button type="button" data-studio-experience="terminal" aria-pressed="false">Terminal</button></div>
+  </main>
+  <noscript><p>Il confronto richiede JavaScript. <a href="/home-dispatch">Apri Dispatch</a>.</p></noscript>
+</body>
+</html>

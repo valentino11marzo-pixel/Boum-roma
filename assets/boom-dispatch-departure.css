@@ -1,0 +1,174 @@
+/* A physical departure instrument: porcelain shell, black mechanics, silver geography.
+   The existing canvas and controls keep their owners and their Full view. */
+body[data-direction="club"][data-edition="club"][data-experience="panorama"][data-home-vision="dispatch"].europe-ready{
+ --dispatch-scene-height:650px;
+ --dispatch-terminal:#000;
+ --dispatch-shell:#eeede8;
+ --dispatch-terminal-line:#595953;
+ --dispatch-terminal-muted:#d1d1c9;
+ --dispatch-action-height:56px;
+ --dispatch-action-radius:8px;
+ /* The shell surrounds one continuous black instrument, never a pale half-ticket.
+    A single silver seam separates its reading surface from the geographic aperture. */
+ & #nextHero{position:relative;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto;gap:0;padding:24px 24px 0;background:var(--dispatch-shell);isolation:isolate}
+ & #nextHero::after{content:none}
+ & #directionClubTicket{position:relative;display:grid;grid-template-columns:minmax(0,.42fr) minmax(0,.58fr);grid-column:1;grid-row:1;align-items:center;gap:36px;width:100%;min-width:0;padding:40px 36px 32px;margin:0;background:#000;border:1px solid #4b4b46;border-radius:24px;box-shadow:inset 0 1px 0 #777770,0 4px 8px #00000016;overflow:hidden;isolation:isolate}
+ & #directionClubTicket::before{content:"";position:absolute;inset:12px 22px auto;height:1px;background:#353532;pointer-events:none}
+ & #directionClubTicket>.hero-centre{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:0;min-width:0;padding:12px 0 24px;text-align:left}
+ & .hero-centre h1{width:100%;gap:24px;isolation:isolate}
+ /* The original pulse lives around the destination, not below the action.
+    Its canvas is bounded to the h1; city choices and the globe stay outside. */
+ & #nextHero #nextHeroTitle>#nextSolariField{display:block;position:absolute;inset:-24px;width:calc(100% + 48px);height:calc(100% + 48px);z-index:-1;pointer-events:none;opacity:.9;mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent);-webkit-mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent)}
+
+ & .hero-pretitle{max-width:12ch;font-size:clamp(36px,3.9vw,56px);line-height:1.04;letter-spacing:-.035em;color:#fff;text-wrap:balance}
+ /* A fixed mechanical bay keeps the native city targets still when the
+    original fitter changes the size of a short or long destination. */
+ & #nextHero .vision-departure-record{display:flex;align-items:center;width:100%;min-height:calc(clamp(52px,6.2vw,88px)*1.26);border-block:1px solid #454540;background:rgba(0,0,0,.24);border-radius:4px;box-shadow:inset 0 2px 6px #000}
+ & #nextHero .vision-departure-record #nextDestinationBoard{font-size:min(clamp(52px,6.2vw,88px),var(--europe-board-size,88px))!important;gap:3px;line-height:1.26}
+ & .hero-promise{align-self:flex-start;max-width:34ch;margin:22px 0 0;font-size:17px;line-height:1.55;font-weight:400;color:var(--dispatch-terminal-muted);text-wrap:pretty}
+ & .edition-plan-link{display:flex;flex-direction:row;align-items:center;justify-content:space-between;width:fit-content;min-width:260px;max-width:100%;margin:24px 0 0;padding:10px 10px 10px 20px;gap:24px;min-height:56px;border-radius:8px}
+ & .edition-pass-action{font-size:16px;flex:1}
+ & .edition-pass-arrow{position:static;flex:0 0 36px;width:36px;height:36px;border-radius:4px}
+ & .panorama-proof{align-self:flex-start;justify-content:flex-start;margin:8px 0 0;gap:0 24px}
+ & .panorama-proof a{color:var(--dispatch-terminal-muted);text-decoration-color:#777770}
+
+ /* The map is the scene, not a framed preview. Its caption is a small console. */
+ & #visionScene{grid-column:2;grid-row:1;margin:0;padding:0 0 0 28px;border:0;border-left:1px solid #454540;min-width:0;width:100%;align-self:center}
+ & #visionScene>.edition-atlas,
+ &:not([data-europe-city="rome"]) #visionScene>.edition-atlas{height:var(--dispatch-scene-height);min-height:var(--dispatch-scene-height);display:grid;grid-template-columns:auto minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto auto;gap:0 16px;padding:0;overflow:hidden;background:transparent;--p-muted:var(--dispatch-terminal-muted);--p-line:var(--dispatch-terminal-line)}
+ & #visionScene>.edition-atlas #europeCitySignature{top:12px;left:0;max-width:calc(100% - 120px);gap:10px}
+ & #visionScene>.edition-atlas #europeCitySignature .europe-city-icon{width:56px;height:40px;flex-basis:56px}
+ & #visionScene>.edition-atlas .panorama-globe-toolbar{inset:12px 0 auto;min-height:44px}
+ & #visionScene>.edition-atlas .boom-globe-stage{grid-row:1;grid-column:1/-1;height:calc(100% - 60px);width:100%;min-height:0;margin:60px 0 0}
+ & #visionScene>.edition-atlas .boom-globe-stage::before{content:none}
+ & #visionScene>.edition-atlas .panorama-route{grid-column:1/-1;grid-row:2;padding:12px 0;min-height:46px;border-color:var(--dispatch-terminal-line);background:transparent}
+ & #visionScene>.edition-atlas .dispatch-lenses{grid-column:1;grid-row:3;align-self:start;margin:4px 0 0;border-color:var(--dispatch-terminal-line);border-radius:6px;background:var(--dispatch-terminal)}
+ & #visionScene>.edition-atlas .dispatch-lenses button{background:transparent;color:var(--dispatch-terminal-muted)}
+ & #visionScene>.edition-atlas .dispatch-lenses button[aria-pressed="true"]{background:#e7e7df;color:#000}
+ & #visionScene>.edition-atlas .dispatch-lenses button{min-width:96px;padding-inline:12px}
+ & #visionScene>.edition-atlas .boom-globe-caption{grid-column:2;grid-row:3;display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:0 12px;padding:4px 0 0;min-height:48px}
+ & #visionScene>.edition-atlas .panorama-globe-tools{display:flex;width:auto;justify-content:flex-start;flex-wrap:nowrap;border-color:var(--dispatch-terminal-line);border-radius:6px;background:var(--dispatch-terminal)}
+ & #visionScene>.edition-atlas .panorama-globe-toolbar button{border-color:#777770;border-radius:6px;background:var(--dispatch-terminal);color:#fff}
+ & #visionScene>.edition-atlas .panorama-globe-tools #nextMotionToggle{width:auto;flex:0 0 auto;border-top:0}
+ & #visionScene>.edition-atlas .boom-globe-caption>a{margin:0;min-height:44px;color:var(--dispatch-terminal-muted)}
+ & #visionScene>.edition-atlas .boom-globe-city-code{font-family:var(--p-font);font-size:11px;letter-spacing:.02em}
+ & #visionScene>.edition-atlas .boom-globe-cities button{border-radius:6px;background:var(--dispatch-terminal);border-color:#777770}
+ & #visionScene>.edition-atlas .boom-globe-cities button[aria-pressed="true"]{background:#ffd700;border-color:#ffd700;color:#000}
+
+ /* The same six native choices now sit immediately after the original h1.
+    Three columns keep every destination visible before the phone globe. */
+ & #nextHero .europe-city-switch{display:block;width:100%;max-width:none;margin:24px 0 0;padding:0;align-self:stretch;border:0;background:transparent}
+ & #nextHero .europe-city-switch .europe-switch-label{display:none}
+ & #nextHero .europe-city-switch .europe-cities{display:grid;height:auto;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(2,auto);gap:4px 12px;border:0;border-radius:0;overflow:hidden;background:transparent}
+ & #nextHero .europe-city-switch button{display:grid;grid-template-columns:minmax(0,1fr) 16px;grid-template-rows:auto auto;gap:6px 8px;width:100%;min-width:0;min-height:76px;padding:12px 8px;border:0;border-bottom:1px solid #454540;border-radius:4px;align-content:center;text-align:left;background:transparent;color:#fff;transform:none}
+ & #nextHero .europe-city-switch button:nth-of-type(3n){border-right:0}
+ & #nextHero .europe-city-switch button:nth-of-type(n+4){border-bottom:1px solid #454540}
+ & #nextHero .europe-city-switch button>span:last-child{grid-column:1/-1;grid-row:2;order:0;min-width:0;font:300 clamp(17px,1.75vw,24px)/1.12 var(--p-font);letter-spacing:-.025em;white-space:nowrap}
+ & #nextHero .europe-city-switch .europe-city-code{display:block;grid-column:1;grid-row:1;margin:0;padding:0;border:0;font:400 11px/1.2 var(--p-font);letter-spacing:.025em;color:var(--dispatch-terminal-muted)}
+ & #nextHero .europe-city-switch button::after{content:"";display:block;grid-column:2;grid-row:1;width:16px;height:16px;background:currentColor;mask:var(--p-arrow-mask) center/contain no-repeat;-webkit-mask:var(--p-arrow-mask) center/contain no-repeat;opacity:0}
+ & #nextHero .europe-city-switch button[aria-pressed="true"]{background:#ffd700;color:#000;border-color:#ffd700}
+ & #nextHero .europe-city-switch button[aria-pressed="true"] .europe-city-code{color:#000}
+ & #nextHero .europe-city-switch button[aria-pressed="true"]::after{opacity:1}
+ & #nextHero .europe-city-switch button:focus-visible{outline:2px solid #fff;outline-offset:-6px;transform:none}
+ & #nextHero .europe-city-switch button[aria-pressed="true"]:focus-visible{outline-color:#000}
+
+ & #dispatchCityTour{display:flex;flex-wrap:wrap;align-items:center;gap:8px 20px;margin:12px 0 0;padding:0;border:0;background:transparent}
+ & #dispatchCityTourToggle{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:8px 12px;border:1px solid #777770;border-radius:6px;background:var(--dispatch-terminal);color:#fff;font:400 14px/1.3 var(--p-font);text-align:left;touch-action:manipulation}
+ & #dispatchCityTourToggle svg{width:16px;height:16px;flex:0 0 16px;stroke-width:1.5}
+ & #dispatchCityTourToggle:focus-visible{outline:2px solid #ffd700;outline-offset:4px}
+ & #dispatchCityTourToggle[aria-pressed="true"]{border-color:#777770;color:#fff}
+ & #dispatchCityTour>a{display:inline-flex;align-items:center;min-height:44px;color:var(--dispatch-terminal-muted);font-size:14px;text-decoration:underline;text-underline-offset:4px;text-decoration-color:#777770}
+ & .dispatch-tour-action{display:none;align-items:center;justify-content:space-between;gap:24px;min-width:260px;min-height:56px;max-width:100%;margin:24px 0 0;padding:10px 10px 10px 20px;border:0;border-radius:8px;background:#ffd700;color:#000;font:500 16px/1.35 var(--p-font);text-align:left;touch-action:manipulation;transition:background-color var(--p-fast) ease,transform var(--p-fast) var(--p-ease)}
+ & .dispatch-tour-action>span:last-child{display:grid;place-items:center;flex:0 0 36px;width:36px;height:36px;border-radius:4px;background:#000;color:#ffd700}
+ & .dispatch-tour-action svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.5}
+ & .dispatch-tour-action:focus-visible{outline:2px solid #fff;outline-offset:5px}
+ & .dispatch-tour-action:active:not(:focus-visible){background:#e6c100;transform:scale(.985)}
+ & #dispatchCityTourToggle:active{background:#262622}
+ &[data-dispatch-tour="playing"] .dispatch-tour-action{display:flex}
+
+ /* A filled brief is a compact manifest, never another empty hero panel. */
+ & #dispatchJourneyTicket{grid-column:1;grid-row:2;padding:24px 32px;margin:20px 0 0;border:1px solid #595953;border-radius:12px}
+ & #dispatchJourneyTitle{font-size:26px;margin-bottom:16px}
+ & .dispatch-journey-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px 28px}
+ & .dispatch-journey-field{grid-template-columns:minmax(0,1fr);gap:6px;padding:0;border:0;align-content:start}
+ & .dispatch-journey-actions{justify-content:flex-start;gap:24px;margin-top:16px;padding-top:8px}
+ & #nextHero>.europe-planner.edition-club-runway{grid-column:1;grid-row:3;margin:24px 0 0;padding:0 32px;border:0;border-radius:16px 16px 0 0}
+
+ /* Rome's photography belongs to the real homes chapter, with its own space. */
+ & #clubHomes>#clubMedia{width:100%;margin:44px 0 0;padding:0;border:0;background:transparent}
+ & #clubHomes>#clubMedia .club-media-rail{--club-photo-height:clamp(300px,34vw,520px);margin-inline:0;padding-inline:0;scroll-padding-left:0}
+ & #clubHomes>#clubMedia .club-media-name{font-size:clamp(28px,3.1vw,44px);font-weight:300;letter-spacing:-.035em}
+ & #clubHomes>#clubMedia .club-media-facts{font-size:14px;line-height:1.5}
+ & #clubHomes>#clubMedia .club-media-open{min-height:44px;font-size:15px}
+ & #clubHomes>#clubMedia .club-media-controls button{min-height:44px;min-width:44px}
+}
+
+@media(max-width:1100px){body[data-direction="club"][data-edition="club"][data-experience="panorama"][data-home-vision="dispatch"].europe-ready{
+ --dispatch-scene-height:630px;
+ & #directionClubTicket{grid-template-columns:minmax(0,.46fr) minmax(0,.54fr);gap:24px;padding:32px 24px 24px}
+ & .hero-pretitle{font-size:40px}
+ & #visionScene{padding-left:20px}
+ & .hero-promise{font-size:17px}
+ & .edition-plan-link{min-width:0;width:100%;max-width:280px;gap:16px;padding-left:16px}
+ & #visionScene>.edition-atlas,
+ &:not([data-europe-city="rome"]) #visionScene>.edition-atlas{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto auto auto}
+ & #visionScene>.edition-atlas .dispatch-lenses{grid-column:1;grid-row:3;margin:4px 0 0}
+ & #visionScene>.edition-atlas .boom-globe-caption{grid-column:1;grid-row:4;justify-content:space-between;flex-wrap:nowrap}
+ & #nextHero .europe-city-switch button{padding-inline:8px;min-height:68px}
+ & #nextHero .europe-city-switch button>span:last-child{font-size:clamp(16px,1.9vw,20px)}
+}}
+
+@media(max-width:760px){body[data-direction="club"][data-edition="club"][data-experience="panorama"][data-home-vision="dispatch"].europe-ready{
+ --dispatch-scene-height:480px;
+ & #nextHero{display:flex;flex-direction:column;gap:0;padding:12px 10px 0}
+ & #directionClubTicket{display:flex;flex-direction:column;gap:0;align-items:stretch;padding:24px 18px 18px;border-radius:18px}
+ & #directionClubTicket::before{inset:10px 18px auto}
+ & #directionClubTicket>.hero-centre{padding:8px 0 12px;align-items:flex-start}
+ & .hero-centre h1{gap:12px}
+ & #nextHero #nextHeroTitle>#nextSolariField{inset:-16px;width:calc(100% + 32px);height:calc(100% + 24px);opacity:.86}
+ & .hero-pretitle{max-width:13ch;font-size:clamp(30px,8.7vw,42px);line-height:1.05}
+ & #nextHero .vision-departure-record{min-height:calc(64px*1.26)}
+ & #nextHero .vision-departure-record #nextDestinationBoard{font-size:min(64px,var(--europe-board-size,64px))!important}
+ & .hero-promise{max-width:42ch;margin:18px 0 0;font-size:16px;line-height:1.5}
+ & .edition-plan-link,& .dispatch-tour-action{width:100%;min-width:0;max-width:none;min-height:56px;margin-top:20px;padding-block:8px}
+ & .dispatch-tour-action{padding-left:16px;font-size:15px}
+ & .edition-pass-action{font-size:15px}
+ & .panorama-proof{margin-top:6px;gap:0 24px}
+ & #visionScene{width:100%;margin:0;padding:16px 0 0;border-left:0;border-top:1px solid #454540}
+ & #visionScene>.edition-atlas,
+ &:not([data-europe-city="rome"]) #visionScene>.edition-atlas{grid-template-columns:auto minmax(0,1fr);column-gap:8px;padding-bottom:0}
+ & #visionScene>.edition-atlas .panorama-route{min-height:40px;padding-block:8px}
+ & #visionScene>.edition-atlas .dispatch-lenses{grid-row:3;grid-column:1;justify-self:start}
+ & #visionScene>.edition-atlas .dispatch-lenses button{min-width:86px;padding-inline:8px;gap:6px}
+ & #visionScene>.edition-atlas .boom-globe-caption{display:contents}
+ & #visionScene>.edition-atlas .panorama-globe-tools{grid-row:4;grid-column:1/-1;justify-self:start;margin-top:8px}
+ & #visionScene>.edition-atlas .boom-globe-caption>a{grid-row:3;grid-column:2;justify-self:end;align-self:center}
+ & #visionScene>.edition-atlas #europeCitySignature .europe-city-icon{width:44px;flex-basis:44px;height:36px}
+ & #nextHero .europe-city-switch{margin:12px 0 0}
+ & #nextHero .europe-city-switch button{min-height:64px;padding:8px 3px;gap:5px 4px}
+ & #nextHero .europe-city-switch button>span:last-child{font-size:clamp(15px,4.3vw,20px)}
+ & #nextHero .europe-city-switch .europe-city-code{font-size:10px}
+ & #dispatchCityTour{margin-top:8px}
+ & #dispatchJourneyTicket{width:100%;padding:20px 18px;margin:12px 0}
+ & #nextHero>.europe-planner.edition-club-runway{margin-top:12px;padding:0 18px;border-radius:12px 12px 0 0}
+ & .dispatch-journey-fields{grid-template-columns:repeat(2,minmax(0,1fr));gap:20px 16px}
+ & .dispatch-journey-field:last-child{grid-column:1/-1}
+ & #clubHomes>#clubMedia{margin-top:28px}
+ & #clubHomes>#clubMedia .club-media-rail{--club-photo-height:320px}
+}}
+
+@media(max-width:360px){body[data-direction="club"][data-edition="club"][data-experience="panorama"][data-home-vision="dispatch"].europe-ready{
+ & #nextHero .europe-city-switch .europe-cities{column-gap:6px}
+ & #nextHero .europe-city-switch button{padding-inline:3px}
+ & #nextHero .europe-city-switch button>span:last-child{font-size:15px}
+ & #directionClubTicket{padding-inline:12px}
+ & #visionScene>.edition-atlas .panorama-globe-tools .boom-globe-reset{padding-inline:8px}
+ & #visionScene>.edition-atlas .panorama-globe-tools #nextMotionToggle{padding-inline:8px}
+}}
+
+/* One finite opening of the geographic aperture; controls never move with it. */
+@media(prefers-reduced-motion:no-preference){
+ body[data-home-vision="dispatch"]:not([data-panorama-motion-state="quiet"]) #visionScene [data-globe-state="ready"] .boom-globe-stage{animation:dispatch-aperture-open 800ms var(--p-ease) both}
+}
+@keyframes dispatch-aperture-open{from{opacity:0;transform:translateY(16px) scale(.97)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){body[data-home-vision="dispatch"] #visionScene .boom-globe-stage{animation:none}}

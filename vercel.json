@@ -45,6 +45,51 @@
   },
   "redirects": [
     {
+      "source": "/home-vector",
+      "destination": "/flight-next?direction=club&edition=club&experience=panorama&vision=vector",
+      "permanent": false
+    },
+    {
+      "source": "/home-dispatch",
+      "destination": "/flight-next?direction=club&edition=club&experience=panorama&vision=dispatch",
+      "permanent": false
+    },
+    {
+      "source": "/home-gate",
+      "destination": "/flight-next?direction=club&edition=club&experience=panorama&vision=gate",
+      "permanent": false
+    },
+    {
+      "source": "/home-connection",
+      "destination": "/flight-next?direction=club&edition=club&experience=panorama&vision=connection",
+      "permanent": false
+    },
+    {
+      "source": "/home-airframe",
+      "destination": "/flight-next?direction=club&edition=club&experience=panorama&vision=airframe",
+      "permanent": false
+    },
+    {
+      "source": "/home-signal",
+      "destination": "/flight-next?direction=club&edition=club&experience=panorama&vision=signal",
+      "permanent": false
+    },
+    {
+      "source": "/home-orbit",
+      "destination": "/flight-next?direction=club&edition=club&experience=panorama&vision=orbit",
+      "permanent": false
+    },
+    {
+      "source": "/home-terminal",
+      "destination": "/flight-next?direction=club&edition=club&experience=panorama&variant=terminal",
+      "permanent": false
+    },
+    {
+      "source": "/home-panorama",
+      "destination": "/flight-next?direction=club&edition=club&experience=panorama",
+      "permanent": false
+    },
+    {
       "source": "/proprietari",
       "destination": "/owners",
       "permanent": true

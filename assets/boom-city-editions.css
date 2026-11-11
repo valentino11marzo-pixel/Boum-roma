@@ -1,0 +1,107 @@
+/* An architectural city edition; colour belongs to the artwork, actions to BOOM. */
+body[data-direction="club"][data-edition="club"][data-experience="panorama"][data-home-vision="dispatch"][data-dispatch-composition="cityeditions"].europe-ready{
+ & #airspaceScene{grid-template-columns:minmax(0,1.65fr) minmax(430px,1fr)}
+ & #directionClubTicket .hero-promise{display:none}
+ & #cityEditionControls{position:absolute;z-index:6;top:28px;right:var(--airspace-gutter);display:flex;align-items:center;gap:12px}
+ & .city-edition-modes{display:flex;border:1px solid #55554d;border-radius:4px;background:#000}
+ & #cityEditionControls button{display:flex;align-items:center;justify-content:center;gap:6px;min-height:44px;margin:0;padding:10px 14px;border:0;border-radius:3px;background:#000;color:#fff;font:400 13px/1.3 var(--p-font);letter-spacing:0;box-shadow:none;white-space:nowrap}
+ & #cityEditionControls [data-city-edition-view][aria-pressed="true"]{background:#fff;color:#000}
+ & #cityEditionControls #nextMotionToggle{border:1px solid #55554d;font-size:12px}
+ & #cityEditionControls button:focus-visible{outline:2px solid #ffd700;outline-offset:3px}
+ & #cityEditionArtwork{position:absolute;inset:112px 40px 240px;display:grid;place-items:center;isolation:isolate;pointer-events:none}
+ & #cityEditionArtwork[hidden],& #visionScene[hidden]{display:none!important}
+ & .city-edition-bands{position:absolute;width:min(100%,510px);aspect-ratio:1;display:grid;place-items:center;z-index:-1;isolation:isolate}
+ & .city-edition-band{position:absolute;inset:0;border:10px solid #ffd700;border-radius:50%;box-sizing:border-box;transform-origin:50% 50%}
+ & .city-edition-band:nth-child(2){inset:20px;border-color:#f2a42b}
+ & .city-edition-band:nth-child(3){inset:40px;border-color:#ee6d28}
+ & .city-edition-band:nth-child(4){inset:60px;border-color:#dd3e39}
+ & .city-edition-band:nth-child(5){inset:80px;border-color:#b92c64}
+ & .city-edition-band:nth-child(6){inset:100px;border-color:#7137b7}
+ &[data-europe-city="rome"] .city-edition-bands{aspect-ratio:4/3}
+ &[data-europe-city="madrid"] .city-edition-band{border-radius:50% 50% 4px 4px}
+ &[data-europe-city="barcelona"] .city-edition-bands{width:min(74%,390px);aspect-ratio:4/5}
+ &[data-europe-city="barcelona"] .city-edition-band{border-radius:50% 50% 2px 2px}
+ &[data-europe-city="amsterdam"] .city-edition-band{border-radius:6px}
+ &[data-europe-city="london"] .city-edition-bands{aspect-ratio:3/2}
+ & #cityEditionArtwork #europeCitySignature{position:relative;display:grid;place-items:center;width:100%;height:100%;max-width:none;margin:0;padding:0;opacity:1;transform:none;animation:none!important}
+ & #cityEditionArtwork #europeCitySignature .europe-city-icon{display:block;width:min(100%,480px);height:auto;aspect-ratio:4/3;max-height:100%;margin:0;overflow:visible;animation:none!important}
+ & #cityEditionArtwork[data-city-assembling] #europeCitySignature>.europe-city-icon{visibility:hidden}
+ & #cityEditionAssembly{position:absolute;inset:0;margin:auto;perspective:650px;perspective-origin:50% 60%;pointer-events:none;color:#fff}
+ & .city-edition-sources{position:absolute;width:0;height:0;overflow:hidden}
+ & .city-edition-plane{position:absolute;inset:0;transform-origin:50% 100%;transform-style:preserve-3d;backface-visibility:hidden}
+ & .city-edition-plane>svg{display:block;width:100%;height:100%;overflow:hidden;fill:none;stroke:none}
+ & .city-edition-accents{position:absolute;inset:0;display:block;width:100%;height:100%;overflow:visible;color:#ffd700;fill:none;stroke:currentColor;stroke-width:3.2;stroke-linecap:butt}
+ & #cityEditionArtwork [data-city-art-layer="structure"]{color:#fff}
+ & #cityEditionArtwork [data-city-art-layer="accent"]{color:#ffd700}
+ & #cityEditionArtwork #europeCitySignature>span{display:none}
+ & #airspaceDecision{padding-top:36px}
+ &[data-city-edition-view="art"] #nextHeroTitle{position:absolute;inset:28px var(--airspace-gutter) 0;display:block;width:auto;height:auto;margin:0;pointer-events:none}
+ &[data-city-edition-view="art"] .hero-pretitle{display:block;max-width:12ch;font-size:28px;line-height:1.15}
+ &[data-city-edition-view="art"] #nextHero .vision-departure-record{position:absolute;bottom:126px;left:0;right:0;justify-content:center;min-height:122px;width:100%;margin:0}
+ &[data-city-edition-view="art"] #nextHero #nextHeroTitle>#nextSolariField{inset:auto -48px 100px;width:calc(100% + 96px);height:180px;opacity:.68}
+ &[data-city-edition-view="globe"] #nextHeroTitle{margin-top:92px}
+ &[data-city-edition-view="globe"] #visionScene{inset:278px 0 150px}
+ &[data-city-edition-view="globe"] #visionScene>.edition-atlas .panorama-globe-toolbar{inset:8px 24px auto auto}
+ &[data-city-edition-view="globe"] #visionScene>.edition-atlas .boom-globe-caption>a{width:max-content;white-space:nowrap}
+ & #nextHero #dispatchCities .dispatch-city-carrier{display:none!important}
+}
+@media(min-width:761px) and (max-width:1180px){body[data-direction="club"][data-edition="club"][data-experience="panorama"][data-home-vision="dispatch"][data-dispatch-composition="cityeditions"].europe-ready{
+ & #airspaceScene{grid-template-columns:minmax(0,1.25fr) minmax(350px,1fr)}
+ & #cityEditionControls{left:28px;right:28px;top:24px;justify-content:space-between;gap:8px}
+ & #cityEditionArtwork{inset:130px 28px 270px}
+ & .city-edition-bands{width:min(100%,390px)}
+ & .city-edition-band{border-width:8px}
+ & .city-edition-band:nth-child(2){inset:16px}
+ & .city-edition-band:nth-child(3){inset:32px}
+ & .city-edition-band:nth-child(4){inset:48px}
+ & .city-edition-band:nth-child(5){inset:64px}
+ & .city-edition-band:nth-child(6){inset:80px}
+ &[data-city-edition-view="art"] #nextHeroTitle{top:88px}
+ &[data-city-edition-view="art"] .hero-pretitle{max-width:none;font-size:24px}
+ &[data-city-edition-view="art"] #nextHero .vision-departure-record{bottom:154px;min-height:94px}
+ &[data-city-edition-view="art"] #nextHero #nextHeroTitle>#nextSolariField{bottom:130px;height:156px}
+ &[data-city-edition-view="globe"] #visionScene{inset:278px 0 232px}
+ &[data-city-edition-view="globe"] #visionScene>.edition-atlas .panorama-globe-toolbar{inset:auto 28px -50px auto}
+ &[data-city-edition-view="globe"] #visionScene>.edition-atlas .boom-globe-caption{left:28px;right:28px;bottom:-104px;min-height:46px;justify-content:space-between}
+ &[data-city-edition-view="globe"] #visionScene>.edition-atlas .boom-globe-caption>a{position:static;min-height:44px}
+}}
+@media(max-width:760px){body[data-direction="club"][data-edition="club"][data-experience="panorama"][data-home-vision="dispatch"][data-dispatch-composition="cityeditions"].europe-ready{
+ & #airspaceScene{display:flex}
+ & #directionClubTicket{height:488px}
+ & #cityEditionControls{left:20px;right:20px;top:12px;justify-content:space-between;gap:8px}
+ & #cityEditionControls button{padding:10px 12px;font-size:12px}
+ & #cityEditionControls #nextMotionToggle{padding:10px;min-width:88px}
+ & #cityEditionArtwork{inset:70px 20px 190px}
+ & .city-edition-bands{width:246px;max-width:90%}
+ &[data-europe-city="barcelona"] .city-edition-bands{width:190px}
+ & .city-edition-band{border-width:6px}
+ & .city-edition-band:nth-child(2){inset:12px}
+ & .city-edition-band:nth-child(3){inset:24px}
+ & .city-edition-band:nth-child(4){inset:36px}
+ & .city-edition-band:nth-child(5){inset:48px}
+ & .city-edition-band:nth-child(6){inset:60px}
+ & #cityEditionArtwork #europeCitySignature .europe-city-icon{width:300px;max-width:100%}
+ &[data-city-edition-view="art"] #nextHeroTitle{inset:0 20px;width:auto}
+ &[data-city-edition-view="art"] .hero-pretitle{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+ &[data-city-edition-view="art"] #nextHero .vision-departure-record{bottom:108px;min-height:78px}
+ &[data-city-edition-view="art"] #nextHero #nextHeroTitle>#nextSolariField{inset:auto -20px 90px;width:calc(100% + 40px);height:118px;opacity:.6}
+ &[data-city-edition-view="globe"] #nextHeroTitle{margin:72px 20px 0;gap:8px}
+ &[data-city-edition-view="globe"] .hero-pretitle{display:none}
+ &[data-city-edition-view="globe"] #visionScene{inset:142px 0 144px}
+ &[data-city-edition-view="globe"] #visionScene>.edition-atlas .dispatch-lenses{bottom:-32px}
+ &[data-city-edition-view="globe"] #visionScene>.edition-atlas .panorama-globe-toolbar{inset:auto 20px -32px auto}
+ &[data-city-edition-view="globe"] #visionScene>.edition-atlas .panorama-globe-toolbar button{font-size:12px;width:auto;padding:8px 12px;gap:8px}
+ &[data-city-edition-view="globe"] #visionScene>.edition-atlas .boom-globe-caption{bottom:20px}
+ &[data-city-edition-view="globe"] #visionScene>.edition-atlas .boom-globe-caption>a{bottom:0}
+ & #airspaceDecision{padding-top:28px}
+}}
+@media(max-width:359px){body[data-dispatch-composition="cityeditions"].europe-ready{
+ & #cityEditionControls{left:16px;right:16px;gap:6px}
+ & #cityEditionControls button{padding-inline:9px}
+ & #cityEditionControls #nextMotionToggle{min-width:84px;padding-inline:8px}
+}}
+@media(prefers-reduced-motion:reduce){body[data-dispatch-composition="cityeditions"]{
+ & .city-edition-band{animation:none;transition:none}
+ & #cityEditionAssembly{display:none}
+ & #cityEditionArtwork[data-city-assembling] #europeCitySignature>.europe-city-icon{visibility:visible}
+}}

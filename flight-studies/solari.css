@@ -1,0 +1,52 @@
+/* Extracted from design/pages-deco/solari-engine.html; all selectors/keyframes isolated. */
+
+/* ══ SOLARI 4.0 — la cella a palette, precisione tipografica ══════════
+   · metà esattamente al 50%: nessun pixel del glifo sottratto
+   · cerniera DIPINTA sopra (overlay) con perni laterali
+   · glifo centrato otticamente sul cap-height (runtime, --gs)
+   · larghezza cella calibrata sul glifo più largo del rullo (--cw) */
+#nextHero #nextDestinationBoard .fc2 {
+  --ch: 1.26em; --cw: 0.84em; --gs: 0px;
+  position:relative; display:inline-block;
+  width:var(--cw); height:var(--ch);
+  margin-right:0.07em; vertical-align:-0.20em;
+  border-radius:0.085em; background:#040404;
+  box-shadow:inset 0 0 0 1px rgba(239,235,223,0.05), 0 0.08em 0.3em rgba(0,0,0,0.6);
+  perspective:3em; color:var(--oro-flap);
+}
+#nextHero #nextDestinationBoard .fc2 i { position:absolute; left:0; width:100%; height:50%; overflow:hidden; font-style:normal; }
+#nextHero #nextDestinationBoard .fc2 i b { position:absolute; left:0; width:100%; height:var(--ch); line-height:var(--ch);
+  text-align:center; font-weight:inherit; transform:translateY(var(--gs)); }
+#nextHero #nextDestinationBoard .fc2 .st { top:0; border-radius:0.085em 0.085em 0 0; background:linear-gradient(180deg,#17171A,#0E0E10); z-index:1; }
+#nextHero #nextDestinationBoard .fc2 .sb { bottom:0; border-radius:0 0 0.085em 0.085em; background:linear-gradient(180deg,#09090B,#111114); z-index:1; }
+#nextHero #nextDestinationBoard .fc2 .st b { top:0; }
+#nextHero #nextDestinationBoard .fc2 .sb b { top:-100%; }
+#nextHero #nextDestinationBoard .fc2 .lt { top:0; border-radius:0.085em 0.085em 0 0; background:linear-gradient(180deg,#17171A,#0E0E10);
+  transform-origin:center bottom; z-index:4; display:none; }
+#nextHero #nextDestinationBoard .fc2 .lt b { top:0; }
+#nextHero #nextDestinationBoard .fc2 .lb { bottom:0; border-radius:0 0 0.085em 0.085em; background:linear-gradient(180deg,#09090B,#111114);
+  transform-origin:center top; transform:rotateX(88deg); z-index:3; display:none; }
+#nextHero #nextDestinationBoard .fc2 .lb b { top:-100%; }
+#nextHero #nextDestinationBoard .fc2 s { position:absolute; left:0; right:0; top:50%; height:0.035em; min-height:1px;
+  margin-top:calc(0.035em / -2);
+  background:linear-gradient(180deg, rgba(0,0,0,0.92), rgba(0,0,0,0.5));
+  z-index:6; text-decoration:none; }
+#nextHero #nextDestinationBoard .fc2 s::before, #nextHero #nextDestinationBoard .fc2 s::after { content:''; position:absolute; top:50%; width:0.055em; height:0.16em;
+  transform:translateY(-50%); background:linear-gradient(180deg,#000,#1A1A1A); border-radius:0.02em; }
+#nextHero #nextDestinationBoard .fc2 s::before { left:0; border-radius:0 0.02em 0.02em 0; }
+#nextHero #nextDestinationBoard .fc2 s::after { right:0; border-radius:0.02em 0 0 0.02em; }
+@keyframes nextSolariTop { 0% { transform:rotateX(0); filter:brightness(1); }
+  100% { transform:rotateX(-88deg); filter:brightness(0.45); } }
+@keyframes nextSolariBottom { 0% { transform:rotateX(88deg); filter:brightness(0.5); }
+  55% { filter:brightness(1.15); } 100% { transform:rotateX(0); filter:brightness(1); } }
+#nextHero #nextDestinationBoard.flap-scale { letter-spacing:0; white-space:nowrap; }
+/* Scoped to Flight Next. Root composition controls hero and display sizing. */
+#nextHero { position:relative; isolation:isolate; }
+#nextHero #nextSolariField { position:absolute; inset:0; width:100%; height:100%; z-index:-1; pointer-events:none; opacity:var(--next-solari-field-opacity,.58); }
+#nextHero #nextDestinationBoard { --oro-flap:#FFD700; display:inline-flex; align-items:center; justify-content:center; white-space:nowrap; line-height:1.26; min-height:1.26em; min-width:3.64em; letter-spacing:0; color:#FFD700; }
+#nextHero #nextDestinationBoard .fc2 { flex:none; }
+#nextHero #nextDestinationBoard .fc2:last-child { margin-right:0; }
+@media(prefers-reduced-motion:reduce) {
+  #nextHero #nextDestinationBoard .fc2 .lt,
+  #nextHero #nextDestinationBoard .fc2 .lb { animation:none!important; display:none!important; }
+}

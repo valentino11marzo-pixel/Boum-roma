@@ -1,0 +1,66 @@
+# BOOM Panorama — 5 November 2026
+
+An opt-in companion to Club: `/flight-next?direction=club&edition=club&experience=panorama`.
+Compare the complete journeys at `/flight-studio`.
+
+## Direction before composition
+
+The opening gives the working destination instrument room to breathe.
+The globe owns spatial depth; the Solari board confirms the chosen city; the planner
+turns intent into the existing homes or tenant-side service journey. Photography
+belongs with the real home, and the founder belongs with the person answering.
+
+Desktop: destination strip → headline/pass | large globe → original planner.
+Phone: destination strip → headline/pass → globe → original planner, including DOM order.
+Full view: title and controls → same globe with all six destinations → route/context.
+
+| Element | Club | Panorama |
+|---|---|---|
+| Globe | All six callouts on the home | One current-city callout; all six in Full view |
+| Hierarchy | Destination-led editorial composition | Clear narrative headline and unframed geographic globe |
+| Materials | Predominantly flat black/yellow | Strong black/yellow, original city signatures and service tickets |
+| Phone | Rome planner before the globe | Explore the globe before the planner |
+| Comparison | Separate preview URL | One-frame switch preserving the validated public brief |
+
+The active visual system is documented in [Aviation identity](panorama-aviation-notes.md), superseding the muted [Panorama polish](panorama-polish-notes.md):
+locally served Instrument Sans for the interface, original BOOM mark and Solari,
+black surfaces, prominent yellow selection/actions and perforated service tickets. The earlier
+arch and material grain were removed after visual review.
+
+## Motion score
+
+| Trigger | Time | Motion and interruption |
+|---|---:|---|
+| Existing globe arrival | 0–1100 ms | Finite camera entrance; shared pause/reduced-motion policies |
+| Full view by pointer | 0–200 ms | One container, opacity .3→1 and y 8→0; ease-out |
+| Full view by keyboard | 0 ms | Immediate, focus moves to Close |
+| Globe drag | Direct | Camera follows gesture; existing finite 420 ms release |
+| Reset | 650 ms | Existing camera reset |
+| Choose destination | 1220 ms | Close exploration first, then existing destination transition |
+| Form, titles, price, nav | 0 ms | Remain still and immediately usable |
+
+Closing cancels the entrance, restores the same canvas and returns focus. Selecting
+a destination restores the canvas before the canonical controller begins arrival.
+Reduced motion and shared pause cancel the added entrance; no idle animation added.
+
+Feel check: the eye first reads the promise, then city, then the geographic globe.
+The opening should feel spacious and tactile; touching Full view changes scale,
+not the data model. A long headline must not overpower the city or hide the next step.
+
+## Reference principles
+
+- [Collins Airshow moving maps](https://www.rtx.com/collinsaerospace/what-we-do/industries/business-aviation/cabin/content-and-entertainment/airshow-moving-maps): connect global orientation to destination context.
+- [Garmin G3000 PRIME](https://www.garmin.com/en-US/aviation/prime/): direct access to controls and visible state.
+- [Solari SkyWay](https://www.solari.it/en/products-type/eng-fids/): consistent information across surfaces.
+
+These inform hierarchy and interaction. BOOM remains a housing and support service:
+no invented flight statuses, customers, offices, availability or performance claims.
+Rome owns catalogue/Skyline; international destinations keep their real desk offers.
+
+## Verification scope
+
+Browser coverage checks 320/390/1440px complete Rome journeys, London currency and
+original form boundaries, modal focus and canvas identity, shared pause/reduced
+motion, and comparison draft preservation. Fixtures replace remote catalogue/map
+boundaries and prevent writes; separate visual review uses the public catalogue
+snapshot. This is preview validation, not a claim of measured conversion uplift.

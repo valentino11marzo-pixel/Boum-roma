@@ -1,0 +1,25 @@
+/* Club city emblems: one native signature, with readable architectural form.
+   Europe owns the selected artwork; its finite motion owns the two SVG layers.
+   Panorama and every vision keep their established city signatures. */
+body[data-direction="club"][data-edition="club"]:not([data-experience="panorama"]).europe-ready{
+ & #nextHero .hero-centre>.eyebrow{display:none}
+ & #nextHero .hero-centre>#europeCitySignature{display:flex;align-items:center;gap:16px;min-width:0;min-height:74px;margin:8px 0 12px;color:#f3f2ec;animation:none!important;transform:none!important}
+ & #nextHero .hero-centre>#europeCitySignature .europe-city-icon{display:block;flex:0 0 88px;width:88px;height:auto;aspect-ratio:4/3;overflow:visible;color:#f3f2ec;animation:none!important;transform:none!important}
+ & #nextHero .hero-centre>#europeCitySignature>span{display:block;min-width:0;max-width:32ch;color:#f3f2ec;font:400 14px/1.4 "Helvetica Neue",Helvetica,Arial,sans-serif;letter-spacing:0}
+ & #nextHero .hero-centre>#europeCitySignature small{display:block;margin-top:4px;color:#bbbcb6;font:400 12px/1.4 "Helvetica Neue",Helvetica,Arial,sans-serif;letter-spacing:0}
+ & #europeCitySignature [data-city-art-layer="structure"]{color:#f3f2ec}
+ & #europeCitySignature [data-city-art-layer="accent"]{color:#ffd700}
+ & #nextHero>.hero-bottom>:is(a,button){min-height:44px}
+ & #nextHero .hero-centre>#europeCitySignature[hidden]{display:none!important}
+}
+
+@media(max-width:650px){
+ body[data-direction="club"][data-edition="club"]:not([data-experience="panorama"]).europe-ready{
+  & #nextHero .hero-centre>#europeCitySignature{gap:14px}
+  & #nextHero .hero-centre>#europeCitySignature>span{max-width:none}
+ }
+}
+
+@media(forced-colors:active){
+ body[data-direction="club"][data-edition="club"]:not([data-experience="panorama"]).europe-ready #europeCitySignature :is([data-city-art-layer],span,small){color:CanvasText}
+}
