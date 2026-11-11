@@ -1,0 +1,18 @@
+{
+  "montezebio": {
+    "id": "esFhjFMVfZtkIrhkx0PR",
+    "source": "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FesFhjFMVfZtkIrhkx0PR%2Fms18d3o8_00_27bce535.jpg?alt=media",
+    "file": "montezebio.jpg",
+    "sha256": "3e937945a0d529c507771edfedbaab49fc92adbf68c836a12281e4d6443179de",
+    "packaging": "Byte-for-byte copy of the verified BOOM study asset; no image processing.",
+    "usage": "Design-study property photograph. No current availability is claimed; check the original listing."
+  },
+  "piscinula": {
+    "id": "cezFMXTWnHUDgb1H2WWm",
+    "source": "https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/listings%2Fenhanced%2FcezFMXTWnHUDgb1H2WWm%2Fmrzsxcyw_00_4d6b85f3.jpg?alt=media",
+    "file": "piscinula.jpg",
+    "sha256": "7e87b72a2a469ce7767e7180890d5f857544dc67f3817958b4d77d560f7ffe9d",
+    "packaging": "Byte-for-byte copy of the verified BOOM study asset; no image processing.",
+    "usage": "Design-study property photograph. No current availability is claimed; check the original listing."
+  }
+}

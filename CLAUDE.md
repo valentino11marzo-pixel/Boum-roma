@@ -5170,6 +5170,13 @@ La viewport reale1280×720 usa una scena più bassa e controlli città da48px: i
 Il suggerimento dopo inattività conserva il timer nativo e appare sopra i comandi; due casi con movimento attivo verificano la separazione reale a1280×720 e390×844.
 Regia in `design/dispatch-meridian-direction.md`; due filoni coordinati in `design/europe-dual-track-2026-11-11.md`. Meridian resta Preview noindex: l’ingresso `/` e il rilascio di produzione richiedono il percorso già documentato.
 
+Flight Dispatch Passage 11/11: `composition=passage` unisce la geografia di Meridian alla gerarchia dei biglietti nativi: scelta del bisogno in una fascia, promessa e contenuto nel corpo, prezzo e continuazione nello stub.
+`boom-dispatch-passage.css` governa la sola presentazione; servizio, modulo, canvas, validazione, tariffa e handoff restano originali. Studio conserva tutte le alternative e collega le esplorazioni editoriali.
+Regia in `design/dispatch-passage-direction.md`; `flightpassageui` verifica journey, stati estesi, condizioni e geometria anche nella viewport1280×720. Il percorso resta opt-in/noindex e non modifica l’index.
+Flight Studies 11/11: `/flight-studies`, `/flight-studies/inhabit` e `/flight-studies/your-move` rendono le due esplorazioni disponibili sulla Preview HTTPS, senza dipendere dal server locale.
+Leggono `boom-desks-public.json`, proiezione generata delle fonti città; nome, valuta, momento di addebito, dichiarazione locale e trigger sono solo fatti già pubblici. Nessun listino parallelo o nuovo modulo cliente.
+Le foto restano originali, Solari e firma riusano gli asset del progetto; i link proseguono sui servizi nativi. `flightstudies` verifica ingressi diretti, tutte le combinazioni e fallback senza prezzi obsoleti.
+
 Flight Lab 31/10: `/flight-lab` confronta Atlas, Residence e Club sulle stesse viste reali di `/flight-next?direction=…`, senza cambiare il sito pubblico.
 Le composizioni riusano catalogo, Solari, iframe Skyline, salvataggi e Apply; nessun secondo catalogo o nuovo handler di invio.
 Residence usa una foto realmente restituita dal catalogo pubblico (fallback a una casa pubblica non chiusa); Atlas sposta la stessa mappa nel primo schermo.

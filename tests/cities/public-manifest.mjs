@@ -23,16 +23,17 @@ check('committed projection contains every active selling desk in the current so
 function contract(projection){
   assert.deepEqual(Object.keys(projection).sort(),['cities','refund']);assert.deepEqual(Object.keys(projection.refund),['rule']);
   for(const city of Object.values(projection.cities)){
-    assert.deepEqual(Object.keys(city).sort(),['hero','live','mode','pricing','slug']);
-    assert.deepEqual(Object.keys(city.hero),['faresHead']);assert.deepEqual(Object.keys(city.hero.faresHead),['b']);assert.deepEqual(Object.keys(city.pricing),['plans']);
-    for(const plan of city.pricing.plans)assert.deepEqual(Object.keys(plan).sort(),['condition','id','includes','label','offerDescription','price']);
+    assert.deepEqual(Object.keys(city).sort(),['chargeAt','city','currency','hero','live','mode','pricing','slug']);
+    assert.deepEqual(Object.keys(city.hero),['faresHead']);assert.deepEqual(Object.keys(city.hero.faresHead),['b']);assert.deepEqual(Object.keys(city.pricing).sort(),['plans','sub']);
+    for(const plan of city.pricing.plans)assert.deepEqual(Object.keys(plan).sort(),['condition','id','includes','label','offerDescription','price','trigger']);
   }
 }
 check('every exposed field is explicitly allowlisted and copied verbatim from its public desk source',()=>{
   const projection=publicDeskProjection(shared,cities);contract(projection);
   for(const source of cities.filter(c=>c.live&&c.mode==='search'&&c.checkout)){
     const actual=projection.cities[source.slug];assert.equal(actual.hero.faresHead.b,source.hero.faresHead.b);
-    for(const plan of actual.pricing.plans){const sourcePlan=source.pricing.plans.find(p=>p.id===plan.id);for(const key of Object.keys(plan))assert.deepEqual(plan[key],sourcePlan[key]);}
+    assert.equal(actual.city,source.city);assert.equal(actual.currency,source.currency||'EUR');assert.equal(actual.chargeAt,source.chargeAt||'checkout');assert.equal(actual.pricing.sub,source.pricing.sub||'');
+    for(const plan of actual.pricing.plans){const sourcePlan=source.pricing.plans.find(p=>p.id===plan.id);for(const key of Object.keys(plan))assert.deepEqual(plan[key],key==='trigger'?(sourcePlan.trigger||''):sourcePlan[key]);}
   }
 });
 check('new private fields cannot leak; ordering is deterministic and non-selling live desks are excluded',()=>{
@@ -54,6 +55,27 @@ check('privacy and not-open filtering regressions are caught by mutations of the
     ["if (city.live !== true || city.mode !== 'search' || city.checkout !== true) continue;",'if (false) continue;'],
     ['out.cities[city.slug] = {','out.cities[city.slug] = { internalNotes: city.internalNotes,']
   ]){assert.ok(source.includes(before));const mutant=vm.runInNewContext('('+source.replace(before,after)+')');assert.throws(()=>prove(mutant));}
+});
+check('currency and payment conditions cannot drift silently from the canonical public desk',()=>{
+  function prove(fn){
+    const p=fn(shared,cities);
+    assert.equal(p.cities.london.currency,'GBP');assert.equal(p.cities.milan.currency,'EUR');
+    for(const slug of ['paris','berlin']){
+      assert.equal(p.cities[slug].chargeAt,'signing');
+      const source=cities.find(c=>c.slug===slug);
+      for(const plan of p.cities[slug].pricing.plans)assert.equal(plan.trigger,source.pricing.plans.find(x=>x.id===plan.id).trigger);
+    }
+    assert.equal(p.cities.milan.chargeAt,'checkout');
+    assert.equal(p.cities.madrid.pricing.sub,cities.find(c=>c.slug==='madrid').pricing.sub);
+  }
+  prove(publicDeskProjection);
+  const source=publicDeskProjection.toString();
+  for(const [before,after] of [
+    ["currency: city.currency || 'EUR'","currency: 'EUR'"],
+    ["chargeAt: city.chargeAt || 'checkout'","chargeAt: 'checkout'"],
+    ["trigger: plan.trigger || ''","trigger: ''"],
+    ["sub: city.pricing.sub || ''","sub: ''"]
+  ]){assert.ok(source.includes(before));assert.throws(()=>prove(vm.runInNewContext('('+source.replace(before,after)+')')));}
 });
 check('writeAll generates the manifest, --check rejects missing or stale content, and rebuild restores it',()=>{
   const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'boom-desks-public-'));

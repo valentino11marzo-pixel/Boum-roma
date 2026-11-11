@@ -448,7 +448,7 @@
       if(['airspace','cityeditions'].includes(document.body.dataset.dispatchComposition)&&!s.fullView){globeRadius=Math.min(w*.43,h*(w>600?.68:.49))*zoom;}
       // Meridian keeps the complete sphere in its open stage. Canvas, labels
       // and pointer projection continue to use the same native camera.
-      if(document.body.dataset.dispatchComposition==='meridian'&&!s.fullView){globeRadius=Math.min(w*.43,h*.47)*zoom;}
+      if(['meridian','passage'].includes(document.body.dataset.dispatchComposition)&&!s.fullView){globeRadius=Math.min(w*.43,h*.47)*zoom;}
       var wideAtlas=document.body.dataset.dispatchComposition==='atlas'&&!s.fullView&&w>h*2;
       var horizonY=h*(wideAtlas?.98:.80),horizonRadius=(wideAtlas?Math.min(w*.55,h*.94):Math.min(w*.72,h*.78))*zoom;
       return {cx:w*.5,cy:globeY+(horizonY-globeY)*mix,radius:globeRadius+(horizonRadius-globeRadius)*mix};

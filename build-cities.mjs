@@ -3994,11 +3994,15 @@ export function publicDeskProjection(shared, cities) {
   for (const city of [...cities].sort((a, b) => a.slug.localeCompare(b.slug))) {
     if (city.live !== true || city.mode !== 'search' || city.checkout !== true) continue;
     out.cities[city.slug] = {
-      slug: city.slug, live: city.live, mode: city.mode,
+      slug: city.slug, city: city.city, live: city.live, mode: city.mode,
+      // Source defaults are validated against the market registry by renderCity.
+      // These are already-public page facts, never a second charging policy.
+      currency: city.currency || 'EUR', chargeAt: city.chargeAt || 'checkout',
       hero: { faresHead: { b: city.hero.faresHead.b } },
-      pricing: { plans: city.pricing.plans.map((plan) => ({
+      pricing: { sub: city.pricing.sub || '', plans: city.pricing.plans.map((plan) => ({
         id: plan.id, label: plan.label, price: plan.price,
         condition: plan.condition, offerDescription: plan.offerDescription,
+        trigger: plan.trigger || '',
         includes: plan.includes.slice()
       })) }
     };

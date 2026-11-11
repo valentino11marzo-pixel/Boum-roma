@@ -19,7 +19,7 @@
   var query = new URLSearchParams(location.search);
   var baseClub = query.get('edition') === 'club' && query.get('experience') !== 'panorama';
   var dispatch = query.get('edition') === 'club' && query.get('experience') === 'panorama' && query.get('vision') === 'dispatch';
-  var airspace = dispatch && ['airspace','cityeditions','meridian'].includes(query.get('composition'));
+  var airspace = dispatch && ['airspace','cityeditions','meridian','passage'].includes(query.get('composition'));
   var city = places[query.get('city')] ? query.get('city') : 'rome';
   if (query.get('view') === 'apartments' || query.get('view') === 'detail') city = 'rome';
   var need = needs[query.get('need')] ? query.get('need') : 'search';
@@ -100,7 +100,7 @@
       if(slug==='rome') input.dispatchEvent(new Event('input',{bubbles:true}));
     });
   }
-  function editionURL(path){var u=new URL(path,location.origin),q=new URLSearchParams(location.search);if(['club','perspective'].includes(q.get('edition')))u.searchParams.set('edition',q.get('edition'));if(q.get('edition')==='club'&&q.get('experience')==='panorama'){u.searchParams.set('experience','panorama');if(['airframe','signal','orbit','dispatch','gate','connection','vector'].includes(q.get('vision'))){u.searchParams.set('vision',q.get('vision'));u.searchParams.delete('variant');if(q.get('vision')==='dispatch'&&['open','atlas','concourse','instrument','observatory','airspace','cityeditions','meridian'].includes(q.get('composition')))u.searchParams.set('composition',q.get('composition'));else u.searchParams.delete('composition');}else{u.searchParams.delete('vision');if(q.get('variant')==='terminal')u.searchParams.set('variant','terminal');else u.searchParams.delete('variant');}}if(q.get('duo')==='1')u.searchParams.set('duo','1');return u.pathname+u.search+u.hash;}
+  function editionURL(path){var u=new URL(path,location.origin),q=new URLSearchParams(location.search);if(['club','perspective'].includes(q.get('edition')))u.searchParams.set('edition',q.get('edition'));if(q.get('edition')==='club'&&q.get('experience')==='panorama'){u.searchParams.set('experience','panorama');if(['airframe','signal','orbit','dispatch','gate','connection','vector'].includes(q.get('vision'))){u.searchParams.set('vision',q.get('vision'));u.searchParams.delete('variant');if(q.get('vision')==='dispatch'&&['open','atlas','concourse','instrument','observatory','airspace','cityeditions','meridian','passage'].includes(q.get('composition')))u.searchParams.set('composition',q.get('composition'));else u.searchParams.delete('composition');}else{u.searchParams.delete('vision');if(q.get('variant')==='terminal')u.searchParams.set('variant','terminal');else u.searchParams.delete('variant');}}if(q.get('duo')==='1')u.searchParams.set('duo','1');return u.pathname+u.search+u.hash;}
   function canonicalHome(slug) { return editionURL('/flight-next?direction=club&city='+slug); }
   function cleanQuery(params) {
     Array.from(params.keys()).forEach(function(key){
@@ -213,7 +213,9 @@
       disclosure.append(label,inclusions.querySelector('ul'));
       // Airspace and City Editions keep the full native scope alongside the
       // inclusions, leaving the actual offer name and fee immediately legible.
-      if(airspace)label.after(pass.querySelector('.europe-service-copy>p:not(.eyebrow)'));
+      if(airspace&&query.get('composition')!=='passage')label.after(pass.querySelector('.europe-service-copy>p:not(.eyebrow)'));
+      // Passage keeps the actual promise visible on the ticket; the full
+      // native scope remains in the same user-controlled disclosure.
       pass.querySelector('.europe-service-facts').before(disclosure);inclusions.remove();
     }
     if(currentClub){el('europeDeskContinue').textContent=(dispatch?'Review ':'Continue with ')+plan.label+' ↗';if(el('europeSelectedService'))el('europeSelectedService').textContent=dispatch?'Your next step':plan.label;}

@@ -260,7 +260,7 @@
     updateControl();
     // Airspace and City Editions show the selected offer beside the board.
     // Their automatic presentation must never advertise another destination.
-    if(['airspace','cityeditions','meridian'].includes(document.body.dataset.dispatchComposition))return;
+    if(['airspace','cityeditions','meridian','passage'].includes(document.body.dataset.dispatchComposition))return;
     if (!interacted && !explicitEntry && !hasBrief() && scrollY < 2 &&
         (!document.activeElement || document.activeElement === document.body)) start();
   }

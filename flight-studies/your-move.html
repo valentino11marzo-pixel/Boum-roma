@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="theme-color" content="#ffffff">
+  <title>Your Move — BOOM design study</title>
+  <link rel="icon" href="/assets/boom-logo-mark.svg">
+  <link rel="stylesheet" href="/flight-studies/solari.css">
+  <link rel="stylesheet" href="/flight-studies/your-move.css">
+  <script src="/assets/boom-flight-next-motion.js" defer></script>
+  <script src="/flight-studies/public-data.js" defer></script><script src="/flight-studies/your-move.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#move">Skip to your move</a>
+  <div class="study"><a href="/flight-studies">Design studio</a><span>Your Move · design prototype</span><a href="/flight-studies/inhabit">View Inhabit <span aria-hidden="true">↗</span></a></div>
+  <header class="header wrap">
+    <a class="brand" href="/flight-studies/your-move" aria-label="BOOM, Your Move home"><img src="/assets/boom-brand-lockup-ink.svg" width="600" height="160" alt="BOOM"></a>
+    <nav aria-label="Main navigation"><a href="#agency">The agency</a><a href="#questions">Questions</a><button type="button" id="pause" aria-pressed="false"><span class="pause-icon" aria-hidden="true">Ⅱ</span><span id="pauseText">Pause motion</span></button></nav>
+  </header>
+  <main>
+    <section id="move" class="move wrap" aria-labelledby="moveTitle">
+      <div class="intro"><p>Homes in Rome.<br>Rental support across Europe.</p><span class="edition">A city. A need. A clear next step.</span></div>
+      <h1 id="moveTitle" class="sr-only">Plan your next move with BOOM</h1>
+      <div class="sentence city-sentence"><label for="city">I’m moving to</label><span class="select-shell city-shell"><select id="city" name="city" disabled aria-label="The city you are moving to"><option value="rome">Rome</option><option value="amsterdam">Amsterdam</option><option value="barcelona">Barcelona</option><option value="berlin">Berlin</option><option value="london">London</option><option value="madrid">Madrid</option><option value="milan" selected>Milan</option><option value="paris">Paris</option><option value="valencia">Valencia</option></select><svg viewBox="0 0 32 32" aria-hidden="true"><path d="m7 12 9 9 9-9"/></svg></span><span class="punctuation" aria-hidden="true">.</span></div>
+      <div class="sentence need-sentence"><label for="need">I need</label><span class="select-shell need-shell"><select id="need" name="need" disabled aria-label="The support you need"><option value="full-search">help finding a home</option><option value="application-pack">help with my application</option><option value="attended-viewing">someone to visit a home</option></select><svg viewBox="0 0 32 32" aria-hidden="true"><path d="m7 12 9 9 9-9"/></svg></span><span class="punctuation" aria-hidden="true">.</span></div>
+      <div class="move-bottom"><p id="intentNote">An agent on your side of the rental search.<br>Choose what you need. See exactly what it includes.</p><div class="quick-summary"><div><span id="quickPlan">Loading service</span><strong id="quickPrice">Checking details…</strong></div><a class="review-link" href="#service">View my service <span aria-hidden="true">↓</span></a></div></div>
+      <p id="loadingError" class="error" role="alert" hidden>Service details could not load. <a href="https://www.boomrome.com/desks">Visit the original BOOM desks</a> for current prices and services.</p>
+    </section>
+
+    <section id="service" class="service" aria-labelledby="serviceTitle">
+      <div id="nextHero" data-next-field="on" data-next-field-visibility="canvas">
+        <canvas id="nextSolariField" aria-hidden="true"></canvas>
+        <div class="service-top wrap"><div><span class="service-kicker" id="deskLabel">Your Milan desk</span><div id="nextDestinationBoard" aria-label="Milan">MILAN</div></div><div class="stage-side"><p id="serviceType">Tenant-side rental support.<br>Based in Rome. Working for your move.</p><button type="button" id="pauseStage" aria-label="Pause city animation" aria-pressed="false"><span aria-hidden="true">Ⅱ</span><span id="pauseStageText">Pause</span></button></div></div>
+      </div>
+      <div class="service-content wrap">
+        <div class="offer"><h2 id="serviceTitle">Your selected service</h2><p id="serviceDescription">Loading the current offer from BOOM’s city desk.</p><div class="price-line"><strong id="servicePrice">—</strong><p id="serviceCondition">Checking current conditions</p></div><p class="payment-note" id="paymentNote">Read the full service conditions on the original city page before ordering.</p></div>
+        <div class="scope"><h3 id="scopeTitle">What’s included</h3><ul id="includes"><li>Loading the current service scope.</li></ul><div class="handoff"><a class="button" id="continue" href="https://www.boomrome.com/milan#fare-full-search"><span id="continueText">Review Full Search in Milan</span><span aria-hidden="true">↗</span></a><p id="handoffNote">Review the full service and terms on BOOM.<br>No payment at this step.</p><a id="callLink" class="text-link" href="https://www.boomrome.com/milan#desk">Prefer to talk? Meet your desk <span aria-hidden="true">↗</span></a></div></div>
+      </div>
+      <div class="service-foot wrap"><span id="contextNote">A service for the tenant. This is not a catalogue of Milan homes.</span><a id="termsLink" href="https://www.boomrome.com/terms#city-desks">Read the conditions <span aria-hidden="true">↗</span></a></div>
+    </section>
+
+    <section id="agency" class="agency wrap" aria-labelledby="agencyTitle">
+      <figure><img src="/img/founder-terrazza.jpg" width="1100" height="1648" alt="Valentino Egidi, founder of BOOM, photographed in Rome" loading="lazy"><figcaption>Valentino Egidi, in Rome.</figcaption></figure>
+      <div class="agency-copy"><p class="section-note">The person behind BOOM</p><h2 id="agencyTitle">A person.<br>On your side.</h2><p>Moving starts with questions. About the home, the paperwork, the cost, and the person you can call.</p><p>I’m Valentino Egidi, founder of BOOM. Our agency is based in Rome. Our European desks provide rental support on the tenant’s side, with services and conditions specific to each city.</p><div class="signature"><strong>Valentino Egidi</strong><span>Founder of BOOM<br>Egidi Immobiliare S.r.l.</span></div><a class="agency-link" href="https://www.boomrome.com/about">Meet the agency <span aria-hidden="true">↗</span></a></div>
+    </section>
+
+    <section class="next-steps wrap" aria-labelledby="stepsTitle"><div class="section-head"><h2 id="stepsTitle">From a decision<br>to a real conversation.</h2><p>You can explore before sharing your details.</p></div><ol><li><span class="step-number" aria-hidden="true">1</span><div><h3>Choose your support</h3><p>A city and a need are enough to start. In Rome, you can explore the homes directly.</p></div></li><li><span class="step-number" aria-hidden="true">2</span><div><h3>Read the whole offer</h3><p>See the fee, what’s included and the conditions that apply to your chosen city.</p></div></li><li><span class="step-number" aria-hidden="true">3</span><div><h3>Continue with BOOM</h3><p>Open the original service page to speak with the desk or take the next step.</p></div></li></ol></section>
+
+    <section id="questions" class="questions wrap" aria-labelledby="questionsTitle"><h2 id="questionsTitle">Before you move.</h2><div class="faq-list"><details><summary>Do you have homes in every city?<span aria-hidden="true">+</span></summary><p>The BOOM homes catalogue is in Rome. In the other cities shown here, BOOM provides tenant-side rental search and support. Selecting a European desk does not open a local BOOM property catalogue.</p></details><details><summary>What will I pay?<span aria-hidden="true">+</span></summary><p id="feeAnswer">Choose your city to see current service fees. Read the original city page for the full conditions before you order.</p></details><details><summary>What if the search isn’t right for me?<span aria-hidden="true">+</span></summary><p id="refundAnswer">The conditions depend on your city and service. Review the original city page before you order.</p></details><details><summary>Who do I speak with?<span aria-hidden="true">+</span></summary><p>Valentino Egidi, founder of BOOM. The agency is Egidi Immobiliare S.r.l., based at Via dei Coronari 181/184, 00186 Roma. You can find the desk’s contact options and hours on its original BOOM page.</p></details><details><summary>Can I browse without choosing dates?<span aria-hidden="true">+</span></summary><p>Yes. You can choose a city, read the service and explore the Rome homes before providing dates or personal details. Any enquiry or order continues on the original BOOM service.</p></details></div></section>
+  </main>
+  <footer><div class="footer-top wrap"><img src="/assets/boom-brand-lockup-ink.svg" width="600" height="160" alt="BOOM"><p>Rome homes.<br>European support.</p><a href="#move">Plan your move <span aria-hidden="true">↑</span></a></div><div class="footer-bottom wrap"><p>Egidi Immobiliare S.r.l.<br>Via dei Coronari 181/184, 00186 Roma<br>BOOM® · EU trade mark 019317594</p><nav aria-label="Footer"><a href="https://www.boomrome.com/apartments">Rome homes</a><a href="https://www.boomrome.com/desks">European desks</a><a href="https://www.boomrome.com/privacy">Privacy</a><a href="https://www.boomrome.com/terms#city-desks">Terms</a></nav><a href="/flight-studies">Back to design studio</a></div></footer>
+  <div class="sr-only" id="selectionStatus" aria-live="polite" aria-atomic="true"></div>
+</body>
+</html>
