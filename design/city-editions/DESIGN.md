@@ -185,19 +185,30 @@ never cloned. The six bands are decorative and hidden from assistive technology.
 The native city owner supplies the landmark; its adjacent duplicate caption is
 hidden in this scene. The real offer updates immediately when the city changes.
 
-Initial entry and a pointer city choice may construct the artwork once. Six
-WAAPI animations use (270ms) duration with (30ms) stagger, totaling (420ms).
-Each band scales from (.94) to (1) while its opacity rises from (0) to (1).
-The emblem fades from (.25) to (1) over (180ms), after (60ms). Both use
-`fill: backwards`, so their delayed first frames remain hidden or subdued rather
-than flashing final styling. The existing edition easing is authoritative.
+Entry shows the complete original mark. A pointer city choice may construct the
+architecture once. One fetch of the canonical SVG supplies temporary local
+definitions; HTML planes reference those exact source paths. Shallow
+perspective, directional clip reveals and normalized gold stroke drawing follow
+the [six city scores](../city-editions-motion.md), completing within (700ms).
+The bands remain still. WAAPI uses `fill: both` until the temporary assembly is
+removed and the exact original signature is restored. The existing edition
+easing is authoritative. Structure stays opaque, so overlapping parts do not
+create translucent seams. Phones halve the depth and rotation. There is no
+volumetric model, simulated material or new rendering dependency.
+An unavailable SVG leaves the complete native mark visible without a delayed
+replay. Local definitions avoid external SVG instancing races; there is no new
+timer or animation-frame loop. Explicit structural and accent strokes preserve
+the original artwork instead of inheriting the site's general icon stroke.
+All planes share the native (160×120) grid and use semantic masks; layout centers
+the assembly without a transform. This preserves sharpness on dense displays.
 
 **The Finite Decoration Rule.** Decorative construction never delays the offer
 or creates another animation clock, form, customer state or dependency.
 
 Keyboard/API/history selection settles immediately. Pause, reduced motion,
-Save-Data, hidden document, offscreen artwork, view exit and rapid retargeting
-cancel decorative animations. Page exit disconnects observers; return restores
+Save-Data, hidden document, offscreen artwork, resize, view exit and rapid retargeting
+cancel decorative animations. Rapid retargeting settles the new selection without
+queuing another sequence. Page exit disconnects observers; return restores
 observation. Solari and native globe keep their original lifecycle ownership.
 The local view attribute describes presentation only.
 

@@ -5153,9 +5153,14 @@ La nuova superficie è una Preview opt-in/noindex; non sostituisce `/` o `/desks
 
 Flight City Editions 11/11: `composition=cityeditions` sviluppa il riferimento grafico dei reel con grandi architetture originali BOOM, bande concentriche e Solari alla base. Studio la conserva come alternativa distinta da Airspace.
 La firma città originale entra nella scena; City edition/Globe alterna l’opera e il globo nativo senza cambiare destinazione, servizio o preferenze. Pausa originale resta sempre accessibile; Full view usa lo stesso canvas.
-`boom-city-editions.js/css` possiede solo la presentazione: costruzione finita entro420ms, cancellata da nuova scelta, tastiera, quiete, invisibilità o uscita. Non aggiunge clock, form, prezzi, catalogo o stato commerciale.
+`boom-city-editions.js/css` possiede solo la presentazione: costruzione architettonica finita entro700ms, cancellata da nuova scelta, tastiera, quiete, invisibilità o uscita. Non aggiunge clock, form, prezzi, catalogo o stato commerciale.
 Il foglio decisione e la biglietteria ereditano Airspace. Le guardie condivise ammettono entrambe le composizioni, mentre URL commerciali e Apply conservano le allowlist originali.
 Regia in `design/city-editions-direction.md`; `flightcityeditionsui` copre proporzioni, originali, due viste, movimento, handoff e bozza Studio. La variante resta una Preview noindex.
+Motion città 11/11: le bande ora restano ferme; piani HTML con prospettiva e reveal costruiscono parti nominate dell’unico SVG, poi tracciano gli accenti gialli. Sei regie distinte in `design/city-editions-motion.md`.
+Il nodo firma originale torna su ogni fine/interruzione; una lettura dello SVG fornisce definizioni transitorie esatte, senza seconda geometria scritta a mano. Entrata statica, scelta esplicita animata solo ad asset pronto; nessun replay tardivo.
+Una seconda scelta durante la sequenza mostra subito la nuova città, senza coda; resize con dimensioni cambiate elimina i piani. Clip curve rispettano le arcate di Roma; stroke espliciti conservano bianchi/gialli originali.
+Offerta e controlli restano immediati. Telefono riduce profondità/rotazione; Pausa, movimento ridotto e ingressi non da puntatore conservano il segno completo. La suite verifica costruzione reale, cancellazioni e continuità nativa.
+`design/europe-studio.md` raccoglie brief e collaborazione: Codex integra, Claude revisiona lo stesso ramo senza scritture concorrenti. Le registrazioni browser distinguono il movimento dal solo stato finale.
 
 Flight Lab 31/10: `/flight-lab` confronta Atlas, Residence e Club sulle stesse viste reali di `/flight-next?direction=…`, senza cambiare il sito pubblico.
 Le composizioni riusano catalogo, Solari, iframe Skyline, salvataggi e Apply; nessun secondo catalogo o nuovo handler di invio.

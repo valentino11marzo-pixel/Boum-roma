@@ -36,13 +36,18 @@ when City edition is selected. The original city signature is moved, never clone
 The scene's geometry echoes the landmark: Roman ellipse, Madrid arch, Barcelona
 tall arch, Amsterdam rectilinear bands, London capsule, Milan concentric circles.
 
-SIGNATURE: A finite420ms construction responds to a pointer destination choice;
-six bands use270ms native WAAPI scale/opacity with30ms stagger, and the emblem a
-180ms opacity response. The source's edition easing remains authoritative. The
-real offer updates immediately. Initial entry can construct once; the scene
-switch is immediate. Keyboard/API/history, reduced motion and Pause settle artwork.
-Rapid retargeting, view exit, hidden document, offscreen artwork and data saving
-cancel decorative work. No extra animation frame loop or commercial state.
+SIGNATURE: A finite architectural construction responds to a pointer destination
+choice, settling within700ms. Each city has a distinct score: arcades, portals,
+spires, houses or bridge components assemble through shallow perspective and
+clipped reveals; original gold lines finish the mark. Bands remain stationary.
+The original SVG geometry and edition easing remain authoritative. The real offer
+updates immediately. Entry presents the complete mark; a deliberate city choice
+constructs only when canonical asset templates are ready. The scene switch is
+immediate. Keyboard/API/history, reduced motion and Pause settle artwork. Rapid
+retargeting settles the next city without replay; resize, view exit, hidden
+document, offscreen artwork and data saving cancel decorative work. No extra
+animation frame loop or commercial state. See [motion](city-editions-motion.md)
+and the [shared studio brief](europe-studio.md).
 
 FINISH: Review five widths, both scene modes, original-node identity, full native
 globe return, service/currency handoff and Studio privacy. Use real public imagery

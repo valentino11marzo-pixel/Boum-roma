@@ -25,6 +25,12 @@ body[data-direction="club"][data-edition="club"][data-experience="panorama"][dat
  &[data-europe-city="london"] .city-edition-bands{aspect-ratio:3/2}
  & #cityEditionArtwork #europeCitySignature{position:relative;display:grid;place-items:center;width:100%;height:100%;max-width:none;margin:0;padding:0;opacity:1;transform:none;animation:none!important}
  & #cityEditionArtwork #europeCitySignature .europe-city-icon{display:block;width:min(100%,480px);height:auto;aspect-ratio:4/3;max-height:100%;margin:0;overflow:visible;animation:none!important}
+ & #cityEditionArtwork[data-city-assembling] #europeCitySignature>.europe-city-icon{visibility:hidden}
+ & #cityEditionAssembly{position:absolute;inset:0;margin:auto;perspective:650px;perspective-origin:50% 60%;pointer-events:none;color:#fff}
+ & .city-edition-sources{position:absolute;width:0;height:0;overflow:hidden}
+ & .city-edition-plane{position:absolute;inset:0;transform-origin:50% 100%;transform-style:preserve-3d;backface-visibility:hidden}
+ & .city-edition-plane>svg{display:block;width:100%;height:100%;overflow:hidden;fill:none;stroke:none}
+ & .city-edition-accents{position:absolute;inset:0;display:block;width:100%;height:100%;overflow:visible;color:#ffd700;fill:none;stroke:currentColor;stroke-width:3.2;stroke-linecap:butt}
  & #cityEditionArtwork [data-city-art-layer="structure"]{color:#fff}
  & #cityEditionArtwork [data-city-art-layer="accent"]{color:#ffd700}
  & #cityEditionArtwork #europeCitySignature>span{display:none}
@@ -94,4 +100,8 @@ body[data-direction="club"][data-edition="club"][data-experience="panorama"][dat
  & #cityEditionControls button{padding-inline:9px}
  & #cityEditionControls #nextMotionToggle{min-width:84px;padding-inline:8px}
 }}
-@media(prefers-reduced-motion:reduce){body[data-dispatch-composition="cityeditions"] .city-edition-band{animation:none;transition:none}}
+@media(prefers-reduced-motion:reduce){body[data-dispatch-composition="cityeditions"]{
+ & .city-edition-band{animation:none;transition:none}
+ & #cityEditionAssembly{display:none}
+ & #cityEditionArtwork[data-city-assembling] #europeCitySignature>.europe-city-icon{visibility:visible}
+}}
