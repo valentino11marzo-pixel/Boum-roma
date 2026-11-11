@@ -1,5 +1,54 @@
 /* Passage: Meridian's original geographic scene, a direct choice of need,
    and one native service ticket. No duplicate fee, form or commercial state. */
+body[data-direction="club"][data-edition="club"][data-experience="panorama"][data-home-vision="dispatch"][data-dispatch-composition="passage"].europe-ready[data-passage-controls="ready"]{
+ & #visionScene>.edition-atlas .passage-view-controls{position:absolute;left:0;right:0;bottom:0;z-index:5;display:flex;align-items:center;gap:8px;min-height:48px;padding-top:4px;border-top:1px solid #363631;background:#000}
+ & #visionScene>.edition-atlas .passage-view-controls .dispatch-lenses,& #visionScene>.edition-atlas .passage-view-controls .panorama-globe-tools,& #visionScene>.edition-atlas .passage-view-controls .panorama-globe-toolbar{position:static;inset:auto;display:flex;align-items:center;gap:0;width:auto;min-height:44px;margin:0;padding:0;border:0;border-radius:0;background:transparent;transform:none}
+ & #visionScene>.edition-atlas .passage-view-controls .panorama-globe-tools{margin-left:auto}
+ & #visionScene>.edition-atlas .passage-view-controls button{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-width:44px;min-height:44px;padding:10px 12px;border:0;border-radius:4px;background:transparent;color:#d4d4cb;font:400 12px/1.2 var(--p-font);box-shadow:none;transition:background-color 120ms ease,color 120ms ease}
+ & #visionScene>.edition-atlas .passage-view-controls button svg{display:block;flex:0 0 16px;width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+ & #visionScene>.edition-atlas .passage-view-controls .dispatch-lenses button[aria-pressed="true"]{background:#fff;color:#111}
+ & #visionScene>.edition-atlas .passage-view-controls #nextMotionToggle{min-width:82px;padding:10px 12px;border:0}
+ & #visionScene>.edition-atlas .passage-view-controls button:focus-visible{outline:2px solid #ffd700;outline-offset:2px}
+ & #visionScene>.edition-atlas .passage-view-controls button:active:not(:disabled){background:#35352d;color:#fff}
+ & #visionScene>.edition-atlas .passage-view-controls button:disabled{color:#a6a69e;opacity:1;cursor:default}
+ & #visionScene>.edition-atlas .passage-view-controls .panorama-globe-tools button:not(#nextMotionToggle){display:none}
+ & #visionScene>.edition-atlas .boom-globe-caption{position:absolute;left:0;right:0;bottom:-24px;display:block;min-height:0;margin:0;padding:0;pointer-events:none}
+ & #visionScene>.edition-atlas .boom-globe-caption>a{position:static;display:flex;justify-content:flex-end;min-height:24px;font-size:11px;line-height:1.4;pointer-events:auto}
+ & #visionScene>.edition-atlas .panorama-globe-hint{bottom:62px}
+ & #panoramaGlobeDialog .edition-atlas{display:grid;grid-template-rows:minmax(0,1fr) auto auto auto;gap:4px}
+ & #panoramaGlobeDialog .boom-globe-stage{grid-row:1;height:100%;min-height:0}
+ & #panoramaGlobeDialog .passage-view-controls{position:static;grid-row:2;display:flex;align-items:center;justify-content:center;gap:8px;z-index:5}
+ & #panoramaGlobeDialog .panorama-route{grid-row:3;width:100%;margin:0 auto}
+ & #panoramaGlobeDialog .boom-globe-caption{grid-row:4;justify-content:flex-end;margin:0;padding:0}
+ & #panoramaGlobeDialog .passage-view-controls .panorama-globe-tools{position:static;inset:auto;display:flex;gap:0;width:auto;margin:0;transform:none}
+ /* Expanded mode already uses the full globe; its original zoom/reset tools
+    replace the scene's framing switch, while Pause lives in the dialog header. */
+ & #panoramaGlobeDialog .passage-view-controls .dispatch-lenses,& #panoramaGlobeDialog .passage-view-controls .panorama-globe-toolbar{display:none}
+ & #panoramaGlobeDialog [data-panorama-motion] svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+}
+@media(hover:hover) and (pointer:fine){body[data-direction="club"][data-edition="club"][data-experience="panorama"][data-home-vision="dispatch"][data-dispatch-composition="passage"].europe-ready[data-passage-controls="ready"]{
+ & #visionScene>.edition-atlas .passage-view-controls button:not(:disabled):not([aria-pressed="true"]):hover{background:#22221d;color:#fff}
+ & #visionScene>.edition-atlas .passage-view-controls .dispatch-lenses button:not(:disabled)[aria-pressed="true"]:hover{background:#fff;color:#111}
+}}
+@media(max-width:1180px){body[data-direction="club"][data-edition="club"][data-experience="panorama"][data-home-vision="dispatch"][data-dispatch-composition="passage"].europe-ready[data-passage-controls="ready"]{
+ & #visionScene>.edition-atlas .passage-view-controls{bottom:-16px;gap:4px}
+ & #visionScene>.edition-atlas .passage-view-controls button{padding-inline:8px}
+ & #visionScene>.edition-atlas .passage-view-controls #nextMotionToggle{min-width:44px;padding-inline:8px}
+ & #visionScene>.edition-atlas .passage-view-controls .panorama-globe-toolbar .passage-control-label{display:none}
+ & #visionScene>.edition-atlas .boom-globe-caption{bottom:-40px}
+}}
+@media(max-width:760px){body[data-direction="club"][data-edition="club"][data-experience="panorama"][data-home-vision="dispatch"][data-dispatch-composition="passage"].europe-ready[data-passage-controls="ready"]{
+ & #visionScene>.edition-atlas .passage-view-controls{bottom:-38px}
+ & #visionScene>.edition-atlas .passage-view-controls .dispatch-lenses button{min-width:72px;gap:0}
+ & #visionScene>.edition-atlas .passage-view-controls .dispatch-lenses button svg{display:none}
+ & #visionScene>.edition-atlas .boom-globe-caption{left:auto;right:0;bottom:10px;width:auto}
+ & #visionScene>.edition-atlas .boom-globe-caption>a{min-height:24px}
+}}
+@media(max-width:360px){body[data-direction="club"][data-edition="club"][data-experience="panorama"][data-home-vision="dispatch"][data-dispatch-composition="passage"].europe-ready[data-passage-controls="ready"]{
+ & #visionScene>.edition-atlas .passage-view-controls #nextMotionToggle .passage-control-label{display:none}
+}}
+@media(prefers-reduced-motion:reduce){body[data-dispatch-composition="passage"] .passage-view-controls button{transition:none}}
+
 body[data-direction="club"][data-edition="club"][data-experience="panorama"][data-home-vision="dispatch"][data-dispatch-composition="passage"].europe-ready{
  --passage-paper:#fff;--passage-stub:#fff;--passage-seam:#b6b6aa;
  & #airspaceDecision{padding-bottom:52px}

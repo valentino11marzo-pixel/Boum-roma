@@ -299,6 +299,8 @@ const SUITES = [
   { name: 'flightairspaceui', file: 'tests/flight/airspace-ui.mjs', what: 'Airspace destination and native decision, phone and desktop geometry, original globe restoration, real fees and protected service handoff' },
   { name: 'flightmeridianui', file: 'tests/flight/meridian-ui.mjs', what: 'Meridian full-width globe and white decision, six native destinations, responsive controls, motion, real fees and protected public handoff' },
   { name: 'flightpassageui', file: 'tests/flight/passage-ui.mjs', what: 'Passage native need rail and continuous service ticket, original geography, responsive states, truthful fees and protected public handoff' },
+  { name: 'flightpassagecontrols', file: 'tests/flight/passage-controls.mjs', what: 'Passage original globe controls, keyboard, motion preference, full-view restoration and responsive rail' },
+  { name: 'flightpassagejourney', file: 'tests/flight/passage-journey.mjs', what: 'Passage genuine team coverage, canonical city contact, Rome browsing and PFS scope, free home viewing and native handoff' },
   { name: 'flightstudies', file: 'tests/flight/studies-delivery.mjs', what: 'Permanent Inhabit and Your Move clean URLs, canonical desk facts, native handoff, responsive containment and unavailable-data fallback' },
   { name: 'flightcityeditionsui', file: 'tests/flight/city-editions-ui.mjs', what: 'Six City Editions, original art/globe controls, responsive geometry, finite optional motion and native public service journeys' },
   { name: 'flightclubcompanyui', file: 'tests/flight/club-company-ui.mjs', what: 'Global Club company footer, truthful destinations, service identity, real tools and private-brief boundaries' },

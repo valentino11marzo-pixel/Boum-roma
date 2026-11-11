@@ -776,6 +776,14 @@ export function waHref(contact, city) {
   return `https://wa.me/${contact.whatsapp}?text=${encodeURIComponent(text)}`;
 }
 
+// The page and its public projection share the same configured destination.
+// Only the generated link is public in Flight; contact configuration stays here.
+export function deskContact(shared, city) {
+  const contact = { ...shared.contact, ...(city.config && city.config.WHATSAPP ? { whatsapp: city.config.WHATSAPP } : {}), ...(city.config && city.config.EMAIL ? { email: city.config.EMAIL } : {}) };
+  contact.waHref = waHref(contact, city.city);
+  return contact;
+}
+
 // The fees row of the fact sheet, DERIVED from the plans: each plan's own
 // condition in brackets when the plans differ (Berlin: Full Search on
 // signing), said ONCE after the list when they are all the same.
@@ -2094,8 +2102,7 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
   // the same URL keeps the OLD one in every cache and every scraper.
   const ogFile = path.join(root, `og-${city.slug}.png`);
   const ogImage = `${site}/og-${city.slug}.png${fs.existsSync(ogFile) ? '?v=' + hash(ogFile) : ''}`;
-  const contact = { ...shared.contact, ...(city.config && city.config.WHATSAPP ? { whatsapp: city.config.WHATSAPP } : {}), ...(city.config && city.config.EMAIL ? { email: city.config.EMAIL } : {}) };
-  contact.waHref = waHref(contact, city.city);
+  const contact = deskContact(shared, city);
   const fam = familyFor(city, cities, shared);
   const doorLead = sell ? 'no card' : 'free';
   const holidays = holidayKeyOf(city.slug);
@@ -3998,6 +4005,7 @@ export function publicDeskProjection(shared, cities) {
       // Source defaults are validated against the market registry by renderCity.
       // These are already-public page facts, never a second charging policy.
       currency: city.currency || 'EUR', chargeAt: city.chargeAt || 'checkout',
+      contact: { whatsapp: deskContact(shared, city).waHref },
       hero: { faresHead: { b: city.hero.faresHead.b } },
       pricing: { sub: city.pricing.sub || '', plans: city.pricing.plans.map((plan) => ({
         id: plan.id, label: plan.label, price: plan.price,

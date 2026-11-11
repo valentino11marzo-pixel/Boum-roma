@@ -64,6 +64,10 @@ homepage. `/assets/boom-brand-lockup.svg` and its ink version are actual marks.
 Flight has the original Solari, local Natural Earth geography, the real listing
 catalogue and four Rome service doors. Company and service claims must stay
 within the actual source. No new photo/video shoot is available for this work.
+On 11 November Valentino confirmed Rebecca and Fausto's operations in Spain
+and the Netherlands, Daniele's in the Netherlands and England, and his own
+coordination from Rome with travel across capitals. BOOM also works with partner
+agencies and owners. This confirms country coverage, not city offices or languages.
 
 ## Product Principles
 
