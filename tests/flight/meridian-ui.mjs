@@ -122,6 +122,24 @@ try{
   const firstDecision=await page.locator('#europeDeskPlanner').boundingBox();assert.ok(firstDecision.y<900,'native support choice begins within the first viewport');
   await capture(page,'milan',width,'-entry');
  });
+ await check('Geometry 1280×720: native continuation fits after a currency change',1280,async({page})=>{
+  await page.setViewportSize({width:1280,height:720});await start(page,'city=milan');await offer(page,'milan');
+  async function visibleDecision(){
+   await fit(page,1280);await originals(page);
+   const bounds=await page.evaluate(()=>{
+    const box=n=>n.getBoundingClientRect().toJSON();return{height:innerHeight,stage:box(document.getElementById('directionClubTicket')),fee:box(document.querySelector('#europeServicePass .europe-service-price strong')),action:box(document.getElementById('europeDeskContinue')),cities:[...document.querySelectorAll('.europe-city-switch button[data-europe-city]')].map(box)};
+   });
+   for(const key of ['fee','action'])assert.ok(bounds[key].top>=0&&bounds[key].bottom<=bounds.height,'the full '+key+' stays visible on the actual short desktop '+JSON.stringify(bounds));
+   for(const [index,a] of bounds.cities.entries()){
+    assert.ok(a.top>=bounds.stage.top&&a.bottom<=bounds.stage.bottom,'each native city remains within the short stage '+JSON.stringify(bounds));
+    for(const b of bounds.cities.slice(index+1))assert.ok(a.right<=b.left||a.left>=b.right||a.bottom<=b.top||a.top>=b.bottom,'short-stage destinations do not overlap');
+   }
+  }
+  await visibleDecision();await capture(page,'milan',1280,'-720-entry');
+  await city(page,'london');await offer(page,'london');await city(page,'milan');await offer(page,'milan');
+  await page.locator('#europeCurrencyNote').waitFor({state:'visible'});assert.match(await page.locator('#europeCurrencyNote').innerText(),/EUR.*haven.t converted/);
+  await visibleDecision();await capture(page,'milan',1280,'-720-currency');
+ });
  await check('Native globe: full view, keyboard destination and restoration preserve one scene',1440,async({page,requests})=>{
   await start(page,'');assert.equal(await page.evaluate(()=>BoomDispatchTour.state().playing||BoomDispatchTour.state().timerPending),false,'Meridian never starts an unrequested city tour');
   await page.locator('[data-panorama-expand]').click();await page.locator('#panoramaGlobeDialog').waitFor({state:'visible'});assert.equal(await page.locator('#panoramaGlobeDialog .boom-flight-globe-canvas').count(),1);

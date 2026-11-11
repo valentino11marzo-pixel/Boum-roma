@@ -115,3 +115,17 @@ Final verdict pass: **ship**, with both named material fixes scored resolved and
 no introduced regression visible in the recaptured phone/desktop views. This
 verdict covers the scored fixes only; it is not a whole-site, motion, conversion
 or user-acceptance certification.
+
+The new live browser tab was then observed at1280×720, below the earlier panel
+height. Its inherited440px minimum stage clipped the action, especially after
+the native currency notice. A bounded width≥901/height≤760 adaptation now uses
+`clamp(320px,calc(100svh - 360px),400px)` for the stage and compacts only the
+short-desktop title/index/header. At1280×720 the stage is360px; all six city
+targets are155×48px. The complete action ends650.9px on cold entry and709.7px
+after London→Milan with the real EUR notice. Existing full-height and phone
+rules are unchanged. Six targeted geometry cases pass, including a new
+short-viewport regression and the five existing widths. Public-data captures
+show no errors, failed requests or writes. This adds a sixth required viewport.
+Supplemental visual verdict: **ship** for the short-viewport adjustment. Both
+cold and currency-warning captures retain the globe, Solari, readable six-city
+index, fee and complete action without visible overlap or clipping.

@@ -5166,6 +5166,7 @@ Flight Dispatch Meridian 11/11: `composition=meridian` apre Solari e globo origi
 L’adattatore Airspace ricolloca gli stessi nodi; `boom-dispatch-meridian.css` possiede le proporzioni. La proiezione nativa conserva la sfera intera e Full view ripristina la stessa camera, senza nuovi clock o stato commerciale.
 Prezzi, condizioni, brief, catalogo Roma, Skyline e handoff restano dei controller originali. Studio aggiunge Meridian senza sostituire le composizioni precedenti o trasferire parametri estetici al desk.
 `flightmeridianui` verifica cinque larghezze, sei città, originali, GBP, date invalide, Pausa/Full view, fallback e bozza Studio. Le catture con dati pubblici sono separate dalle fixture della suite.
+La viewport reale1280×720 usa una scena più bassa e controlli città da48px: il prezzo e l’azione completa restano visibili anche dopo l’avviso EUR/GBP; una regressione dedicata verifica entrambi gli stati.
 Regia in `design/dispatch-meridian-direction.md`; due filoni coordinati in `design/europe-dual-track-2026-11-11.md`. Meridian resta Preview noindex: l’ingresso `/` e il rilascio di produzione richiedono il percorso già documentato.
 
 Flight Lab 31/10: `/flight-lab` confronta Atlas, Residence e Club sulle stesse viste reali di `/flight-next?direction=…`, senza cambiare il sito pubblico.

@@ -74,3 +74,18 @@ No simultaneous edits to shared files. The existing review session remains avail
 https://claude.ai/epitaxy/session_01Gvy2gmeBwRdctx1qwtGRea
 
 Never touch the personal file assets/boom-panorama 2.css. Preserve existing repo rules.
+
+## Separate chat outcome
+
+The dedicated chat completed two interactive local candidates: Inhabit / Open
+Windows and Your Move, accessible at `http://127.0.0.1:4367/`. Its detailed
+handoff is `STUDIO_RESULT.md` in the exclusive design-lab directory. Root opened
+the comparison board and read the handoff. Your Move is the challenger for a
+direct European decision; Inhabit is the stronger Rome-first photographic route.
+These are design judgments to compare with Meridian, not measured conversion.
+
+The lab reports24 verified foreign city/service combinations per candidate,
+original photographs and Solari, responsive and motion checks, and no customer
+writes. It uses a verified pricing snapshot: integration must reconnect to the
+native configuration before release. It did not edit this repository or deploy.
+Its independent critique is separate from the root chat's actual Claude session.
