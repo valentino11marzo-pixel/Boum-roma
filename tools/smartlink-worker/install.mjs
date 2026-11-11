@@ -8,10 +8,12 @@ if(process.platform!=='darwin') throw new Error('macOS required');
 const from=dirname(fileURLToPath(import.meta.url));
 const boom=join(homedir(),'.boom'),runtime=join(boom,'smartlink-runtime'),target=join(runtime,'tools/smartlink-worker');
 await mkdir(target,{recursive:true,mode:0o700});await mkdir(join(runtime,'tools/smartlink-extension'),{recursive:true,mode:0o700});
-for(const file of ['worker.mjs','reader.mjs','package.json','package-lock.json']) {
+for(const file of ['worker.mjs','reader.mjs','idealista.mjs','package.json','package-lock.json']) {
   if(resolve(from,file)!==resolve(target,file)) await copyFile(join(from,file),join(target,file));
 }
 await copyFile(join(from,'../smartlink-extension/background.mjs'),join(runtime,'tools/smartlink-extension/background.mjs'));
+await mkdir(join(runtime,'js'),{recursive:true,mode:0o700});
+for(const file of ['smartlink-engine.js','smartlink-share-engine.js']) await copyFile(join(from,'../../js',file),join(runtime,'js',file));
 const env={...process.env,PATH:'/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin'};
 execFileSync('/opt/homebrew/bin/npm',['ci','--ignore-scripts'],{cwd:target,env,stdio:'inherit'});
 execFileSync(process.execPath,[join(target,'node_modules/playwright/cli.js'),'install','chromium'],{cwd:target,env,stdio:'inherit'});
