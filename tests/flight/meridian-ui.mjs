@@ -140,6 +140,17 @@ try{
   await page.locator('#europeCurrencyNote').waitFor({state:'visible'});assert.match(await page.locator('#europeCurrencyNote').innerText(),/EUR.*haven.t converted/);
   await visibleDecision();await capture(page,'milan',1280,'-720-currency');
  });
+ for(const viewport of [{width:1280,height:720},{width:390,height:844}])await check('Idle hint '+viewport.width+': real normal-motion invitation clears native controls',viewport.width,async({page})=>{
+  await page.setViewportSize(viewport);await start(page,'city=milan');
+  await page.waitForFunction(()=>{const n=document.querySelector('.panorama-globe-hint');return n?.dataset.visible==='true'&&Number(getComputedStyle(n).opacity)>.95;});
+  const layout=await page.evaluate(()=>{
+   const box=n=>n.getBoundingClientRect().toJSON();return{hint:box(document.querySelector('.panorama-globe-hint')),controls:[...document.querySelectorAll('#visionScene .dispatch-lenses button,#visionScene .panorama-globe-toolbar button,#nextMotionToggle')].map(box).filter(b=>b.width&&b.height),width:innerWidth,height:innerHeight};
+  });
+  const h=layout.hint;assert.ok(h.width>0&&h.height>0&&h.left>=0&&h.right<=layout.width&&h.top>=0&&h.bottom<=layout.height,'native idle hint stays in frame '+JSON.stringify(layout));
+  assert.ok(layout.controls.length>=4,'original lens, pause and full-view controls remain visible');
+  for(const c of layout.controls)assert.ok(h.right<=c.left||h.left>=c.right||h.bottom<=c.top||h.top>=c.bottom,'real idle hint does not overlap a native control '+JSON.stringify(layout));
+  if(artifacts)await page.screenshot({path:artifacts+'/meridian-idle-hint-'+viewport.width+'.png'});
+ },'no-preference');
  await check('Native globe: full view, keyboard destination and restoration preserve one scene',1440,async({page,requests})=>{
   await start(page,'');assert.equal(await page.evaluate(()=>BoomDispatchTour.state().playing||BoomDispatchTour.state().timerPending),false,'Meridian never starts an unrequested city tour');
   await page.locator('[data-panorama-expand]').click();await page.locator('#panoramaGlobeDialog').waitFor({state:'visible'});assert.equal(await page.locator('#panoramaGlobeDialog .boom-flight-globe-canvas').count(),1);

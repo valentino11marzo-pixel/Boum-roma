@@ -14,6 +14,7 @@ body[data-direction="club"][data-edition="club"][data-experience="panorama"][dat
  & #visionScene>.edition-atlas .panorama-globe-toolbar{inset:auto 0 0 auto}
  & #visionScene>.edition-atlas .panorama-globe-toolbar button{padding-inline:14px}
  & #visionScene>.edition-atlas .dispatch-lenses{left:0;bottom:0}
+ & #visionScene>.edition-atlas .panorama-globe-hint{bottom:56px}
  & #visionScene>.edition-atlas .boom-globe-caption{right:132px;left:auto;bottom:0}
  & #visionScene>.edition-atlas .panorama-globe-tools button:not(#nextMotionToggle){display:none}
  & #visionScene>.edition-atlas .panorama-globe-tools #nextMotionToggle{min-width:74px}

@@ -129,3 +129,14 @@ show no errors, failed requests or writes. This adds a sixth required viewport.
 Supplemental visual verdict: **ship** for the short-viewport adjustment. Both
 cold and currency-warning captures retain the globe, Solari, readable six-city
 index, fee and complete action without visible overlap or clipping.
+
+The deployed normal-motion check exposed the native idle hint below Pause; prior
+presentation captures used reduced motion. One scoped `bottom:56px` rule now
+lifts that existing hint above the controls, without changing its3200ms timer.
+Two normal-motion regressions wait for the actual timer without forced visibility
+at1280×720 and390×844. Both pass; public-data captures show10.8px and48.8px
+clearance respectively, with no obscured selected-city label. No broad test or
+detector rerun was necessary for this isolated hint-position change. Meridian's
+suite now contains16 cases: the original13, one short-viewport case, two idle cases.
+The reviewer scored this single overlap fix resolved: **ship** at that scope,
+with hint, attribution, selected-city label and utility controls all readable.
