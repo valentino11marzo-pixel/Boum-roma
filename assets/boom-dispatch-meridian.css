@@ -1,0 +1,171 @@
+/* Meridian: one open geographic stage, then one continuous decision surface.
+   The Airspace adapter moves the original nodes; all interaction remains native. */
+body[data-direction="club"][data-edition="club"][data-experience="panorama"][data-home-vision="dispatch"][data-dispatch-composition="meridian"].europe-ready{
+ --airspace-gutter:clamp(24px,4vw,72px);--meridian-stage:clamp(440px,57svh,580px);
+ & #airspaceScene{display:block}
+ & #directionClubTicket{position:relative;top:auto;height:var(--meridian-stage);min-height:0;max-height:none;overflow:hidden}
+ & #nextHeroTitle{position:absolute;top:52px;left:var(--airspace-gutter);width:32%;margin:0;gap:18px}
+ & .hero-pretitle{max-width:13ch;font:300 clamp(28px,2.9vw,44px)/1.08 var(--p-font);letter-spacing:-.035em}
+ & #nextHero .vision-departure-record{min-height:96px}
+ & #nextHero .vision-departure-record #nextDestinationBoard{font-size:min(76px,var(--europe-board-size,76px))!important;gap:3px}
+ & #nextHero #nextHeroTitle>#nextSolariField{inset:-42px -36px;width:calc(100% + 72px);height:calc(100% + 84px);opacity:.82}
+ & #directionClubTicket .hero-promise{display:block;left:var(--airspace-gutter);right:auto;bottom:54px;max-width:27ch;font-size:15px;line-height:1.55;color:#c6c6bd}
+ & #visionScene{inset:6px 17% 40px 31%;width:auto;height:auto}
+ & #visionScene>.edition-atlas .panorama-globe-toolbar{inset:auto 0 0 auto}
+ & #visionScene>.edition-atlas .panorama-globe-toolbar button{padding-inline:14px}
+ & #visionScene>.edition-atlas .dispatch-lenses{left:0;bottom:0}
+ & #visionScene>.edition-atlas .boom-globe-caption{right:132px;left:auto;bottom:0}
+ & #visionScene>.edition-atlas .panorama-globe-tools button:not(#nextMotionToggle){display:none}
+ & #visionScene>.edition-atlas .panorama-globe-tools #nextMotionToggle{min-width:74px}
+ & #visionScene>.edition-atlas .boom-globe-caption>a{top:44px;right:0;white-space:nowrap}
+ & #nextHero #dispatchCities{top:36px;bottom:36px;left:auto;right:var(--airspace-gutter);width:156px;display:flex;align-items:center;background:transparent}
+ & #nextHero #dispatchCities .europe-cities{width:100%;grid-template-columns:minmax(0,1fr);grid-template-rows:repeat(6,minmax(0,1fr));border-top:0;border-left:1px solid #46463e}
+ & #nextHero #dispatchCities button{min-height:58px;flex-direction:row;flex-wrap:nowrap;justify-content:flex-start;gap:14px;padding:12px 0 12px 18px;text-align:left}
+ & #nextHero #dispatchCities button>span:last-child{font:300 17px/1.2 var(--p-font);letter-spacing:-.02em}
+ & #nextHero #dispatchCities .europe-city-code{display:block;min-width:25px;font-size:10px}
+ & #nextHero #dispatchCities button[aria-pressed="true"]{color:#ffd700;background:transparent;box-shadow:inset 2px 0 0 #ffd700}
+ & #airspaceDecision{position:relative;display:block;width:100%;min-height:0;padding:28px var(--airspace-gutter) 40px}
+ & #airspaceDecision>#europeCitySignature{position:absolute;inset:22px var(--airspace-gutter) auto auto;width:auto;min-height:44px;margin:0;gap:12px}
+ & #airspaceDecision>#europeCitySignature .europe-city-icon{width:52px;height:40px;flex-basis:52px}
+ & #airspaceDecision>#europeCitySignature small{display:none}
+ & #europeDeskStory .europe-story-lead{margin:0 200px 28px 0}
+ & #europeDeskStory .europe-story-lead h2{font-size:clamp(32px,3vw,46px);line-height:1.04}
+ & #europeDeskStory .edition-desk-workspace{display:grid;grid-template-columns:minmax(220px,.9fr) minmax(270px,1.15fr) minmax(240px,1fr);gap:clamp(24px,3.4vw,56px);align-items:start}
+ & #europeDeskStory #europeDeskPlanner{grid-column:1;grid-row:1}
+ & #europeDeskStory #europeDeskTitle{margin:0 0 14px;color:#55564f}
+ & #europeDeskStory [data-europe-need]{min-height:64px;padding-block:12px}
+ & #europeDeskStory [data-europe-need]>div{flex-direction:column;gap:5px}
+ & #europeDeskStory [data-europe-need] strong{font-size:18px}
+ & #europeDeskStory .europe-need-price{font-size:13px}
+ & #europeDeskStory .dispatch-service-ticket{display:contents}
+ & #europeDeskStory .dispatch-service-ticket #europeServicePass{grid-column:2;grid-row:1;padding:0 0 0 clamp(24px,3.4vw,56px);border-left:1px solid var(--airspace-rule)}
+ & #europeDeskStory .europe-service-copy h3{font-size:clamp(26px,2.4vw,34px)}
+ & #europeDeskStory .europe-service-price{padding:10px 0 18px;gap:4px 16px}
+ & #europeDeskStory .europe-service-price strong{font-size:54px}
+ & #europeDeskStory .europe-service-facts>div{padding-top:16px}
+ & #europeDeskStory .club-desk-person figcaption{display:block}
+ & #europeDeskStory .club-desk-person figcaption>a{min-height:44px;padding:8px 0;display:inline-flex}
+ & #europeDeskStory .dispatch-service-ticket #europeDeskForm{grid-column:3;grid-row:1;padding:0 0 0 clamp(24px,3.4vw,56px);border-left:1px solid var(--airspace-rule)}
+ & #europeDeskStory .edition-brief-head{display:none;margin:0 0 16px;padding:0;border:0;background:none}
+ & #europeDeskStory .edition-brief-head>.eyebrow{display:none}
+ & #europeDeskStory .edition-brief-head h3{font:300 26px/1.15 var(--p-font);letter-spacing:-.025em;color:#111;margin:0 0 8px}
+ & #europeDeskStory .edition-brief-head p{font:400 13px/1.5 var(--p-font);color:#55564f;margin:0}
+ & #europeDeskStory #europeOptionalBrief{border-block:1px solid var(--airspace-rule);margin-bottom:16px}
+ & #europeDeskStory #europeDeskContinue{margin-top:0;min-height:56px}
+ & #airspaceDecision>.edition-plan-link{position:absolute;top:88px;right:var(--airspace-gutter);width:240px;min-height:56px;margin:0;padding:14px 18px}
+ & #airspaceDecision>.europe-planner .edition-runway-head{padding:0 280px 24px 0}
+ & #airspaceDecision .edition-runway-head>span:first-child{font-size:clamp(32px,3vw,46px)}
+ & #airspaceDecision .edition-runway-head>span:last-child{margin-top:8px}
+ & #airspaceDecision #nextSearchForm{grid-template-columns:repeat(4,minmax(0,1fr));gap:20px 24px}
+ & #airspaceDecision #nextDestinationSummary{grid-column:1/-1;display:flex;align-items:center;gap:24px;min-height:72px;padding:14px 0}
+ & #airspaceDecision #nextDestinationSummary strong{font-size:24px}
+ & #airspaceDecision #nextSearchForm .search-submit{grid-column:3/-1;max-width:360px;justify-self:end}
+}
+
+@media(min-width:761px) and (max-width:1180px){
+ body[data-direction="club"][data-edition="club"][data-experience="panorama"][data-home-vision="dispatch"][data-dispatch-composition="meridian"].europe-ready{
+  --airspace-gutter:28px;--meridian-stage:460px;
+  & #nextHeroTitle{top:40px;width:32%;gap:14px}
+  & .hero-pretitle{font-size:30px}
+  & #nextHero .vision-departure-record{min-height:82px}
+  & #nextHero .vision-departure-record #nextDestinationBoard{font-size:min(64px,var(--europe-board-size,64px))!important}
+  & #visionScene{inset:28px 20% 60px 31%}
+  & #directionClubTicket .hero-promise{bottom:46px;max-width:23ch;font-size:14px}
+  & #nextHero #dispatchCities{top:40px;bottom:40px;width:144px}
+  & #nextHero #dispatchCities button{min-height:60px;gap:10px;padding-left:14px}
+  & #nextHero #dispatchCities button>span:last-child{font-size:16px}
+  & #visionScene>.edition-atlas .dispatch-lenses{left:0;bottom:-16px}
+  & #visionScene>.edition-atlas .dispatch-lenses button{min-width:62px;padding-inline:8px}
+  & #visionScene>.edition-atlas .panorama-globe-toolbar{inset:auto 0 -16px auto}
+  & #visionScene>.edition-atlas .panorama-globe-toolbar button{font-size:0;min-width:44px;gap:0;padding:10px}
+  & #visionScene>.edition-atlas .boom-globe-caption{left:auto;right:54px;bottom:-16px}
+  & #europeDeskStory .edition-desk-workspace{grid-template-columns:minmax(180px,.9fr) minmax(230px,1.15fr) minmax(210px,1fr);gap:24px}
+  & #europeDeskStory .dispatch-service-ticket :is(#europeServicePass,#europeDeskForm){padding-left:24px}
+  & #europeDeskStory .europe-service-price{grid-template-columns:1fr;gap:5px}
+  & #europeDeskStory .europe-service-price strong{grid-row:1;grid-column:1;font-size:46px}
+  & #europeDeskStory .europe-service-price small,& #europeDeskStory .europe-service-price p{grid-column:1;grid-row:auto}
+ }
+}
+
+@media(max-width:900px) and (min-width:761px){
+ body[data-direction="club"][data-edition="club"][data-experience="panorama"][data-home-vision="dispatch"][data-dispatch-composition="meridian"].europe-ready{
+  & #europeDeskStory .edition-desk-workspace{grid-template-columns:minmax(0,.85fr) minmax(0,1fr)}
+  & #europeDeskStory .dispatch-service-ticket #europeDeskForm{grid-column:1/-1;grid-row:2;border-left:0;border-top:1px solid var(--airspace-rule);padding:24px 0 0;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px 32px}
+  & #europeDeskStory .edition-brief-head{grid-column:1;grid-row:1}
+  & #europeDeskStory #europeOptionalBrief{grid-column:1;grid-row:2/5}
+  & #europeDeskStory #europeBriefSummary{grid-column:2}
+  & #europeDeskStory #europeDeskContinue,& #europeDeskStory .europe-next-step{grid-column:2;margin:0}
+  & #visionScene{left:33%;right:23%}
+  & #nextHeroTitle{width:31%}
+  & #nextHero .vision-departure-record #nextDestinationBoard{font-size:min(54px,var(--europe-board-size,54px))!important}
+  & #nextHero #dispatchCities{width:144px}
+ }
+}
+
+@media(max-width:760px){
+ body[data-direction="club"][data-edition="club"][data-experience="panorama"][data-home-vision="dispatch"][data-dispatch-composition="meridian"].europe-ready{
+  --airspace-gutter:20px;--meridian-stage:464px;
+  & #airspaceScene{display:block}
+  & #directionClubTicket{height:var(--meridian-stage);min-height:0}
+  & #nextHeroTitle{position:absolute;top:12px;left:20px;width:calc(100% - 40px);margin:0;gap:4px}
+  & .hero-pretitle{max-width:none;font-size:23px;line-height:1.12}
+  & #nextHero .vision-departure-record{min-height:72px}
+  & #nextHero .vision-departure-record #nextDestinationBoard{font-size:min(58px,var(--europe-board-size,58px))!important;gap:3px}
+  & #nextHero #nextHeroTitle>#nextSolariField{inset:-20px -20px;width:calc(100% + 40px);height:calc(100% + 40px);opacity:.78}
+  & #directionClubTicket .hero-promise{display:none}
+  & #visionScene{inset:106px 20px 132px;width:auto;height:auto}
+  & #visionScene>.edition-atlas .dispatch-lenses{left:0;bottom:-38px}
+  & #visionScene>.edition-atlas .dispatch-lenses button{min-width:64px;min-height:44px;padding:8px;font-size:12px}
+  & #visionScene>.edition-atlas .panorama-globe-toolbar{inset:auto 0 -38px auto;min-height:44px}
+  & #visionScene>.edition-atlas .panorama-globe-toolbar button{font-size:0;min-width:44px;padding:10px;gap:0}
+  & #visionScene>.edition-atlas .boom-globe-caption{left:auto;right:54px;bottom:-38px;min-height:44px}
+  & #visionScene>.edition-atlas .boom-globe-caption>a{top:auto;right:-54px;bottom:56px;min-height:24px;font-size:11px;line-height:1.4}
+  & #nextHero #dispatchCities{top:auto;bottom:0;left:20px;right:20px;width:auto;height:90px;display:block;margin:0}
+  & #nextHero #dispatchCities .europe-cities{grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(2,44px);border-left:0;border-top:1px solid #46463e}
+  & #nextHero #dispatchCities button{min-height:44px;flex-direction:row;justify-content:center;padding:8px 2px;text-align:center;gap:0}
+  & #nextHero #dispatchCities button>span:last-child{font:400 13px/1.2 var(--p-font);letter-spacing:-.01em}
+  & #nextHero #dispatchCities .europe-city-code{display:none}
+  & #nextHero #dispatchCities button[aria-pressed="true"]{background:#1b1903;box-shadow:inset 0 2px 0 #ffd700}
+  & #airspaceDecision{padding:24px 20px 36px;min-height:0}
+  & #airspaceDecision>#europeCitySignature{position:static;min-height:32px;gap:10px;margin:0 0 14px}
+  & #airspaceDecision>#europeCitySignature .europe-city-icon{width:40px;height:32px;flex-basis:40px}
+  & #airspaceDecision>#europeCitySignature>span{font-size:12px}
+  & #europeDeskStory .europe-story-lead{margin:0 0 24px}
+  & #europeDeskStory .europe-story-lead h2{font-size:34px}
+  & #europeDeskStory .edition-desk-workspace{display:block}
+  & #europeDeskStory #europeDeskTitle{margin-bottom:10px}
+  & #europeDeskStory [data-europe-need]{min-height:58px;padding-block:10px}
+  & #europeDeskStory [data-europe-need]>div{flex-direction:row;align-items:baseline;gap:10px;flex-wrap:wrap}
+  & #europeDeskStory [data-europe-need] strong{font-size:17px}
+  & #europeDeskStory .dispatch-service-ticket{display:block;margin-top:28px}
+  & #europeDeskStory .dispatch-service-ticket #europeServicePass{display:grid;padding:0;border:0}
+  & #europeDeskStory .europe-service-copy h3{font-size:30px}
+  & #europeDeskStory .europe-service-price{grid-template-columns:auto minmax(0,1fr);padding:12px 0 18px}
+  & #europeDeskStory .europe-service-price strong{font-size:50px}
+  & #europeDeskStory .europe-service-facts>div{padding:12px 0 4px}
+  & #europeDeskStory .europe-service-facts dt{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0}
+  & #europeDeskStory .europe-service-facts dd{margin:0}
+  & #europeDeskStory .club-desk-person{gap:10px}
+  & #europeDeskStory .club-desk-person img{width:40px;height:48px}
+  & #europeDeskStory .club-desk-person figcaption{display:grid}
+  & #europeDeskStory .dispatch-service-ticket #europeDeskForm{display:block;margin-top:8px;padding:0;border:0}
+  & #europeDeskStory #europeOptionalBrief{margin-bottom:12px}
+  & #airspaceDecision>.edition-plan-link{position:static;width:100%;min-height:56px;margin:0 0 24px}
+  & #airspaceDecision>.europe-planner .edition-runway-head{padding:0 0 24px}
+  & #airspaceDecision .edition-runway-head>span:first-child{font-size:34px}
+  & #airspaceDecision #nextSearchForm{grid-template-columns:1fr 1fr;gap:20px 16px}
+  & #airspaceDecision #nextDestinationSummary{display:block;padding:16px 0}
+  & #airspaceDecision #nextDestinationSummary strong{display:block;margin-block:6px;font-size:24px}
+  & #airspaceDecision #nextSearchForm .search-submit{grid-column:1/-1;max-width:none;justify-self:stretch}
+ }
+}
+
+@media(max-width:359px){
+ body[data-direction="club"][data-edition="club"][data-experience="panorama"][data-home-vision="dispatch"][data-dispatch-composition="meridian"].europe-ready{
+  --meridian-stage:452px;
+  & #nextHero .vision-departure-record #nextDestinationBoard{font-size:min(50px,var(--europe-board-size,50px))!important}
+  & #visionScene{inset:98px 16px 132px}
+  & #visionScene>.edition-atlas .dispatch-lenses button{min-width:56px;padding-inline:6px}
+  & #europeDeskStory .europe-story-lead h2{font-size:30px}
+ }
+}

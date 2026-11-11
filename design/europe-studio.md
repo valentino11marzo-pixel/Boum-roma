@@ -1,5 +1,11 @@
 # BOOM Europe — shared studio
 
+**Latest direction, 11 November:** Valentino wants substantive iteration of
+Dispatch and the original globe, with strong white contrast, alongside independent
+new concepts in a separate chat. He did not reject the Dispatch family. The current
+City Editions result is not a final launch choice. Start with [the two-track brief](europe-dual-track-2026-11-11.md);
+the implementation record below remains factual.
+
 11 November 2026. One product, one implementation branch, independent design
 judgment. This document coordinates the current City Editions motion extension;
 it does not replace PRODUCT.md, AGENTS.md or the established service rules.

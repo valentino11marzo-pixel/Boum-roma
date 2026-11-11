@@ -5162,6 +5162,12 @@ Una seconda scelta durante la sequenza mostra subito la nuova città, senza coda
 Offerta e controlli restano immediati. Telefono riduce profondità/rotazione; Pausa, movimento ridotto e ingressi non da puntatore conservano il segno completo. La suite verifica costruzione reale, cancellazioni e continuità nativa.
 `design/europe-studio.md` raccoglie brief e collaborazione: Codex integra, Claude revisiona lo stesso ramo senza scritture concorrenti. Le registrazioni browser distinguono il movimento dal solo stato finale.
 
+Flight Dispatch Meridian 11/11: `composition=meridian` apre Solari e globo originali in una scena nera a tutta larghezza; il foglio bianco sottostante allinea scelta, tariffa e continuazione. Desktop usa un indice verticale, telefono sei città in3×2.
+L’adattatore Airspace ricolloca gli stessi nodi; `boom-dispatch-meridian.css` possiede le proporzioni. La proiezione nativa conserva la sfera intera e Full view ripristina la stessa camera, senza nuovi clock o stato commerciale.
+Prezzi, condizioni, brief, catalogo Roma, Skyline e handoff restano dei controller originali. Studio aggiunge Meridian senza sostituire le composizioni precedenti o trasferire parametri estetici al desk.
+`flightmeridianui` verifica cinque larghezze, sei città, originali, GBP, date invalide, Pausa/Full view, fallback e bozza Studio. Le catture con dati pubblici sono separate dalle fixture della suite.
+Regia in `design/dispatch-meridian-direction.md`; due filoni coordinati in `design/europe-dual-track-2026-11-11.md`. Meridian resta Preview noindex: l’ingresso `/` e il rilascio di produzione richiedono il percorso già documentato.
+
 Flight Lab 31/10: `/flight-lab` confronta Atlas, Residence e Club sulle stesse viste reali di `/flight-next?direction=…`, senza cambiare il sito pubblico.
 Le composizioni riusano catalogo, Solari, iframe Skyline, salvataggi e Apply; nessun secondo catalogo o nuovo handler di invio.
 Residence usa una foto realmente restituita dal catalogo pubblico (fallback a una casa pubblica non chiusa); Atlas sposta la stessa mappa nel primo schermo.
