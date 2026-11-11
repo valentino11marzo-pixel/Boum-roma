@@ -257,6 +257,8 @@ Positioning: one buying brief, a documented comparison and a quoted scope; no pr
   ```
 - **Typography**: Helvetica Neue 300, Inter fallback. Wide letter-spacing (2-6px) for luxury feel.
 - **Dark mode only** — all pages use dark backgrounds with gold accents.
+- **Icone (10/11/2026)**: `assets/icons/*` (icona Home del portal in `manifest.json` e `canone-manifest.json`, precache di `sw.js`, apple-touch/favicon delle pagine servizio) si rigenerano con `python3 scripts/generate-pwa-icons.py` dall'icona quadrata della radice `android-chrome-512x512.png`. Prima la sorgente era la striscia 320×100 di `pass-assets/tenant/logo@2x.png` (RGB su nero pieno): ogni icona usciva col marchio minuscolo dentro un rettangolo nero visibile sul fondo `#08080A`. Il marchio occupa il 61% centrale, quindi la stessa immagine vale da maskable.
+- **`BOOMlogogoldicon512.png` non esiste** (10/11/2026): undici pagine servite la chiedevano come favicon e rispondeva 404 (`about`, `deals`, `s`, `team`, `banca`, `catalogo`, `radar`, `pfs-command`, `cockpit-preview`, `form-tenant`, `form-landlord`). Ora usano il blocco standard (`/favicon.svg`); nei due moduli il logo in testata è `/apple-touch-icon.png` e il ripiego «B» resta se l'immagine non carica. Le copie non servite (legacy/classic, `tenant-registration.html`) non sono state toccate.
 
 ## Deployment
 
@@ -264,6 +266,7 @@ Positioning: one buying brief, a documented comparison and a quoted scope; no pr
 - **Build**: None — static files served as-is
 - **outputDirectory**: Must be `"."` (root), NOT `"public"`. All HTML lives in root.
 - **Deploy**: `git push` to main triggers automatic Vercel deployment
+- **Dipendenze e superficie servita (10/11/2026)**: `npm audit` dava 13 vulnerabilità (1 critica, 11 alte). `sharp` 0.35.3 → 0.35.5 (libheif/librsvg: elabora foto caricate), `nodemailer` 6 → 10.5 (parser degli indirizzi, TLS dell'OAuth2), `imapflow` e `mailparser` all'ultima minore, che porta lo stesso `nodemailer`; `node-forge` e `ip-address` chiusi dal lockfile. Il codice usa solo `createTransport({service:'gmail',auth})` e `sendMail`, invariati. Restano 4 avvisi che chiedono una major o un downgrade: `jspdf` 2.5.1 (via `dompurify`) e `joi` dentro `passkit-generator`. `/seed-listings` non è più servita (`.vercelignore`, rewrite tolto): con Firebase Auth caricato, aperta da un admin già loggato riscriveva `listings` con dati di esempio. Fuori dal deploy anche `flats.json`, `flats-2.json`, `smartlink-fix.js`, `motion-preview.html`, mai nominati da un file servito. Prova: `npm ci`, le 48 suite che toccano posta, immagini e pass, più `crawl`, `seo`, `vercelfunctions`.
 - **Produzione da un ramo ≠ main (14/10/2026)**: quando la produzione gira su
   un deploy di un ramo (Codex lo fa per i rilasci in corso), il primo merge
   su main RIAVVIA la produzione da main e toglie dal sito quello che main non

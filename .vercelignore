@@ -54,3 +54,16 @@ header.html
 # SmartLink: server e interfaccia di prova restano soltanto in locale.
 /tools/
 /smartlink-preview.html
+
+# Audit 10/11/2026: strumenti e resti serviti senza motivo.
+# seed-listings.html carica Firebase Auth e, aperta da un admin già loggato sullo stesso
+# dominio, con un clic riscrive i documenti `listings` con dati di esempio: le rules
+# fermano gli anonimi, non l'admin. Resta nel repo, non sul sito.
+/seed-listings.html
+# Mai nominati da nessun file servito (flats*.json li legge solo admin-flats.html, già
+# esclusa; smartlink-fix.js è un frammento incollato alla radice; motion-preview.html è
+# una prova di design come le preview-*.html, con scritture Firestore senza login).
+/flats.json
+/flats-2.json
+/smartlink-fix.js
+/motion-preview.html
