@@ -24,9 +24,9 @@ async function call(body) {
   if(!response.ok) {const error=new Error('boom_request_failed');error.status=response.status;throw error;}
   return response.json();
 }
-async function read(url) {
+async function read(url,onDiagnostic) {
   if(!context) context=await chromium.launchPersistentContext(profile,{headless:false,chromiumSandbox:true,acceptDownloads:false});
-  return readListing(context,url);
+  return readListing(context,url,onDiagnostic);
 }
 async function stop(){stopped=true;await context?.close().catch(()=>{});}
 process.once('SIGTERM',()=>{stop().finally(()=>process.exit(0));});
@@ -47,12 +47,14 @@ if(process.argv.includes('--assist')) {
   // Nei log soltanto esito e forma dei dati, mai URL, titolo o contenuti.
   const started=Date.now();
   try {
-    const result=await read(process.argv[process.argv.indexOf('--probe')+1]);
+    let diagnostic;
+    const result=await read(process.argv[process.argv.indexOf('--probe')+1],value=>{diagnostic=value;});
     console.log(JSON.stringify({
       status:result.status,error:result.error || null,
       photoCount:result.images?.length || 0,
       fields:Object.entries(result.data || {}).filter(([,value])=>value!=null).map(([key])=>key),
-      elapsedMs:Date.now()-started
+      elapsedMs:Date.now()-started,
+      ...(diagnostic?{diagnostic}:{})
     }));
     if(result.status!=='ready') process.exitCode=1;
   } finally {await stop();}
