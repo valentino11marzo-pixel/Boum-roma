@@ -159,6 +159,7 @@ input:focus, textarea:focus { border-color: rgba(212,175,55,.4); }
 
   <section>
     <h3>Movimenti recenti <span id="txCount" style="color:var(--text-muted);letter-spacing:0;text-transform:none"></span></h3>
+    <p class="hint">Sono i movimenti presenti nel portale, non una conferma che l’estratto sia completo o aggiornato a oggi. Controlla le date delle righe e l’ultimo aggiornamento del conto prima di usare i totali.</p>
     <div class="list" id="txList"><div class="empty">Ancora nessun movimento.</div></div>
   </section>
 
@@ -177,10 +178,11 @@ input:focus, textarea:focus { border-color: rgba(212,175,55,.4); }
   </section>
 
   <section>
-    <h3>Scadenzario
+    <h3>Scadenzario indicativo
       <select id="scadYear" style="background:var(--bg-input);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:5px 9px;font-size:12px;font-family:inherit"></select>
       <span id="scadCounts" style="color:var(--text-muted);letter-spacing:0;text-transform:none"></span>
     </h3>
+    <p class="hint">Le stime derivano dalle registrazioni interne del portale: non sono le liquidazioni del commercialista. Dati assenti non significano IVA pari a zero; crediti, versamenti e importi da pagare vanno riscontrati con la comunicazione dello studio.</p>
     <div id="scadenzario"><div class="empty">Caricamento…</div></div>
   </section>
 

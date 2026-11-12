@@ -10891,3 +10891,4 @@ L’import CSV manuale richiede anteprima/conferma e acquisisce movimenti con su
 Nessun nuovo collegamento, cron, emissione o consenso attivato; API/email automatiche mantengono la politica precedente. Nessuna credenziale richiesta dalla nuova interfaccia.
 Prove: `bankimport`, `invoicereconciliation`, regressioni banca/canoni e regole. Il rilascio e l’import dei dati privati restano distinti dalle prove locali.
 La vista Collegamenti funziona anche senza snapshot: copertura dichiarata, permessi proposti e porte ai servizi; non certifica accessi live né attiva sync. Prove di escaping, fonte invariata e stato vuoto in `invoicereconciliation`.
+`/banca` chiarisce che i movimenti recenti non provano copertura completa e che lo scadenzario è indicativo: le registrazioni interne non sostituiscono la liquidazione del consulente. Nessuna formula fiscale o scadenza modificata.
