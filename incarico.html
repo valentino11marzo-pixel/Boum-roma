@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>L'incarico — BOOM Roma</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon-32x32.png" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#08080A">
+  <meta name="color-scheme" content="dark">
+
+  <!-- CSP — solo la nostra API: niente Firebase, niente script terzi. -->
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self';
+    base-uri 'self';
+    object-src 'none';
+    form-action 'self';
+    script-src 'self' 'unsafe-inline';
+    style-src 'self' 'unsafe-inline';
+    img-src 'self' data: blob:;
+    connect-src 'self';
+    upgrade-insecure-requests;
+  ">
+
+  <!-- /incarico — la pagina dove il proprietario legge e firma l'incarico a
+       BOOM. Stessa grammatica di /scheda e /sign (cupola, carta, oro, Helvetica
+       Neue 300). NESSUN testo dell'incarico vive qui: scheda, parti e clausole
+       arrivano da /api/owners/incarico (js/incarico-engine.js), la stessa copia
+       che finisce nel PDF. Test: node tests/incarico/run.mjs -->
+  <style>
+    *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+    :root{
+      --bg:#08080A; --panel:rgba(13,13,16,.74);
+      --field:rgba(255,255,255,.045); --field-focus:rgba(255,255,255,.09);
+      --text:#F1F1F3; --text-2:rgba(241,241,243,.72); --text-3:rgba(241,241,243,.56); --text-4:rgba(241,241,243,.42);
+      --line:rgba(255,255,255,.10);
+      --gold:#E9C766; --gold-bright:#F6E4A6; --gold-deep:#B98E2E;
+      --green:#5FD08C; --red:#F2A0A0;
+      --display:'Helvetica Neue','Helvetica Neue LT','Arial Nova',Helvetica,Arial,sans-serif;
+      --ease:cubic-bezier(.22,1,.36,1);
+    }
+    html{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+    body{font-family:var(--display);font-weight:300;background:var(--bg);color:var(--text);min-height:100svh;
+      line-height:1.55;position:relative;overflow-x:hidden;display:flex;align-items:flex-start;justify-content:center;
+      padding:max(28px,env(safe-area-inset-top)) 18px max(36px,env(safe-area-inset-bottom))}
+
+    .scene{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+    .bloom{position:absolute;left:50%;top:-8%;width:760px;height:760px;transform:translateX(-50%);
+      background:radial-gradient(circle, rgba(233,199,102,.13), transparent 62%);filter:blur(8px)}
+    .dome{position:absolute;top:-24%;left:50%;width:min(820px,150vw);height:min(820px,150vw);transform:translateX(-50%);
+      -webkit-mask:radial-gradient(circle at 50% 50%, #000 4%, rgba(0,0,0,.7) 26%, transparent 58%);
+              mask:radial-gradient(circle at 50% 50%, #000 4%, rgba(0,0,0,.7) 26%, transparent 58%);opacity:.5}
+    .dome>div{position:absolute;inset:0;border-radius:50%}
+    .dome .rings{background:repeating-radial-gradient(circle at 50% 50%, transparent 0 36px, rgba(233,199,102,.15) 36px 37px)}
+    .dome .spokes{background:repeating-conic-gradient(from 0deg at 50% 50%, rgba(233,199,102,.13) 0 .30deg, transparent .30deg 7.5deg);animation:spin 120s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .vignette{position:fixed;inset:0;z-index:0;pointer-events:none;
+      background:radial-gradient(ellipse 92% 72% at 50% 24%, transparent 42%, rgba(0,0,0,.74) 100%)}
+
+    .shell{position:relative;z-index:2;width:100%;max-width:520px;margin-top:8px}
+    .head{display:flex;flex-direction:column;align-items:center;text-align:center;margin-bottom:18px}
+    .logo{width:46px;height:46px;filter:drop-shadow(0 0 14px rgba(233,199,102,.45));margin-bottom:14px}
+    .wordmark{font-weight:300;font-size:17px;letter-spacing:9px;text-transform:uppercase;padding-left:9px;
+      background:linear-gradient(180deg,#fff,#E7DFCB 55%,#C9AE6C);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+    .kicker{margin-top:7px;font-size:10px;font-weight:500;letter-spacing:3px;text-transform:uppercase;color:var(--text-4)}
+
+    .progress{display:flex;gap:6px;justify-content:center;margin:16px 0 22px}
+    .progress i{height:3px;width:26px;border-radius:3px;background:rgba(255,255,255,.10);transition:all .4s var(--ease)}
+    .progress i.on{background:var(--gold);width:34px;box-shadow:0 0 10px rgba(233,199,102,.5)}
+    .progress i.done{background:rgba(233,199,102,.45)}
+
+    .card{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:28px 24px;
+      -webkit-backdrop-filter:blur(22px) saturate(1.2);backdrop-filter:blur(22px) saturate(1.2);
+      box-shadow:0 1px 0 rgba(255,255,255,.05) inset, 0 26px 60px -24px rgba(0,0,0,.85)}
+    .card::before{content:'';position:absolute;top:-1px;left:22px;right:22px;height:1px;
+      background:linear-gradient(90deg,transparent,rgba(246,228,166,.5),transparent)}
+    .step{animation:stepin .5s var(--ease)}
+    @keyframes stepin{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
+    h1:focus{outline:none}
+    h1{font-weight:300;font-size:25px;letter-spacing:-.01em;line-height:1.2;margin-bottom:8px;text-wrap:balance}
+    p.sub{font-size:14.5px;color:var(--text-3);margin-bottom:22px}
+    .lbl{font-size:10px;font-weight:500;letter-spacing:2.4px;text-transform:uppercase;color:var(--gold);margin:22px 0 10px}
+
+    .rows{border:1px solid var(--line);border-radius:16px;overflow:hidden;background:rgba(255,255,255,.02)}
+    .rows div{display:flex;flex-direction:column;gap:3px;padding:13px 16px;border-bottom:1px solid var(--line)}
+    .rows div:last-child{border-bottom:none}
+    .rows .k{font-size:10px;font-weight:500;letter-spacing:1.6px;text-transform:uppercase;color:var(--text-4)}
+    .rows .v{font-size:16px;color:var(--text)}
+    .rows div.big .v{font-size:21px;color:var(--gold-bright)}
+
+    .party{font-size:14px;color:var(--text-2);margin-bottom:10px}
+    .cl{padding:14px 0;border-bottom:1px solid var(--line)}
+    .cl:last-child{border-bottom:none}
+    .cl h2{font-size:15.5px;font-weight:500;margin-bottom:5px}
+    .cl h2 span{color:var(--gold);margin-right:6px}
+    .cl p{font-size:15px;color:var(--text-2)}
+
+    .check{display:flex;gap:13px;align-items:flex-start;padding:14px;border:1px solid var(--line);border-radius:14px;
+      margin-bottom:10px;cursor:pointer;background:rgba(255,255,255,.02);min-height:48px}
+    .check input{flex:none;width:22px;height:22px;margin-top:1px;accent-color:var(--gold)}
+    .check span{font-size:14.5px;color:var(--text-2)}
+    .check b{font-weight:500;color:var(--text)}
+    .check.bad{border-color:rgba(242,160,160,.6)}
+
+    .field label{display:block;font-size:13px;color:var(--text-2);margin:16px 0 7px 2px}
+    .inp{width:100%;height:50px;padding:0 14px;background:var(--field);border:1px solid var(--line);border-radius:12px;
+      color:var(--text);font-family:var(--display);font-size:17px;font-weight:300;outline:none}
+    .inp:focus{border-color:rgba(233,199,102,.6);background:var(--field-focus);box-shadow:0 0 0 3px rgba(233,199,102,.13)}
+    .inp.bad{border-color:rgba(242,160,160,.6)}
+
+    .pad-wrap{position:relative;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#fbfbf9}
+    #pad{display:block;width:100%;height:190px;touch-action:none;cursor:crosshair}
+    .pad-base{position:absolute;left:18px;right:18px;bottom:46px;height:1px;background:rgba(0,0,0,.16);pointer-events:none}
+    .pad-ph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:rgba(0,0,0,.4);font-size:14px;pointer-events:none}
+    .pad-clear{position:absolute;top:8px;right:8px;height:34px;padding:0 13px;border:none;border-radius:9px;background:rgba(0,0,0,.07);color:#222;font-family:var(--display);font-size:13px;cursor:pointer}
+
+    .btn{width:100%;min-height:54px;border:none;border-radius:14px;cursor:pointer;margin-top:20px;
+      background:linear-gradient(180deg,var(--gold-bright),var(--gold) 46%,var(--gold-deep));color:#1c1503;
+      font-family:var(--display);font-size:16px;font-weight:500;box-shadow:0 8px 22px -10px rgba(233,199,102,.5)}
+    .btn[disabled]{opacity:.55;cursor:default}
+    .btn.ghost{background:transparent;color:var(--text-2);border:1px solid var(--line);box-shadow:none;font-weight:300;margin-top:10px;
+      display:flex;align-items:center;justify-content:center;text-decoration:none}
+    .btn:focus-visible,.check input:focus-visible,.pad-clear:focus-visible,a:focus-visible{outline:2px solid var(--gold-bright);outline-offset:3px}
+    .err{font-size:14px;color:var(--red);margin-top:12px;display:none}
+    .err.show{display:block}
+    .fine{font-size:12.5px;color:var(--text-4);margin-top:16px;text-align:center}
+    .fine a{color:var(--text-3)}
+    .okring{width:60px;height:60px;border-radius:50%;border:1.5px solid var(--green);display:flex;align-items:center;justify-content:center;margin:4px auto 18px;color:var(--green)}
+    .center{text-align:center}
+    [hidden]{display:none!important}
+
+    @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+    /* La stampa è il testo su carta: niente scena, niente bottoni, tutto visibile. */
+    @media print{
+      body{background:#fff;color:#000;padding:0;display:block}
+      .scene,.vignette,.progress,.btn,.pad-wrap,.fine,.check,.field,.err{display:none!important}
+      .card{background:#fff;border:none;box-shadow:none;padding:0}.card::before{display:none}
+      .step[hidden]{display:block!important}#s-sign,#s-done,#s-msg{display:none!important}
+      .wordmark{-webkit-text-fill-color:#000;color:#000}.kicker,.lbl{color:#7a5f12}
+      h1,.rows .v,.cl h2,.cl p,.party,p.sub{color:#000}.rows,.rows div,.cl{border-color:#bbb}.rows div.big .v{color:#000}
+    }
+  </style>
+</head>
+<body>
+  <div class="scene" aria-hidden="true"><div class="bloom"></div><div class="dome"><div class="rings"></div><div class="spokes"></div></div></div>
+  <div class="vignette" aria-hidden="true"></div>
+
+  <main class="shell">
+    <div class="head">
+      <img class="logo" src="/boom-mark.svg" alt="BOOM" width="46" height="46">
+      <div class="wordmark">BOOM</div>
+      <div class="kicker" id="kick">L'incarico</div>
+    </div>
+    <div class="progress" id="progress" aria-hidden="true"><i></i><i></i><i></i></div>
+
+    <div class="card">
+      <section class="step" id="s-msg" aria-live="polite"><p class="sub" id="msg">Un momento…</p></section>
+
+      <section class="step" id="s-sum" hidden>
+        <h1 id="hello"></h1>
+        <p class="sub">Questo è l'incarico che affida a BOOM la ricerca degli inquilini per la Sua casa. Prima le condizioni in sintesi, poi il testo completo, poi la firma.</p>
+        <div class="rows" id="rows"></div>
+        <button class="btn" id="to-text" type="button">Leggi il testo completo</button>
+        <a class="btn ghost" id="pdf-1" target="_blank" rel="noopener">Apri il PDF da stampare</a>
+      </section>
+
+      <section class="step" id="s-text" hidden>
+        <h1>Il testo dell'incarico</h1>
+        <p class="sub" id="refline"></p>
+        <div class="lbl">Tra</div>
+        <p class="party" id="p-boom"></p>
+        <p class="party" id="p-owner"></p>
+        <div class="lbl">Si conviene quanto segue</div>
+        <div id="clauses"></div>
+        <button class="btn" id="to-sign" type="button">Continua alla firma</button>
+        <button class="btn ghost" id="back-1" type="button">Torna alla sintesi</button>
+      </section>
+
+      <section class="step" id="s-sign" hidden>
+        <h1>La Sua firma</h1>
+        <p class="sub">Tre conferme, il Suo nome e la firma col dito.</p>
+        <label class="check" id="c-accept"><input type="checkbox" id="accept"><span><b>Ho letto e accetto l'incarico</b> alle condizioni che ho appena visto.</span></label>
+        <div id="specifics"></div>
+        <label class="check" id="c-start" hidden><input type="checkbox" id="start"><span><b>Chiedo che BOOM inizi subito</b>, senza attendere i 14 giorni del recesso di legge. Facoltativo.</span></label>
+        <div class="field"><label for="name">Nome e cognome, come sul documento</label>
+          <input class="inp" id="name" autocomplete="name" autocapitalize="words"></div>
+        <div class="field"><label for="pad">Firma qui</label>
+          <div class="pad-wrap"><canvas id="pad" aria-label="Riquadro della firma"></canvas><div class="pad-base"></div>
+            <div class="pad-ph" id="pad-ph">Firmi col dito o col mouse</div>
+            <button class="pad-clear" id="pad-clear" type="button">Cancella</button></div></div>
+        <p class="err" id="err" role="alert"></p>
+        <button class="btn" id="do-sign" type="button">Firma l'incarico</button>
+        <button class="btn ghost" id="back-2" type="button">Rileggi il testo</button>
+      </section>
+
+      <section class="step center" id="s-done" hidden>
+        <div class="okring" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 12.5 10 17.5 19 7"/></svg></div>
+        <h1>Incarico firmato</h1>
+        <p class="sub" id="done-sub"></p>
+        <a class="btn" id="pdf-2" target="_blank" rel="noopener" style="display:flex;align-items:center;justify-content:center;text-decoration:none">Scarica la Sua copia</a>
+        <a class="btn ghost" id="area" href="/login" hidden>Entra nell'area proprietario</a>
+        <p class="fine" id="area-note" hidden>La Sua area proprietario è attiva con la Sua email. Al primo accesso scelga la password da «Password dimenticata».</p>
+      </section>
+    </div>
+    <p class="fine">BOOM® · Egidi Immobiliare S.r.l. · P.IVA 17322991005 · <a href="/privacy">Privacy</a></p>
+  </main>
+
+<script>
+(function(){
+  'use strict';
+  var $=function(id){return document.getElementById(id);};
+  var T=new URLSearchParams(location.search).get('t')||'';
+  var API='/api/owners/incarico';
+  var D=null, pad=null, busy=false;
+  var STEPS=['s-sum','s-text','s-sign'];
+
+  function show(id){
+    ['s-msg','s-sum','s-text','s-sign','s-done'].forEach(function(s){ $(s).hidden=(s!==id); });
+    var i=STEPS.indexOf(id), dots=$('progress').children;
+    $('progress').style.visibility=(i<0?'hidden':'visible');
+    for(var k=0;k<dots.length;k++){ dots[k].className=(k<i?'done':(k===i?'on':'')); }
+    window.scrollTo(0,0);
+    var h=$(id).querySelector('h1'); if(h){ h.setAttribute('tabindex','-1'); h.focus({preventScroll:true}); }
+  }
+  function msg(t){ $('msg').textContent=t; show('s-msg'); }
+  function el(tag,cls,text){ var e=document.createElement(tag); if(cls) e.className=cls; if(text!=null) e.textContent=text; return e; }
+  function dateTime(iso){ try{ return new Date(iso).toLocaleString('it-IT',{timeZone:'Europe/Rome',day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'}); }catch(_){ return ''; } }
+
+  function done(at, docUrl, area){
+    $('done-sub').textContent='Firmato il '+dateTime(at)+'. Una copia è stata inviata anche per email, se abbiamo il Suo indirizzo.';
+    $('pdf-2').href=docUrl||(API+'?t='+encodeURIComponent(T)+'&pdf=1');
+    var ok=area&&area.state&&area.state!=='manual';
+    $('area').hidden=!ok; $('area-note').hidden=!ok;
+    show('s-done');
+  }
+
+  function render(){
+    $('hello').textContent='Gentile '+D.owner.name.split(' ')[0]+',';
+    $('kick').textContent='L\'incarico · '+D.ref;
+    $('refline').textContent='Riferimento '+D.ref;
+    var rows=$('rows'); rows.textContent='';
+    D.summary.forEach(function(r){ var d=el('div',r[0]==='Compenso'?'big':''); d.appendChild(el('span','k',r[0])); d.appendChild(el('span','v',r[1])); rows.appendChild(d); });
+    $('p-boom').textContent=D.parties.boom+';';
+    $('p-owner').textContent=D.parties.owner+'.';
+    var box=$('clauses'); box.textContent='';
+    D.clauses.forEach(function(c){ var d=el('div','cl'), h=el('h2'); h.appendChild(el('span','',c.n+'.')); h.appendChild(document.createTextNode(c.title)); d.appendChild(h); d.appendChild(el('p','',c.text)); box.appendChild(d); });
+    var sp=$('specifics'); sp.textContent='';
+    D.clauses.filter(function(c){return c.specific;}).forEach(function(c){
+      var l=el('label','check'), i=el('input'); i.type='checkbox'; i.setAttribute('data-spec',c.id);
+      var s=el('span'); var b=el('b','','Approvo espressamente la clausola '+c.n+' ('+c.title+').'); s.appendChild(b); s.appendChild(document.createTextNode(' '+c.text));
+      l.appendChild(i); l.appendChild(s); sp.appendChild(l);
+    });
+    $('c-start').hidden=!D.withdrawal;
+    var pdf=API+'?t='+encodeURIComponent(T)+'&pdf=1'; $('pdf-1').href=pdf;
+  }
+
+  function initPad(canvas, ph){
+    var ctx=canvas.getContext('2d'), dpr=Math.max(1,Math.min(2,window.devicePixelRatio||1));
+    var strokes=[], cur=null, drawing=false;
+    function size(){ var r=canvas.getBoundingClientRect(); canvas.width=Math.round(r.width*dpr); canvas.height=Math.round(190*dpr); ctx.setTransform(dpr,0,0,dpr,0,0); redraw(); }
+    function pos(e){ var r=canvas.getBoundingClientRect(), t=e.touches?e.touches[0]:e; return {x:t.clientX-r.left,y:t.clientY-r.top}; }
+    function style(){ ctx.lineWidth=2.4; ctx.lineCap='round'; ctx.lineJoin='round'; ctx.strokeStyle='#101010'; }
+    function redraw(){ ctx.clearRect(0,0,canvas.width,canvas.height); style();
+      strokes.forEach(function(st){ if(st.length<2) return; ctx.beginPath(); ctx.moveTo(st[0].x,st[0].y); for(var i=1;i<st.length;i++){ var a=st[i-1],b=st[i]; ctx.quadraticCurveTo(a.x,a.y,(a.x+b.x)/2,(a.y+b.y)/2);} ctx.stroke(); }); }
+    function start(e){ e.preventDefault(); drawing=true; cur=[pos(e)]; ph.style.display='none'; }
+    function move(e){ if(!drawing) return; e.preventDefault(); cur.push(pos(e)); style();
+      var n=cur.length; if(n>1){ var a=cur[n-2],b=cur[n-1]; ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke(); } }
+    function end(){ if(drawing&&cur&&cur.length){ strokes.push(cur); } drawing=false; cur=null; }
+    canvas.addEventListener('mousedown',start); canvas.addEventListener('mousemove',move); window.addEventListener('mouseup',end);
+    canvas.addEventListener('touchstart',start,{passive:false}); canvas.addEventListener('touchmove',move,{passive:false}); canvas.addEventListener('touchend',end);
+    size(); window.addEventListener('resize',size);
+    return { clear:function(){ strokes=[]; ph.style.display='flex'; redraw(); },
+      hasInk:function(){ var p=0; strokes.forEach(function(s){p+=s.length;}); return p>=8; },
+      toDataURL:function(){ return canvas.toDataURL('image/png'); } };
+  }
+
+  var ERR={ accept_required:'Serve la prima conferma: «Ho letto e accetto».', specific_required:'Manca l\'approvazione di una clausola.',
+    name_required:'Scriva nome e cognome.', name_mismatch:'Il nome non corrisponde all\'intestatario dell\'incarico. Lo scriva come sul documento.',
+    signature_required:'Manca la firma nel riquadro.', terms_changed:'Le condizioni sono state aggiornate: ricarichi la pagina e le rilegga prima di firmare.',
+    not_open:'Questo incarico non è più aperto. Scriva a BOOM.', rate_limited:'Troppi tentativi: riprovi fra un minuto.', invalid_link:'Il link non è valido.' };
+  function fail(code){ var e=$('err'); e.textContent=ERR[code]||'Non siamo riusciti a registrare la firma. Riprovi; se continua, scriva a BOOM.'; e.className='err show'; }
+
+  function sign(){
+    if(busy) return;
+    $('err').className='err';
+    var spec=[], miss=false;
+    document.querySelectorAll('[data-spec]').forEach(function(i){ i.parentNode.classList.toggle('bad',!i.checked); if(i.checked) spec.push(i.getAttribute('data-spec')); else miss=true; });
+    $('c-accept').classList.toggle('bad',!$('accept').checked);
+    var name=$('name').value.replace(/\s+/g,' ').trim(); $('name').classList.toggle('bad',name.length<3);
+    if(!$('accept').checked) return fail('accept_required');
+    if(miss) return fail('specific_required');
+    if(name.length<3) return fail('name_required');
+    if(!pad.hasInk()) return fail('signature_required');
+    busy=true; var b=$('do-sign'); b.disabled=true; b.textContent='Registro la firma…'; b.setAttribute('aria-busy','true');
+    fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({op:'sign',t:T,accept:true,specific:spec,name:name,signature:pad.toDataURL(),hash:D.hash,immediateStart:D.withdrawal&&$('start').checked})})
+      .then(function(r){ return r.json().then(function(j){ return {s:r.status,j:j}; }); })
+      .then(function(x){ if(x.j&&x.j.ok) return done(x.j.at,x.j.docUrl,x.j.area); fail((x.j&&x.j.error)||''); })
+      .catch(function(){ fail(''); })
+      .then(function(){ busy=false; b.disabled=false; b.textContent='Firma l\'incarico'; b.removeAttribute('aria-busy'); });
+  }
+
+  $('to-text').onclick=function(){ show('s-text'); };
+  $('back-1').onclick=function(){ show('s-sum'); };
+  $('to-sign').onclick=function(){ show('s-sign'); if(!pad) pad=initPad($('pad'),$('pad-ph')); };
+  $('back-2').onclick=function(){ show('s-text'); };
+  $('pad-clear').onclick=function(){ if(pad) pad.clear(); };
+  $('do-sign').onclick=sign;
+
+  if(!T) return msg('Il link non è completo. Apra quello ricevuto da BOOM.');
+  fetch(API+'?t='+encodeURIComponent(T)).then(function(r){ return r.json(); }).then(function(j){
+    if(!j||!j.ok) return msg(j&&j.error==='rate_limited'?'Troppi tentativi: riprovi fra un minuto.':'Questo link non è valido. Chieda a BOOM di rimandarglielo.');
+    D=j;
+    if(j.status==='void') return msg('Questo incarico è stato annullato. Scriva a BOOM per riceverne uno nuovo.');
+    render();
+    if(j.status==='signed') return done(j.signedAt,j.docUrl,j.area);
+    show('s-sum');
+  }).catch(function(){ msg('Non riusciamo a caricare l\'incarico. Controlli la connessione e ricarichi la pagina.'); });
+})();
+</script>
+</body>
+</html>

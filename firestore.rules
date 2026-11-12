@@ -379,6 +379,11 @@ service cloud.firestore {
     // un doc per (portale, listing) con l'hash del contenuto pubblicato.
     // Scritti solo server-side con credenziali admin — stessa lezione.
     match /portalPubs/{x}                  { allow read, write: if isAdmin(); }
+    // L'INCARICO DEL PROPRIETARIO (api/owners/incarico.js, 12/11/2026): le
+    // condizioni, il token del link personale e la firma. Admin-only: la
+    // pagina pubblica /incarico non legge mai Firestore, passa dall'API col
+    // token — il token sta QUI dentro, quindi nessun altro deve leggerlo.
+    match /ownerMandates/{x}               { allow read, write: if isAdmin(); }
     // LA MINIERA — righe per-thread dello storico WhatsApp (feature +
     // campioni corti, mai l'archivio integrale — api/homie/miniera.js).
     // Scritte solo server-side con credenziali admin — stessa lezione.
