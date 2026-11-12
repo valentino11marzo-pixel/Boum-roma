@@ -95,7 +95,7 @@ aos_alert() {
 }
 
 # ─── wake Homie with a precise delta (token-efficient agent turn) ─────
-# Usage: aos_wake_homie "Sofia Poulet ha scritto un messaggio nuovo: ..."
+# Usage: aos_wake_homie "Giulia Rossi ha scritto un messaggio nuovo: ..."
 # Defaults to haiku + minimal thinking. Escalation is the agent's job
 # (the agent inside the turn can decide to call sonnet via a tool).
 aos_wake_homie() {

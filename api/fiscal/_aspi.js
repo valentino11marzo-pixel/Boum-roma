@@ -2,8 +2,7 @@
 //
 // Il flusso REALE dell'operatore, prima di questo modulo: contratto firmato
 // → il fascicolo CAF arriva nella SUA casella (sendCafDossier →
-// valentino@boom-rome.com) → lui lo inoltra A MANO al referente ASPI
-// (Roberto Ubertini, geometra — ASPI, Roma via S. Nicola da Tolentino),
+// valentino@boom-rome.com) → lui lo inoltra A MANO al referente ASPI,
 // ricordandosi ogni volta cosa serve: identità + contratto per la
 // registrazione (€37), e in più APE + planimetria + scheda di calcolo del
 // canone per l'attestazione di rispondenza (€100). Con dieci contratti al
@@ -34,6 +33,13 @@
 // settings/company); i default vivono QUI, esportati, così console e
 // server non possono divergere (disciplina _avail.js / squadra-registry).
 //
+// IL REFERENTE NON STA NEL CODICE (12/11/2026). È una persona terza: il suo
+// indirizzo e il suo nome non sono un default di questo file. Vengono da
+// settings/registrazione (pannello 🏛 ASPI → ✎) o, come default di deploy,
+// dalle env ASPI_EMAIL / ASPI_REFERENTE. Senza
+// destinatario non parte niente e lo si dice (`recipient_not_configured`):
+// mai un invio a vuoto, mai un indirizzo indovinato.
+//
 // Regole dure:
 //   - senza un PDF del contratto NON si invia niente: una richiesta di
 //     registrazione senza contratto è rumore nella casella del geometra;
@@ -61,8 +67,8 @@ const ADMIN_EMAIL = process.env.ADMIN_NOTIFY_EMAIL || 'valentino@boom-rome.com';
 
 // ── Default (una copia sola: console e server leggono questi) ────────────
 export const ASPI_DEFAULTS = {
-  email: process.env.ASPI_EMAIL || 'roberto.ubertini@gmail.com',
-  referente: 'Roberto Ubertini',
+  email: '',                 // settings/registrazione.email → env ASPI_EMAIL → nessuno
+  referente: '',             // settings/registrazione.referente → env ASPI_REFERENTE
   organizzazione: 'ASPI — Roma, via San Nicola da Tolentino',
   cc: '',                     // copie extra (l'operatore è SEMPRE in copia)
   costoRegistrazione: 37,     // quanto ASPI fattura a BOOM per pratica
@@ -82,6 +88,8 @@ const clip = (v, n = 160) => String(v == null ? '' : v).trim().slice(0, n);
 export function mergeAspiSettings(saved) {
   const s = { ...ASPI_DEFAULTS };
   const src = saved && typeof saved === 'object' ? saved : {};
+  if (clip(process.env.ASPI_EMAIL, 120).includes('@')) s.email = clip(process.env.ASPI_EMAIL, 120);
+  if (clip(process.env.ASPI_REFERENTE)) s.referente = clip(process.env.ASPI_REFERENTE, 80);
   if (clip(src.email, 120).includes('@')) s.email = clip(src.email, 120);
   if (clip(src.referente)) s.referente = clip(src.referente, 80);
   if (clip(src.organizzazione)) s.organizzazione = clip(src.organizzazione, 120);
@@ -95,6 +103,8 @@ export function mergeAspiSettings(saved) {
   if (typeof src.auto === 'boolean') s.auto = src.auto;
   return s;
 }
+
+export const hasRecipient = (settings) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String((settings && settings.email) || ''));
 
 export async function loadAspiSettings() {
   let saved = null;
@@ -421,6 +431,9 @@ export async function sendAspiRequest(contractId, opts = {}) {
   const contract = (opts.preloaded && opts.preloaded.contract) || await fsGet('contracts/' + contractId);
   if (!contract) return { ok: false, error: 'contract_not_found' };
   contract.id = contractId;
+  // Il destinatario non sta nel codice: senza settings/registrazione.email
+  // (pannello ✎) né ASPI_EMAIL non parte niente, prima di qualunque lavoro.
+  if (!hasRecipient(settings)) return { ok: false, error: 'recipient_not_configured' };
   const property = (opts.preloaded && opts.preloaded.property)
     || (contract.propertyId ? await fsGet('properties/' + contract.propertyId).catch(() => null) : null) || {};
 
@@ -591,6 +604,17 @@ export async function maybeAutoAspi(contract, overrides = {}) {
   try {
     const settings = await loadAspiSettings();
     if (!settings.auto) return { skipped: 'off' };
+    if (!hasRecipient(settings)) {
+      try {
+        await fsCreate('agentNotifications', {
+          type: 'aspi.recipient_missing', status: 'pending', priority: 'high',
+          title: '🏛 Invio automatico ad ASPI acceso, ma manca il destinatario',
+          body: `Contratto ${contract.tenantName || contract.id}: la richiesta NON è partita. Imposta l'email del referente dal pannello 🏛 ASPI (✎) o con ASPI_EMAIL, poi premi «Invia ad ASPI».`,
+          contractId: contract.id, createdAt: new Date().toISOString(),
+        }, `aspinorec_${safeName(contract.id, 60)}`);
+      } catch (_) { /* già avvisato per questo contratto */ }
+      return { ok: false, error: 'recipient_not_configured' };
+    }
     // Sul RIAFFITTO la registrazione è compresa nella mezza mensilità (/owners,
     // passo 2): si invia tutto, si fattura la sola attestazione — e niente se
     // la pratica è la sola registrazione. «Non so» (lettura fallita) = come prima.

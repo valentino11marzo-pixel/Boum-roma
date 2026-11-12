@@ -122,7 +122,7 @@ ok(/landlordDelegate/.test(src('api/magic-sign/lookup.js')) && /landlordDelegate
   'lookup e submit leggono la delega: il documento dirà «per conto di»');
 ok(/landlordDelegate/.test(src('sign.html')), 'la pagina di firma mostra la delega al firmatario');
 
-// ── 4. La console VEDE la firma (12/09/2026, il caso Inês) ──────────────
+// ── 4. La console VEDE la firma (12/09/2026) ──────────────
 // La console pre-agreement leggeva solo la proposta e nessuno le scriveva
 // che il contratto era firmato: il deal restava «paid · 🖊 Reinvia Magic
 // Sign» per sempre. Il giro vero (submit → stampa → send-sign onesto) è in
@@ -155,8 +155,8 @@ ok(/signedOk=sigF\.status==='complete'/.test(fasc) && !/\(contract\.signingCerti
 // ── 5. LE SCRITTURE DOPO LA RISPOSTA SI PERDONO (13/09/2026) ──────────
 // Su Vercel la funzione può essere congelata appena `res.json` parte: una
 // fsPatch lanciata senza await un attimo prima muore in volo. Il backup di
-// produzione lo dimostrava: la proposta di Inês senza signSentAt dopo un 🖊
-// andato a buon fine, quella di Léa senza contractId con il contratto firmato
+// produzione lo dimostrava: una proposta senza signSentAt dopo un 🖊
+// andato a buon fine, un'altra senza contractId con il contratto firmato
 // da un mese. Regola di CLASSE, verificata scandagliando i tre rail: nessuna
 // scrittura di stato o ping può stare a inizio istruzione senza `await`.
 import { readdirSync, statSync } from 'node:fs';

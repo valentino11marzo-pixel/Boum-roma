@@ -34,7 +34,7 @@
 //
 // LA LEZIONE DEL 30 SETTEMBRE 2026 («chi fa apply per la casa non lo vedo:
 // né nei lead del portal, né via email»). Letto nei log e nella casella,
-// non dedotto: due candidature vere (Berk, 16:38 e 16:43 UTC) → 200, lead
+// non dedotto: due candidature vere (16:38 e 16:43 UTC) → 200, lead
 // scritto, conferma partita AL CANDIDATO — e all'operatore niente, perché
 // questa porta non ha MAI scritto a BOOM: l'unico avviso era la card
 // Telegram, che a sua volta poteva non partire (vedi api/leads/_fresh.js).

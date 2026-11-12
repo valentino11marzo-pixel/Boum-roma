@@ -334,7 +334,7 @@ export async function finalizeContract(contract){
 // ── Bonifica delle scadenze doppie del finalize ──
 // ── LA BONIFICA GLOBALE delle scadenze doppie (reminder-cron, 1×/giorno) ──
 // La passata qui sopra gira SOLO dentro un finalize o su 🔄 Rifinalizza: il
-// contratto di Rute portava ancora 200 doppioni (25 copie × 8 titoli, tutte
+// contratto del 1/09/2026 portava ancora 200 doppioni (25 copie × 8 titoli, tutte
 // `source:'finalize'`) il 13/09/2026, perché nessuno aveva premuto
 // Rifinalizza e finalize esce subito a finalizedAt scritto. Il cron non
 // dipende da un tap: UNA query sulle scadenze auto-generate dal finalize,

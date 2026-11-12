@@ -421,7 +421,7 @@ DB.set('contracts/docContract', { tenantId: 'docTenant', propertyId: 'pA', statu
 for (const [type, coll] of [['lead', 'leads'], ['pfs', 'pfsClients'], ['client', 'clients']]) {
   const url = attachment(type + '-excluded.pdf'), id = 'doc-' + type;
   // Un'email uguale a quella del tenant NON scavalca il tipo del contatto.
-  DB.set(coll + '/' + id, { phone: '+39333801000' + ({lead: 1, pfs: 2, client: 3}[type]), email: 'tenant@example.test' });
+  DB.set(coll + '/' + id, { phone: '+39333811110' + ({lead: 1, pfs: 2, client: 3}[type]), email: 'tenant@example.test' });
   const before = [docs().length, aiHits, storageHits, mediaHits].join(',');
   const r = await call({ direction: 'in', contactType: type, contactId: id,
     body: 'Allego il documento', mediaUrls: [url], messageId: id });

@@ -347,6 +347,12 @@ EMAILJS_PRIVATE_KEY          # server-side EmailJS REST (api/stripe-webhook.js:
 LEADS_NOTIFY_EMAIL           # optional — dove arriva l'avviso di ogni candidatura
                              # dal sito (/api/apply-lead); default
                              # ADMIN_NOTIFY_EMAIL → valentino@boom-rome.com
+ASPI_EMAIL                   # il referente delle registrazioni (iter ASPI), come default
+                             # di deploy: l'indirizzo NON sta nel codice. Vince
+                             # settings/registrazione.email (pannello 🏛 ASPI → ✎);
+                             # senza nessuno dei due l'invio risponde
+                             # recipient_not_configured e non parte niente
+ASPI_REFERENTE               # optional — il suo nome nell'email (o settings/registrazione)
 REGISTRATION_EMAIL           # optional — dove arriva il Foglio di registrazione
                              # (email pulita a firma completa); default
                              # CAF_EMAIL → valentino@boom-rome.com
@@ -4337,8 +4343,8 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
   calendar 126, signing 274, cityterms 142, withdraw 122, withdrawui 87 nei due font; `npm test` 296
   suite, rosse solo `portalnavigationui` in Inter (Oggi, il font) e `magicsigncustomui` /
   `magicsigncustomsigner` (cdn.jsdelivr.net irraggiungibile), preesistenti.
-- **IL CREDITO DELL'APPLICATION PACK (06/11/2026 — «costruiamo la C, così la uso oggi stesso con
-  Daniel»).** Il primo caso è Madrid, fascicolo BM BEAEV: il cliente ha pagato l'Application Pack
+- **IL CREDITO DELL'APPLICATION PACK (06/11/2026 — «costruiamo la C, così la uso oggi stesso»).**
+  Il primo caso è un cliente di Madrid: ha pagato l'Application Pack
   (€199, «Start now» spuntato) e in chiamata il fondatore gli ha promesso che, passando al Full
   Search, i €199 sarebbero stati accreditati. La cassa non sapeva farlo: l'unica via era incassare
   €500 e rimborsare a mano. Ora un pack pagato su un desk che incassa alla cassa diventa Full Search
@@ -5058,7 +5064,7 @@ annual rent + VAT "due separately", conditions 5.1–5.7, Egidi footer).
   **✅ Sblocca la riserva** / **🔎 Ha pagato?**, filtro Riserve, e la KPI
   incassato conta i soldi VERI (prima sommava solo `status==='paid'`).
   Test: `node tests/preagreement/state.mjs`.
-- **La console VEDE la firma** (12/09/2026 — il caso Inês, Viale Angelico 9).
+- **La console VEDE la firma** (12/09/2026 — un contratto firmato e attivo da settembre).
   La console leggeva SOLO il documento della proposta, e nessuno le scriveva
   mai che il contratto era stato firmato: un deal firmato da entrambi e
   attivo da settembre restava «paid · 🖊 Reinvia Magic Sign · dopo la firma
@@ -5090,10 +5096,10 @@ annual rent + VAT "due separately", conditions 5.1–5.7, Egidi footer).
 - **LE SCRITTURE DOPO LA RISPOSTA SI PERDONO** (13/09/2026 — letto nel
   backup notturno, non dedotto). Su Vercel la funzione può essere congelata
   appena `res.json` parte: una `fsPatch(...).catch(() => {})` lanciata
-  senza `await` un attimo prima muore in volo. Prove nel dump del 13/09: la
-  proposta di Inês SENZA `signSentAt` dopo un 🖊 andato a buon fine (email
+  senza `await` un attimo prima muore in volo. Prove nel dump del 13/09: una
+  proposta SENZA `signSentAt` dopo un 🖊 andato a buon fine (email
   partite, 200 al client — e la console diceva ancora «Invia Magic Sign»
-  come se non fosse mai stato premuto); la proposta di Léa SENZA
+  come se non fosse mai stato premuto); un'altra proposta SENZA
   `contractId` con il contratto `pa_<id>` firmato da entrambi il 14/08 (il
   back-link di convert era fire-and-forget, e il ramo «esiste già» non lo
   riscriveva mai: orfana per sempre, riga «paid · → Contratto»). Regola di
@@ -5799,8 +5805,8 @@ mette l'operatore dal bottone. Senza zona o mq il foglio resta il modulo
 vuoto, con parametri e pertinenze compilati perché sono fatti.
 
 ### L'iter ASPI (`api/fiscal/registra.js` + `api/fiscal/_aspi.js`) — registrazione & asseverazione in UN tap
-LA DECISIONE È PRESA: il CAF/associazione è **ASPI** (referente Roberto
-Ubertini, geometra — Roma, via S. Nicola da Tolentino; fa anche gli APE),
+LA DECISIONE È PRESA: il CAF/associazione è **ASPI** (il referente e il suo indirizzo stanno in
+`settings/registrazione` o nell'env `ASPI_EMAIL`, mai nel codice; fa anche gli APE),
 il canale è l'**email strutturata**. Prima l'operatore riceveva il
 fascicolo CAF nella PROPRIA casella e lo inoltrava a mano, ricordando ogni
 volta il corredo: identità + contratto per la registrazione (costo pratica
@@ -5835,9 +5841,10 @@ l'attestazione di rispondenza (**€100**). Ora:
   `settings/registrazione` (default: registrazione **€89**, asseverazione
   **€189**, completo €278; costi pratica 37/100/137 tracciati accanto).
   Da lì il 💳 link di pagamento esistente incassa con carta.
-- **Manopole in `settings/registrazione`** (admin-only in LETTURA nelle
-  rules — contiene l'email personale del referente, lezione
-  settings/company): email, referente, cc, prezzi, costi, billTo
+- **Manopole in `settings/registrazione`** (lo legge SOLO l'admin, dal
+  12/11/2026: prima bastava essere autenticati, e un account lo può aprire
+  chiunque dalle pagine del sito — contiene l'indirizzo del referente,
+  lezione settings/company): email, referente, cc, prezzi, costi, billTo
   (landlord|tenant), autoInvoice, e **`auto`** — l'opt-in "zero tap": con
   auto:true la richiesta parte DA SOLA alla firma completa (dentro
   `_finalize.js`, dopo il fascicolo CAF, best-effort e time-boxed).
@@ -5848,6 +5855,10 @@ l'attestazione di rispondenza (**€100**). Ora:
   **🏛 Invia ad ASPI** in Burocrazia → pannello che legge TUTTO da
   op:status (mai un prezzo hardcodato nel client), radio variante,
   checklist live, checkbox fattura, nota, ✎ per cambiare destinatario.
+  In Impostazioni la card «Registrazione contratti — referente» mostra il
+  valore salvato e apre lo stesso ✎ (12/11/2026: prima c'erano due campi
+  «Email CAF» che scrivevano in `settings/general`, un documento che si
+  legge senza login, e che nessuno rileggeva).
   `✓ RLI registrato` resta il tap che chiude il loop quando ASPI conferma.
 - **Cosa si fattura ≠ cosa si invia** (30/09/2026, la scala di /owners):
   `billKind` (tendina «Cosa fatturare» nel pannello) — sul riaffitto la
@@ -5877,7 +5888,7 @@ l'attestazione di rispondenza (**€100**). Ora:
   `op:'status'` lo espone insieme alle fatture già emesse (`billing`), il
   pannello preseleziona e mostra, e `maybeAutoAspi` lo applica da solo. Due
   pratiche in due tempi portano numeri distinti (`-R`/`-A`).
-- Test: `node tests/aspi/run.mjs` (79 check).
+- Test: `node tests/aspi/run.mjs` (94 check; le regole di `settings` nell'emulatore: `tests/rules`).
 
 **Il documento si attacca DOVE MANCA** (`api/fiscal/allega.js`, 23/08):
 il pannello diceva onestamente dove caricare ogni pezzo ("console
@@ -6505,7 +6516,7 @@ controparte (max 3, cooldown 24h col promemoria manuale); inviti FREDDI
 `shouldReinvite()` esportato e testato). Un contratto MAI invitato non
 viene toccato: resta una decisione umana.
 
-### La firma completa che non muore a metà (1/09/2026 — il contratto di Rute)
+### La firma completa che non muore a metà (1/09/2026)
 Il giorno del primo contratto firmato da entrambe le parti con **Storage
 giù** (403 "Permission denied" su ogni upload admin, mentre Firestore
 funzionava), il finalize ha mostrato tre difetti di classe, tutti chiusi:
@@ -6535,7 +6546,7 @@ bonifica della tempesta, giunzioni e CI asserite sulla sorgente).
 
 **La bonifica che nessuno premeva** (13/09/2026): la passata dei doppioni
 girava SOLO dentro un finalize o su 🔄 Rifinalizza — e finalize esce subito
-a `finalizedAt` scritto. Nel dump del 13/09 il contratto di Rute portava
+a `finalizedAt` scritto. Nel dump del 13/09 quel contratto portava
 ancora **204 scadenze, 200 doppioni** (25 copie × 8 titoli, `source:
 'finalize'`). `sweepFinalizeDuplicates()` (`_finalize.js`) gira dal
 `reminder-cron` una volta al giorno (04 UTC): una query sulle scadenze
@@ -7529,9 +7540,9 @@ italiano). Lo specchio esatto del mandato del conduttore:
   IP dell'operatore.
 
 ### 📋 La Scheda del proprietario dalla console + il mandato sull'immobile nato dalla proposta (12/10/2026)
-«Non riesco a inviare a Chiara Tavolieri la scheda per far compilare i suoi
-dati o il link del Magic Sign.» Letto nel backup notturno, non dedotto: la
-proposta BOOM-MUCHJ6LC (Via dei Latini 76) era pagata dal 22/09 **senza
+«Non riesco a inviare alla proprietaria la scheda per far compilare i suoi
+dati o il link del Magic Sign.» Letto nel backup notturno, non dedotto: una
+proposta era pagata dal 22/09 **senza
 contratto**, perché non era collegata a nessun immobile del portal, e la
 proprietaria aveva solo il telefono. La Scheda e i link di firma sono del
 CONTRATTO: non c'era niente da mandare, e la riga non lo spiegava. Dietro,
@@ -7541,9 +7552,9 @@ tre difetti veri:
   `propertyId: null`; il contratto nasce sempre su un record di `properties`,
   e quando la casa non c'era lo crea convert DALLA STESSA proposta
   (`prop_pa_<paId>`). Quel record contava come «immobile cambiato» → ✍️
-  Firmo io 409 `mandate_terms_changed`. In produzione: BOOM-MUMY744I con
+  Firmo io 409 `mandate_terms_changed`. In produzione: una proposta con
   `termsDiff ['propertyId']` e nient'altro, più tre proposte pagate col
-  mandato in attesa dello stesso destino (Latini 76, Moricone 18, Angelico 9).
+  mandato in attesa dello stesso destino.
   Ora `termsForMandate` (js/mandato-engine.js, una copia per server e portal:
   `mandateCheck`, `tenantMandateFor`, 🖊 Firma ora) allinea la foto SOLO
   sull'immobile nato da QUELLA proposta (`proposalPropertyId`, lo stesso id
@@ -7577,9 +7588,9 @@ tre difetti veri:
   copia con 📋/🏠) e la firma parte con `createProperty` (o `propertyId` se la
   proposta è collegata). Un tap: contratto, immobile, conduttore per mandato
   e link del proprietario.
-- **L'immobile c'è GIÀ?** (letto nel backup, BOOM-MUPU8OMY): la proposta di
-  Viale Angelico 9 non era collegata, ma l'appartamento era nel portal con il
-  contratto di Inês vivo fino al 30/01/2027, e la nuova locazione parte
+- **L'immobile c'è GIÀ?** (letto nel backup): una proposta
+  non era collegata, ma l'appartamento era nel portal con un
+  contratto vivo fino al 30/01/2027, e la nuova locazione parte
   l'1/01/2027. 📋 🏠 ✍️ mandavano `createProperty` a occhi chiusi: sarebbe
   nato un doppione e la guardia sovrapposizioni, che confronta l'immobile,
   avrebbe taciuto. Ora prima di creare (`existingPropFor`) la console cerca
@@ -7631,8 +7642,8 @@ preselezione, conferma senza `await`.
 «Fallo valere con stesso indirizzo e interno.» Il mandato di una proposta
 accettata senza immobile collegato fotografa un INDIRIZZO e valeva solo
 sull'immobile nato dalla proposta (`prop_pa_<id>`). Ora vale anche sul record
-del portal con lo STESSO indirizzo e lo STESSO interno — il caso vero è Viale
-Angelico 9 (BOOM-MUPU8OMY): pagata col mandato, non collegata, appartamento
+del portal con lo STESSO indirizzo e lo STESSO interno — il caso vero: una
+proposta pagata col mandato, non collegata, con l'appartamento
 già nel portal.
 - **La regola, una copia** (`js/mandato-engine.js`: `homeKey`, `homeMatch`,
   `homeCheck`; server e console): via e civico normalizzati (accenti,
@@ -7663,9 +7674,9 @@ già nel portal.
   preflight di → Contratto dice se il mandato sarà spendibile e perché no
   (`convert` dryRun → `mandate`). Senza il motore resta l'avviso del
   somigliante.
-- **Da sapere (Angelico 9)**: il record W0lE1 e la nuova proposta NON
+- **Da sapere (il caso vero)**: il record del portal e la nuova proposta NON
   dichiarano l'interno → riscontro sì, «interno non dichiarato su entrambi».
-  Il contratto vivo su W0lE1 nacque da una proposta con interno «11»: se è
+  Il contratto vivo su quel record nacque da una proposta con interno «11»: se è
   l'interno 11, va scritto sull'immobile, e da lì la proposta senza interno
   non combacia più. La sovrapposizione (fino al 30/01/2027, la nuova dal
   1/01/2027) resta un 409 da decidere in → Contratto.
@@ -7719,7 +7730,7 @@ nessun documento pagabile.
   resta gratuito. Il caricamento di un PDF non lo legge: la verifica dei termini è dell'operatore (due spunte).
 Test: `node tests/pa-external/run.mjs` (16 scenari, handler veri), `mutate.mjs` (10 mutazioni prese),
 `ui.mjs` (Chromium 390/1280, 38 controlli).
-**6/11/2026 (Thao, Via Vittoria 69)**: «Carica e continua» era `disabled` finché il passo 1 (profili) non
+**6/11/2026**: «Carica e continua» era `disabled` finché il passo 1 (profili) non
 era fatto, col perché solo nel `title`, invisibile su iPhone: sembrava rotto. Ora si preme sempre e, coi
 profili da creare, lo dice accanto al bottone senza chiamare il server. Nello stesso caso il portal
 dell'inquilino mostrava «Missing or insufficient permissions» e «No Active Lease»: la casa, non ancora
@@ -7950,9 +7961,9 @@ per i testi liberi (bozze ai clienti) l'ombra non misura: la misura sono le
 approvazioni dell'operatore, cioè la scala della fiducia. La trascrizione
 (`api/wizard/_stt.js`, scopo `stt.transcribe`) ha lo stesso doppio backend:
 Whisper sul Mac (`local.sttUrl`, rotta OpenAI-compatibile) prima, OpenAI come
-rete. Rules: `aiUsage`/`aiShadow` admin-only, `settings/ai` non pubblico
-(porta l'URL del tunnel).
-Test: `node tests/ai/run.mjs` (145 check — default pinnati, confini per
+rete. Rules: `aiUsage`/`aiShadow` admin-only; `settings/ai` lo legge solo
+l'admin (porta l'URL del tunnel; dal 12/11/2026 essere autenticati non basta).
+Test: `node tests/ai/run.mjs` (146 check — default pinnati, confini per
 mutazione, ricadute, ombra, contatori e costo, porta HTTP, STT, giunzioni
 sulla sorgente, anti-deriva nelle due direzioni: ogni chiamante dichiara uno
 scopo che esiste, ogni scopo ha un chiamante, nessun modello scritto a mano
@@ -8225,7 +8236,7 @@ browser or Firestore.
   mod-97, date coherence, canone sanity — errors block, warnings don't. The
   schedule is generated by the SAME `generateMonthlyPayments()` used by
   magic-sign, so the two paths can never duplicate one.
-  **Il fascicolo a più letture (31/08, dal caso Via Simeto)**: il contratto
+  **Il fascicolo a più letture (31/08, da un caso vero)**: il contratto
   nasce solo con ENTRAMBE le gambe (immobile + inquilino), ma un PDF vero
   spesso non le porta tutte — e prima quel salto era MUTO ("Innesto
   completato" senza contratto) e senza uscita anche quando la persona/casa
@@ -10596,6 +10607,29 @@ Test: `tests/catalogo/{letture,descrizioni,vetrina,strumento,portale}.mjs`,
 
 ## Conventions
 
+- **Solo dati inventati nel repository** (12/11/2026). Questo repository è stato pubblico su GitHub, e
+  una fixture scritta guardando un caso vero (un dump, un'email, una chiamata) si porta dietro il caso.
+  Regole:
+  1. in fixture, commenti, note e in questo file: nomi, numeri, codici e riferimenti INVENTATI. Un
+     caso vero si racconta per data e per fatto («il caso del 12/09: contratto firmato e attivo»),
+     mai con nome, indirizzo, riferimento della proposta o id di un record;
+  2. le forme delle fixture: email su `example.com` (mai gmail e simili: quell'indirizzo è di
+     qualcuno), telefoni evidentemente finti: cinque zeri di fila o quattro cifre in scala
+     (`+39 333 1234567`, `+39 340 000 0000`, `+34 600 000 001`; tre zeri di fila non bastano),
+     codici fiscali dall'elenco dei sintetici o col carattere di controllo sbagliato, IBAN di esempio,
+     riferimenti `BOOM-` a sei caratteri o a parola;
+  3. una persona terza (un referente, un fornitore) non sta nel codice: il suo indirizzo va in una
+     env o in un documento di `settings` che legge SOLO l'admin. Oggi sono due (`registrazione`,
+     `ai`). `company` lo legge chiunque abbia un account, e un account lo può aprire chiunque dalle
+     pagine del sito; ogni altro documento di `settings` si legge senza login, `general` compreso.
+     Il referente delle registrazioni sta in `settings/registrazione` (o `ASPI_EMAIL`);
+  4. un segreto non sta in un file, mai in uno servito dal sito (`js/`, le pagine): sta nelle env. Un
+     segreto finito nel repository si REVOCA: toglierlo dal file non basta, resta nella storia;
+  5. `.vercelignore` toglie un file dal SITO, non da GitHub: «fuori dal deploy» non vuol dire privato.
+  `tests/riservatezza/run.mjs` è la rete (caselle personali, telefoni, codici fiscali, IBAN,
+  riferimenti, token; eccezioni per riga col perché; l'output dice il posto, mai il valore). Non può
+  vedere NOMI e INDIRIZZI: per quelli c'è solo questa regola.
+
 - **Serverless deps live in `api/package.json`** (the manifest the Vercel
   builder actually installs from — root `package.json` alone is NOT enough).
   When a new npm package is imported by any `api/**` file, add it to BOTH
@@ -10674,6 +10708,7 @@ Test: `tests/catalogo/{letture,descrizioni,vetrina,strumento,portale}.mjs`,
   | `tests/scalo/run.mjs` | LO SCALO lotti 1-4: la carta d'imbarco dice la verità (visita annullata/standby = Wallet spento e DETTO, codici di rotta solo dal lessico — mai inventati, pass viewing per navigazione vera mai blob:), il lessico `js/scalo-codes.js` in UNA copia (alias lungo batte il corto, parole intere, ambiguo → null, bmCode derivato), il flight status di /viewing (countdown SOLO sui momenti veri di _moments, stato temporale mai "già spedito"), il check-in di /book (la carta SOLO sulla confermata — mai sulla pending — con applyApprovalCopy unico posto delle parole), l'idrante di /board (corsie SOLO da BOOM_DISPO.marketLane — closed fuori, illeggibile = ASK mai NOW, ETA dall'iso del motore, fail-open sulla fotografia di build), la rotta di /casa (tappe = FATTI del contratto: signatureStatus, depbal, startDate, endDate−90 — l'aereo sulla prima non compiuta, niente rotta senza contratto) e il timbro di apartment-detail (visibile sempre, batte una volta, fermo con reduced-motion). Lotto 4: il handler VERO di /api/meteo su Firestore in memoria (whitelist che non lascia passare un campo non dichiarato, sotto campione SOLO il nome, cache CDN, solo GET), meteo.html che non tocca mai Firestore, lo sweep della plancia (blip = gli stessi item della strip, angolo dichiarato disposizione), e le og carte PNG verificate nei byte (IHDR 1200×630) |
   | `tests/mandato/run.mjs` | il mandato a firmare: spunta a parte sulla proposta (mai dedotta, solo se offerta ESPLICITAMENTE — assente = non offerto), la foto delle condizioni approvate presa all'accettazione (v2: immobile, parti, modello, date, soldi, oneri, clausole) è la base che conversione e firma verificano (409 con `changed`; il contratto non fa mai da base; v1 ancora valutato con la sua regola), la strada automatica non perde consenso e mandato, al posto del conduttore SOLO col mandato (403), chi ha firmato resta stampato su pagina firme/certificato/scheda ARPE/pack; il consenso della proposta firma anche la scheda 2/B (pagina == server, hash); la Valutazione BOOM esce dall'immobile con la scheda di calcolo brandizzata a pagina 2 e i buchi dichiarati |
   | `tests/ai/run.mjs` | La Centrale AI: coi default TUTTO in cloud, `localOk:false` mai in locale, PDF → cloud, immagine → solo con modello visivo, locale giù → cloud dichiarato, ombra che misura senza toccare la risposta (e non salva un cloud giù), contatori atomici col costo dal listino, nei log mai contenuto, porta HTTP (401/403/400 senza scritture), STT locale-prima, anti-deriva chiamanti⇄registro |
+  | `tests/riservatezza/run.mjs` | nel repository solo dati inventati: caselle su provider personali, telefoni non dell'azienda e non evidentemente finti, codici fiscali e IBAN validi fuori elenco, riferimenti e sessioni Stripe con la forma di quelli veri, token — in ogni file tracciato, test compresi; eccezioni per riga, l'output dice il posto e mai il valore; i nomi e gli indirizzi NON li può vedere |
   | `tests/safari/boot.mjs` | nessuna superficie autenticata resta appesa su un loader |
 - PWA support via `manifest.json` and `sw.js` service worker — registered on
   the 3 portals via `BoomPortal.registerServiceWorker()`

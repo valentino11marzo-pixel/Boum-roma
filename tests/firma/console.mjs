@@ -1,6 +1,6 @@
 // tests/firma/console.mjs — LA CONSOLE PRE-AGREEMENT RENDE LO STATO VERO.
 //
-// Il caso Inês (12/09/2026): contratto firmato da entrambi e attivo, e la
+// Il caso del 12/09/2026: contratto firmato da entrambi e attivo, e la
 // riga della console ferma su «paid · 🖊 Reinvia Magic Sign · dopo la firma
 // dell'inquilino…». Qui si MONTA la console vera (i suoi <script>) in un
 // contesto Node con un DOM minimo e un Firestore finto, si consegnano
@@ -63,7 +63,7 @@ const snap = (rows) => ({ forEach: (fn) => rows.forEach(r => fn({ id: r.id, data
 const base = {
   status: 'paid', paidEur: 1450, paidAt: '2026-08-20', ref: 'BOOM-X', createdAt: '2026-08-10',
   tenant: { fullName: 'Ines Test', phone: '+39333' }, landlord: { name: 'Giulia', phone: '+39334' },
-  property: { address: 'Viale Angelico 9' }, money: { rent: 1450, dueAtSigning: 2000 },
+  property: { address: 'Viale Esempio 9' }, money: { rent: 1450, dueAtSigning: 2000 },
   lease: { months: 12, startDate: '2026-09-01' }, propertyId: 'p1', signSentAt: '2026-08-21',
   tenantSignUrl: 'https://www.boomrome.com/sign?sign=T', landlordSignUrl: 'https://www.boomrome.com/sign?sign=L',
 };
@@ -72,7 +72,7 @@ paApply(snap([
   { ...base, id: 'B', contractId: 'pa_B' },
   { ...base, id: 'C', contractId: 'pa_C', delegated: true },
   { ...base, id: 'D', contractId: 'pa_D', contractSignatureStatus: 'partial', tenantSignedAt: '2026-09-01T10:00:00Z' },
-  /* E · la proposta ORFANA (Léa): pagata, senza contractId, ma contracts/pa_E esiste ed è firmato */
+  /* E · la proposta ORFANA: pagata, senza contractId, ma contracts/pa_E esiste ed è firmato */
   { ...base, id: 'E', contractId: undefined, propertyId: 'p1' },
   /* F · il binario morto: pagata 40 giorni fa, nessun contratto, nessun immobile nel portal */
   { ...base, id: 'F', contractId: undefined, propertyId: null, signSentAt: null, paidAt: new Date(Date.now() - 40 * 86400000).toISOString() },
@@ -154,8 +154,8 @@ ok(has(8, /Contratto <b>versione 2<\/b> — PDF caricato da te il 2026-10-03 · 
 ok(has(0, /onclick="uploadRevision\('A',this\)"/) && !has(0, /↺ Modello BOOM/) && !has(2, /uploadRevision/) && has(0, /completaDati\('A',true\)"[^>]*>✎ Correggi i dati/),
   'A · 📤 Carica versione corretta e ✎ Correggi i dati su un contratto non firmato; C · firmato da entrambi: niente revisione');
 
-/* 📋 F: LA SCHEDA DEL PROPRIETARIO (12/10/2026 — il caso Chiara Tavolieri,
-   Via dei Latini 76: pagata da venti giorni, nessun contratto, nessun modo
+/* 📋 F: LA SCHEDA DEL PROPRIETARIO (12/10/2026 — il caso di una proprietaria,
+   Via delle Prove 76: pagata da venti giorni, nessun contratto, nessun modo
    di mandare la Scheda al proprietario se non dentro la richiesta del mandato) */
 ok(has(5, /onclick="sendLandlordScheda\('F',this\)"[^>]*>📋 Scheda proprietario/) && has(5, /onclick="askLandlordMandateFor\('F'\)"/)
   && has(5, /<b>📋 Scheda proprietario<\/b> crea il contratto/) && has(5, /non esistono la Scheda né i link di firma delle parti/) && !has(2, /sendLandlordScheda/),
@@ -196,7 +196,7 @@ ok(has(5, /onclick="sendLandlordScheda\('F',this\)"[^>]*>📋 Scheda proprietari
   await ctx.signFor('F', null);
   const sb = bodies.find(b => b.op === 'sign');
   ok(bodies.map(b => b.op).join() === 'status,sign' && !!sb && sb.createProperty === true && !('propertyId' in sb)
-    && /^Il contratto di questa proposta non esiste ancora: per firmare lo creo adesso, insieme all’immobile «Viale Angelico 9»/.test(asked[0] || '')
+    && /^Il contratto di questa proposta non esiste ancora: per firmare lo creo adesso, insieme all’immobile «Viale Esempio 9»/.test(asked[0] || '')
     && /Firmi TU per il conduttore Ines Test/.test(asked[0] || ''),
     '✍️ per primo, senza contratto né immobile: UNA conferma che dice che nascono contratto e immobile, e la firma parte con createProperty');
   bodies.length = 0; asked.length = 0;
@@ -215,7 +215,7 @@ ok(has(5, /onclick="sendLandlordScheda\('F',this\)"[^>]*>📋 Scheda proprietari
   delete ctx.confirm;
 }
 
-/* ── L'IMMOBILE C'È GIÀ (Viale Angelico 9, 12/10/2026) ──
+/* ── L'IMMOBILE C'È GIÀ (12/10/2026) ──
    Una SECONDA console montata, con il portal che ha già le case: la proposta
    non è collegata ma l'appartamento è nel portal (con un contratto vivo).
    Prima di far nascere un doppione 📋 🏠 ✍️ lo DICONO, con lo stesso
@@ -223,10 +223,10 @@ ok(has(5, /onclick="sendLandlordScheda\('F',this\)"[^>]*>📋 Scheda proprietari
 {
   let paApply2 = null;
   const propsDocs = [
-    /* l'interno 11 è quello del contratto vivo (Inês): una proposta senza
+    /* l'interno 11 è quello del contratto vivo: una proposta senza
        interno NON è la stessa casa — resta l'avviso del somigliante */
-    { id: 'W0lE1', name: 'Angelico 9', address: 'Viale Angelico 9', unit: '11' },
-    { id: 'prop_pa_K', name: 'Via dei Latini 76 int. 1', address: 'Via dei Latini 76' },
+    { id: 'pCasa1', name: 'Esempio 9', address: 'Viale Esempio 9', unit: '11' },
+    { id: 'prop_pa_K', name: 'Via delle Prove 76 int. 1', address: 'Via delle Prove 76' },
     { id: 'pX', name: 'Altro', address: 'Via Roma 1' },
   ];
   const asked2 = [], bodies2 = [];
@@ -247,11 +247,11 @@ ok(has(5, /onclick="sendLandlordScheda\('F',this\)"[^>]*>📋 Scheda proprietari
   vm.runInContext(readFileSync(join(ROOT, 'js', 'mandato-engine.js'), 'utf8'), ctx2);
   for (const s of scripts) vm.runInContext(s, ctx2);
   const pa2 = (id, addr) => ({ ...base, id, contractId: undefined, propertyId: null, signSentAt: null, property: { address: addr } });
-  /* H · la STESSA casa di W0lE1: stesso indirizzo e stesso interno (15/10/2026) */
-  const paH = { ...pa2('H', 'Viale Angelico 9'), property: { address: 'Viale Angelico 9', unit: '11' }, mandate: { given: true, at: '2026-09-23T10:36:06Z' } };
+  /* H · la STESSA casa di pCasa1: stesso indirizzo e stesso interno (15/10/2026) */
+  const paH = { ...pa2('H', 'Viale Esempio 9'), property: { address: 'Viale Esempio 9', unit: '11' }, mandate: { given: true, at: '2026-09-23T10:36:06Z' } };
   /* J · stesso indirizzo di pX, e nessuno dei due dichiara l'interno */
-  paApply2(snap([pa2('F', 'Viale Angelico 9'), pa2('K', 'Via dei Latini 76'), pa2('L', 'Via Nuova 5'), paH, pa2('J', 'Via Roma 1')]));
-  const warnRe = /⚠ Nel portal c’è GIÀ un immobile a questo indirizzo: «Angelico 9 — Viale Angelico 9»\. Se è la stessa casa, ANNULLA e usa → Contratto per collegarla/;
+  paApply2(snap([pa2('F', 'Viale Esempio 9'), pa2('K', 'Via delle Prove 76'), pa2('L', 'Via Nuova 5'), paH, pa2('J', 'Via Roma 1')]));
+  const warnRe = /⚠ Nel portal c’è GIÀ un immobile a questo indirizzo: «Esempio 9 — Viale Esempio 9»\. Se è la stessa casa, ANNULLA e usa → Contratto per collegarla/;
   const reset = () => { asked2.length = 0; bodies2.length = 0; };
 
   await ctx2.signFor('F', null);
@@ -277,45 +277,45 @@ ok(has(5, /onclick="sendLandlordScheda\('F',this\)"[^>]*>📋 Scheda proprietari
   const cvF = lastConv();
   await ctx2.convertPA('L');
   const cvL = lastConv();
-  ok(!!cvF && /<option value="W0lE1" selected>/.test(cvF.innerHTML) && !/value="__new__" selected/.test(cvF.innerHTML)
-    && !!cvL && /<option value="__new__" selected>/.test(cvL.innerHTML) && !/<option value="W0lE1" selected>/.test(cvL.innerHTML),
+  ok(!!cvF && /<option value="pCasa1" selected>/.test(cvF.innerHTML) && !/value="__new__" selected/.test(cvF.innerHTML)
+    && !!cvL && /<option value="__new__" selected>/.test(cvL.innerHTML) && !/<option value="pCasa1" selected>/.test(cvL.innerHTML),
     '→ Contratto: con la casa nel portal preseleziona QUELLA, senza preseleziona «＋ Crea l’immobile» (stesso abbinamento, una copia)');
 
   /* ── LA STESSA CASA (15/10/2026 — «fallo valere con stesso indirizzo e
-     interno»): H ha lo stesso indirizzo E lo stesso interno di W0lE1. Il
+     interno»): H ha lo stesso indirizzo E lo stesso interno di pCasa1. Il
      contratto nasce LÌ (propertyId), non su un doppione, e la conferma dice
      su quale base il mandato vale. */
-  const exactRe = /^Il contratto di questa proposta non esiste ancora: per firmare lo creo adesso sull’immobile che c’è GIÀ nel portal: «Angelico 9 — Viale Angelico 9» — stesso indirizzo e stesso interno della proposta \(viale angelico 9, int\. 11\)\. Nessun doppione, e il mandato del conduttore vale su questa casa\./;
+  const exactRe = /^Il contratto di questa proposta non esiste ancora: per firmare lo creo adesso sull’immobile che c’è GIÀ nel portal: «Esempio 9 — Viale Esempio 9» — stesso indirizzo e stesso interno della proposta \(viale esempio 9, int\. 11\)\. Nessun doppione, e il mandato del conduttore vale su questa casa\./;
   reset(); ctx2.confirm = (m) => { asked2.push(m); return true; };
   await ctx2.signFor('H', null);
   const sH = bodies2.find(b => b.op === 'sign');
-  ok(exactRe.test(asked2[0] || '') && !/doppione, e il controllo delle sovrapposizioni/.test(asked2[0] || '') && !!sH && sH.propertyId === 'W0lE1' && !('createProperty' in sH),
+  ok(exactRe.test(asked2[0] || '') && !/doppione, e il controllo delle sovrapposizioni/.test(asked2[0] || '') && !!sH && sH.propertyId === 'pCasa1' && !('createProperty' in sH),
     'H · ✍️ con la stessa casa nel portal: la conferma la nomina (indirizzo e interno), e la firma parte su QUEL record (propertyId), non su un immobile nuovo');
   reset(); await ctx2.sendLandlordScheda('H', null);
-  ok(bodies2.length === 1 && bodies2[0].op === 'landlord-scheda' && bodies2[0].propertyId === 'W0lE1' && bodies2[0].createProperty === false && /per mandare la Scheda a Giulia lo creo adesso sull’immobile che c’è GIÀ/.test(asked2[0] || ''),
+  ok(bodies2.length === 1 && bodies2[0].op === 'landlord-scheda' && bodies2[0].propertyId === 'pCasa1' && bodies2[0].createProperty === false && /per mandare la Scheda a Giulia lo creo adesso sull’immobile che c’è GIÀ/.test(asked2[0] || ''),
     'H · 📋: il contratto nasce sulla stessa casa (propertyId, createProperty false)');
   reset(); await ctx2.askLandlordMandateFor('H');
-  ok(bodies2.length === 1 && bodies2[0].op === 'ask-landlord-mandate' && bodies2[0].propertyId === 'W0lE1' && bodies2[0].createProperty === false,
+  ok(bodies2.length === 1 && bodies2[0].op === 'ask-landlord-mandate' && bodies2[0].propertyId === 'pCasa1' && bodies2[0].createProperty === false,
     'H · 🏠: lo stesso');
   await ctx2.convertPA('H');
-  ok(/<option value="W0lE1" selected>/.test((lastConv() || {}).innerHTML || ''), 'H · → Contratto preseleziona la stessa casa');
+  ok(/<option value="pCasa1" selected>/.test((lastConv() || {}).innerHTML || ''), 'H · → Contratto preseleziona la stessa casa');
   /* il preflight del modale dice il verdetto del mandato (dal server: convert dryRun) */
-  ctx2.document.getElementById('cvProp').value = 'W0lE1';
-  ctx2.fetch = async () => ({ json: async () => ({ ok: true, dryRun: true, completeness: null, mandate: { ok: true, diff: '', home: { match: true, label: 'viale angelico 9, int. 11', unit: '11', where: 'viale angelico 9', reason: null, text: '' } } }) });
+  ctx2.document.getElementById('cvProp').value = 'pCasa1';
+  ctx2.fetch = async () => ({ json: async () => ({ ok: true, dryRun: true, completeness: null, mandate: { ok: true, diff: '', home: { match: true, label: 'viale esempio 9, int. 11', unit: '11', where: 'viale esempio 9', reason: null, text: '' } } }) });
   await ctx2.cvPreflight();
   const preOk = ctx2.document.getElementById('cvPre').innerHTML;
   ctx2.fetch = async () => ({ json: async () => ({ ok: true, dryRun: true, completeness: null, mandate: { ok: false, diff: 'immobile: — → W1', home: { match: false, label: '', reason: 'unit', text: 'interno diverso: proposta «11», immobile «12»' } } }) });
   await ctx2.cvPreflight();
   const preNo = ctx2.document.getElementById('cvPre').innerHTML;
-  ok(/color:var\(--green\)">✓ Mandato del conduttore valido su questa casa: stesso indirizzo e stesso interno della proposta \(viale angelico 9, int\. 11\)\./.test(preOk)
+  ok(/color:var\(--green\)">✓ Mandato del conduttore valido su questa casa: stesso indirizzo e stesso interno della proposta \(viale esempio 9, int\. 11\)\./.test(preOk)
     && /color:#ff8a70">⚠ Su questo immobile il mandato del conduttore NON sarà spendibile — interno diverso: proposta «11», immobile «12»/.test(preNo),
     '→ Contratto, preflight: ✓ in verde sulla stessa casa, ⚠ in rosso col perché su un altro interno');
   /* lo stato del server col contratto già nato: la conferma dice la casa; il rifiuto dice perché */
   ctx2.fetch = async (u, o) => { const bd = JSON.parse(o.body); bodies2.push(bd); return { json: async () => (bd.op === 'status'
-    ? { ok: true, hasContract: true, operatorSignature: true, plan: { signatureStatus: 'none', tenantSigned: false, landlordSigned: false, mandate: { at: '2026-09-23T10:36:06Z' }, mandateOk: true, coTenantsPending: [], home: { match: true, label: 'viale angelico 9, int. 11', unit: '11', where: 'viale angelico 9' } } }
+    ? { ok: true, hasContract: true, operatorSignature: true, plan: { signatureStatus: 'none', tenantSigned: false, landlordSigned: false, mandate: { at: '2026-09-23T10:36:06Z' }, mandateOk: true, coTenantsPending: [], home: { match: true, label: 'viale esempio 9, int. 11', unit: '11', where: 'viale esempio 9' } } }
     : { ok: true, steps: ['tenant'], landlordPending: false, contractId: 'pa_H' }) }; };
   reset(); await ctx2.signFor('H', null);
-  ok(/La casa del contratto è quella della proposta, già nel portal: viale angelico 9, int\. 11 — stesso indirizzo e stesso interno\./.test(asked2[0] || '') && !/non esiste ancora/.test(asked2[0] || ''),
+  ok(/La casa del contratto è quella della proposta, già nel portal: viale esempio 9, int\. 11 — stesso indirizzo e stesso interno\./.test(asked2[0] || '') && !/non esiste ancora/.test(asked2[0] || ''),
     'H · ✍️ col contratto già nato sulla stessa casa: la conferma lo dice');
   const alerts = []; ctx2.alert = (m) => alerts.push(m);
   ctx2.fetch = async (u, o) => { const bd = JSON.parse(o.body); bodies2.push(bd); return { json: async () => ({ ok: true, hasContract: true, operatorSignature: true,

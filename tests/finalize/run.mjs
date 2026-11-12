@@ -1,5 +1,5 @@
 // tests/finalize/run.mjs — il finalize che non muore mai a metà.
-// Nato dal 1/09/2026 (il contratto di Rute): Firebase Storage rispondeva 403
+// Nato dal 1/09/2026 (un contratto firmato da entrambe le parti): Firebase Storage rispondeva 403
 // a ogni upload admin e il finalize — che creava le obbligazioni PRIMA di
 // scoprirlo — moriva ucciso a 60s dopo aver già scritto ~10 scadenze. Il
 // watchdog del reminder-cron riprovava ogni 15 minuti: scadenze duplicate a
@@ -154,7 +154,7 @@ globalThis.fetch = async (url, opts = {}) => {
 
 // ── Seed ─────────────────────────────────────────────────────────────────
 store.set('properties/prop1', { ownerId: 'own1', name: 'Trastevere Loft', address: 'Via della Lungaretta 12', zone: 'Trastevere', rooms: 3, sqm: 78, furnished: true, energyClass: 'F', cadastralData: 'foglio 495, part. 120, sub 8', features: ['elevator', 'ac'] });
-store.set('users/t1', { email: 'rute@expat.com', name: 'Rute Expat', role: 'tenant' });
+store.set('users/t1', { email: 'rita@expat.com', name: 'Rita Expat', role: 'tenant' });
 store.set('users/own1', { email: 'stefano@owner.it', name: 'Stefano Owner', role: 'landlord' });
 
 const SIG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
@@ -163,7 +163,7 @@ const BASE_CONTRACT = {
   type: 'transitorio', cedolareSecca: 'si',
   rent: 800, deposit: 900, startDate: '2026-09-01', endDate: '2027-08-31',
   installmentMonths: 1, paymentDay: 5,
-  tenantName: 'Rute Expat', tenantCF: 'RSSMRA85T10A562S', tenantNationality: 'Estonian',
+  tenantName: 'Rita Expat', tenantCF: 'RSSMRA85T10A562S', tenantNationality: 'Estonian',
   landlordName: 'Stefano Owner', landlordCF: 'BNCGLI70A41H501X',
   tenantSignature: SIG, landlordSignature: SIG,
   tenantSignedAt: '2026-09-01T09:01:00Z', landlordSignedAt: '2026-09-01T13:14:00Z',
@@ -248,7 +248,7 @@ const magicKeys = () => [...store.keys()].filter(k => k.startsWith('magicLinks/'
     && storageFiles.has('contracts/ctrS/contratto-firmato.pdf'));
   check('giro sano: finalizedAt scritto', !!(store.get('contracts/ctrS') || {}).finalizedAt);
   check('giro sano: welcome tenant + CAF partiti',
-    mails().some(m => m.to === 'rute@expat.com') && mails().some(m => m.to === 'valentino@boom-rome.com'));
+    mails().some(m => m.to === 'rita@expat.com') && mails().some(m => m.to === 'valentino@boom-rome.com'));
 
   // Idempotenza piena: il secondo giro non rimanda nulla e non ricrea nulla.
   const mailsBefore = mails().length, dlBefore = deadlineKeys().length;
@@ -258,7 +258,7 @@ const magicKeys = () => [...store.keys()].filter(k => k.startsWith('magicLinks/'
 }
 
 // ═══ 3. 🔄 Rifinalizza bonifica anche il contratto GIÀ finalizzato ═══
-// Il caso VERO di Rute: la tempesta lascia i doppioni, POI un giro sano
+// Il caso VERO: la tempesta lascia i doppioni, POI un giro sano
 // scrive finalizedAt — da lì finalizeContract esce subito (skipped) e la
 // passata interna non girerebbe mai. Il tap su 🔄 Rifinalizza deve pulire
 // comunque; e senza auth non deve cancellare NIENTE (l'ordine conta).

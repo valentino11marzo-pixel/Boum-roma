@@ -55,7 +55,7 @@ globalThis.fetch = async (url, opts = {}) => {
     if (url.includes('signInWithPassword')) return new Response(JSON.stringify({ idToken: 'admin-tok' }), { status: 200 });
     if (url.includes('accounts:lookup')) {
       const tok = JSON.parse(opts.body).idToken;
-      const who = { 'tok-ten': { localId: 'ten1', email: 'julie@x.com' }, 'tok-admin': { localId: 'adm1', email: 'v@boom.com' } }[tok];
+      const who = { 'tok-ten': { localId: 'ten1', email: 'elsa@x.com' }, 'tok-admin': { localId: 'adm1', email: 'v@boom.com' } }[tok];
       return new Response(JSON.stringify(who ? { users: [who] } : {}), { status: who ? 200 : 400 });
     }
   }
@@ -123,7 +123,7 @@ check('scaduta PRIMA del mandato → niente sorprese su debiti vecchi', eligible
 check('scaduta DOPO il mandato → si recupera da sola', eligibleForCharge({ ...P, dueDate: plus(-2) }, SDD, today) === true);
 
 // ═══ Il collector sul Firestore finto ═══
-store.set('contracts/ct1', { tenantName: 'Julie', tenantEmail: 'julie@x.com', tenantId: 'ten1', sdd: { ...SDD, email: 'julie@x.com' } });
+store.set('contracts/ct1', { tenantName: 'Elsa', tenantEmail: 'elsa@x.com', tenantId: 'ten1', sdd: { ...SDD, email: 'elsa@x.com' } });
 store.set('payments/p1', { contractId: 'ct1', tenantId: 'ten1', status: 'pending', dueDate: plus(3), amount: 900, month: '2026-08' });
 store.set('payments/p2', { contractId: 'ct1', status: 'pending', dueDate: plus(40), amount: 900, month: '2026-09' });
 store.set('payments/reported', { contractId: 'ct1', tenantId: 'ten1', status: 'pending', dueDate: today, amount: 500, tenantReported: true });
@@ -136,7 +136,7 @@ check('un giro → UN addebito (p1), p2 fuori finestra e p3 pagata restano fuori
 check('importo = rata + fee, in centesimi esatti', pi1.opts.amount === 90200 && pi1.opts.currency === 'eur');
 check('off-session sul mandato giusto', pi1.opts.customer === 'cus_1' && pi1.opts.payment_method === 'pm_1' && pi1.opts.confirm === true && pi1.opts.off_session === true);
 check('idempotency key deterministica sdd_<paymentId>', pi1.idempotencyKey === 'sdd_p1');
-check('metadata completi (service, rata, email per la ricevuta)', pi1.opts.metadata.service === 'RENT_SDD' && pi1.opts.metadata.paymentId === 'p1' && pi1.opts.metadata.email === 'julie@x.com' && pi1.opts.metadata.fee === '2');
+check('metadata completi (service, rata, email per la ricevuta)', pi1.opts.metadata.service === 'RENT_SDD' && pi1.opts.metadata.paymentId === 'p1' && pi1.opts.metadata.email === 'elsa@x.com' && pi1.opts.metadata.fee === '2');
 check('la rata è marcata processing con la fee', store.get('payments/p1').sddPiId === 'pi_test_1' && store.get('payments/p1').sddStatus === 'processing' && store.get('payments/p1').sddFeeEur === 2);
 
 out = await collectSdd();
@@ -156,9 +156,9 @@ const mkRes = () => ({ code: 0, body: null, status(c) { this.code = c; return th
 const whReq = (event) => ({ method: 'POST', headers: { 'stripe-signature': 'sig' }, [Symbol.asyncIterator]: async function* () { yield Buffer.from(JSON.stringify(event)); } });
 
 // — attivazione mandato (checkout mode=setup) —
-store.set('contracts/ct2', { tenantName: 'Anouk', tenantEmail: 'anouk@x.com', tenantId: 'ten2', sdd: { status: 'setup', customerId: 'cus_2' } });
+store.set('contracts/ct2', { tenantName: 'Noa', tenantEmail: 'noa@x.com', tenantId: 'ten2', sdd: { status: 'setup', customerId: 'cus_2' } });
 S.setupIntent = { payment_method: { id: 'pm_9', sepa_debit: { last4: '4321' } }, mandate: 'mdt_1' };
-const setupEvt = { id: 'evt_setup1', type: 'checkout.session.completed', data: { object: { id: 'cs_setup_9', mode: 'setup', setup_intent: 'seti_1', customer: 'cus_2', metadata: { service: 'SDD_SETUP', contractId: 'ct2', email: 'anouk@x.com' } } } };
+const setupEvt = { id: 'evt_setup1', type: 'checkout.session.completed', data: { object: { id: 'cs_setup_9', mode: 'setup', setup_intent: 'seti_1', customer: 'cus_2', metadata: { service: 'SDD_SETUP', contractId: 'ct2', email: 'noa@x.com' } } } };
 let r = mkRes();
 await webhook(whReq(setupEvt), r);
 const ct2 = store.get('contracts/ct2');
@@ -168,7 +168,7 @@ await webhook(whReq(setupEvt), r);
 check('replay del setup → duplicate, nessuna riscrittura', r.body.duplicate === true);
 
 // — addebito riuscito (payment_intent.succeeded, giorni dopo) —
-const paidEvt = { id: 'evt_pi1', type: 'payment_intent.succeeded', data: { object: { id: 'pi_test_1', amount: 90200, latest_charge: 'ch_1', metadata: { service: 'RENT_SDD', paymentId: 'p1', contractId: 'ct1', amount: '900', fee: '2', email: 'julie@x.com', month: '2026-08' } } } };
+const paidEvt = { id: 'evt_pi1', type: 'payment_intent.succeeded', data: { object: { id: 'pi_test_1', amount: 90200, latest_charge: 'ch_1', metadata: { service: 'RENT_SDD', paymentId: 'p1', contractId: 'ct1', amount: '900', fee: '2', email: 'elsa@x.com', month: '2026-08' } } } };
 r = mkRes();
 await webhook(whReq(paidEvt), r);
 const p1 = store.get('payments/p1');
@@ -187,7 +187,7 @@ check('doppio incasso → allarme, il record bancario resta intatto', r.body.dou
 // — addebito fallito: la rata torna manuale, mai un retry silenzioso —
 store.set('payments/p6', { contractId: 'ct1', status: 'pending', sddPiId: 'pi_test_9', sddStatus: 'processing', amount: 900, month: '2026-11', dueDate: plus(2) });
 r = mkRes();
-await webhook(whReq({ id: 'evt_pif', type: 'payment_intent.payment_failed', data: { object: { id: 'pi_test_9', metadata: { service: 'RENT_SDD', paymentId: 'p6', email: 'julie@x.com' }, last_payment_error: { message: 'insufficient_funds' } } } }), r);
+await webhook(whReq({ id: 'evt_pif', type: 'payment_intent.payment_failed', data: { object: { id: 'pi_test_9', metadata: { service: 'RENT_SDD', paymentId: 'p6', email: 'elsa@x.com' }, last_payment_error: { message: 'insufficient_funds' } } } }), r);
 const p6 = store.get('payments/p6');
 check('failed → sddStatus failed, la rata RESTA pending (pagabile a mano)', r.body.sddFailed === true && p6.sddStatus === 'failed' && p6.status === 'pending' && String(p6.sddError).includes('insufficient'));
 out = await collectSdd();
@@ -200,9 +200,9 @@ check('PI senza service RENT_SDD → ignorato', r.body.ignored === 'payment_inte
 
 // ═══ L'endpoint di attivazione (/api/payments/sdd-setup) ═══
 const setup = (await import('../../api/payments/sdd-setup.js')).default;
-store.set('users/ten1', { role: 'tenant', email: 'julie@x.com' });
+store.set('users/ten1', { role: 'tenant', email: 'elsa@x.com' });
 store.set('users/adm1', { role: 'admin', email: 'v@boom.com' });
-store.set('contracts/ct3', { tenantId: 'ten1', tenantName: 'Julie', tenantEmail: 'julie@x.com' });
+store.set('contracts/ct3', { tenantId: 'ten1', tenantName: 'Elsa', tenantEmail: 'elsa@x.com' });
 store.set('contracts/ct4', { tenantId: 'altro', tenantName: 'X' });
 const authReq = (tok, body) => ({ method: 'POST', headers: { authorization: 'Bearer ' + tok, origin: 'https://www.boomrome.com' }, body });
 const mkRes2 = () => ({ code: 0, body: null, headers: {}, setHeader(k, v) { this.headers[k] = v; }, status(c) { this.code = c; return this; }, json(o) { this.body = o; return this; }, end() { return this; } });

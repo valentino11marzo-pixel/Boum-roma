@@ -138,7 +138,7 @@ console.log('\n▸ la via senza il civico (streetOf)');
   for (const [a, want] of [
     ['Via Endertà 9', 'Via Endertà'], ['Via Endertà, 9', 'Via Endertà'], ['Via Endertà n. 9', 'Via Endertà'],
     ['Via Endertà 9/A', 'Via Endertà'], ['9 Via Endertà', 'Via Endertà'], ['Via Dei Laghi 14 Roma', 'Via Dei Laghi'],
-    ['Via Simeto 14, 00198 Roma', 'Via Simeto'], ['Roma, Via X 3', 'Via X'], ['Via Tiburtina 545 int. 3', 'Via Tiburtina'],
+    ['Via Esempio 14, 00198 Roma', 'Via Esempio'], ['Roma, Via X 3', 'Via X'], ['Via Tiburtina 545 int. 3', 'Via Tiburtina'],
     ['Piazza Dante 1, int 4', 'Piazza Dante'], ['Via Endertà, 9, int. 4, 00199 Roma', 'Via Endertà'],
     ['Viale 21 Aprile 12', 'Viale 21 Aprile'], ['Viale 21 Aprile', 'Viale 21 Aprile'], ['Via 4 Novembre 157', 'Via 4 Novembre'],
     ['Via Di S.Anna 16', 'Via Di S.Anna'], ['Via Di Tor Di quinto 39', 'Via Di Tor Di quinto'],

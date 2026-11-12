@@ -141,7 +141,7 @@ async function post(body) {
   await notifySend({ method: 'POST', headers: { authorization: 'Bearer synthetic' }, body }, res);
   return res;
 }
-const payment = { heading: '[Portal] 💰 Pagamento ricevuto', intro: 'Julie ha pagato €1400 per Bologna Double' };
+const payment = { heading: '[Portal] 💰 Pagamento ricevuto', intro: 'Elsa ha pagato €1400 per Bologna Double' };
 let r = await post({ to: OPERATOR_TO, params: payment });
 ok(r.code === 200 && mails.at(-1)?.to === OPERATOR, `to:'operator' arriva a ${OPERATOR} senza ADMIN_NOTIFY_EMAIL`);
 process.env.ADMIN_NOTIFY_EMAIL = 'ops@example.com';
@@ -172,7 +172,7 @@ const posted = [], toasts = [];
 const ctx = vm.createContext({
   console: { log() {}, warn() {}, error() {} },
   S: { users: [
-    { id: 'tenant', name: 'Julie Verbrugghe', email: 'julie@example.com' },
+    { id: 'tenant', name: 'Elsa Sample', email: 'elsa@example.com' },
     { id: 'op', name: 'Valentino', email: OPERATOR },
   ] },
   db: { collection: () => ({ add: async () => ({ id: 'n1' }), doc: () => ({ update: async () => {} }) }) },
@@ -182,7 +182,7 @@ const ctx = vm.createContext({
   logActivity: () => {}, toast: (...a) => toasts.push(a),
   EMAILJS_CONFIG: { templates: { notification: 'boom_notification' } },
   _getNotificationEmailConfig: (type, title) => ({ heading: title, intro: title }),
-  ID: { name: 'Flo', email: 'flo@example.com', phone: '1735780579', budget: '2000', arrival: '', months: '', situation: 'student',
+  ID: { name: 'Flo', email: 'flo@example.com', phone: '15550001234', budget: '2000', arrival: '', months: '', situation: 'student',
     zone: '', furnished: 'either', pets: 'no', musthaves: '', notes: '', source: 'google' },
   IK: 'pfs', IS: 0, _ifRender: () => {},
 });
@@ -192,10 +192,10 @@ if (ownerBlock && fns.every(Boolean)) {
     + '\nglobalThis.__t = { createNotification, _ifSubmit, NOTIFY_OWNER };', ctx);
   const t = ctx.__t;
 
-  await t.createNotification('tenant', 'payment', '💰 Pagamento ricevuto', 'Julie ha pagato €1400 per Bologna Double', {});
+  await t.createNotification('tenant', 'payment', '💰 Pagamento ricevuto', 'Elsa ha pagato €1400 per Bologna Double', {});
   await tick();
   const tos = posted.map((p) => p.body.to);
-  ok(tos.length === 2 && tos[0] === 'julie@example.com' && tos[1] === OPERATOR_TO,
+  ok(tos.length === 2 && tos[0] === 'elsa@example.com' && tos[1] === OPERATOR_TO,
     `una notifica parte al destinatario e la copia a 'operator' (${tos.join(', ')})`);
   const copy = posted.find((p) => p.body.to === OPERATOR_TO);
   ok(copy && copy.url === '/api/notify/send' && copy.body.params.heading === '[Portal] 💰 Pagamento ricevuto',

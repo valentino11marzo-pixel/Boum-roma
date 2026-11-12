@@ -190,7 +190,7 @@ console.log('\n\x1b[1m8. Il misuratore locale (quello che lancia Homie)\x1b[0m')
   // versione trovava la lista e non riconosceva un solo campo.
   const msgs = [
     { ChatJID: '39331@s.whatsapp.net', Timestamp: t, FromMe: false, Text: 'È ancora libero? quanto costa tutto incluso?' },
-    { ChatJID: '39332@s.whatsapp.net', Timestamp: t, FromMe: false, Text: 'Posso prendere la residenza? scrivimi a mario.rossi@gmail.com o +39 333 1234567' },
+    { ChatJID: '39332@s.whatsapp.net', Timestamp: t, FromMe: false, Text: 'Posso prendere la residenza? scrivimi a mario.rossi@example.com o +39 333 1234567' },
     { ChatJID: '39334@s.whatsapp.net', Timestamp: t, FromMe: false, Text: '', DisplayText: 'Che documenti servono?' },
     { ChatJID: '120363@g.us', Timestamp: t, FromMe: false, Text: 'gruppo: quanto costa il deposito?' },
     { ChatJID: '39333@s.whatsapp.net', Timestamp: t, FromMe: true, Text: 'te lo dico io quanto costa il deposito' },
@@ -258,9 +258,9 @@ console.log('\n\x1b[1m9. Lo scanner della tua voce\x1b[0m');
   const M = [];
   const add = (c, txt, out, dt) => M.push({ ChatJID: c, Timestamp: t + (dt || 0), FromMe: !!out, Text: txt });
   add('a@s.whatsapp.net', 'Hi, is it still available? how much all in?', false, 0);
-  add('a@s.whatsapp.net', 'Ciao! Si e libero da settembre, 1.250 tutto incluso. Vuoi vederlo? scrivimi a mario@gmail.com', true, 60);
+  add('a@s.whatsapp.net', 'Ciao! Si e libero da settembre, 1.250 tutto incluso. Vuoi vederlo? scrivimi a mario@example.com', true, 60);
   add('b@s.whatsapp.net', 'quanto costa in tutto?', false, 0);
-  add('b@s.whatsapp.net', 'Ciao! Si e libero da ottobre, 1.100 tutto incluso. Vuoi vederlo? scrivimi a mario@gmail.com', true, 60);
+  add('b@s.whatsapp.net', 'Ciao! Si e libero da ottobre, 1.100 tutto incluso. Vuoi vederlo? scrivimi a mario@example.com', true, 60);
   add('g@g.us', 'messaggio di gruppo lunghissimo che non deve entrare nella misura', true, 0);
   const f = path.join(os.tmpdir(), 'boom-wa-voce-test.json');
   fs.writeFileSync(f, JSON.stringify({ success: true, data: { messages: M } }));

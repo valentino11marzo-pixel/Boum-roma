@@ -24,7 +24,7 @@ const cbs = kb => buttons(kb).filter(b => b.callback_data);
 const LONG_ID = 'a'.repeat(28);
 const base = {
   id: LONG_ID,
-  clientName: 'Sophie Kuhlwein',
+  clientName: 'Sophie Kent',
   clientPhone: '+49 176 1234567',
   clientEmail: 'sophie@example.de',
   listingName: 'Trilocale Pigneto',
@@ -98,7 +98,7 @@ const base = {
     JSON.stringify((card.match(/<[^>]*>/g) || []).filter(t => !/^<\/?[bi]>$/.test(t))));
 
   const full = fmtViewingCard({ ...base, status: 'confirmed' });
-  ok('the card names the client', full.includes('Sophie Kuhlwein'));
+  ok('the card names the client', full.includes('Sophie Kent'));
   ok('the card names the property', full.includes('Trilocale Pigneto'));
   ok('the card shows the price', full.includes('1.400'));
   ok('the card shows the address for an in-person visit', full.includes('Via del Pigneto 42'));

@@ -271,8 +271,8 @@ for (const p of ['+393331234567', '3331234567', '00393331234567', '333 123-4567'
     // PushName) — scoperto al primo run in produzione, quando Homie ha
     // dovuto normalizzare a mano. L'estrattore deve leggerlo nativamente.
     const wacliPascal = [
-      { ChatJID: '393335556677@s.whatsapp.net', FromMe: true, Timestamp: nowSec - 2 * 86400, Text: 'Ciao! Ecco i dettagli' },
-      { ChatJID: '393335556677@s.whatsapp.net', FromMe: false, Timestamp: nowSec - 86400, Text: 'Posso visitare il bilocale?', PushName: 'Piero' },
+      { ChatJID: '393335555677@s.whatsapp.net', FromMe: true, Timestamp: nowSec - 2 * 86400, Text: 'Ciao! Ecco i dettagli' },
+      { ChatJID: '393335555677@s.whatsapp.net', FromMe: false, Timestamp: nowSec - 86400, Text: 'Posso visitare il bilocale?', PushName: 'Piero' },
       { ChatJID: '9912036302@g.us', FromMe: false, Timestamp: nowSec - 3600, Text: 'group noise' },
     ];
     const rpp = spawnSync('python3', [script, '--report'], { input: JSON.stringify(wacliPascal), encoding: 'utf8' });

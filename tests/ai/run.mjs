@@ -533,6 +533,8 @@ const LOCAL = { enabled: true, url: 'http://127.0.0.1:11434', model: 'qwen3:14b'
   const rules = src('firestore.rules');
   ok(/match \/aiUsage\/\{x\}\s*\{ allow read, write: if isAdmin\(\); \}/.test(rules) && /match \/aiShadow\/\{x\}\s*\{ allow read, write: if isAdmin\(\); \}/.test(rules), 'firestore.rules: aiUsage e aiShadow admin-only (la lezione propertyLocks)');
   ok(/\['company', 'registrazione', 'ai'\]/.test(rules), 'settings/ai non è leggibile dal pubblico (porta l\'URL del tunnel)');
+  ok(/\(x == 'company' && request\.auth != null\)\s*\|\| isAdmin\(\);/.test(rules) && !/\['company', 'registrazione', 'ai'\]\) \|\| request\.auth != null/.test(rules),
+    '…e nemmeno da un account qualsiasi: settings/ai lo legge solo l\'admin (un account lo può creare chiunque)');
   ok(/"api\/ai\/status\.js"/.test(src('vercel.json')), 'vercel.json: la porta di stato ha il suo maxDuration');
   ok(/name: 'ai'/.test(src('tests/run-all.mjs')), 'la suite è registrata in run-all');
   ok(/LOCAL_AI_URL|LOCAL_AI_TOKEN/.test(src('CLAUDE.md')), 'CLAUDE.md documenta le env della centrale');

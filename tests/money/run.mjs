@@ -335,10 +335,10 @@ const webhook = (await import('../../api/stripe-webhook.js')).default;
   store.set('properties/prop10', { ownerId: 'll10', name: 'Casa10', ownerName: 'Verdi' });
   const pa = {
     status: 'paid', paidEur: 3449.6, paidAt: '2026-07-10', propertyId: 'prop10', ref: 'BOOM-Z',
-    tenant: { fullName: 'Julie V', email: 'julie@x.fr', phone: '333', cf: 'VRBJLU06M44Z110V' },
+    tenant: { fullName: 'Elsa S', email: 'elsa@x.fr', phone: '333', cf: 'SMPLSE05E50Z110Y' },
     tenants: [
-      { fullName: 'Julie V', email: 'julie@x.fr', phone: '333', cf: 'VRBJLU06M44Z110V' },
-      { fullName: 'Anouk G', email: 'anouk@x.fr', cf: 'grtnka06l65z110o', dob: '2006-07-25', birthPlace: 'Bouliac' },
+      { fullName: 'Elsa S', email: 'elsa@x.fr', phone: '333', cf: 'SMPLSE05E50Z110Y' },
+      { fullName: 'Noa P', email: 'noa@x.fr', cf: 'prvnoa05c52z110y', dob: '2005-03-12', birthPlace: 'Lyon' },
     ],
     money: { rent: 1400, deposit: 2800, depositMonths: 2, depositAtSigning: 1400, depositAtMoveIn: 1400,
              fee: 1680, feeVatPct: 22, feeVat: 369.6, feeTotal: 2049.6, feeDue: 'move-in', feeMode: 'pct' },
@@ -351,14 +351,14 @@ const webhook = (await import('../../api/stripe-webhook.js')).default;
   check('convert: rata saldo depbal_ creata per la parte al move-in',
     store.has('payments/depbal_pa_pa10') && store.get('payments/depbal_pa_pa10').amount === 1400);
   check('convert: co-conduttore con IDENTITÀ COMPLETA (non solo il nome)',
-    Array.isArray(c.coTenants) && c.coTenants.length === 1 && c.coTenants[0].cf === 'GRTNKA06L65Z110O'
-    && c.coTenants[0].birthPlace === 'Bouliac' && c.cohabitants.includes('C.F. GRTNKA06L65Z110O'));
+    Array.isArray(c.coTenants) && c.coTenants.length === 1 && c.coTenants[0].cf === 'PRVNOA05C52Z110Y'
+    && c.coTenants[0].birthPlace === 'Lyon' && c.cohabitants.includes('C.F. PRVNOA05C52Z110Y'));
   check('convert: clausola di solidarietà dei co-conduttori nelle altre clausole',
-    /si obbligano in solido/.test(c.otherClauses) && c.otherClauses.includes('Anouk G'));
+    /si obbligano in solido/.test(c.otherClauses) && c.otherClauses.includes('Noa P'));
   check('convert: la provvigione VIAGGIA sul contratto (prima spariva)',
     c.agencyFee && c.agencyFee.totalEur === 2049.6 && c.agencyFee.due === 'move-in');
   check('convert: scheda cliente creata anche per il co-conduttore',
-    [...store.keys()].some(k => k.startsWith('users/') && (store.get(k) || {}).name === 'Anouk G'));
+    [...store.keys()].some(k => k.startsWith('users/') && (store.get(k) || {}).name === 'Noa P'));
 }
 
 // ═══ 9b. Sprint 1 — l'immobile DALLA proposta, la guardia sovrapposizioni, il preflight ═══
@@ -381,7 +381,7 @@ const webhook = (await import('../../api/stripe-webhook.js')).default;
 
   // ── l'immobile che manca nasce dalla proposta ──
   const paN = { status: 'paid', paidEur: 2000, paidAt: '2026-08-20', ref: 'BOOM-N',
-    property: { address: 'Via Simeto 12, Roma', floor: '2', unit: '7', condition: 'Furnished' },
+    property: { address: 'Via Esempio 12, Roma', floor: '2', unit: '7', condition: 'Furnished' },
     landlord: { name: 'Ada Rossi', email: 'ada@x.it', phone: '+39 333' },
     tenant: { fullName: 'Nina Test', email: 'nina@x.it', phone: '333' },
     money: { rent: 900, deposit: 1800, depositMonths: 2 }, lease: { months: 12, startDate: '2026-10-01', endDate: '2027-09-30' } };
@@ -391,7 +391,7 @@ const webhook = (await import('../../api/stripe-webhook.js')).default;
   const r1 = await convertPaToContract({ pa: paN, paId: 'paN', createProperty: true, actor: 'op@x' });
   const prop = store.get('properties/' + propertyIdForPa('paN'));
   check('createProperty: l\'immobile nasce DALLA proposta — id deterministico, indirizzo, interno, locatore, canone, provenienza',
-    r1.ok && r1.propertyCreated === true && r1.propertyId === 'prop_pa_paN' && !!prop && prop.address === 'Via Simeto 12, Roma' && prop.unit === '7' && prop.interno === '7'
+    r1.ok && r1.propertyCreated === true && r1.propertyId === 'prop_pa_paN' && !!prop && prop.address === 'Via Esempio 12, Roma' && prop.unit === '7' && prop.interno === '7'
     && prop.ownerName === 'Ada Rossi' && prop.rent === 900 && prop.source === 'preagreement' && prop.preAgreementId === 'paN' && prop.availabilityStatus === 'rented');
   check('createProperty: il contratto porta quell\'immobile e l\'interno; la proposta riceve propertyId col back-link',
     store.get('contracts/pa_paN').propertyId === 'prop_pa_paN' && store.get('contracts/pa_paN').unit === '7' && store.get('preAgreements/paN').propertyId === 'prop_pa_paN');
@@ -400,7 +400,7 @@ const webhook = (await import('../../api/stripe-webhook.js')).default;
   check('createProperty ripetuto: already, UN immobile (mai due)', r2.ok && r2.already === true && nProps() === 1);
   const pf = propertyFromPa({ pa: paN, paId: 'paN' });
   check('propertyFromPa: nome dalla via + interno, arredato letto dallo stato, MAI mq/zona/catasto inventati',
-    pf.name === 'Via Simeto 12 int. 7' && pf.furnished === true && !('sqm' in pf) && !('zone' in pf) && !('cadastralData' in pf));
+    pf.name === 'Via Esempio 12 int. 7' && pf.furnished === true && !('sqm' in pf) && !('zone' in pf) && !('cadastralData' in pf));
 
   // ── la guardia nella conversione vera ──
   store.set('properties/propO', { ownerId: 'llO', name: 'Duplex', ownerName: 'Bianchi' });

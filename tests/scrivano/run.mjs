@@ -64,19 +64,19 @@ let autoId = 0;
 
 // ─── le reti: Telegram, Storage, Anthropic ─────────────────────────────────
 const TG = [];                       // { method, body }
-const PDF_BYTES = Buffer.from('%PDF-1.4 CONTRATTO VIA SIMETO 12 — Oyku Testa — canone 1.100');
+const PDF_BYTES = Buffer.from('%PDF-1.4 CONTRATTO VIA ESEMPIO 12 — Oyku Testa — canone 1.100');
 let storageUploads = 0, storageDownloads = 0;
 let aiSmista = 0, aiIngest = 0, lastIngestBody = null;
-let aiSmistaJson = { category: 'contratto', fiscalYear: 2026, propertyId: 'pA', tenantName: 'Oyku Testa', summary: 'Contratto transitorio Via Simeto 12' };
+let aiSmistaJson = { category: 'contratto', fiscalYear: 2026, propertyId: 'pA', tenantName: 'Oyku Testa', summary: 'Contratto transitorio Via Esempio 12' };
 const INGEST_OK = () => ({
-  files: [{ index: 1, kind: 'contratto', title: 'Contratto transitorio Via Simeto 12', pages: 3, legible: true, summary: 'contratto firmato', party: null }],
+  files: [{ index: 1, kind: 'contratto', title: 'Contratto transitorio Via Esempio 12', pages: 3, legible: true, summary: 'contratto firmato', party: null }],
   landlord: { name: 'Anna Rossi', kind: null, businessName: null, partitaIva: null, iban: 'IT60X0542811101000000123456', email: null, phone: null, codiceFiscale: 'RSSNNA70A41H501J', address: null, birthDate: null, birthPlace: null, nationality: null, docType: null, docNum: null, docIssuer: null, docIssueDate: null },
   tenant: { name: 'Oyku Testa', email: 'oyku@example.com', phone: null, codiceFiscale: 'TSTOYK95A41H501P', address: null, birthDate: '1995-01-01', birthPlace: 'Istanbul', nationality: 'turca', docType: 'passport', docNum: 'U12345678', docIssuer: null, docIssueDate: null, permessoNumero: null, permessoScadenza: null },
   coTenants: [],
-  property: { name: 'Via Simeto 12', address: 'Via Simeto 12, Roma', city: 'Roma', rent: 1100, sqm: null, rooms: null, bathrooms: null, floor: null, scala: null, interno: null, accessories: null, furnished: null, energyClass: null, cadastral: { sezione: null, foglio: '12', particella: '345', sub: '6', categoria: null, rendita: null }, tabelle: { proprieta: null, riscaldamento: null, ascensore: null } },
+  property: { name: 'Via Esempio 12', address: 'Via Esempio 12, Roma', city: 'Roma', rent: 1100, sqm: null, rooms: null, bathrooms: null, floor: null, scala: null, interno: null, accessories: null, furnished: null, energyClass: null, cadastral: { sezione: null, foglio: '12', particella: '345', sub: '6', categoria: null, rendita: null }, tabelle: { proprieta: null, riscaldamento: null, ascensore: null } },
   contract: { type: 'transitorio', startDate: '2026-09-01', endDate: '2027-08-31', durationMonths: 12, rent: 1100, deposit: 2200, depositMonths: 2, paymentDay: 5, installmentMonths: '1', accessoryCharges: null, condoMode: null, cedolareSecca: true, transitionalReason: 'motivi di lavoro', transitionalDocs: null, esigenzaDi: 'conduttore', studenti: null, cohabitants: null, otherClauses: null, signaturePlace: 'Roma', signatureDate: '2026-08-20', paymentMethod: null, istatPct: null, notes: null },
   evidence: [{ path: 'contract.rent', quote: 'canone mensile di euro 1.100', file: 1, page: 1 }, { path: 'tenant.codiceFiscale', quote: 'C.F. TSTOYK95A41H501P', file: 1, page: 1 }],
-  notes: [], confidence: 88, summary: 'Contratto transitorio firmato, Via Simeto 12, canone 1.100.',
+  notes: [], confidence: 88, summary: 'Contratto transitorio firmato, Via Esempio 12, canone 1.100.',
 });
 let AI = { status: 200, text: '' };   // la risposta del modello per la LETTURA (l'Innesto)
 
@@ -166,7 +166,7 @@ ok('il bottone porta sc:<docId> entro 64 byte', Buffer.byteLength(offer.offerKey
 
 // ─── 2. dal bot: archiviato con id deterministico + bottone ─────────────────
 console.log('\n\x1b[1m2. Un contratto mandato al bot: archiviato, e la risposta porta il bottone\x1b[0m');
-const docUpdate = { message: { chat: { id: 777 }, message_id: 10, document: { file_id: 'F1', file_unique_id: 'UQ-1', file_name: 'contratto-simeto.pdf', mime_type: 'application/pdf', file_size: 1234 } } };
+const docUpdate = { message: { chat: { id: 777 }, message_id: 10, document: { file_id: 'F1', file_unique_id: 'UQ-1', file_name: 'contratto-esempio.pdf', mime_type: 'application/pdf', file_size: 1234 } } };
 let t0 = TG.length;
 let r = await call(webhook, { body: docUpdate });
 const DOC = docIdOf('UQ-1');
@@ -212,7 +212,7 @@ ok('il contesto è quello del desktop: i nomi in archivio (inquilini, proprietar
   /Oyku Testa/.test(promptText) && /Anna Rossi/.test(promptText) && /Via Cavour 12/.test(promptText), promptText.slice(-400));
 ok('lo strumento `proposta` anche dal telefono (stesso cuore: tools + tool_choice, nessuna grammatica)', lastIngestBody?.tools?.[0]?.name === 'proposta' && lastIngestBody?.tool_choice?.name === 'proposta' && !lastIngestBody?.output_config?.format && lastIngestBody?.model === 'claude-opus-5');
 const card = lastSend();
-ok('la card dice «Proposta pronta» con parti, immobile e termini', /Proposta pronta/.test(card?.body?.text || '') && /Oyku Testa/.test(card?.body?.text) && /Via Simeto 12/.test(card?.body?.text) && /1\.100/.test(card?.body?.text), card?.body?.text);
+ok('la card dice «Proposta pronta» con parti, immobile e termini', /Proposta pronta/.test(card?.body?.text || '') && /Oyku Testa/.test(card?.body?.text) && /Via Esempio 12/.test(card?.body?.text) && /1\.100/.test(card?.body?.text), card?.body?.text);
 ok('…e il bottone apre il portal su #innesto=<docId> (www, mai l\'apex)', card?.body?.reply_markup?.inline_keyboard?.[0]?.[0]?.url === 'https://www.boomrome.com/portal#innesto=' + DOC, card?.body?.reply_markup);
 ok('il battito è scritto (teamHealth/scrivano)', DB.get('teamHealth/scrivano')?.ok === true);
 const i0 = aiIngest;

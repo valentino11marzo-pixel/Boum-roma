@@ -276,7 +276,7 @@ for (let i = 0; i < 10; i++) { const m = request(`Vecchio ${i}`); oldRequests.pu
 for (let i = 0; i < 4; i++) inbox.box.push(mail({ from: 'news@quotidiano.idealista.it', subject: `Che succede ${i}/10/2026` }));
 const fresh = [];
 for (let i = 0; i < 11; i++) { const m = request(`Nuovo ${i}`); fresh.push(m); inbox.box.push(m); }
-const offer = mail({ from: IDEA, subject: 'Nuova offerta di Alessandro Pellegrino sul tuo immobile, Trilocale in Piazza Capri, 46', name: 'Alessandro Pellegrino' });
+const offer = mail({ from: IDEA, subject: 'Nuova offerta di Mario Esempio sul tuo immobile, Trilocale in Piazza Capri, 46', name: 'Mario Esempio' });
 inbox.box.push(offer);
 // la memoria del server: le richieste vecchie le aveva già lette
 DB.set('heartbeat/leads-inbox-memory', { seen: Object.fromEntries(oldRequests.map((m) => [sha1(m.messageId), { at: new Date(T - 86400e3).toISOString(), outcome: 'ingested' }])) });
@@ -286,12 +286,12 @@ DB.set('heartbeat/leads-inbox-memory', { seen: Object.fromEntries(oldRequests.ma
   ok('il giro risponde 200', r.status === 200, r.body);
   ok('un solo fetch di intestazioni per tutta la finestra', inbox.envelopeFetches === 1, inbox.envelopeFetches);
   ok('nessun alert, newsletter o email già letta viene scaricata', inbox.downloads.every((u) => fresh.concat(offer).some((m) => m.uid === u)), inbox.downloads);
-  ok('l\'offerta (la più recente) diventa un lead', got.some((l) => l.name === 'Alessandro Pellegrino'), got.map((l) => l.name));
+  ok('l\'offerta (la più recente) diventa un lead', got.some((l) => l.name === 'Mario Esempio'), got.map((l) => l.name));
   ok('il giro lavora oltre gli 8s del difetto: almeno 5 richieste nuove al primo passaggio', got.length >= 5, { n: got.length, ai: AI.length });
   const order = inbox.downloads;
   ok('scaricate dalla più recente alla più vecchia', order.every((u, i) => i === 0 || u < order[i - 1]), order);
   ok('mai una chiamata al modello sulle richieste già lette', !AI.some((n) => /^Vecchio/.test(n || '')), AI);
-  const one = got.find((l) => l.name === 'Alessandro Pellegrino') || {};
+  const one = got.find((l) => l.name === 'Mario Esempio') || {};
   ok('il lead porta quando la persona ha scritto (receivedAt), non solo quando il server l\'ha letta', one.receivedAt === offer.date, one);
   ok('lo stato del giro dice quante richieste ci sono, non quante email', r.body && r.body.requests === 22 && r.body.envelopes === inbox.box.length, r.body);
   ok('il lead ha un id dal Message-ID (inbox_<…>)', [...DB.keys()].some((k) => k === 'leads/' + mod.leadIdFor(sha1(offer.messageId))));
@@ -402,10 +402,10 @@ console.log('\n── 5. La memoria: illeggibile ≠ vuota, e si salva anche se 
 console.log('\n── 6. La stessa persona due volte, col telefono scritto in due modi ──');
 {
   reset();
-  inbox.box.push(request('Tel Uno', { email: null, phone: '333 111 0866' }));
-  inbox.box.push(mail({ from: IDEA, subject: 'Nuovo messaggio di Tel Uno sul tuo immobile, Bilocale in Via Satrico, 70', name: 'Tel Uno', email: null, phone: '+39 3331110866' }));
+  inbox.box.push(request('Tel Uno', { email: null, phone: '333 111 1866' }));
+  inbox.box.push(mail({ from: IDEA, subject: 'Nuovo messaggio di Tel Uno sul tuo immobile, Bilocale in Via Satrico, 70', name: 'Tel Uno', email: null, phone: '+39 3331111866' }));
   await call();
-  ok('due email, un telefono in due forme: un lead solo', leads().length === 1 && leads()[0].phone === '+393331110866', leads().map((l) => [l.name, l.phone]));
+  ok('due email, un telefono in due forme: un lead solo', leads().length === 1 && leads()[0].phone === '+393331111866', leads().map((l) => [l.name, l.phone]));
 }
 
 console.log('\n── 7. L\'estrazione sempre rotta non affama le altre e smette di costare ──');

@@ -125,17 +125,17 @@ function seed() {
   store.clear(); storageFiles.clear(); globalThis.__mails = [];
   store.set('users/caller1', { role: 'admin', name: 'Valentino', email: 'op@boom.it' });
   store.set('properties/p1', { ownerId: 'own1', address: 'Via Levico 12', name: 'Levico' });
-  store.set('users/own1', { role: 'landlord', name: 'Stefano C', email: 'stefano@landlord.it',
+  store.set('users/own1', { role: 'landlord', name: 'Stefano E', email: 'stefano@landlord.it',
     identityDocs: [{ url: 'https://firebasestorage.googleapis.com/own-ci.jpg', name: 'ci.jpg' }] });
-  store.set('users/t1', { role: 'tenant', name: 'Julie', email: 'julie@tenant.fr',
-    identityDocs: [{ url: 'https://firebasestorage.googleapis.com/julie-pass.jpg', name: 'pass.jpg' }] });
-  store.set('users/t2', { role: 'tenant', name: 'Anouk', email: 'anouk@tenant.fr' });
+  store.set('users/t1', { role: 'tenant', name: 'Elsa', email: 'elsa@tenant.fr',
+    identityDocs: [{ url: 'https://firebasestorage.googleapis.com/elsa-pass.jpg', name: 'pass.jpg' }] });
+  store.set('users/t2', { role: 'tenant', name: 'Noa', email: 'noa@tenant.fr' });
   store.set('contracts/ctr1', {
     propertyId: 'p1', tenantId: 't1', type: 'transitorio',
-    tenantName: 'Julie Verbrugghe', tenantEmail: 'julie@tenant.fr',
-    coTenants: [{ name: 'Anouk Garot', email: 'anouk@tenant.fr', userId: 't2' }],
-    landlordName: 'Stefano Compierchio', startDate: '2026-09-01', endDate: '2027-08-31', rent: 1400,
-    identityDocs: [{ url: 'https://firebasestorage.googleapis.com/julie-pass.jpg', name: 'pass.jpg', role: 'tenant' }],
+    tenantName: 'Elsa Sample', tenantEmail: 'elsa@tenant.fr',
+    coTenants: [{ name: 'Noa Prova', email: 'noa@tenant.fr', userId: 't2' }],
+    landlordName: 'Stefano Esempio', startDate: '2026-09-01', endDate: '2027-08-31', rent: 1400,
+    identityDocs: [{ url: 'https://firebasestorage.googleapis.com/elsa-pass.jpg', name: 'pass.jpg', role: 'tenant' }],
   });
   store.set('deadlines/d1', { linkedContractId: 'ctr1', title: 'Registrare RLI — Via Levico 12', status: 'pending' });
   store.set('deadlines/d2', { linkedContractId: 'ctr1', type: 'contract_registration', title: 'Registrazione', status: 'pending' });
@@ -195,7 +195,7 @@ const I = await import('../../api/sign/_iddocs.js');
   const docs = ['tenant', 'landlord', 'co0'].map(w => store.get('documents/' + R.receiptDocId('ctr1', w)));
   check('handler: ricevuta nell’archivio di inquilino, proprietario e co-conduttore', docs.every(d => d && d.type === 'receipt' && d.fileUrl === c.registrationReceiptUrl)
     && docs[0].userId === 't1' && docs[1].userId === 'own1' && docs[2].userId === 't2');
-  const jm = mailTo('julie@tenant.fr'), am = mailTo('anouk@tenant.fr'), lm = mailTo('stefano@landlord.it');
+  const jm = mailTo('elsa@tenant.fr'), am = mailTo('noa@tenant.fr'), lm = mailTo('stefano@landlord.it');
   check('handler: email con la ricevuta in allegato a conduttrice e co-conduttrice (EN) e proprietario (IT)', jm.length === 1 && am.length === 1 && lm.length === 1
     && /registered/i.test(jm[0].subject) && /Contratto registrato/.test(lm[0].subject)
     && Buffer.compare(jm[0].attachments[0].content, PDF) === 0 && /TKR26T001234000AB/.test(lm[0].html));
@@ -236,14 +236,14 @@ const I = await import('../../api/sign/_iddocs.js');
   check('ricevute: il risalvataggio normale manda SOLO al proprietario (prima: already_sent con 0 tentativi)', again.code === 200
     && again.body.sent.length === 1 && again.body.sent[0].who === 'landlord' && again.body.alreadySent.length === 2);
   check('ricevute: totale consegnate 3, nessun doppione a conduttrice e co-conduttrice', mails().length === 3 && globalThis.__mailAttempts.length === 4
-    && mailTo('julie@tenant.fr').length === 1 && mailTo('anouk@tenant.fr').length === 1 && mailTo('stefano@landlord.it').length === 1
+    && mailTo('elsa@tenant.fr').length === 1 && mailTo('noa@tenant.fr').length === 1 && mailTo('stefano@landlord.it').length === 1
     && Buffer.compare(mailTo('stefano@landlord.it')[0].attachments[0].content, PDF) === 0);
   const third = await drive({ op: 'registered', contractId: 'ctr1', date: '2026-10-14' });
   check('ricevute: a tutti consegnata → already_sent, zero tentativi', third.body.skipped === 'already_sent' && globalThis.__mailAttempts.length === 4);
 
   // Esito INCERTO (timeout): non riparte da solo, solo col «rimanda» esplicito e solo a quella persona.
   seed(); globalThis.__mailAttempts = [];
-  globalThis.__mailFail = (o) => o.to === 'julie@tenant.fr' ? new Error('socket hang up') : null;
+  globalThis.__mailFail = (o) => o.to === 'elsa@tenant.fr' ? new Error('socket hang up') : null;
   const u1 = await drive({ op: 'registered', contractId: 'ctr1', date: '2026-10-14', base64: PDF64, contentType: 'application/pdf' });
   globalThis.__mailFail = null;
   check('ricevute: socket caduta = «uncertain» (può essere arrivata)', u1.body.uncertain.join() === 'tenant' && u1.body.sent.length === 2);
@@ -251,7 +251,7 @@ const I = await import('../../api/sign/_iddocs.js');
   check('ricevute: l’incerta NON riparte col risalvataggio normale', u2.body.skipped === 'uncertain_needs_resend' && globalThis.__mailAttempts.length === 3);
   const u3 = await drive({ op: 'registered', contractId: 'ctr1', date: '2026-10-14', resend: true });
   check('ricevute: «rimanda» esplicito manda SOLO all’incerta', u3.body.sent.length === 1 && u3.body.sent[0].who === 'tenant'
-    && mailTo('julie@tenant.fr').length === 1 && mailTo('anouk@tenant.fr').length === 1 && mailTo('stefano@landlord.it').length === 1);
+    && mailTo('elsa@tenant.fr').length === 1 && mailTo('noa@tenant.fr').length === 1 && mailTo('stefano@landlord.it').length === 1);
 
   // Un file NUOVO è un'altra ricevuta: riparte a tutti.
   const PDF2 = Buffer.from('%PDF-1.7\nricevuta corretta\n%%EOF');
@@ -266,7 +266,7 @@ const I = await import('../../api/sign/_iddocs.js');
   cu.registrationReceiptSentUrl = cu.registrationReceiptUrl; cu.registrationReceiptSentTo = ['tenant', 'landlord'];
   const lg = await drive({ op: 'registered', contractId: 'ctr1', date: '2026-10-14' });
   check('ricevute: chi era nel timbro legacy non la riceve due volte', lg.body.sent.length === 1 && lg.body.alreadySent.length === 2
-    && mailTo('anouk@tenant.fr').length === 1 && mailTo('julie@tenant.fr').length === 0);
+    && mailTo('noa@tenant.fr').length === 1 && mailTo('elsa@tenant.fr').length === 0);
 }
 
 // ═══ 3c. IBAN per finalità e fonte (foglio e pacchetto) ═════════════════
@@ -297,9 +297,9 @@ const I = await import('../../api/sign/_iddocs.js');
 {
   seed();
   const COT = Buffer.from('BYTES-DOC-ANOUK-CARICATO-DOPO-LA-FIRMA');
-  storageFiles.set('doc/anouk-ci.jpg', COT);
-  // Caricato sul PROFILO di Anouk DOPO la firma: il contratto non lo ha.
-  store.get('users/t2').identityDocs = [{ url: 'https://firebasestorage.googleapis.com/v0/b/x/o/' + encodeURIComponent('doc/anouk-ci.jpg') + '?alt=media', name: 'anouk-ci.jpg' }];
+  storageFiles.set('doc/noa-ci.jpg', COT);
+  // Caricato sul PROFILO di Noa DOPO la firma: il contratto non lo ha.
+  store.get('users/t2').identityDocs = [{ url: 'https://firebasestorage.googleapis.com/v0/b/x/o/' + encodeURIComponent('doc/noa-ci.jpg') + '?alt=media', name: 'noa-ci.jpg' }];
   const handler = (await import('../../api/fiscal/pack.js')).default;
   const res = mkRes();
   await handler({ method: 'POST', headers: { authorization: 'Bearer tok' }, body: { contractId: 'ctr1' } }, res);
@@ -318,7 +318,7 @@ const I = await import('../../api/sign/_iddocs.js');
   let zf = {}; try { zf = readZip(storageFiles.get(zipKey)); } catch (e) { console.log('  zip:', e.message); }
   check('pack rigenerato: 200 e ZIP su Storage', res.code === 200 && !!zipKey);
   check('pack rigenerato: il documento caricato sul profilo del co-conduttore DOPO la firma è dentro, coi suoi byte',
-    Object.entries(zf).some(([n, b]) => /anouk-ci/.test(n) && Buffer.compare(b, COT) === 0));
+    Object.entries(zf).some(([n, b]) => /noa-ci/.test(n) && Buffer.compare(b, COT) === 0));
   check('pack rigenerato: non scrive i documenti sul contratto', (store.get('contracts/ctr1').identityDocs || []).length === 1);
 }
 

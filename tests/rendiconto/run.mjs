@@ -105,13 +105,13 @@ globalThis.fetch = async (url, opts = {}) => {
 const MONTH = '2026-07';
 function seed() {
   store.clear(); storageFiles.clear(); globalThis.__mails = [];
-  store.set('users/own1', { role: 'landlord', name: 'Stefano Compierchio', email: 'stefano@own.it' });
-  store.set('properties/p1', { ownerId: 'own1', address: 'Via Squarcialupo 36', name: 'Squarcialupo' });
+  store.set('users/own1', { role: 'landlord', name: 'Stefano Esempio', email: 'stefano@own.it' });
+  store.set('properties/p1', { ownerId: 'own1', address: 'Via delle Prove 36', name: 'Prove' });
   store.set('properties/p2', { ownerId: 'own1', address: 'Via Levico 7', name: 'Levico' });
   store.set('properties/px', { ownerId: 'own2', address: 'Via Vuota 1', name: 'SenzaMovimenti' });
   store.set('users/own2', { role: 'landlord', name: 'Vuoto', email: 'vuoto@own.it' });
-  store.set('contracts/c1', { propertyId: 'p1', tenantName: 'Julie Verbrugghe', landlordName: 'Stefano Compierchio', rent: 1400, status: 'active' });
-  store.set('contracts/c2', { propertyId: 'p2', tenantName: 'Marco Rossi', landlordName: 'Stefano Compierchio', rent: 900, status: 'active' });
+  store.set('contracts/c1', { propertyId: 'p1', tenantName: 'Elsa Sample', landlordName: 'Stefano Esempio', rent: 1400, status: 'active' });
+  store.set('contracts/c2', { propertyId: 'p2', tenantName: 'Marco Rossi', landlordName: 'Stefano Esempio', rent: 900, status: 'active' });
   // pagata NEL mese (conta), pagata in ALTRO mese (non conta), aperta del mese, arretrato vecchio
   store.set('payments/pay_c1_2026-07', { contractId: 'c1', propertyId: 'p1', amount: 1400, month: '2026-07', dueDate: '2026-07-01', status: 'paid', paidDate: '2026-07-03', paidVia: 'bank' });
   store.set('payments/pay_c1_2026-06', { contractId: 'c1', propertyId: 'p1', amount: 1400, month: '2026-06', dueDate: '2026-06-01', status: 'paid', paidDate: '2026-06-02', paidVia: 'stripe' });
@@ -172,7 +172,7 @@ const drive = async (query = {}, authz = 'Bearer cron-test-secret') => {
 {
   seed();
   store.set('users/own1', { role: 'landlord', name: 'Stefano' }); // niente email, niente landlords/
-  store.set('contracts/c1', { propertyId: 'p1', tenantName: 'Julie', rent: 1400, status: 'active' }); // niente landlordEmail
+  store.set('contracts/c1', { propertyId: 'p1', tenantName: 'Elsa', rent: 1400, status: 'active' }); // niente landlordEmail
   store.set('contracts/c2', { propertyId: 'p2', tenantName: 'Marco', rent: 900, status: 'active' });
   const r = await drive({ month: MONTH });
   check('senza email: segnalato nel recap, mai perso in silenzio',

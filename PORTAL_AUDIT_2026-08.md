@@ -21,7 +21,7 @@
 | Gravità | Evidenza | Stato |
 |---|---|---|
 | 🔴 | **`propertyLocks` 403 × 143** (ogni ora, `reminder-cron` sweepLocks) + 2 × "lucchetto non verificabile" durante submit REALI (31/7) → **le rules deployate su Firebase sono più vecchie del repo** | **AZIONE OPERATORE**: `npx firebase-tools deploy --only firestore:rules,storage --project boom-property-dashboards` (o console Firebase → Regole → incolla `firestore.rules`). Fix permanente in §9 (deploy automatico da CI) |
-| 🔴 | **magic-sign submit 400 × 18** (2/8, 17:16–19:34, un utente = Anouk) — commit write con URL invece di resource name | ✅ Corretto e live il 2/8 sera; zero ricorrenze dopo; contratto firmato |
+| 🔴 | **magic-sign submit 400 × 18** (2/8, 17:16–19:34, un solo utente) — commit write con URL invece di resource name | ✅ Corretto e live il 2/8 sera; zero ricorrenze dopo; contratto firmato |
 | 🟠 | **Timeout piattaforma × 58** su `employees/commerciale`, `leads/scan-inbox`, `pfs/scan-inbox` (kill a 60s a metà lavoro) | ✅ Corretto il 4/8: deadline morbida 48s, uscita pulita con `timeBoxed`, ripresa gratuita al giro dopo |
 | 🟡 | **Crash iOS `ReferenceError: Notification`** dentro callback realtime (portal-app) — i crash che vedevi da iPhone | ✅ Corretto (doppio fix, anche dalla sessione parallela) |
 | 🟡 | `photos/enhance` — listing `2SwJ8yD3ITXylrEtYIlL` con foto in formato non processabile, ritentato ogni notte | Da bonificare: sostituire/rimuovere quella foto dal listing |

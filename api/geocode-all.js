@@ -22,7 +22,7 @@
 import crypto from 'node:crypto';
 
 const PROJECT = process.env.FIREBASE_PROJECT_ID || 'boom-property-dashboards';
-const UA = 'BOOMRome/1.0 (+https://www.boomrome.com; valentino11marzo@gmail.com)';
+const UA = 'BOOMRome/1.0 (+https://www.boomrome.com; hello@boom-rome.com)';
 
 const sv = (f, k) => (f && f[k] && f[k].stringValue) || '';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -45,7 +45,7 @@ function getProvidedSecret(req) {
 }
 
 async function geocode(query) {
-  const url = 'https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=it&email=valentino11marzo@gmail.com&q=' + encodeURIComponent(query);
+  const url = 'https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=it&email=hello@boom-rome.com&q=' + encodeURIComponent(query);
   const r = await fetch(url, { headers: { 'User-Agent': UA, 'Accept-Language': 'it,en' } });
   if (!r.ok) return null;
   const j = await r.json();

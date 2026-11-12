@@ -67,9 +67,9 @@ ok(parseModelJson('{"a": <<<}').why === 'invalid', 'illeggibile anche dopo le co
 ok(modelJson('rumore') === null && modelJson('{"a":1}').a === 1, 'modelJson(): il valore o null, come prima');
 
 // ── 3. La diagnosi non porta contenuto ──────────────────────────────────
-const segreto = '```json\n{"codiceFiscale":"SRRSRA82S45C034Y","iban":"IT77I0538703267000049635352"';
+const segreto = '```json\n{"codiceFiscale":"RSSMRA85T10A562S","iban":"IT60X0542811101000000123456"';
 const line = jsonFailureLine(segreto, 'truncated', 'max_tokens');
-ok(!/SRRSRA|IT77I|codiceFiscale/.test(line),
+ok(!/RSSMRA|IT60X|codiceFiscale/.test(line),
   'la riga di log NON contiene il codice fiscale né l\'IBAN (nei log di produzione ci sono finiti davvero)');
 ok(/why=truncated/.test(line) && /len=\d+/.test(line) && /fenced=1/.test(line) && /stop=max_tokens/.test(line),
   'ma dice tutto quello che serve per capire: perché, quanto, in che forma');

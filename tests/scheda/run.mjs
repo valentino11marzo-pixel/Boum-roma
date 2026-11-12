@@ -261,7 +261,7 @@ IP = '1.2.3.4';
   // l'URL deve combaciare con cosignRef, un co già firmato è marcato.
   const { cosignRef } = await import('../../api/magic-sign/_shared.js');
   store.set('contracts/ctr1', { ...store.get('contracts/ctr1'),
-    coTenants: [{ name: 'Anouk Garot', email: 'a@x.fr' }, { name: 'Terza Persona', signature: 'data:image/png;base64,x' }] });
+    coTenants: [{ name: 'Noa Prova', email: 'a@x.fr' }, { name: 'Terza Persona', signature: 'data:image/png;base64,x' }] });
   r = mkRes();
   await link(mkReq({ contractId: 'ctr1' }, { authorization: 'Bearer faketoken' }), r);
   check('link admin: cosign[] con URL derivato del co-conduttore',
@@ -282,7 +282,7 @@ IP = '1.2.3.4';
   // immobile riceve la propria Scheda e lo STATO di quella dell'inquilino e
   // dei co-conduttori — mai i loro link né i messaggi che li contengono.
   store.set('properties/prop1', { ...store.get('properties/prop1'), ownerId: 'caller1' });
-  store.set('contracts/ctr1', { ...store.get('contracts/ctr1'), coTenants: [{ name: 'Anouk Garot', email: 'a@x.fr' }] });
+  store.set('contracts/ctr1', { ...store.get('contracts/ctr1'), coTenants: [{ name: 'Noa Prova', email: 'a@x.fr' }] });
   r = mkRes();
   await link(mkReq({ contractId: 'ctr1' }, { authorization: 'Bearer faketoken' }), r);
   const bodyStr = JSON.stringify(r.body || {});

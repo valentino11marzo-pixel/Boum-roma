@@ -67,8 +67,8 @@ globalThis.fetch = async (url, opts = {}) => {
     return new Response(JSON.stringify({ error: { message: 'INVALID_ID_TOKEN' } }), { status: 400 });
   }
   if (url.includes('api.telegram.org')) return okJson({ ok: true });
-  if (url === 'https://storage.example/julie-signed.pdf') return new Response(PDF_A, { status: 200 });
-  if (url === 'https://storage.example/julie-cert.pdf') return new Response(PDF_B, { status: 200 });
+  if (url === 'https://storage.example/elsa-signed.pdf') return new Response(PDF_A, { status: 200 });
+  if (url === 'https://storage.example/elsa-cert.pdf') return new Response(PDF_B, { status: 200 });
   if (url === 'https://storage.example/marco-signed.pdf') return new Response(PDF_C, { status: 200 });
   if (url === 'https://storage.example/sparito.pdf') return new Response('nf', { status: 404 });
   if (url.includes('firestore.googleapis.com')) {
@@ -99,9 +99,9 @@ globalThis.fetch = async (url, opts = {}) => {
 const MONTH = '2026-07';
 function seed() {
   store.clear(); globalThis.__mails = [];
-  store.set('contracts/cJulie', { tenantName: 'Julie Verbrugghe', propertyAddress: 'Via Squarcialupo 36', finalizedAt: '2026-07-20T10:00:00.000Z', signedPdfUrl: 'https://storage.example/julie-signed.pdf', signingCertificateUrl: 'https://storage.example/julie-cert.pdf', timestampTsrUrl: 'https://storage.example/sparito.pdf' });
+  store.set('contracts/cElsa', { tenantName: 'Elsa Sample', propertyAddress: 'Via delle Prove 36', finalizedAt: '2026-07-20T10:00:00.000Z', signedPdfUrl: 'https://storage.example/elsa-signed.pdf', signingCertificateUrl: 'https://storage.example/elsa-cert.pdf', timestampTsrUrl: 'https://storage.example/sparito.pdf' });
   store.set('contracts/cMarco', { tenantName: 'Marco Rossi', propertyAddress: 'Via Levico 7', finalizedAt: '2026-07-05T08:00:00.000Z', signedPdfUrl: 'https://storage.example/marco-signed.pdf' });
-  store.set('contracts/cVecchio', { tenantName: 'Fuori Mese', finalizedAt: '2026-06-11T08:00:00.000Z', signedPdfUrl: 'https://storage.example/julie-signed.pdf' });
+  store.set('contracts/cVecchio', { tenantName: 'Fuori Mese', finalizedAt: '2026-06-11T08:00:00.000Z', signedPdfUrl: 'https://storage.example/elsa-signed.pdf' });
   store.set('contracts/cCarta', { tenantName: 'Firmato su carta' }); // mai finalizzato: fuori
 }
 const mkRes = () => ({ code: 0, body: null, setHeader() {}, status(c) { this.code = c; return this; }, json(o) { this.body = o; return this; }, end() { return this; } });
@@ -120,9 +120,9 @@ const drive = async (query = {}) => { const r = mkRes(); await handler({ method:
 
   const zip = readZip(m.attachments[0].content);
   const names = Object.keys(zip);
-  check('ZIP: INDICE + 3 PDF con percorsi parlanti', names.length === 4 && names.some(n => n.endsWith('00_INDICE.txt')) && names.some(n => /Julie_Verbrugghe.*contratto-firmato\.pdf/.test(n)) && names.some(n => /Marco_Rossi.*contratto-firmato\.pdf/.test(n)));
-  const julie = zip[names.find(n => /Julie.*contratto-firmato/.test(n))];
-  check('i byte nello ZIP sono i PDF veri', Buffer.compare(julie, PDF_A) === 0);
+  check('ZIP: INDICE + 3 PDF con percorsi parlanti', names.length === 4 && names.some(n => n.endsWith('00_INDICE.txt')) && names.some(n => /Elsa_Sample.*contratto-firmato\.pdf/.test(n)) && names.some(n => /Marco_Rossi.*contratto-firmato\.pdf/.test(n)));
+  const elsa = zip[names.find(n => /Elsa.*contratto-firmato/.test(n))];
+  check('i byte nello ZIP sono i PDF veri', Buffer.compare(elsa, PDF_A) === 0);
   const indice = zip[names.find(n => n.endsWith('00_INDICE.txt'))].toString();
   check('INDICE dice cosa manca (marca temporale irraggiungibile)', indice.includes('✗ marca-temporale.tsr'));
 

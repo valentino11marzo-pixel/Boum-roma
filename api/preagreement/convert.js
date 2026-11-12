@@ -391,7 +391,7 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = fal
   // retry del webhook con back-link stantio) collassano sullo stesso doc.
   const contractId = 'pa_' + paId;
   // LA PROPOSTA ORFANA / IL RETRY, riconosciuti PRIMA di ogni guardia: se
-  // contracts/pa_<paId> esiste già (il caso Léa: firmato da entrambi, back-
+  // contracts/pa_<paId> esiste già (13/09/2026: firmato da entrambi, back-
   // link perso) si ricuce e si torna — la guardia sovrapposizioni non deve
   // MAI impedire a una proposta di ritrovare il SUO contratto (il contratto
   // vicino, attivo sullo stesso immobile, la bloccherebbe per sempre).
@@ -681,7 +681,7 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = fal
       try {
         const c = await fsGet('contracts/' + contractId);
         if (c) {
-          // LA PROPOSTA ORFANA (13/09/2026, il caso Léa): il contratto
+          // LA PROPOSTA ORFANA (13/09/2026): il contratto
           // pa_<paId> esiste — firmato da entrambi il 14/08 — ma la
           // proposta non porta contractId, perché il back-link qui sotto
           // era fire-and-forget e si è perso dopo la risposta. Ogni volta
@@ -762,7 +762,7 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = fal
   }
 
   // Back-link on the PA — ATTESO, non best-effort: senza contractId la
-  // console non sa che il contratto esiste (il caso Léa qui sopra). Sign
+  // console non sa che il contratto esiste (il caso qui sopra). Sign
   // URLs are stored here too so the console can offer 🖊 Magic Sign /
   // WhatsApp share without extra reads (preAgreements is admin-only).
   const links = await signLinks(contractId, contract);

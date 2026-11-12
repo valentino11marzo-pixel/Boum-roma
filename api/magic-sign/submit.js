@@ -552,7 +552,7 @@ export default async function handler(req, res) {
   }
 
   // ── 4c. La firma si STAMPA anche sulla proposta (rail pre-agreement) ──
-  // LA LEZIONE DEL 12 SETTEMBRE 2026 (il caso Inês, Viale Angelico 9): la
+  // LA LEZIONE DEL 12 SETTEMBRE 2026 (un contratto firmato e attivo): la
   // console pre-agreement legge SOLO il documento della proposta — e
   // nessuno le scriveva mai che il contratto era stato firmato. Il deal
   // restava «paid · 🖊 Reinvia Magic Sign · dopo la firma dell'inquilino…»
