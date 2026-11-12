@@ -19,7 +19,7 @@ const esc = (s) => String(s == null ? '' : s).replace(/[&<>]/g, (c) => ({ '&': '
 const ROME = new Intl.DateTimeFormat('it-IT', { timeZone: 'Europe/Rome', day: '2-digit', month: '2-digit', year: 'numeric' });
 const dmy = (iso) => { const t = new Date(String(iso || '')); return Number.isNaN(t.getTime()) ? '—' : ROME.format(t); };
 
-/** "BM BEAEV", "bm beaev", "BMBEAEV" or a lead id → a reference; anything else → null. */
+/** "BM X7K2Q", "bm x7k2q", "BMX7K2Q" or a lead id → a reference; anything else → null. */
 export function parseUpgradeRef(arg) {
   const t = String(arg || '').trim();
   const m = t.toUpperCase().match(/^BM\s*([A-Z2-9]{5})$/);
@@ -47,12 +47,15 @@ export function upgradeReply(lead, id, nowMs, origin) {
   const who = esc(lead && lead.name ? lead.name : '—');
   const desk = lead && CITY_MARKETS[lead.market] ? CITY_MARKETS[lead.market].label : (lead && lead.market) || '—';
   const head = `⬆ <b>Upgrade</b> — ${who} · ${esc(desk)}${o.file || (lead && lead.city && lead.city.file) ? ' · ' + esc(o.file || lead.city.file) : ''}`;
-  if (o.state === 'used') return `${head}\nIl credito è già stato usato (${esc(o.usedBy)}). Nessun link.`;
+  if (o.state === 'used') return `${head}\n${lead.credit && lead.credit.via === 'full-price' ? `Il credito è stato accreditato sull'ordine ${esc(o.usedBy)}, pagato a prezzo pieno: lì è dovuto il rimborso del pack` : `Il credito è già stato usato (${esc(o.usedBy)})`}. Nessun link.`;
   if (o.state === 'expired') return `${head}\nIl credito è scaduto il ${dmy(o.expiresAt)} (${UPGRADE_DAYS} giorni dal pagamento). Nessun link.`;
-  if (o.state === 'void') return `${head}\n${o.reason === 'withdrawn' ? 'Il cliente ha receduto da questo ordine' : 'Questo ordine è stato rimborsato'}: non c'è più niente da accreditare. Nessun link.`;
+  if (o.state === 'void') return `${head}\n${o.reason === 'disputed' ? 'Il pagamento di questo ordine è contestato in banca' : 'Questo ordine è stato rimborsato'}: non c'è più niente da accreditare. Nessun link.`;
   // the Full Search paid with the credit keeps the pack's file: the same file number finds it too
   const cc = lead && lead.city && typeof lead.city === 'object' && lead.city.credit && typeof lead.city.credit === 'object' ? lead.city.credit : null;
   if (!o.ok && cc && cc.from) return `${head}\nQuesto ordine è già l'upgrade: ${cc.amount ? moneyOf(Number(cc.amount), String(lead.currency || 'eur').toLowerCase()) + ' ' : ''}accreditati dall'ordine ${esc(cc.from)}. Nessun link.`;
+  // paid in full by a pack holder (the other door): what is owed back on this order
+  const due = lead && lead.city && typeof lead.city === 'object' && lead.city.creditDue && typeof lead.city.creditDue === 'object' ? lead.city.creditDue : null;
+  if (!o.ok && due && due.from) return `${head}\nPagato a prezzo pieno con un credito aperto: su questo ordine è dovuto il rimborso di ${moneyOf(Number(due.amount) || 0, String(due.currency || lead.currency || 'eur').toLowerCase())} (credito dell'ordine ${esc(due.from)})${lead.refundedAt ? ` — rimborso già segnato: ${moneyOf(Number(lead.refundedAmount) || 0, String(lead.currency || 'eur').toLowerCase())}` : ''}. Nessun link.`;
   if (!o.ok) return `${head}\nQuesto ordine non si può trasformare in Full Search (solo un Application Pack pagato su un desk che incassa alla cassa).`;
   const link = upgradeLink(id, origin);
   const pay = moneyOf(o.pay, o.currency), credit = moneyOf(o.credit, o.currency), list = moneyOf(o.list, o.currency);

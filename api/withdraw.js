@@ -270,7 +270,7 @@ async function decide(st, found) {
   // Application Pack to Full Search has TWO paid orders with one email and one
   // file number, so their statement always lands here — the card must say
   // which is which
-  if (hits.length > 1) return { kind: 'ambiguous', leads: hits.slice(0, 5).map((d) => ({ id: d.id, market: leadMarket(d), state: classify(d), service: svcLabelOf(d), upgradeOf: (d.city && d.city.credit && typeof d.city.credit === 'object' && d.city.credit.from) || null })), count: hits.length };
+  if (hits.length > 1) return { kind: 'ambiguous', leads: hits.slice(0, 5).map((d) => ({ id: d.id, market: leadMarket(d), state: classify(d), service: svcLabelOf(d), upgradeOf: (d.city && d.city.credit && typeof d.city.credit === 'object' && d.city.credit.from) || null, dueFrom: (d.city && d.city.creditDue && typeof d.city.creditDue === 'object' && d.city.creditDue.from) || null })), count: hits.length };
   const one = hits[0];
   if (emailKey(one.email) !== st.emailKey) return { kind: 'mismatch', leadId: one.id, lead: one, via: found.via };
   let v = null;
@@ -322,7 +322,8 @@ function cardOf(st, stamp, dec) {
     case 'svc_paid': {
       const amount = Number.isFinite(Number(lead.amount_eur)) ? moneyOf(Number(lead.amount_eur), lead.currency) : null;
       const desk = leadMarket(lead) === 'roma' ? 'Roma' : (CITY_MARKETS[leadMarket(lead)] || {}).label;
-      const upgradeNote = upgradeMoneyBackNote(lead, (n) => moneyOf(n, lead.currency));
+      // a statement returns no money by itself: the credit closes with the refund (api/_upgrade.js)
+      const upgradeNote = upgradeMoneyBackNote(lead, (n) => moneyOf(n, lead.currency), { statement: true });
       return `${head} — ordine pagato${amount ? ' ' + amount : ''} · ${svcLabelOf(lead)}${desk ? ` (${desk})` : ''}${c.file ? ` · file ${c.file}` : ''}${viaNote}`
         + ` — rimborso entro 14 giorni (entro il ${itDay(stamp.day, 14)}), con lo stesso mezzo di pagamento; Start now ${startNowIt(c.startNow)}`
         + `${c.withdrawalEndsOn ? `, finestra fino al ${itDay(c.withdrawalEndsOn)}` : ''}${lead.paid_at ? `, pagato il ${itDay(romeDayOf(lead.paid_at))}` : ''}`
@@ -334,8 +335,10 @@ function cardOf(st, stamp, dec) {
       return `${head} — il riferimento corrisponde a leads/${dec.leadId} (${(CITY_MARKETS[leadMarket(lead)] || {}).label || 'Roma'} · ${svcLabelOf(lead)}), ma l'email dell'ordine è un'altra (${lead.email || '?'}): verifica chi ha scritto, da abbinare a mano. Nessuna modifica all'ordine.`;
     case 'ambiguous': {
       const up = dec.leads.find((l) => l.upgradeOf && dec.leads.some((x) => x.id === l.upgradeOf));
+      // …or the two orders are a pack and the target plan paid in FULL by its holder (the pack amount is owed back on that one)
+      const due = up ? null : dec.leads.find((l) => l.dueFrom && dec.leads.some((x) => x.id === l.dueFrom));
       return `${head} — più ordini corrispondono (${dec.count}: ${dec.leads.map((l) => `leads/${l.id} ${l.market} ${l.state}${l.service ? ' · ' + l.service : ''}`).join(', ')})`
-        + `${up ? ` — ${up.id} è l'upgrade pagato col credito di ${up.upgradeOf}: il rimborso si calcola su quanto pagato per l'ordine da cui recede (Termini §12.2)` : ''}: da abbinare a mano. Nessuna modifica.`;
+        + `${up ? ` — ${up.id} è l'upgrade pagato col credito di ${up.upgradeOf}: il rimborso si calcola su quanto pagato per l'ordine da cui recede (Termini §12.2)` : due ? ` — ${due.id} è stato pagato a prezzo pieno da chi aveva il credito di ${due.dueFrom}: su ${due.id} è dovuto il rimborso di quel credito (Termini §12.2)` : ''}: da abbinare a mano. Nessuna modifica.`;
     }
     case 'lookup_failed':
       return `${head} — ricerca dell'ordine non riuscita: da abbinare a mano.`;

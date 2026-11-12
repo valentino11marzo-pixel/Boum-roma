@@ -56,7 +56,7 @@ button.pay:focus-visible,a:focus-visible,.tick input:focus-visible{outline:2px s
   <section id="offer" hidden>
     <p class="kick" id="kick">BOOM · your upgrade</p>
     <h1 id="title">Full Search, with your Application Pack credited</h1>
-    <p id="lead">We search for you every working day until you sign. What you paid for the Application Pack counts toward it.</p>
+    <p id="lead">Full Search on your desk, with what you paid for the Application Pack taken off the price.</p>
     <div class="card">
       <p class="opt" id="optional" hidden>Optional, chosen in writing</p>
       <div class="row"><span id="listLabel">Full Search</span><b id="list">—</b></div>
@@ -159,7 +159,7 @@ button.pay:focus-visible,a:focus-visible,.tick input:focus-visible{outline:2px s
       if (o.ok) return render(o);
       if (o.state === 'used') return closed('This credit has already been used.', 'If you’ve just paid, check your email for the confirmation. Questions: <a href="mailto:hello@boom-rome.com">hello@boom-rome.com</a>.');
       if (o.state === 'expired') return closed('This credit expired on ' + day(o.expiresAt) + '.', 'You can still book on ' + deskLink(null) + ', or write to us at <a href="mailto:hello@boom-rome.com">hello@boom-rome.com</a>.');
-      if (o.state === 'void') return closed('This credit is no longer available.', 'The Application Pack it came from was ' + (o.reason === 'withdrawn' ? 'withdrawn from' : 'refunded') + '. You can still book on ' + deskLink(null) + ', or write to us at <a href="mailto:hello@boom-rome.com">hello@boom-rome.com</a>.');
+      if (o.state === 'void') return closed('This credit is no longer available.', (o.reason === 'disputed' ? 'The payment for the Application Pack it came from is disputed with the bank' : 'The Application Pack it came from was refunded') + '. You can still book on ' + deskLink(null) + ', or write to us at <a href="mailto:hello@boom-rome.com">hello@boom-rome.com</a>.');
       if (o.__status === 429) return closed('Too many attempts.', 'Wait a minute and reload the page.');
       if (o.__status === 503) return closed('We can’t check your credit right now.', 'Reload the page in a minute.');
       return closed('This link isn’t valid.', 'Write to us at <a href="mailto:hello@boom-rome.com">hello@boom-rome.com</a> and we’ll sort it out.');

@@ -237,6 +237,22 @@ export const CITY_PLANS = {
     desc: 'A BOOM person attends the viewing in your place: live video walkthrough, written report (light, noise, damp, neighbours, commute) and a straight recommendation.' },
 };
 
+// A DESK WHOSE FULL SEARCH IS NOT THE COMMON ONE SAYS ITS OWN (12/11/2026).
+// CITY_PLANS stays one object (the prices, the labels); the DESCRIPTION is
+// what the payer reads on Stripe's page and on /upgrade, and since the card
+// flip of 06/11 Paris and Berlin sold their Full Search under the common
+// text — "one attended viewing", "applications sent as listings appear",
+// "until you sign" — which their pages and the Terms (§12.2, §12.5) do not
+// say. cityOffer() reads this map first.
+export const CITY_PLAN_DESC = {
+  paris: {
+    'full-search': 'Search on the tenant\'s side: French-format dossier and one-page presentation within one working day of your papers, applications sent as listings appear, one attended viewing with live video and written report (each further viewing €149), rent cap and lease checked before you sign; it runs until you sign or tell us to stop, six months at most. Refunded in full if we decline the search in the first call.',
+  },
+  berlin: {
+    'full-search': 'Search on the tenant\'s side, only for homes whose landlord lets us offer them to you alone, with a written go-ahead: German-format application and self-disclosure within one working day of your papers, attended viewings included, rent brake and lease checked before you sign; it runs until you sign or tell us to stop. The fee never exceeds two months\' net cold rent plus VAT: we refund the difference. Refunded in full if we decline the search in the first call.',
+  },
+};
+
 // `checkout: true` = the page sells the plans with a Stripe Checkout (the
 // Rome Services 2.0 rail: api/service-checkout.js → the SERVICE webhook
 // branch, lead with market = the city). Only a 'search' desk may carry it;
@@ -374,7 +390,8 @@ export function cityOffer(cityKey, planId) {
   const id = String(planId || '').toLowerCase().trim();
   const p = (c.plans || {})[id];
   if (!p) return { ok: false, error: 'unknown_service' };
-  return { ok: true, city: k, plan: id, eur: p.eur, currency: cityCurrency(k), chargeAt: chargeAtOf(k), label: p.label, per: p.per, desc: p.desc, name: `BOOM ${c.label} — ${p.label}`, url: c.url };
+  const own = Object.prototype.hasOwnProperty.call(CITY_PLAN_DESC, k) ? CITY_PLAN_DESC[k][id] : null;
+  return { ok: true, city: k, plan: id, eur: p.eur, currency: cityCurrency(k), chargeAt: chargeAtOf(k), label: p.label, per: p.per, desc: own || p.desc, name: `BOOM ${c.label} — ${p.label}`, url: c.url };
 }
 
 /**

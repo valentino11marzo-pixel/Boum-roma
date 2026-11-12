@@ -392,9 +392,17 @@ for (const [slug, hash] of [['barcelona', '#pay-full-search'], ['london', '#pay-
   check(await shown(page, '#planLn') && await text(page, '#planName') === 'Application Pack' && !(await shown(page, '#notSure')), 'the door says the plan being read');
   // the row BELOW the open ticket: tapping it closes the ticket above, and
   // without the page's anchoring the row would jump up by the ticket's height.
-  // Measured with the open ticket's row at the top of the screen, so the page
-  // has room to scroll back (at scrollY 0 nothing can hold it)
-  await page.$eval('#fare-application-pack > summary', (e) => e.scrollIntoView({ block: 'start', behavior: 'instant' }));
+  // Measured where the page HAS room to scroll back by that height (at
+  // scrollY 0 nothing can hold it, and the page then keeps the ticket above
+  // open — its designed fallback, not what this check is about). The premise
+  // is computed from the ticket, never a fixed spot: with the open row at the
+  // top of the screen the room was 428 px against a 409 px ticket — 19 px of
+  // luck, gone the day the ticket gained a line (the upgrade credit, 12/11).
+  await page.evaluate(() => {
+    const s = document.querySelector('#fare-attended-viewing > summary'), tk = document.querySelector('#fare-application-pack .tk');
+    const docTop = s.getBoundingClientRect().top + scrollY;
+    window.scrollTo({ top: Math.max(tk.offsetHeight + 40, docTop - Math.round(innerHeight / 2)), left: 0, behavior: 'instant' });
+  });
   await page.waitForTimeout(200);
   check(await page.evaluate(() => { const r = document.querySelector('#fare-attended-viewing > summary').getBoundingClientRect(); return r.top > 0 && r.bottom < innerHeight && scrollY > document.querySelector('#fare-application-pack .tk').offsetHeight; }), '(the row below is on the screen, with room to scroll back)');
   const avBefore = await rect(page, '#fare-attended-viewing > summary');
@@ -528,6 +536,10 @@ for (const [w, h] of [[390, 844], [320, 568], [430, 932]]) {
   await page.waitForTimeout(250);
   check(await page.$eval('#till', (d) => d.open) && await text(page, '#tTitle') === 'Full Search' && await text(page, '#tPrice') === '€500', 'the till opens on THAT plan, with its price');
   check(await shown(page, '#tRule') && await text(page, '#tRule') === RULE, 'the refund rule is in the till, beside the €500');
+  // the upgrade credit (a policy since 12/11): this till charges the list price, so it points a pack holder to the personal link
+  check(await shown(page, '#tUp') && await text(page, '#tUp') === 'Already paid for the Application Pack on this desk? Use the personal link in your order email: what you paid comes off this price.'
+    && await page.evaluate(() => { const r = document.getElementById('tRule').getBoundingClientRect(), u = document.getElementById('tUp').getBoundingClientRect(), n = document.getElementById('tName').getBoundingClientRect(); return r.bottom <= u.top + 1 && u.bottom <= n.top + 1; }),
+    'the Full Search till shows the personal-link hint under the refund rule, before the form');
   // v1.8 stage W: the withdrawal line, shown in the open till, links the online function first
   const wdA = await page.$eval('#till .wd', (p) => [...p.querySelectorAll('a')].map((a) => ({ t: a.textContent, h: a.getAttribute('href'), seen: a.getBoundingClientRect().height > 0 })));
   check(wdA.length === 3 && wdA[0].t === 'online' && wdA[0].h === '/withdrawal?desk=Amsterdam#online' && wdA[0].seen && wdA[2].h === '/withdrawal?desk=Amsterdam' && /^Withdrawal: 14 days from payment — online, by email to /.test(await text(page, '#till .wd')),
@@ -870,6 +882,7 @@ for (const slug of ['draft-paris', 'draft-berlin']) {
   await tap(page, '#fare-application-pack [data-pay]');
   await page.waitForTimeout(200);
   check(await shown(page, '.t-opt') && /^Optional, chosen in writing/.test(await text(page, '.t-opt')) && !(await shown(page, '#tRule')), 'madrid: the till repeats "Optional, chosen in writing"; no refund rule on the Application Pack');
+  check(await page.$('#tUp') !== null && !(await shown(page, '#tUp')), 'the personal-link hint is hidden on the Application Pack till (it belongs to the plan the credit leads to)');
   await ctx.close();
 }
 
@@ -2238,6 +2251,7 @@ async function signingUI() {
       await page.waitForTimeout(250);
       await toTill(page, 'application-pack');
       check(await text(page, '#tRule') === TRIG['application-pack'] && await text(page, '#tGoL') === 'Order, pay on signing · €199', 'the Application Pack till says ITS trigger (the ✓ line follows the plan)');
+      check(await page.$('#tUp') === null, 'a desk that charges at signing has no upgrade hint in its till (nothing is paid at the order, nothing to credit)');
       check(st.errors.length === 0, 'no JS error', st.errors.join(' | '));
       await ctx.close();
     }

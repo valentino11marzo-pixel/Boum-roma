@@ -110,7 +110,7 @@ import { CITY_MARKETS } from './api/_market.js';
 // v1.8: the order terms of the desks that charge at signing — the page posts their version, the server
 // refuses an older one with 409 terms_changed (ORDER_TERMS_V in the page config)
 import { ORDER_TERMS } from './api/_cityterms.js';
-import { upgradePathsOf, upgradeLine, upgradeFact } from './api/_upgrade.js';
+import { upgradePathsOf, upgradeLine, upgradeFact, upgradeDaysOf, upgradeTillHint } from './api/_upgrade.js';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 // The model withdrawal form (Directive 2011/83/EU Annex I(B)), linked from the
@@ -787,16 +787,21 @@ export function feesRowOf(c, shared, extra = '') {
   return plans.map((p) => `<b>${esc(p.label)} ${money(p.price, cur)}</b>${p.unit ? ' ' + esc(p.unit) : ''}${same ? '' : ` (${esc(p.conditionLong)})`}`).join(' · ')
     + '.' + (same ? ' ' + esc(plans[0].conditionLong) : '') + (extra ? ' ' + extra : '')
     + (c.checkout === true ? ' ' + esc(ruleOf(c, shared)) : '')
-    + upgradesOf(c).map((u) => ' ' + esc(upgradeFact(u.fromLabel, u.toLabel))).join('');
+    + upgradesOf(c).map((u) => ' ' + esc(upgradeFact(u.fromLabel, u.toLabel, u.days))).join('');
 }
 // THE UPGRADE CREDIT (api/_upgrade.js — a policy since 12/11/2026): on a desk
 // that takes the card at the order, a paid Application Pack is credited in
-// full towards Full Search for UPGRADE_DAYS. DERIVED from the server's own
-// paths and words, never typed per desk: the ticket of the plan that can be
-// upgraded says it (its ✓ line), the fact sheet's Fees row and that plan's
-// Offer say it. A desk that charges at signing, or is still opening, takes
-// nothing at the order: no credit exists there and the sentence is refused.
-export const upgradesOf = (c) => (c && c.checkout === true && c.mode !== 'waitlist' && !isSigning(c) ? upgradePathsOf(list(c, 'pricing.plans')) : []);
+// full towards Full Search — for UPGRADE_DAYS, or with no deadline where the
+// server gives none (upgradeDaysOf: Berlin). DERIVED from the server's own
+// paths, window and words, never typed per desk: the ticket of the plan that
+// can be upgraded says it (its ✓ line), the fact sheet's Fees row and that
+// plan's Offer say it with the door that applies it (the personal link), and
+// the till of the plan the credit leads to points a pack holder to that link
+// (upgradeTillHint) — the page's own till charges the list price. A desk that
+// charges at signing, or is still opening, takes nothing at the order: no
+// credit exists there and the sentences are refused.
+export const upgradesOf = (c) => (c && c.checkout === true && c.mode !== 'waitlist' && !isSigning(c)
+  ? upgradePathsOf(list(c, 'pricing.plans')).map((u) => ({ ...u, days: upgradeDaysOf(c.slug) })) : []);
 // The fact sheet's withdrawal row (audit, 06/11): the 14 days were said only
 // inside the till, to whoever opened it; "can I cancel after paying?" is
 // asked before. DERIVED from the desk's mode, never typed per desk: the six
@@ -952,7 +957,7 @@ const R = {
         '          <div class="tk">',
         first ? '' : `            <p class="tk-tag">${esc(p.name)}</p>`,
         `            <ul class="tk-inc">${p.includes.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>`,
-        signing ? `            <p class="refund">${esc(p.trigger)}</p>` : fs0 ? `            <p class="refund">${rule}</p>` : up ? `            <p class="refund">${esc(upgradeLine(up.toLabel))}</p>` : '',
+        signing ? `            <p class="refund">${esc(p.trigger)}</p>` : fs0 ? `            <p class="refund">${rule}</p>` : up ? `            <p class="refund">${esc(upgradeLine(up.toLabel, up.days))}</p>` : '',
         '            <div class="tk-stub">',
         '            <div class="tk-slot" data-slot></div>',
         '            <i class="bars" aria-hidden="true"></i>',
@@ -1312,6 +1317,8 @@ const R = {
       '    <p class="t-tag" id="tTag"></p>',
       '    <ul class="t-inc" id="tInc"></ul>',
       `    <p class="refund" id="tRule" hidden>${esc(signing ? list(c, 'pricing.plans')[0].trigger : ruleOf(c, shared))}</p>`,
+      // a pack holder who opens the till of the plan a credit leads to: the door that applies it (boom-city.js shows it on that plan only)
+      ...upgradesOf(c).slice(0, 1).map((u) => `    <p class="t-up" id="tUp" hidden>${esc(upgradeTillHint(u.fromLabel))}</p>`),
       signing ? `    <p class="t-order" id="tOrder">${esc(k.order)}</p>` : '',
       c.pricing.sub ? `    <p class="t-opt">${esc(c.pricing.sub)}</p>` : '',
       `    <div class="fld"><label for="tName">${esc(f.name.label)}</label><input id="tName" autocomplete="name" placeholder="${esc(f.name.placeholder)}" aria-describedby="tNameErr"><p class="err" id="tNameErr" aria-live="polite"></p></div>`,
@@ -1391,7 +1398,7 @@ export function serviceNode(c, shared, pageUrl, orgId) {
         description: p.offerDescription + (p.unit ? ' Priced ' + p.unit + '.' : '') + ' ' + p.conditionLong
           + (c.checkout === true && (isSigning(c) || p.id === 'full-search') ? ' ' + ruleOf(c, shared) : '')
           // the upgrade credit, on the Offer of the plan it starts from
-          + upgradesOf(c).filter((u) => u.from === p.id).map((u) => ' ' + upgradeFact(u.fromLabel, u.toLabel)).join(''),
+          + upgradesOf(c).filter((u) => u.from === p.id).map((u) => ' ' + upgradeFact(u.fromLabel, u.toLabel, u.days)).join(''),
         priceSpecification: { '@type': 'UnitPriceSpecification', price: String(p.price), priceCurrency: currencyOf(c.slug), valueAddedTaxIncluded: true,
           ...(unitWord ? { unitText: unitWord, referenceQuantity: { '@type': 'QuantitativeValue', value: 1, unitText: unitWord } } : {}) },
         url: pageUrl + '#fare-' + p.id,
@@ -2178,7 +2185,9 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
       // whose till takes the fee; at a desk that charges at signing every
       // fare shows its own trigger (B20a)
       rule: sell && (signing || p.id === 'full-search'),
-      ...(signing ? { trigger: p.trigger } : {})
+      ...(signing ? { trigger: p.trigger } : {}),
+      // the plan an upgrade credit leads to: its till shows the personal-link hint (#tUp)
+      ...(upgradesOf(city).some((u) => u.to === p.id) ? { up: true } : {})
     }])),
     TILL: sell ? (signing ? { label: city.till.label } : { label: city.till.label, labelWait: city.till.labelWait }) : null,
     PAID: sell && !signing ? { startsNow: city.checkoutCopy.paid.startsNow, startsWait: city.checkoutCopy.paid.startsWait, nextWait: city.checkoutCopy.paid.nextWait, unconfirmed: city.checkoutCopy.paid.unconfirmed } : null,
@@ -2389,6 +2398,28 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
   } else {
     need(!/id="till"|data-pay=/.test(html) || sell, where, 'a desk without checkout mounts no till and no pay button');
   }
+  // THE UPGRADE CREDIT (api/_upgrade.js, a policy since 12/11/2026): where the
+  // desk takes the card at the order, the ticket of the plan that can be
+  // upgraded says the ✓ line, the Fees row and that plan's Offer say the fact
+  // with ITS desk's window and the door (the personal link), and the till of
+  // the plan the credit leads to carries the hint — the server's own words,
+  // so the page cannot state a rule the server does not keep. A desk that
+  // charges at signing, or is still opening, takes nothing at the order: the
+  // words are refused there.
+  {
+    const ups = upgradesOf(city);
+    const tillHtml = sliceOf(html, '<dialog class="till"', '</dialog>');
+    for (const u of ups) {
+      const tk = sliceOf(sliceOf(fares, `id="fare-${u.from}"`, '</details>'), '<div class="tk">', '<div class="tk-stub">');
+      need(tk.includes(`<p class="refund">${esc(upgradeLine(u.toLabel, u.days))}</p>`), where, `the ${u.fromLabel} ticket does not say the upgrade credit with this desk's window (api/_upgrade.js upgradeLine, upgradeDaysOf)`);
+      need(sliceOf(html, '<dt>Fees</dt>', '</dd>').includes(esc(upgradeFact(u.fromLabel, u.toLabel, u.days))), where, 'the fees row does not say the upgrade credit with this desk\'s window and its door (api/_upgrade.js upgradeFact)');
+      need(ldStrings(html).some((t) => t.includes(upgradeFact(u.fromLabel, u.toLabel, u.days))), where, `the ${u.fromLabel} Offer does not say the upgrade credit with this desk's window and its door (api/_upgrade.js upgradeFact)`);
+      need(tillHtml.includes(`<p class="t-up" id="tUp" hidden>${esc(upgradeTillHint(u.fromLabel))}</p>`) && config.PLANS[u.to] && config.PLANS[u.to].up === true, where,
+        `the ${u.toLabel} till does not point a ${u.fromLabel} holder to the personal link (api/_upgrade.js upgradeTillHint, config PLANS.${u.to}.up): this till charges the list price`);
+    }
+    need(plans.filter((p) => config.PLANS[p.id].up === true).every((p) => ups.some((u) => u.to === p.id)), where, 'a plan carries the upgrade hint flag without an upgrade path leading to it');
+    if (!ups.length) need(!/credited in full/i.test(html) && !/id="tUp"/.test(html), where, 'this desk takes nothing at the order (it charges at signing, or is still opening): no upgrade credit exists here, and the page must not print one');
+  }
   // THE REFUND RULE BESIDE EVERY €500 (sell desks): the closed Full Search
   // row, its open ticket, the till, the fees row — every block that shows
   // the number carries the sentence. A €500 anywhere else is refused.
@@ -2413,29 +2444,6 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
     need(outside.includes(`<p class="refund fs">${rule}</p>`), where, `the ${ruleWord} rule is missing under the closed Full Search row, which shows €500`);
     need(sliceOf(html, '<dialog class="till"', '</dialog>').includes(rule), where, `the ${ruleWord} rule is missing from the till, which shows €500`);
     need(sliceOf(html, '<dt>Fees</dt>', '</dd>').includes(rule), where, `the ${ruleWord} rule is missing from the fees row, which shows €500`);
-  }
-  // THE UPGRADE CREDIT (api/_upgrade.js, a policy since 12/11/2026): where the
-  // desk takes the card at the order, the ticket of the plan that can be
-  // upgraded says the ✓ line, and the Fees row and that plan's Offer say the
-  // fact — the server's own words, so the page cannot promise a credit the
-  // till does not give. A desk that charges at signing, or is still opening,
-  // takes nothing at the order: the words are refused there.
-  {
-    const ups = upgradesOf(city);
-    for (const u of ups) {
-      const tk = sliceOf(sliceOf(fares, `id="fare-${u.from}"`, '</details>'), '<div class="tk">', '<div class="tk-stub">');
-      need(tk.includes(`<p class="refund">${esc(upgradeLine(u.toLabel))}</p>`), where, `the ${u.fromLabel} ticket does not say the upgrade credit (api/_upgrade.js upgradeLine): the till credits it, the page must say it`);
-      need(sliceOf(html, '<dt>Fees</dt>', '</dd>').includes(esc(upgradeFact(u.fromLabel, u.toLabel))), where, 'the fees row does not say the upgrade credit (api/_upgrade.js upgradeFact)');
-      need(ldStrings(html).some((t) => t.includes(upgradeFact(u.fromLabel, u.toLabel))), where, `the ${u.fromLabel} Offer does not say the upgrade credit (api/_upgrade.js upgradeFact)`);
-    }
-    if (!ups.length) need(!/credited in full/i.test(html), where, 'this desk takes nothing at the order (it charges at signing, or is still opening): no upgrade credit exists here, and the page must not print one');
-  }
-  if (sell) {
-    const rule = esc(ruleOf(city, shared));
-    const ruleWord = signing ? 'signing' : 'refund';
-    const ruleRe = ruleReOf(city);
-    const fsId = 'full-search';
-    const fsRow = sliceOf(html, `<details class="fare" name="fare" id="fare-${fsId}"`, '<!-- /FARES -->');
     // EVERY €500 sits inside a block that says the rule: its own <details>
     // (a fare row with its ticket, a FAQ answer), <li>, <dd> or the till's
     // <dialog> — never "somewhere nearby"; a meta attribute or a JSON-LD
@@ -3639,6 +3647,14 @@ export function renderHub({ template, shared, hub, cities, assetVersion, frags, 
   // starts from only while EVERY live desk offers it — one desk charging at
   // signing and the sentence would be false there, so the hub stays silent
   const hubUps = live.every((c) => upgradesOf(c).length > 0) ? upgradesOf(live[0]) : [];
+  // …with the window most desks give, and the desks whose credit has no
+  // deadline (upgradeDaysOf: Berlin) named in brackets: the window is not theirs
+  const hubUpLine = (up) => {
+    const of = (c) => upgradesOf(c).find((u) => u.from === up.from);
+    const days = (live.map(of).find((u) => u && u.days) || {}).days || null;
+    const open = days ? live.filter((c) => !of(c).days).map((c) => c.city) : [];
+    return upgradeLine(up.toLabel, days).replace(/\.$/, '') + (open.length ? ` (${listJoin(open)}: no time limit)` : '') + '.';
+  };
   const tickets = plans.map((p) => {
     const hp = fr.plans[p.id];
     const up = hubUps.find((u) => u.from === p.id);
@@ -3650,7 +3666,7 @@ export function renderHub({ template, shared, hub, cities, assetVersion, frags, 
       `          <p class="hft-price"><b>${money(p.price, 'EUR')}</b><span>${esc(p.condition)}</span></p>`,
       gbpDesk ? `          <p class="hft-gbp">${money(p.price, 'GBP')} ${esc(gbpDesk)}</p>` : '',
       `          <ul class="hft-inc">${hp.lines.map((l) => `<li>${esc(l)}</li>`).join('')}</ul>`,
-      p.id === 'full-search' ? `          <p class="refund">${esc(shared.refund.rule)}</p>` : up ? `          <p class="refund">${esc(upgradeLine(up.toLabel))}</p>` : '',
+      p.id === 'full-search' ? `          <p class="refund">${esc(shared.refund.rule)}</p>` : up ? `          <p class="refund">${esc(hubUpLine(up))}</p>` : '',
       '        </li>'
     ].filter(Boolean).join('\n');
   });

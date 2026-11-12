@@ -557,6 +557,8 @@
     var ul = $('tInc'); ul.textContent = '';
     p.includes.forEach(function (t) { var li = document.createElement('li'); li.textContent = t; ul.appendChild(li); });
     $('tRule').hidden = !p.rule;
+    /* the plan an upgrade credit leads to: a pack holder is pointed to the personal link, this till charges the list price */
+    var tu = $('tUp'); if (tu) tu.hidden = !p.up;
     /* a desk that charges at signing: the ✓ line is THIS fare's trigger (which signing earns its fee) */
     if (p.trigger) txt('tRule', p.trigger);
     /* the till fills itself from what the visitor already typed, never the other way round */

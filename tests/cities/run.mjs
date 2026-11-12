@@ -79,7 +79,7 @@ import {
   hasClaimVocab, claimHits, sellHit, closeUp, cleanText, normSentence, PLACE_RE, htmlFieldGuard, neutralValue, joinCut, numKeyCode
 } from '../../build-cities.mjs';
 import SCALO from '../../js/scalo-codes.js';
-import { upgradeLine, upgradeFact, UPGRADE_DAYS, UPGRADE_PATHS } from '../../api/_upgrade.js';
+import { upgradeLine, upgradeFact, upgradeTillHint, upgradeDaysOf, UPGRADE_DAYS, UPGRADE_PATHS } from '../../api/_upgrade.js';
 import CAL from '../../js/desk-calendar.js';
 
 const R = path.resolve(new URL('../..', import.meta.url).pathname);
@@ -1134,10 +1134,10 @@ tplRefuses('<p class="proof">', '<p class="proof">Pay by bank transfer · ', /no
   // Berlin's three plans agree (one conditionLong); since the card flip (06/11) the refund rule follows, as on the six.
   // "Each plan's own when they differ" keeps its pin on the frozen draft Berlin (List price / Due only once you sign)
   check(feesRowOf(ams, shared).startsWith('<b>Full Search €500</b> · <b>Application Pack €199</b> · <b>Attended Viewing €149</b> per viewing.')
-    && feesRowOf(CITY.berlin, shared) === '<b>Full Search €500</b> · <b>Application Pack €199</b> · <b>Attended Viewing €149</b> per viewing. VAT included. Invoice from Egidi Immobiliare S.r.l. ' + shared.refund.rule + ' ' + upgradeFact('Application Pack', 'Full Search')
+    && feesRowOf(CITY.berlin, shared) === '<b>Full Search €500</b> · <b>Application Pack €199</b> · <b>Attended Viewing €149</b> per viewing. VAT included. Invoice from Egidi Immobiliare S.r.l. ' + shared.refund.rule + ' ' + upgradeFact('Application Pack', 'Full Search', null)
     && drafted(() => feesRowOf(DRAFT.berlin, shared)).includes('<b>Full Search €500</b> (List price. Due only once you sign a lease; nothing before.)')
     && !/credited in full/i.test(drafted(() => feesRowOf(DRAFT.berlin, shared))),
-    'the fees row is DERIVED from the plans: one condition when they agree (Berlin since the card flip, with the refund rule and the upgrade credit), each plan\'s own when they differ (the draft Berlin, which credits nothing)');
+    'the fees row is DERIVED from the plans: one condition when they agree (Berlin since the card flip, with the refund rule and the upgrade credit — with no time limit there), each plan\'s own when they differ (the draft Berlin, which credits nothing)');
 }
 {
   // THE UPGRADE CREDIT (a policy since 12/11/2026): the server's rule
@@ -1145,40 +1145,65 @@ tplRefuses('<p class="proof">', '<p class="proof">Pay by bank transfer · ', /no
   // card at the order — the ticket of the plan it starts from, the Fees row,
   // that plan's Offer — and by nobody else
   const LINE = upgradeLine('Full Search'), FACT = upgradeFact('Application Pack', 'Full Search');
+  // each desk prints the words with ITS window: 30 days, or none where the server gives none (Berlin, upgradeDaysOf)
+  const lineOf = (x) => upgradeLine('Full Search', upgradeDaysOf(x)), factOf = (x) => upgradeFact('Application Pack', 'Full Search', upgradeDaysOf(x));
+  const HINT = upgradeTillHint('Application Pack');
   const tkOf = (h, id) => sliceOf(sliceOf(sliceOf(h, '<!-- FARES -->', '<!-- /FARES -->'), `id="fare-${id}"`, '</details>'), '<div class="tk">', '<div class="tk-stub">');
   const offersOf = (h) => [...h.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => JSON.parse(m[1])).flatMap((b) => b['@graph'] || [b]).find((n) => n['@type'] === 'Service').offers;
-  check(UPGRADE_DAYS === 30 && Object.keys(UPGRADE_PATHS).join() === 'application-pack' && LINE === 'Credited in full if you move to Full Search within 30 days.' && FACT === 'The Application Pack fee is credited in full towards Full Search for 30 days from payment.',
-    'the policy words come from api/_upgrade.js: the ticket line and the fact, with the server\'s 30 days');
+  const cfgOf = (h) => JSON.parse(h.match(/window\.BOOM_CITY = (\{[\s\S]*?\});\n<\/script>/)[1]);
+  check(UPGRADE_DAYS === 30 && Object.keys(UPGRADE_PATHS).join() === 'application-pack' && LINE === 'Credited in full if you move to Full Search within 30 days.'
+    && FACT === 'The Application Pack fee is credited in full towards Full Search for 30 days from payment, through the personal link in the order email.',
+    'the policy words come from api/_upgrade.js: the ticket line and the fact, with the server\'s 30 days and the door that applies the credit');
   const selling = SLUGS.filter((x) => CITY[x].checkout === true);
-  check(selling.length === 8 && selling.every((x) => JSON.stringify(upgradesOf(CITY[x])) === '[{"from":"application-pack","to":"full-search","fromLabel":"Application Pack","toLabel":"Full Search"}]'),
-    'every desk with the till offers one path: Application Pack → Full Search (labels from its own plans)', selling.filter((x) => upgradesOf(CITY[x]).length !== 1).join());
+  check(upgradeDaysOf('berlin') === null && selling.filter((x) => x !== 'berlin').every((x) => upgradeDaysOf(x) === UPGRADE_DAYS) && lineOf('berlin') === 'Credited in full if you move to Full Search.'
+    && factOf('berlin') === 'The Application Pack fee is credited in full towards Full Search with no time limit, through the personal link in the order email.',
+    'Berlin\'s words carry no deadline (its Terms §12.5 never charge a pack on top of a Full Search); the other seven say 30 days');
+  check(selling.length === 8 && selling.every((x) => JSON.stringify(upgradesOf(CITY[x])) === JSON.stringify([{ from: 'application-pack', to: 'full-search', fromLabel: 'Application Pack', toLabel: 'Full Search', days: upgradeDaysOf(x) }])),
+    'every desk with the till offers one path: Application Pack → Full Search (labels from its own plans, the window from the server)', selling.filter((x) => upgradesOf(CITY[x]).length !== 1).join());
   const bad = [];
   for (const x of selling) {
-    const h = PAGE[x];
-    if (!tkOf(h, 'application-pack').includes(`<p class="refund">${esc(LINE)}</p>`)) bad.push(x + ':ticket');
+    const h = PAGE[x], L = lineOf(x), F = factOf(x);
+    if (!tkOf(h, 'application-pack').includes(`<p class="refund">${esc(L)}</p>`)) bad.push(x + ':ticket');
     if (/credited in full/i.test(tkOf(h, 'full-search')) || /credited in full/i.test(tkOf(h, 'attended-viewing'))) bad.push(x + ':other-ticket');
     if (!tkOf(h, 'full-search').includes(`<p class="refund">${esc(shared.refund.rule)}</p>`)) bad.push(x + ':fs-rule');
-    if (!sliceOf(h, '<dt>Fees</dt>', '</dd>').trim().endsWith(esc(FACT) + '</dd>') && !sliceOf(h, '<dt>Fees</dt>', '</dd>').includes(esc(shared.refund.rule) + ' ' + esc(FACT))) bad.push(x + ':fees');
+    if (!sliceOf(h, '<dt>Fees</dt>', '</dd>').trim().endsWith(esc(F) + '</dd>') && !sliceOf(h, '<dt>Fees</dt>', '</dd>').includes(esc(shared.refund.rule) + ' ' + esc(F))) bad.push(x + ':fees');
     const of = offersOf(h);
     const ap = of.find((o) => o.name === 'Application Pack'), fsO = of.find((o) => o.name === 'Full Search'), av = of.find((o) => o.name === 'Attended Viewing');
-    if (!ap || !ap.description.endsWith(' ' + FACT)) bad.push(x + ':offer');
+    if (!ap || !ap.description.endsWith(' ' + F)) bad.push(x + ':offer');
     if (!fsO || !av || /credited in full/i.test(fsO.description) || /credited in full/i.test(av.description)) bad.push(x + ':other-offer');
-    if ((h.match(new RegExp(LINE.replace(/[.]/g, '\\.'), 'g')) || []).length !== 1) bad.push(x + ':line-count');
+    if ((h.match(/Credited in full if you move to Full Search/g) || []).length !== 1) bad.push(x + ':line-count');
+    // a desk with no deadline never prints the 30 days beside the credit — in the ticket, the fact sheet or the JSON-LD
+    if (upgradeDaysOf(x) === null && (/[Cc]redited in full[^<"]*30 days/.test(h) || !h.includes('with no time limit'))) bad.push(x + ':no-deadline');
+    if (upgradeDaysOf(x) !== null && /credited in full towards Full Search with no time limit/.test(h)) bad.push(x + ':has-deadline');
+    // the till of the plan the credit leads to: the hint, once, hidden, right after the rule; the page config names that plan
+    const till = sliceOf(h, '<dialog class="till"', '</dialog>'), cfg = cfgOf(h);
+    if (!till.includes(`<p class="t-up" id="tUp" hidden>${esc(HINT)}</p>`) || (h.match(/id="tUp"/g) || []).length !== 1 || !(till.indexOf('id="tRule"') < till.indexOf('id="tUp"') && till.indexOf('id="tUp"') < till.indexOf('id="tName"'))) bad.push(x + ':till-hint');
+    if (cfg.PLANS['full-search'].up !== true || 'up' in cfg.PLANS['application-pack'] || 'up' in cfg.PLANS['attended-viewing']) bad.push(x + ':config-up');
   }
-  check(bad.length === 0, 'on all eight desks: the ✓ line in the Application Pack ticket only (once on the page), the fact after the refund rule in the Fees row, and in the Application Pack Offer only', bad.join(' '));
+  check(bad.length === 0, 'on all eight desks: the ✓ line in the Application Pack ticket only (once on the page), the fact after the refund rule in the Fees row and in the Application Pack Offer only — each with the desk\'s own window — and the Full Search till carries the personal-link hint', bad.join(' '));
   check(tkOf(html, 'application-pack').indexOf(`<p class="refund">${esc(LINE)}</p>`) > tkOf(html, 'application-pack').indexOf('<ul'), 'the ✓ line follows what the fare buys, where Full Search prints the refund rule');
   // London: the same words (no amount in them: the credit is what was paid, in pounds there)
-  check(tkOf(PAGE.london, 'application-pack').includes(LINE) && !/[€£]\d/.test(LINE + FACT), 'London prints the same sentence: the words carry no amount, so they are true in pounds too');
+  check(tkOf(PAGE.london, 'application-pack').includes(LINE) && !/[€£]\d/.test(LINE + FACT + HINT), 'London prints the same sentences: the words carry no amount, so they are true in pounds too');
+  // the script shows the hint only on the plan the config flags, and the style is the till's quiet line
+  const cityJs = fs.readFileSync(path.join(R, 'assets/src/boom-city.js'), 'utf8'), cityCss = fs.readFileSync(path.join(R, 'assets/src/boom-city.css'), 'utf8');
+  check(/var tu = \$\('tUp'\); if \(tu\) tu\.hidden = !p\.up;/.test(cityJs) && cityJs.indexOf("$('tRule').hidden = !p.rule;") < cityJs.indexOf("var tu = $('tUp')") && /\.t-opt,\.t-order,\.t-up\{/.test(cityCss),
+    'the till shows the hint only when it opens on the plan a credit leads to (a desk without the hint is untouched: the element is looked up, never assumed)');
   // a desk that takes nothing at the order prints no credit, and upgradesOf says why
   const dP = renderDraft(DRAFT.paris).html, dB = renderDraft(DRAFT.berlin).html;
   check(drafted(() => upgradesOf(DRAFT.paris).length === 0 && upgradesOf(DRAFT.berlin).length === 0) && !/credited in full/i.test(dP) && !/credited in full/i.test(dB), 'a desk still opening (the frozen drafts) offers no path and prints no credit — text, attributes, JSON-LD');
   // the build guard, both ways: a selling desk whose ticket loses the line is refused, and a draft that prints one is refused
   const fares = sliceOf(html, '<!-- FARES -->', '<!-- /FARES -->');
   const noLine = fares.replace(`            <p class="refund">${esc(LINE)}</p>\n`, '');
-  const g1 = throws(() => render(ams, shared, template.replace('{{{faresHtml}}}', () => noLine.replace(/^<!-- FARES -->\n?/, ''))), /the Application Pack ticket does not say the upgrade credit \(api\/_upgrade\.js upgradeLine\)/);
+  const g1 = throws(() => render(ams, shared, template.replace('{{{faresHtml}}}', () => noLine.replace(/^<!-- FARES -->\n?/, ''))), /the Application Pack ticket does not say the upgrade credit with this desk's window \(api\/_upgrade\.js upgradeLine, upgradeDaysOf\)/);
   check(noLine !== fares && g1 === true, 'a selling desk whose Application Pack ticket loses the ✓ line is refused by the build', g1 === true ? '' : String(g1));
   const g2 = (() => { const c = clone(DRAFT.paris); c.faq.items[0].a += ' The pack fee is credited in full later.'; return drafted(() => throws(() => render(c, shared, template, R, { claims: DRAFT_CLAIMS }), /no upgrade credit exists here, and the page must not print one/)); })();
   check(g2 === true, 'a desk that takes nothing at the order and still prints "credited in full" is refused by the build', g2 === true ? '' : String(g2));
+  // the till hint is guarded too: a selling desk whose till loses it is refused (its till charges the list price)
+  const g3 = throws(() => render(ams, shared, template.replace('{{{tillHtml}}}', () => sliceOf(html, '<dialog class="till"', '</dialog>').replace(`    <p class="t-up" id="tUp" hidden>${esc(HINT)}</p>\n`, '') + '</dialog>')), /till does not point a Application Pack holder to the personal link/);
+  check(g3 === true, 'a selling desk whose Full Search till loses the personal-link hint is refused by the build', g3 === true ? '' : String(g3));
+  // Berlin with the 30-day words (the pre-review page): refused — the page must say the server's window for THAT desk
+  const g4 = (() => { const f = sliceOf(PAGE.berlin, '<!-- FARES -->', '<!-- /FARES -->'); const f30 = f.replace(esc(lineOf('berlin')), esc(LINE)); return f30 !== f && throws(() => render(clone(CITY.berlin), shared, template.replace('{{{faresHtml}}}', () => f30.replace(/^<!-- FARES -->\n?/, ''))), /does not say the upgrade credit with this desk's window/); })();
+  check(g4 === true, 'Berlin printing "within 30 days" in its ticket is refused by the build (the server gives no deadline there)', g4 === true ? '' : String(g4));
 }
 {
   // audit 06/11 — the fact sheet says how to withdraw, right after the fees
@@ -2967,10 +2992,11 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
       'no signing note on the real hub since the card flip (and no warning); with the registry patched the note names Berlin and Paris before the first price', signHub.err || '');
     // the upgrade credit (a policy since 12/11/2026): the hub says it under the plan it starts from only while EVERY
     // live desk offers it — with Paris and Berlin charging at signing (the patched hub) the sentence would be false there
-    check(sliceOf(fa, 'id="hf-application-pack"', '</li>\n').includes(`<p class="refund">${esc(upgradeLine('Full Search'))}</p>`) && (fa.match(/Credited in full/g) || []).length === 1
+    check(sliceOf(fa, 'id="hf-application-pack"', '</li>\n').includes('<p class="refund">Credited in full if you move to Full Search within 30 days (Berlin: no time limit).</p>')
+      && upgradeLine('Full Search') === 'Credited in full if you move to Full Search within 30 days.' && (fa.match(/Credited in full/g) || []).length === 1
       && !/credited in full/i.test(sliceOf(fa, 'id="hf-full-search"', '</li>\n')) && !/credited in full/i.test(sliceOf(fa, 'id="hf-attended-viewing"', '</li>\n'))
       && sfa.length > 0 && !/credited in full/i.test(sfa),
-      'the hub\'s fares say the upgrade credit once, under the Application Pack; with a desk charging at signing they stay silent (each desk\'s own Offers still say theirs)', signHub.err || '');
+      'the hub\'s fares say the upgrade credit once, under the Application Pack, with the window most desks give and Berlin\'s exception named; with a desk charging at signing they stay silent (each desk\'s own Offers still say theirs)', signHub.err || '');
     // v1.8 FLIP (H2, H4): the Full Search line true at every desk; "One company" and "One person" cut from the strip
     check(sliceOf(fa, 'id="hf-full-search"', '</li>\n').includes('<li>Contract checked before you sign</li>') && !/Applications sent as listings appear/.test(fa) && !/One company|One person/.test(fa),
       'the Full Search ticket says "Contract checked before you sign" (true at every desk: H2); the strip lost "One company" and "One person" (H4)');
