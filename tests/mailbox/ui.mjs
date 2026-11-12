@@ -50,7 +50,7 @@ try{
   const fresh=async()=>{await page.goto(base);await page.waitForFunction(()=>window.mailboxReady&&oggiSegretaria.loaded).catch(error=>{throw Error(error.message+'; page errors: '+errors.join(' | '))})};
   const check=async(name,fn)=>{await fresh();await fn();assert.deepEqual(errors,[]);checks++;console.log('PASS '+width+' '+name)};
   const entry=()=>page.getByRole('button',{name:'Cerca nelle email ↗',exact:true});
-  const open=async(query='Aurora')=>{await page.locator('#ogWorkQuery').fill(query);await entry().click();};
+  const open=async(query='Aurora')=>{await page.locator('#ogWorkQuery').fill(query);if(!await page.locator('.ow-search-options').evaluate(el=>el.open))await page.locator('.ow-search-options>summary').click();await entry().click();};
   const ready=()=>page.waitForFunction(()=>document.querySelector('.mb-result')&&!document.querySelector('.mb-status')?.textContent);
   await check('Home query explicit search once; generic opening and typing never fetch',async()=>{
    await open('');assert.equal(await page.evaluate(()=>mailboxIO.calls.length),0);
@@ -134,7 +134,7 @@ try{
  await page.route('**/*',r=>r.request().url().startsWith(base)?r.continue():r.abort());
  const fresh=async()=>{await page.goto(base);await page.waitForFunction(()=>window.mailboxReady&&oggiSegretaria.loaded)};
  const check=async(name,fn)=>{await fresh();await fn();assert.deepEqual(errors,[]);checks++;console.log('PASS '+name)};
- const open=async(query='Aurora')=>{await page.locator('#ogWorkQuery').fill(query);await page.getByRole('button',{name:'Cerca nelle email ↗',exact:true}).click()};
+ const open=async(query='Aurora')=>{await page.locator('#ogWorkQuery').fill(query);if(!await page.locator('.ow-search-options').evaluate(el=>el.open))await page.locator('.ow-search-options>summary').click();await page.getByRole('button',{name:'Cerca nelle email ↗',exact:true}).click()};
  const ready=()=>page.waitForFunction(()=>document.querySelector('.mb-result')&&!document.querySelector('.mb-status')?.textContent);
  const importReady=async()=>{await open();await ready();await page.locator('.mb-result').click();await page.waitForSelector('#mailboxConversation');await page.locator('#mailboxConversation').selectOption('mail-maria')};
  await check('Inbox reveals complete manual source after canonical excerpt and escapes HTML',async()=>{

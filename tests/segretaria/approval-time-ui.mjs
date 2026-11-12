@@ -112,7 +112,58 @@ function omitTimeGuard(source, name) {
   return source.slice(0, start) + body + source.slice(end);
 }
 
+async function calendarRefusal(f, code, reason) {
+  await f.page.evaluate(async code => {
+    delete window.__rows[0].preparation;
+    await oggiSegretariaLoad(true);
+    const original = window.fetch;
+    window.fetch = async (url, options = {}) => {
+      const body = options.body ? JSON.parse(options.body) : null;
+      if (body?.op === 'generate') {
+        window.__requests.push({ path: url, method: 'POST', body });
+        return { ok: false, status: 422, json: async () => ({ ok: false, error: code }) };
+      }
+      return original(url, options);
+    };
+    await oggiSegretariaOpen(window.__ids[0], '', 'review');
+  }, code);
+  const before = await state(f.page);
+  await f.page.locator('[data-sg-modal="generate"]').click();
+  await f.page.waitForFunction(() => !oggiSegretaria.modal.busy && !!oggiSegretaria.modal.error);
+  const message = await f.page.locator('#sgFollowError').innerText();
+  assert.match(message, reason, 'Il rifiuto spiega il motivo specifico e il prossimo passo');
+  assert.match(message, /seguito resta aperto/);
+  assert.match(message, /Nessun messaggio è stato inviato da questa preparazione/);
+  assert.equal(await f.page.locator('[data-sg-modal="approve"]').count(), 0);
+  await f.page.evaluate(async () => { await oggiSegretariaLoad(true); oggiSegretariaModalRender(); });
+  assert.deepEqual((await posts(f.page)).map(r => r.body.op), ['generate'], 'Il rifiuto e il refresh non ritentano né approvano');
+  assert.deepEqual(await state(f.page), before, 'Rifiuto conserva seguito e ricevute senza salvare una proposta');
+  clean(f);
+}
+
 try {
+  for (const [code, reason] of [
+    ['calendar_source_ambiguous', /fonte con giorni o orari ambigui.*Apri la conversazione.*chiarisci/s],
+    ['calendar_event_ambiguous', /non identificano un solo evento certo.*Verifica quale appuntamento/s],
+    ['calendar_source_date_conflict', /non corrisponde.*Controlla le date nei messaggi originali/s],
+    ['calendar_check_not_before_event', /non precede l’evento.*Correggi seguito/s],
+    ['calendar_future_unrecognised', /Non riesco a verificare.*Apri la conversazione/s]
+  ]) await check('rifiuto calendario ' + code + ': motivo, prossimo passo e nessun retry', async () => {
+    const f = await fixture();
+    try { await calendarRefusal(f, code, reason); } finally { await f.page.close(); }
+  });
+  await check('MUTAZIONE calendario: il vecchio messaggio generico perde il motivo utile', async () => {
+    const [start, end] = functionRange(portal, 'oggiSegretariaError');
+    const source = portal.slice(0, start) + `    function oggiSegretariaError(error) {
+      return 'La proposta contiene una data o un ricontrollo non coerente con le fonti. Il seguito resta da verificare.';
+    }` + portal.slice(end);
+    const f = await fixture({ source });
+    try {
+      await assert.rejects(() => calendarRefusal(f, 'calendar_source_ambiguous', /fonte con giorni o orari ambigui.*Apri la conversazione/s),
+        /Il rifiuto spiega il motivo specifico/);
+      clean(f);
+    } finally { await f.page.close(); }
+  });
   for (const [label, at, mode] of [
     ['passato in revisione', NOW - 60000, 'review'],
     ['passato nel piano', NOW - 60000, 'execute'],
