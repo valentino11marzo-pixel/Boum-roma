@@ -10883,3 +10883,11 @@ Verifica: `tenantaccess`, `tenantpayments`, `signtokens`, `scalo`.
 **Add a new API endpoint**: Create a file in `/api/`, export a default handler `(req, res) => {}`. It auto-deploys as a serverless function.
 
 **Modify pass design**: Edit pass type config in `/api/generate-pass.js`. Assets in `/pass-assets/[type]/`.
+
+### Fatture BOOM e import bancario — recupero 12 novembre 2026
+Recuperato il solo delta amministrativo della PR274 sulla base main30b81a8a: viste Da fare, Bozze, Mastrini, Uscite, documenti/esiti e fonti.
+`invoiceReconciliations` conserva revisioni private tramite API admin, anteprima e digest; leggere non rinnova la data della fonte. Registrazioni interne e ricevute dei canoni restano distinte.
+L’import CSV manuale richiede anteprima/conferma e acquisisce movimenti con suggerimenti, senza segnare canoni pagati. Conservata la riconciliazione della commissione bonifico introdotta a novembre.
+Nessun nuovo collegamento, cron, emissione o consenso attivato; API/email automatiche mantengono la politica precedente. Nessuna credenziale richiesta dalla nuova interfaccia.
+Prove: `bankimport`, `invoicereconciliation`, regressioni banca/canoni e regole. Il rilascio e l’import dei dati privati restano distinti dalle prove locali.
+La vista Collegamenti funziona anche senza snapshot: copertura dichiarata, permessi proposti e porte ai servizi; non certifica accessi live né attiva sync. Prove di escaping, fonte invariata e stato vuoto in `invoicereconciliation`.

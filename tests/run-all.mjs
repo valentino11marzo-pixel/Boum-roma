@@ -10,6 +10,8 @@ import { spawn } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 
 const SUITES = [
+  { name: "bankimport", file: "tests/bank-import/run.mjs", what: "anteprima CSV, import idempotente, nessuna conferma automatica canoni" },
+  { name: "invoicereconciliation", file: "tests/invoice-reconciliation/run.mjs", what: "evidenze fiscali private, fonti, bozze e uscite senza doppio conteggio" },
   {name:'movingbudgetui',file:'tests/moving-budget/ui.mjs',what:'real browser: mobile summary, keyboard focus, incomplete costs, city state, print and no-JS'},
   {name:'movingbudget',file:'tests/moving-budget/run.mjs',what:'arrival cash, deposits, monthly separation, unknown costs, currencies and generated desk facts'},
   {name:'buying',file:'tests/buying/run.mjs',what:'European purchase intake, total budget, retry, correct operator card, rental safeguards and static multilingual SEO'},

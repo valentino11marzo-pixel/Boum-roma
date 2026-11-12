@@ -95,6 +95,16 @@ await check('admin reads config bearer', assertSucceeds(getDoc(doc(admin, 'confi
 await check('admin writes a property',   assertSucceeds(setDoc(doc(admin, 'properties/propC'), { ownerId: 'llA', name: 'C' })));
 await check('admin deletes a payment',   assertSucceeds(deleteDoc(doc(admin, 'payments/payB'))));
 
+// Accounting snapshots are private and immutable, including for an admin.
+await check('admin creates reconciliation snapshot', assertSucceeds(setDoc(doc(admin,'invoiceReconciliations/example'), {digest:'synthetic',data:{}})));
+await check('admin reads reconciliation snapshot', assertSucceeds(getDoc(doc(admin,'invoiceReconciliations/example'))));
+await check('admin cannot overwrite reconciliation snapshot', assertFails(updateDoc(doc(admin,'invoiceReconciliations/example'), {digest:'changed'})));
+await check('admin cannot delete reconciliation snapshot', assertFails(deleteDoc(doc(admin,'invoiceReconciliations/example'))));
+for (const [name,db] of [['tenant',tA],['landlord',llA],['anonymous',anon]]) {
+  await check(name+' cannot read reconciliation', assertFails(getDoc(doc(db,'invoiceReconciliations/example'))));
+  await check(name+' cannot create reconciliation', assertFails(setDoc(doc(db,'invoiceReconciliations/'+name), {digest:'spoof'})));
+}
+
 // ── TENANT A: own data only ─────────────────────────────────────────────
 console.log('\nTenant A (rents propA)');
 await check('reads OWN contract',            assertSucceeds(getDoc(doc(tA, 'contracts/contractA'))));
