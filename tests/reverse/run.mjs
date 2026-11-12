@@ -169,7 +169,7 @@ const ZONES = CATALOG.map(l => l.zone);
 
 // ── 7. il messaggio già scritto ────────────────────────────────────────────
 {
-  const en = { lead: { name: 'Sophie Kuhlwein', phone: '+393331111111', propertyTitle: 'Trilocale Pigneto', message: 'Hi, is this still available? I am moving to Rome' }, lang: 'en' };
+  const en = { lead: { name: 'Sophie Kent', phone: '+393331111111', propertyTitle: 'Trilocale Pigneto', message: 'Hi, is this still available? I am moving to Rome' }, lang: 'en' };
   const t = outreachText(en, CATALOG[1]);
   ok('inglese a chi scrive inglese', /Hi Sophie/.test(t) && !/Ciao/.test(t), t.slice(0, 60));
   ok('nomina la casa che aveva chiesto', t.includes('Trilocale Pigneto'), t);

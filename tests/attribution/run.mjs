@@ -360,7 +360,7 @@ const { attributionOf, attributionFromReq } = await import('../../api/_attributi
     ['landing oggetto', { attribution: { channel: 'google', landing: { toString: () => '<b>' } } }],
     ['__proto__ da JSON', JSON.parse('{"attribution":{"__proto__":{"channel":"x","landing":"/y"}}}')],
     ['__proto__ come stringa', { attribution: '__proto__' }],
-    ['email', { attribution: 'mario.rossi@gmail.com' }],
+    ['email', { attribution: 'mario.rossi@example.com' }],
   ];
   const SAFE = s => s === null || (typeof s === 'string' && s.length > 0 && s.length <= 120
     && /^[\p{L}\p{N} _.:·\/\-]*$/u.test(s) && !/\s{2}/.test(s) && s === s.trim());
@@ -375,7 +375,7 @@ const { attributionOf, attributionFromReq } = await import('../../api/_attributi
   ok('canale non stringa o landing non stringa → null', attributionOf({ channel: 42 }) === null && attributionOf({ channel: 'google', landing: 7 }) === null);
   ok('__proto__ parsato da JSON (proprietà propria, non prototipo) → null', attributionOf(JSON.parse('{"__proto__":{"channel":"x"}}')) === null);
   ok('un canale ereditato dal prototipo non conta', attributionOf(Object.create({ channel: 'google', landing: '/faq' })) === null);
-  ok('un indirizzo email non è una fonte → null', attributionOf('mario.rossi@gmail.com') === null && attributionFromReq({ headers: {} }, { attribution: 'newsletter · mario.rossi@gmail.com' }) === null);
+  ok('un indirizzo email non è una fonte → null', attributionOf('mario.rossi@example.com') === null && attributionFromReq({ headers: {} }, { attribution: 'newsletter · mario.rossi@example.com' }) === null);
   ok('...nemmeno nel cookie', attributionFromReq({ headers: { cookie: 'boom_attr=' + encodeURIComponent('google · a@b.it') } }, {}) === null);
   ok('un numero di telefono non è una fonte → null', attributionOf('+39 333 123 4567') === null && attributionOf('whatsapp 3331234567') === null);
   ok('...ma un anno o un id corto restano', attributionOf('owners_2026 · /canone') === 'owners_2026 · /canone' && attributionOf('google · /listing/L1') === 'google · /listing/L1');
@@ -438,7 +438,7 @@ section('5. Le porte scrivono la fonte sul lead e sulla visita');
   const COOKIE = 'other=1; boom_attr=' + encodeURIComponent('ai:chatgpt · /faq');
 
   const apply = (await import('../../api/apply-lead.js')).default;
-  const r1 = await call(apply, { name: 'Berk Namyeter', email: 'berk@example.com', phone: '+90 532 000 1122', listingId: 'L1', listingName: 'Bilocale Trastevere', listingPrice: 1200, kind: 'apply', company: '' }, COOKIE);
+  const r1 = await call(apply, { name: 'Deniz Prova', email: 'deniz@example.com', phone: '+90 532 000 0122', listingId: 'L1', listingName: 'Bilocale Trastevere', listingPrice: 1200, kind: 'apply', company: '' }, COOKIE);
   const l1 = created('leads').find(x => x.id === r1.body?.id);
   ok('apply-lead: 200 e attribution dal cookie', r1.statusCode === 200 && l1 && l1.attribution === 'ai:chatgpt · /faq', { code: r1.statusCode, a: l1 && l1.attribution });
   // Decisione del fondatore: nessuna promessa di risposta in un numero di
@@ -446,8 +446,8 @@ section('5. Le porte scrivono la fonte sul lead e sulla visita');
   // che partono pochi secondi dopo non possono contraddirla.
   {
     const sent = globalThis.__mails || [];
-    const ack = sent.find(m => m.to === 'berk@example.com');
-    const opm = sent.find(m => m.replyTo === 'berk@example.com');
+    const ack = sent.find(m => m.to === 'deniz@example.com');
+    const opm = sent.find(m => m.replyTo === 'deniz@example.com');
     const NUMERIC = /\b(?:within|in|entro|in meno di)\s+(?:\d+|one|two|three|un[ao]?|due|tre)\s*(?:h\b|hours?|hrs?|minutes?|mins?|or[ae]\b|minut[io])/i;
     ok('apply-lead: la conferma al candidato non promette un numero di ore', !!ack && !NUMERIC.test(ack.html) && /during office hours \(Rome time\)/.test(ack.html), ack && (ack.html.match(/replies[^.]*\./) || [])[0]);
     ok('apply-lead: l\'avviso all\'operatore non dice «entro N ore»', !!opm && !NUMERIC.test(opm.html) && /orario d.ufficio/.test(opm.html), opm && (opm.html.match(/promette[^.]*\./) || [])[0]);
@@ -524,10 +524,10 @@ section('6. Il lead WhatsApp porta il «(ref: …)» del sito');
 {
   const { buildLead, waRef, waRefPatch } = await import('../../api/homie/_lead.js');
   const msg = 'Hi BOOM! I am interested — Bilocale Trastevere\n\n(ref: ai:chatgpt)';
-  const l = buildLead({ text: msg, phone: '+393331112233', name: 'Kim' });
+  const l = buildLead({ text: msg, phone: '+393331111233', name: 'Kim' });
   ok('«(ref: ai:chatgpt)» → attribution «whatsapp · ai:chatgpt»', l.attribution === 'whatsapp · ai:chatgpt', l.attribution);
   ok('il messaggio resta intero, ref compreso', l.message === msg);
-  ok('senza ref: attribution null', buildLead({ text: 'ciao cercavo casa', phone: '+393331112233' }).attribution === null);
+  ok('senza ref: attribution null', buildLead({ text: 'ciao cercavo casa', phone: '+393331111233' }).attribution === null);
   ok('il formato vecchio « (ref: google)» si legge ancora', waRef('Ciao BOOM! Sono interessato/a — FAQ (ref: google)') === 'whatsapp · google');
   ok('un lead che ha già una fonte non si riscrive', JSON.stringify(waRefPatch({ attribution: 'google · /' }, msg)) === '{}');
   ok('un lead senza fonte la riceve', waRefPatch({}, msg).attribution === 'whatsapp · ai:chatgpt');
@@ -542,11 +542,11 @@ section('6. Il lead WhatsApp porta il «(ref: …)» del sito');
     ['google', 'organic_search', 'social', 'referral', 'newsletter.it', 'owners-2026'].every(c => waRef('x (ref: ' + c + ')') === 'whatsapp · ' + c));
   ok('HTML dentro il ref → null', waRef('(ref: <img src=x onerror=alert`1`>)') === null && waRef('(ref: <b>x</b>)') === null);
   ok('testo libero con spazi → null', waRef('(ref: mario rossi via email)') === null);
-  ok('un\'email → null', waRef('(ref: mario.rossi@gmail.com)') === null);
+  ok('un\'email → null', waRef('(ref: mario.rossi@example.com)') === null);
   ok('«ai:» con maiuscole o cifre o troppo lungo → null', waRef('(ref: ai:ChatGPT)') === null && waRef('(ref: ai:gpt4)') === null && waRef('(ref: ai:' + 'a'.repeat(21) + ')') === null);
   ok('un canale oltre 40 caratteri → null', waRef('(ref: ' + 'a'.repeat(41) + ')') === null && waRef('(ref: ' + 'a'.repeat(40) + ')') === 'whatsapp · ' + 'a'.repeat(40));
   ok('bidi / separatori di riga dentro il ref → null', waRef('(ref: goo\u202egle)') === null && waRef('(ref: goo\u2028gle)') === null);
-  ok('un ref ostile non diventa la fonte del lead nuovo', buildLead({ text: 'ciao (ref: <script>x</script>)', phone: '+393331112233' }).attribution === null);
+  ok('un ref ostile non diventa la fonte del lead nuovo', buildLead({ text: 'ciao (ref: <script>x</script>)', phone: '+393331111233' }).attribution === null);
   ok('...né quella di un lead esistente', JSON.stringify(waRefPatch({}, 'ciao (ref: a b c)')) === '{}');
 }
 
@@ -640,21 +640,21 @@ section('6b. homie/message: la fonte del «(ref: …)» arriva anche sui lead ch
   const REF = '\n\n(ref: ai:chatgpt)';
 
   // 1) lead nuovo da WhatsApp SENZA ref, poi un secondo messaggio CON ref
-  const r1 = await wa({ direction: 'in', channel: 'whatsapp', phone: '+393331230001', name: 'Noor',
+  const r1 = await wa({ direction: 'in', channel: 'whatsapp', phone: '+393334444001', name: 'Noor',
     body: 'Hello, I am looking for a one-bedroom flat for October', messageId: 'att-w1' });
   ok('primo messaggio senza ref: il lead nasce, senza fonte', r1.code === 200 && !!r1.leadId && lead(r1.leadId).attribution === null, { r1, a: r1.leadId && lead(r1.leadId).attribution });
-  const r2 = await wa({ direction: 'in', channel: 'whatsapp', phone: '+393331230001',
+  const r2 = await wa({ direction: 'in', channel: 'whatsapp', phone: '+393334444001',
     body: 'Hi BOOM, about the Prati flat' + REF, messageId: 'att-w2' });
   ok('lead già legato alla chat + «(ref: ai:chatgpt)»: la fonte si scrive ' + WIRING,
     r2.code === 200 && r2.leadId === r1.leadId && lead(r1.leadId).attribution === 'whatsapp · ai:chatgpt', { r2, a: lead(r1.leadId).attribution });
   ok('...e il messaggio resta intero, ref compreso', String(lead(r1.leadId).message || '').includes('(ref: ai:chatgpt)'));
-  await wa({ direction: 'in', channel: 'whatsapp', phone: '+393331230001', body: 'Also ok for November\n\n(ref: google)', messageId: 'att-w3' });
+  await wa({ direction: 'in', channel: 'whatsapp', phone: '+393334444001', body: 'Also ok for November\n\n(ref: google)', messageId: 'att-w3' });
   ok('...un secondo ref non riscrive la fonte già scritta ' + WIRING, lead(r1.leadId).attribution === 'whatsapp · ai:chatgpt', lead(r1.leadId).attribution);
 
   // 2) la persona è già in pipeline da un'altra porta (modulo del sito) senza fonte
-  DB.set('leads/webNoAttr', { id: 'webNoAttr', source: 'web', phone: '+393331230002', email: 'kim@example.com',
+  DB.set('leads/webNoAttr', { id: 'webNoAttr', source: 'web', phone: '+393334444002', email: 'kim@example.com',
     message: 'Contact form', status: 'new', attribution: null, createdAt: new Date().toISOString() });
-  const r4 = await wa({ direction: 'in', channel: 'whatsapp', phone: '+393331230002',
+  const r4 = await wa({ direction: 'in', channel: 'whatsapp', phone: '+393334444002',
     body: 'Hi, I wrote on the website too — is the flat still free?' + REF, messageId: 'att-w4' });
   ok('lead dal sito senza fonte + WhatsApp con ref: stesso lead, la fonte arriva ' + WIRING,
     r4.code === 200 && r4.leadId === 'webNoAttr' && lead('webNoAttr').attribution === 'whatsapp · ai:chatgpt', { r4, a: lead('webNoAttr').attribution });
@@ -662,17 +662,17 @@ section('6b. homie/message: la fonte del «(ref: …)» arriva anche sui lead ch
   // 2b) il ramo «prior»: la chat arriva come contatto WhatsApp (contactType
   // dichiarato dal Mac, nessuna risoluzione per numero) e la persona è già in
   // pipeline da un'altra porta — la trova recentLeadByPhone
-  DB.set('leads/webNational', { id: 'webNational', source: 'web', phone: '3331230004', message: 'Viewing request',
+  DB.set('leads/webNational', { id: 'webNational', source: 'web', phone: '3334444004', message: 'Viewing request',
     status: 'new', createdAt: new Date().toISOString() });
-  const r4b = await wa({ direction: 'in', channel: 'whatsapp', phone: '+393331230004', contactType: 'whatsapp', contactId: '393331230004',
+  const r4b = await wa({ direction: 'in', channel: 'whatsapp', phone: '+393334444004', contactType: 'whatsapp', contactId: '393334444004',
     body: 'Buongiorno, ho chiesto una visita dal sito per Ostiense' + REF, messageId: 'att-w4b' });
   ok('ramo «prior» (stessa persona già in pipeline da un\'altra porta): la fonte arriva ' + WIRING,
     r4b.code === 200 && r4b.leadId === 'webNational' && r4b.leadDeduped === true && lead('webNational').attribution === 'whatsapp · ai:chatgpt', { r4b, a: lead('webNational').attribution });
 
   // 3) già in pipeline CON una fonte: non si tocca
-  DB.set('leads/webGoogle', { id: 'webGoogle', source: 'web', phone: '+393331230003', message: 'Apply form', status: 'new',
+  DB.set('leads/webGoogle', { id: 'webGoogle', source: 'web', phone: '+393334444003', message: 'Apply form', status: 'new',
     attribution: 'google · /apartments', createdAt: new Date().toISOString() });
-  const r5 = await wa({ direction: 'in', channel: 'whatsapp', phone: '+393331230003',
+  const r5 = await wa({ direction: 'in', channel: 'whatsapp', phone: '+393334444003',
     body: 'Hello, following up on my application' + REF, messageId: 'att-w5' });
   ok('lead con una fonte già scritta: il ref di WhatsApp non la sovrascrive', r5.code === 200 && r5.leadId === 'webGoogle' && lead('webGoogle').attribution === 'google · /apartments', { r5, a: lead('webGoogle').attribution });
 

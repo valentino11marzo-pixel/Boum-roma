@@ -193,7 +193,7 @@ const notifyHandler = (await import('../../api/telegram/notify-pending.js')).def
 
 // Il corpo ESATTO che apartment-detail.html costruisce (d.get(...) = stringhe).
 const pageBody = (over = {}) => ({
-  name: 'Berk Namyeter', email: 'berk@example.com', phone: '+90 532 000 1122',
+  name: 'Deniz Prova', email: 'deniz@example.com', phone: '+90 532 000 0122',
   listingId: 'cezFMXTWnHUDgb1H2WWm', listingName: 'Bilocale Trastevere', listingPrice: 1200, zone: 'Trastevere',
   kind: 'apply', waitlist: false,
   income: '1500-2500', guarantor: 'yes-italy', household: 'couple', occupation: 'relocating',
@@ -216,34 +216,34 @@ section('1. La qualificazione dichiarata arriva intera');
 
 // ── 2. la candidatura: lead scritto, DUE email, timbri veri ──────────────
 section('2. Una candidatura dalla pagina: lead + email al candidato E all\'operatore');
-let berkId;
+let denizId;
 {
   resetMails();
-  NEXT_IDS.push('zzBerk0001'); // id che ordina DOPO i vecchi lead: il caso peggiore
+  NEXT_IDS.push('zzDeniz0001'); // id che ordina DOPO i vecchi lead: il caso peggiore
   const res = await post(applyHandler, pageBody());
-  berkId = res.body && res.body.id;
-  ok('200 con id', res.statusCode === 200 && berkId === 'zzBerk0001', res.body);
-  const lead = docOf('leads/' + berkId);
+  denizId = res.body && res.body.id;
+  ok('200 con id', res.statusCode === 200 && denizId === 'zzDeniz0001', res.body);
+  const lead = docOf('leads/' + denizId);
   ok('lead status new, source web, intent apply', lead && lead.status === 'new' && lead.source === 'web' && lead.intent === 'apply');
   ok('raw porta fascia di reddito, tipo di garante e firmatari',
     lead.raw.incomeBand === '1500-2500' && lead.raw.guarantorType === 'yes-italy' && lead.raw.guarantor === true && lead.raw.signers === 2, lead.raw);
   ok('il messaggio del lead li dichiara', /income €1500–2500\/mo/.test(lead.message) && /guarantor in Italy/.test(lead.message) && /2 signers/.test(lead.message), lead.message);
-  ok('createdAt è un timestamp (il portal ordina su questo)', typeOf(DB.get('leads/' + berkId).fields.createdAt) === 'timestampValue');
+  ok('createdAt è un timestamp (il portal ordina su questo)', typeOf(DB.get('leads/' + denizId).fields.createdAt) === 'timestampValue');
 
   const all = mails();
   ok('partono DUE email', all.length === 2, all.map(m => m.to));
   const toOp = all.find(m => m.to === 'valentino@boom-rome.com');
-  const toApp = all.find(m => m.to === 'berk@example.com');
+  const toApp = all.find(m => m.to === 'deniz@example.com');
   ok('una all\'operatore (default valentino@boom-rome.com)', !!toOp);
   ok('una al candidato', !!toApp && /Received — your application/.test(toApp.subject));
-  ok('operatore: Reply-To = candidato (Rispondi scrive a lui)', toOp && toOp.replyTo === 'berk@example.com');
-  ok('operatore: oggetto con chi e quale casa', toOp && /Candidatura dal sito — Berk Namyeter → Bilocale Trastevere/.test(toOp.subject), toOp && toOp.subject);
+  ok('operatore: Reply-To = candidato (Rispondi scrive a lui)', toOp && toOp.replyTo === 'deniz@example.com');
+  ok('operatore: oggetto con chi e quale casa', toOp && /Candidatura dal sito — Deniz Prova → Bilocale Trastevere/.test(toOp.subject), toOp && toOp.subject);
   ok('operatore: il corpo porta fascia, garante, firmatari, ingresso', toOp
     && /€1\.500–2\.500\/mese/.test(toOp.html) && /sì, in Italia/.test(toOp.html) && />2</.test(toOp.html) && /01\/11\/2026/.test(toOp.html));
-  ok('operatore: tasto WhatsApp verso il candidato, precompilato', toOp && /https:\/\/wa\.me\/905320001122\?text=Hi%20Berk/.test(toOp.html));
+  ok('operatore: tasto WhatsApp verso il candidato, precompilato', toOp && /https:\/\/wa\.me\/905320000122\?text=Hi%20Deniz/.test(toOp.html));
   ok('operatore: link al portal (www) e alla scheda', toOp && toOp.html.includes('https://www.boomrome.com/portal#leads')
     && toOp.html.includes('https://www.boomrome.com/listing/cezFMXTWnHUDgb1H2WWm'));
-  const after = docOf('leads/' + berkId);
+  const after = docOf('leads/' + denizId);
   ok('ackEmailAt e operatorEmailAt scritti', !!after.ackEmailAt && !!after.operatorEmailAt, Object.keys(after));
 }
 
@@ -300,7 +300,7 @@ let berkId;
 section('3. Il lead appena arrivato entra SEMPRE nella finestra di Brain e Telegram');
 {
   // 60 lead aperti più vecchi, già votati e già notificati, con id che
-  // ordinano PRIMA di quello di Berk — l'archivio vero dopo qualche mese.
+  // ordinano PRIMA di quello di Deniz — l'archivio vero dopo qualche mese.
   const old = new Date(Date.now() - 20 * 86400000);
   for (let i = 0; i < 60; i++) {
     DB.set('leads/a' + String(i).padStart(4, '0'), { fields: {
@@ -315,12 +315,12 @@ section('3. Il lead appena arrivato entra SEMPRE nella finestra di Brain e Teleg
 
   const { fsList } = await import('../../api/homie/_lib.js');
   const legacy = await fsList('leads', { filter: { field: 'status', op: 'EQUAL', value: 'new' }, limit: 50 });
-  ok('RIPRODOTTO: la lettura vecchia (status new, limit 50, senza ordine) NON contiene Berk',
-    !legacy.some(l => l.id === berkId) && legacy.length === 50);
+  ok('RIPRODOTTO: la lettura vecchia (status new, limit 50, senza ordine) NON contiene Deniz',
+    !legacy.some(l => l.id === denizId) && legacy.length === 50);
 
   const fresh = await pendingNewLeads({ days: 7 });
-  ok('pendingNewLeads contiene Berk', fresh.some(l => l.id === berkId));
-  ok('…e i più recenti vengono PRIMA', fresh.findIndex(l => l.id === berkId) < fresh.findIndex(l => l.id === 'a0000'));
+  ok('pendingNewLeads contiene Deniz', fresh.some(l => l.id === denizId));
+  ok('…e i più recenti vengono PRIMA', fresh.findIndex(l => l.id === denizId) < fresh.findIndex(l => l.id === 'a0000'));
   ok('…e il createdAt stringa (recupero Stripe) non si perde', fresh.some(l => l.id === 'strec_x'));
   ok('…e la vecchia lettura resta nell\'unione (niente di ciò che partiva smette)', fresh.some(l => l.id === 'a0000'));
   ok('solo status new', fresh.every(l => l.status === 'new'));
@@ -333,27 +333,27 @@ section('3. Il lead appena arrivato entra SEMPRE nella finestra di Brain e Teleg
   ok('tutte le letture giù → errore (chi chiama decide), mai un vuoto silenzioso', threw);
 }
 
-// ── 4. il Brain vota Berk ────────────────────────────────────────────────
+// ── 4. il Brain vota Deniz ────────────────────────────────────────────────
 section('4. Il Lead Brain vota la candidatura nuova (handler vero)');
 {
   const res = mockRes();
   await brainHandler({ method: 'POST', headers: { authorization: 'Bearer cron-test' }, query: {} }, res);
   ok('brain: 200', res.statusCode === 200, res.body);
-  const lead = docOf('leads/' + berkId);
-  ok('brain: Berk ha un voto', !!lead.grade, lead.grade);
+  const lead = docOf('leads/' + denizId);
+  ok('brain: Deniz ha un voto', !!lead.grade, lead.grade);
   ok('brain: voto A (telefono, email, reddito, garante, inglese)', lead.grade === 'A', lead.gradeReason);
 }
 
 // ── 5. la card Telegram parte ────────────────────────────────────────────
-section('5. notify-pending manda la card di Berk (handler vero)');
+section('5. notify-pending manda la card di Deniz (handler vero)');
 {
   TG.length = 0;
   const res = mockRes();
   await notifyHandler({ method: 'GET', headers: { authorization: 'Bearer cron-test' }, query: {} }, res);
   ok('notify-pending: 200', res.statusCode === 200, res.body);
-  const card = TG.find(t => t.method === 'sendMessage' && /Berk Namyeter/.test(t.body.text || ''));
-  ok('notify-pending: la card di Berk è partita', !!card, TG.map(t => (t.body.text || '').slice(0, 60)));
-  ok('notify-pending: Berk marcato notificato', !!docOf('leads/' + berkId).telegramNotifiedAt);
+  const card = TG.find(t => t.method === 'sendMessage' && /Deniz Prova/.test(t.body.text || ''));
+  ok('notify-pending: la card di Deniz è partita', !!card, TG.map(t => (t.body.text || '').slice(0, 60)));
+  ok('notify-pending: Deniz marcato notificato', !!docOf('leads/' + denizId).telegramNotifiedAt);
   ok('notify-pending: i vecchi già notificati NON ripartono', !TG.some(t => /Vecchio \d/.test(t.body.text || '')));
 }
 
@@ -492,13 +492,13 @@ section('6. Il portal: listener vivo sui lead');
   const snap = rows => ({ docs: rows.map(r => ({ id: r.id, data: () => r })) });
   cb(snap([{ id: 'x1', status: 'new', name: 'Vecchio' }]));
   ok('primo snapshot: nessun avviso (arretrato al login)', calls.toast.length === 0);
-  cb(snap([{ id: 'b1', status: 'new', name: 'Berk', propertyTitle: 'Bilocale Trastevere' }, { id: 'x1', status: 'new', name: 'Vecchio' }]));
-  ok('lead nuovo: toast con nome e casa', calls.toast.length === 1 && /Berk → Bilocale Trastevere/.test(calls.toast[0][2]), calls.toast);
+  cb(snap([{ id: 'b1', status: 'new', name: 'Deniz', propertyTitle: 'Bilocale Trastevere' }, { id: 'x1', status: 'new', name: 'Vecchio' }]));
+  ok('lead nuovo: toast con nome e casa', calls.toast.length === 1 && /Deniz → Bilocale Trastevere/.test(calls.toast[0][2]), calls.toast);
   ok('lead nuovo a scheda nascosta: notifica del browser', calls.notif.length === 1);
   ok('S.leads aggiornato', S.leads[0].id === 'b1');
   ok('su Oggi: aggiorna le regioni, NON ridisegna la pagina intera', calls.oggi >= 2 && calls.render === 0);
   S.page = 'leads';
-  cb(snap([{ id: 'b1', status: 'new', name: 'Berk' }, { id: 'x1', status: 'new' }]));
+  cb(snap([{ id: 'b1', status: 'new', name: 'Deniz' }, { id: 'x1', status: 'new' }]));
   ok('sulla pagina Lead: ridisegna, senza un secondo avviso', calls.render === 1 && calls.toast.length === 1);
   cb(snap([{ id: 'd1', status: 'archived', name: 'Morto' }, { id: 'b1', status: 'new' }]));
   ok('un lead archiviato non fa suonare nulla', calls.toast.length === 1);

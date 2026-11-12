@@ -23,7 +23,7 @@ toglie loro un grattacapo di settembre avvicina.
 | **LUISS** | `housing@luiss.it` | ✅ verificato | luiss.it — Accommodation & Campus Services, Viale Romania 32 |
 | LUISS (secondari) | `international@luiss.it` · `welcomedesk@luiss.it` | ✅ verificato | stesse pagine |
 | **John Cabot University** | ⚠️ **da confermare** | I motori restituiscono gli indirizzi offuscati. Il sito indica l'Office of Housing and Residential Life (Gianicolo Residence, Vicolo della Penitenza 26) — prendi l'indirizzo da [johncabot.edu/housing-residential-life](https://www.johncabot.edu/housing-residential-life/), sono 10 secondi | johncabot.edu |
-| **IES Abroad Roma** | `ltaffara@fondazioneies.org` (referente sede) · `study@iesabroad.org` (generico) | ⚠️ il primo è una persona: verifica il ruolo prima di scrivergli a freddo | aacupi.org, iesabroad.org |
+| **IES Abroad Roma** | `study@iesabroad.org` (generico) | ⚠️ solo la casella generica: il referente di sede è una persona, il suo indirizzo non sta in questo file | aacupi.org, iesabroad.org |
 
 **Non ho inventato nessun indirizzo.** Dove non ho potuto confermare, la riga
 dice di verificarlo: una email a un indirizzo sbagliato non rimbalza sempre —

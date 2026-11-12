@@ -19,7 +19,7 @@
 
 import { fsList, fsPatch, logActivity } from './homie/_lib.js';
 
-const UA = 'BOOMRome/1.0 (+https://www.boomrome.com; valentino11marzo@gmail.com)';
+const UA = 'BOOMRome/1.0 (+https://www.boomrome.com; hello@boom-rome.com)';
 const ROME = { latMin: 41.70, latMax: 42.05, lngMin: 12.25, lngMax: 12.75 };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 

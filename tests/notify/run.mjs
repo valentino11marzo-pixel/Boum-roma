@@ -526,9 +526,9 @@ const { finalizeContract } = await import('../../api/sign/_finalize.js');
   store.set('contracts/ctrCS', {
     propertyId: 'prop1', tenantId: 't1', type: 'transitorio', cedolareSecca: 'si',
     rent: 1400, deposit: 2800, startDate: '2026-09-01', endDate: '2027-08-31', paymentDay: 1,
-    tenantName: 'Julie V', tenantEmail: 'julie@x.fr', landlordName: 'Stefano C',
+    tenantName: 'Elsa S', tenantEmail: 'elsa@x.fr', landlordName: 'Stefano E',
     landlordEmail: 'stefano@x.it',
-    coTenants: [{ name: 'Anouk G', cf: 'GRTNKA06L65Z110O', email: 'anouk@x.fr', tenantIndex: 1 }],
+    coTenants: [{ name: 'Noa P', cf: 'PRVNOA05C52Z110Y', email: 'noa@x.fr', tenantIndex: 1 }],
     tenantSignToken: 'CSTOK_TENANT_1', landlordSignToken: 'CSTOK_LANDLORD_1',
     signingOrder: 'sequential', signatureStatus: 'none', status: 'active',
     generatedPDF: 'https://storage.example/contract.pdf',
@@ -542,7 +542,7 @@ const { finalizeContract } = await import('../../api/sign/_finalize.js');
   await sendLink(mkReq({ contractId: 'ctrCS', role: 'tenant' }, { authorization: 'Bearer x' }), r);
   check('send-link con co-firma: invita il principale E il co-conduttore (link derivato)',
     r.code === 200 && r.body.coInvited === 1
-    && mails().slice(before).some(m => m.to === 'anouk@x.fr' && m.html.includes(encodeURIComponent(coRef))));
+    && mails().slice(before).some(m => m.to === 'noa@x.fr' && m.html.includes(encodeURIComponent(coRef))));
 
   r = mkRes();
   await msSubmit(mkReq(body('CSTOK_TENANT_1')), r);
@@ -556,7 +556,7 @@ const { finalizeContract } = await import('../../api/sign/_finalize.js');
   await msLookup(mkReq({ token: coRef }), r);
   check('lookup co-conduttore: 200, rende come tenant, prefill con la SUA identità',
     r.code === 200 && r.body.role === 'tenant' && r.body.cosign && r.body.cosign.index === 0
-    && r.body.signer.name === 'Anouk G' && r.body.signer.cf === 'GRTNKA06L65Z110O');
+    && r.body.signer.name === 'Noa P' && r.body.signer.cf === 'PRVNOA05C52Z110Y');
 
   r = mkRes();
   await msSubmit(mkReq(body(coRef)), r);
@@ -633,7 +633,7 @@ const { finalizeContract } = await import('../../api/sign/_finalize.js');
 }
 
 // ═══ 1f. LA CONSOLE VEDE LA FIRMA: stampa sulla proposta + send-sign onesto ═══
-// Il caso Inês (12/09/2026, Viale Angelico 9): contratto firmato e attivo,
+// Il caso del 12/09/2026: contratto firmato e attivo,
 // console pre-agreement cieca («paid · 🖊 Reinvia Magic Sign»), e il tasto
 // che rispediva all'inquilino un link «hai già firmato». Tre regole:
 //  · ogni firma via submit STAMPA lo stato sulla proposta (rail PA);
@@ -651,7 +651,7 @@ const { finalizeContract } = await import('../../api/sign/_finalize.js');
   store.set('preAgreements/paSIG', {
     status: 'paid', ref: 'BOOM-SIGTEST', contractId: 'pa_paSIG', propertyId: 'prop1',
     tenant: { fullName: 'Ines Test', email: 'ines@test.pt' }, tenants: [{ fullName: 'Ines Test', email: 'ines@test.pt' }],
-    landlord: { name: 'Giulia Bianchi', email: 'giulia@owner.it' }, property: { address: 'Viale Angelico 9' },
+    landlord: { name: 'Giulia Bianchi', email: 'giulia@owner.it' }, property: { address: 'Viale Esempio 9' },
     lease: { startDate: '2026-09-01', months: 12 }, money: { rent: 1450, deposit: 2900 },
     tenantSignUrl: 'https://www.boomrome.com/sign?sign=SIGTOK_T', landlordSignUrl: 'https://www.boomrome.com/sign?sign=SIGTOK_L',
     signSentAt: '2026-08-20T10:00:00Z', createdAt: '2026-08-10T10:00:00Z',
@@ -746,7 +746,7 @@ const { finalizeContract } = await import('../../api/sign/_finalize.js');
   check('firma su contratto con proposta cancellata: firma registrata, NESSUNA proposta fantasma creata',
     r.code === 200 && !!store.get('contracts/ctrGhost').tenantSignature && !store.has('preAgreements/paGhost'));
 
-  // LA PROPOSTA ORFANA (il caso Léa): contratto pa_<id> esistente e firmato,
+  // LA PROPOSTA ORFANA (13/09/2026): contratto pa_<id> esistente e firmato,
   // proposta senza contractId (back-link perso). Il ramo «esiste già» della
   // conversione la RICUCE — e il back-link è atteso, quindi c'è già quando
   // convert ritorna.

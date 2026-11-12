@@ -135,7 +135,7 @@ let ipSeq = 0;
 const post = async (handler, body) => { const r = mkRes(); await handler({ method: 'POST', headers: { 'x-forwarded-for': `10.9.0.${++ipSeq}` }, body, socket: {} }, r); return r; };
 const get = async (handler, query) => { const r = mkRes(); await handler({ method: 'GET', headers: { 'x-forwarded-for': `10.8.0.${++ipSeq}` }, query, socket: {} }, r); return r; };
 const stream = (obj) => ({ method: 'POST', headers: { 'stripe-signature': 'sig' }, async *[Symbol.asyncIterator]() { yield Buffer.from(JSON.stringify(obj)); } });
-const event = (metadata, over = {}) => ({ type: 'checkout.session.completed', data: { object: { id: over.id || 'cs_live_up_1', amount_total: over.amount_total ?? 30100, currency: over.currency || 'eur', customer_email: metadata.email || 'daniel@example.com', customer_details: over.customer_details || null, payment_intent: 'pi_1', metadata } } });
+const event = (metadata, over = {}) => ({ type: 'checkout.session.completed', data: { object: { id: over.id || 'cs_live_up_1', amount_total: over.amount_total ?? 30100, currency: over.currency || 'eur', customer_email: metadata.email || 'dana@example.com', customer_details: over.customer_details || null, payment_intent: 'pi_1', metadata } } });
 
 const { upgradeOffer, publicUpgrade, isUpgradeLeadId, UPGRADE_DAYS, UPGRADE_PATHS } = await import('../../api/_upgrade.js');
 const TOK = await import('../../api/payments/_token.js');
@@ -150,10 +150,10 @@ const NOW = Date.now();
 const AP_ID = 'svc_csliveAPorderDaniel0000001';
 const apLead = (over = {}) => ({
   type: 'service', service: 'SERVICE', kind: 'application-pack', status: 'new', paid: true, source: 'web', intent: 'city_order',
-  name: 'Daniel Poliakov', email: 'daniel@example.com', phone: '+34692304765',
+  name: 'Dana Sample', email: 'dana@example.com', phone: '+34600000001',
   amount_paid: 19900, amount_eur: 199, currency: 'eur', paid_at: new Date(NOW - DAY).toISOString(), createdAt: new Date(NOW - DAY).toISOString(),
   market: 'madrid', sourceRef: 'city-madrid', leadType: 'tenant',
-  city: { key: 'madrid', label: 'Madrid', mode: 'search', service: 'application-pack', paid: true, startNow: true, file: 'BM BEAEV', at: new Date(NOW - DAY).toISOString() },
+  city: { key: 'madrid', label: 'Madrid', mode: 'search', service: 'application-pack', paid: true, startNow: true, file: 'BM SAMPL', at: new Date(NOW - DAY).toISOString() },
   ...over,
 });
 const seed = (id, lead) => { store.set('leads/' + id, JSON.parse(JSON.stringify(lead))); bump('leads/' + id); };
@@ -164,10 +164,10 @@ const seed = (id, lead) => { store.set('leads/' + id, JSON.parse(JSON.stringify(
   check(isUpgradeLeadId(AP_ID) && !isUpgradeLeadId('book_abc12345') && !isUpgradeLeadId('city_abc12345') && !isUpgradeLeadId('svc_../x'), 'only a paid-order id (svc_…) can carry a credit');
   const o = upgradeOffer(apLead(), AP_ID, NOW);
   check(o.ok && o.state === 'open' && o.list === 500 && o.credit === 199 && o.pay === 301 && o.currency === 'eur', 'a Madrid pack paid yesterday: €500 − €199 = €301 today', JSON.stringify(o));
-  check(o.file === 'BM BEAEV' && o.to === 'full-search' && o.toLabel === 'Full Search' && o.fromLabel === 'Application Pack' && o.country === 'es', 'it names the file, the plans and the desk country (LAU art. 20 note on the page)');
+  check(o.file === 'BM SAMPL' && o.to === 'full-search' && o.toLabel === 'Full Search' && o.fromLabel === 'Application Pack' && o.country === 'es', 'it names the file, the plans and the desk country (LAU art. 20 note on the page)');
   check(Date.parse(o.expiresAt) - Date.parse(o.paidAt) === UPGRADE_DAYS * DAY, 'the deadline is 30 days from the payment');
   const pub = publicUpgrade(o);
-  check(!('email' in pub) && !('name' in pub) && !('phone' in pub) && !JSON.stringify(pub).includes('daniel@example.com'), 'the public view carries no name, email or phone');
+  check(!('email' in pub) && !('name' in pub) && !('phone' in pub) && !JSON.stringify(pub).includes('dana@example.com'), 'the public view carries no name, email or phone');
   check(upgradeOffer(apLead({ credit: { usedBy: 'svc_other' } }), AP_ID, NOW).state === 'used', 'a credit already used is used');
   check(upgradeOffer(apLead({ paid_at: new Date(NOW - 31 * DAY).toISOString() }), AP_ID, NOW).state === 'expired', 'after 30 days it has expired');
   check(upgradeOffer(apLead({ kind: 'full-search', city: { ...apLead().city, service: 'full-search' } }), AP_ID, NOW).state === 'not_upgradable', 'a Full Search order has nothing to upgrade to');
@@ -193,8 +193,8 @@ seed(AP_ID, apLead());
 {
   const t = TOK.upgradeToken(AP_ID);
   const r = await get(cityLead, { upgrade: AP_ID, t });
-  check(r.code === 200 && r.body.ok && r.body.pay === 301 && r.body.city === 'madrid' && r.body.file === 'BM BEAEV', 'a valid link reads the open credit', JSON.stringify(r.body));
-  check(!JSON.stringify(r.body).includes('daniel@example.com') && !JSON.stringify(r.body).includes('Poliakov') && !JSON.stringify(r.body).includes('+34692304765'), 'no name, email or phone in the answer');
+  check(r.code === 200 && r.body.ok && r.body.pay === 301 && r.body.city === 'madrid' && r.body.file === 'BM SAMPL', 'a valid link reads the open credit', JSON.stringify(r.body));
+  check(!JSON.stringify(r.body).includes('dana@example.com') && !JSON.stringify(r.body).includes('Sample') && !JSON.stringify(r.body).includes('+34600000001'), 'no name, email or phone in the answer');
   check(r.headers['cache-control'] === 'no-store', 'never cached');
   const bad = await get(cityLead, { upgrade: AP_ID, t: 'x'.repeat(24) });
   const ghost = await get(cityLead, { upgrade: 'svc_csliveNoSuchOrder00000001', t: TOK.upgradeToken('svc_csliveNoSuchOrder00000001') });
@@ -210,8 +210,8 @@ seed(AP_ID, apLead());
   check(r.code === 200 && r.body.ok && s, 'a valid upgrade opens a Stripe session', JSON.stringify(r.body));
   const li = s && s.line_items[0].price_data;
   check(li && li.unit_amount === 30100 && li.currency === 'eur', 'it charges €301: the price comes from the server, never from the body', li && String(li.unit_amount));
-  check(li && /€199 Application Pack credited/.test(li.product_data.name) && /file BM BEAEV/.test(li.product_data.description), 'the Stripe page says what is credited and which file');
-  check(s && s.customer_email === 'daniel@example.com' && s.metadata.name === 'Daniel Poliakov' && s.metadata.phone === '+34692304765', 'the payer is the person of the paid order (the page asks nothing)');
+  check(li && /€199 Application Pack credited/.test(li.product_data.name) && /file BM SAMPL/.test(li.product_data.description), 'the Stripe page says what is credited and which file');
+  check(s && s.customer_email === 'dana@example.com' && s.metadata.name === 'Dana Sample' && s.metadata.phone === '+34600000001', 'the payer is the person of the paid order (the page asks nothing)');
   check(s && s.metadata.credit_from === AP_ID && s.metadata.credit_amount === '199' && s.metadata.credit_plan === 'application-pack' && s.metadata.amount_eur === '301' && s.metadata.start_now === '1' && s.metadata.city === 'madrid', 'the metadata carry the credit, the amount and the Start-now tick');
   check(s && s.success_url.startsWith(`https://www.boomrome.com/upgrade?l=${AP_ID}&t=${t}&start=1&session_id=`) && s.cancel_url === `https://www.boomrome.com/upgrade?l=${AP_ID}&t=${t}`, 'success and cancel land back on /upgrade');
   const n = (globalThis.__stripeCalls || []).length;
@@ -228,19 +228,19 @@ seed(AP_ID, apLead());
 }
 
 // ── 5. The webhook: the order, the file, the credit marked once ──────────────
-const meta = (over = {}) => ({ service: 'SERVICE', kind: 'full-search', city: 'madrid', market: 'madrid', name: 'Daniel Poliakov', email: 'daniel@example.com', phone: '+34692304765', listing: '', notes: '', amount_eur: '301', currency: 'eur', start_now: '1', credit_from: AP_ID, credit_amount: '199', credit_plan: 'application-pack', ...over });
+const meta = (over = {}) => ({ service: 'SERVICE', kind: 'full-search', city: 'madrid', market: 'madrid', name: 'Dana Sample', email: 'dana@example.com', phone: '+34600000001', listing: '', notes: '', amount_eur: '301', currency: 'eur', start_now: '1', credit_from: AP_ID, credit_amount: '199', credit_plan: 'application-pack', ...over });
 {
   emails.length = 0;
   const r = await webhook(stream(event(meta(), { id: 'cs_live_up_1' })), mkRes());
   const fs1 = store.get('leads/' + serviceLeadId('cs_live_up_1'));
   check(fs1 && fs1.paid && fs1.city && fs1.city.service === 'full-search' && fs1.amount_eur === 301, 'the Full Search order is written, €301 paid');
-  check(fs1 && fs1.city.file === 'BM BEAEV' && fs1.city.fileLeadId === AP_ID, 'it keeps the pack\'s file number: one person, one file');
+  check(fs1 && fs1.city.file === 'BM SAMPL' && fs1.city.fileLeadId === AP_ID, 'it keeps the pack\'s file number: one person, one file');
   check(fs1 && fs1.city.credit && fs1.city.credit.from === AP_ID && fs1.city.credit.amount === 199 && fs1.city.credit.verified === true, 'the credit is written on the order');
   check(fs1 && /€301 paid \(€199 Application Pack credited\)/.test(fs1.message), 'the summary says €301 paid and €199 credited', fs1 && fs1.message);
   const ap = store.get('leads/' + AP_ID);
   check(ap.credit && ap.credit.usedBy === serviceLeadId('cs_live_up_1') && ap.credit.amount === 199, 'the pack\'s credit is marked used by this order');
-  const op = emails.find((e) => e.to_email === 'valentino@boom-rome.com'), cl = emails.find((e) => e.to_email === 'daniel@example.com');
-  check(op && /Upgrade: €199 credited from the Application Pack \(file BM BEAEV\); invoice what was paid, €301\./.test(op.intro), 'the operator email names the upgrade and the amount to invoice', op && op.intro);
+  const op = emails.find((e) => e.to_email === 'valentino@boom-rome.com'), cl = emails.find((e) => e.to_email === 'dana@example.com');
+  check(op && /Upgrade: €199 credited from the Application Pack \(file BM SAMPL\); invoice what was paid, €301\./.test(op.intro), 'the operator email names the upgrade and the amount to invoice', op && op.intro);
   check(cl && /Your Application Pack \(€199\) is credited toward this order\./.test(cl.closing) && /To withdraw within 14 days/.test(cl.closing), 'the client email says what is credited, and keeps the withdrawal text');
   check(r && (await get(cityLead, { upgrade: AP_ID, t: TOK.upgradeToken(AP_ID) })).code === 410, 'the link now answers 410: used');
   // a Stripe retry of the same session: no second order, the mark stays
@@ -270,7 +270,7 @@ const meta = (over = {}) => ({ service: 'SERVICE', kind: 'full-search', city: 'm
 
 // ── 6. The bot: /upgrade BM XXXXX ────────────────────────────────────────────
 {
-  check(JSON.stringify(BOT.parseUpgradeRef('bm beaev')) === '{"file":"BM BEAEV"}' && JSON.stringify(BOT.parseUpgradeRef('BMBEAEV')) === '{"file":"BM BEAEV"}' && BOT.parseUpgradeRef(AP_ID).id === AP_ID && BOT.parseUpgradeRef('hello') === null, 'the bot reads a file number in any spelling, or an order id');
+  check(JSON.stringify(BOT.parseUpgradeRef('bm sampl')) === '{"file":"BM SAMPL"}' && JSON.stringify(BOT.parseUpgradeRef('BMSAMPL')) === '{"file":"BM SAMPL"}' && BOT.parseUpgradeRef(AP_ID).id === AP_ID && BOT.parseUpgradeRef('hello') === null, 'the bot reads a file number in any spelling, or an order id');
   const FRESH = 'svc_csliveFreshPackOrder000001';
   const lead = apLead({ city: { ...apLead().city, file: 'BM FRESH' } });
   const txt = BOT.upgradeReply(lead, FRESH, NOW, 'https://www.boomrome.com');

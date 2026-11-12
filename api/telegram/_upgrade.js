@@ -17,7 +17,7 @@ const esc = (s) => String(s == null ? '' : s).replace(/[&<>]/g, (c) => ({ '&': '
 const ROME = new Intl.DateTimeFormat('it-IT', { timeZone: 'Europe/Rome', day: '2-digit', month: '2-digit', year: 'numeric' });
 const dmy = (iso) => { const t = new Date(String(iso || '')); return Number.isNaN(t.getTime()) ? '—' : ROME.format(t); };
 
-/** "BM BEAEV", "bm beaev", "BMBEAEV" or a lead id → a reference; anything else → null. */
+/** "BM X7K2Q", "bm x7k2q", "BMX7K2Q" or a lead id → a reference; anything else → null. */
 export function parseUpgradeRef(arg) {
   const t = String(arg || '').trim();
   const m = t.toUpperCase().match(/^BM\s*([A-Z2-9]{5})$/);

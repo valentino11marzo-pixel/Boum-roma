@@ -2,7 +2,7 @@
 // estratto da js/portal-app.js): una casa che le regole gli negano non deve
 // far cadere contratti e pagamenti.
 //
-// Il caso vero (6/11/2026): Miss Thao, Via Vittoria 69. Contratto appena nato
+// Il caso vero (6/11/2026): un'inquilina col contratto appena nato
 // dalla proposta, immobile non ancora affittato a lei (currentContractId
 // assente o del contratto precedente). La query `in` sugli id delle case
 // veniva negata per intero, e con lei tutto il caricamento: «Missing or
@@ -56,8 +56,8 @@ function run(src, data, opts = {}) {
   const code = ['fetchReadableByIds', 'fetchWhereInChunked', 'loadDataScoped'].map(f => extract(src, f)).join('\n');
   const status = [];
   const ctx = {
-    S: { profile: { id: 'thao', role: 'tenant' }, conversations: [], messages: [] },
-    db: fakeDb(data, 'thao', opts),
+    S: { profile: { id: 'nora', role: 'tenant' }, conversations: [], messages: [] },
+    db: fakeDb(data, 'nora', opts),
     firebase: { firestore: { FieldPath: { documentId: () => '__id__' } } },
     isLandlord: () => false,
     portalSourceStatus: (k, v) => status.push(k + ':' + v),
@@ -71,27 +71,27 @@ function run(src, data, opts = {}) {
 }
 
 const base = () => ({
-  contracts: { c_thao: { tenantId: 'thao', propertyId: 'p_vittoria', status: 'active', startDate: '2026-10-01' } },
-  properties: { p_vittoria: { address: 'Via Vittoria 69', currentContractId: 'c_prev' } },
-  payments: { pay_c_thao_2026_11: { tenantId: 'thao', contractId: 'c_thao', amount: 2000, status: 'pending', dueDate: '2026-11-05' } },
+  contracts: { c_nora: { tenantId: 'nora', propertyId: 'p_casa', status: 'active', startDate: '2026-10-01' } },
+  properties: { p_casa: { address: 'Via Esempio 69', currentContractId: 'c_prev' } },
+  payments: { pay_c_nora_2026_11: { tenantId: 'nora', contractId: 'c_nora', amount: 2000, status: 'pending', dueDate: '2026-11-05' } },
   maintenance: {}, documents: {}, conversations: {}, messages: {},
 });
-const withPrev = (d) => { d.contracts.c_prev = { tenantId: 'someone_else', propertyId: 'p_vittoria' }; return d; };
+const withPrev = (d) => { d.contracts.c_prev = { tenantId: 'someone_else', propertyId: 'p_casa' }; return d; };
 
 // 1. La casa non è ancora sua: contratti e pagamenti arrivano lo stesso.
 {
   const { r, S, status } = await run(SRC, withPrev(base()));
   ok(r && r.ok === true, 'casa negata: il caricamento riesce');
-  ok(S.contracts.length === 1 && S.contracts[0].id === 'c_thao', 'casa negata: il contratto c\'è (niente «No Active Lease» per un errore)');
+  ok(S.contracts.length === 1 && S.contracts[0].id === 'c_nora', 'casa negata: il contratto c\'è (niente «No Active Lease» per un errore)');
   ok(S.payments.length === 1 && S.payments[0].amount === 2000, 'casa negata: la rata di novembre c\'è');
   ok(S.properties.length === 0, 'casa negata: la casa manca e basta');
   ok(status.includes('core:live') && !status.includes('core:error'), 'casa negata: «Dati principali» non va in errore');
 }
 // 2. Casa affittata a lei: si legge.
 {
-  const d = base(); d.properties.p_vittoria.currentContractId = 'c_thao';
+  const d = base(); d.properties.p_casa.currentContractId = 'c_nora';
   const { S } = await run(SRC, d);
-  ok(S.properties.length === 1 && S.properties[0].address === 'Via Vittoria 69', 'casa sua: letta');
+  ok(S.properties.length === 1 && S.properties[0].address === 'Via Esempio 69', 'casa sua: letta');
 }
 // 3. Un guasto che NON è un permesso negato risale come prima (mai un
 //    caricamento «riuscito» a rete giù).
@@ -106,7 +106,7 @@ const withPrev = (d) => { d.contracts.c_prev = { tenantId: 'someone_else', prope
     "db.collection('properties').where(firebase.firestore.FieldPath.documentId(), 'in', propIds).get({ source: 'server' }).then(s => s.docs.map(d => ({ id: d.id, ...d.data() })))");
   assert.notEqual(old, SRC);
   let threw = false; try { await run(old, withPrev(base())); } catch (x) { threw = x.code === 'permission-denied'; }
-  ok(threw, 'mutazione: con la query `in` di prima la casa negata fa cadere tutto (il guasto di Thao)');
+  ok(threw, 'mutazione: con la query `in` di prima la casa negata fa cadere tutto (il guasto del 6/11)');
   const swallow = SRC.replace("if (e && e.code === 'permission-denied') return null; throw e;", 'return null;');
   assert.notEqual(swallow, SRC);
   const e = new Error('unavailable'); e.code = 'unavailable';

@@ -102,7 +102,7 @@ export default async function handler(req, res) {
   // I token non si azzerano più alla firma (il link riaperto dice «hai già
   // firmato»), quindi il vecchio check qui sopra non scattava mai e 🖊
   // Reinvia Magic Sign rispediva all'inquilino un invito a firmare un
-  // contratto che aveva già firmato (12/09/2026: Inês, Viale Angelico 9 —
+  // contratto che aveva già firmato (12/09/2026 —
   // «Your rental contract is ready to sign» su un contratto attivo da
   // settembre). Ora si legge il contratto: con la firma dell'inquilino
   // sopra non parte nessuna email, si risponde lo STATO, e la proposta
@@ -204,7 +204,7 @@ export default async function handler(req, res) {
   // PERDONO. Queste tre righe erano fire-and-forget (`.catch(() => {})`
   // senza await) subito prima di `res.json`: su Vercel la funzione può
   // essere congelata appena la risposta parte, e la scrittura in volo
-  // muore. Nel backup del 13/09: la proposta di Inês SENZA signSentAt
+  // muore. Nel backup del 13/09: una proposta SENZA signSentAt
   // dopo un 🖊 andato a buon fine (email partite, 200 al client), quindi
   // la console mostrava «Invia Magic Sign» come se non fosse mai stato
   // premuto. Da qui in poi: ogni scrittura di stato si ATTENDE prima di

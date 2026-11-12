@@ -178,51 +178,51 @@ const { healTenantMandate } = await import('../../api/preagreement/sign-for.js')
   const k = (a) => { const x = MANDATO.homeKey(a); return x ? x.street + '|' + x.civic + '|' + x.unit : null; };
   // le forme VERE del backup del 12/10 (indirizzi degli immobili)
   check('homeKey: «Via Luigi Pulci, n. 52» = «Via Luigi Pulci 52» («n.» davanti al civico)', k('Via Luigi Pulci, n. 52') === 'via luigi pulci|52|' && k('Via Luigi Pulci 52') === 'via luigi pulci|52|');
-  check('homeKey: «V.le Angelico, 9» = «Viale Angelico 9» (abbreviazione e civico dopo la virgola)', k('V.le Angelico, 9') === 'viale angelico|9|' && k('Viale Angelico 9') === 'viale angelico|9|');
-  check('homeKey: l\'interno scritto nell\'indirizzo si separa («Via dei Latini, 76 - int 1», «Viale Angelico n.9 int.11»)',
-    k('Via dei Latini, 76 - int 1') === 'via dei latini|76|1' && k('Viale Angelico n.9 int.11') === 'viale angelico|9|11');
+  check('homeKey: «V.le Esempio, 9» = «Viale Esempio 9» (abbreviazione e civico dopo la virgola)', k('V.le Esempio, 9') === 'viale esempio|9|' && k('Viale Esempio 9') === 'viale esempio|9|');
+  check('homeKey: l\'interno scritto nell\'indirizzo si separa («Via delle Prove, 76 - int 1», «Viale Esempio n.9 int.11»)',
+    k('Via delle Prove, 76 - int 1') === 'via delle prove|76|1' && k('Viale Esempio n.9 int.11') === 'viale esempio|9|11');
   check('homeKey: CAP, città e ordine dei pezzi non contano', k('00185 Roma, Via Merulana 113') === 'via merulana|113|' && k('Via Merulana, 113, Roma RM, 00185') === 'via merulana|113|');
   check('homeKey: «P.za di Spagna 9», «Lungot. dei Mellini 44», apostrofi tipografici', k('P.za di Spagna 9') === 'piazza di spagna|9|' && k('Lungot. dei Mellini 44') === 'lungotevere dei mellini|44|' && k('Via dell’Orso 5') === k("Via dell'Orso 5"));
   check('homeKey: «Via N. Sauro 12» resta la via di Nazario Sauro (dopo la N non c\'è un numero)', k('Via N. Sauro 12') === 'via n sauro|12|');
   check('homeKey: scala e piano DOPO il civico non sono l\'indirizzo', k('Via XX Settembre 4 piano terra') === 'via xx settembre|4|' && k('Via X Y 12, scala B, int. 3') === 'via x y|12|3');
   check('homeKey: 42/B è un altro civico di 42', k('Piazzale Prenestino 42/B') === 'piazzale prenestino|42b|' && k('Piazzale Prenestino 42') === 'piazzale prenestino|42|');
-  const unread = ['Via Federico Guarducci', 'Viale Angelico, Mazzini', 'Passeggiata di Ripetta', 'Via dei Coronari, Piazza Navona', 'Viale Angelico 9 Prati', 'Angelico 9', '', null];
+  const unread = ['Via Federico Guarducci', 'Viale Esempio, Mazzini', 'Passeggiata di Ripetta', 'Via dei Coronari, Piazza Navona', 'Viale Esempio 9 Prati', 'Esempio 9', '', null];
   check('homeKey: senza civico, senza tipo di via o con parole dopo il civico NON si legge (null) — mai una casa indovinata',
     unread.every(a => MANDATO.homeKey(a) === null));
 
   const m = (a, au, r) => MANDATO.homeMatch({ address: a, unit: au }, r);
-  const ok1 = m('Viale Angelico 9', '11', { address: 'V.le Angelico, 9', unit: 'Int. 11' });
-  check('homeMatch: stesso indirizzo e stesso interno («11» = «Int. 11») → la stessa casa, con l\'etichetta', ok1.match === true && ok1.label === 'viale angelico 9, int. 11' && ok1.key === 'viale angelico 9 int 11');
-  check('homeMatch: l\'interno del record anche in `interno`', m('Viale Angelico 9', '11', { address: 'Viale Angelico 9', interno: '11' }).match === true);
-  const u1 = m('Viale Angelico 9', '11', { address: 'Viale Angelico 9', unit: '12' });
-  const u2 = m('Viale Angelico 9', '', { address: 'Viale Angelico 9', unit: '11' });
+  const ok1 = m('Viale Esempio 9', '11', { address: 'V.le Esempio, 9', unit: 'Int. 11' });
+  check('homeMatch: stesso indirizzo e stesso interno («11» = «Int. 11») → la stessa casa, con l\'etichetta', ok1.match === true && ok1.label === 'viale esempio 9, int. 11' && ok1.key === 'viale esempio 9 int 11');
+  check('homeMatch: l\'interno del record anche in `interno`', m('Viale Esempio 9', '11', { address: 'Viale Esempio 9', interno: '11' }).match === true);
+  const u1 = m('Viale Esempio 9', '11', { address: 'Viale Esempio 9', unit: '12' });
+  const u2 = m('Viale Esempio 9', '', { address: 'Viale Esempio 9', unit: '11' });
   check('homeMatch: interno diverso, o dichiarato da una parte sola → NON è la stessa casa (reason unit)',
     u1.match === false && u1.reason === 'unit' && u1.approvedUnit === '11' && u1.recordUnit === '12' && u2.match === false && u2.reason === 'unit');
-  const e = m('Viale Angelico 9', '', { address: 'Viale Angelico 9' });
+  const e = m('Viale Esempio 9', '', { address: 'Viale Esempio 9' });
   check('homeMatch: interno non dichiarato su entrambi → la stessa casa (casa intera, come lucchetto e sovrapposizioni), e l\'etichetta LO DICE',
-    e.match === true && e.unit === null && e.where === 'viale angelico 9' && e.label === 'viale angelico 9, interno non dichiarato su entrambi');
+    e.match === true && e.unit === null && e.where === 'viale esempio 9' && e.label === 'viale esempio 9, interno non dichiarato su entrambi');
   check('homeMatch: civico diverso o via diversa («Tor Quinto» ≠ «Tor di Quinto») → reason address',
-    m('Viale Angelico 9', '', { address: 'Viale Angelico 91' }).reason === 'address' && m('Via di Tor Quinto 39', '', { address: 'Via di Tor di Quinto 39' }).reason === 'address');
-  check('homeMatch: un indirizzo illeggibile non combacia mai (reason address_unreadable)', m('Viale Angelico 9', '', { address: 'Viale Angelico' }).reason === 'address_unreadable');
+    m('Viale Esempio 9', '', { address: 'Viale Esempio 91' }).reason === 'address' && m('Via di Tor Quinto 39', '', { address: 'Via di Tor di Quinto 39' }).reason === 'address');
+  check('homeMatch: un indirizzo illeggibile non combacia mai (reason address_unreadable)', m('Viale Esempio 9', '', { address: 'Viale Esempio' }).reason === 'address_unreadable');
 
-  const snapU = { propertyId: null, address: 'viale angelico 9', unit: '11' };
+  const snapU = { propertyId: null, address: 'viale esempio 9', unit: '11' };
   const hc = (terms, contract, property, pa = {}) => MANDATO.homeCheck({ terms, pa, paId: 'P1', contract, property });
-  check('homeCheck: una foto CON immobile non chiede riscontri (null)', hc({ ...snapU, propertyId: 'pX' }, { propertyId: 'W0' }, { address: 'Viale Angelico 9', unit: '11' }) === null);
+  check('homeCheck: una foto CON immobile non chiede riscontri (null)', hc({ ...snapU, propertyId: 'pX' }, { propertyId: 'W0' }, { address: 'Viale Esempio 9', unit: '11' }) === null);
   check('homeCheck: il contratto sull\'immobile nato dalla proposta vale già (null), anche senza propertyId', hc(snapU, { propertyId: 'prop_pa_P1' }, null) === null && hc(snapU, {}, null) === null);
   check('homeCheck: il record che non c\'è → property_missing', hc(snapU, { propertyId: 'W0' }, null).reason === 'property_missing');
   check('homeCheck: l\'interno è quello della FOTO, anche se la proposta lo ha cambiato dopo (dichiarato in console)',
-    hc(snapU, { propertyId: 'W0' }, { address: 'Viale Angelico 9', unit: '11' }, { property: { address: 'Viale Angelico 9', unit: '12' }, unitDeclaredAt: '2026-10-01' }).match === true
-    && hc(snapU, { propertyId: 'W0' }, { address: 'Viale Angelico 9', unit: '12' }, { property: { address: 'Viale Angelico 9', unit: '12' }, unitDeclaredAt: '2026-10-01' }).match === false);
-  const old = { propertyId: null, address: 'viale angelico 9' };   // foto di prima del 15/10: senza interno
+    hc(snapU, { propertyId: 'W0' }, { address: 'Viale Esempio 9', unit: '11' }, { property: { address: 'Viale Esempio 9', unit: '12' }, unitDeclaredAt: '2026-10-01' }).match === true
+    && hc(snapU, { propertyId: 'W0' }, { address: 'Viale Esempio 9', unit: '12' }, { property: { address: 'Viale Esempio 9', unit: '12' }, unitDeclaredAt: '2026-10-01' }).match === false);
+  const old = { propertyId: null, address: 'viale esempio 9' };   // foto di prima del 15/10: senza interno
   check('homeCheck: foto vecchia → l\'interno della proposta (chiusa dopo l\'accettazione)',
-    hc(old, { propertyId: 'W0' }, { address: 'Viale Angelico 9', unit: '11' }, { property: { address: 'Viale Angelico 9', unit: '11' } }).match === true);
+    hc(old, { propertyId: 'W0' }, { address: 'Viale Esempio 9', unit: '11' }, { property: { address: 'Viale Esempio 9', unit: '11' } }).match === true);
   check('homeCheck: foto vecchia + interno dichiarato DOPO, o indirizzo ritoccato → unit_unknown, niente riscontro',
-    hc(old, { propertyId: 'W0' }, { address: 'Viale Angelico 9', unit: '11' }, { property: { address: 'Viale Angelico 9', unit: '11' }, unitDeclaredAt: '2026-10-01', unitWas: null }).reason === 'unit_unknown'
-    && hc(old, { propertyId: 'W0' }, { address: 'Viale Angelico 9', unit: '11' }, { property: { address: 'Viale Angelico 9, Roma', unit: '11' } }).reason === 'unit_unknown');
+    hc(old, { propertyId: 'W0' }, { address: 'Viale Esempio 9', unit: '11' }, { property: { address: 'Viale Esempio 9', unit: '11' }, unitDeclaredAt: '2026-10-01', unitWas: null }).reason === 'unit_unknown'
+    && hc(old, { propertyId: 'W0' }, { address: 'Viale Esempio 9', unit: '11' }, { property: { address: 'Viale Esempio 9, Roma', unit: '11' } }).reason === 'unit_unknown');
 
-  const T = { ...MANDATO.termsFromContract({ propertyId: null, tenantName: 'A B', landlordName: 'C D', rent: 900, startDate: '2027-01-01', endDate: '2027-12-31' }), address: 'viale angelico 9', unit: '11' };
+  const T = { ...MANDATO.termsFromContract({ propertyId: null, tenantName: 'A B', landlordName: 'C D', rent: 900, startDate: '2027-01-01', endDate: '2027-12-31' }), address: 'viale esempio 9', unit: '11' };
   const c0 = { propertyId: 'W0', tenantName: 'A B', landlordName: 'C D', rent: 900, startDate: '2027-01-01', endDate: '2027-12-31' };
-  const pm = { propertyId: 'W0', by: 'address+unit', home: 'viale angelico 9 int 11' };
+  const pm = { propertyId: 'W0', by: 'address+unit', home: 'viale esempio 9 int 11' };
   check('termsForMandate: il riscontro allinea SOLO il record riscontrato', MANDATO.diffTerms(T, MANDATO.termsForMandate(c0, { terms: T, paId: 'P1', propertyMatch: pm })).length === 0
     && MANDATO.diffTerms(T, MANDATO.termsForMandate({ ...c0, propertyId: 'W1' }, { terms: T, paId: 'P1', propertyMatch: pm })).map(d => d.key).join() === 'propertyId');
   check('termsForMandate: un riscontro di altro tipo non vale', MANDATO.diffTerms(T, MANDATO.termsForMandate(c0, { terms: T, paId: 'P1', propertyMatch: { ...pm, by: 'manual' } })).map(d => d.key).join() === 'propertyId');
@@ -234,12 +234,12 @@ const { healTenantMandate } = await import('../../api/preagreement/sign-for.js')
 // ── Seed ────────────────────────────────────────────────────────────────
 store.set('users/caller1', { role: 'admin', name: 'Valentino', email: 'op@boom.it' });
 // l'appartamento è GIÀ nel portal: stesso indirizzo (scritto diverso) e stesso interno
-store.set('properties/W0', { name: 'Angelico 9', address: 'V.le Angelico, 9', unit: 'Int. 11', city: 'Roma', ownerName: 'Giulia Bianchi', floor: '3' });
+store.set('properties/W0', { name: 'Esempio 9', address: 'V.le Esempio, 9', unit: 'Int. 11', city: 'Roma', ownerName: 'Giulia Bianchi', floor: '3' });
 // stesso palazzo, ALTRO interno
-store.set('properties/W1', { name: 'Angelico 9 int 12', address: 'Viale Angelico 9', unit: '12', city: 'Roma', ownerName: 'Giulia Bianchi', floor: '4' });
+store.set('properties/W1', { name: 'Esempio 9 int 12', address: 'Viale Esempio 9', unit: '12', city: 'Roma', ownerName: 'Giulia Bianchi', floor: '4' });
 const paSeed = (token, extra = {}) => ({
   token, status: 'sent', propertyId: null, askMandate: true,
-  property: { address: 'Viale Angelico 9', unit: '11', type: 'Entire Apartment', condition: 'Furnished', use: 'Residential', floor: '3' },
+  property: { address: 'Viale Esempio 9', unit: '11', type: 'Entire Apartment', condition: 'Furnished', use: 'Residential', floor: '3' },
   landlord: { name: 'Giulia Bianchi', email: null, phone: '+39 334 0000000' },
   lease: { startDate: '2047-01-01', months: 12, endDate: '2047-12-31', type: 'Transitional Lease', lawRef: 'uso transitorio · L.431/98 art.5 c.1', reason: 'lavoro' },
   money: { rent: 1450, deposit: 2900, depositMonths: 2, dueAtSigning: 0, monthlyTotal: 1450, chargedMonthly: 1450, depositAtSigning: 0, depositAtMoveIn: 2900, installmentMonths: 1 },
@@ -269,8 +269,8 @@ async function accept(id, token, { mandate = true, extra = {} } = {}) {
   const before = store.size;
   const dry = await convertPaToContract({ pa, paId: 'paA', propertyId: 'W0', dryRun: true });
   check('preflight su W0 (stesso indirizzo e interno): il mandato SARÀ spendibile, e la console sa perché',
-    dry.ok === true && dry.dryRun === true && dry.mandate && dry.mandate.ok === true && dry.mandate.home && dry.mandate.home.match === true && dry.mandate.home.label === 'viale angelico 9, int. 11'
-    && dry.mandate.home.unit === '11' && dry.mandate.home.where === 'viale angelico 9');
+    dry.ok === true && dry.dryRun === true && dry.mandate && dry.mandate.ok === true && dry.mandate.home && dry.mandate.home.match === true && dry.mandate.home.label === 'viale esempio 9, int. 11'
+    && dry.mandate.home.unit === '11' && dry.mandate.home.where === 'viale esempio 9');
   const dry1 = await convertPaToContract({ pa, paId: 'paA', propertyId: 'W1', dryRun: true });
   check('preflight su W1 (altro interno): mandato NON spendibile, con l\'interno nominato',
     dry1.ok === true && dry1.mandate.ok === false && dry1.mandate.home.match === false && /interno diverso: proposta «11», immobile «12»/.test(dry1.mandate.home.text));
@@ -280,7 +280,7 @@ async function accept(id, token, { mandate = true, extra = {} } = {}) {
   const c = store.get('contracts/pa_paA');
   check('conversione su W0: il contratto nasce sul record del portal e il mandato porta il riscontro (propertyMatch)',
     out.ok === true && !!c && c.propertyId === 'W0' && c.tenantMandate && c.tenantMandate.propertyMatch
-    && c.tenantMandate.propertyMatch.propertyId === 'W0' && c.tenantMandate.propertyMatch.by === 'address+unit' && c.tenantMandate.propertyMatch.home === 'viale angelico 9 int 11');
+    && c.tenantMandate.propertyMatch.propertyId === 'W0' && c.tenantMandate.propertyMatch.by === 'address+unit' && c.tenantMandate.propertyMatch.home === 'viale esempio 9 int 11');
   check('… mandato SPENDIBILE: termsMatch, nessun diff, mandateCheck ok — l\'impronta resta quella dell\'accettazione',
     c.tenantMandate.termsMatch === true && c.tenantMandate.termsDiff.length === 0 && mandateCheck(c).ok === true && c.tenantMandate.termsHash === pa.approvedTerms.hash);
   check('… e resta un mandato: una condizione vera cambiata dopo è ancora un diff (canone)', mandateCheck({ ...c, rent: 1500 }).ok === false && mandateCheck({ ...c, rent: 1500 }).diff.map(d => d.key).join() === 'rent');
@@ -338,7 +338,7 @@ async function accept(id, token, { mandate = true, extra = {} } = {}) {
   r = mkRes(); await signFor(admin({ op: 'status', id: 'paL' }), r);
   check('status: il piano dice la verità — mandato spendibile, la casa è quella della proposta (etichetta), e NIENTE scritto',
     r.code === 200 && r.body.plan.mandateOk === true && r.body.plan.canSignTenant === true && r.body.plan.home && r.body.plan.home.match === true
-    && r.body.plan.home.label === 'viale angelico 9, int. 11' && r.body.plan.home.unit === '11' && JSON.stringify(store.get(cidL)) === JSON.stringify(snapBefore));
+    && r.body.plan.home.label === 'viale esempio 9, int. 11' && r.body.plan.home.unit === '11' && JSON.stringify(store.get(cidL)) === JSON.stringify(snapBefore));
   r = mkRes(); await signFor(admin({ op: 'sign', id: 'paL', contractVersion: 1 }), r);
   const cL = store.get(cidL);
   check('sign: il riscontro si scrive sul mandato PRIMA della firma, e il conduttore firma per mandato',
@@ -356,7 +356,7 @@ async function accept(id, token, { mandate = true, extra = {} } = {}) {
 
   // l'immobile ritoccato DOPO il riscontro: non è più la casa approvata
   const { pa: paE } = await accept('paE', '0e'.repeat(16));
-  store.set('properties/W2', { name: 'Angelico 9 bis', address: 'Viale Angelico 9', unit: '11', city: 'Roma' });
+  store.set('properties/W2', { name: 'Esempio 9 bis', address: 'Viale Esempio 9', unit: '11', city: 'Roma' });
   await convertPaToContract({ pa: paE, paId: 'paE', propertyId: 'W2', actor: 'test', force: true });
   const cidE = 'contracts/pa_paE';
   check('§4 riscontro preso su W2 alla conversione', !!(store.get(cidE).tenantMandate || {}).propertyMatch && mandateCheck(store.get(cidE)).ok === true);
@@ -382,7 +382,7 @@ async function accept(id, token, { mandate = true, extra = {} } = {}) {
   failGet.delete('properties/W2');
 
   // il caso puro: niente da rifare se foto con immobile o immobile nato dalla proposta
-  const cBorn = { propertyId: 'prop_pa_Z', tenantMandate: { given: true, termsVersion: 2, terms: { propertyId: null, address: 'viale angelico 9', unit: '11' }, paId: 'Z' } };
+  const cBorn = { propertyId: 'prop_pa_Z', tenantMandate: { given: true, termsVersion: 2, terms: { propertyId: null, address: 'viale esempio 9', unit: '11' }, paId: 'Z' } };
   check('healTenantMandate: sull\'immobile nato dalla proposta non c\'è niente da rifare (null)',
     healTenantMandate({ contract: cBorn, pa: {}, paId: 'Z', property: null }) === null
     && healTenantMandate({ contract: { ...cBorn, propertyId: 'W0', tenantMandate: { ...cBorn.tenantMandate, terms: { propertyId: 'pX' } } }, pa: {}, paId: 'Z', property: store.get('properties/W0') }) === null);

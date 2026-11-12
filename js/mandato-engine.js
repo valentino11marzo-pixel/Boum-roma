@@ -181,7 +181,7 @@
     };
   }
 
-  // L'IMMOBILE NATO DALLA PROPOSTA (12/10/2026 — Via dei Latini 76).
+  // L'IMMOBILE NATO DALLA PROPOSTA (12/10/2026).
   // Una proposta accettata senza immobile collegato fotografa propertyId
   // null: il cliente ha dato il mandato su un INDIRIZZO, quello della
   // proposta. Il contratto però nasce sempre su un record di `properties`,
@@ -189,7 +189,7 @@
   // proposta (createProperty → prop_pa_<paId>, indirizzo e interno copiati
   // da lei). Contare quel record come «immobile cambiato» rendeva il
   // mandato inservibile per costruzione su OGNI proposta senza immobile
-  // collegato: nel backup del 12/10 BOOM-MUMY744I aveva termsDiff
+  // collegato: nel backup del 12/10 una proposta aveva termsDiff
   // ['propertyId'] e nient'altro, e altre tre proposte pagate col mandato
   // aspettavano lo stesso destino. Qui, e solo qui, il record nato dalla
   // proposta del mandato vale come l'indirizzo approvato. Un immobile

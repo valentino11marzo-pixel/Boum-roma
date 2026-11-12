@@ -256,8 +256,8 @@ function seed(callerRole, ownerId, extra = {}) {
   store.set('properties/p1', { ownerId, address: 'Via Lucrino 41', name: 'Lucrino 41', ...(extra.property || {}) });
   store.set('contracts/ctr1', {
     propertyId: 'p1', tenantId: 't1', type: 'transitorio',
-    tenantName: 'Julie Verbrugghe', tenantEmail: 'julie@tenant.fr',
-    landlordName: 'Stefano Compierchio', startDate: '2026-09-01', endDate: '2027-08-31', rent: 1400,
+    tenantName: 'Elsa Sample', tenantEmail: 'elsa@tenant.fr',
+    landlordName: 'Stefano Esempio', startDate: '2026-09-01', endDate: '2027-08-31', rent: 1400,
     ...(extra.contract || {}),
   });
 }
@@ -385,7 +385,7 @@ const rooms = () => [{ room: 'cucina', items: [
 // ═══ G. il verbale smette di dire "arredi pattuiti" ═════════════════════
 {
   const { buildVerbalePdf } = await import('../../api/contracts/verbale.js');
-  const contract = { type: 'transitorio', tenantName: 'Julie', landlordName: 'Stefano', startDate: '2026-09-01', endDate: '2027-08-31' };
+  const contract = { type: 'transitorio', tenantName: 'Elsa', landlordName: 'Stefano', startDate: '2026-09-01', endDate: '2027-08-31' };
   const property = { address: 'Via Lucrino 41' };
   const when = { d: '01/09/2026', t: '10:30', iso: new Date().toISOString() };
   const args = { contract, property, keys: [{ label: 'Portone', qty: 2 }], meters: {}, condition: 'buono', notes: '', firme: [], photos: [], when };

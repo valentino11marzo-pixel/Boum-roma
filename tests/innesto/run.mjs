@@ -34,7 +34,7 @@ const USERS = new Map([
   ['tenant_1', { role: 'tenant',   email: 'inquilino@example.com' }],
 ]);
 
-const PDF_BYTES = Buffer.from('%PDF-1.4 SIMETO12 TESTA OYKU — contratto di locazione transitoria');
+const PDF_BYTES = Buffer.from('%PDF-1.4 ESEMPIO12 TESTA OYKU — contratto di locazione transitoria');
 const JPG_BYTES = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3, 4]);
 const HUGE_BYTES = Buffer.alloc(20 * 1024 * 1024 + 1, 65);
 // Un «PDF» da 9 MB (pdf-lib non lo apre: passa com'è) — il 21/09 era «troppo grande».
@@ -66,7 +66,7 @@ const XLSX = mkZip([['xl/workbook.xml', '<workbook><sheets><sheet name="Rate" sh
 const NOT_A_DOC = mkZip([['x.bin', 'xx']], false);
 const EML = Buffer.from('From: Marta Neri <marta@x.com>\r\nTo: info@boomrome.com\r\nSubject: =?utf-8?B?Q2FzYSBhIFRyYXN0ZXZlcmU=?=\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: quoted-printable\r\n\r\nCerco un bilocale a Trastevere da settembre, budget =E2=82=AC1200 al mese.\r\n');
 
-const OUR_STORAGE = 'https://firebasestorage.googleapis.com/v0/b/test/o/documents%2Fadmin_1%2Finnesto-tmp%2F1_Simeto12.pdf?alt=media&token=t';
+const OUR_STORAGE = 'https://firebasestorage.googleapis.com/v0/b/test/o/documents%2Fadmin_1%2Finnesto-tmp%2F1_Esempio12.pdf?alt=media&token=t';
 const HUGE_URL    = 'https://firebasestorage.googleapis.com/v0/b/test/o/documents%2Fadmin_1%2Finnesto-tmp%2F2_enorme.pdf?alt=media&token=t';
 
 const toF = (v) => (typeof v === 'string' ? { stringValue: v } : { nullValue: null });
@@ -80,11 +80,11 @@ const json = (o, status = 200) =>
 // percorso inesistente: la normalizzazione e la whitelist devono fermarli.
 const person = (o) => Object.assign({ name: null, email: null, phone: null, codiceFiscale: null, address: null, birthDate: null, birthPlace: null, nationality: null, docType: null, docNum: null, docIssuer: null, docIssueDate: null }, o);
 const AI_FULL = () => ({
-  files: [{ index: 1, kind: 'Contratto', title: 'Contratto transitorio Via Simeto 12', pages: '3', legible: true, summary: 'contratto firmato', party: '' }],
+  files: [{ index: 1, kind: 'Contratto', title: 'Contratto transitorio Via Esempio 12', pages: '3', legible: true, summary: 'contratto firmato', party: '' }],
   landlord: person({ name: 'Anna Testa', email: 'anna@example.com', codiceFiscale: 'TSTNNA70A41H501J', segreto: 'mai', kind: 'fisica', businessName: null, partitaIva: null, iban: null }),
   tenant: person({ name: 'Oyku Testa', email: 'oyku@example.com', codiceFiscale: 'TSTOYK95A41H501P', birthDate: '1995-01-01', birthPlace: 'Istanbul', docType: 'passport', docNum: 'U12345678', permessoNumero: null, permessoScadenza: null }),
   coTenants: [],
-  property: { name: '', address: 'Via Simeto 12', city: '', floor: '2', scala: '', interno: '7', sqm: '65', rooms: '2', bathrooms: 1, accessories: '', furnished: 'si', energyClass: 'F', propertyType: 'Apartment',
+  property: { name: '', address: 'Via Esempio 12', city: '', floor: '2', scala: '', interno: '7', sqm: '65', rooms: '2', bathrooms: 1, accessories: '', furnished: 'si', energyClass: 'F', propertyType: 'Apartment',
     cadastral: { sezione: '', foglio: '12', particella: '345', sub: '6', categoria: 'A/2', rendita: '512.3' }, tabelle: { proprieta: '', riscaldamento: null, acqua: null, altre: '' } },
   contract: { type: 'transitorio', startDate: '2026-09-01', endDate: '2027-08-31', durationMonths: '12', rent: '1100', deposit: '', depositMonths: '2', paymentDay: '5', installmentMonths: '1', accessoryCharges: '', condoMode: '', cedolareSecca: 'si',
     transitionalReason: 'motivi di lavoro', transitionalDocs: null, esigenzaDi: 'conduttore', studenti: { corsoStudi: null, universita: null, universitaIndirizzo: null, tipoIscrizione: null, annoAccademico: null },
@@ -95,7 +95,7 @@ const AI_FULL = () => ({
     { path: 'hacker.x', quote: 'no', file: 1, page: 1 },
     { path: 'tenant.codiceFiscale', quote: 'C.F. TSTOYK95A41H501P', file: 9, page: 2 },
   ],
-  notes: ['il deposito non è indicato come importo'], confidence: 88, summary: 'Contratto transitorio Via Simeto 12 — Testa → Testa, 12 mesi, €1.100/mese',
+  notes: ['il deposito non è indicato come importo'], confidence: 88, summary: 'Contratto transitorio Via Esempio 12 — Testa → Testa, 12 mesi, €1.100/mese',
 });
 const AI_EMPTY = () => Object.assign(AI_FULL(), {
   files: [{ index: 1, kind: 'altro', title: 'Foto mossa', pages: null, legible: false, summary: 'immagine sfocata, testo non leggibile', party: null }],
@@ -211,7 +211,7 @@ r = await call('admin_1', {});
 check('senza materiale → 400 prima di spendere', r.res.code === 400 && r.anth.length === 0, `ho avuto ${r.res.code}`);
 
 console.log('\n\x1b[1mLa forma della richiesta (la lezione del 14/09)\x1b[0m');
-r = await call('admin_1', { text: 'Contratto transitorio, Anna Testa, €1.100/mese', context: { hint: 'è il contratto di Simeto', known: { landlords: ['Anna Testa'], tenants: ['Oyku Testa'], properties: ['Via Simeto 12 — Via Simeto 12, Roma'] } } });
+r = await call('admin_1', { text: 'Contratto transitorio, Anna Testa, €1.100/mese', context: { hint: 'è il contratto di Esempio', known: { landlords: ['Anna Testa'], tenants: ['Oyku Testa'], properties: ['Via Esempio 12 — Via Esempio 12, Roma'] } } });
 const body = r.anth[0]?.body || {};
 check('admin + testo → 200', r.res.code === 200, JSON.stringify(r.res.body).slice(0, 200));
 check('legge claude-opus-5 (il documento vale un contratto registrato: non si risparmia)', body.model === 'claude-opus-5' && MODEL === 'claude-opus-5', body.model);
@@ -246,8 +246,8 @@ check('il prompt di sistema è in cache (prefisso stabile, cache_control)', Arra
 check('il ripiego server-side sui rifiuti è dichiarato (beta + fallbacks)', r.anth[0]?.headers?.['anthropic-beta'] === 'server-side-fallback-2026-07-01' && body.fallbacks === 'default');
 const userText = (body.messages?.[0]?.content || []).filter((c) => c.type === 'text').map((c) => c.text).join('\n');
 check('il testo incollato è etichettato come DOCUMENTO', /TESTO INCOLLATO DALL'OPERATORE \(DOCUMENTO 1\)/.test(userText));
-check('i nomi in archivio viaggiano (proprietari, inquilini, immobili) — solo per la grafia', /Anna Testa/.test(userText) && /Oyku Testa/.test(userText) && /Via Simeto 12/.test(userText) && /SOLO per usare la stessa grafia/.test(body.system[0].text));
-check('l\'indicazione dell\'operatore arriva al modello', /è il contratto di Simeto/.test(userText));
+check('i nomi in archivio viaggiano (proprietari, inquilini, immobili) — solo per la grafia', /Anna Testa/.test(userText) && /Oyku Testa/.test(userText) && /Via Esempio 12/.test(userText) && /SOLO per usare la stessa grafia/.test(body.system[0].text));
+check('l\'indicazione dell\'operatore arriva al modello', /è il contratto di Esempio/.test(userText));
 check('…con la chiave del server', r.anth[0]?.headers?.['x-api-key'] === 'sk-test');
 
 console.log('\n\x1b[1mLa proposta che torna\x1b[0m');
@@ -269,7 +269,7 @@ check('citazioni con indice come stringa: file "1" pagina "1" → 1 e 1', EV.fin
 check('gli enum senza maiuscole garantite: «Contratto» → contratto, «Apartment» → apartment', (r.res.body?.files?.[0]?.kind === 'contratto' || r.res.body?.files?.length === 0) && P.property?.propertyType === 'apartment', JSON.stringify([r.res.body?.files?.[0]?.kind, P.property?.propertyType]));
 check('il verdetto per file: cosa è, quante pagine, leggibile', r.res.body?.files?.[0]?.kind === 'contratto' && r.res.body.files[0].label === 'Contratto di locazione' && r.res.body.files[0].legible === true || r.res.body?.files?.length === 0);
 check('l\'uso: modello, token, tempo (per dire all\'operatore quanto è costata)', r.res.body?.usage?.model === 'claude-opus-5' && r.res.body.usage.inputTokens === 12000 && r.res.body.usage.cacheReadTokens === 3000);
-check('summary e confidence', /Via Simeto/.test(r.res.body?.summary || '') && r.res.body?.confidence === 88);
+check('summary e confidence', /Via Esempio/.test(r.res.body?.summary || '') && r.res.body?.confidence === 88);
 
 console.log('\n\x1b[1mPiù file in una lettura sola\x1b[0m');
 r = await call('admin_1', { text: 'note', files: [
@@ -398,11 +398,11 @@ console.log('\n\x1b[1mLA LEZIONE DEL 22/09/2026 — dati catastali incollati NUD
 // ancorato, e una lettura vuota dice quanti valori ha scritto il modello.
 const CATASTO = 'Sez. Urb. B — Fg. 545 — Part. 120 — Sub. 4 — Cat. A/3 — Cl. 5 — Cons. 4,5 vani — Rendita € 645,57';
 const SPARSE_CATASTO = { files: [{ index: '1', kind: 'visura', title: 'Dati catastali', legible: true, summary: 'estratto catastale incollato' }], material: 'immobile',
-  property: { name: 'Via Simeto 12', address: 'Via Simeto 12, 00199 Roma', cadastral: { sezione: 'B', foglio: '545', particella: '120', sub: '4', categoria: 'A/3', rendita: '645.57' } },
-  evidence: [{ path: 'property.cadastral.foglio', quote: 'Fg. 545', file: '', page: '' }, { path: 'property.address', quote: 'dichiarato dall\'operatore', file: '', page: '' }], notes: [], confidence: 85, summary: 'Dati catastali di Via Simeto 12' };
-r = await call('admin_1', { text: CATASTO, context: { hint: 'sono i dati catastali della casa di Simeto', target: { property: { name: 'Via Simeto 12', address: 'Via Simeto 12, 00199 Roma' }, landlord: { name: 'Anna Testa' }, hacker: { name: 'HACKERNAME' } } } }, { reply: SPARSE_CATASTO });
+  property: { name: 'Via Esempio 12', address: 'Via Esempio 12, 00199 Roma', cadastral: { sezione: 'B', foglio: '545', particella: '120', sub: '4', categoria: 'A/3', rendita: '645.57' } },
+  evidence: [{ path: 'property.cadastral.foglio', quote: 'Fg. 545', file: '', page: '' }, { path: 'property.address', quote: 'dichiarato dall\'operatore', file: '', page: '' }], notes: [], confidence: 85, summary: 'Dati catastali di Via Esempio 12' };
+r = await call('admin_1', { text: CATASTO, context: { hint: 'sono i dati catastali della casa di Esempio', target: { property: { name: 'Via Esempio 12', address: 'Via Esempio 12, 00199 Roma' }, landlord: { name: 'Anna Testa' }, hacker: { name: 'HACKERNAME' } } } }, { reply: SPARSE_CATASTO });
 let userTextT = (r.anth[0]?.body?.messages?.[0]?.content || []).filter((c) => c.type === 'text').map((c) => c.text).join('\n');
-check('il bersaglio dichiarato arriva al modello come blocco RIGUARDA (immobile con indirizzo, proprietario), come FATTO', /RIGUARDA \(dichiarato dall'operatore/.test(userTextT) && /- Immobile: «Via Simeto 12 — Via Simeto 12, 00199 Roma»/.test(userTextT) && /- Proprietario: «Anna Testa»/.test(userTextT) && /fatti, non deduzioni/.test(userTextT), userTextT.slice(-500));
+check('il bersaglio dichiarato arriva al modello come blocco RIGUARDA (immobile con indirizzo, proprietario), come FATTO', /RIGUARDA \(dichiarato dall'operatore/.test(userTextT) && /- Immobile: «Via Esempio 12 — Via Esempio 12, 00199 Roma»/.test(userTextT) && /- Proprietario: «Anna Testa»/.test(userTextT) && /fatti, non deduzioni/.test(userTextT), userTextT.slice(-500));
 check('…prima dell\'indicazione libera, e una chiave sconosciuta del bersaglio non entra', userTextT.indexOf('RIGUARDA') < userTextT.indexOf('Indicazione dell\'operatore') && !/HACKERNAME/.test(userTextT));
 check('…e il prompt di sistema spiega i DATI NUDI (catasto senza indirizzo = lettura valida) e il blocco RIGUARDA', /DATI NUDI incollati/.test(r.anth[0].body.system[0].text) && /blocco RIGUARDA/.test(r.anth[0].body.system[0].text));
 let PT = r.res.body?.proposal || {};
@@ -417,7 +417,7 @@ r = await call('admin_1', { text: 'niente' }, { reply: { property: { furnished: 
 check('solo default (furnished/propertyType/city) + material → vuoto ONESTO («material» da solo non è una proposta: prima era «Proposta pronta» a card zero): «letti 3 valori, ma nessuno identifica…»', r.res.code === 200 && r.res.body?.empty === true && r.res.body?.stats?.filled === 3 && /Letti 3 valori/.test(r.res.body?.message || '') && JSON.stringify(r.res.body?.proposal) === '{}', JSON.stringify([r.res.body?.stats, r.res.body?.message, r.res.body?.proposal]));
 r = await call('admin_1', { text: 'niente' }, { reply: {} });
 check('risposta vuota del tutto → 200 empty, filled 0, e il messaggio suggerisce «Riguarda» (nessun bersaglio dichiarato)', r.res.code === 200 && r.res.body?.empty === true && r.res.body?.stats?.filled === 0 && /«Riguarda»/.test(r.res.body?.message || ''), JSON.stringify([r.res.body?.stats, r.res.body?.message]));
-r = await call('admin_1', { text: 'niente', context: { target: { property: { name: 'Via Simeto 12', address: '' } } } }, { reply: {} });
+r = await call('admin_1', { text: 'niente', context: { target: { property: { name: 'Via Esempio 12', address: '' } } } }, { reply: {} });
 check('…col bersaglio già dichiarato il suggerimento «Riguarda» non compare (sarebbe una presa in giro)', r.res.code === 200 && r.res.body?.empty === true && !/«Riguarda»/.test(r.res.body?.message || '') && /RIGUARDA/.test((r.anth[0]?.body?.messages?.[0]?.content || []).map((c) => c.text || '').join('\n')), r.res.body?.message);
 r = await call('admin_1', { text: 'x', context: { target: { property: { name: 'N'.repeat(500), address: 'A'.repeat(500) } } } });
 userTextT = (r.anth[0]?.body?.messages?.[0]?.content || []).filter((c) => c.type === 'text').map((c) => c.text).join('\n');
@@ -548,7 +548,7 @@ async function runApply(proposal, seed = {}, opts = {}) {
 const FULL = {
   landlord: { name: 'Anna Rossi', email: 'anna@example.com', codiceFiscale: 'RSSNNA70A41H501J', iban: 'IT60X0542811101000000123456' },
   tenant: { name: 'Oyku Testa', email: 'oyku@example.com', codiceFiscale: 'TSTOYK95A41H501P', birthDate: '1995-01-01', birthPlace: 'Istanbul', docType: 'passport', docNum: 'U12345678', nationality: 'turca' },
-  property: { name: 'Via Simeto 12', address: 'Via Simeto 12, Roma', rent: 1100, foglio: '12', particella: '345', sub: '6', cadastralData: 'foglio 12, particella 345, sub 6', energyClass: 'F', interno: '7' },
+  property: { name: 'Via Esempio 12', address: 'Via Esempio 12, Roma', rent: 1100, foglio: '12', particella: '345', sub: '6', cadastralData: 'foglio 12, particella 345, sub 6', energyClass: 'F', interno: '7' },
   contract: { type: 'transitorio', startDate: '2026-09-01', endDate: '2027-08-31', rent: 1100, deposit: 2200, depositMonths: 2, paymentDay: 5, installmentMonths: 1, cedolareSecca: 'si', transitionalReason: 'motivi di lavoro', esigenzaDi: 'conduttore' },
 };
 
@@ -620,7 +620,7 @@ check('co-conduttore già in archivio → agganciato (nome invertito) e non dupl
 // IL DOCUMENTO RESTA (STUDIO_SCRIVANO §4, passo 1): il file letto si archivia
 // legato a ciò che ha creato; la carta d'identità entra negli identityDocs.
 const readDocs = [
-  { blob: { size: 10, type: 'application/pdf' }, mediaType: 'application/pdf', file: { name: 'contratto simeto.pdf', type: 'application/pdf', size: 10 }, meta: { kind: 'contratto', party: null, title: 'Contratto transitorio Via Simeto 12', docType: 'contract', category: 'contratto locazione', folder: '01_Contratto', summary: 'firmato' } },
+  { blob: { size: 10, type: 'application/pdf' }, mediaType: 'application/pdf', file: { name: 'contratto esempio.pdf', type: 'application/pdf', size: 10 }, meta: { kind: 'contratto', party: null, title: 'Contratto transitorio Via Esempio 12', docType: 'contract', category: 'contratto locazione', folder: '01_Contratto', summary: 'firmato' } },
   { blob: { size: 5, type: 'image/jpeg' }, mediaType: 'image/jpeg', file: { name: 'IMG_1.jpg', type: 'image/jpeg', size: 5 }, meta: { kind: 'documento_identita', party: 'tenant', title: 'Passaporto di Oyku Testa', docType: 'id', category: 'documento identità carta ID', folder: '07_Inquilino', summary: '' } },
 ];
 a = await runApply(structuredClone(FULL), {}, { readDocs });
@@ -650,15 +650,15 @@ check('…e la carta d\'identità archiviata entra negli identityDocs (contratto
   a.writes.some((w) => w.c === 'contracts' && w.op === 'update' && w.data.identityDocs?.__union?.source === 'scrivano' && w.data.identityDocs?.__union?.url)
   && a.writes.some((w) => w.c === 'users' && w.op === 'update' && w.data.identityDocs?.__union?.url), JSON.stringify(a.writes.filter((w) => w.op === 'update').map((w) => [w.c, w.data])));
 
-// IL CASO VIA SIMETO (30/08): il PDF non porta inquilino né immobile, ma
+// IL CASO VIA ESEMPIO (30/08): il PDF non porta inquilino né immobile, ma
 // ENTRAMBI esistono in anagrafica (creati da una corsa precedente). Con gli
 // agganci del fantasma il contratto nasce sui record esistenti — zero
 // doppioni, e le rate puntano agli id giusti.
 a = await runApply({ contract: structuredClone(FULL.contract) }, {
   users: [{ id: 'u_ten', name: 'Oyku Testa', email: 'oyku@example.com', role: 'tenant' }],
-  properties: [{ id: 'p_sim', name: 'Via Simeto 12', address: 'Via Simeto 12, Roma', rent: 1100 }],
+  properties: [{ id: 'p_sim', name: 'Via Esempio 12', address: 'Via Esempio 12, Roma', rent: 1100 }],
 }, { links: { tenant: 'u_ten', property: 'p_sim' } });
-check('CASO VIA SIMETO: contratto dagli agganci d\'archivio, senza sezioni nella proposta',
+check('CASO VIA ESEMPIO: contratto dagli agganci d\'archivio, senza sezioni nella proposta',
   a.by.contracts === 1 && a.by.payments === 12 && !a.by.users && !a.by.properties,
   JSON.stringify(a.by));
 check('…con gli id GIUSTI dell\'archivio', (() => {
@@ -673,8 +673,8 @@ check('…e l\'immobile agganciato viene marcato affittato',
 a = await runApply(structuredClone(FULL), {
   users: [{ id: 'u_ten', name: 'Oyku Testa', email: 'oyku@example.com', role: 'tenant' }],
   properties: [
-    { id: 'p_sim', name: 'Via Simeto 12', address: 'Via Simeto 12, Roma', rent: 1100 },
-    { id: 'p_altro', name: 'Via Simeto 12 int. 7', address: 'Via Simeto 12, Roma', rent: 1100 },
+    { id: 'p_sim', name: 'Via Esempio 12', address: 'Via Esempio 12, Roma', rent: 1100 },
+    { id: 'p_altro', name: 'Via Esempio 12 int. 7', address: 'Via Esempio 12, Roma', rent: 1100 },
   ],
 }, { links: { property: 'p_altro' } });
 check('l\'aggancio scelto dall\'operatore vince sul match automatico', (() => {

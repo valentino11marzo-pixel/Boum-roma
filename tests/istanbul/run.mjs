@@ -224,9 +224,9 @@ ok('le parole della persona chiudono il riassunto', /Sapienza, yüksek lisans/.t
 ok('l\'attribuzione dal boom_source arriva sul lead', L.attribution === 'ai_assistant · /istanbul', L.attribution);
 ok('raw.extra: page_lang chiuso e requestId fuori da extra', L.raw && L.raw.extra && L.raw.extra.page_lang === 'tr' && !('requestId' in L.raw.extra) && L.raw.requestId === 'a1b2c3d4e5f60718', L.raw);
 {
-  const r = await post(web.default, base({ requestId: 'enpage00000000001', page_lang: 'en', phone: '+90 532 999 88 77', message: '' }));
+  const r = await post(web.default, base({ requestId: 'enpage00000000001', page_lang: 'en', phone: '+90 532 999 98 77', message: '' }));
   const l = docOf('leads/' + r.body.id) || {};
-  ok('page_lang en → language en e «pagina: inglese»', l.language === 'en' && /pagina: inglese/.test(l.message) && l.phone === '+905329998877', { language: l.language, message: l.message, phone: l.phone });
+  ok('page_lang en → language en e «pagina: inglese»', l.language === 'en' && /pagina: inglese/.test(l.message) && l.phone === '+905329999877', { language: l.language, message: l.message, phone: l.phone });
   const r2 = await post(web.default, base({ requestId: 'bogus00000000001', page_lang: 'xx<script>' }));
   const l2 = docOf('leads/' + r2.body.id) || {};
   ok('page_lang fuori lista: scartato (mai testo libero), lingua di ripiego tr', l2.language === 'tr' && !/pagina:/.test(l2.message) && !(l2.raw && l2.raw.extra && 'page_lang' in l2.raw.extra), { m: l2.message, extra: l2.raw && l2.raw.extra });

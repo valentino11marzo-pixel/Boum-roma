@@ -2,8 +2,8 @@
 //
 // A client who paid the Application Pack on a desk that charges at the till
 // can move to Full Search on the same desk within UPGRADE_DAYS of paying for
-// the pack: what they paid is credited, once. The first case was Madrid, file
-// BM BEAEV: the founder promised the credit on the call, and the till had no
+// the pack: what they paid is credited, once. The first case was a Madrid
+// client: the founder promised the credit on the call, and the till had no
 // way to honour it except a manual refund after charging the full price.
 //
 // The server decides everything: which order can be upgraded, to what, the

@@ -96,14 +96,14 @@ const PNG1 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ
 function seed(callerRole, ownerId) {
   store.clear(); storageFiles.clear(); globalThis.__mails = [];
   store.set('users/caller1', { role: callerRole, name: 'Valentino', email: 'op@boom.it' });
-  store.set('properties/p1', { ownerId, address: 'Via Squarcialupo 36, int. 8', name: 'Squarcialupo' });
-  store.set('users/own1', { role: 'landlord', name: 'Stefano C', email: 'stefano@landlord.it' });
-  store.set('users/t1', { role: 'tenant', name: 'Julie', email: 'julie@tenant.fr' });
+  store.set('properties/p1', { ownerId, address: 'Via delle Prove 36, int. 8', name: 'Prove' });
+  store.set('users/own1', { role: 'landlord', name: 'Stefano E', email: 'stefano@landlord.it' });
+  store.set('users/t1', { role: 'tenant', name: 'Elsa', email: 'elsa@tenant.fr' });
   store.set('contracts/ctr1', {
     propertyId: 'p1', tenantId: 't1', type: 'transitorio',
-    tenantName: 'Julie Verbrugghe', tenantEmail: 'julie@tenant.fr',
-    coTenants: [{ name: 'Anouk Garot', email: 'anouk@tenant.fr', tenantIndex: 1 }],
-    landlordName: 'Stefano Compierchio',
+    tenantName: 'Elsa Sample', tenantEmail: 'elsa@tenant.fr',
+    coTenants: [{ name: 'Noa Prova', email: 'noa@tenant.fr', tenantIndex: 1 }],
+    landlordName: 'Stefano Esempio',
     startDate: '2026-09-01', endDate: '2027-08-31', rent: 1400,
   });
 }
@@ -121,8 +121,8 @@ const FULL = () => ({
   condition: 'buono',
   notes: 'Tende cucina da fissare → ok entro settembre ✓',   // WinAnsi-ostile di proposito
   firme: [
-    { name: 'Julie Verbrugghe', kind: 'conduttore', sig: PNG1 },
-    { name: 'Anouk Garot', kind: 'conduttore', sig: PNG1 },
+    { name: 'Elsa Sample', kind: 'conduttore', sig: PNG1 },
+    { name: 'Noa Prova', kind: 'conduttore', sig: PNG1 },
     { name: 'Valentino', kind: 'consegnante', sig: PNG1 },
   ],
   photos: [{ label: 'Contatore luce', base64: PNG1 }],
@@ -148,7 +148,7 @@ const FULL = () => ({
   const filed = docs.find(d => d.category === 'verbale');
   check('archiviato in documents con categoria verbale + aggancio contratto', !!filed && filed.contractId === 'ctr1' && filed.propertyId === 'p1' && filed.needsFiling === false);
 
-  const jm = mailTo('julie@tenant.fr'), am = mailTo('anouk@tenant.fr'), lm = mailTo('stefano@landlord.it'), vm = mailTo('valentino@boom-rome.com');
+  const jm = mailTo('elsa@tenant.fr'), am = mailTo('noa@tenant.fr'), lm = mailTo('stefano@landlord.it'), vm = mailTo('valentino@boom-rome.com');
   check('email conduttrice principale (EN, con allegato PDF identico allo Storage)', jm.length === 1 && /handover/i.test(jm[0].subject) && jm[0].attachments && jm[0].attachments[0] && Buffer.compare(jm[0].attachments[0].content, bytes) === 0);
   check('email co-conduttrice', am.length === 1);
   check('email proprietario (IT)', lm.length === 1 && /Consegna chiavi/i.test(lm[0].subject));
@@ -192,7 +192,7 @@ const FULL = () => ({
   const c = store.get('contracts/ctr1');
   c.inventario = { url: 'https://firebasestorage.googleapis.com/v0/b/x/o/contracts%2Fctr1%2Finventario-test.pdf?alt=media', items: 12 };
   const res = await drive(FULL());
-  const jm = mailTo('julie@tenant.fr'), lm = mailTo('stefano@landlord.it');
+  const jm = mailTo('elsa@tenant.fr'), lm = mailTo('stefano@landlord.it');
   const names = (m) => (m && m.attachments || []).map(a => a.filename);
   check('inventario: allegato al verbale per conduttrice e proprietario', res.code === 200
     && names(jm[0]).includes('BOOM_Inventario.pdf') && names(lm[0]).includes('BOOM_Inventario.pdf')
@@ -203,11 +203,11 @@ const FULL = () => ({
   seed('admin', 'own1');
   store.get('contracts/ctr1').inventario = { url: 'https://evil.example.com/inventario-test.pdf' };
   await drive(FULL());
-  check('inventario: un URL fuori dal nostro Storage non viene MAI scaricato né allegato', !names(mailTo('julie@tenant.fr')[0]).includes('BOOM_Inventario.pdf'));
+  check('inventario: un URL fuori dal nostro Storage non viene MAI scaricato né allegato', !names(mailTo('elsa@tenant.fr')[0]).includes('BOOM_Inventario.pdf'));
 
   seed('admin', 'own1');
   await drive(FULL());
-  check('senza inventario: il verbale parte come prima, un solo allegato', names(mailTo('julie@tenant.fr')[0]).join(',') === 'BOOM_Verbale_consegna.pdf');
+  check('senza inventario: il verbale parte come prima, un solo allegato', names(mailTo('elsa@tenant.fr')[0]).join(',') === 'BOOM_Verbale_consegna.pdf');
 }
 
 // Nessun verbale «firmato» o messaggio se una firma dichiarata non può

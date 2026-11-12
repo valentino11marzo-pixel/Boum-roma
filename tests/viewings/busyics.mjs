@@ -55,7 +55,7 @@ const times = (slots, date) => {
 // ── 2. a plain busy event removes the overlapping slots ───────────────────
 {
   // Monday 10:30–11:30 Rome (08:30–09:30Z): with the 15' gap only 12:15 survives
-  const t = ics(vevent('UID:meet-1@gmail.com', 'DTSTART:20260803T083000Z', 'DTEND:20260803T093000Z', 'SUMMARY:Notaio'));
+  const t = ics(vevent('UID:meet-1@calendar.example', 'DTSTART:20260803T083000Z', 'DTEND:20260803T093000Z', 'SUMMARY:Notaio'));
   ok('overlapping slots disappear', String(times(gridWith(t), '2026-08-03')) === '12:15', String(times(gridWith(t), '2026-08-03')));
   ok('other days are untouched', String(times(gridWith(t), '2026-08-04')) === '10:00,10:45,11:30,12:15');
 }

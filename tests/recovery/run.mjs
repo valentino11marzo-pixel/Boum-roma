@@ -21,15 +21,15 @@ const ok = (name, cond, detail) => {
 };
 
 const S = (over = {}) => ({
-  id: 'cs_live_a1IUYOwfUN3bJ9vAhXzjhlyibU18SGauN6nNKjC5PjeNZFRchqLZwVO7Hh',
+  id: 'cs_live_SYNTHETICabandonedCheckoutSessionOfTheRecoveryTest00000001',
   status: 'expired', payment_status: 'unpaid',
   amount_total: 35000, currency: 'eur', created: 1785316198,
-  customer_details: { email: 'sonia@example.com', name: 'Sonia Azofra' },
+  customer_details: { email: 'sara@example.com', name: 'Sara Prova' },
   metadata: {
-    service: 'PFS', name: 'Sonia Azofra', email: 'sonia@example.com', phone: '+34638068218',
+    service: 'PFS', name: 'Sara Prova', email: 'sara@example.com', phone: '+34600000009',
     budget: '€1,500-€2,000', bedrooms: '2', preferred_areas: 'Prati',
-    move_in_date: '2026-09-05', must_haves: '2 habitaciones con puerta',
-    additional_info: 'Cerca de la universidad y cerca del metro',
+    move_in_date: '2026-09-05', must_haves: 'Dos habitaciones separadas',
+    additional_info: 'Cerca del metro y de la universidad',
   },
   ...over,
 });
@@ -49,8 +49,8 @@ const S = (over = {}) => ({
     classifySession(S({ customer_details: null, customer_email: null, metadata: { service: 'PFS' } }), ops) === null);
   ok('un service sconosciuto viene ignorato', classifySession(S({ metadata: { service: 'BOH', email: 'x@y.com' } }), ops) === null);
 
-  process.env.GMAIL_USER = 'Boom.Test@Gmail.com';
-  ok('GMAIL_USER entra nel filtro operatore (case-insensitive)', operatorEmails().has('boom.test@gmail.com'));
+  process.env.GMAIL_USER = 'Boom.Test@Example.com';
+  ok('GMAIL_USER entra nel filtro operatore (case-insensitive)', operatorEmails().has('boom.test@example.com'));
   ok('l\'email vince in ordine: typed > metadata > customer_email',
     sessionEmail({ customer_details: { email: 'Typed@X.com' }, metadata: { email: 'meta@x.com' }, customer_email: 'cust@x.com' }) === 'typed@x.com');
 }
@@ -61,7 +61,7 @@ const S = (over = {}) => ({
   ok('status new → notify-pending, Lead Brain e Commerciale lo prendono da soli', lead.status === 'new');
   ok('source dice da dove viene', lead.source === 'stripe-recovery');
   ok('intent pfs', lead.intent === 'pfs');
-  ok('contatti completi', lead.name === 'Sonia Azofra' && lead.email === 'sonia@example.com' && lead.phone === '+34638068218');
+  ok('contatti completi', lead.name === 'Sara Prova' && lead.email === 'sara@example.com' && lead.phone === '+34600000009');
   ok('il messaggio racconta il fatto e l\'importo', lead.message.includes('Checkout NON completato') && lead.message.includes('€350'));
   ok('…e porta i requisiti verbatim', lead.message.includes('Prati') && lead.message.includes('habitaciones'));
   ok('i campi PFS grezzi viaggiano sul lead', lead.budget === '€1,500-€2,000' && lead.preferred_areas === 'Prati');
@@ -75,8 +75,8 @@ const S = (over = {}) => ({
   ok('id deterministico: un rerun non duplica', recoveryLeadId(S()) === recoveryLeadId(S()));
   ok('l\'id è corto e pulito', /^strec_[a-zA-Z0-9]{1,24}$/.test(recoveryLeadId(S())), recoveryLeadId(S()));
 
-  const recap = recapLine(S({ metadata: { service: 'PREAGREEMENT', name: 'Ines', ref: 'BOOM-MS3AWEZB', email: 'i@x.com' }, amount_total: 145000 }));
-  ok('la riga recap dice chi, cosa, quanto', recap.includes('pre-accordo') && /€1[.,]?450/.test(recap) && recap.includes('Ines') && recap.includes('BOOM-MS3AWEZB'), recap);
+  const recap = recapLine(S({ metadata: { service: 'PREAGREEMENT', name: 'Nina', ref: 'BOOM-AB12CD', email: 'i@x.com' }, amount_total: 145000 }));
+  ok('la riga recap dice chi, cosa, quanto', recap.includes('pre-accordo') && /€1[.,]?450/.test(recap) && recap.includes('Nina') && recap.includes('BOOM-AB12CD'), recap);
 }
 
 

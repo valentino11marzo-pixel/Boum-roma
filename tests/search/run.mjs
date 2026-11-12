@@ -17,7 +17,7 @@ const fixture = () => ({
     coTenants: [{ name: 'Coinquilina Salvata', email: 'seconda@example.invalid' }] }],
   documents: [{ id: 'document', name: 'Verbale dimostrativo', contractId: 'contract', category: 'verbale' }],
   maintenance: [{ id: 'maint', title: 'Rubinetto da verificare', propertyId: 'house', userId: 'tenant' }],
-  leads: [{ id: 'lead', leadName: 'Contatto Storico', leadPhone: '333 9988776', propertyId: 'same', clientId: 'same' }],
+  leads: [{ id: 'lead', leadName: 'Contatto Storico', leadPhone: '333 9999776', propertyId: 'same', clientId: 'same' }],
   tasks: [{ id: 'task', title: 'Richiamare il tecnico', linkedClientId: 'same', linkedPropertyId: 'house' }],
   deadlines: [{ id: 'deadline', title: 'Rinnovo dimostrativo', linkedContractId: 'contract', date: '2027-03-12' }],
   payments: [{ id: 'payment', month: '2027-03', amount: 1450, contractId: 'contract' }],
@@ -25,7 +25,7 @@ const fixture = () => ({
   pfsClients: [{ id: 'same', name: 'María Rossi', email: 'maria@example.invalid', service: 'PFS' }],
   pfsProperties: [{ id: 'pfs-house', address: 'Via Ricerca 10', landlordId: 'rubrica' }],
   landlords: [{ id: 'rubrica', name: 'Proprietario Rubrica', zones: 'Centro' }],
-  preAgreements: [{ id: 'proposal', ref: 'BOOM-PA123', tenant: { fullName: 'Candidata Proposta', phone: '+39 333 555 1212' },
+  preAgreements: [{ id: 'proposal', ref: 'BOOM-PA123', tenant: { fullName: 'Candidata Proposta', phone: '+39 333 555 5212' },
     tenants: [{ fullName: 'Seconda Firmataria' }], property: { address: 'Via Offerta 5' }, propertyId: 'house', contractId: 'contract', status: 'sent' }]
 });
 const ids = result => result.records.map(r => r.kind + '/' + r.id);
@@ -53,8 +53,8 @@ check('accents, case, spacing, reordered tokens and formatted telephone match', 
   const s = fixture();
   for (const q of ['MARIA', ' rossi   maria ', '3331234567', '+39 333 123 4567', 'Maria 3331234567']) assert(includes(E, q, s, 'client', 'same'), q);
   assert(includes(E, 'Roma Aurora', s, 'property', 'house'));
-  assert(includes(E, '3339988776', s, 'lead', 'lead'));
-  assert(includes(E, '3335551212', s, 'proposal', 'proposal'));
+  assert(includes(E, '3339999776', s, 'lead', 'lead'));
+  assert(includes(E, '3335555212', s, 'proposal', 'proposal'));
   assert(includes(E, 'Seconda Firmataria', s, 'proposal', 'proposal'));
 });
 check('ID, reference and code work; legacy names survive missing foreign records', () => {

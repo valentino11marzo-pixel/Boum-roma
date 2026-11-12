@@ -38,7 +38,7 @@ ok('"Prati" NON è dato di prova', !E.looksTestString('Casa Prati'));
 ok('email @example.com è finta', E.looksTestEmail('a@example.com'));
 ok('test@qualcosa.it è finta', E.looksTestEmail('test@qualcosa.it'));
 ok('email vera non è finta', !E.looksTestEmail('valentino@boomrome.com'));
-ok('email vera .it non è finta', !E.looksTestEmail('giulia.rossi@gmail.com'));
+ok('email di un dominio qualunque non è finta', !E.looksTestEmail('giulia.rossi@posta.example'));
 
 ok('+39 000000000 è telefono finto', E.looksTestPhone('+39 000000000'));
 ok('1234567 è telefono finto', E.looksTestPhone('1234567'));
@@ -153,8 +153,8 @@ console.log('\n── Effetti a cascata mostrati PRIMA di cancellare ───�
 console.log("\n── L'INNESTO: codice fiscale ─────────────────────────────");
 
 ok('CF valido accettato (RSSMRA85T10A562S)', E.validateCF('RSSMRA85T10A562S').valid);
-ok('CF valido accettato (MRTMTT25D09F205Z)', E.validateCF('MRTMTT25D09F205Z').valid);
-ok('CF valido accettato (MLLSNT82P65Z404U)', E.validateCF('MLLSNT82P65Z404U').valid);
+ok('CF valido accettato (VRDGLI90A41H501U)', E.validateCF('VRDGLI90A41H501U').valid);
+ok('CF valido accettato (SMTJHN85M01Z404G)', E.validateCF('SMTJHN85M01Z404G').valid);
 ok('CF con carattere di controllo sbagliato rifiutato', !E.validateCF('RSSMRA85T10A562A').valid);
 ok('CF troppo corto rifiutato', !E.validateCF('RSSMRA85T10').valid);
 ok('CF con mese inesistente rifiutato', !E.validateCF('RSSMRA85Z10A562S').valid);
@@ -173,7 +173,7 @@ console.log('\n── Validazione della proposta di import ───────
 {
   const good = E.validateProposal({
     property: { name: 'Bilocale Pigneto', rent: 1100 },
-    tenant: { name: 'Giulia Verdi', email: 'g@gmail.com', codiceFiscale: 'MRTMTT25D09F205Z' },
+    tenant: { name: 'Giulia Verdi', email: 'g@posta.example', codiceFiscale: 'VRDGLI90A41H501U' },
     contract: { startDate: '2026-09-01', endDate: '2027-08-31', rent: 1100, paymentDay: 5, installmentMonths: 1 }
   });
   ok('proposta coerente passa', good.ok, JSON.stringify(good.errors));
@@ -200,19 +200,19 @@ console.log('\n── Validazione della proposta di import ───────
 console.log('\n── Riconoscere chi è già in archivio ─────────────────────');
 {
   const existing = [
-    { id: 'u1', name: 'Giulia Verdi', email: 'giulia@gmail.com', codiceFiscale: 'MRTMTT25D09F205Z' },
-    { id: 'u2', name: 'Marco Neri', email: 'marco@gmail.com' }
+    { id: 'u1', name: 'Giulia Verdi', email: 'giulia@posta.example', codiceFiscale: 'VRDGLI90A41H501U' },
+    { id: 'u2', name: 'Marco Neri', email: 'marco@posta.example' }
   ];
   eq('stesso CF → aggancio certo',
-    E.findMatch({ name: 'G. Verdi', codiceFiscale: 'MRTMTT25D09F205Z' }, existing).match.id, 'u1');
+    E.findMatch({ name: 'G. Verdi', codiceFiscale: 'VRDGLI90A41H501U' }, existing).match.id, 'u1');
   eq('stessa email → aggancio',
-    E.findMatch({ name: 'Altro Nome', email: 'MARCO@gmail.com' }, existing).match.id, 'u2');
+    E.findMatch({ name: 'Altro Nome', email: 'MARCO@posta.example' }, existing).match.id, 'u2');
   eq('stesso nome invertito → aggancio',
     E.findMatch({ name: 'Verdi Giulia' }, existing).match.id, 'u1');
   eq('persona nuova → nessun aggancio',
-    E.findMatch({ name: 'Chiara Blu', email: 'chiara@gmail.com' }, existing).match, null);
+    E.findMatch({ name: 'Chiara Blu', email: 'chiara@posta.example' }, existing).match, null);
   ok('il motivo dell\'aggancio è dichiarato',
-    E.findMatch({ codiceFiscale: 'MRTMTT25D09F205Z' }, existing).why === 'stesso codice fiscale');
+    E.findMatch({ codiceFiscale: 'VRDGLI90A41H501U' }, existing).why === 'stesso codice fiscale');
 
   const props = [{ id: 'pr1', name: 'Bilocale Pigneto', address: 'Via del Pigneto 12' }];
   eq('stesso indirizzo scritto diverso → aggancio',
@@ -225,13 +225,13 @@ console.log('\n── Normalizzazione verso lo schema del portale ────�
     property: { name: '  Bilocale Pigneto ', rent: '1.100', sqm: '55 mq', energyClass: 'c' },
     contract: { type: 'TRANSITORIO', startDate: '01/09/2026', endDate: '2027-08-31',
                 rent: '€ 1.100,00', paymentDay: '5', installmentMonths: '3', cedolareSecca: true },
-    tenant: { name: 'Giulia Verdi', codiceFiscale: 'mrtmtt25d09f205z' }
+    tenant: { name: 'Giulia Verdi', codiceFiscale: 'vrdgli90a41h501u' }
   });
   eq('data italiana convertita in ISO', n.contract.startDate, '2026-09-01');
   eq('importo con separatori interpretato', n.contract.rent, 1100);
   eq('metri quadri estratti dal testo', n.property.sqm, 55);
   eq('cadenza trimestrale conservata', n.contract.installmentMonths, 3);
-  eq('CF in maiuscolo', n.tenant.codiceFiscale, 'MRTMTT25D09F205Z');
+  eq('CF in maiuscolo', n.tenant.codiceFiscale, 'VRDGLI90A41H501U');
   eq('classe energetica in maiuscolo', n.property.energyClass, 'C');
   eq('nome ripulito dagli spazi', n.property.name, 'Bilocale Pigneto');
   eq('cedolare secca in formato portale', n.contract.cedolareSecca, 'si');
@@ -285,19 +285,19 @@ console.log('\n── Il fascicolo a più letture (merge + derivazioni) ──�
   };
   const extra = {
     tenant: { name: 'OYKU TESTA (dal documento)', email: 'oyku@example.com', codiceFiscale: 'TSTOYK95A41Z243X', birthDate: '1995-01-01' },
-    property: { name: 'Via Simeto 12', address: 'Via Simeto 12, Roma', rent: 1100 }
+    property: { name: 'Via Esempio 12', address: 'Via Esempio 12, Roma', rent: 1100 }
   };
   const m = E.mergeProposal(base, extra);
   eq('un campo PIENO non si tocca mai (il nome resta quello a video)', m.tenant.name, 'Oyku Testa');
   eq('i buchi si riempiono (email dal documento)', m.tenant.email, 'oyku@example.com');
   eq('i campi nuovi entrano (CF dal documento)', m.tenant.codiceFiscale, 'TSTOYK95A41Z243X');
-  ok('una sezione assente arriva intera', m.property && m.property.address === 'Via Simeto 12, Roma');
+  ok('una sezione assente arriva intera', m.property && m.property.address === 'Via Esempio 12, Roma');
   eq('le sezioni non toccate restano identiche', m.contract, base.contract);
   ok('merge non muta gli argomenti', base.tenant.email === '' && !base.property);
 
-  const d = E.deriveProposal({ contract: { rent: 1100, deposit: null, depositMonths: 2 }, property: { name: '', address: 'Via Simeto 12, Roma', rent: null } });
+  const d = E.deriveProposal({ contract: { rent: 1100, deposit: null, depositMonths: 2 }, property: { name: '', address: 'Via Esempio 12, Roma', rent: null } });
   eq('deposito derivato: mensilità × canone', d.contract.deposit, 2200);
-  eq("il nome dell'immobile nasce dall'indirizzo", d.property.name, 'Via Simeto 12, Roma');
+  eq("il nome dell'immobile nasce dall'indirizzo", d.property.name, 'Via Esempio 12, Roma');
   const d2 = E.deriveProposal({ contract: { rent: null, deposit: 500, depositMonths: 2 }, property: { name: 'Casa', rent: 900 } });
   eq('il canone del contratto eredita dall\'immobile', d2.contract.rent, 900);
   eq('un deposito DICHIARATO non viene mai ricalcolato', d2.contract.deposit, 500);
