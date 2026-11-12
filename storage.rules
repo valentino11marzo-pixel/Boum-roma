@@ -202,6 +202,14 @@ service firebase.storage {
       allow read, write: if isAdmin();
     }
 
+    // L'incarico del proprietario firmato e la sua firma (api/owners/
+    // incarico.js), caricati server-side col token admin: senza questo match
+    // l'upload 403a (la lezione contracts/ e rendiconti/). Il proprietario lo
+    // apre via URL tokenizzato ?alt=media&token=.
+    match /ownerMandates/{id}/{allPaths=**} {
+      allow read, write: if isAdmin();
+    }
+
     // ─── site/** ──────────────────────────────────────────────────────
     // Le immagini del sito ri-ospitate da host terzi (api/media/rehost.js,
     // cache immutabile): servite nelle pagine PUBBLICHE, quindi lettura
