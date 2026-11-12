@@ -4567,10 +4567,11 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
      tetto di legge) non vendono il Full Search degli altri sei; la pagina Stripe e `/upgrade` lo dicono.
   11. **Solo dati inventati, da qui in avanti.** Questo repository è pubblico: nelle fixture dei test,
      nei commenti e nelle sezioni nuove di questo file si scrivono solo nomi, numeri e fascicoli
-     inventati (la fixture di `tests/upgrade` usa «Dana Sample», un numero +34 600 … e il fascicolo
-     «BM SAMPL»). Il materiale di un caso vero resta nello scratchpad della sessione e in Gmail. La
-     regola vale per ciò che si scrive da ora: ripulire ciò che è stato scritto prima è un lavoro a
-     parte, deciso dal fondatore.
+     inventati (la fixture di `tests/upgrade` usa «Dana Sample», il fascicolo «BM SAMPL» e numeri di
+     telefono evidentemente finti, come +34 600 000 001: cinque zeri di fila, una forma che un
+     controllo automatico riconosce). Il materiale di un caso vero resta nello scratchpad della
+     sessione e in Gmail. La regola vale per ciò che si scrive da ora: ripulire ciò che è stato scritto
+     prima è un lavoro a parte, deciso dal fondatore.
   **Misure**: hub 975 parole su 980 (fares 228/230), pagina 27,7 KB su 28; Milano 81,6 KB su 82: una
   frase in più su tutti i desk non entra senza tagliare. `moving-budget.html` rigenerata dopo il merge
   di #338 (su main diceva ancora «Fee charged only when you sign a lease» per Parigi e Berlino), con
@@ -7839,8 +7840,8 @@ italiano). Lo specchio esatto del mandato del conduttore:
 
 ### 📋 La Scheda del proprietario dalla console + il mandato sull'immobile nato dalla proposta (12/10/2026)
 «Non riesco a inviare alla proprietaria la scheda per far compilare i suoi
-dati o il link del Magic Sign.» Letto nel backup notturno, non dedotto: la
-proposta BOOM-MUCHJ6LC (Via dei Latini 76) era pagata dal 22/09 **senza
+dati o il link del Magic Sign.» Letto nel backup notturno, non dedotto: una
+proposta era pagata dal 22/09 **senza
 contratto**, perché non era collegata a nessun immobile del portal, e la
 proprietaria aveva solo il telefono. La Scheda e i link di firma sono del
 CONTRATTO: non c'era niente da mandare, e la riga non lo spiegava. Dietro,

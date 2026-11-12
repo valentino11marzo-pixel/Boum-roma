@@ -604,7 +604,7 @@ const meta = (over = {}) => ({ service: 'SERVICE', kind: 'full-search', city: 'm
   const owedAlert = (fsId) => store.get('agentNotifications/upgrade-owed-' + fsId.slice(4));
 
   // (a) the same person (same e-mail, same phone), no statement on the pack
-  const olga = { name: 'Olga Owed', email: 'olga@example.com', phone: '+34611000001' };
+  const olga = { name: 'Olga Owed', email: 'olga@example.com', phone: '+34700000001' };
   await pack('cs_live_pack_20', olga);
   const PK = serviceLeadId('cs_live_pack_20'), FS = serviceLeadId('cs_live_fs_20');
   const pkFile = L(PK).city.file;
@@ -676,7 +676,7 @@ const meta = (over = {}) => ({ service: 'SERVICE', kind: 'full-search', city: 'm
   check(/Il credito è già stato rimborsato sull'ordine .*, pagato a prezzo pieno\. Nessun link\./.test(BOT.upgradeReply(L(PK), PK, NOW, ORIGIN)), 'the bot says the pack\'s credit was refunded on the full-price order');
 
   // (a2) the WHOLE order refunded in one go: nothing was credited, the pack keeps its credit
-  const nina = { name: 'Nina Whole', email: 'ninaw@example.com', phone: '+34611000021' };
+  const nina = { name: 'Nina Whole', email: 'ninaw@example.com', phone: '+34700000021' };
   await pack('cs_live_pack_21', nina); await full('cs_live_fs_21', nina);
   const P21 = serviceLeadId('cs_live_pack_21');
   sessions(['cs_live_fs_21', 'pi_fs_21']);
@@ -686,10 +686,10 @@ const meta = (over = {}) => ({ service: 'SERVICE', kind: 'full-search', city: 'm
     'a full refund of the order returns everything: the credit is no longer owed there and the pack keeps it (its link still opens)', JSON.stringify(tg.map((x) => x.text)));
 
   // (b) only the e-mail matches (another phone, another name): record, ask the operator to verify, promise nothing
-  await pack('cs_live_pack_37', { name: 'Mara Match', email: 'mara@example.com', phone: '+34611000107' });
+  await pack('cs_live_pack_37', { name: 'Mara Match', email: 'mara@example.com', phone: '+34710000007' });
   const P37 = serviceLeadId('cs_live_pack_37'), F37 = serviceLeadId('cs_live_fs37stranger');
   emails.length = 0;
-  await full('cs_live_fs37stranger', { name: 'Someone Else', email: 'mara@example.com', phone: '+34611000199' });
+  await full('cs_live_fs37stranger', { name: 'Someone Else', email: 'mara@example.com', phone: '+34710000099' });
   const f37 = L(F37), al37 = owedAlert(F37);
   const op37 = emails.find((e) => e.to_email === 'valentino@boom-rome.com'), cl37 = emails.find((e) => e.to_email === 'mara@example.com');
   check(f37.city.creditDue && f37.city.creditDue.from === P37 && f37.city.creditDue.match === 'check' && f37.city.file !== L(P37).city.file && f37.city.fileLeadId === null && /€199 Application Pack credit to check/.test(f37.message) && !L(P37).credit,
@@ -705,7 +705,7 @@ const meta = (over = {}) => ({ service: 'SERVICE', kind: 'full-search', city: 'm
     && /si chiude da solo soltanto con un rimborso di esattamente €199 su questo pagamento\./.test(al37.summary), 'the holder\'s own link still opens, and the bot and the card repeat the caution on the full-price order: only a refund of exactly the pack amount closes that credit');
 
   // (c) a withdrawal statement is on file for the pack: ONE refund is due, not two
-  const sara = { name: 'Sara Statement', email: 'sara@example.com', phone: '+34611000120' };
+  const sara = { name: 'Sara Statement', email: 'sara@example.com', phone: '+34710000020' };
   await pack('cs_live_pack_22', sara);
   const P22 = serviceLeadId('cs_live_pack_22'), F22 = serviceLeadId('cs_live_fs_22');
   await post(withdraw, { name: 'Sara Statement', email: 'sara@example.com', ref: L(P22).city.file, desk: 'Madrid', service: 'application-pack', requestId: 'wreq4444' + 'e'.repeat(8) });
@@ -727,7 +727,7 @@ const meta = (over = {}) => ({ service: 'SERVICE', kind: 'full-search', city: 'm
   check(TG(new RegExp('ATTENZIONE: il pack ' + P22 + ' risulta già rimborsato: il suo credito non era più dovuto — se questo rimborso era il credito, è un secondo rimborso dello stesso pack')) && !L(P22).credit,
     '…and if €199 goes back on the Full Search all the same, the card says it is a second refund of the same pack (nothing is marked)', JSON.stringify(tg.map((x) => x.text)));
   // a pack refunded when the question "is an order waiting for this credit?" cannot be asked: the card says so
-  const zed = { name: 'Zed Query', email: 'zed@example.com', phone: '+34611000147' };
+  const zed = { name: 'Zed Query', email: 'zed@example.com', phone: '+34710000047' };
   await pack('cs_live_pack_47', zed);
   sessions(['cs_live_pack_47', 'pi_pack_47']);
   hooks.failQueries = 1; tg.length = 0;
@@ -736,7 +736,7 @@ const meta = (over = {}) => ({ service: 'SERVICE', kind: 'full-search', city: 'm
   check(TG(/il credito di upgrade di questo ordine non vale più\. Non ho potuto controllare se un ordine pagato a prezzo pieno aspettava il rimborso di questo credito\./), 'a failed lookup of the waiting orders is said on the card, never passed off as "none"', JSON.stringify(tg.map((x) => x.text)));
 
   // (d) a lookup that FAILS is not "no credit": the order says so and the operator checks by hand
-  const fay1 = { name: 'Fay Lookup', email: 'fayl@example.com', phone: '+34611000123' };
+  const fay1 = { name: 'Fay Lookup', email: 'fayl@example.com', phone: '+34710000023' };
   await pack('cs_live_pack_23', fay1);
   const F23 = serviceLeadId('cs_live_fs_23');
   hooks.failQueries = 99; emails.length = 0;
@@ -749,7 +749,7 @@ const meta = (over = {}) => ({ service: 'SERVICE', kind: 'full-search', city: 'm
     && op23 && /Could NOT read this payer's earlier orders on this desk in full/.test(op23.intro) && /whether they hold a pack with an open credit/.test(op23.intro) && !/§12\.5/.test(op23.intro) && cl23 && !/You already paid for the Application Pack/.test(cl23.closing) && !/refund €199/.test(cl23.closing) && !L(serviceLeadId('cs_live_pack_23')).credit,
     'a failed lookup: the order is written with creditUnverified, an urgent card asks the operator to check by hand, and the client is promised nothing', chk && chk.summary);
   check(/Al pagamento non ho potuto leggere gli ordini precedenti/.test(BOT.upgradeReply(L(F23), F23, NOW, ORIGIN)), 'the bot repeats it on that order');
-  const fay2 = { name: 'Fay Retry', email: 'fayr@example.com', phone: '+34611000124' };
+  const fay2 = { name: 'Fay Retry', email: 'fayr@example.com', phone: '+34710000024' };
   await pack('cs_live_pack_24', fay2);
   hooks.failQueries = 1;
   await full('cs_live_fs_24', fay2);
@@ -757,46 +757,46 @@ const meta = (over = {}) => ({ service: 'SERVICE', kind: 'full-search', city: 'm
   // a list cut at its limit is a lookup that did not finish (no silent cap); one row less is a complete answer
   for (let i = 0; i < 50; i++) seed('city_lots' + String(i).padStart(4, '0') + 'aaaa', { intent: 'city_search', market: 'madrid', email: 'lots@example.com', emailKey: 'lots@example.com', createdAt: new Date(NOW - DAY).toISOString() });
   for (let i = 0; i < 49; i++) seed('city_some' + String(i).padStart(4, '0') + 'aaaa', { intent: 'city_search', market: 'madrid', email: 'some@example.com', emailKey: 'some@example.com', createdAt: new Date(NOW - DAY).toISOString() });
-  await full('cs_live_fs_25', { name: 'Lots Leads', email: 'lots@example.com', phone: '+34611000125' });
-  await full('cs_live_fs_26', { name: 'Some Leads', email: 'some@example.com', phone: '+34611000126' });
+  await full('cs_live_fs_25', { name: 'Lots Leads', email: 'lots@example.com', phone: '+34710000025' });
+  await full('cs_live_fs_26', { name: 'Some Leads', email: 'some@example.com', phone: '+34710000026' });
   check(L(serviceLeadId('cs_live_fs_25')).city.creditUnverified === true && store.has('agentNotifications/upgrade-check-' + serviceLeadId('cs_live_fs_25').slice(4))
     && !L(serviceLeadId('cs_live_fs_26')).city.creditUnverified && !L(serviceLeadId('cs_live_fs_26')).city.creditDue && hooks.queries.filter((q) => q.field === 'emailKey').length > 10 && hooks.queries.filter((q) => q.field === 'emailKey').every((q) => q.limit === 50),
     'a list that comes back full (50 rows) counts as a failed lookup; 49 rows is an answer');
 
   // (e) the address: any capitals since emailKey; the three forms for orders from before it
-  await pack('cs_live_pack_36', { name: 'Eva Rossi', email: 'Eva.Rossi@Example.com', phone: '+34611000106' });
-  await full('cs_live_fs_36', { name: 'Eva Rossi', email: 'eva.rossi@example.com', phone: '+34611000106' });
-  await pack('cs_live_pack_36b', { name: 'Cora Case', email: 'cora@example.com', phone: '+34611000116' });
-  await full('cs_live_fs_36b', { name: 'Cora Case', email: 'CORA@EXAMPLE.COM', phone: '+34611000116' });
+  await pack('cs_live_pack_36', { name: 'Eva Rossi', email: 'Eva.Rossi@Example.com', phone: '+34710000006' });
+  await full('cs_live_fs_36', { name: 'Eva Rossi', email: 'eva.rossi@example.com', phone: '+34710000006' });
+  await pack('cs_live_pack_36b', { name: 'Cora Case', email: 'cora@example.com', phone: '+34710000016' });
+  await full('cs_live_fs_36b', { name: 'Cora Case', email: 'CORA@EXAMPLE.COM', phone: '+34710000016' });
   check(L(serviceLeadId('cs_live_fs_36')).city.creditDue && L(serviceLeadId('cs_live_fs_36')).city.creditDue.from === serviceLeadId('cs_live_pack_36')
     && L(serviceLeadId('cs_live_fs_36b')).city.creditDue && L(serviceLeadId('cs_live_fs_36b')).city.creditDue.from === serviceLeadId('cs_live_pack_36b'),
     'the same address in any capitals is the same address, in both directions (emailKey)');
   const legacy = (id, email, phone) => seed(id, apLead({ name: 'Leg Acy', email, phone, city: { ...apLead().city, file: 'BM LEGAC' } }));
-  legacy('svc_cslivelegacytyped001', 'MiXed@example.com', '+34611000131');
-  legacy('svc_cslivelegacylower001', 'low@example.com', '+34611000132');
-  legacy('svc_cslivelegacycap00001', 'Cap@example.com', '+34611000133');
-  await full('cs_live_fs_31t', { name: 'Leg Acy', email: 'MiXed@example.com', phone: '+34611000131' });
-  await full('cs_live_fs_32l', { name: 'Leg Acy', email: 'LOW@example.com', phone: '+34611000132' });
-  await full('cs_live_fs_33c', { name: 'Leg Acy', email: 'cap@example.com', phone: '+34611000133' });
+  legacy('svc_cslivelegacytyped001', 'MiXed@example.com', '+34710000031');
+  legacy('svc_cslivelegacylower001', 'low@example.com', '+34710000032');
+  legacy('svc_cslivelegacycap00001', 'Cap@example.com', '+34710000033');
+  await full('cs_live_fs_31t', { name: 'Leg Acy', email: 'MiXed@example.com', phone: '+34710000031' });
+  await full('cs_live_fs_32l', { name: 'Leg Acy', email: 'LOW@example.com', phone: '+34710000032' });
+  await full('cs_live_fs_33c', { name: 'Leg Acy', email: 'cap@example.com', phone: '+34710000033' });
   const dueOf = (sid) => (L(serviceLeadId(sid)).city.creditDue || {}).from;
   check(!('emailKey' in L('svc_cslivelegacytyped001')) && dueOf('cs_live_fs_31t') === 'svc_cslivelegacytyped001' && dueOf('cs_live_fs_32l') === 'svc_cslivelegacylower001' && dueOf('cs_live_fs_33c') === 'svc_cslivelegacycap00001',
     'an order from before emailKey is found by the address as typed, in lower case, or with a capital first letter (each form on its own)', [dueOf('cs_live_fs_31t'), dueOf('cs_live_fs_32l'), dueOf('cs_live_fs_33c')].join());
 
   // (f) the clock is the PAYMENT's (the event's time), not the delivery's
-  const lia = { name: 'Lia Late', email: 'lia@example.com', phone: '+34611000140' };
+  const lia = { name: 'Lia Late', email: 'lia@example.com', phone: '+34710000040' };
   seed('svc_cslivepackpaidlong01', apLead({ ...lia, paid_at: new Date(NOW - 40 * DAY).toISOString(), createdAt: new Date(NOW - 40 * DAY).toISOString(), city: { ...apLead().city, file: 'BM LATEE' } }));
   await full('cs_live_fs_40', lia, { created: Math.floor((NOW - 30 * DAY) / 1000) });
   await full('cs_live_fs_40n', lia);
   check(dueOf('cs_live_fs_40') === 'svc_cslivepackpaidlong01' && !L(serviceLeadId('cs_live_fs_40n')).city.creditDue,
     'a payment made while the credit was open is owed its refund even when Stripe delivers the event after the deadline; a payment made after it is not');
-  const paula = { name: 'Paula Post', email: 'paula@example.com', phone: '+34611000141' };
+  const paula = { name: 'Paula Post', email: 'paula@example.com', phone: '+34710000041' };
   seed('svc_cslivepackboughtlate1', apLead({ ...paula, city: { ...apLead().city, file: 'BM PAULA' } }));
   const b41 = owedKeys().length;
   await full('cs_live_fs_41', paula, { created: Math.floor((NOW - 3 * DAY) / 1000) });
   check(!L(serviceLeadId('cs_live_fs_41')).city.creditDue && owedKeys().length === b41, 'a pack bought AFTER the payment is not a credit that payment held');
 
   // (g) a second delivery never looks the payer up again: the ORDER says what the payment owed
-  const rita = { name: 'Rita Retry', email: 'rita@example.com', phone: '+34611000109' };
+  const rita = { name: 'Rita Retry', email: 'rita@example.com', phone: '+34710000009' };
   await pack('cs_live_pack_39', rita);
   const P39 = serviceLeadId('cs_live_pack_39'), F39 = serviceLeadId('cs_live_fs_39');
   await full('cs_live_fs_39', rita);
@@ -807,7 +807,7 @@ const meta = (over = {}) => ({ service: 'SERVICE', kind: 'full-search', city: 'm
   const al39 = owedAlert(F39);
   check(r39.body.duplicate === true && al39 && al39.summary.includes(P39) && !al39.summary.includes('svc_cslivesecondpack0039') && L(F39).city.creditDue.from === P39 && !L('svc_cslivesecondpack0039').credit && L(P39).credit.usedBy === 'svc_cslivelinkupgrade39',
     'a retry after a first run that died before ringing: the alert rings from what the ORDER recorded — another open pack under that e-mail is not touched or named', al39 && al39.summary);
-  const nora = { name: 'Nora Nopack', email: 'nora@example.com', phone: '+34611000142' };
+  const nora = { name: 'Nora Nopack', email: 'nora@example.com', phone: '+34710000042' };
   await full('cs_live_fs_42', nora);
   await pack('cs_live_pack_42', nora);
   const b42 = owedKeys().length;
@@ -815,7 +815,7 @@ const meta = (over = {}) => ({ service: 'SERVICE', kind: 'full-search', city: 'm
   check(r42.body.duplicate === true && owedKeys().length === b42 && !L(serviceLeadId('cs_live_fs_42')).city.creditDue && !L(serviceLeadId('cs_live_pack_42')).credit,
     'a Full Search paid with no pack, a pack bought later, the Full Search event delivered again: nothing is owed and the new pack is not touched');
   // the link path, delivered again after its pack was refunded: it had spent the credit while it was open
-  const lena = { name: 'Lena Link', email: 'lenal@example.com', phone: '+34611000143' };
+  const lena = { name: 'Lena Link', email: 'lenal@example.com', phone: '+34710000043' };
   await pack('cs_live_pack_43', lena);
   const P43 = serviceLeadId('cs_live_pack_43'), U43 = serviceLeadId('cs_live_up_43');
   await webhook(stream(event(meta({ credit_from: P43, ...lena }), { id: 'cs_live_up_43' })), mkRes());
@@ -826,7 +826,7 @@ const meta = (over = {}) => ({ service: 'SERVICE', kind: 'full-search', city: 'm
     'an upgrade delivered again after its pack was refunded is not called "a credit that was not due"');
 
   // (h) the settle never writes over another order's mark, and writes under the version it read
-  const gus = { name: 'Gus Guard', email: 'gus@example.com', phone: '+34611000144' };
+  const gus = { name: 'Gus Guard', email: 'gus@example.com', phone: '+34710000044' };
   await pack('cs_live_pack_44', gus); await full('cs_live_fs_44', gus);
   const P44 = serviceLeadId('cs_live_pack_44');
   store.set('leads/' + P44, { ...L(P44), credit: { usedBy: 'svc_cslivelinkupgrade44', usedAt: 'x', amount: 199, currency: 'eur' } }); bump('leads/' + P44);
@@ -835,7 +835,7 @@ const meta = (over = {}) => ({ service: 'SERVICE', kind: 'full-search', city: 'm
   await refund('evt_ref_44', 'pi_fs_44', 50000, 19900);
   check(TG(new RegExp('ATTENZIONE: il credito di ' + P44 + ' risulta già usato da svc_cslivelinkupgrade44: su questo ordine non era più dovuto — se questo rimborso era il credito, è un doppione')) && L(P44).credit.usedBy === 'svc_cslivelinkupgrade44' && !L(P44).credit.via,
     'a credit spent through the link before the refund: the settle never writes over that mark, and the card says the refund was not due', JSON.stringify(tg.map((x) => x.text)));
-  const hal = { name: 'Hal Race', email: 'hal@example.com', phone: '+34611000145' };
+  const hal = { name: 'Hal Race', email: 'hal@example.com', phone: '+34710000045' };
   await pack('cs_live_pack_45', hal); await full('cs_live_fs_45', hal);
   const P45 = serviceLeadId('cs_live_pack_45');
   sessions(['cs_live_fs_45', 'pi_fs_45']);
@@ -846,7 +846,7 @@ const meta = (over = {}) => ({ service: 'SERVICE', kind: 'full-search', city: 'm
   check(r45.code === 200 && L(P45).credit.usedBy === 'svc_csliveraceupgrade45' && TG(/risulta già usato da svc_csliveraceupgrade45/),
     'a link upgrade that lands between the settle\'s read and its write is not overwritten (the mark is written under the version just read)', JSON.stringify(L(P45).credit));
   // a mark that cannot be written: 500, so Stripe delivers the refund again; the redelivery closes the credit and says so
-  const ida = { name: 'Ida Fail', email: 'ida@example.com', phone: '+34611000146' };
+  const ida = { name: 'Ida Fail', email: 'ida@example.com', phone: '+34710000046' };
   await pack('cs_live_pack_46', ida); await full('cs_live_fs_46', ida);
   const P46 = serviceLeadId('cs_live_pack_46'), F46 = serviceLeadId('cs_live_fs_46');
   sessions(['cs_live_fs_46', 'pi_fs_46']);
@@ -878,7 +878,7 @@ const meta = (over = {}) => ({ service: 'SERVICE', kind: 'full-search', city: 'm
     const f = L(serviceLeadId('cs_live_fs_' + idn));
     check(f && !f.city.creditDue && !f.creditDueFrom && owedKeys().length === before && !L(pid).credit, label, f && JSON.stringify(f.city.creditDue || null));
   };
-  const who = (i) => ({ name: 'Nina None' + i, email: `nina${i}@example.com`, phone: '+3461100010' + i });
+  const who = (i) => ({ name: 'Nina None' + i, email: `nina${i}@example.com`, phone: '+3471000000' + i });
   await none('a pack on ANOTHER desk is not this desk\'s credit', { ...who(1), city: 'amsterdam', market: 'amsterdam' }, null, who(1), 31);
   await none('an expired pack (Madrid, 40 days ago) owes nothing', who(2), { paid_at: new Date(NOW - 40 * DAY).toISOString() }, who(2), 32);
   await none('a refunded pack owes nothing', who(3), { refundedAt: new Date(NOW).toISOString(), refundedAmount: 199 }, who(3), 33);
@@ -933,7 +933,7 @@ const meta = (over = {}) => ({ service: 'SERVICE', kind: 'full-search', city: 'm
   check(ra2.body.duplicate === true && store.has('agentNotifications/upgrade-stack-' + AV70.slice(4)), 'a Stripe retry rings the card again from the stored order');
   // who is NOT flagged: Madrid (stacking is allowed there), a Full Search refunded in full, a first order
   const b = stackKeys().length;
-  const mad = { name: 'Mado Stack', email: 'mado@example.com', phone: '+34611000170' };
+  const mad = { name: 'Mado Stack', email: 'mado@example.com', phone: '+34710000070' };
   await order('cs_live_fs_72', 'full-search', 500, mad, 'madrid');
   await order('cs_live_av_72', 'attended-viewing', 149, mad, 'madrid');
   const ref = { name: 'Rolf Refunded', email: 'rolf@example.com', phone: '+4915100000073' };
@@ -956,7 +956,7 @@ const meta = (over = {}) => ({ service: 'SERVICE', kind: 'full-search', city: 'm
 {
   const TG = (re) => tg.some((x) => re.test(String(x.text || '')));
   const dsp = (id, type, pi, status, created = 1794500000) => ({ id, type, created, data: { object: { id: 'dp_' + id, payment_intent: pi, amount: 19900, currency: 'eur', reason: 'fraudulent', status, evidence_details: { due_by: 1795000000 } } } });
-  await webhook(stream(event({ ...meta(), kind: 'application-pack', name: 'Dora Dispute', email: 'dora@example.com', phone: '+34611000201', amount_eur: '199', credit_from: '', credit_amount: '', credit_plan: '' }, { id: 'cs_live_pack_40', amount_total: 19900 })), mkRes());
+  await webhook(stream(event({ ...meta(), kind: 'application-pack', name: 'Dora Dispute', email: 'dora@example.com', phone: '+34720000001', amount_eur: '199', credit_from: '', credit_amount: '', credit_plan: '' }, { id: 'cs_live_pack_40', amount_total: 19900 })), mkRes());
   const D = serviceLeadId('cs_live_pack_40'), t = TOK.upgradeToken(D);
   globalThis.__stripeSessions = [{ id: 'cs_live_pack_40', payment_intent: 'pi_pack_40' }];
   tg.length = 0;
@@ -973,7 +973,7 @@ const meta = (over = {}) => ({ service: 'SERVICE', kind: 'full-search', city: 'm
   await webhook(stream(dsp('evt_dsp_2', 'charge.dispute.closed', 'pi_pack_40', 'lost', 1794600000)), mkRes());
   check(store.get('leads/' + D).disputedAt && store.get('leads/' + D).disputeStatus === 'lost' && (await get(cityLead, { upgrade: D, t })).code === 410 && TG(/Dispute PERSA/) && TG(/contestazione chiusa — contestazione persa: il credito di upgrade di questo ordine non vale più\./) && !TG(/sospeso finché/), 'a lost dispute keeps the credit closed, and its card no longer says "suspended until it is won"');
   // won: the money is BOOM's again, and so is the credit
-  await webhook(stream(event({ ...meta(), kind: 'application-pack', name: 'Wendy Won', email: 'wendy@example.com', phone: '+34611000202', amount_eur: '199', credit_from: '', credit_amount: '', credit_plan: '' }, { id: 'cs_live_pack_41', amount_total: 19900 })), mkRes());
+  await webhook(stream(event({ ...meta(), kind: 'application-pack', name: 'Wendy Won', email: 'wendy@example.com', phone: '+34720000002', amount_eur: '199', credit_from: '', credit_amount: '', credit_plan: '' }, { id: 'cs_live_pack_41', amount_total: 19900 })), mkRes());
   const W = serviceLeadId('cs_live_pack_41');
   globalThis.__stripeSessions = [{ id: 'cs_live_pack_41', payment_intent: 'pi_pack_41' }];
   await webhook(stream(dsp('evt_dsp_3', 'charge.dispute.created', 'pi_pack_41', 'needs_response')), mkRes());
@@ -996,7 +996,7 @@ const meta = (over = {}) => ({ service: 'SERVICE', kind: 'full-search', city: 'm
   await webhook(stream(dsp('evt_dsp_6', 'charge.dispute.closed', 'pi_pack_41', 'warning_closed', 1794700000)), mkRes());
   check(!!midway && store.get('leads/' + W).disputedAt === null && upgradeOffer(store.get('leads/' + W), W, NOW).state === 'open', 'an inquiry suspends the credit while it is open and gives it back when it closes without a dispute');
   // "worth again" only when the link really opens again: a pack past its 30 days does not
-  await webhook(stream(event({ ...meta(), kind: 'application-pack', name: 'Olda Old', email: 'olda@example.com', phone: '+34611000204', amount_eur: '199', credit_from: '', credit_amount: '', credit_plan: '' }, { id: 'cs_live_pack_44d', amount_total: 19900 })), mkRes());
+  await webhook(stream(event({ ...meta(), kind: 'application-pack', name: 'Olda Old', email: 'olda@example.com', phone: '+34720000004', amount_eur: '199', credit_from: '', credit_amount: '', credit_plan: '' }, { id: 'cs_live_pack_44d', amount_total: 19900 })), mkRes());
   const OLD = serviceLeadId('cs_live_pack_44d');
   store.set('leads/' + OLD, { ...store.get('leads/' + OLD), paid_at: new Date(NOW - 40 * DAY).toISOString() }); bump('leads/' + OLD);
   globalThis.__stripeSessions = [{ id: 'cs_live_pack_44d', payment_intent: 'pi_pack_44d' }];
@@ -1005,7 +1005,7 @@ const meta = (over = {}) => ({ service: 'SERVICE', kind: 'full-search', city: 'm
   await webhook(stream(dsp('evt_dsp_44b', 'charge.dispute.closed', 'pi_pack_44d', 'won', 1794600000)), mkRes());
   check(TG(/contestazione vinta — il credito di upgrade di questo ordine era comunque scaduto/) && !TG(/vale di nuovo/), 'a won dispute on a pack past its deadline: the card does not say the credit is worth again', JSON.stringify(tg.map((x) => x.text)));
   // a dispute while an order paid in full waits for the pack's credit — on the pack, and on that order
-  const dee = { name: 'Dee Dual', email: 'dee@example.com', phone: '+34611000205' };
+  const dee = { name: 'Dee Dual', email: 'dee@example.com', phone: '+34720000005' };
   await webhook(stream(event({ ...meta(), ...dee, kind: 'application-pack', amount_eur: '199', credit_from: '', credit_amount: '', credit_plan: '' }, { id: 'cs_live_pack_48', amount_total: 19900 })), mkRes());
   await webhook(stream(event({ ...meta(), ...dee, credit_from: '', credit_amount: '', credit_plan: '', amount_eur: '500' }, { id: 'cs_live_fs_48', amount_total: 50000 })), mkRes());
   const P48 = serviceLeadId('cs_live_pack_48'), F48 = serviceLeadId('cs_live_fs_48');
@@ -1019,7 +1019,7 @@ const meta = (over = {}) => ({ service: 'SERVICE', kind: 'full-search', city: 'm
   check(TG(new RegExp('pagamento contestato — su questo ordine era dovuto il rimborso del credito di ' + P48 + ': non rimborsarlo finché la contestazione non è chiusa\\.')),
     'a dispute on the order paid in full: the card says not to refund the credit on it meanwhile', JSON.stringify(tg.map((x) => x.text)));
   // a close whose opening was never seen still stamps; a dispute with no paid order behind it creates nothing
-  await webhook(stream(event({ ...meta(), kind: 'application-pack', name: 'Lena Late', email: 'lena@example.com', phone: '+34611000203', amount_eur: '199', credit_from: '', credit_amount: '', credit_plan: '' }, { id: 'cs_live_pack_42', amount_total: 19900 })), mkRes());
+  await webhook(stream(event({ ...meta(), kind: 'application-pack', name: 'Lena Late', email: 'lena@example.com', phone: '+34720000003', amount_eur: '199', credit_from: '', credit_amount: '', credit_plan: '' }, { id: 'cs_live_pack_42', amount_total: 19900 })), mkRes());
   globalThis.__stripeSessions = [{ id: 'cs_live_pack_42', payment_intent: 'pi_pack_42' }];
   await webhook(stream(dsp('evt_dsp_7', 'charge.dispute.closed', 'pi_pack_42', 'lost')), mkRes());
   check(!!store.get('leads/' + serviceLeadId('cs_live_pack_42')).disputedAt, 'a lost dispute whose opening was never delivered is stamped at the close');
@@ -1041,7 +1041,7 @@ const meta = (over = {}) => ({ service: 'SERVICE', kind: 'full-search', city: 'm
 // ── 5e. A stamp that fails: 500, so Stripe delivers again until the order is stamped ──
 {
   const TG = (re) => tg.some((x) => re.test(String(x.text || '')));
-  await webhook(stream(event({ ...meta(), kind: 'application-pack', name: 'Fred Fail', email: 'fred@example.com', phone: '+34611000301', amount_eur: '199', credit_from: '', credit_amount: '', credit_plan: '' }, { id: 'cs_live_pack_50', amount_total: 19900 })), mkRes());
+  await webhook(stream(event({ ...meta(), kind: 'application-pack', name: 'Fred Fail', email: 'fred@example.com', phone: '+34730000001', amount_eur: '199', credit_from: '', credit_amount: '', credit_plan: '' }, { id: 'cs_live_pack_50', amount_total: 19900 })), mkRes());
   const F = serviceLeadId('cs_live_pack_50'), t = TOK.upgradeToken(F);
   globalThis.__stripeSessions = [{ id: 'cs_live_pack_50', payment_intent: 'pi_pack_50' }];
   const evt = { id: 'evt_ref_50', type: 'charge.refunded', created: 1794300000, data: { object: { id: 'ch_50', payment_intent: 'pi_pack_50', amount: 19900, amount_refunded: 19900, currency: 'eur', billing_details: { name: 'Fred Fail' } } } };
@@ -1069,7 +1069,7 @@ const meta = (over = {}) => ({ service: 'SERVICE', kind: 'full-search', city: 'm
   const r4 = await webhook(stream({ ...evt, id: 'evt_ref_51' }), mkRes());
   Object.defineProperty(globalThis, '__stripeSessions', { configurable: true, writable: true, value: keepList });
   check(r4.code === 500 && r4.body.error === 'order_stamp_failed', 'a Stripe lookup that throws is answered 500 too', JSON.stringify(r4.body));
-  await webhook(stream(event({ ...meta(), kind: 'application-pack', name: 'Gina Gone', email: 'gina@example.com', phone: '+34611000302', amount_eur: '199', credit_from: '', credit_amount: '', credit_plan: '' }, { id: 'cs_live_pack_52', amount_total: 19900 })), mkRes());
+  await webhook(stream(event({ ...meta(), kind: 'application-pack', name: 'Gina Gone', email: 'gina@example.com', phone: '+34730000002', amount_eur: '199', credit_from: '', credit_amount: '', credit_plan: '' }, { id: 'cs_live_pack_52', amount_total: 19900 })), mkRes());
   globalThis.__stripeSessions = [{ id: 'cs_live_pack_52', payment_intent: 'pi_pack_52' }];
   hooks.failGetOnce = 'leads/' + serviceLeadId('cs_live_pack_52');
   const r5 = await webhook(stream({ id: 'evt_dsp_52', type: 'charge.dispute.created', created: 1794500000, data: { object: { id: 'dp_52', payment_intent: 'pi_pack_52', amount: 19900, currency: 'eur', reason: 'fraudulent', status: 'needs_response' } } }), mkRes());
@@ -1100,16 +1100,16 @@ const meta = (over = {}) => ({ service: 'SERVICE', kind: 'full-search', city: 'm
 
 // ── 5f. A refund stamped between the upgrade webhook's two reads: never "refunded AND credited" in silence ──
 {
-  await webhook(stream(event({ ...meta(), kind: 'application-pack', name: 'Rex Race', email: 'rex@example.com', phone: '+34611000401', amount_eur: '199', credit_from: '', credit_amount: '', credit_plan: '' }, { id: 'cs_live_pack_60', amount_total: 19900 })), mkRes());
+  await webhook(stream(event({ ...meta(), kind: 'application-pack', name: 'Rex Race', email: 'rex@example.com', phone: '+34740000001', amount_eur: '199', credit_from: '', credit_amount: '', credit_plan: '' }, { id: 'cs_live_pack_60', amount_total: 19900 })), mkRes());
   const P = serviceLeadId('cs_live_pack_60'), U = serviceLeadId('cs_live_up_60');
   // the pack's refund lands right after the upgrade's own order is written (upgradeCreditFor has already read the pack)
   hooks.afterWrite = (k) => { if (k === 'leads/' + U) { hooks.afterWrite = null; store.set('leads/' + P, { ...store.get('leads/' + P), refundedAt: new Date(NOW).toISOString(), refundedAmount: 199, refundedFull: true }); bump('leads/' + P); } };
-  await webhook(stream(event(meta({ credit_from: P, name: 'Rex Race', email: 'rex@example.com', phone: '+34611000401' }), { id: 'cs_live_up_60' })), mkRes());
+  await webhook(stream(event(meta({ credit_from: P, name: 'Rex Race', email: 'rex@example.com', phone: '+34740000001' }), { id: 'cs_live_up_60' })), mkRes());
   hooks.afterWrite = null;
   const al = store.get('agentNotifications/upgrade-void-' + U.slice(4));
   check(store.get('leads/' + U) && !store.get('leads/' + P).credit && al && al.priority === 'high' && /era stato rimborsato: il credito non era dovuto/.test(al.summary), 'a refund that lands between the two reads: the pack is never marked used, and the void alert rings', al && al.summary);
   // a mark that cannot be WRITTEN leaves the credit open: 500 (Stripe delivers again), the operator told, and the redelivery marks it
-  const max = { name: 'Max Mark', email: 'max@example.com', phone: '+34611000402' };
+  const max = { name: 'Max Mark', email: 'max@example.com', phone: '+34740000002' };
   await webhook(stream(event({ ...meta(), ...max, kind: 'application-pack', amount_eur: '199', credit_from: '', credit_amount: '', credit_plan: '' }, { id: 'cs_live_pack_61', amount_total: 19900 })), mkRes());
   const P61 = serviceLeadId('cs_live_pack_61'), U61 = serviceLeadId('cs_live_up_61');
   hooks.failCommits = { path: 'leads/' + P61, times: 6 };
@@ -1127,11 +1127,11 @@ const meta = (over = {}) => ({ service: 'SERVICE', kind: 'full-search', city: 'm
   check(rm2.code === 200 && rm2.body.duplicate === true && emails.length === 2 && store.get('leads/' + P61).credit && store.get('leads/' + P61).credit.usedBy === U61 && tg.some((x) => /✅ Upgrade .*ora è segnato come usato\./.test(String(x.text || ''))) && am2.markFailed === false && !!am2.repairedAt,
     'the redelivery marks the credit, sends no second e-mail, and takes the warning back', JSON.stringify(tg.map((x) => x.text)));
   // a write whose answer is lost but that LANDED: read again, find the mark, no failure
-  await webhook(stream(event({ ...meta(), name: 'Lou Landed', email: 'lou@example.com', phone: '+34611000403', kind: 'application-pack', amount_eur: '199', credit_from: '', credit_amount: '', credit_plan: '' }, { id: 'cs_live_pack_62', amount_total: 19900 })), mkRes());
+  await webhook(stream(event({ ...meta(), name: 'Lou Landed', email: 'lou@example.com', phone: '+34740000003', kind: 'application-pack', amount_eur: '199', credit_from: '', credit_amount: '', credit_plan: '' }, { id: 'cs_live_pack_62', amount_total: 19900 })), mkRes());
   const P62 = serviceLeadId('cs_live_pack_62'), U62 = serviceLeadId('cs_live_up_62');
   hooks.failCommits = { path: 'leads/' + P62, times: 1 };
   hooks.beforeCommit = (k) => { if (k === 'leads/' + P62) { hooks.beforeCommit = null; store.set(k, { ...store.get(k), credit: { usedBy: U62, usedAt: 'x', amount: 199, currency: 'eur' } }); bump(k); } };
-  const rl = await webhook(stream(event(meta({ credit_from: P62, name: 'Lou Landed', email: 'lou@example.com', phone: '+34611000403' }), { id: 'cs_live_up_62' })), mkRes());
+  const rl = await webhook(stream(event(meta({ credit_from: P62, name: 'Lou Landed', email: 'lou@example.com', phone: '+34740000003' }), { id: 'cs_live_up_62' })), mkRes());
   hooks.beforeCommit = null; hooks.failCommits = null;
   check(rl.code === 200 && store.get('leads/' + P62).credit.usedBy === U62 && !store.has('agentNotifications/upgrade-mark-' + U62.slice(4)), 'a write that failed to answer but did land is found on the next read: no false failure');
 }
@@ -1195,7 +1195,7 @@ const meta = (over = {}) => ({ service: 'SERVICE', kind: 'full-search', city: 'm
     'every open credit under an address, the oldest payment first whatever order Firestore lists them in (openCreditsFor)');
 
   // ── (1) the pack this upgrade was paid with cannot be READ: 500 before anything is written ──
-  const ugo = { name: 'Ugo Unread', email: 'ugo.unread@example.com', phone: '+34611000501' };
+  const ugo = { name: 'Ugo Unread', email: 'ugo.unread@example.com', phone: '+34750000001' };
   await pack('cs_live_pack_170', ugo);
   const P70 = serviceLeadId('cs_live_pack_170'), U70 = serviceLeadId('cs_live_up_170');
   emails.length = 0; tg.length = 0;
@@ -1211,7 +1211,7 @@ const meta = (over = {}) => ({ service: 'SERVICE', kind: 'full-search', city: 'm
   hooks.failGets = null;
   check(u3.code === 200 && L(serviceLeadId('cs_live_up_170b')) && hooks.failGets === null, 'ONE failed read is retried on the spot and the delivery goes through');
   // …and after a mark that failed, a redelivery that cannot read the pack is a 500 too — never a 200 with the credit open
-  const mia = { name: 'Mia Mark', email: 'mia.mark@example.com', phone: '+34611000502' };
+  const mia = { name: 'Mia Mark', email: 'mia.mark@example.com', phone: '+34750000002' };
   await pack('cs_live_pack_171', mia);
   const P71 = serviceLeadId('cs_live_pack_171'), U71 = serviceLeadId('cs_live_up_171');
   hooks.failCommits = { path: 'leads/' + P71, times: 3 };
@@ -1225,7 +1225,7 @@ const meta = (over = {}) => ({ service: 'SERVICE', kind: 'full-search', city: 'm
     'mark failed (500) → redelivery, pack unreadable (500 again) → redelivery marks it and takes the warning back', JSON.stringify([m1.body, m2.body, m3.body]));
 
   // ── (2) money that goes back BEFORE its order is written ──
-  const eve = { name: 'Eve Early', email: 'eve.early@example.com', phone: '+34611000503' };
+  const eve = { name: 'Eve Early', email: 'eve.early@example.com', phone: '+34750000003' };
   const P72 = serviceLeadId('cs_live_pack_172');
   sessions(['cs_live_pack_172', 'pi_pack_172', desk(nowS - 600)]);
   tg.length = 0;
@@ -1253,7 +1253,7 @@ const meta = (over = {}) => ({ service: 'SERVICE', kind: 'full-search', city: 'm
   check(r4.code === 200 && TG(/RIMBORSO totale: €900/) && !TG(/non è ancora scritto|mai stato scritto|Ordine svc_/), 'a payment that is not a desk order (a rent) is still nobody\'s order: its card stays as it was');
 
   // ── (3) two refunds of an order paid in full: the same end state whichever is delivered first ──
-  const ria = { name: 'Ria Reorder', email: 'ria.reorder@example.com', phone: '+34611000505' };
+  const ria = { name: 'Ria Reorder', email: 'ria.reorder@example.com', phone: '+34750000005' };
   await pack('cs_live_pack_176', ria);
   const P76 = serviceLeadId('cs_live_pack_176'), F76 = serviceLeadId('cs_live_fs_176');
   await full('cs_live_fs_176', ria);
@@ -1266,7 +1266,7 @@ const meta = (over = {}) => ({ service: 'SERVICE', kind: 'full-search', city: 'm
   check(a76.code === 200 && L(P76).credit && L(P76).credit.usedBy === F76 && L(P76).credit.via === 'full-price' && L(P76).credit.atRefund === 199 && L(F76).refundedAmount === 500 && (await link(P76)) === '410 used'
     && TG(/già segnato rimborsato per €500 \(questo evento è precedente\) — era il rimborso del credito di .* \(€199\): il credito di quel pack è chiuso\./),
     'the €199 refund delivered LATE still closes the pack: it is judged by its own amount, so the end state is the one of the in-order delivery', JSON.stringify(tg.map((x) => x.text)));
-  const ray = { name: 'Ray Retry', email: 'ray.retry@example.com', phone: '+34611000506' };
+  const ray = { name: 'Ray Retry', email: 'ray.retry@example.com', phone: '+34750000006' };
   await pack('cs_live_pack_177', ray);
   const P77 = serviceLeadId('cs_live_pack_177'), F77 = serviceLeadId('cs_live_fs_177');
   await full('cs_live_fs_177', ray);
@@ -1282,7 +1282,7 @@ const meta = (over = {}) => ({ service: 'SERVICE', kind: 'full-search', city: 'm
     'the retry of that refund, after the rest was refunded too, closes the credit — what the first card promised, not its opposite', JSON.stringify(tg.map((x) => x.text)));
 
   // ── (4) the warning of a failed mark is taken back however the mark is found written ──
-  const amy = { name: 'Amy Answer', email: 'amy.answer@example.com', phone: '+34611000507' };
+  const amy = { name: 'Amy Answer', email: 'amy.answer@example.com', phone: '+34750000007' };
   await pack('cs_live_pack_178', amy);
   const P78 = serviceLeadId('cs_live_pack_178'), U78 = serviceLeadId('cs_live_up_178');
   hooks.failCommits = { path: 'leads/' + P78, times: 3 };
@@ -1292,7 +1292,7 @@ const meta = (over = {}) => ({ service: 'SERVICE', kind: 'full-search', city: 'm
   hooks.loseCommit = null;
   check(a2.code === 200 && L(P78).credit.usedBy === U78 && TG(/✅ Upgrade .* ora è segnato come usato\./) && card('mark', U78).markFailed === false && !!card('mark', U78).repairedAt,
     'a redelivery whose write LANDS with its answer lost finds the mark on the next read — and still takes the warning back', JSON.stringify(tg.map((x) => x.text)));
-  const cal = { name: 'Cal Card', email: 'cal.card@example.com', phone: '+34611000508' };
+  const cal = { name: 'Cal Card', email: 'cal.card@example.com', phone: '+34750000008' };
   await pack('cs_live_pack_179', cal);
   const P79 = serviceLeadId('cs_live_pack_179'), U79 = serviceLeadId('cs_live_up_179');
   hooks.failCommits = { path: 'leads/' + P79, times: 3 };
@@ -1303,7 +1303,7 @@ const meta = (over = {}) => ({ service: 'SERVICE', kind: 'full-search', city: 'm
   const c3 = await upgrade('cs_live_up_179', P79, cal);
   check(c2.code === 500 && c2.body.error === 'operator_card_failed' && L(P79).credit.usedBy === U79 && c3.code === 200 && card('mark', U79).markFailed === false && TG(/✅ Upgrade/),
     'a redelivery that marks the credit but cannot READ its own warning answers 500; the next one takes the warning back', JSON.stringify([c2.body, c3.body]));
-  const bea = { name: 'Bea Before', email: 'bea.before@example.com', phone: '+34611000509' };
+  const bea = { name: 'Bea Before', email: 'bea.before@example.com', phone: '+34750000009' };
   await pack('cs_live_pack_180', bea);
   const P80 = serviceLeadId('cs_live_pack_180'), U80 = serviceLeadId('cs_live_up_180');
   hooks.failCommits = { path: 'leads/' + P80, times: 3 };
@@ -1321,7 +1321,7 @@ const meta = (over = {}) => ({ service: 'SERVICE', kind: 'full-search', city: 'm
   sessions();
 
   // ── (5) a card that cannot be written is not lost with a 200; a promise is never called "read" before it left ──
-  const cy = { name: 'Cy Card', email: 'cy.card@example.com', phone: '+34611000510' };
+  const cy = { name: 'Cy Card', email: 'cy.card@example.com', phone: '+34750000010' };
   await pack('cs_live_pack_181', cy);
   const F81 = serviceLeadId('cs_live_fs_181');
   hooks.failCreates = { path: 'agentNotifications/upgrade-owed-' + F81.slice(4), times: 1 }; emails.length = 0;
@@ -1331,7 +1331,7 @@ const meta = (over = {}) => ({ service: 'SERVICE', kind: 'full-search', city: 'm
     'the "refund the pack amount" card could not be written: the order and the e-mails are done, the answer is 500', JSON.stringify(o1.body));
   const o2 = await full('cs_live_fs_181', cy);
   check(o2.code === 200 && o2.body.duplicate === true && card('owed', F81) && /rimborsa €199 su questo pagamento/.test(card('owed', F81).summary) && emails.length === 2, 'Stripe\'s redelivery rings it from what the order recorded, and sends no second e-mail');
-  const cleo = { name: 'Cleo Mail', email: 'cleo.mail@example.com', phone: '+34611000511' };
+  const cleo = { name: 'Cleo Mail', email: 'cleo.mail@example.com', phone: '+34750000011' };
   await pack('cs_live_pack_182', cleo);
   const F82 = serviceLeadId('cs_live_fs_182');
   hooks.failEmailTo = 'cleo.mail@example.com'; emails.length = 0;
@@ -1343,7 +1343,7 @@ const meta = (over = {}) => ({ service: 'SERVICE', kind: 'full-search', city: 'm
     'the client\'s confirmation did not leave: no card or e-mail says the client READ the promise, and the by-hand alert asks for that sentence too', sm && sm.summary);
 
   // ── (6) two open packs under one address: the payer's own ──
-  const anna = { name: 'Anna Rossi', email: 'casa.rossi@example.com', phone: '+34611000601' }, bruno = { name: 'Bruno Rossi', email: 'casa.rossi@example.com', phone: '+34611000602' };
+  const anna = { name: 'Anna Rossi', email: 'casa.rossi@example.com', phone: '+34760000001' }, bruno = { name: 'Bruno Rossi', email: 'casa.rossi@example.com', phone: '+34760000002' };
   await pack('cs_live_pack_183', anna);
   await pack('cs_live_pack_184', bruno);
   const P83 = serviceLeadId('cs_live_pack_183'), P84 = serviceLeadId('cs_live_pack_184'), F84 = serviceLeadId('cs_live_fs_184'), F85 = serviceLeadId('cs_live_fs_185');
@@ -1354,7 +1354,7 @@ const meta = (over = {}) => ({ service: 'SERVICE', kind: 'full-search', city: 'm
     && card('owed', F84).summary.includes(`Sotto questa email ci sono 2 pack col credito aperto su questo desk: questo è quello col telefono di chi paga (gli altri: ${P83}).`)
     && emails.some((e) => e.to_email === 'casa.rossi@example.com' && /we refund €199 of this payment/.test(e.closing)),
     'two packs under one e-mail: the order paid in full records the PAYER\'s own pack (same phone), not the first one Firestore lists, and the card says there are two', JSON.stringify(f84.city.creditDue));
-  await full('cs_live_fs_185', { name: 'Carla Rossi', email: 'casa.rossi@example.com', phone: '+34611000603' });
+  await full('cs_live_fs_185', { name: 'Carla Rossi', email: 'casa.rossi@example.com', phone: '+34760000003' });
   check(L(F85).city.creditDue.from === P83 && L(F85).city.creditDue.match === 'check' && L(F85).city.creditDue.among === 2
     && card('owed', F85).summary.includes(`Sotto questa email ci sono 2 pack col credito aperto su questo desk (anche ${P84}): nessuno ha il telefono di chi paga — verifica qual è il suo.`)
     && /si chiude da solo soltanto con un rimborso di esattamente €199 su questo pagamento\./.test(card('owed', F85).summary),
@@ -1364,7 +1364,7 @@ const meta = (over = {}) => ({ service: 'SERVICE', kind: 'full-search', city: 'm
   check(L(P84).credit && L(P84).credit.usedBy === F84 && !L(P83).credit && (await link(P83)) === '200 open', 'the €199 refunded on Bruno\'s payment closes BRUNO\'s pack and leaves Anna\'s alone');
 
   // ── (7) what became of a credit owed is said from the order AND the pack, by every reader ──
-  const wes = { name: 'Wes Withdraw', email: 'wes.withdraw@example.com', phone: '+34611000604' };
+  const wes = { name: 'Wes Withdraw', email: 'wes.withdraw@example.com', phone: '+34760000004' };
   await pack('cs_live_pack_186', wes);
   const P86 = serviceLeadId('cs_live_pack_186'), F86 = serviceLeadId('cs_live_fs_186');
   await full('cs_live_fs_186', wes);
@@ -1381,7 +1381,7 @@ const meta = (over = {}) => ({ service: 'SERVICE', kind: 'full-search', city: 'm
   await refund('evt_ref_186b', 'pi_fs_186', 50000, 39800, 1794400000);
   check(TG(/ATTENZIONE: il credito di .* \(€199\) era già stato rimborsato su questo ordine \(quando il totale rimborsato era €199\): questo è un rimborso in più, totale €398\./) && L(P86).credit.atRefund === 199,
     'a SECOND refund on that order after the credit was closed is warned at the act', JSON.stringify(tg.map((x) => x.text)));
-  const pia = { name: 'Pia Pack', email: 'pia.pack@example.com', phone: '+34611000605' };
+  const pia = { name: 'Pia Pack', email: 'pia.pack@example.com', phone: '+34760000005' };
   await pack('cs_live_pack_187', pia);
   const P87 = serviceLeadId('cs_live_pack_187'), F87 = serviceLeadId('cs_live_fs_187');
   await full('cs_live_fs_187', pia);
@@ -1391,7 +1391,7 @@ const meta = (over = {}) => ({ service: 'SERVICE', kind: 'full-search', city: 'm
   await BOT.handleUpgradeCommand(123, F87);
   check(tg.length === 1 && tg[0].text.includes(`il pack ${P87} è stato rimborsato: il suo credito (€199) non è più dovuto su questo ordine. Nessun link.`) && !/è dovuto il rimborso/.test(tg[0].text),
     'the PACK refunded first: the bot on the order paid in full says nothing is owed on it any more (what the refund card had said)', JSON.stringify(tg.map((x) => x.text)));
-  const dee = { name: 'Dee Dispute', email: 'dee.dispute@example.com', phone: '+34611000606' };
+  const dee = { name: 'Dee Dispute', email: 'dee.dispute@example.com', phone: '+34760000006' };
   await pack('cs_live_pack_188', dee);
   const P88 = serviceLeadId('cs_live_pack_188'), F88 = serviceLeadId('cs_live_fs_188');
   await full('cs_live_fs_188', dee);
@@ -1406,10 +1406,10 @@ const meta = (over = {}) => ({ service: 'SERVICE', kind: 'full-search', city: 'm
   check(cl88b.length === 0 && /upgrade\?l=/.test(BOT.upgradeReply(L(P88), P88, NOW, ORIGIN, cl88b)), 'once the bank has given that payment back (dispute lost) it waits for nothing: the pack\'s credit is simply open on the bot');
 
   // ── (8) the phone did not match: only a refund of exactly the pack amount closes the holder's credit ──
-  const hana = { name: 'Hana Holder', email: 'ufficio@example.com', phone: '+34611000607' };
+  const hana = { name: 'Hana Holder', email: 'ufficio@example.com', phone: '+34760000007' };
   await pack('cs_live_pack_189', hana);
   const P89 = serviceLeadId('cs_live_pack_189'), F89 = serviceLeadId('cs_live_fs_189');
-  await full('cs_live_fs_189', { name: 'Otto Other', email: 'ufficio@example.com', phone: '+34611000608' });
+  await full('cs_live_fs_189', { name: 'Otto Other', email: 'ufficio@example.com', phone: '+34760000008' });
   sessions(['cs_live_fs_189', 'pi_fs_189']);
   await post(withdraw, { name: 'Otto Other', email: 'ufficio@example.com', ref: F89, desk: 'Madrid', requestId: 'wreq8989' + 'f'.repeat(8) });
   const w89 = [...store.entries()].filter(([k, v]) => k.startsWith('agentNotifications/withdraw-') && v && /ufficio@example\.com/.test(JSON.stringify(v)));
@@ -1419,7 +1419,7 @@ const meta = (over = {}) => ({ service: 'SERVICE', kind: 'full-search', city: 'm
   await refund('evt_ref_189', 'pi_fs_189', 50000, 40000);
   check(!L(P89).credit && (await link(P89)) === '200 open' && TG(/questo rimborso, €400 in tutto, non è della cifra del credito, quindi NON chiudo il credito di quel pack/),
     'the payer\'s own withdrawal refund (€400) does NOT close someone else\'s pack', JSON.stringify(tg.map((x) => x.text)));
-  await pack('cs_live_pack_190', { name: 'Ida Holder', email: 'ida.holder@example.com', phone: '+34611000609' });
+  await pack('cs_live_pack_190', { name: 'Ida Holder', email: 'ida.holder@example.com', phone: '+34760000009' });
   const P90 = serviceLeadId('cs_live_pack_190'), F90 = serviceLeadId('cs_live_fs_190');
   await full('cs_live_fs_190', { name: 'Ida Holder', email: 'ida.holder@example.com', phone: '+34699000000' });
   sessions(['cs_live_fs_190', 'pi_fs_190']);
@@ -1427,7 +1427,7 @@ const meta = (over = {}) => ({ service: 'SERVICE', kind: 'full-search', city: 'm
   check(L(F90).city.creditDue.match === 'check' && L(P90).credit && L(P90).credit.usedBy === F90, 'verified by the operator and refunded exactly €199: that closes it');
 
   // ── (9) a payer list that cannot be read: the order is written at once, "unverified" — the client never waits ──
-  const fay = { name: 'Fay Fresh', email: 'fay.fresh@example.com', phone: '+34611000610' };
+  const fay = { name: 'Fay Fresh', email: 'fay.fresh@example.com', phone: '+34760000010' };
   await pack('cs_live_pack_191', fay);
   const F92 = serviceLeadId('cs_live_fs_192');
   hooks.failQueries = 8; emails.length = 0;
@@ -1443,7 +1443,7 @@ const meta = (over = {}) => ({ service: 'SERVICE', kind: 'full-search', city: 'm
     'and a refund on an "unverified" order says that it closed no pack\'s credit', JSON.stringify(tg.map((x) => x.text)));
 
   // ── (10) a dispute that CLOSES says what it leaves behind ──
-  const lot = { name: 'Lot Lost', email: 'lot.lost@example.com', phone: '+34611000611' };
+  const lot = { name: 'Lot Lost', email: 'lot.lost@example.com', phone: '+34760000011' };
   await pack('cs_live_pack_193', lot);
   const P93 = serviceLeadId('cs_live_pack_193'), F93 = serviceLeadId('cs_live_fs_193');
   await full('cs_live_fs_193', lot);
@@ -1456,7 +1456,7 @@ const meta = (over = {}) => ({ service: 'SERVICE', kind: 'full-search', city: 'm
   tg.length = 0;
   await BOT.handleUpgradeCommand(123, F93);
   check(tg.length === 1 && /la banca ha restituito il pagamento del pack .* al cliente \(contestazione persa\): il suo credito \(€199\) non è più dovuto su questo ordine\. Nessun link\./.test(tg[0].text), 'and the bot on that order no longer says the refund is owed', JSON.stringify(tg.map((x) => x.text)));
-  const win = { name: 'Win Won', email: 'win.won@example.com', phone: '+34611000612' };
+  const win = { name: 'Win Won', email: 'win.won@example.com', phone: '+34760000012' };
   await pack('cs_live_pack_194', win);
   const P94 = serviceLeadId('cs_live_pack_194'), U94 = serviceLeadId('cs_live_up_194');
   await upgrade('cs_live_up_194', P94, win);
@@ -1466,7 +1466,7 @@ const meta = (over = {}) => ({ service: 'SERVICE', kind: 'full-search', city: 'm
   await dispute('evt_dsp_194b', 'charge.dispute.closed', 'pi_pack_194', 'won', 1794600000);
   check(TG(new RegExp('contestazione vinta — il credito di questo ordine resta usato da ' + U94 + ': niente da regolare\\.')) && !TG(/regola la differenza/),
     'a dispute WON on a pack whose credit was used: nothing to settle — never "settle the difference" on money that stayed', JSON.stringify(tg.map((x) => x.text)));
-  const wyn = { name: 'Wyn Waits', email: 'wyn.waits@example.com', phone: '+34611000613' };
+  const wyn = { name: 'Wyn Waits', email: 'wyn.waits@example.com', phone: '+34760000013' };
   await pack('cs_live_pack_195', wyn);
   const F95 = serviceLeadId('cs_live_fs_195');
   await full('cs_live_fs_195', wyn);
@@ -1568,10 +1568,10 @@ const meta = (over = {}) => ({ service: 'SERVICE', kind: 'full-search', city: 'm
     'a pack whose lookup had failed at the payment: the bot says so before the link (it used to give the link with no word of it)');
 
   // ── (1) Madrid, an e-mail match only: the holder asks for her link again ──
-  const mara = { name: 'Mara Holder', email: 'casa.condivisa@example.com', phone: '+34611000701' };
+  const mara = { name: 'Mara Holder', email: 'casa.condivisa@example.com', phone: '+34770000001' };
   await pack('cs_live_pack_201', mara);
   const P201 = serviceLeadId('cs_live_pack_201'), F201 = serviceLeadId('cs_live_fs_201');
-  await full('cs_live_fs_201', { name: 'Noel Other', email: 'casa.condivisa@example.com', phone: '+34611000702' });
+  await full('cs_live_fs_201', { name: 'Noel Other', email: 'casa.condivisa@example.com', phone: '+34770000002' });
   const cl201 = await BOT.pendingClaims(P201);
   tg.length = 0;
   await BOT.handleUpgradeCommand(123, P201);
@@ -1651,7 +1651,7 @@ const meta = (over = {}) => ({ service: 'SERVICE', kind: 'full-search', city: 'm
     'a lookup that fails: a Berlin pack is asked about a running Full Search only, a Berlin Full Search about a pack credit only', (c207 && c207.summary) + ' || ' + (c208 && c208.summary));
 
   // ── (5) a dispute still open only suspends the refund owed; a second dispute starts clean ──
-  const dia = { name: 'Dia Disputed', email: 'dia.disputed@example.com', phone: '+34611000709' };
+  const dia = { name: 'Dia Disputed', email: 'dia.disputed@example.com', phone: '+34770000009' };
   await pack('cs_live_pack_209', dia);
   const P209 = serviceLeadId('cs_live_pack_209'), F209 = serviceLeadId('cs_live_fs_209');
   await full('cs_live_fs_209', dia);
@@ -1675,7 +1675,7 @@ const meta = (over = {}) => ({ service: 'SERVICE', kind: 'full-search', city: 'm
     'lost: the bank gave that payment back, the order waits for nothing and the pack\'s link is the client\'s again');
 
   // ── (6) a refund that lands BETWEEN the two reads of a redelivery: the order recorded a verified credit ──
-  const rae = { name: 'Rae Race', email: 'rae.race@example.com', phone: '+34611000714' };
+  const rae = { name: 'Rae Race', email: 'rae.race@example.com', phone: '+34770000014' };
   await pack('cs_live_pack_214', rae);
   const P214 = serviceLeadId('cs_live_pack_214'), U214 = serviceLeadId('cs_live_up_214');
   hooks.failCommits = { path: 'leads/' + P214, times: 3 };
@@ -1689,7 +1689,7 @@ const meta = (over = {}) => ({ service: 'SERVICE', kind: 'full-search', city: 'm
     'a pack refunded between the two reads of a redelivery: the recorded credit is marked all the same, and the card says the client had both', JSON.stringify({ u1: u1.code, u2: u2.code, credit: L(P214).credit || null }));
 
   // ── (7) a first run that died before the client's e-mail: the alert asks for the refund sentence too ──
-  const mel = { name: 'Mel Mail', email: 'mel.mail@example.com', phone: '+34611000715' };
+  const mel = { name: 'Mel Mail', email: 'mel.mail@example.com', phone: '+34770000015' };
   await pack('cs_live_pack_215', mel);
   const F215 = serviceLeadId('cs_live_fs_215');
   await full('cs_live_fs_215', mel);
@@ -1702,10 +1702,10 @@ const meta = (over = {}) => ({ service: 'SERVICE', kind: 'full-search', city: 'm
     'a redelivery that finds no trace of the client\'s confirmation: the alert asks to send it by hand WITH the refund sentence it promised', sm && sm.summary);
 
   // ── (8) a withdrawal statement that names ONE order paid in full: its card reads the pack as it is now ──
-  const gus = { name: 'Gus Holder', email: 'studio.gus@example.com', phone: '+34611000716' };
+  const gus = { name: 'Gus Holder', email: 'studio.gus@example.com', phone: '+34770000016' };
   await pack('cs_live_pack_216', gus);
   const P216 = serviceLeadId('cs_live_pack_216'), F216 = serviceLeadId('cs_live_fs_216');
-  await full('cs_live_fs_216', { name: 'Ivo Other', email: 'studio.gus@example.com', phone: '+34611000717' });
+  await full('cs_live_fs_216', { name: 'Ivo Other', email: 'studio.gus@example.com', phone: '+34770000017' });
   sessions(['cs_live_pack_216', 'pi_pack_216']);
   await refund('evt_ref_216', 'pi_pack_216', 19900, 19900);
   await post(withdraw, { name: 'Ivo Other', email: 'studio.gus@example.com', ref: L(F216).city.file, desk: 'Madrid', service: 'full-search', requestId: 'wreq2160' + 'f'.repeat(8) });

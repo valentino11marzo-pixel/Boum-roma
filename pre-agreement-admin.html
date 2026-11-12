@@ -997,8 +997,8 @@ function showLandlordSignLink(d,url,offerMandate){
     phone:ll.phone,email:null,hideEmailNote:true,
     extra:offerMandate?{label:'🏠 Chiedi invece il mandato',fn:function(){askLandlordMandateFor(d.id,{contractKnown:true});}}:null});
 }
-/* 📋 LA SCHEDA DEL PROPRIETARIO (12/10/2026 — «non riesco a inviare alla
-   proprietaria la scheda per far compilare i suoi dati»). La Scheda è
+/* 📋 LA SCHEDA DEL PROPRIETARIO (12/10/2026 — «non riesco a inviare
+   alla proprietaria la scheda per far compilare i suoi dati»). La Scheda è
    del contratto: qui il server lo crea se manca (con la conferma sopra),
    calcola cosa manca al proprietario come lo leggerebbe il PDF e scrive il
    messaggio che lo nomina, col link. WhatsApp col suo numero, email se c'è. */

@@ -334,7 +334,7 @@ export default async function handler(req, res) {
 
   // ── 📋 LA SCHEDA DEL PROPRIETARIO, PER I SUOI DATI (12/10/2026) ───────
   // «Non riesco a inviare alla proprietaria la scheda per far compilare i
-  // suoi dati»: la proposta pagata (BOOM-MUCHJ6LC) non aveva contratto, e la
+  // suoi dati»: la proposta pagata non aveva contratto, e la
   // console non offriva nessun modo di mandare la Scheda al proprietario se
   // non DENTRO la richiesta del mandato. Qui: contratto creato se manca,
   // cosa gli manca letto come lo legge il PDF (landlordGaps), link e
