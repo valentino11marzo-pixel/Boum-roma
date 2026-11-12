@@ -147,6 +147,9 @@ International tenants moving to Rome for the medium term (3 to 12+ months): expa
 - Email: valentino@boom-rome.com (Rome: rentals, owners, privacy)
 - Email for the desks (Amsterdam, Barcelona, Berlin, London, Madrid, Milan, Paris, Valencia), desk orders and withdrawals: hello@boom-rome.com
 
+## European moving budget worksheet
+- https://www.boomrome.com/moving-budget — Free worksheet using the visitor's own quotes and estimates. Separates arrival expenses, refundable deposits and ordinary monthly spending. Unknown amounts remain unknown; no average rents, deposit limits, exchange rates or affordability verdicts. Eight European desk links and public Full Search fees are generated from BOOM's city registry. Personal amounts stay in the browser tab; printing is optional.
+
 ## Optional
 - [Skyline](https://www.boomrome.com/skyline): every BOOM apartment on a live 3D map of Rome, with lines to the nearest stations, landmarks and campuses.
 - [Live board](https://www.boomrome.com/board): every BOOM home on one airport-style departures board — zone, price and status.
