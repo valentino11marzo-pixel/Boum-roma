@@ -87,8 +87,35 @@ for (const [coll, cosa] of CHIUSE) {
   ok(st === 403, `CHIUSA in produzione: ${coll} — ${cosa}${st !== 403 ? `  ⛔ risponde ${st} da ANONIMO` : ''}`);
 }
 
+// ── tre documenti di `settings`, che per il resto è pubblico ────────────
+// Da anonimo si misura solo la prima metà della regola. L'altra metà (un
+// account qualsiasi NON legge `registrazione` né `ai`: solo l'admin) la
+// prova l'emulatore in tests/rules, e qui sotto si pretende che il file la
+// dichiari ancora.
+async function leggiDoc(path) {
+  const r = await fetch(`${base}/${path}?key=${API_KEY}`, { signal: AbortSignal.timeout(15000) });
+  return r.status;   // 200 = letto · 403 = negato · 404 = permesso ma assente
+}
+const DOC_CHIUSI = [
+  ['settings/company', 'i dati bancari dell\'azienda'],
+  ['settings/registrazione', 'l\'indirizzo del referente delle registrazioni (una persona terza)'],
+  ['settings/ai', 'l\'URL del tunnel verso il Mac'],
+];
+for (const [path, cosa] of DOC_CHIUSI) {
+  const st = await leggiDoc(path);
+  ok(st === 403, `CHIUSO in produzione: ${path} — ${cosa}${st !== 403 ? `  ⛔ risponde ${st} da ANONIMO` : ''}`);
+}
+
 // ── e il file dichiara le stesse due liste (o il test misura altro) ─────
 const rules = read('firestore.rules');
+{
+  const m = rules.match(/match \/settings\/\{x\}\s*\{([\s\S]*?)\n    \}/);
+  const body = m ? m[1].replace(/\s+/g, ' ') : '';
+  ok(/allow read: if !\(x in \['company', 'registrazione', 'ai'\]\) \|\| \(x == 'company' && request\.auth != null\) \|\| isAdmin\(\);/.test(body),
+    'il repo dichiara: settings pubblico tranne tre documenti; company a chi è autenticato; registrazione e ai al solo admin');
+  ok(!/\|\| request\.auth != null;/.test(body),
+    '…e «autenticato» da solo non apre più nessuno dei tre (un account lo può creare chiunque dalle pagine del sito)');
+}
 for (const [coll] of APERTE) {
   ok(new RegExp(`match /${coll}/\\{[^}]*\\}\\s*\\{[^}]*allow read: if true`).test(rules),
     `il repo dichiara ${coll} pubblica in lettura (la lista del test non può divergere dal file)`);

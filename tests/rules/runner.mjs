@@ -65,6 +65,11 @@ await env.withSecurityRulesDisabled(async (ctx) => {
   await setDoc(doc(db, 'config/parse_docs'), { bearer: 'super-secret-token' });
   await setDoc(doc(db, 'documentShares/share1'), { token: 'tok_abc', ownerId: 'llA', docIds: ['d1'], revoked: false });
   await setDoc(doc(db, 'taxPacks/pack1'), { ownerId: 'llA', fiscalYear: 2025, propertyId: 'propA' });
+  // settings: pubblico, tranne tre documenti.
+  await setDoc(doc(db, 'settings/general'), { homepageVideo: 'on' });
+  await setDoc(doc(db, 'settings/company'), { iban: 'IT60X0542811101000000123456' });
+  await setDoc(doc(db, 'settings/registrazione'), { email: 'referente@example.com', referente: 'Referente di prova' });
+  await setDoc(doc(db, 'settings/ai'), { local: { url: 'https://tunnel.example.com' } });
 });
 
 // Auth contexts
@@ -76,6 +81,8 @@ const tB    = env.authenticatedContext('tB').firestore();
 const anon  = env.unauthenticatedContext().firestore();
 // Sessione Firebase ANONIMA (magic-link/intake): signed-in ma provider 'anonymous'.
 const anonProv = env.authenticatedContext('anonSess', { firebase: { sign_in_provider: 'anonymous' } }).firestore();
+// Un account creato da chiunque dalle pagine del sito: signed-in, nessun profilo in `users`.
+const noProfile = env.authenticatedContext('selfRegistered').firestore();
 
 console.log('\n\x1b[1mBOOM Firestore Rules — test suite\x1b[0m\n');
 
@@ -248,6 +255,31 @@ await check('landlord CANNOT read clientErrors',
   assertFails(getDoc(doc(llA, 'clientErrors/e1'))));
 await check('nobody writes clientErrors from the browser',
   assertFails(setDoc(doc(admin, 'clientErrors/e2'), { message: 'x' })));
+
+// ── settings: pubblico, tranne tre documenti ────────────────────────────
+// `registrazione` porta l'indirizzo di una persona terza, `ai` l'URL del
+// tunnel: li legge solo l'admin. «Autenticato» non basta, perché un account
+// (anche anonimo) lo può aprire chiunque dalle pagine del sito.
+console.log('\nsettings');
+await check('unauthenticated reads a public settings doc (the site needs it)',
+  assertSucceeds(getDoc(doc(anon, 'settings/general'))));
+for (const name of ['registrazione', 'ai']) {
+  await check('admin reads settings/' + name, assertSucceeds(getDoc(doc(admin, 'settings/' + name))));
+  for (const [who, db] of [['unauthenticated', anon], ['anonymous session', anonProv],
+    ['self-registered account with no profile', noProfile], ['tenant', tA], ['landlord', llA]]) {
+    await check(who + ' CANNOT read settings/' + name, assertFails(getDoc(doc(db, 'settings/' + name))));
+  }
+}
+await check('unauthenticated CANNOT read settings/company (IBAN)',
+  assertFails(getDoc(doc(anon, 'settings/company'))));
+await check('tenant reads settings/company (the portal prints the company data)',
+  assertSucceeds(getDoc(doc(tA, 'settings/company'))));
+await check('admin writes settings/registrazione',
+  assertSucceeds(setDoc(doc(admin, 'settings/registrazione'), { referente: 'Altro referente di prova' }, { merge: true })));
+await check('landlord CANNOT write settings',
+  assertFails(setDoc(doc(llA, 'settings/general'), { homepageVideo: 'off' })));
+await check('tenant CANNOT write settings/registrazione',
+  assertFails(setDoc(doc(tA, 'settings/registrazione'), { email: 'altro@example.com' })));
 
 // ── DEFAULT DENY ────────────────────────────────────────────────────────
 console.log('\nDefault-deny');

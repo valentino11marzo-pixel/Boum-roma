@@ -4620,7 +4620,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const wantsCharts = S.page === 'dashboard' || !S.page; // market-intel si carica Chart.js da sé
         if (wantsCharts) setTimeout(() => loadChartJS().then(() => initDashboardCharts())
             .catch((e) => console.warn('[Dashboard] grafici non disponibili:', e.message)), 50);
-        if (S.page === 'settings' && isAdmin()) setTimeout(() => loadCAFSettings(), 100);
+        if (S.page === 'settings' && isAdmin()) setTimeout(() => loadAspiRecipient(), 100);
         // Property Radar — auto-scan stale searches once per session when the page opens.
         if (S.page === 'property-radar' && !window._radarAutoScanned) {
             const stale = (S.radarSearches || []).filter(s => s.enabled !== false && (!s.lastScanAt || (Date.now() - (s.lastScanAt.toDate ? s.lastScanAt.toDate().getTime() : 0)) > 6 * 3600 * 1000));
@@ -16993,11 +16993,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <button class="lang-btn ${S.lang === 'EN' ? 'active' : ''}" onclick="setLang('EN')">🇬🇧 English</button>
                 </div>
             </div></div>
-            ${isAdmin() ? `<div class="card"><div class="card-header"><h3 class="card-title">📋 CAF / Registrazione Contratti</h3></div><div class="card-body">
-                <p style="margin-bottom:16px;color:var(--text-secondary);font-size:13px">Email del CAF per l'invio automatico delle richieste di asseverazione e registrazione contratti.</p>
-                <div class="form-group"><label class="form-label">Email CAF</label><input type="email" class="form-input" id="setCafEmail" placeholder="caf@esempio.it"></div>
-                <div class="form-group"><label class="form-label">Email CAF alternativa</label><input type="email" class="form-input" id="setCafEmailAlt" placeholder="backup@esempio.it"></div>
-                <button class="btn" onclick="saveCAFSettings()">Salva Impostazioni CAF</button>
+            ${isAdmin() ? `<div class="card"><div class="card-header"><h3 class="card-title">🏛 Registrazione contratti — referente</h3></div><div class="card-body">
+                <p style="margin-bottom:12px;color:var(--text-secondary);font-size:13px">A chi partono le richieste di registrazione e di attestazione. Vale per tutti i contratti: è lo stesso valore che si cambia con ✎ nel pannello 🏛 Registrazione di un contratto.</p>
+                <div id="setAspiRecipient" style="font-size:13px;margin-bottom:14px;color:var(--text-muted)">Lettura in corso…</div>
+                <button class="btn" onclick="editAspiSettings({ fromSettings: true })">✎ Imposta il referente</button>
             </div></div>` : ''}
             <div class="card"><div class="card-header"><h3 class="card-title">🔐 Sicurezza</h3></div><div class="card-body">
                 <button class="btn btn-secondary" onclick="logout()">🚪 Esci dall'account</button>
@@ -17024,25 +17023,24 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         } catch (e) { toast('error', 'Errore', e.message); }
     }
 
-    async function saveCAFSettings() {
+    // Il referente delle registrazioni sta in settings/registrazione, che legge solo l'admin.
+    // Questa card non salva niente da sé: mostra il valore e apre lo stesso editor del pannello 🏛
+    // (editAspiSettings). Fino al 12/11/2026 qui c'erano due campi «Email CAF» che scrivevano in
+    // settings/general, un documento che si legge senza login, e che nessuno rileggeva.
+    async function loadAspiRecipient() {
+        const el = document.getElementById('setAspiRecipient');
+        if (!el) return;
         try {
-            await db.collection('settings').doc('general').set({
-                cafEmail: document.getElementById('setCafEmail')?.value || '',
-                cafEmailAlt: document.getElementById('setCafEmailAlt')?.value || ''
-            }, { merge: true });
-            toast('success', 'Impostazioni CAF salvate');
-        } catch (e) { toast('error', 'Errore', e.message); }
-    }
-
-    async function loadCAFSettings() {
-        try {
-            var doc = await db.collection('settings').doc('general').get();
-            if (doc.exists) {
-                var d = doc.data();
-                var el1 = document.getElementById('setCafEmail'); if (el1 && d.cafEmail) el1.value = d.cafEmail;
-                var el2 = document.getElementById('setCafEmailAlt'); if (el2 && d.cafEmailAlt) el2.value = d.cafEmailAlt;
-            }
-        } catch (e) { console.warn('CAF settings load:', e); }
+            const doc = await db.collection('settings').doc('registrazione').get();
+            const d = (doc.exists && doc.data()) || {};
+            window._aspiSettingsDoc = { email: d.email || '', referente: d.referente || '' };
+            el.innerHTML = d.email
+                ? '<strong>' + esc(d.referente || 'Referente') + '</strong> · <span style="font-family:monospace">' + esc(d.email) + '</span>'
+                : '<span style="color:var(--red,#ff453a)">Nessun indirizzo salvato.</span> Senza, l\'invio non parte (salvo che il server abbia la variabile ASPI_EMAIL).';
+        } catch (e) {
+            console.warn('ASPI settings load:', e);
+            el.textContent = 'Non riesco a leggere il referente adesso: riprova, oppure aprilo dal pannello 🏛 di un contratto.';
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -25955,19 +25953,23 @@ ${esc(data.description || '')}</textarea></div>
         }
     }
     window.sendAspi = sendAspi;
-    async function editAspiSettings() {
-        const st = window._aspiStatus || { settings: {} };
-        const email = await askModal({ title: '🏛 Destinatario ASPI', message: 'Email del referente per registrazioni e asseverazioni.\nSalvata in settings/registrazione (vale per tutti i contratti).', value: st.settings.email || '', placeholder: 'nome@esempio.it' });
+    async function editAspiSettings(opts) {
+        // Dalla pagina Impostazioni non c'è un contratto aperto: si parte dal documento letto lì.
+        const fromSettings = !!(opts && opts.fromSettings);
+        const st = fromSettings ? { settings: window._aspiSettingsDoc || {} } : (window._aspiStatus || { settings: {} });
+        const cur = st.settings || {};
+        const email = await askModal({ title: '🏛 Destinatario ASPI', message: 'Email del referente per registrazioni e asseverazioni.\nSalvata in settings/registrazione (vale per tutti i contratti).', value: cur.email || '', placeholder: 'nome@esempio.it' });
         if (email === null) return;
         if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(email).trim())) return toast('error', 'Email non valida');
-        const referente = await askModal({ title: '🏛 Referente', message: 'Nome del referente (compare nell\'email).', value: st.settings.referente || '' });
+        const referente = await askModal({ title: '🏛 Referente', message: 'Nome del referente (compare nell\'email).', value: cur.referente || '' });
         try {
             await db.collection('settings').doc('registrazione').set({
                 email: String(email).trim(),
                 ...(referente ? { referente: String(referente).trim() } : {}),
             }, { merge: true });
             toast('success', 'Destinatario ASPI aggiornato');
-            if (st.contractId) openAspi(st.contractId); else closeModal();
+            if (fromSettings) await loadAspiRecipient();
+            else if (st.contractId) openAspi(st.contractId); else closeModal();
         } catch (e) { toast('error', 'Salvataggio: ' + e.message); }
     }
     window.editAspiSettings = editAspiSettings;

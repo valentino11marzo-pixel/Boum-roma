@@ -5841,9 +5841,10 @@ l'attestazione di rispondenza (**€100**). Ora:
   `settings/registrazione` (default: registrazione **€89**, asseverazione
   **€189**, completo €278; costi pratica 37/100/137 tracciati accanto).
   Da lì il 💳 link di pagamento esistente incassa con carta.
-- **Manopole in `settings/registrazione`** (admin-only in LETTURA nelle
-  rules — contiene l'email personale del referente, lezione
-  settings/company): email, referente, cc, prezzi, costi, billTo
+- **Manopole in `settings/registrazione`** (lo legge SOLO l'admin, dal
+  12/11/2026: prima bastava essere autenticati, e un account lo può aprire
+  chiunque dalle pagine del sito — contiene l'indirizzo del referente,
+  lezione settings/company): email, referente, cc, prezzi, costi, billTo
   (landlord|tenant), autoInvoice, e **`auto`** — l'opt-in "zero tap": con
   auto:true la richiesta parte DA SOLA alla firma completa (dentro
   `_finalize.js`, dopo il fascicolo CAF, best-effort e time-boxed).
@@ -5854,6 +5855,10 @@ l'attestazione di rispondenza (**€100**). Ora:
   **🏛 Invia ad ASPI** in Burocrazia → pannello che legge TUTTO da
   op:status (mai un prezzo hardcodato nel client), radio variante,
   checklist live, checkbox fattura, nota, ✎ per cambiare destinatario.
+  In Impostazioni la card «Registrazione contratti — referente» mostra il
+  valore salvato e apre lo stesso ✎ (12/11/2026: prima c'erano due campi
+  «Email CAF» che scrivevano in `settings/general`, un documento che si
+  legge senza login, e che nessuno rileggeva).
   `✓ RLI registrato` resta il tap che chiude il loop quando ASPI conferma.
 - **Cosa si fattura ≠ cosa si invia** (30/09/2026, la scala di /owners):
   `billKind` (tendina «Cosa fatturare» nel pannello) — sul riaffitto la
@@ -5883,7 +5888,7 @@ l'attestazione di rispondenza (**€100**). Ora:
   `op:'status'` lo espone insieme alle fatture già emesse (`billing`), il
   pannello preseleziona e mostra, e `maybeAutoAspi` lo applica da solo. Due
   pratiche in due tempi portano numeri distinti (`-R`/`-A`).
-- Test: `node tests/aspi/run.mjs` (79 check).
+- Test: `node tests/aspi/run.mjs` (94 check; le regole di `settings` nell'emulatore: `tests/rules`).
 
 **Il documento si attacca DOVE MANCA** (`api/fiscal/allega.js`, 23/08):
 il pannello diceva onestamente dove caricare ogni pezzo ("console
@@ -7956,9 +7961,9 @@ per i testi liberi (bozze ai clienti) l'ombra non misura: la misura sono le
 approvazioni dell'operatore, cioè la scala della fiducia. La trascrizione
 (`api/wizard/_stt.js`, scopo `stt.transcribe`) ha lo stesso doppio backend:
 Whisper sul Mac (`local.sttUrl`, rotta OpenAI-compatibile) prima, OpenAI come
-rete. Rules: `aiUsage`/`aiShadow` admin-only, `settings/ai` non pubblico
-(porta l'URL del tunnel).
-Test: `node tests/ai/run.mjs` (145 check — default pinnati, confini per
+rete. Rules: `aiUsage`/`aiShadow` admin-only; `settings/ai` lo legge solo
+l'admin (porta l'URL del tunnel; dal 12/11/2026 essere autenticati non basta).
+Test: `node tests/ai/run.mjs` (146 check — default pinnati, confini per
 mutazione, ricadute, ombra, contatori e costo, porta HTTP, STT, giunzioni
 sulla sorgente, anti-deriva nelle due direzioni: ogni chiamante dichiara uno
 scopo che esiste, ogni scopo ha un chiamante, nessun modello scritto a mano
@@ -10614,9 +10619,10 @@ Test: `tests/catalogo/{letture,descrizioni,vetrina,strumento,portale}.mjs`,
      codici fiscali dall'elenco dei sintetici o col carattere di controllo sbagliato, IBAN di esempio,
      riferimenti `BOOM-` a sei caratteri o a parola;
   3. una persona terza (un referente, un fornitore) non sta nel codice: il suo indirizzo va in una
-     env o in un documento di `settings` che il pubblico NON legge. Oggi sono tre (`company`,
-     `registrazione`, `ai`): ogni altro documento di `settings` si legge senza login, `general`
-     compreso. Il referente delle registrazioni sta in `settings/registrazione` (o `ASPI_EMAIL`);
+     env o in un documento di `settings` che legge SOLO l'admin. Oggi sono due (`registrazione`,
+     `ai`). `company` lo legge chiunque abbia un account, e un account lo può aprire chiunque dalle
+     pagine del sito; ogni altro documento di `settings` si legge senza login, `general` compreso.
+     Il referente delle registrazioni sta in `settings/registrazione` (o `ASPI_EMAIL`);
   4. un segreto non sta in un file, mai in uno servito dal sito (`js/`, le pagine): sta nelle env. Un
      segreto finito nel repository si REVOCA: toglierlo dal file non basta, resta nella storia;
   5. `.vercelignore` toglie un file dal SITO, non da GitHub: «fuori dal deploy» non vuol dire privato.

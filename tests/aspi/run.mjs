@@ -650,6 +650,87 @@ const PDFB64 = 'data:application/pdf;base64,' + Buffer.from('%PDF-1.4 finto').to
   check('registra.js passa billKind alla richiesta', /billKind: clip\(b\.billKind, 20\)/.test(rg));
 }
 
+// ═══ Il referente in Impostazioni: il valore vero, mai un indirizzo in un documento pubblico ═══
+// Fino al 12/11/2026 la pagina Impostazioni aveva una card «CAF» con due campi che scrivevano in
+// settings/general (un documento che si legge senza login) e che nessuno rileggeva. Tolto il
+// destinatario dal codice, era il primo posto dove l'operatore sarebbe andato a scriverlo.
+{
+  const pa = fs.readFileSync(new URL('../../js/portal-app.js', import.meta.url), 'utf8');
+  const rules = fs.readFileSync(new URL('../../firestore.rules', import.meta.url), 'utf8');
+  check('Impostazioni: nessun campo scrive più un indirizzo in settings/general (si legge senza login)',
+    !/cafEmail|CAFSettings/.test(pa) && !/collection\('settings'\)\.doc\('general'\)/.test(pa));
+  check('Impostazioni: la card apre lo stesso editor del pannello 🏛, senza un contratto',
+    pa.includes('onclick="editAspiSettings({ fromSettings: true })"') && pa.includes('id="setAspiRecipient"')
+    && /S\.page === 'settings' && isAdmin\(\)\) setTimeout\(\(\) => loadAspiRecipient\(\), 100\)/.test(pa));
+  check('firestore.rules: settings/registrazione lo legge solo l\'admin, non «chi è autenticato»',
+    /\(x == 'company' && request\.auth != null\)\s*\|\| isAdmin\(\);/.test(rules)
+    && !/\['company', 'registrazione', 'ai'\]\) \|\| request\.auth != null/.test(rules));
+
+  // Le due funzioni eseguite davvero (estratte dal sorgente) su un Firestore e un DOM finti.
+  const a = pa.indexOf('    async function loadAspiRecipient() {');
+  const b = pa.indexOf('    // ═', a);
+  const c = pa.indexOf('    async function editAspiSettings(opts) {');
+  const d = pa.indexOf('    window.editAspiSettings = editAspiSettings;', c);
+  check('sorgente: le due funzioni si trovano', a > 0 && b > a && c > 0 && d > c);
+  const make = new Function('db', 'document', 'window', 'esc', 'askModal', 'toast', 'openAspi', 'closeModal', 'console',
+    pa.slice(a, b) + '\n' + pa.slice(c, d) + '\nreturn { loadAspiRecipient, editAspiSettings };');
+  const world = (saved, answers) => {
+    const w = { store: saved ? { ...saved } : null, sets: [], toasts: [], opened: [], closed: 0, asked: [], failRead: false };
+    w.el = { innerHTML: '', textContent: '' };
+    w.window = {};
+    const db = { collection: (col) => ({ doc: (id) => ({
+      get: async () => { if (w.failRead) throw new Error('denied'); return { exists: !!w.store, data: () => w.store }; },
+      set: async (data, opt) => { w.sets.push({ path: col + '/' + id, data, opt }); w.store = { ...(w.store || {}), ...data }; },
+    }) }) };
+    const escHtml = (v) => String(v).replace(/[&<>"']/g, (ch) => '&#' + ch.charCodeAt(0) + ';');
+    const queue = [...(answers || [])];
+    const fns = make(db, { getElementById: (id) => (id === 'setAspiRecipient' ? w.el : null) }, w.window, escHtml,
+      async (o) => { w.asked.push(o.value); return queue.shift(); },
+      (level, text) => w.toasts.push(level + ':' + text), (id) => w.opened.push(id), () => { w.closed++; }, { warn() {}, error() {} });
+    return Object.assign(w, fns);
+  };
+
+  const w1 = world({ email: 'referente@example.com', referente: 'Dott.ssa <Prova>', prezzi: { registrazione: 89 } });
+  await w1.loadAspiRecipient();
+  check('card: mostra nome e indirizzo salvati, escapati',
+    w1.el.innerHTML.includes('referente@example.com') && !w1.el.innerHTML.includes('<Prova>') && w1.el.innerHTML.includes('Prova'), w1.el.innerHTML);
+
+  const w2 = world(null);
+  await w2.loadAspiRecipient();
+  check('card: senza indirizzo lo dice, e dice che l\'invio non parte',
+    /Nessun indirizzo salvato/.test(w2.el.innerHTML) && /non parte/.test(w2.el.innerHTML), w2.el.innerHTML);
+
+  const w3 = world({ email: 'vecchio@example.com', referente: 'Vecchio' }, ['  nuovo@example.com ', ' Nuovo Referente ']);
+  w3.window._aspiStatus = { contractId: 'c_di_prima', settings: { email: 'altro@example.com' } };   // un pannello aperto prima
+  await w3.loadAspiRecipient();
+  await w3.editAspiSettings({ fromSettings: true });
+  check('✎ da Impostazioni: parte dal valore salvato, scrive SOLO settings/registrazione (merge), non riapre il pannello di un contratto',
+    w3.asked[0] === 'vecchio@example.com' && w3.sets.length === 1 && w3.sets[0].path === 'settings/registrazione'
+    && w3.sets[0].data.email === 'nuovo@example.com' && w3.sets[0].data.referente === 'Nuovo Referente'
+    && w3.sets[0].opt && w3.sets[0].opt.merge === true && w3.opened.length === 0
+    && /nuovo@example\.com/.test(w3.el.innerHTML), { sets: w3.sets, asked: w3.asked, opened: w3.opened, el: w3.el.innerHTML });
+
+  const w4 = world({ email: 'vecchio@example.com' }, ['non-una-email']);
+  await w4.editAspiSettings({ fromSettings: true });
+  check('✎: un indirizzo non valido non si salva', w4.sets.length === 0 && w4.toasts.some((t) => /^error:/.test(t)), w4.toasts);
+
+  const w5 = world({ email: 'vecchio@example.com' }, [null]);
+  await w5.editAspiSettings({ fromSettings: true });
+  check('✎: annullare non scrive niente', w5.sets.length === 0 && w5.toasts.length === 0, w5.toasts);
+
+  const w6 = world({ email: 'vecchio@example.com' }, ['nuovo@example.com', '']);
+  w6.window._aspiStatus = { contractId: 'c1', settings: { email: 'vecchio@example.com', referente: 'R' } };
+  await w6.editAspiSettings();
+  check('✎ dal pannello di un contratto: come prima, e riapre quel pannello',
+    w6.asked[0] === 'vecchio@example.com' && w6.sets.length === 1 && w6.sets[0].path === 'settings/registrazione'
+    && !('referente' in w6.sets[0].data) && w6.opened[0] === 'c1', { sets: w6.sets, opened: w6.opened });
+
+  const w7 = world({ email: 'x@example.com' });
+  w7.failRead = true;
+  await w7.loadAspiRecipient();
+  check('card: una lettura fallita si dice, non resta «Lettura in corso»', /Non riesco a leggere/.test(w7.el.textContent), w7.el);
+}
+
 // ═══ Esito ═══
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed) { console.log('FAILED:', bad.join(' | ')); process.exit(1); }
