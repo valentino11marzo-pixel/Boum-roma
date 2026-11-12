@@ -348,11 +348,6 @@ window.__portalAppLoaded = true; // sentinella per la via d'uscita anti-spinner-
         phone: '+39 3313251961',
         email: 'hello@boom-rome.com',
         consultant: 'Valentyne',
-        telegram: {
-            botToken: '8339998702:AAEwYk3QokhnZwqfhDTpvGpYzjKMKNw2QBI',
-            adminUsername: 'MrValentyne',
-            adminChatId: '553858752'
-        },
         logo: 'data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDI0IDEwMjQiIHdpZHRoPSIxMDI0IiBoZWlnaHQ9IjEwMjQiPgogIDxkZWZzPgogICAgPGxpbmVhckdyYWRpZW50IGlkPSJnb2xkR3JhZGllbnQiIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMCUiIHkyPSIxMDAlIj4KICAgICAgPHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iI0ZGRDU0RiIvPgogICAgICA8c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiNGNUE2MjMiLz4KICAgIDwvbGluZWFyR3JhZGllbnQ+CiAgPC9kZWZzPgogIDxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDAsMTAyNCkgc2NhbGUoMC4xLC0wLjEpIiBmaWxsPSJ1cmwoI2dvbGRHcmFkaWVudCkiPgogICAgPHBhdGggZD0iTTQ4NjAgODc0OSBjLTUwOSAtMjkgLTk3NiAtMTYxIC0xNDEzIC00MDEgLTU4MCAtMzE3IC0xMDU3IC04MDYgLTEzNTAgLTEzODMgLTE0OCAtMjkyIC0yMjkgLTUzMiAtMjkxIC04NTkgLTg5IC00NjUgLTY5IC0xMDA1IDU0IC0xNDYxIDE4NCAtNjg4IDYxNiAtMTMwOCAxMjMyIC0xNzY5IDQ5MiAtMzY4IDExNzIgLTYwOSAxNzk0IC02MzUgNTQ2IC0yMiA5ODcgNTcgMTQ4OSAyNjcgNTAzIDIxMSA5NzkgNTg5IDEzMjcgMTA1MyAzNDAgNDUzIDU1NyA5OTQgNjMwIDE1NjkgMTcgMTM1IDE3IDYzMCAwIDc2MCAtOTMgNzE2IC0zOTYgMTM0MSAtOTAwIDE4NjEgLTI4MCAyODkgLTU2OSA0OTggLTkyMiA2NjcgLTQxNiAyMDAgLTgxMyAzMDMgLTEyODUgMzMyIC0xNjUgMTAgLTE3MCAxMCAtMzY1IC0xeiBtNjEwIC0xNDQgYzc0MyAtMTAzIDE0MzYgLTQ1OSAxOTE5IC05ODUgMzM4IC0zNjcgNTYyIC03NTEgNzA0IC0xMjA1IDI3NiAtODc5IDEzMiAtMTg1OCAtMzg4IC0yNjQwIC0yNDIgLTM2NCAtNDkzIC02MTUgLTkwMCAtOTAwIGwtNzAgLTQ5IDEwOSAxMDQgYzQxMyAzOTYgNjc5IDkxOSA3NjcgMTUwNSAzMyAyMTcgMzMgNTU4IDAgNzY1IC03NSA0NzYgLTI1NyA4OTYgLTU0OSAxMjY1IC0xMjcgMTYxIC0zNjMgMzgwIC01NDkgNTExIC0zMDAgMjExIC02ODkgMzYzIC0xMDc5IDQyMCAtMTcyIDI2IC02MDQgMjYgLTc2NCAwIC0yOTYgLTQ3IC01NDUgLTEyOCAtODA4IC0yNjIgLTIzNiAtMTIyIC00NDAgLTI3MSAtNjMyIC00NjQgLTQ4NiAtNDg1IC03NDkgLTExMjEgLTc1MSAtMTgxNSAtMSAtNjExIDE3MCAtMTE0OCA1MTUgLTE2MDggMTAwIC0xMzQgMjg2IC0zMzUgMzgyIC00MTMgMzMgLTI3IC04IC0yIC05MSA1NSAtNTEzIDM1MSAtOTA0IDgwNSAtMTE0MyAxMzMxIC03MSAxNTYgLTEzNiAzMzYgLTE2OCA0NjUgLTkgMzMgLTE5IDc2IC0yNCA5NSAtNSAxOSAtMjAgMTAwIC0zNCAxODAgLTU5IDM0MyAtNjAgNzQwIDAgMTA3MCA4MSA0NTYgMjI5IDgyNiA0NzkgMTIwMCAyNDYgMzY4IDU1OCA2NjkgOTQ5IDkxNyAzODYgMjQ1IDg4MSA0MTggMTMyMSA0NjIgNjEgNiAxMjQgMTMgMTQwIDE1IDczIDEwIDU1NiAtNCA2NjUgLTE5eiBtLTYwIC0xMzI5IGMxMDUgLTE2IDI1OCAtNDkgMzM1IC03MiA4MiAtMjYgMTk3IC02NiAyNDAgLTg0IDE0OSAtNjUgMTkwIC04NCAyNjYgLTEyNiA2NzcgLTM3OSAxMTI5IC0xMDQ5IDEyNDYgLTE4NDkgMjcgLTE4MiAyNCAtNTE3IC01IC02OTUgLTc1IC00NTggLTIyNSAtODEzIC01MDAgLTExNzkgLTExNiAtMTU0IC0zNDAgLTM2OSAtNTI3IC01MDYgLTQ0IC0zMiAtODcgLTYzIC05NSAtNjkgLTggLTYgMzUgMzkgOTYgOTkgMTc4IDE3NyAyODMgMzIxIDM5NyA1NTAgMTYxIDMyMiAyMzEgNjc2IDIwNSAxMDQ1IC0zMiA0NjcgLTIyMyA5MDIgLTU0MiAxMjM3IC0yMzkgMjUxIC01MjEgNDI2IC04NzMgNTQyIC03OSAyNiAtMjczIDY3IC0zODMgODEgLTEwOCAxMyAtMzQ5IDEzIC00NjUgMCAtMjc2IC0zMiAtNTk3IC0xNDUgLTgzNCAtMjkzIC0yMjQgLTE0MCAtNDY2IC0zNzggLTYxMyAtNjAyIC0zMDcgLTQ3MCAtNDA3IC0xMDU1IC0yNzMgLTE1OTkgODAgLTMyNyAyMTcgLTU4OSA0NTQgLTg3MSA3MSAtODQgNzMgLTg4IDMxIC01NiAtMjkzIDIyNSAtNTQ3IDUzNSAtNzE4IDg3NyAtMzQgNjggLTY1IDE0MyAtMTIyIDI5NCAtNDIgMTEyIC0xMDEgMzgzIC0xMjAgNTU1IC0xNCAxMjcgLTE0IDQwMSAwIDUzNCA1MSA0ODIgMjIzIDkxMiA1MTYgMTI4OCAyNjkgMzQ0IDY1NCA2MjAgMTA4NSA3NzggMTYwIDU5IDQwMCAxMTUgNTc0IDEzNCAxMjEgMTMgNTA4IDUgNjI1IC0xM3ogbS0zMCAtMTE2NSBjNDAxIC04MSA3MjEgLTI0MiA5OTIgLTQ5OSA2NDMgLTYxMiA3NjkgLTE2MDcgMzAwIC0yMzY3IC0xMTggLTE5MCAtMjkxIC0zODYgLTQ2MyAtNTI0IC0xMzcgLTExMSAtMTQ4IC0xMTMgLTQ5IC0xMiAxMTAgMTEyIDIwNiAyNDggMjc1IDM4NiA2NyAxMzcgOTggMjIyIDEzMiAzNjcgMjQgMTAzIDI2IDEzMiAyNyAzMjMgMCAxODIgLTMgMjI0IC0yMiAzMTAgLTQ3IDIxMSAtMTI2IDM5NCAtMjQ1IDU2OSAtMTI2IDE4NiAtMzU4IDM4NyAtNTY0IDQ5MCAtMzg0IDE5MSAtODIzIDIyNSAtMTIxOCA5NSAtNDgyIC0xNjAgLTg1NCAtNTQxIC0xMDA0IC0xMDI5IC0xMTcgLTM3OSAtODEgLTgxMCA5NiAtMTE2NSAzNyAtNzIgMTMwIC0yMTUgMTY2IC0yNTIgMTcgLTE4IDI2IC0zMyAyMCAtMzMgLTYgMCAtNjEgNTIgLTEyMSAxMTYgLTI1OSAyNzIgLTQyNCA1NzUgLTUxMSA5MzQgLTExMSA0NTkgLTE4IDEwMDYgMjQ1IDE0MzAgMjk4IDQ4MyA3OTEgNzk3IDEzNzkgODgwIDExMCAxNiA0NDggNCA1NjUgLTE5eiBtLTIzOSAtOTExIGMzNjAgLTI4IDY4MCAtMTcxIDkyNSAtNDE1IDE5NCAtMTkzIDMxNyAtNDE1IDM4MiAtNjg4IDI0IC0xMDIgMjYgLTEzMCAyNiAtMzEyIDAgLTE5MSAtMSAtMjA1IC0zMCAtMzIwIC01MyAtMjA1IC0xMzIgLTM3MiAtMjUxIC01MzUgLTU4IC03OSAtMjYzIC0yODggLTMyMyAtMzMwIC0zMSAtMjIgLTI5IC0xOCAxOCAzNSAxOTUgMjIwIDMxMiA1MTkgMzEyIDc5NSAwIDMyNSAtMTIxIDYxNCAtMzUwIDg0MSAtMzY5IDM2NCAtOTI2IDQ1MyAtMTM4NSAyMjIgLTMzNiAtMTcwIC01NzggLTQ5OSAtNjM2IC04NjUgLTE5IC0xMjYgLTcgLTM3MSAyNSAtNDkwIDQ0IC0xNjIgOTcgLTI4NCAxNzMgLTM5OCA5IC0xNCAtNCAtNSAtMzAgMjAgLTI2IDI0IC00NSA1MSAtNDIgNTggMiA3IDEgMTEgLTQgNyAtMTEgLTYgLTU4IDUxIC0xMTggMTQwIC0xMDkgMTYzIC0xODMgMzQ3IC0yMTkgNTQ1IC0yMyAxMjcgLTIzIDM1MSAtMSA0ODkgNTUgMzM1IDI0OCA2NzcgNDkyIDg3MSAyNjEgMjA4IDUzMCAzMTEgODgxIDMzOCAxMSAxIDgxIC0zIDE1NSAtOHogbTI5IC03MTQgYzQ1OSAtNzQgODIzIC00MjggODk1IC04NjkgNTggLTM1OCAtNjAgLTY5NiAtMzQ1IC05ODcgbC0zNCAtMzUgMjIgMzUgYzExNSAxODIgMTc5IDQwMyAxNjggNTc1IC0xNCAyMzUgLTEwNCA0MzMgLTI2OCA1OTEgLTEzNyAxMzQgLTI4NyAyMDkgLTQ3MiAyMzkgLTExNSAxOSAtMTg3IDE5IC0zMDMgMCAtMzM3IC01NSAtNjEyIC0zMDIgLTcwNCAtNjM1IC0zMiAtMTEzIC0zNCAtMzI1IC01IC00NDAgMjMgLTkyIDcwIC0yMTMgOTggLTI1NCBsMjEgLTMxIC0zMSAyOSBjLTM5IDM2IC0xMjAgMTUyIC0xNTUgMjIxIC0zNSA3MSAtODEgMjE1IC0xMDIgMzE5IC0yNSAxMzAgLTE3IDM1NyAxNyA0NzYgMTAyIDM1NCAzNTcgNjE4IDcwNiA3MzAgMTUyIDQ5IDMzMSA2MiA0OTIgMzZ6IG0tNzMgLTU2NyBjMTc4IC0yNCAzMjcgLTEwMSA0NTQgLTIzNiAxMzcgLTE0MyAxOTkgLTMwMyAyMDEgLTUxMyAxIC0xNjIgLTQyIC0zMDkgLTEzNSAtNDUzIC01MiAtODIgLTczIC05NyAtMzggLTI4IDUxIDk5IDY3IDI5MCAzNiA0MTIgLTU3IDIxOSAtMjUxIDQxMyAtNDY2IDQ2NCAtNzUgMTcgLTIzNiAyMCAtMzExIDQgLTIxMyAtNDQgLTQyMiAtMjQ3IC00NzMgLTQ2MCAtMzEgLTEzMyAtMTMgLTMyNSA0MSAtNDMxIDM1IC03MCA4IC00NyAtNTIgNDMgLTU4IDg4IC05MCAxNjcgLTExNCAyODYgLTI1IDEyMSAtMjUgMjIwIC0xIDMzMSAzMyAxNDYgODQgMjQzIDE4NiAzNTEgMTcxIDE4MyA0MTMgMjY2IDY3MiAyMzB6IG0xNSAtNDcwIGM4MCAtMTcgMTg2IC03NiAyNDggLTEzOSAxMDYgLTEwNyAxNTggLTI0OCAxNDcgLTM5OCAtNiAtOTIgLTI1IC0xNTIgLTc5IC0yNTAgLTQ1IC04MiAtNjAgLTkxIC0yNyAtMTcgMTggNDEgMjEgNjIgMTcgMTQ5IC00IDg5IC04IDEwOCAtMzUgMTYyIC00MyA4MiAtMTI2IDE2NSAtMjA5IDIwNSAtNTggMjkgLTgwIDM0IC0xNTggMzcgLTExMiA1IC0xODQgLTEyIC0yNTkgLTYyIC0xODIgLTEyMSAtMjUxIC0zMjMgLTE3MSAtNTA2IGwyNCAtNTUgLTI1IDMwIGMtMzYgNDQgLTkyIDE2MiAtMTA0IDIyMyAtMzkgMTg5IDE0IDM2OSAxNDYgNDkyIDEwNSA5OSAyMDQgMTM5IDM0NSAxMzkgNDggMSAxMTEgLTQgMTQwIC0xMHoiLz4KICA8L2c+Cjwvc3ZnPgo=',
         colors: {
             primary: '#D4AF37',
@@ -1977,7 +1972,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         var t = S.users.find(function(x){return x.id===c.tenantId;});
         var ll = p ? S.users.find(function(x){return x.id===p.ownerId;}) : null;
         
-        var cafEmail = 'csa.srls20@gmail.com'; // DokiCasa
+        // L'indirizzo del CAF sta in Impostazioni → Email CAF (settings/general.cafEmail), mai nel codice.
+        var cafEmail = '';
+        try { var cafSet = await db.collection('settings').doc('general').get(); cafEmail = (cafSet.exists && cafSet.data().cafEmail) || ''; } catch (cafSetErr) { console.warn('CAF settings:', cafSetErr); }
+        var cafLabel = cafEmail ? 'al CAF (' + cafEmail + ')' : 'al CAF (indirizzo da impostare in Impostazioni \u2192 Email CAF)';
         var subject = 'Richiesta asseverazione canone concordato — ' + (p?.name || 'Immobile') + ' — ' + (ll?.name || 'Locatore');
         
         var body = 'Buongiorno,\n\n'
@@ -2018,7 +2016,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             category: 'contract',
             priority: 'high',
             status: 'open',
-            description: 'Inviare richiesta asseverazione a DokiCasa (' + cafEmail + ').\n'
+            description: 'Inviare richiesta asseverazione ' + cafLabel + '.\n'
                 + 'Locatore: ' + (ll?.name||'') + '\nConduttore: ' + (t?.name||'') + '\nCanone: \u20ac' + (c.rent||0)
                 + '\nCedolare: ' + ced
                 + '\n\nEmail draft inviata via webhook. Verificare e completare.',
@@ -2039,7 +2037,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         
         var admins = S.users.filter(function(u){return u.role==='admin';});
         for (var i=0; i<admins.length; i++) {
-            await createNotification(admins[i].id, 'contract', '\uD83D\uDCE8 CAF asseverazione', 'Email draft per DokiCasa per ' + (p?.name||'') + '. Verificare e inviare.', {contractId:contractId});
+            await createNotification(admins[i].id, 'contract', '\uD83D\uDCE8 CAF asseverazione', 'Bozza di richiesta al CAF per ' + (p?.name||'') + '. Verificare e inviare.', {contractId:contractId});
         }
         
         console.log('[BOOM] CAF draft generated for', p?.name);
@@ -2597,7 +2595,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     // incastrato non risolve mai → boot appeso fino al
                     // watchdog dei 25s pur essendo l'utente autenticato.
                     db.collection('users').doc(u.uid).update({ lastLogin: firebase.firestore.FieldValue.serverTimestamp() }).catch(() => {});
-                    // L'inquilino vive in /casa (6/11/2026 — Thao, Via Vittoria 69):
+                    // L'inquilino vive in /casa (6/11/2026):
                     // /login senza `next` porta tutti qui, e la vista inquilino
                     // del portal è la versione vecchia di ciò che /casa fa meglio
                     // (rate, bonifico con causale, ricevute, firma, documenti).
@@ -2731,8 +2729,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const q = new URLSearchParams(search || '');
         return !!profile && profile.role === 'tenant' && !q.get('csign') && q.get('portal') !== '1';
     }
-    // Una lettura PER CASA, ognuna col suo esito (6/11/2026 — Miss Thao,
-    // Via Vittoria 69: «Missing or insufficient permissions», «No Active
+    // Una lettura PER CASA, ognuna col suo esito (6/11/2026,
+    // un'inquilina: «Missing or insufficient permissions», «No Active
     // Lease», niente rate). Per un inquilino la regola di properties ammette
     // solo la casa il cui currentContractId è un SUO contratto; col contratto
     // appena nato (immobile non ancora affittato, o ancora del contratto
@@ -25270,7 +25268,7 @@ ${esc(data.description || '')}</textarea></div>
 
             <div class="card" style="margin-top:16px;padding:14px 16px;background:rgba(212,175,55,0.04);border:1px dashed rgba(212,175,55,0.3)">
                 <div style="font-size:12px;color:var(--text-muted)">
-                    <strong style="color:var(--gold)">🏛 Iter ASPI attivo</strong> · Il bottone <em>Invia ad ASPI</em> manda al referente (Roberto Ubertini — ASPI) l'email strutturata con contratto, identità e, per il canone concordato, APE + planimetria + scheda di calcolo — e crea la fattura col markup BOOM (costo pratica €37 registrazione / €100 asseverazione). Destinatario e prezzi si cambiano dal pannello (✎) o da <code>settings/registrazione</code>. La <em>bozza RLI</em> resta per chi registra in proprio su RLI Web.
+                    <strong style="color:var(--gold)">🏛 Iter ASPI attivo</strong> · Il bottone <em>Invia ad ASPI</em> manda al referente ASPI l'email strutturata con contratto, identità e, per il canone concordato, APE + planimetria + scheda di calcolo — e crea la fattura col markup BOOM (costo pratica €37 registrazione / €100 asseverazione). Destinatario e prezzi si cambiano dal pannello (✎) o da <code>settings/registrazione</code>. La <em>bozza RLI</em> resta per chi registra in proprio su RLI Web.
                 </div>
             </div>
         `;
@@ -25805,8 +25803,8 @@ ${esc(data.description || '')}</textarea></div>
             <div class="modal-body">
                 <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;background:var(--bg-elevated);border-radius:10px;padding:10px 14px;margin-bottom:14px">
                     <div style="min-width:0">
-                        <div style="font-size:12.5px"><strong>${esc(s.referente)}</strong> · ${esc(s.organizzazione || '')}</div>
-                        <div style="font-size:11.5px;color:var(--text-muted);font-family:monospace">${esc(s.email)}${s.auto ? ' · <span style="color:var(--gold)">invio automatico alla firma: ON</span>' : ''}</div>
+                        <div style="font-size:12.5px"><strong>${esc(s.referente || 'Referente')}</strong> · ${esc(s.organizzazione || '')}</div>
+                        <div style="font-size:11.5px;color:var(--text-muted);font-family:monospace">${s.email ? esc(s.email) : '<span style="color:var(--red,#ff453a)">Destinatario non impostato: premi ✎ e scrivi l\'email del referente</span>'}${s.auto ? ' · <span style="color:var(--gold)">invio automatico alla firma: ON</span>' : ''}</div>
                     </div>
                     <button class="btn btn-xs btn-secondary" onclick="editAspiSettings()" title="Cambia destinatario (settings/registrazione)">✎</button>
                 </div>
@@ -25932,6 +25930,8 @@ ${esc(data.description || '')}</textarea></div>
                 if (btnEl) { btnEl.disabled = false; btnEl.textContent = '✉ Invia'; }
                 return toast('error', j && j.error === 'contratto_pdf_mancante'
                     ? 'Manca il definitivo firmato: completa Magic Sign oppure acquisisci il firmato esterno'
+                    : j && j.error === 'recipient_not_configured'
+                    ? 'Destinatario non impostato: premi ✎ nel pannello e scrivi l\'email del referente, poi rimanda'
                     : 'ASPI: ' + ((j && j.error) || 'invio fallito'));
             }
             closeModal();
@@ -32441,7 +32441,7 @@ IBAN: ${l.iban || '-'}`;
             </div>`;
         };
 
-        // Sezione mancante ≠ vicolo cieco. Il caso vero (Via Simeto, 30/08):
+        // Sezione mancante ≠ vicolo cieco. Il caso vero (30/08):
         // inquilino e immobile ESISTEVANO in anagrafica, ma il PDF non li
         // portava nella proposta e il contratto restava increabile da qui —
         // con la persona giusta a due tap di distanza. Il "fantasma" apre
@@ -33279,7 +33279,7 @@ IBAN: ${l.iban || '-'}`;
 
             // 2 — Immobile. L'aggancio SCELTO (checkbox o fantasma) vince
             // sempre sul match riderivato — e vale anche quando la sezione
-            // manca dalla proposta: è la via Via Simeto.
+            // manca dalla proposta: è il caso del 30/08.
             let propertyId = await resolve('property', p.property, pools.property, 'property', _innesto.links, async (d) => {
                 const doc = {
                     name: d.name || d.address, address: d.address || '', city: d.city || '',
