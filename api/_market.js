@@ -267,7 +267,9 @@ export const CITY_MARKETS = {
   // 06/11/2026 (the founder): Paris and Berlin take the card at the order like the six — the
   // decision recorded in CLAUDE.md with its legal exposure (loi Hoguet art. 6, WoVermRG §2(4)).
   // `order`, `feeCap`, `goAhead`, `noStacking` stay: they run the orders already BOOKED at
-  // signing (orderChargeAt reads the mode on the order), never a new one.
+  // signing (orderChargeAt reads the mode on the order), never a new one. `noStacking` has one
+  // live reader since 12/11/2026: the upgrade credit has no deadline on that desk
+  // (api/_upgrade.js upgradeDaysOf — Terms §12.5: a Full Search client is not charged a pack).
   paris:  { label: 'Paris',  labelIt: 'Parigi',  flag: '🇫🇷', country: 'fr', holidays: 'fr',    url: 'https://www.boomrome.com/paris',
             mode: 'search', checkout: true, order: { prefix: 'PAR', months: 6 }, cardStep: false, plans: CITY_PLANS },
   berlin: { label: 'Berlin', labelIt: 'Berlino', flag: '🇩🇪', country: 'de', holidays: 'de-be', url: 'https://www.boomrome.com/berlin',

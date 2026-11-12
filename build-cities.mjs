@@ -110,6 +110,7 @@ import { CITY_MARKETS } from './api/_market.js';
 // v1.8: the order terms of the desks that charge at signing — the page posts their version, the server
 // refuses an older one with 409 terms_changed (ORDER_TERMS_V in the page config)
 import { ORDER_TERMS } from './api/_cityterms.js';
+import { upgradePathsOf, upgradeLine, upgradeFact } from './api/_upgrade.js';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 // The model withdrawal form (Directive 2011/83/EU Annex I(B)), linked from the
@@ -785,8 +786,17 @@ export function feesRowOf(c, shared, extra = '') {
   const cur = currencyOf(c.slug);
   return plans.map((p) => `<b>${esc(p.label)} ${money(p.price, cur)}</b>${p.unit ? ' ' + esc(p.unit) : ''}${same ? '' : ` (${esc(p.conditionLong)})`}`).join(' · ')
     + '.' + (same ? ' ' + esc(plans[0].conditionLong) : '') + (extra ? ' ' + extra : '')
-    + (c.checkout === true ? ' ' + esc(ruleOf(c, shared)) : '');
+    + (c.checkout === true ? ' ' + esc(ruleOf(c, shared)) : '')
+    + upgradesOf(c).map((u) => ' ' + esc(upgradeFact(u.fromLabel, u.toLabel))).join('');
 }
+// THE UPGRADE CREDIT (api/_upgrade.js — a policy since 12/11/2026): on a desk
+// that takes the card at the order, a paid Application Pack is credited in
+// full towards Full Search for UPGRADE_DAYS. DERIVED from the server's own
+// paths and words, never typed per desk: the ticket of the plan that can be
+// upgraded says it (its ✓ line), the fact sheet's Fees row and that plan's
+// Offer say it. A desk that charges at signing, or is still opening, takes
+// nothing at the order: no credit exists there and the sentence is refused.
+export const upgradesOf = (c) => (c && c.checkout === true && c.mode !== 'waitlist' && !isSigning(c) ? upgradePathsOf(list(c, 'pricing.plans')) : []);
 // The fact sheet's withdrawal row (audit, 06/11): the 14 days were said only
 // inside the till, to whoever opened it; "can I cancel after paying?" is
 // asked before. DERIVED from the desk's mode, never typed per desk: the six
@@ -925,8 +935,11 @@ const R = {
     const signing = isSigning(c);
     const rule = esc(ruleOf(c, shared));
     const cur = currencyOf(c.slug);
+    // the upgrade credit: the ✓ line of the plan that can be upgraded (api/_upgrade.js)
+    const ups = upgradesOf(c);
     const rows = list(c, 'pricing.plans').map((p) => {
       const first = p.id === 'full-search', fs0 = sell && first;
+      const up = ups.find((u) => u.from === p.id);
       const cond = esc(p.condition).replace(' · incl. VAT', ' ·<br> incl. VAT');
       const c3 = condThree(p);  // a three-part condition breaks after its first part in the closed pair (boom-city.css)
       return [
@@ -939,7 +952,7 @@ const R = {
         '          <div class="tk">',
         first ? '' : `            <p class="tk-tag">${esc(p.name)}</p>`,
         `            <ul class="tk-inc">${p.includes.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>`,
-        signing ? `            <p class="refund">${esc(p.trigger)}</p>` : fs0 ? `            <p class="refund">${rule}</p>` : '',
+        signing ? `            <p class="refund">${esc(p.trigger)}</p>` : fs0 ? `            <p class="refund">${rule}</p>` : up ? `            <p class="refund">${esc(upgradeLine(up.toLabel))}</p>` : '',
         '            <div class="tk-stub">',
         '            <div class="tk-slot" data-slot></div>',
         '            <i class="bars" aria-hidden="true"></i>',
@@ -1376,7 +1389,9 @@ export function serviceNode(c, shared, pageUrl, orgId) {
         '@type': 'Offer', name: p.label, price: String(p.price), priceCurrency: currencyOf(c.slug),
         availability: waitlist && !isSigning(c) ? 'https://schema.org/PreOrder' : 'https://schema.org/InStock',
         description: p.offerDescription + (p.unit ? ' Priced ' + p.unit + '.' : '') + ' ' + p.conditionLong
-          + (c.checkout === true && (isSigning(c) || p.id === 'full-search') ? ' ' + ruleOf(c, shared) : ''),
+          + (c.checkout === true && (isSigning(c) || p.id === 'full-search') ? ' ' + ruleOf(c, shared) : '')
+          // the upgrade credit, on the Offer of the plan it starts from
+          + upgradesOf(c).filter((u) => u.from === p.id).map((u) => ' ' + upgradeFact(u.fromLabel, u.toLabel)).join(''),
         priceSpecification: { '@type': 'UnitPriceSpecification', price: String(p.price), priceCurrency: currencyOf(c.slug), valueAddedTaxIncluded: true,
           ...(unitWord ? { unitText: unitWord, referenceQuantity: { '@type': 'QuantitativeValue', value: 1, unitText: unitWord } } : {}) },
         url: pageUrl + '#fare-' + p.id,
@@ -2398,6 +2413,29 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
     need(outside.includes(`<p class="refund fs">${rule}</p>`), where, `the ${ruleWord} rule is missing under the closed Full Search row, which shows €500`);
     need(sliceOf(html, '<dialog class="till"', '</dialog>').includes(rule), where, `the ${ruleWord} rule is missing from the till, which shows €500`);
     need(sliceOf(html, '<dt>Fees</dt>', '</dd>').includes(rule), where, `the ${ruleWord} rule is missing from the fees row, which shows €500`);
+  }
+  // THE UPGRADE CREDIT (api/_upgrade.js, a policy since 12/11/2026): where the
+  // desk takes the card at the order, the ticket of the plan that can be
+  // upgraded says the ✓ line, and the Fees row and that plan's Offer say the
+  // fact — the server's own words, so the page cannot promise a credit the
+  // till does not give. A desk that charges at signing, or is still opening,
+  // takes nothing at the order: the words are refused there.
+  {
+    const ups = upgradesOf(city);
+    for (const u of ups) {
+      const tk = sliceOf(sliceOf(fares, `id="fare-${u.from}"`, '</details>'), '<div class="tk">', '<div class="tk-stub">');
+      need(tk.includes(`<p class="refund">${esc(upgradeLine(u.toLabel))}</p>`), where, `the ${u.fromLabel} ticket does not say the upgrade credit (api/_upgrade.js upgradeLine): the till credits it, the page must say it`);
+      need(sliceOf(html, '<dt>Fees</dt>', '</dd>').includes(esc(upgradeFact(u.fromLabel, u.toLabel))), where, 'the fees row does not say the upgrade credit (api/_upgrade.js upgradeFact)');
+      need(ldStrings(html).some((t) => t.includes(upgradeFact(u.fromLabel, u.toLabel))), where, `the ${u.fromLabel} Offer does not say the upgrade credit (api/_upgrade.js upgradeFact)`);
+    }
+    if (!ups.length) need(!/credited in full/i.test(html), where, 'this desk takes nothing at the order (it charges at signing, or is still opening): no upgrade credit exists here, and the page must not print one');
+  }
+  if (sell) {
+    const rule = esc(ruleOf(city, shared));
+    const ruleWord = signing ? 'signing' : 'refund';
+    const ruleRe = ruleReOf(city);
+    const fsId = 'full-search';
+    const fsRow = sliceOf(html, `<details class="fare" name="fare" id="fare-${fsId}"`, '<!-- /FARES -->');
     // EVERY €500 sits inside a block that says the rule: its own <details>
     // (a fare row with its ticket, a FAQ answer), <li>, <dd> or the till's
     // <dialog> — never "somewhere nearby"; a meta attribute or a JSON-LD
@@ -3597,8 +3635,13 @@ export function renderHub({ template, shared, hub, cities, assetVersion, frags, 
   // silently absent, never a warning (a warning is for an item that should be there)
   const signNote = fr.signing && tok.signDesks ? Topt(fr.signing, 'fares.signing note') : null;
   const gbpDesk = gbp.length ? `at the ${listJoin(gbp.map((c) => c.city))} desk${gbp.length > 1 ? 's' : ''}` : '';
+  // the upgrade credit (api/_upgrade.js): the hub says it under the plan it
+  // starts from only while EVERY live desk offers it — one desk charging at
+  // signing and the sentence would be false there, so the hub stays silent
+  const hubUps = live.every((c) => upgradesOf(c).length > 0) ? upgradesOf(live[0]) : [];
   const tickets = plans.map((p) => {
     const hp = fr.plans[p.id];
+    const up = hubUps.find((u) => u.from === p.id);
     authored.push(hp.who, ...hp.lines);
     return [
       `        <li class="hft" id="hf-${esc(p.id)}">`,
@@ -3607,7 +3650,7 @@ export function renderHub({ template, shared, hub, cities, assetVersion, frags, 
       `          <p class="hft-price"><b>${money(p.price, 'EUR')}</b><span>${esc(p.condition)}</span></p>`,
       gbpDesk ? `          <p class="hft-gbp">${money(p.price, 'GBP')} ${esc(gbpDesk)}</p>` : '',
       `          <ul class="hft-inc">${hp.lines.map((l) => `<li>${esc(l)}</li>`).join('')}</ul>`,
-      p.id === 'full-search' ? `          <p class="refund">${esc(shared.refund.rule)}</p>` : '',
+      p.id === 'full-search' ? `          <p class="refund">${esc(shared.refund.rule)}</p>` : up ? `          <p class="refund">${esc(upgradeLine(up.toLabel))}</p>` : '',
       '        </li>'
     ].filter(Boolean).join('\n');
   });

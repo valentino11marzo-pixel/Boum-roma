@@ -56,6 +56,7 @@ import { fsCreate, fsGet, fsGetVersioned, fsList, fsCommit, logActivity } from '
 import { sendEmail } from './agent/_lib.js';
 import { shell, para, fine, row, hero } from './preagreement/_notify.js';
 import { CITY_MARKETS, moneyOf } from './_market.js';
+import { upgradeMoneyBackNote } from './_upgrade.js';
 import DESK_CAL from '../js/desk-calendar.js';
 import SCALO from '../js/scalo-codes.js';
 
@@ -264,7 +265,12 @@ async function decide(st, found) {
   if (!found || found.failed) return { kind: 'lookup_failed' };
   const hits = found.hits || [];
   if (!hits.length) return { kind: 'none', refMiss: !!found.refMiss };
-  if (hits.length > 1) return { kind: 'ambiguous', leads: hits.slice(0, 5).map((d) => ({ id: d.id, market: leadMarket(d), state: classify(d) })), count: hits.length };
+  // each order with its service, and the order whose credit paid for it when
+  // it is an upgrade (api/_upgrade.js): a client who moved from the
+  // Application Pack to Full Search has TWO paid orders with one email and one
+  // file number, so their statement always lands here — the card must say
+  // which is which
+  if (hits.length > 1) return { kind: 'ambiguous', leads: hits.slice(0, 5).map((d) => ({ id: d.id, market: leadMarket(d), state: classify(d), service: svcLabelOf(d), upgradeOf: (d.city && d.city.credit && typeof d.city.credit === 'object' && d.city.credit.from) || null })), count: hits.length };
   const one = hits[0];
   if (emailKey(one.email) !== st.emailKey) return { kind: 'mismatch', leadId: one.id, lead: one, via: found.via };
   let v = null;
@@ -316,15 +322,21 @@ function cardOf(st, stamp, dec) {
     case 'svc_paid': {
       const amount = Number.isFinite(Number(lead.amount_eur)) ? moneyOf(Number(lead.amount_eur), lead.currency) : null;
       const desk = leadMarket(lead) === 'roma' ? 'Roma' : (CITY_MARKETS[leadMarket(lead)] || {}).label;
+      const upgradeNote = upgradeMoneyBackNote(lead, (n) => moneyOf(n, lead.currency));
       return `${head} — ordine pagato${amount ? ' ' + amount : ''} · ${svcLabelOf(lead)}${desk ? ` (${desk})` : ''}${c.file ? ` · file ${c.file}` : ''}${viaNote}`
         + ` — rimborso entro 14 giorni (entro il ${itDay(stamp.day, 14)}), con lo stesso mezzo di pagamento; Start now ${startNowIt(c.startNow)}`
         + `${c.withdrawalEndsOn ? `, finestra fino al ${itDay(c.withdrawalEndsOn)}` : ''}${lead.paid_at ? `, pagato il ${itDay(romeDayOf(lead.paid_at))}` : ''}`
-        + `${lead.withdrawal ? `; dichiarazione già ricevuta il ${itDay(romeDayOf(lead.withdrawal.at))}` : ''}. Nessun rimborso automatico.${at}`;
+        + `${lead.withdrawal ? `; dichiarazione già ricevuta il ${itDay(romeDayOf(lead.withdrawal.at))}` : ''}`
+        // the upgrade credit, when this order has one (api/_upgrade.js — the same clause the refund card prints)
+        + `${upgradeNote ? `; ${upgradeNote}` : ''}. Nessun rimborso automatico.${at}`;
     }
     case 'mismatch':
       return `${head} — il riferimento corrisponde a leads/${dec.leadId} (${(CITY_MARKETS[leadMarket(lead)] || {}).label || 'Roma'} · ${svcLabelOf(lead)}), ma l'email dell'ordine è un'altra (${lead.email || '?'}): verifica chi ha scritto, da abbinare a mano. Nessuna modifica all'ordine.`;
-    case 'ambiguous':
-      return `${head} — più ordini corrispondono (${dec.count}: ${dec.leads.map((l) => `leads/${l.id} ${l.market} ${l.state}`).join(', ')}): da abbinare a mano. Nessuna modifica.`;
+    case 'ambiguous': {
+      const up = dec.leads.find((l) => l.upgradeOf && dec.leads.some((x) => x.id === l.upgradeOf));
+      return `${head} — più ordini corrispondono (${dec.count}: ${dec.leads.map((l) => `leads/${l.id} ${l.market} ${l.state}${l.service ? ' · ' + l.service : ''}`).join(', ')})`
+        + `${up ? ` — ${up.id} è l'upgrade pagato col credito di ${up.upgradeOf}: il rimborso si calcola su quanto pagato per l'ordine da cui recede (Termini §12.2)` : ''}: da abbinare a mano. Nessuna modifica.`;
+    }
     case 'lookup_failed':
       return `${head} — ricerca dell'ordine non riuscita: da abbinare a mano.`;
     default:

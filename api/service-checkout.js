@@ -110,7 +110,7 @@ export default async function handler(req, res) {
       try { src = await fsGet('leads/' + lid); }
       catch (e) { console.warn('[service-checkout] upgrade read failed:', e && e.message); return res.status(503).json({ ok: false, error: 'unavailable' }); }
       const up = upgradeOffer(src, lid, Date.now());
-      if (!up.ok) return res.status(up.state === 'used' || up.state === 'expired' ? 410 : 404).json({ ok: false, error: 'upgrade_' + up.state });
+      if (!up.ok) return res.status(up.state === 'used' || up.state === 'expired' || up.state === 'void' ? 410 : 404).json({ ok: false, error: 'upgrade_' + up.state });
       if (up.city !== offer.city || up.to !== offer.plan) return res.status(400).json({ ok: false, error: 'upgrade_mismatch' });
       upgrade = { lead: lid, token: tok, ...up };
     }

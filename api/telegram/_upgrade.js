@@ -2,10 +2,12 @@
 //
 // The client's personal upgrade link (api/_upgrade.js): a paid Application
 // Pack on a desk that charges at the till becomes Full Search with what was
-// paid credited, once, within 30 days. The operator types the file number the
-// order email and the client both quote; the bot answers with the state of
-// the credit, the link and a ready message in English. Read-only: nothing is
-// written, nothing is sent to the client.
+// paid credited, once, within 30 days. A policy since 12/11/2026: the client
+// already has this link in their order email; the bot is how the operator
+// reads the state of a credit and sends the link again. The operator types
+// the file number the order email and the client both quote; the bot answers
+// with the state, the link and a ready message in English. Read-only: nothing
+// is written, nothing is sent to the client.
 
 import { tgSend } from './_lib.js';
 import { fsGet, fsList } from '../homie/_lib.js';
@@ -47,6 +49,7 @@ export function upgradeReply(lead, id, nowMs, origin) {
   const head = `⬆ <b>Upgrade</b> — ${who} · ${esc(desk)}${o.file || (lead && lead.city && lead.city.file) ? ' · ' + esc(o.file || lead.city.file) : ''}`;
   if (o.state === 'used') return `${head}\nIl credito è già stato usato (${esc(o.usedBy)}). Nessun link.`;
   if (o.state === 'expired') return `${head}\nIl credito è scaduto il ${dmy(o.expiresAt)} (${UPGRADE_DAYS} giorni dal pagamento). Nessun link.`;
+  if (o.state === 'void') return `${head}\n${o.reason === 'withdrawn' ? 'Il cliente ha receduto da questo ordine' : 'Questo ordine è stato rimborsato'}: non c'è più niente da accreditare. Nessun link.`;
   // the Full Search paid with the credit keeps the pack's file: the same file number finds it too
   const cc = lead && lead.city && typeof lead.city === 'object' && lead.city.credit && typeof lead.city.credit === 'object' ? lead.city.credit : null;
   if (!o.ok && cc && cc.from) return `${head}\nQuesto ordine è già l'upgrade: ${cc.amount ? moneyOf(Number(cc.amount), String(lead.currency || 'eur').toLowerCase()) + ' ' : ''}accreditati dall'ordine ${esc(cc.from)}. Nessun link.`;
@@ -55,7 +58,7 @@ export function upgradeReply(lead, id, nowMs, origin) {
   const pay = moneyOf(o.pay, o.currency), credit = moneyOf(o.credit, o.currency), list = moneyOf(o.list, o.currency);
   return [
     head,
-    `${esc(o.fromLabel)} pagato il ${dmy(o.paidAt)} · credito ${credit} valido fino al ${dmy(o.expiresAt)}`,
+    `${esc(o.fromLabel)} pagato il ${dmy(o.paidAt)} · credito ${credit} ${o.expiresAt ? `valido fino al ${dmy(o.expiresAt)}` : 'senza scadenza su questo desk'}`,
     `${esc(o.toLabel)}: <b>${pay}</b> (listino ${list} − ${credit})`,
     '',
     `<b>Link personale</b> (non inoltrarlo ad altri):`,

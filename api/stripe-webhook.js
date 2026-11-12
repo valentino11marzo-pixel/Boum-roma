@@ -6,7 +6,7 @@ import { sendEmail } from './agent/_lib.js';
 import { maybeAutoConvert } from './preagreement/_auto.js';
 import { tgNotify } from './pfs/_health.js';
 import { CITY_MARKETS, CITY_PLANS, cityPhone, serviceLeadId, moneyOf, cityOffer } from './_market.js';
-import { isUpgradeLeadId, UPGRADE_PATHS, UPGRADE_DAYS } from './_upgrade.js';
+import { isUpgradeLeadId, UPGRADE_PATHS, upgradeDaysOf, upgradeVoidReason, upgradeMoneyBackNote } from './_upgrade.js';
 import { upgradeLink } from './payments/_token.js';
 import SCALO from '../js/scalo-codes.js';
 import DESK_CAL from '../js/desk-calendar.js';
@@ -446,11 +446,34 @@ async function upgradeCreditFor(m, cityKey) {
   }
   const sc = src && src.city && typeof src.city === 'object' ? src.city : null;
   if (src && src.market === cityKey && src.paid === true && sc && sc.paid === true) {
-    credit.verified = true;
+    // A pack the client did not keep (refunded, or withdrawn from) carries no
+    // credit (api/_upgrade.js upgradeVoidReason). The till refuses it, so a
+    // session that still got here was opened before the refund landed: the
+    // order keeps the pack's file (same person) but the credit is NOT
+    // verified, is never marked, and the operator gets an urgent alert.
+    const voided = upgradeVoidReason(src);
+    if (voided) credit.voided = voided;
+    else credit.verified = true;
     if (!credit.plan && sc.service) credit.plan = String(sc.service);
     if (typeof sc.file === 'string' && /^BM [A-Z2-9]{5}$/.test(sc.file)) credit.file = sc.file;
   }
   return credit;
+}
+
+// An upgrade paid with the credit of a pack that had been refunded or
+// withdrawn from: the client paid the difference only, and no credit was due.
+// Idempotent (deterministic id): a Stripe retry does not ring twice.
+async function flagVoidCredit(credit, svcId, docId, paidAmount) {
+  if (!credit || !credit.voided) return;
+  try {
+    await writeDoc('agentNotifications', 'upgrade-void-' + docId, {
+      type: 'service.upgrade_credit_void',
+      summary: `⚠️ Upgrade ${svcId} pagato ${paidAmount} col credito dell'ordine ${credit.from}, che ${credit.voided === 'withdrawn' ? 'il cliente aveva receduto' : 'era stato rimborsato'}: il credito non era dovuto. Regola la differenza col cliente (o rimborsa l'upgrade) su Stripe.`,
+      priority: 'high', status: 'pending', actor: 'stripe-webhook',
+      ref: { collection: 'leads', id: svcId },
+      dedupKey: 'upgrade-void-' + docId, createdAt: new Date().toISOString(), attempts: 0,
+    });
+  } catch (e) { console.error('[service] void credit alert:', e && e.message); }
 }
 
 async function markUpgradeCredit(credit, svcId, docId, currency, paidAmount) {
@@ -536,10 +559,14 @@ async function handleService(res, session, m, event = null) {
   if (credit && credit.file) cityFile = { file: credit.file, fileLeadId: credit.from };
   const creditPlanLabel = credit ? (((cityDesk.plans || CITY_PLANS)[credit.plan] || {}).label || 'Application Pack') : '';
   const creditLine = credit && credit.amount ? `${moneyOf(credit.amount, currency)} ${creditPlanLabel} credited` : '';
-  // a paid pack that can still become Full Search: the operator gets the
-  // client's personal upgrade link in the order email (valid UPGRADE_DAYS)
+  // a paid pack that can still become Full Search: the client's personal
+  // upgrade link (valid for the desk's credit window) goes in BOTH order emails — the
+  // client's own confirmation since 12/11/2026 (the credit is a policy, the
+  // page says it), and the operator's
   const upgradeTo = cityDesk && !credit && Object.prototype.hasOwnProperty.call(UPGRADE_PATHS, m.kind || '') ? cityOffer(cityKey, UPGRADE_PATHS[m.kind]) : null;
   const upgradeUrl = upgradeTo && upgradeTo.ok && upgradeTo.chargeAt !== 'signing' ? upgradeLink(svcId, new URL(cityDesk.url).origin) : null;
+  // how long that credit runs on this desk: 30 days, or no deadline (Berlin — api/_upgrade.js upgradeDaysOf)
+  const upgradeDays = upgradeUrl ? upgradeDaysOf(cityKey) : null;
   const lead = {
     type: 'service',
     service: 'SERVICE',
@@ -585,7 +612,7 @@ async function handleService(res, session, m, event = null) {
         // the file_ref the webhook could not read (twice): the operator links the two leads by hand
         ...(cityFile.fileRefUnverified ? { fileRefUnverified: cityFile.fileRefUnverified } : {}),
         // the upgrade credit this order was paid with (api/_upgrade.js)
-        ...(credit ? { credit: { from: credit.from, plan: credit.plan || null, amount: credit.amount, verified: credit.verified } } : {}),
+        ...(credit ? { credit: { from: credit.from, plan: credit.plan || null, amount: credit.amount, verified: credit.verified, ...(credit.voided ? { voided: credit.voided } : {}) } } : {}),
       },
     } : {}),
   };
@@ -617,9 +644,11 @@ async function handleService(res, session, m, event = null) {
     } catch (_) {}
     // a first run that died before marking the credit: the retry marks it
     await markUpgradeCredit(credit, svcId, docId, currency, paidAmount);
+    await flagVoidCredit(credit, svcId, docId, paidAmount);
     return res.status(200).json({ received: true, duplicate: true, serviceLeadId: svcId });
   }
   await markUpgradeCredit(credit, svcId, docId, currency, paidAmount);
+  await flagVoidCredit(credit, svcId, docId, paidAmount);
 
   const firstName = (m.name || '').split(' ')[0] || 'there';
   try {
@@ -629,7 +658,7 @@ async function handleService(res, session, m, event = null) {
       subheading: m.name || 'New service purchase',
       name: 'Valentino',
       intro: meta.city
-        ? `A paid order from the ${meta.city.label} desk — ${meta.title}. The page promises a message in the desk's first open hour (${meta.city.hoursEn || 'Mon–Fri 09:00–19:00, Rome time'}).${cityStart === '1' ? ' The client asked to start now.' : cityStart === '0' ? ` The client did NOT ask to start now: their withdrawal period runs to the end of ${win.lastLabel}, so the brief and the work begin on ${win.startLabel} (an acknowledgement before then is fine; starting earlier needs their written request).` : ''} The page promised an invoice from Egidi Immobiliare S.r.l., VAT included: issue it.${credit ? ` Upgrade: ${credit.amount ? moneyOf(credit.amount, currency) + ' ' : ''}credited from the ${creditPlanLabel}${credit.file ? ' (file ' + credit.file + ')' : ''}${credit.verified ? '' : ' — the pack could NOT be verified: check the credit by hand'}; invoice what was paid, ${paidAmount}.` : ''}${cityKey === 'barcelona' ? ' Barcelona: on request the client gets the order, terms and invoice in Catalan or Spanish and the official complaint forms (fulls oficials de reclamació); a complaint is answered within one month.' : ''}`
+        ? `A paid order from the ${meta.city.label} desk — ${meta.title}. The page promises a message in the desk's first open hour (${meta.city.hoursEn || 'Mon–Fri 09:00–19:00, Rome time'}).${cityStart === '1' ? ' The client asked to start now.' : cityStart === '0' ? ` The client did NOT ask to start now: their withdrawal period runs to the end of ${win.lastLabel}, so the brief and the work begin on ${win.startLabel} (an acknowledgement before then is fine; starting earlier needs their written request).` : ''} The page promised an invoice from Egidi Immobiliare S.r.l., VAT included: issue it.${credit ? ` Upgrade: ${credit.amount ? moneyOf(credit.amount, currency) + ' ' : ''}credited from the ${creditPlanLabel}${credit.file ? ' (file ' + credit.file + ')' : ''}${credit.verified ? '' : credit.voided ? ` — the pack was ${credit.voided === 'withdrawn' ? 'withdrawn from' : 'refunded'}, so NO credit was due: settle the difference with the client` : ' — the pack could NOT be verified: check the credit by hand'}; invoice what was paid, ${paidAmount}.` : ''}${cityKey === 'barcelona' ? ' Barcelona: on request the client gets the order, terms and invoice in Catalan or Spanish and the official complaint forms (fulls oficials de reclamació); a complaint is answered within one month.' : ''}`
         : `Someone just bought ${meta.title} with one tap. Clock is running — the page promises first contact fast.`,
       card_color: '#D4AF37',
       card_title: meta.title,
@@ -637,7 +666,7 @@ async function handleService(res, session, m, event = null) {
       r2_icon: '📧', r2_label: 'Email', r2_value: email || '—',
       r3_icon: '📱', r3_label: 'Phone', r3_value: phone || '—',
       r4_icon: meta.city ? '🏙' : '🏠', r4_label: meta.city ? 'Desk' : 'Property', r4_value: meta.city ? `${meta.city.label}${m.listing ? ' · ' + m.listing : ''}` : (m.listing || '—'),
-      closing: `Paid ${paidAmount}. ${cityFile ? `Your file: ${cityFile.file}. ` : ''}${m.notes ? 'Notes: ' + m.notes + '. ' : ''}Stripe: ${session.id}. Record: leads/${svcId}.${upgradeUrl ? ` Upgrade to ${upgradeTo.label} with ${paidAmount} credited (valid ${UPGRADE_DAYS} days, the client's personal link): ${upgradeUrl}` : ''}`,
+      closing: `Paid ${paidAmount}. ${cityFile ? `Your file: ${cityFile.file}. ` : ''}${m.notes ? 'Notes: ' + m.notes + '. ' : ''}Stripe: ${session.id}. Record: leads/${svcId}.${upgradeUrl ? ` Upgrade to ${upgradeTo.label} with ${paidAmount} credited (${upgradeDays ? `valid ${upgradeDays} days` : 'no deadline on this desk'}; the client's personal link, also in their own email): ${upgradeUrl}` : ''}`,
       cta_text: 'Open portal',
       portal_link: 'https://www.boomrome.com/portal.html#leads',
     });
@@ -672,7 +701,12 @@ async function handleService(res, session, m, event = null) {
       r4_icon: '✓', r4_label: (meta.next4 || ['—'])[0], r4_value: (meta.next4 || ['', ''])[1],
       // a city order names its file number first: the same "BM XXXXX" the
       // page's ticket and the operator's summary print
-      closing: (cityFile ? `Your file: ${cityFile.file}. ` : '') + (creditLine ? `Your ${creditPlanLabel} (${moneyOf(credit.amount, currency)}) is credited toward this order. ` : '') + (it
+      closing: (cityFile ? `Your file: ${cityFile.file}. ` : '') + (creditLine ? `Your ${creditPlanLabel} (${moneyOf(credit.amount, currency)}) is credited toward this order. ` : '')
+        // a pack that can become Full Search: the policy and the client's
+        // personal link, on the durable medium (the URL ends its sentence
+        // with a space, never a full stop a mail client would swallow)
+        + (upgradeUrl ? `Want us to search for you? The ${paidAmount} you paid is credited in full if you move to ${upgradeTo.label} on this desk${upgradeDays ? ` within ${upgradeDays} days of this payment` : ''}, once. Your personal link: ${upgradeUrl} ` : '')
+        + (it
         ? (m.kind === 'concordato-pack'
           // Codice del consumo: chi NON ha chiesto di iniziare subito aspetta i
           // 14 giorni del recesso; a tutti si dice come recedere.
@@ -1164,6 +1198,34 @@ async function handleInvoice(res, session, m) {
 // è perso per sempre. Ora ogni evento suona sul Telegram dell'operatore e
 // lascia una notifica in agentNotifications (che fa anche da idempotenza:
 // il retry di Stripe trova il doc già scritto e non suona due volte).
+// A REFUNDED ORDER IS STAMPED ON ITS LEAD (12/11/2026). The upgrade credit is
+// a policy: a pack the client did not keep carries nothing over
+// (api/_upgrade.js upgradeVoidReason reads refundedAt / refundedAmount), and
+// until now a refund touched no lead at all — the link of a refunded pack
+// still opened a Full Search at the credited price. The charge names its
+// PaymentIntent; the Checkout Session of that intent names the lead
+// (leads/svc_<session>, serviceLeadId). Written only on a paid order that
+// EXISTS (precondition: a refund of a rent, a deposit or an invoice has no
+// such lead and creates none), with the cumulative amount Stripe reports —
+// a second partial refund overwrites the first with the new total.
+// Exported for the tests.
+export async function stampRefund(charge, createdEpoch) {
+  const pi = String((charge && charge.payment_intent) || '');
+  if (!pi) return null;
+  const list = await stripe.checkout.sessions.list({ payment_intent: pi, limit: 1 });
+  const sess = ((list && list.data) || []).find((x) => x && x.id && String(x.payment_intent || '') === pi);
+  if (!sess) return null;
+  const id = serviceLeadId(sess.id);
+  const lead = await fsGet('leads/' + id);
+  if (!lead || lead.paid !== true) return null;
+  const refunded = Math.round(Number(charge.amount_refunded) || 0) / 100;
+  if (!(refunded > 0)) return null;
+  const full = (Number(charge.amount_refunded) || 0) >= (Number(charge.amount) || 0);
+  const at = new Date((Number(createdEpoch) || Math.floor(Date.now() / 1000)) * 1000).toISOString();
+  await fsCommit([{ docPath: 'leads/' + id, fields: { refundedAt: at, refundedAmount: refunded, refundedFull: full }, precondition: { exists: true } }]);
+  return { id, lead, full };
+}
+
 async function handleMoneyBack(res, event) {
   const o = event.data.object || {};
   // in the currency of the charge or dispute (a London order is in pounds):
@@ -1176,9 +1238,26 @@ async function handleMoneyBack(res, event) {
   if (event.type === 'charge.refunded') {
     const who = (o.billing_details && (o.billing_details.name || o.billing_details.email)) || '—';
     const full = (o.amount_refunded || 0) >= (o.amount || 0);
+    // the order this money paid for, stamped BEFORE the notification: a
+    // Stripe retry that finds the notification already written has still
+    // stamped the lead (the stamp is idempotent)
+    let orderLine = '';
+    try {
+      const st = await stampRefund(o, event.created);
+      if (st) {
+        const c = st.lead.city && typeof st.lead.city === 'object' ? st.lead.city : null;
+        // what the credit means for this refund (api/_upgrade.js, one copy with /api/withdraw's card)
+        const note = upgradeMoneyBackNote(st.lead, (n) => moneyOf(n, st.lead.currency || o.currency));
+        orderLine = `\nOrdine ${st.id}${c ? ` (${c.label || st.lead.market || ''}${c.serviceLabel ? ' · ' + c.serviceLabel : ''}${c.file ? ' · ' + c.file : ''})` : ''}: segnato rimborsato${note ? ' — ' + note : ''}.`;
+      }
+    } catch (e) {
+      console.error('[moneyback] refund stamp:', e && e.message);
+      orderLine = '\n⚠️ Non sono riuscito a segnare l\'ordine rimborsato: se era un Application Pack, il suo credito di upgrade resta aperto. Controlla con /upgrade.';
+    }
     text = `↩️ <b>RIMBORSO ${full ? 'totale' : 'parziale'}: ${eur(o.amount_refunded)}</b>\n`
       + `${who} · addebito ${eur(o.amount)}\n`
-      + `https://dashboard.stripe.com/payments/${o.payment_intent || o.id}`;
+      + `https://dashboard.stripe.com/payments/${o.payment_intent || o.id}`
+      + orderLine;
   } else if (event.type === 'charge.dispute.created') {
     priority = 'high';
     const dueBy = o.evidence_details && o.evidence_details.due_by;

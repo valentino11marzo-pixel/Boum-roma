@@ -4383,7 +4383,7 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
        credito non verificabile lo scrivono all'operatore; l'email all'operatore dice di fatturare
        quanto pagato (€301);
      - ogni ordine di Application Pack pagato porta il link personale dell'upgrade nell'email
-       ALL'OPERATORE, mai al cliente.
+       ALL'OPERATORE (dal 12/11 anche in quella del cliente: vedi «IL CREDITO COME POLICY»).
   6. **Il bot** (`api/telegram/_upgrade.js`): `/upgrade BM XXXXX` (o `svc_…`) cerca gli ordini PAGATI
      di quel fascicolo (non la porta gratuita con lo stesso numero). Risponde con lo stato del credito,
      il link e il messaggio pronto in inglese («your personal … link»), che non promette «oggi»: dice
@@ -4392,9 +4392,8 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
      anche lui e dice «è già l'upgrade».
   **Da sapere**:
   - la fattura Egidi del Full Search è di quanto incassato (€301), quella del pack resta €199;
-  - un rimborso del pack (`charge.refunded`) non tocca il lead, quindi `/upgrade` darebbe ancora il
-    link: non mandarlo a chi ha avuto il pack rimborsato;
-  - il credito non è nei Termini §12: è un'offerta personale dell'operatore, non un prezzo pubblico;
+  - (superato il 12/11) un rimborso del pack non toccava il lead e il credito non era nei Termini:
+    ora il rimborso si timbra sull'ordine e il credito è una regola pubblica (§12.2);
   - la GET non restituisce mai nome, email o telefono, ma la cassa Stripe mostra l'email del cliente
     precompilata: il link è suo, e il messaggio pronto lo chiama «personal»;
   - senza JavaScript la pagina lo dice e dà l'email (mai un «Checking…» infinito).
@@ -4404,6 +4403,68 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
   La revisione avversaria a sub-agenti non è girata (limite di spesa fino all'11/11): la revisione è
   stata fatta a mano, sui cinque punti di vista (soldi, sicurezza, consumatore, regressioni, casi
   limite).
+- **IL CREDITO COME POLICY (12/11/2026 — «applica come fosse una policy questo credito di upgrade»).**
+  Dopo il primo cliente che l'ha usato (Madrid), il credito non è più un'offerta dell'operatore: è una
+  regola pubblica, detta dove si vende e mantenuta dal server.
+  1. **La regola e le parole in una copia** (`api/_upgrade.js`): `upgradeLine(to)` («Credited in full if
+     you move to Full Search within 30 days.») e `upgradeFact(from, to)` («The Application Pack fee is
+     credited in full towards Full Search for 30 days from payment.»). Nessuna cifra nelle due frasi: il
+     credito è ciò che il cliente ha pagato, nella valuta del desk (sterline a Londra).
+  2. **Le pagine le stampa il build** (`build-cities.mjs`, `upgradesOf(city)` = i percorsi che il desk
+     vende, solo dove incassa alla cassa): la riga ✓ nel biglietto dell'Application Pack, il fatto in
+     coda alla riga Fees della scheda e nell'Offer JSON-LD di quel piano; sull'hub la riga sotto
+     l'Application Pack finché OGNI desk live offre il percorso. Niente da scrivere nei JSON. Il build
+     rifiuta un desk che vende senza quelle parole, e un desk alla firma o in apertura che stampa
+     «credited in full».
+  3. **Termini §12.2** (paragrafo «Application Pack credit.», data 12 novembre): stesso desk, entro 30
+     giorni dal pagamento del pack, una volta, si paga la differenza; il link personale è nell'email
+     d'ordine; niente credito su un pack rimborsato (anche in parte) o da cui si è receduto, mai pagato
+     in denaro; rimborso o recesso di un Full Search comprato col credito = su quanto pagato per quello.
+     `llms.txt` lo dice due volte. `tests/upgrade` §9 confronta server, pagine, Termini e llms.
+  4. **Berlino non ha scadenza** (`upgradeDaysOf`: `null` su un desk `noStacking`). I Termini §12.5
+     dicono dal 6/11 che un cliente Full Search non paga un Application Pack; con la carta all'ordine
+     la cassa non lo garantiva (buco del flip del 6/11). Ora lì un pack pagato si accredita sempre, e
+     §12.5 e llms lo dicono. La pagina di Berlino stampa la frase comune («within 30 days»: vera, più
+     stretta della regola). `expiresAt` e `days` sono `null`: pagina, bot ed email non stampano date.
+  5. **Un pack che il cliente non tiene non accredita niente** (stato `void`, `upgradeVoidReason`):
+     - rimborsato su Stripe, anche in parte: il webhook (`charge.refunded` → `stampRefund`) trova la
+       sessione di QUEL PaymentIntent, ne ricava `leads/svc_<sessione>` e scrive
+       `refundedAt/refundedAmount/refundedFull`, solo su un ordine pagato che esiste (mai un lead
+       nuovo; un rimborso di canone, deposito o fattura non tocca niente). Il timbro viene PRIMA della
+       notifica: un retry di Stripe che trova la notifica ha comunque timbrato;
+     - recesso online: la mappa `withdrawal` che `/api/withdraw` scrive sull'ordine chiude il credito
+       subito, prima di qualunque rimborso.
+     GET e cassa rispondono 410 (`upgrade_void`, nessuna sessione Stripe); la pagina dice «This credit is
+     no longer available»; il bot dice perché e non dà link. Un upgrade PAGATO su un pack rimborsato
+     nel frattempo (sessione aperta prima): credito non verificato e mai segnato, fascicolo del pack
+     tenuto, avviso urgente `agentNotifications/upgrade-void-<id>`, e l'email all'operatore lo dice.
+  6. **L'operatore sa cosa significa un rimborso per il credito** (`upgradeMoneyBackNote`, una copia
+     letta dalla card Telegram del rimborso e dalla card del recesso): pack col credito già usato →
+     «ATTENZIONE… regola la differenza su quell'ordine»; Full Search pagato col credito → «il rimborso
+     si calcola su quanto pagato per QUESTO ordine»; pack col credito aperto → «non vale più». Dopo un
+     upgrade il cliente ha DUE ordini con la stessa email e lo stesso fascicolo: il recesso online
+     li trova entrambi, non scrive niente e la card nomina il pack, l'upgrade e la regola.
+  7. **L'email di conferma del cliente** di un Application Pack porta il suo link personale e la regola
+     in una frase (cosa, dove, entro quando, una volta), prima del testo del recesso; quella
+     dell'operatore dice che il cliente lo ha già.
+  **Misure**: hub 970 parole su 980 (fares 223/230), pagina 27,6 KB su 28; Milano 81,5 KB su 82: una
+  frase in più su tutti i desk non entra senza tagliare. `moving-budget.html` rigenerata dopo il merge
+  di #338: su main diceva ancora «Fee charged only when you sign a lease» per Parigi e Berlino.
+  **Aperte, del fondatore**: a Berlino un Attended Viewing pagato PRIMA di un Full Search non ha un
+  percorso di credito (§12.5 dice che un cliente Full Search non lo paga: oggi si rimborsa a mano);
+  una dichiarazione di recesso senza effetto (diritto finito) lascia comunque il credito chiuso; il
+  rimborso di un upgrade «su quanto pagato per quello» è la nostra lettura, non il parere di un legale.
+  Test: `tests/upgrade/run.mjs` 130 (regola, Berlino, void, GET/POST, webhook con rimborsi totali,
+  parziali, di un altro pagamento e senza ordine, recesso VERO, bot, pagina, Termini e llms);
+  `tests/cities/run.mjs` 1358 (biglietto, riga Fees, Offer, hub, bozze e desk alla firma senza credito,
+  due rifiuti del build). Quindici mutazioni reintrodotte a mano, tutte prese.
+- **IL KIT DEL CASO DESK (12/11/2026)**: il primo caso pagato (Madrid, 6–15/11: pack → upgrade →
+  contratto firmato) è diventato uno strumento. Skill `.claude/skills/desk-case/SKILL.md` (dall'ordine
+  alle chiavi: decisione in prima riga, sei correzioni essenziali al massimo, i tre controlli prima di
+  pagare, il tavolo della firma, l'inventario, il dopo) e `tools/desk-kit/` (checklist LAU per la
+  Spagna, modelli di email e WhatsApp, `anexo_inventario.py`: l'Anexo I da un JSON, una pagina,
+  deterministico). Fuori dal deploy. Nessun dato personale nel repo: i dati del cliente restano nello
+  scratchpad e in Gmail; il campione è finto.
 - **L'AUDIT GEO/SEO/AI DEI DESK (06/11/2026 — «ritorniamo alla conclusione delle città»).** Un audit a
   più agenti sugli otto desk e sull'hub; chiusi qui i rilievi che non aspettano una decisione.
   1. **`llms.txt`**: la frase «does BOOM operate outside Rome» nomina gli otto desk (il test la deriva

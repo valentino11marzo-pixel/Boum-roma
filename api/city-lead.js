@@ -158,7 +158,7 @@ async function upgradeStatus(req, res, q) {
     return res.status(503).json({ ok: false, error: 'unavailable' });
   }
   const o = publicUpgrade(upgradeOffer(lead, id, Date.now()));
-  if (!o.ok) return res.status(o.state === 'used' || o.state === 'expired' ? 410 : 404).json(o);
+  if (!o.ok) return res.status(o.state === 'used' || o.state === 'expired' || o.state === 'void' ? 410 : 404).json(o);
   return res.status(200).json(o);
 }
 

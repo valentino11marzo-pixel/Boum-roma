@@ -46,6 +46,11 @@
 //   - the lead endpoint filing a city lead into the Rome machine, or the
 //     Rome machine (Commerciale, Segretaria, /richiama, the reverse search,
 //     the Lead Brain) speaking to someone moving to Amsterdam;
+//   - the upgrade credit (a policy since 12/11/2026): a desk that takes the
+//     card at the order not saying it in the Application Pack ticket, in the
+//     Fees row and in that plan's Offer — in the SERVER's words
+//     (api/_upgrade.js) — or a desk that takes nothing at the order (charged
+//     at signing, still opening) printing a credit nobody can use;
 //   - v1.8 (the third shape, dark until the flip): a desk that charges at
 //     signing out of its shape — the registry and the JSON apart, a second
 //     till label, a PAID card, a fare without its trigger, no order line, a
@@ -68,12 +73,13 @@ import {
   stripComments, emittedAssets, emitAssets, SERVED_ASSETS,
   atLoadParts, longNodes, weightOf, validGeo, sealText, sealPhrase, STATUS_RE, STATUS_BANNED_RE, AVIATION_BAN_RE,
   ARC_CLEAR, ARC_DOT_R, ARC_ME_R, MAP_KB, HZ_CAM, HZ_LIFT, HZ_LEAN, HZ_KEY, HUB_MAP_PX, horizon, hzViolations, hzPathPts, hzCal, holidayKeyOf as hkOf,
-  orgNode, serviceNode, numberWord, listJoin, dateLong, homeCountryOf, isHomeDesk,
+  orgNode, serviceNode, numberWord, listJoin, dateLong, homeCountryOf, isHomeDesk, upgradesOf,
   renderHub, buildHub, HUB_WEIGHT_KB, HUB_BUDGET, HUB_FILE, HUB_PATH, COUNTRY_NAME, hoursSentence, hubText, CALL_RE, RATING_RE,
   reviewSentences, claimProblems, claimGuard, lintClaims, loadClaims, CLAIM_VOCAB_RE, CLAIM_KINDS, CLAIMS_FILE,
   hasClaimVocab, claimHits, sellHit, closeUp, cleanText, normSentence, PLACE_RE, htmlFieldGuard, neutralValue, joinCut, numKeyCode
 } from '../../build-cities.mjs';
 import SCALO from '../../js/scalo-codes.js';
+import { upgradeLine, upgradeFact, UPGRADE_DAYS, UPGRADE_PATHS } from '../../api/_upgrade.js';
 import CAL from '../../js/desk-calendar.js';
 
 const R = path.resolve(new URL('../..', import.meta.url).pathname);
@@ -1128,9 +1134,51 @@ tplRefuses('<p class="proof">', '<p class="proof">Pay by bank transfer · ', /no
   // Berlin's three plans agree (one conditionLong); since the card flip (06/11) the refund rule follows, as on the six.
   // "Each plan's own when they differ" keeps its pin on the frozen draft Berlin (List price / Due only once you sign)
   check(feesRowOf(ams, shared).startsWith('<b>Full Search €500</b> · <b>Application Pack €199</b> · <b>Attended Viewing €149</b> per viewing.')
-    && feesRowOf(CITY.berlin, shared) === '<b>Full Search €500</b> · <b>Application Pack €199</b> · <b>Attended Viewing €149</b> per viewing. VAT included. Invoice from Egidi Immobiliare S.r.l. ' + shared.refund.rule
-    && drafted(() => feesRowOf(DRAFT.berlin, shared)).includes('<b>Full Search €500</b> (List price. Due only once you sign a lease; nothing before.)'),
-    'the fees row is DERIVED from the plans: one condition when they agree (Berlin since the card flip, with the refund rule), each plan\'s own when they differ (the draft Berlin)');
+    && feesRowOf(CITY.berlin, shared) === '<b>Full Search €500</b> · <b>Application Pack €199</b> · <b>Attended Viewing €149</b> per viewing. VAT included. Invoice from Egidi Immobiliare S.r.l. ' + shared.refund.rule + ' ' + upgradeFact('Application Pack', 'Full Search')
+    && drafted(() => feesRowOf(DRAFT.berlin, shared)).includes('<b>Full Search €500</b> (List price. Due only once you sign a lease; nothing before.)')
+    && !/credited in full/i.test(drafted(() => feesRowOf(DRAFT.berlin, shared))),
+    'the fees row is DERIVED from the plans: one condition when they agree (Berlin since the card flip, with the refund rule and the upgrade credit), each plan\'s own when they differ (the draft Berlin, which credits nothing)');
+}
+{
+  // THE UPGRADE CREDIT (a policy since 12/11/2026): the server's rule
+  // (api/_upgrade.js) printed by three readers on every desk that takes the
+  // card at the order — the ticket of the plan it starts from, the Fees row,
+  // that plan's Offer — and by nobody else
+  const LINE = upgradeLine('Full Search'), FACT = upgradeFact('Application Pack', 'Full Search');
+  const tkOf = (h, id) => sliceOf(sliceOf(sliceOf(h, '<!-- FARES -->', '<!-- /FARES -->'), `id="fare-${id}"`, '</details>'), '<div class="tk">', '<div class="tk-stub">');
+  const offersOf = (h) => [...h.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => JSON.parse(m[1])).flatMap((b) => b['@graph'] || [b]).find((n) => n['@type'] === 'Service').offers;
+  check(UPGRADE_DAYS === 30 && Object.keys(UPGRADE_PATHS).join() === 'application-pack' && LINE === 'Credited in full if you move to Full Search within 30 days.' && FACT === 'The Application Pack fee is credited in full towards Full Search for 30 days from payment.',
+    'the policy words come from api/_upgrade.js: the ticket line and the fact, with the server\'s 30 days');
+  const selling = SLUGS.filter((x) => CITY[x].checkout === true);
+  check(selling.length === 8 && selling.every((x) => JSON.stringify(upgradesOf(CITY[x])) === '[{"from":"application-pack","to":"full-search","fromLabel":"Application Pack","toLabel":"Full Search"}]'),
+    'every desk with the till offers one path: Application Pack → Full Search (labels from its own plans)', selling.filter((x) => upgradesOf(CITY[x]).length !== 1).join());
+  const bad = [];
+  for (const x of selling) {
+    const h = PAGE[x];
+    if (!tkOf(h, 'application-pack').includes(`<p class="refund">${esc(LINE)}</p>`)) bad.push(x + ':ticket');
+    if (/credited in full/i.test(tkOf(h, 'full-search')) || /credited in full/i.test(tkOf(h, 'attended-viewing'))) bad.push(x + ':other-ticket');
+    if (!tkOf(h, 'full-search').includes(`<p class="refund">${esc(shared.refund.rule)}</p>`)) bad.push(x + ':fs-rule');
+    if (!sliceOf(h, '<dt>Fees</dt>', '</dd>').trim().endsWith(esc(FACT) + '</dd>') && !sliceOf(h, '<dt>Fees</dt>', '</dd>').includes(esc(shared.refund.rule) + ' ' + esc(FACT))) bad.push(x + ':fees');
+    const of = offersOf(h);
+    const ap = of.find((o) => o.name === 'Application Pack'), fsO = of.find((o) => o.name === 'Full Search'), av = of.find((o) => o.name === 'Attended Viewing');
+    if (!ap || !ap.description.endsWith(' ' + FACT)) bad.push(x + ':offer');
+    if (!fsO || !av || /credited in full/i.test(fsO.description) || /credited in full/i.test(av.description)) bad.push(x + ':other-offer');
+    if ((h.match(new RegExp(LINE.replace(/[.]/g, '\\.'), 'g')) || []).length !== 1) bad.push(x + ':line-count');
+  }
+  check(bad.length === 0, 'on all eight desks: the ✓ line in the Application Pack ticket only (once on the page), the fact after the refund rule in the Fees row, and in the Application Pack Offer only', bad.join(' '));
+  check(tkOf(html, 'application-pack').indexOf(`<p class="refund">${esc(LINE)}</p>`) > tkOf(html, 'application-pack').indexOf('<ul'), 'the ✓ line follows what the fare buys, where Full Search prints the refund rule');
+  // London: the same words (no amount in them: the credit is what was paid, in pounds there)
+  check(tkOf(PAGE.london, 'application-pack').includes(LINE) && !/[€£]\d/.test(LINE + FACT), 'London prints the same sentence: the words carry no amount, so they are true in pounds too');
+  // a desk that takes nothing at the order prints no credit, and upgradesOf says why
+  const dP = renderDraft(DRAFT.paris).html, dB = renderDraft(DRAFT.berlin).html;
+  check(drafted(() => upgradesOf(DRAFT.paris).length === 0 && upgradesOf(DRAFT.berlin).length === 0) && !/credited in full/i.test(dP) && !/credited in full/i.test(dB), 'a desk still opening (the frozen drafts) offers no path and prints no credit — text, attributes, JSON-LD');
+  // the build guard, both ways: a selling desk whose ticket loses the line is refused, and a draft that prints one is refused
+  const fares = sliceOf(html, '<!-- FARES -->', '<!-- /FARES -->');
+  const noLine = fares.replace(`            <p class="refund">${esc(LINE)}</p>\n`, '');
+  const g1 = throws(() => render(ams, shared, template.replace('{{{faresHtml}}}', () => noLine.replace(/^<!-- FARES -->\n?/, ''))), /the Application Pack ticket does not say the upgrade credit \(api\/_upgrade\.js upgradeLine\)/);
+  check(noLine !== fares && g1 === true, 'a selling desk whose Application Pack ticket loses the ✓ line is refused by the build', g1 === true ? '' : String(g1));
+  const g2 = (() => { const c = clone(DRAFT.paris); c.faq.items[0].a += ' The pack fee is credited in full later.'; return drafted(() => throws(() => render(c, shared, template, R, { claims: DRAFT_CLAIMS }), /no upgrade credit exists here, and the page must not print one/)); })();
+  check(g2 === true, 'a desk that takes nothing at the order and still prints "credited in full" is refused by the build', g2 === true ? '' : String(g2));
 }
 {
   // audit 06/11 — the fact sheet says how to withdraw, right after the fees
@@ -2917,6 +2965,12 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
       && sfa.includes('<p class="hnote sign">In Berlin and Paris every fare is charged only when you sign a lease.</p>') && sfa.indexOf('class="hnote sign"') < sfa.search(/[€£]\d/)
       && CMh.paris === saveH.paris && CMh.berlin === saveH.berlin,
       'no signing note on the real hub since the card flip (and no warning); with the registry patched the note names Berlin and Paris before the first price', signHub.err || '');
+    // the upgrade credit (a policy since 12/11/2026): the hub says it under the plan it starts from only while EVERY
+    // live desk offers it — with Paris and Berlin charging at signing (the patched hub) the sentence would be false there
+    check(sliceOf(fa, 'id="hf-application-pack"', '</li>\n').includes(`<p class="refund">${esc(upgradeLine('Full Search'))}</p>`) && (fa.match(/Credited in full/g) || []).length === 1
+      && !/credited in full/i.test(sliceOf(fa, 'id="hf-full-search"', '</li>\n')) && !/credited in full/i.test(sliceOf(fa, 'id="hf-attended-viewing"', '</li>\n'))
+      && sfa.length > 0 && !/credited in full/i.test(sfa),
+      'the hub\'s fares say the upgrade credit once, under the Application Pack; with a desk charging at signing they stay silent (each desk\'s own Offers still say theirs)', signHub.err || '');
     // v1.8 FLIP (H2, H4): the Full Search line true at every desk; "One company" and "One person" cut from the strip
     check(sliceOf(fa, 'id="hf-full-search"', '</li>\n').includes('<li>Contract checked before you sign</li>') && !/Applications sent as listings appear/.test(fa) && !/One company|One person/.test(fa),
       'the Full Search ticket says "Contract checked before you sign" (true at every desk: H2); the strip lost "One company" and "One person" (H4)');
@@ -3196,6 +3250,14 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
     const before = [chargeAtOf('paris'), chargeAtOf('berlin')].join();
     check(signed(() => chargeAtOf('paris') === 'signing' && chargeAtOf('berlin') === 'signing' && chargeAtOf('amsterdam') === 'checkout') && [chargeAtOf('paris'), chargeAtOf('berlin')].join() === before,
       'with the registry flipped, Paris and Berlin charge at signing, the six at the checkout — and the patch is undone after');
+  }
+  // the upgrade credit never appears where the fee is taken at signing: nothing was paid at the order, so nothing can be
+  // credited (api/_upgrade.js upgradeOffer answers not_upgradable there) — and a signing page that prints it is refused
+  {
+    const sp = renderS(SIGN.paris).html, sb = renderS(SIGN.berlin).html;
+    check(signed(() => upgradesOf(SIGN.paris).length === 0 && upgradesOf(SIGN.berlin).length === 0) && !/credited in full/i.test(sp) && !/credited in full/i.test(sb) && upgradesOf(ams).length === 1,
+      'a desk that charges at signing offers no upgrade path and prints no credit (ticket, fees row, Offers)');
+    refusesS((c) => { c.faq.items[0].a += ' The pack fee is credited in full later.'; }, /no upgrade credit exists here, and the page must not print one/, 'a signing desk that prints "credited in full" is refused');
   }
   check(ruleOf(ams, sharedS) === shared.refund.rule && signed(() => ruleOf(SIGN.paris, sharedS)) === SIGN_RULE && ruleReOf(ams).test(shared.refund.rule) && signed(() => ruleReOf(SIGN.paris)) === SIGN_RULE_RE
     && Object.values(TRIG).every((t) => SIGN_RULE_RE.test(t)) && SIGN_RULE_RE.test(SIGN_RULE) && !SIGN_RULE_RE.test(shared.refund.rule),
