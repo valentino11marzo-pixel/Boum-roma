@@ -410,6 +410,8 @@ for (const [slug, hash] of [['barcelona', '#pay-full-search'], ['london', '#pay-
   await page.waitForTimeout(250);
   const avAfter = await rect(page, '#fare-attended-viewing > summary');
   check(Math.abs(avAfter.top - avBefore.top) < 2, `a row below the open ticket stays under the finger while the ticket above closes (${(avAfter.top - avBefore.top).toFixed(1)} px)`);
+  // …and the ticket above DID close (without this the row would stay still for the wrong reason: nothing closed)
+  check(await page.$eval('#fare-application-pack', (d) => !d.open) && await page.$eval('#fare-attended-viewing', (d) => d.open), 'one ticket open at a time: the Application Pack ticket closed, the Attended Viewing one is open');
   await page.click('#fare-attended-viewing > summary');
   await page.waitForTimeout(250);
   await page.click('#fare-application-pack > summary');

@@ -1204,6 +1204,9 @@ tplRefuses('<p class="proof">', '<p class="proof">Pay by bank transfer · ', /no
   // Berlin with the 30-day words (the pre-review page): refused — the page must say the server's window for THAT desk
   const g4 = (() => { const f = sliceOf(PAGE.berlin, '<!-- FARES -->', '<!-- /FARES -->'); const f30 = f.replace(esc(lineOf('berlin')), esc(LINE)); return f30 !== f && throws(() => render(clone(CITY.berlin), shared, template.replace('{{{faresHtml}}}', () => f30.replace(/^<!-- FARES -->\n?/, ''))), /does not say the upgrade credit with this desk's window/); })();
   check(g4 === true, 'Berlin printing "within 30 days" in its ticket is refused by the build (the server gives no deadline there)', g4 === true ? '' : String(g4));
+  // a credit sentence typed by hand on a desk that sells (another window, another door): refused — the word is the server's
+  const g5 = (() => { const c = clone(CITY.amsterdam); c.faq.items[0].a = 'The pack fee is credited whenever you move to Full Search.'; return throws(() => render(c, shared, template), /says "credited" outside the server's own sentences \(api\/_upgrade\.js\)/); })();
+  check(g5 === true && !/\bcredited\b/i.test(JSON.stringify(Object.values(CITY).map((c) => [c.faq, c.checks, c.pricing]))), 'a selling desk with a credit sentence typed by hand in a FAQ is refused by the build (no desk JSON types the word)', g5 === true ? '' : String(g5));
 }
 {
   // audit 06/11 — the fact sheet says how to withdraw, right after the fees
@@ -2992,11 +2995,11 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
       'no signing note on the real hub since the card flip (and no warning); with the registry patched the note names Berlin and Paris before the first price', signHub.err || '');
     // the upgrade credit (a policy since 12/11/2026): the hub says it under the plan it starts from only while EVERY
     // live desk offers it — with Paris and Berlin charging at signing (the patched hub) the sentence would be false there
-    check(sliceOf(fa, 'id="hf-application-pack"', '</li>\n').includes('<p class="refund">Credited in full if you move to Full Search within 30 days (Berlin: no time limit).</p>')
+    check(sliceOf(fa, 'id="hf-application-pack"', '</li>\n').includes('<p class="refund">Credited in full towards Full Search at the same desk within 30 days (Berlin: no time limit).</p>')
       && upgradeLine('Full Search') === 'Credited in full if you move to Full Search within 30 days.' && (fa.match(/Credited in full/g) || []).length === 1
       && !/credited in full/i.test(sliceOf(fa, 'id="hf-full-search"', '</li>\n')) && !/credited in full/i.test(sliceOf(fa, 'id="hf-attended-viewing"', '</li>\n'))
       && sfa.length > 0 && !/credited in full/i.test(sfa),
-      'the hub\'s fares say the upgrade credit once, under the Application Pack, with the window most desks give and Berlin\'s exception named; with a desk charging at signing they stay silent (each desk\'s own Offers still say theirs)', signHub.err || '');
+      'the hub\'s fares say the upgrade credit once, under the Application Pack, on WHICH desk it holds (the same one), with the window most desks give and Berlin\'s exception named; with a desk charging at signing they stay silent (each desk\'s own Offers still say theirs)', signHub.err || '');
     // v1.8 FLIP (H2, H4): the Full Search line true at every desk; "One company" and "One person" cut from the strip
     check(sliceOf(fa, 'id="hf-full-search"', '</li>\n').includes('<li>Contract checked before you sign</li>') && !/Applications sent as listings appear/.test(fa) && !/One company|One person/.test(fa),
       'the Full Search ticket says "Contract checked before you sign" (true at every desk: H2); the strip lost "One company" and "One person" (H4)');
@@ -3077,6 +3080,8 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
   hubRefuses((h) => { h.rules.hold['london:fees'] = 'tbd'; }, /needs its reason/, 'a hold without its reason is refused');
   hubRefuses((h) => { h.rules.cut['amsterdam:deposit'] = ['Agents ask for four.']; }, /every sentence cut must occur verbatim/, 'a cut sentence that is not in the check is refused');
   hubRefuses((h) => { h.hero.lead = h.hero.lead.replace('One Italian agency', 'One worldwide agency'); }, /a scope word .*"worldwide"/, 'the lead saying "worldwide" is refused');
+  // the upgrade credit is never typed by hand on the hub either: the word belongs to the server's sentences (api/_upgrade.js)
+  hubRefuses((h) => { h.faq.items[3].a = 'A pack is credited at any desk you choose.'; }, /the hub says "credited" outside the server's own sentences \(api\/_upgrade\.js\)/, 'a hub FAQ answer that states the credit by hand (here: "at any desk") is refused');
   hubRefuses((h) => { h.fares.plans['full-search'].lines[0] = 'Guaranteed home in 30 days'; }, /types a number|not a line the server sells/, 'a ticket line "Guaranteed home in 30 days" is refused (not a substring of CITY_PLANS, and a typed number)');
   hubRefuses((h) => { h.fares.plans['full-search'].lines[0] = 'Guaranteed home in thirty days'; }, /is not a line the server sells/, 'a ticket line the server does not sell is refused');
   hubRefuses((h) => { h.map.caption = 'We have 40 clients a month.'; }, /types a number/, 'a number typed in hub copy is refused (numbers come from tokens)');

@@ -37,9 +37,19 @@
 // a refund, and the refund closes the credit.
 // THE OTHER DOOR. The credit is applied through the personal link. A pack
 // holder who pays the target plan in full on the desk page is found by the
-// webhook (openCreditFor, by the payer's e-mail): the pack's credit is
-// marked used, the order says what is owed back, and the operator gets an
-// urgent card to refund it — the Terms promise that refund (§12.2).
+// webhook (openCreditFor, by the payer's e-mail) on the FIRST delivery of
+// that payment: the order records what is owed back (city.creditDue) and the
+// operator gets an urgent card — the Terms promise that refund (§12.2).
+// Nothing is changed on the pack then: an e-mail address is not an identity.
+// The operator's refund is the act: when a partial refund of at least the
+// pack amount is stamped on that order, the pack's credit is closed
+// (credit.via 'full-price'). The client is told in writing only when the
+// phone number is the pack's too (samePhone) and no withdrawal statement is
+// on file for the pack.
+// THE SAME LOOKUP, BERLIN'S RULE (fullSearchHeld): on a desk whose terms
+// charge nothing alongside a Full Search (§12.5), a pack or a viewing paid by
+// someone who already holds one is recorded on the order (city.stackedOn) and
+// rung to the operator, who refunds it if that search is still running.
 
 import { CITY_MARKETS, CITY_PLANS, cityOffer } from './_market.js';
 
@@ -55,6 +65,13 @@ export const upgradeLine = (toLabel, days = UPGRADE_DAYS) => `Credited in full i
 /** The sentence of the fact sheet's Fees row and of the Offer: what, for how long, through which door. */
 export const upgradeFact = (fromLabel, toLabel, days = UPGRADE_DAYS) =>
   `The ${fromLabel} fee is credited in full towards ${toLabel} ${days ? `for ${days} days from payment` : 'with no time limit'}, through the personal link in the order email.`;
+/**
+ * The hub's line: one page for every desk, so it says WHICH desk the credit holds on (the pack's own) — on a
+ * desk's page the context is that desk. `days` is the window most desks give; `openDesks` names, in brackets,
+ * the desks that give none (Berlin).
+ */
+export const upgradeHubLine = (toLabel, days = UPGRADE_DAYS, openDesks = '') =>
+  `Credited in full towards ${toLabel} at the same desk${days ? ` within ${days} days` : ''}${days && openDesks ? ` (${openDesks}: no time limit)` : ''}.`;
 /** The till's line when the plan being paid is the one a credit leads to: the door that applies it. */
 export const upgradeTillHint = (fromLabel) => `Already paid for the ${fromLabel} on this desk? Use the personal link in your order email: what you paid comes off this price.`;
 /**
@@ -90,9 +107,10 @@ export function upgradeVoidReason(lead) {
  * Stripe webhook (charge.refunded) and by /api/withdraw's card.
  *  - a pack whose credit was ALREADY used: the client has had the credit and
  *    now gets the pack back too — the difference is settled on the upgrade
- *    (unless it was "used" by an order paid in full: then this refund may BE
- *    the one that is owed);
- *  - an order paid in full by a pack holder: the pack amount is owed back on it;
+ *    (when it was closed by a refund on an order paid in full, this is a
+ *    second refund of the same credit);
+ *  - an order paid in full by a pack holder: the pack amount is owed back on
+ *    it (the refund card itself is written by the webhook's settle step);
  *  - a Full Search paid with a credit: the refund is counted on what was paid
  *    for THAT order (Terms §12.2);
  *  - a pack with the credit still open: it is closed from now on.
@@ -102,12 +120,13 @@ export function upgradeMoneyBackNote(lead, fmt = (n) => String(n), opts = {}) {
   const c = lead.city && typeof lead.city === 'object' ? lead.city : null;
   if (!c) return '';
   const used = lead.credit && typeof lead.credit === 'object' && lead.credit.usedBy ? String(lead.credit.usedBy) : null;
-  // credited the other way round: the target plan was paid in full and the pack amount is owed back on THAT order
-  if (used && lead.credit.via === 'full-price') return `il credito di questo ordine è dovuto come rimborso sull'ordine ${used}, pagato a prezzo pieno: se il rimborso è questo, è a posto — non rifarlo anche là`;
+  // closed the other way round: the target plan was paid in full and the pack amount was ALREADY refunded on that
+  // order (the mark is written when that refund is stamped) — money for the pack going back now is a second refund
+  if (used && lead.credit.via === 'full-price') return `ATTENZIONE: il credito di questo ordine è già stato rimborsato sull'ordine ${used}, pagato a prezzo pieno: un rimborso di questo pack è un secondo rimborso dello stesso credito`;
   if (used) return `ATTENZIONE: il credito di upgrade di questo ordine è già stato usato da ${used} — il cliente ha già avuto il credito: regola la differenza su quell'ordine`;
   // paid in full by someone who held an open pack credit: the pack amount is owed back on THIS order
   const due = c.creditDue && typeof c.creditDue === 'object' && c.creditDue.from ? c.creditDue : null;
-  if (due) return `su questo ordine è dovuto il rimborso del credito di ${String(due.from)}${Number(due.amount) > 0 ? ` (${fmt(Number(due.amount))})` : ''}: se è questo, è a posto`;
+  if (due) return `su questo ordine è dovuto il rimborso del credito di ${String(due.from)}${Number(due.amount) > 0 ? ` (${fmt(Number(due.amount))})` : ''}${lead.refundedAt ? ': un rimborso è già segnato su questo ordine' : ''}`;
   const paidWith = c.credit && typeof c.credit === 'object' && c.credit.from ? c.credit : null;
   if (paidWith) return `ordine pagato col credito di ${String(paidWith.from)}${Number(paidWith.amount) > 0 ? ` (${fmt(Number(paidWith.amount))})` : ''}: il rimborso si calcola su quanto pagato per QUESTO ordine (Termini §12.2)`;
   const from = String(c.service || lead.kind || '');
@@ -129,6 +148,35 @@ export function openCreditFor(orders, cityKey, kind, nowMs) {
     if (o.ok && o.city === cityKey && o.to === kind) return { id: String(d.id), offer: o };
   }
   return null;
+}
+
+/**
+ * A desk whose terms charge nothing alongside a Full Search (Berlin, Terms
+ * §12.5 — the registry's noStacking): the paid Full Search this payer already
+ * holds there, among their own earlier orders, when the plan now paid is
+ * anything else. Pure. Returns { id, file, phone } or null. Whether that
+ * search is still RUNNING is not in the data: the operator judges.
+ */
+export function fullSearchHeld(orders, cityKey, kind) {
+  const k = String(cityKey || '').toLowerCase();
+  const desk = Object.prototype.hasOwnProperty.call(CITY_MARKETS, k) ? CITY_MARKETS[k] : null;
+  if (!desk || desk.noStacking !== true || !kind || String(kind) === 'full-search') return null;
+  for (const d of Array.isArray(orders) ? orders : []) {
+    const c = d && d.city && typeof d.city === 'object' ? d.city : null;
+    if (!c || !isUpgradeLeadId(d.id) || d.market !== k || d.intent !== 'city_order' || d.paid !== true || c.paid !== true) continue;
+    if (String(c.service || d.kind || '') !== 'full-search') continue;
+    // money that went back in full, or that the bank is taking back, is not a Full Search the client holds
+    if (d.refundedFull === true || d.disputedAt) continue;
+    return { id: String(d.id), file: typeof c.file === 'string' ? c.file : null, phone: String(d.phone || '') };
+  }
+  return null;
+}
+
+/** The same phone in two spellings (E.164 against a national form): the last nine digits agree. */
+export function samePhone(a, b) {
+  const digits = (x) => String(x || '').replace(/\D/g, '');
+  const x = digits(a), y = digits(b);
+  return x.length >= 7 && y.length >= 7 && x.slice(-9) === y.slice(-9);
 }
 
 /**

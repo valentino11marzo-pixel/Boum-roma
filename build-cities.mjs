@@ -110,7 +110,7 @@ import { CITY_MARKETS } from './api/_market.js';
 // v1.8: the order terms of the desks that charge at signing — the page posts their version, the server
 // refuses an older one with 409 terms_changed (ORDER_TERMS_V in the page config)
 import { ORDER_TERMS } from './api/_cityterms.js';
-import { upgradePathsOf, upgradeLine, upgradeFact, upgradeDaysOf, upgradeTillHint } from './api/_upgrade.js';
+import { upgradePathsOf, upgradeLine, upgradeFact, upgradeDaysOf, upgradeTillHint, upgradeHubLine } from './api/_upgrade.js';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 // The model withdrawal form (Directive 2011/83/EU Annex I(B)), linked from the
@@ -2419,6 +2419,13 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
     }
     need(plans.filter((p) => config.PLANS[p.id].up === true).every((p) => ups.some((u) => u.to === p.id)), where, 'a plan carries the upgrade hint flag without an upgrade path leading to it');
     if (!ups.length) need(!/credited in full/i.test(html) && !/id="tUp"/.test(html), where, 'this desk takes nothing at the order (it charges at signing, or is still opening): no upgrade credit exists here, and the page must not print one');
+    // …and no OTHER sentence about the credit, on any desk: a rule typed by hand in a FAQ, a ticket or a meta
+    // (another window, another door) is a rule the server does not keep. The word belongs to the server's
+    // sentences alone ("credit history" and the like are other words).
+    let rest = html;
+    for (const u of ups) for (const t of [upgradeLine(u.toLabel, u.days), upgradeFact(u.fromLabel, u.toLabel, u.days)]) rest = rest.split(esc(t)).join(' ').split(t).join(' ');
+    const stray = rest.match(/[^.<>"]{0,60}\bcredited\b[^.<>"]{0,60}/i);
+    need(!stray, where, `the page says "credited" outside the server's own sentences (api/_upgrade.js): the upgrade credit is never typed by hand — "${stray ? stray[0].trim() : ''}"`);
   }
   // THE REFUND RULE BESIDE EVERY €500 (sell desks): the closed Full Search
   // row, its open ticket, the till, the fees row — every block that shows
@@ -3653,7 +3660,7 @@ export function renderHub({ template, shared, hub, cities, assetVersion, frags, 
     const of = (c) => upgradesOf(c).find((u) => u.from === up.from);
     const days = (live.map(of).find((u) => u && u.days) || {}).days || null;
     const open = days ? live.filter((c) => !of(c).days).map((c) => c.city) : [];
-    return upgradeLine(up.toLabel, days).replace(/\.$/, '') + (open.length ? ` (${listJoin(open)}: no time limit)` : '') + '.';
+    return upgradeHubLine(up.toLabel, days, listJoin(open));
   };
   const tickets = plans.map((p) => {
     const hp = fr.plans[p.id];
@@ -3994,6 +4001,12 @@ export function renderHub({ template, shared, hub, cities, assetVersion, frags, 
     need(!/✈/.test(html), where, 'no ✈ (U+2708) on the hub');
     need(!/!(?=[\s<"]|$)/.test(bare.replace(/<!DOCTYPE[^>]*>/i, '').replace(/<[^>]+>/g, ' ')), where, 'no exclamation mark in the copy');
     need(!/(?<![\d,.])500\+|off-market|whichever is lower/i.test(vis), where, 'no "500+", "off-market" or "whichever is lower"');
+    // the upgrade credit is the server's sentence here too (api/_upgrade.js): the hub's own line under the plan
+    // it starts from, and each desk's fact inside its Offer — never a window or a door typed by hand
+    let rest = html;
+    for (const t of [...hubUps.map((u) => hubUpLine(u)), ...live.flatMap((c) => upgradesOf(c).map((u) => upgradeFact(u.fromLabel, u.toLabel, u.days)))]) rest = rest.split(esc(t)).join(' ').split(t).join(' ');
+    const stray = rest.match(/[^.<>"]{0,60}\bcredited\b[^.<>"]{0,60}/i);
+    need(!stray, where, `the hub says "credited" outside the server's own sentences (api/_upgrade.js): "${stray ? stray[0].trim() : ''}"`);
   }
   // 16 · counts: every "N desks" / "N European cities" is the live count; no head counts
   {

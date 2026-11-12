@@ -13,11 +13,18 @@
 //   - the client's name, email or phone readable by whoever holds the link;
 //   - the upgrade getting a new file number instead of the pack's;
 //   - the page pre-ticking "Start now" (the payer's own request, Directive 2011/83/EU art. 7(3));
-//   - a policy since 12/11/2026: a pack the client did NOT keep (refunded in
-//     full or in part, or withdrawn from) still opening Full Search at the
-//     credited price; a Stripe refund that leaves no trace on the order; the
-//     client's own order email without the personal link; the pages, the
-//     Terms and llms.txt saying another number of days than the server's.
+//   - a policy since 12/11/2026: a pack whose money went back (refunded in
+//     full or in part, or disputed) still opening Full Search at the credited
+//     price — a withdrawal STATEMENT alone does not close it; a Stripe refund
+//     that leaves no trace on the order; the client's own order email without
+//     the personal link; the pages, the Terms and llms.txt saying another
+//     number of days than the server's;
+//   - the other door (a pack holder pays Full Search in full): a credit
+//     marked or promised on an e-mail match alone; a second delivery applying
+//     today's state instead of what the order recorded; a refund promised
+//     twice; a stamp that goes backwards; a failed mark answered 200;
+//   - Berlin (Terms §12.5): a pack or a viewing charged on top of a Full
+//     Search with nobody told.
 //
 // 'stripe' is mocked by the money suite's loader; Firestore, EmailJS and
 // Telegram by a fetch stub with an in-memory store. No network.
@@ -77,8 +84,11 @@ const toFsV = (v) => {
 const docJson = (k) => { const fields = {}; for (const [f, v] of Object.entries(store.get(k))) fields[f] = toFsV(v); return { name: 'projects/p/databases/(default)/documents/' + k, fields, updateTime: verOf(k) }; };
 const bump = (k) => VER.set(k, `2026-11-06T10:00:00.${String(++verSeq).padStart(6, '0')}Z`);
 const nested = (o, p) => p.split('.').reduce((a, k) => (a && typeof a === 'object' ? a[k] : undefined), o);
-// fault injection: one GET of a document answers 503; a callback right after a document is written
-const hooks = { failGetOnce: null, afterWrite: null };
+// fault injection: one GET of a document answers 503 (failGetOnce), or N of them (failGets {path, times}); a
+// callback right after a document is written; N failing queries; N failing commits on a document (503, not a
+// conflict: failCommits {path, times}); a callback right BEFORE a commit touches a document (a concurrent writer).
+// `queries` records every runQuery (field, value, limit).
+const hooks = { failGetOnce: null, afterWrite: null, failGets: null, failQueries: 0, failCommits: null, beforeCommit: null, queries: [] };
 
 globalThis.fetch = async (url, opts = {}) => {
   url = String(url);
@@ -93,10 +103,14 @@ globalThis.fetch = async (url, opts = {}) => {
       const sq = JSON.parse(opts.body).structuredQuery || {};
       const coll = ((sq.from || [])[0] || {}).collectionId;
       const ff = (sq.where || {}).fieldFilter;
+      hooks.queries.push({ coll, field: ff ? ff.field.fieldPath : null, value: ff ? fromFsV(ff.value) : null, limit: sq.limit });
+      if (hooks.failQueries > 0) { hooks.failQueries--; return new Response('unavailable', { status: 503 }); }
       const out = [];
       for (const k of store.keys()) {
         if (!k.startsWith(coll + '/') || k.split('/').length !== 2) continue;
         if (ff && nested(store.get(k), ff.field.fieldPath) !== fromFsV(ff.value)) continue;
+        // like Firestore: never more rows than the query's limit
+        if (Number(sq.limit) > 0 && out.length >= Number(sq.limit)) break;
         out.push({ document: docJson(k) });
       }
       return okJson(out.length ? out : [{}]);
@@ -104,6 +118,9 @@ globalThis.fetch = async (url, opts = {}) => {
     if (p.startsWith(':commit')) {
       const writes = JSON.parse(opts.body).writes || [];
       const pathOf = (n) => String(n).split('/documents/')[1];
+      const keys = writes.map((w) => pathOf((w.update && w.update.name) || w.delete));
+      if (hooks.beforeCommit) for (const k of keys) { if (hooks.beforeCommit) hooks.beforeCommit(k); }
+      if (hooks.failCommits && hooks.failCommits.times > 0 && keys.includes(hooks.failCommits.path)) { hooks.failCommits.times--; return new Response('unavailable', { status: 503 }); }
       for (const w of writes) {
         const k = pathOf((w.update && w.update.name) || w.delete), pc = w.currentDocument || {};
         if ((pc.exists === false && store.has(k)) || (pc.exists === true && !store.has(k)) || (pc.updateTime && pc.updateTime !== verOf(k))) {
@@ -133,6 +150,7 @@ globalThis.fetch = async (url, opts = {}) => {
       store.set(clean, flat); bump(clean); if (hooks.afterWrite) hooks.afterWrite(clean); return okJson({});
     }
     if (hooks.failGetOnce && hooks.failGetOnce === clean) { hooks.failGetOnce = null; return new Response('unavailable', { status: 503 }); }
+    if (hooks.failGets && hooks.failGets.times > 0 && hooks.failGets.path === clean) { hooks.failGets.times--; return new Response('unavailable', { status: 503 }); }
     if (!store.has(clean)) return new Response('not found', { status: 404 });
     return okJson(docJson(clean));
   }
@@ -144,9 +162,10 @@ let ipSeq = 0;
 const post = async (handler, body) => { const r = mkRes(); await handler({ method: 'POST', headers: { 'x-forwarded-for': `10.9.0.${++ipSeq}` }, body, socket: {} }, r); return r; };
 const get = async (handler, query) => { const r = mkRes(); await handler({ method: 'GET', headers: { 'x-forwarded-for': `10.8.0.${++ipSeq}` }, query, socket: {} }, r); return r; };
 const stream = (obj) => ({ method: 'POST', headers: { 'stripe-signature': 'sig' }, async *[Symbol.asyncIterator]() { yield Buffer.from(JSON.stringify(obj)); } });
-const event = (metadata, over = {}) => ({ type: 'checkout.session.completed', data: { object: { id: over.id || 'cs_live_up_1', amount_total: over.amount_total ?? 30100, currency: over.currency || 'eur', customer_email: metadata.email || 'dana@example.com', customer_details: over.customer_details || null, payment_intent: 'pi_1', metadata } } });
+// over.created = the time the payment completed (Stripe's event.created, in seconds)
+const event = (metadata, over = {}) => ({ type: 'checkout.session.completed', ...(over.created ? { created: over.created } : {}), data: { object: { id: over.id || 'cs_live_up_1', amount_total: over.amount_total ?? 30100, currency: over.currency || 'eur', customer_email: metadata.email || 'dana@example.com', customer_details: over.customer_details || null, payment_intent: 'pi_1', metadata } } });
 
-const { upgradeOffer, publicUpgrade, isUpgradeLeadId, UPGRADE_DAYS, UPGRADE_PATHS, upgradeLine, upgradeFact, upgradeTillHint, upgradePathsOf, upgradeVoidReason, upgradeMoneyBackNote, upgradeDaysOf, upgradeDeadline, openCreditFor } = await import('../../api/_upgrade.js');
+const { upgradeOffer, publicUpgrade, isUpgradeLeadId, UPGRADE_DAYS, UPGRADE_PATHS, upgradeLine, upgradeFact, upgradeTillHint, upgradePathsOf, upgradeVoidReason, upgradeMoneyBackNote, upgradeDaysOf, upgradeDeadline, openCreditFor, samePhone, fullSearchHeld, upgradeHubLine } = await import('../../api/_upgrade.js');
 const TOK = await import('../../api/payments/_token.js');
 const { default: checkout } = await import('../../api/service-checkout.js');
 const { default: cityLead } = await import('../../api/city-lead.js');
@@ -184,11 +203,16 @@ const seed = (id, lead) => { store.set('leads/' + id, JSON.parse(JSON.stringify(
     'the day of payment is the ROME day (00:30 in Rome is already the 12th; 23:59 still is; midnight starts the 13th)');
   check(upgradeDeadline(Date.parse('2027-03-10T10:00:00Z'), 30) === Date.parse('2027-04-09T21:59:59.999Z') && upgradeDeadline(Date.parse('2027-10-10T10:00:00Z'), 30) === Date.parse('2027-11-09T22:59:59.999Z'),
     'across the clock changes the deadline is still the end of the calendar day (calendar days, never 30 × 24 h)');
-  check(Date.parse(o.expiresAt) - Date.parse(o.paidAt) >= UPGRADE_DAYS * DAY && Date.parse(o.expiresAt) - Date.parse(o.paidAt) < (UPGRADE_DAYS + 1) * DAY + 3600000, 'never shorter than 30 days from the payment, never a day longer');
+  // fixed instants (never "now minus n × 24 h": across a clock change that lands on another Rome day, and the suite
+  // would go red by the hour it runs at): evenings before both changes, a year end, an ordinary morning
+  const spans = ['2026-11-12T08:00:00Z', '2026-10-24T21:30:00Z', '2026-09-26T21:30:00Z', '2027-02-27T22:30:00Z', '2027-03-27T22:30:00Z', '2026-12-31T22:30:00Z'].map((t) => upgradeDeadline(Date.parse(t), UPGRADE_DAYS) - Date.parse(t));
+  check(spans.every((d) => d >= UPGRADE_DAYS * DAY - 3600000 && d < (UPGRADE_DAYS + 1) * DAY + 3600000), 'never shorter than 30 days from the payment (less the hour a clock change takes), never more than a day longer', spans.map((d) => (d / DAY).toFixed(3)).join(' '));
   const pub = publicUpgrade(o);
   check(!('email' in pub) && !('name' in pub) && !('phone' in pub) && !JSON.stringify(pub).includes('dana@example.com'), 'the public view carries no name, email or phone');
   check(upgradeOffer(apLead({ credit: { usedBy: 'svc_other' } }), AP_ID, NOW).state === 'used', 'a credit already used is used');
-  check(upgradeOffer(apLead({ paid_at: new Date(NOW - 31 * DAY).toISOString() }), AP_ID, NOW).state === 'expired', 'after 30 days it has expired');
+  check(upgradeOffer(apLead({ paid_at: new Date(NOW - 33 * DAY).toISOString() }), AP_ID, NOW).state === 'expired'
+    && upgradeOffer(apLead({ paid_at: '2026-10-12T22:30:00Z' }), AP_ID, Date.parse('2026-11-12T22:30:00Z')).state === 'open' && upgradeOffer(apLead({ paid_at: '2026-10-12T21:30:00Z' }), AP_ID, Date.parse('2026-11-12T22:30:00Z')).state === 'expired',
+    'after its 30 days it has expired — counted in Rome days (paid at 00:30 on 13 October: open all of 12 November; paid at 23:30 on the 12th: expired)');
   check(upgradeOffer(apLead({ kind: 'full-search', city: { ...apLead().city, service: 'full-search' } }), AP_ID, NOW).state === 'not_upgradable', 'a Full Search order has nothing to upgrade to');
   // the card flip (06/11): Paris takes the card at the order, so a Paris pack paid by card is credited like Madrid's;
   // a desk the registry charges at signing (Paris patched, try/finally) still never credits: nothing was paid there
@@ -245,8 +269,9 @@ const seed = (id, lead) => { store.set('leads/' + id, JSON.parse(JSON.stringify(
     && /pagato col credito di svc_pack1 \(€199\).*QUESTO ordine/.test(upgradeMoneyBackNote(apLead({ kind: 'full-search', city: { ...apLead().city, service: 'full-search', credit: { from: 'svc_pack1', amount: 199 } } }), eurFmt))
     && upgradeMoneyBackNote(apLead(), eurFmt) === 'il credito di upgrade di questo ordine non vale più'
     && upgradeMoneyBackNote(apLead(), eurFmt, { statement: true }) === 'il credito di upgrade di questo ordine si chiude da solo quando lo rimborsi su Stripe (una dichiarazione da sola non lo chiude)'
-    && /su questo ordine è dovuto il rimborso del credito di svc_pack1 \(€199\): se è questo, è a posto/.test(upgradeMoneyBackNote(apLead({ kind: 'full-search', city: { ...apLead().city, service: 'full-search', creditDue: { from: 'svc_pack1', amount: 199 } } }), eurFmt))
-    && /dovuto come rimborso sull'ordine svc_fs1, pagato a prezzo pieno: se il rimborso è questo, è a posto/.test(upgradeMoneyBackNote(apLead({ credit: { usedBy: 'svc_fs1', via: 'full-price' } }), eurFmt))
+    && upgradeMoneyBackNote(apLead({ kind: 'full-search', city: { ...apLead().city, service: 'full-search', creditDue: { from: 'svc_pack1', amount: 199 } } }), eurFmt) === 'su questo ordine è dovuto il rimborso del credito di svc_pack1 (€199)'
+    && /dovuto il rimborso del credito di svc_pack1 \(€199\): un rimborso è già segnato su questo ordine$/.test(upgradeMoneyBackNote(apLead({ kind: 'full-search', refundedAt: 'x', city: { ...apLead().city, service: 'full-search', creditDue: { from: 'svc_pack1', amount: 199 } } }), eurFmt))
+    && /^ATTENZIONE: il credito di questo ordine è già stato rimborsato sull'ordine svc_fs1, pagato a prezzo pieno: un rimborso di questo pack è un secondo rimborso dello stesso credito$/.test(upgradeMoneyBackNote(apLead({ credit: { usedBy: 'svc_fs1', via: 'full-price' } }), eurFmt))
     && upgradeMoneyBackNote(apLead({ kind: 'attended-viewing', city: { ...apLead().city, service: 'attended-viewing' } }), eurFmt) === ''
     && upgradeMoneyBackNote({ kind: 'virtual-viewing', paid: true }, eurFmt) === '' && upgradeMoneyBackNote(null) === '',
     'the money-back note: a used credit warns, an upgrade says what the refund is counted on, an open pack closes (with its refund, when only a statement arrived), an order paid in full says what is owed, anything else is silent');
@@ -257,6 +282,19 @@ const seed = (id, lead) => { store.set('leads/' + id, JSON.parse(JSON.stringify(
     'Paris: one attended viewing, further ones €149, six months at most (its own terms), the refund rule', par.desc);
   check(ber.desc === CITY_PLAN_DESC.berlin['full-search'] && /offer them to you alone/.test(ber.desc) && /attended viewings included/.test(ber.desc) && /two months' net cold rent plus VAT: we refund the difference/.test(ber.desc) && !/one attended viewing/.test(ber.desc),
     'Berlin: homes offered to you alone, viewings included, the fee within the legal cap — never "one attended viewing"', ber.desc);
+  // the same phone in two spellings; a missing or too short number never matches
+  check(samePhone('+34 600 000 001', '600000001') && samePhone('+34600000001', '0034 600-000-001') && !samePhone('+34600000001', '+34600000002') && !samePhone('', '') && !samePhone('+34600000001', '') && !samePhone(null, undefined) && !samePhone('12345', '12345'),
+    'two spellings of one phone are the same phone; a missing or too short number is never "the same"');
+  // Berlin (Terms §12.5): the Full Search a payer already holds, when they pay anything else there
+  const berFs = { ...apLead({ market: 'berlin', kind: 'full-search', amount_eur: 500, city: { ...apLead().city, key: 'berlin', label: 'Berlin', service: 'full-search', file: 'BM BERFS' } }), id: 'svc_berlinfs000001' };
+  check(fullSearchHeld([berFs], 'berlin', 'attended-viewing').id === 'svc_berlinfs000001' && fullSearchHeld([berFs], 'berlin', 'application-pack').file === 'BM BERFS'
+    && fullSearchHeld([berFs], 'berlin', 'full-search') === null && fullSearchHeld([berFs], 'berlin', '') === null && fullSearchHeld([{ ...berFs, market: 'madrid' }], 'madrid', 'attended-viewing') === null
+    && fullSearchHeld([{ ...berFs, refundedFull: true }], 'berlin', 'attended-viewing') === null && fullSearchHeld([{ ...berFs, disputedAt: 'x' }], 'berlin', 'attended-viewing') === null
+    && fullSearchHeld([{ ...berFs, paid: false }], 'berlin', 'attended-viewing') === null && fullSearchHeld([{ ...berFs, id: 'city_freedoor00001' }], 'berlin', 'attended-viewing') === null
+    && fullSearchHeld([{ ...berFs, refundedAmount: 199, refundedFull: false }], 'berlin', 'attended-viewing') !== null && fullSearchHeld(null, 'berlin', 'attended-viewing') === null,
+    'Berlin: a paid Full Search of that desk whose money is still BOOM\'s counts (a partial refund too); never on a desk that stacks, never for a Full Search itself, never one refunded in full or disputed');
+  check(upgradeHubLine('Full Search', 30, 'Berlin') === 'Credited in full towards Full Search at the same desk within 30 days (Berlin: no time limit).' && upgradeHubLine('Full Search') === 'Credited in full towards Full Search at the same desk within 30 days.' && upgradeHubLine('Full Search', null, 'Berlin') === 'Credited in full towards Full Search at the same desk.',
+    'the hub\'s line says WHICH desk (the pack\'s own): one page presents all eight');
   // the other door, pure: which of the payer's own orders carries an open credit towards the plan being paid
   const mine = [{ ...apLead(), id: 'city_freedoor00001' }, { ...apLead({ credit: { usedBy: 'svc_x' } }), id: 'svc_usedpack0001' }, { ...apLead({ market: 'amsterdam' }), id: 'svc_amspack00001' }, { ...apLead(), id: 'svc_openpack0001' }];
   const hit = openCreditFor(mine, 'madrid', 'full-search', NOW);
@@ -429,6 +467,17 @@ const meta = (over = {}) => ({ service: 'SERVICE', kind: 'full-search', city: 'm
   check(serviceLeadId('cs_live_pack_13') === PART && lp.refundedAmount === 50 && lp.refundedFull === false && upgradeOffer(lp, PART, NOW).state === 'void', 'a partial refund is stamped as partial and voids the credit too');
   await webhook(stream(refundEvt('evt_ref_3', 'pi_pack_13', 19900, 12000, 1794400000)), mkRes());
   check(store.get('leads/' + PART).refundedAmount === 120 && store.get('leads/' + PART).refundedAt === new Date(1794400000 * 1000).toISOString(), 'a second partial refund writes the new cumulative total');
+  // the stamps only go forward (Stripe does not deliver in order): the FIRST partial refund under a late event changes
+  // nothing and is not announced as a repair…
+  tg.length = 0;
+  const rOld = await webhook(stream(refundEvt('evt_ref_2late', 'pi_pack_13', 19900, 5000, 1794300000)), mkRes());
+  check(rOld.code === 200 && store.get('leads/' + PART).refundedAmount === 120 && store.get('leads/' + PART).refundedAt === new Date(1794400000 * 1000).toISOString() && TG(/già segnato rimborsato per €120 \(questo evento è precedente\)/) && !TG(/✅/),
+    'an older refund event delivered late never lowers the stamp: the card says the order already carries more', JSON.stringify(tg.map((x) => x.text)));
+  // …and the very same first event delivered again (a plain retry: nothing had failed) rings nothing and repairs nothing
+  tg.length = 0;
+  const rDup = await webhook(stream(refundEvt('evt_ref_2', 'pi_pack_13', 19900, 5000)), mkRes());
+  check(rDup.code === 200 && rDup.body.duplicate === true && tg.length === 0 && store.get('leads/' + PART).refundedAmount === 120 && !store.get('agentNotifications/stripe-evt_ref_2').repairedAt,
+    'the first event delivered again after the second: no "✅ repaired" (nothing had failed), and the total stays', JSON.stringify(tg.map((x) => x.text)));
   // the session Stripe returns must be the one of THIS payment: another intent's session stamps nothing
   const OTHER = 'svc_cslivepack14';
   await webhook(stream(event({ ...meta(), kind: 'application-pack', amount_eur: '199', credit_from: '', credit_amount: '', credit_plan: '' }, { id: 'cs_live_pack_14', amount_total: 19900 })), mkRes());
@@ -436,6 +485,11 @@ const meta = (over = {}) => ({ service: 'SERVICE', kind: 'full-search', city: 'm
   tg.length = 0;
   await webhook(stream(refundEvt('evt_ref_4', 'pi_someone_else', 90000, 90000)), mkRes());
   check(!('refundedAt' in store.get('leads/' + OTHER)) && upgradeOffer(store.get('leads/' + OTHER), OTHER, NOW).state === 'open' && TG(/RIMBORSO totale/) && !TG(/segnato rimborsato/), 'a refund of another payment never stamps this order (the session must carry the charge\'s own PaymentIntent)');
+  // two refund events for the same order processed together: the smaller one, losing the race, does not write over the larger
+  hooks.beforeCommit = (k) => { if (k === 'leads/' + OTHER) { hooks.beforeCommit = null; store.set(k, { ...store.get(k), refundedAt: new Date(1794450000 * 1000).toISOString(), refundedAmount: 150, refundedFull: false }); bump(k); } };
+  const rRace = await webhook(stream(refundEvt('evt_ref_4race', 'pi_pack_14', 19900, 5000)), mkRes());
+  hooks.beforeCommit = null;
+  check(rRace.code === 200 && store.get('leads/' + OTHER).refundedAmount === 150, 'a stamp is written under the version it read: a larger refund that landed in between is not overwritten', String(store.get('leads/' + OTHER).refundedAmount));
   // a rent, a deposit, an invoice: no svc_ lead exists and none is created
   globalThis.__stripeSessions = [{ id: 'cs_live_rent_77', payment_intent: 'pi_rent_77' }];
   const before = store.size;
@@ -520,102 +574,363 @@ const meta = (over = {}) => ({ service: 'SERVICE', kind: 'full-search', city: 'm
 }
 
 // ── 5c. THE OTHER DOOR: a pack holder pays Full Search in full on the desk page ──
+// The order records what is owed back (city.creditDue) and the operator is told; nothing is written on the pack
+// until the operator's REFUND is stamped — that refund is the act that closes the pack's credit.
 {
   const TG = (re) => tg.some((x) => re.test(String(x.text || '')));
+  const ORIGIN = 'https://www.boomrome.com';
   const owedKeys = () => [...store.keys()].filter((k) => k.startsWith('agentNotifications/upgrade-owed-'));
   const pack = (id, over) => webhook(stream(event({ ...meta(), kind: 'application-pack', amount_eur: '199', credit_from: '', credit_amount: '', credit_plan: '', ...over }, { id, amount_total: 19900 })), mkRes());
   const full = (id, over, ev = {}) => webhook(stream(event({ ...meta(), credit_from: '', credit_amount: '', credit_plan: '', amount_eur: '500', ...over }, { id, amount_total: 50000, ...ev })), mkRes());
+  const refund = (evtId, pi, amount, refunded, created = 1794300000) => webhook(stream({ id: evtId, type: 'charge.refunded', created, data: { object: { id: 'ch_' + evtId, payment_intent: pi, amount, amount_refunded: refunded, currency: 'eur', billing_details: { name: 'A Payer' } } } }), mkRes());
+  const sessions = (...pairs) => { globalThis.__stripeSessions = pairs.map(([id, pi]) => ({ id, payment_intent: pi })); };
+  const L = (id) => store.get('leads/' + id);
+  const owedAlert = (fsId) => store.get('agentNotifications/upgrade-owed-' + fsId.slice(4));
+
+  // (a) the same person (same e-mail, same phone), no statement on the pack
   const olga = { name: 'Olga Owed', email: 'olga@example.com', phone: '+34611000001' };
   await pack('cs_live_pack_20', olga);
   const PK = serviceLeadId('cs_live_pack_20'), FS = serviceLeadId('cs_live_fs_20');
-  const pkFile = store.get('leads/' + PK).city.file;
+  const pkFile = L(PK).city.file;
+  check(L(PK).emailKey === 'olga@example.com', 'every paid order keeps the payer\'s address in lower case (emailKey): what the other door looks for');
   emails.length = 0; tg.length = 0;
   const r = await full('cs_live_fs_20', olga);
-  const fsl = store.get('leads/' + FS), pk = store.get('leads/' + PK);
-  check(r.code === 200 && fsl && fsl.amount_eur === 500 && fsl.city.creditDue && fsl.city.creditDue.from === PK && fsl.city.creditDue.amount === 199 && fsl.city.creditDue.currency === 'eur' && fsl.city.creditDue.plan === 'application-pack' && !fsl.city.credit,
-    'the Full Search order paid in full records what is owed back: the pack amount (creditDue), not a credit', fsl && JSON.stringify(fsl.city.creditDue));
-  check(fsl.city.file === pkFile && fsl.city.fileLeadId === PK && /€500 paid \(€199 Application Pack credit to refund\) · file /.test(fsl.message), 'it keeps the pack\'s file number and its summary says the refund that is due', fsl.message);
-  check(pk.credit && pk.credit.usedBy === FS && pk.credit.via === 'full-price' && pk.credit.amount === 199, 'the pack\'s credit is marked used by that order (it cannot be spent a second time through the link)', JSON.stringify(pk.credit));
-  const al = store.get('agentNotifications/upgrade-owed-' + FS.slice(4));
-  check(al && al.priority === 'high' && al.type === 'service.upgrade_credit_owed' && /PREZZO PIENO \(€500\)/.test(al.summary) && /rimborsa €199 su questo pagamento/.test(al.summary) && /segnato come usato/.test(al.summary) && al.summary.includes(PK) && !/nomi sui due ordini sono diversi/.test(al.summary),
-    'an urgent alert tells the operator to refund the pack amount on this payment', al && al.summary);
+  const fsl = L(FS);
+  check(r.code === 200 && fsl && fsl.amount_eur === 500 && fsl.city.creditDue && fsl.city.creditDue.from === PK && fsl.city.creditDue.amount === 199 && fsl.city.creditDue.currency === 'eur' && fsl.city.creditDue.plan === 'application-pack'
+    && fsl.city.creditDue.match === 'same' && !('statement' in fsl.city.creditDue) && fsl.creditDueFrom === PK && !fsl.city.credit && !fsl.city.creditUnverified,
+    'the Full Search order paid in full records what is owed back: the pack amount (creditDue, match "same"), not a credit', fsl && JSON.stringify(fsl.city.creditDue));
+  check(fsl.city.file === pkFile && fsl.city.fileLeadId === PK && /€500 paid \(€199 Application Pack credit to refund\) · file /.test(fsl.message), 'the same person keeps the pack\'s file number, and the summary says the refund that is due', fsl.message);
+  const gl = await get(cityLead, { upgrade: PK, t: TOK.upgradeToken(PK) });
+  check(!L(PK).credit && gl.code === 200 && gl.body.state === 'open', 'NOTHING is written on the pack at the payment: an e-mail address is not an identity (the credit closes with the operator\'s refund)', JSON.stringify(L(PK).credit || null));
+  const al = owedAlert(FS);
+  check(al && al.priority === 'high' && al.type === 'service.upgrade_credit_owed' && /PREZZO PIENO \(€500\)/.test(al.summary) && /stesso telefono/.test(al.summary) && /rimborsa €199 su questo pagamento/.test(al.summary)
+    && /Il credito del pack si chiude da solo quando quel rimborso è segnato\./.test(al.summary) && /Il cliente lo ha letto nell'email di conferma\./.test(al.summary) && al.summary.includes(PK) && !/VERIFICA/.test(al.summary) && !/segnato come usato/.test(al.summary),
+    'an urgent alert tells the operator to refund the pack amount on this payment, and that the refund is what closes the credit', al && al.summary);
   const op = emails.find((e) => e.to_email === 'valentino@boom-rome.com'), cl = emails.find((e) => e.to_email === 'olga@example.com');
-  check(op && op.intro.includes(`PAID IN FULL while holding an open Application Pack credit (order ${PK}, file ${pkFile}): refund €199 of this payment on Stripe`) && /Terms §12\.2/.test(op.intro), 'the operator email says it in words, with the order and the file', op && op.intro.slice(-260));
+  check(op && op.intro.includes(`PAID IN FULL while holding an open Application Pack credit (order ${PK}, file ${pkFile}; same phone).`) && op.intro.includes('refund €199 of this payment on Stripe') && /Terms §12\.2/.test(op.intro) && /The client read it in their confirmation\./.test(op.intro),
+    'the operator email says it in words, with the order and the file', op && op.intro.slice(-330));
   check(cl && cl.closing.includes('You already paid for the Application Pack on this desk (€199): it is credited in full, so we refund €199 of this payment to the card you used. ') && /To withdraw within 14 days/.test(cl.closing) && !/upgrade\?l=/.test(cl.closing),
     'the client\'s confirmation says the pack is credited and what comes back (the durable medium), and carries no upgrade link', cl && cl.closing.slice(0, 220));
-  const gl = await get(cityLead, { upgrade: PK, t: TOK.upgradeToken(PK) });
-  const nS = (globalThis.__stripeCalls || []).length;
-  const pl = await post(checkout, { city: 'madrid', kind: 'full-search', upgrade: { lead: PK, t: TOK.upgradeToken(PK) } });
-  check(gl.code === 410 && gl.body.state === 'used' && pl.code === 410 && (globalThis.__stripeCalls || []).length === nS, 'from then on the personal link answers 410 "used" and opens no till');
-  // a Stripe retry: one order, one alert, no second email, the mark stays
+  // a Stripe retry: one order, one alert, no second email, still nothing on the pack
   const nE = emails.length, nA = owedKeys().length;
   const r2 = await full('cs_live_fs_20', olga);
-  check(r2.body && r2.body.duplicate === true && emails.length === nE && owedKeys().length === nA && store.get('leads/' + PK).credit.usedBy === FS, 'a Stripe retry sends nothing, rings nothing and keeps the mark');
-  // the refund the operator then makes on THIS payment: the card recognises it
-  globalThis.__stripeSessions = [{ id: 'cs_live_fs_20', payment_intent: 'pi_fs_20' }];
-  tg.length = 0;
-  await webhook(stream({ id: 'evt_ref_20', type: 'charge.refunded', created: 1794300000, data: { object: { id: 'ch_20', payment_intent: 'pi_fs_20', amount: 50000, amount_refunded: 19900, currency: 'eur', billing_details: { name: 'Olga Owed' } } } }), mkRes());
-  check(TG(/RIMBORSO parziale: €199/) && TG(new RegExp('segnato rimborsato — su questo ordine è dovuto il rimborso del credito di ' + PK + ' \\(€199\\): se è questo, è a posto\\.')) && store.get('leads/' + FS).refundedAmount === 199,
-    'the €199 refunded on that payment: the card says it is the refund that was due', JSON.stringify(tg.map((x) => x.text)));
-  // …and if the operator refunds the PACK instead, the card says that this may be the one owed — not a second "ATTENZIONE"
-  globalThis.__stripeSessions = [{ id: 'cs_live_pack_20', payment_intent: 'pi_pack_20' }];
-  tg.length = 0;
-  await webhook(stream({ id: 'evt_ref_21', type: 'charge.refunded', created: 1794300000, data: { object: { id: 'ch_21', payment_intent: 'pi_pack_20', amount: 19900, amount_refunded: 19900, currency: 'eur', billing_details: { name: 'Olga Owed' } } } }), mkRes());
-  check(TG(new RegExp('il credito di questo ordine è dovuto come rimborso sull\'ordine ' + FS + ', pagato a prezzo pieno: se il rimborso è questo, è a posto')) && !TG(/ATTENZIONE/), 'a refund made on the pack instead is recognised as the one owed', JSON.stringify(tg.map((x) => x.text)));
-  globalThis.__stripeSessions = [];
-  // a withdrawal statement after this: pack and full-price order share the e-mail and the file — nothing is written, and the card names the pair
+  check(r2.code === 200 && r2.body && r2.body.duplicate === true && emails.length === nE && owedKeys().length === nA && !L(PK).credit, 'a Stripe retry sends nothing, rings nothing and writes nothing on the pack');
+  // a withdrawal statement now: pack and full-price order share the e-mail and the file — nothing is written, and the card names the pair
   await post(withdraw, { name: 'Olga Owed', email: 'olga@example.com', ref: pkFile, desk: 'Madrid', requestId: 'wreq3333' + 'd'.repeat(8) });
   const cardO = [...store.entries()].filter(([k, v]) => k.startsWith('agentNotifications/withdraw-') && v && /olga@example\.com/.test(JSON.stringify(v)));
-  check(cardO.length === 1 && /più ordini corrispondono \(2: /.test(cardO[0][1].summary) && cardO[0][1].summary.includes(`${FS} è stato pagato a prezzo pieno da chi aveva il credito di ${PK}: su ${FS} è dovuto il rimborso di quel credito`) && !store.get('leads/' + PK).withdrawal && !store.get('leads/' + FS).withdrawal,
+  check(cardO.length === 1 && /più ordini corrispondono \(2: /.test(cardO[0][1].summary) && cardO[0][1].summary.includes(`${FS} è stato pagato a prezzo pieno da chi aveva il credito di ${PK}: su ${FS} è dovuto il rimborso di quel credito`) && !L(PK).withdrawal && !L(FS).withdrawal,
     'a withdrawal statement that matches both orders writes nothing, and its card says which order the pack refund is owed on', cardO.map(([, v]) => v.summary).join(' || '));
-  // the bot knows both orders
-  check(/accreditato sull'ordine .*pagato a prezzo pieno: lì è dovuto il rimborso del pack/.test(BOT.upgradeReply(store.get('leads/' + PK), PK, NOW)) && /Pagato a prezzo pieno con un credito aperto: su questo ordine è dovuto il rimborso di €199/.test(BOT.upgradeReply(store.get('leads/' + FS), FS, NOW)) && /rimborso già segnato: €199/.test(BOT.upgradeReply(store.get('leads/' + FS), FS, NOW)),
-    'the bot says, on either order, that the pack was credited on a full-price order and what is owed there');
+  // the bot, before the refund: the open pack gets NO link while an order paid in full waits for its credit
+  const claims = await BOT.pendingClaims(PK);
+  const botPk = BOT.upgradeReply(L(PK), PK, NOW, ORIGIN, claims), botFs = BOT.upgradeReply(L(FS), FS, NOW, ORIGIN);
+  check(claims.join() === FS && botPk.includes(`${FS} (pagato a prezzo pieno) aspetta il rimborso di questo credito: rimborsa lì, non mandare il link.`) && !/upgrade\?l=/.test(botPk)
+    && /Pagato a prezzo pieno da chi aveva un credito aperto: su questo ordine è dovuto il rimborso di €199/.test(botFs) && /Il credito del pack si chiude quando il rimborso è segnato\. Nessun link\./.test(botFs) && !/verifica che sia la stessa persona/.test(botFs),
+    'the bot: the pack with an order waiting for its credit gets no link; the full-price order says what is owed on it', botPk + ' || ' + botFs);
+  check(/Non ho potuto controllare se un ordine pagato a prezzo pieno aspetta questo credito/.test(BOT.upgradeReply(L(PK), PK, NOW, ORIGIN, null)) && !/upgrade\?l=/.test(BOT.upgradeReply(L(PK), PK, NOW, ORIGIN, null)), 'and when that lookup fails the bot says so and gives no link');
+  tg.length = 0;
+  await BOT.handleUpgradeCommand(123, pkFile);
+  check(tg.length === 2 && tg.some((x) => /aspetta il rimborso di questo credito/.test(x.text)) && tg.every((x) => !/upgrade\?l=/.test(x.text)), 'the command, by the shared file number, answers for both orders and sends no link', JSON.stringify(tg.map((x) => x.text)));
 
-  // who is NOT found: another desk's pack, an expired pack, a refunded pack, a pack already used
+  // the operator's refunds on THAT payment
+  sessions(['cs_live_fs_20', 'pi_fs_20'], ['cs_live_pack_20', 'pi_pack_20']);
+  tg.length = 0;
+  await refund('evt_ref_20a', 'pi_fs_20', 50000, 5000, 1794300000);
+  check(TG(/RIMBORSO parziale: €50/) && TG(new RegExp('segnato rimborsato — su questo ordine è dovuto il rimborso del credito di ' + PK + ' \\(€199\\): questo rimborso è inferiore, il credito di quel pack resta aperto\\.')) && !L(PK).credit,
+    'a refund smaller than the credit is not the credit: the card says so and the pack keeps it', JSON.stringify(tg.map((x) => x.text)));
+  tg.length = 0;
+  const rr = await refund('evt_ref_20', 'pi_fs_20', 50000, 19900, 1794310000);
+  check(rr.code === 200 && TG(/RIMBORSO parziale: €199/) && TG(new RegExp('segnato rimborsato — era il rimborso del credito di ' + PK + ' \\(€199\\): il credito di quel pack è chiuso\\.'))
+    && L(PK).credit && L(PK).credit.usedBy === FS && L(PK).credit.via === 'full-price' && L(PK).credit.amount === 199 && L(PK).credit.currency === 'eur' && L(FS).refundedAmount === 199,
+    'the €199 refunded on that payment IS the act: the pack\'s credit is closed (used by that order, via "full-price"), and the card says so', JSON.stringify(tg.map((x) => x.text)));
+  const gl2 = await get(cityLead, { upgrade: PK, t: TOK.upgradeToken(PK) });
+  const nS = (globalThis.__stripeCalls || []).length;
+  const pl = await post(checkout, { city: 'madrid', kind: 'full-search', upgrade: { lead: PK, t: TOK.upgradeToken(PK) } });
+  check(gl2.code === 410 && gl2.body.state === 'used' && pl.code === 410 && (globalThis.__stripeCalls || []).length === nS, 'from then on the personal link answers 410 "used" and opens no till');
+  tg.length = 0;
+  const rr2 = await refund('evt_ref_20', 'pi_fs_20', 50000, 19900, 1794310000);
+  check(rr2.body.duplicate === true && tg.length === 0 && L(PK).credit.usedBy === FS, 'a retry of that refund event rings nothing and keeps the mark');
+  tg.length = 0;
+  await refund('evt_ref_20c', 'pi_fs_20', 50000, 50000, 1794320000);
+  check(TG(/RIMBORSO totale: €500/) && TG(new RegExp('il credito di ' + PK + ' \\(€199\\) era già stato rimborsato su questo ordine: quel credito resta chiuso')) && L(PK).credit.usedBy === FS && (await BOT.pendingClaims(PK)).length === 0,
+    'the rest refunded later (the search declined): the credit that already went back stays closed', JSON.stringify(tg.map((x) => x.text)));
+  tg.length = 0;
+  await refund('evt_ref_21', 'pi_pack_20', 19900, 19900, 1794330000);
+  check(TG(new RegExp('ATTENZIONE: il credito di questo ordine è già stato rimborsato sull\'ordine ' + FS + ', pagato a prezzo pieno: un rimborso di questo pack è un secondo rimborso dello stesso credito')),
+    'and if the PACK is refunded as well, the card says it is a second refund of the same credit', JSON.stringify(tg.map((x) => x.text)));
+  check(/Il credito è già stato rimborsato sull'ordine .*, pagato a prezzo pieno\. Nessun link\./.test(BOT.upgradeReply(L(PK), PK, NOW, ORIGIN)), 'the bot says the pack\'s credit was refunded on the full-price order');
+
+  // (a2) the WHOLE order refunded in one go: nothing was credited, the pack keeps its credit
+  const nina = { name: 'Nina Whole', email: 'ninaw@example.com', phone: '+34611000021' };
+  await pack('cs_live_pack_21', nina); await full('cs_live_fs_21', nina);
+  const P21 = serviceLeadId('cs_live_pack_21');
+  sessions(['cs_live_fs_21', 'pi_fs_21']);
+  tg.length = 0;
+  await refund('evt_ref_22', 'pi_fs_21', 50000, 50000);
+  check(TG(new RegExp('rimborso totale: il credito di ' + P21 + ' \\(€199\\) che era dovuto su questo ordine non lo è più — quel pack tiene il suo credito')) && !L(P21).credit && (await get(cityLead, { upgrade: P21, t: TOK.upgradeToken(P21) })).code === 200,
+    'a full refund of the order returns everything: the credit is no longer owed there and the pack keeps it (its link still opens)', JSON.stringify(tg.map((x) => x.text)));
+
+  // (b) only the e-mail matches (another phone, another name): record, ask the operator to verify, promise nothing
+  await pack('cs_live_pack_37', { name: 'Mara Match', email: 'mara@example.com', phone: '+34611000107' });
+  const P37 = serviceLeadId('cs_live_pack_37'), F37 = serviceLeadId('cs_live_fs37stranger');
+  emails.length = 0;
+  await full('cs_live_fs37stranger', { name: 'Someone Else', email: 'mara@example.com', phone: '+34611000199' });
+  const f37 = L(F37), al37 = owedAlert(F37);
+  const op37 = emails.find((e) => e.to_email === 'valentino@boom-rome.com'), cl37 = emails.find((e) => e.to_email === 'mara@example.com');
+  check(f37.city.creditDue && f37.city.creditDue.from === P37 && f37.city.creditDue.match === 'check' && f37.city.file !== L(P37).city.file && f37.city.fileLeadId === null && /€199 Application Pack credit to check/.test(f37.message) && !L(P37).credit,
+    'another phone on the same e-mail: the credit is recorded as "check", the order takes its OWN file number, and the holder\'s pack is untouched', JSON.stringify(f37.city.creditDue));
+  const paid37 = await get(cityLead, { paid: 'cs_live_fs37stranger', city: 'madrid' });
+  check(paid37.code === 200 && paid37.body.paid === true && paid37.body.file === f37.city.file && paid37.body.file !== L(P37).city.file, 'the payer\'s return page shows the order\'s own file, never the pack holder\'s', JSON.stringify(paid37.body));
+  check(al37 && /con l'email di chi ha un Application Pack col credito aperto/.test(al37.summary) && /il telefono non coincide e i nomi sono diversi \(«Mara Match» \/ «Someone Else»\): VERIFICA che sia la stessa persona prima di rimborsare\./.test(al37.summary)
+    && /Al cliente non ho promesso niente per iscritto\./.test(al37.summary) && !/stesso telefono/.test(al37.summary) && !/Il cliente lo ha letto/.test(al37.summary),
+    'the alert tells the operator to VERIFY the person before refunding, and that nothing was promised', al37 && al37.summary);
+  check(cl37 && !/You already paid for the Application Pack/.test(cl37.closing) && !/refund €199/.test(cl37.closing) && !/credited in full/.test(cl37.closing) && op37 && /VERIFY it is the same person before refunding\./.test(op37.intro) && /Nothing was promised to the client in writing\./.test(op37.intro),
+    'the automatic confirmation promises no refund on an e-mail match alone; the operator e-mail carries the same caution', cl37 && cl37.closing.slice(0, 160));
+  check((await get(cityLead, { upgrade: P37, t: TOK.upgradeToken(P37) })).code === 200 && /prima verifica che sia la stessa persona: il telefono non coincide/.test(BOT.upgradeReply(f37, F37, NOW, ORIGIN)), 'the holder\'s own link still opens, and the bot repeats the caution on the full-price order');
+
+  // (c) a withdrawal statement is on file for the pack: ONE refund is due, not two
+  const sara = { name: 'Sara Statement', email: 'sara@example.com', phone: '+34611000120' };
+  await pack('cs_live_pack_22', sara);
+  const P22 = serviceLeadId('cs_live_pack_22'), F22 = serviceLeadId('cs_live_fs_22');
+  await post(withdraw, { name: 'Sara Statement', email: 'sara@example.com', ref: L(P22).city.file, desk: 'Madrid', service: 'application-pack', requestId: 'wreq4444' + 'e'.repeat(8) });
+  check(!!L(P22).withdrawal, '(a withdrawal statement is on file for a pack)');
+  emails.length = 0;
+  await full('cs_live_fs_22', sara);
+  const al22 = owedAlert(F22), cl22 = emails.find((e) => e.to_email === 'sara@example.com'), op22 = emails.find((e) => e.to_email === 'valentino@boom-rome.com');
+  check(L(F22).city.creditDue.statement === true && L(F22).city.creditDue.match === 'same' && /€199 Application Pack credit to check/.test(L(F22).message)
+    && al22 && /dichiarazione di recesso non ancora rimborsata: rimborsa UNA volta sola — o il pack \(recesso\) o €199 su questo pagamento \(credito\), mai entrambi\./.test(al22.summary) && /Al cliente non ho promesso niente per iscritto\./.test(al22.summary)
+    && cl22 && !/You already paid for the Application Pack/.test(cl22.closing) && !/refund €199/.test(cl22.closing) && op22 && /refund ONCE — the pack \(withdrawal\) or €199 of this payment \(the credit\), never both\./.test(op22.intro),
+    'a pack with a withdrawal statement on file: the alert and the operator e-mail say ONE refund, and the client is promised nothing', al22 && al22.summary);
+  sessions(['cs_live_pack_22', 'pi_pack_22'], ['cs_live_fs_22', 'pi_fs_22']);
+  tg.length = 0;
+  await refund('evt_ref_23', 'pi_pack_22', 19900, 19900);
+  check(TG(new RegExp('segnato rimborsato — il credito di upgrade di questo ordine non vale più\\. ATTENZIONE: ' + F22 + ' \\(pagato a prezzo pieno\\) aspettava il rimborso di questo credito: ora NON è più dovuto — non rimborsarlo anche là\\.')),
+    'the pack refunded first (the withdrawal): its card names the order that was waiting for the credit and says it is no longer due there', JSON.stringify(tg.map((x) => x.text)));
+  tg.length = 0;
+  await refund('evt_ref_24', 'pi_fs_22', 50000, 19900);
+  check(TG(new RegExp('ATTENZIONE: il pack ' + P22 + ' risulta già rimborsato: il suo credito non era più dovuto — se questo rimborso era il credito, è un secondo rimborso dello stesso pack')) && !L(P22).credit,
+    '…and if €199 goes back on the Full Search all the same, the card says it is a second refund of the same pack (nothing is marked)', JSON.stringify(tg.map((x) => x.text)));
+  // a pack refunded when the question "is an order waiting for this credit?" cannot be asked: the card says so
+  const zed = { name: 'Zed Query', email: 'zed@example.com', phone: '+34611000147' };
+  await pack('cs_live_pack_47', zed);
+  sessions(['cs_live_pack_47', 'pi_pack_47']);
+  hooks.failQueries = 1; tg.length = 0;
+  await refund('evt_ref_47', 'pi_pack_47', 19900, 19900);
+  hooks.failQueries = 0;
+  check(TG(/il credito di upgrade di questo ordine non vale più \(non ho potuto controllare se un ordine pagato a prezzo pieno aspettava il rimborso di questo credito\)\./), 'a failed lookup of the waiting orders is said on the card, never passed off as "none"', JSON.stringify(tg.map((x) => x.text)));
+
+  // (d) a lookup that FAILS is not "no credit": the order says so and the operator checks by hand
+  const fay1 = { name: 'Fay Lookup', email: 'fayl@example.com', phone: '+34611000123' };
+  await pack('cs_live_pack_23', fay1);
+  const F23 = serviceLeadId('cs_live_fs_23');
+  hooks.failQueries = 99; emails.length = 0;
+  const rF = await full('cs_live_fs_23', fay1);
+  hooks.failQueries = 0;
+  const chk = store.get('agentNotifications/upgrade-check-' + F23.slice(4));
+  const op23 = emails.find((e) => e.to_email === 'valentino@boom-rome.com'), cl23 = emails.find((e) => e.to_email === 'fayl@example.com');
+  check(rF.code === 200 && L(F23) && L(F23).city.creditUnverified === true && !L(F23).city.creditDue && /earlier orders NOT checked/.test(L(F23).message) && chk && chk.priority === 'high' && /NON ho potuto leggere gli ordini precedenti/.test(chk.summary)
+    && op23 && /Could NOT read this payer's earlier orders on this desk/.test(op23.intro) && cl23 && !/You already paid for the Application Pack/.test(cl23.closing) && !/refund €199/.test(cl23.closing) && !L(serviceLeadId('cs_live_pack_23')).credit,
+    'a failed lookup: the order is written with creditUnverified, an urgent card asks the operator to check by hand, and the client is promised nothing', chk && chk.summary);
+  check(/Al pagamento non ho potuto leggere gli ordini precedenti/.test(BOT.upgradeReply(L(F23), F23, NOW, ORIGIN)), 'the bot repeats it on that order');
+  const fay2 = { name: 'Fay Retry', email: 'fayr@example.com', phone: '+34611000124' };
+  await pack('cs_live_pack_24', fay2);
+  hooks.failQueries = 1;
+  await full('cs_live_fs_24', fay2);
+  check(hooks.failQueries === 0 && L(serviceLeadId('cs_live_fs_24')).city.creditDue && !L(serviceLeadId('cs_live_fs_24')).city.creditUnverified, 'one failing read is retried: the credit is found');
+  // a list cut at its limit is a lookup that did not finish (no silent cap); one row less is a complete answer
+  for (let i = 0; i < 50; i++) seed('city_lots' + String(i).padStart(4, '0') + 'aaaa', { intent: 'city_search', market: 'madrid', email: 'lots@example.com', emailKey: 'lots@example.com', createdAt: new Date(NOW - DAY).toISOString() });
+  for (let i = 0; i < 49; i++) seed('city_some' + String(i).padStart(4, '0') + 'aaaa', { intent: 'city_search', market: 'madrid', email: 'some@example.com', emailKey: 'some@example.com', createdAt: new Date(NOW - DAY).toISOString() });
+  await full('cs_live_fs_25', { name: 'Lots Leads', email: 'lots@example.com', phone: '+34611000125' });
+  await full('cs_live_fs_26', { name: 'Some Leads', email: 'some@example.com', phone: '+34611000126' });
+  check(L(serviceLeadId('cs_live_fs_25')).city.creditUnverified === true && store.has('agentNotifications/upgrade-check-' + serviceLeadId('cs_live_fs_25').slice(4))
+    && !L(serviceLeadId('cs_live_fs_26')).city.creditUnverified && !L(serviceLeadId('cs_live_fs_26')).city.creditDue && hooks.queries.filter((q) => q.field === 'emailKey').length > 10 && hooks.queries.filter((q) => q.field === 'emailKey').every((q) => q.limit === 50),
+    'a list that comes back full (50 rows) counts as a failed lookup; 49 rows is an answer');
+
+  // (e) the address: any capitals since emailKey; the three forms for orders from before it
+  await pack('cs_live_pack_36', { name: 'Eva Rossi', email: 'Eva.Rossi@Example.com', phone: '+34611000106' });
+  await full('cs_live_fs_36', { name: 'Eva Rossi', email: 'eva.rossi@example.com', phone: '+34611000106' });
+  await pack('cs_live_pack_36b', { name: 'Cora Case', email: 'cora@example.com', phone: '+34611000116' });
+  await full('cs_live_fs_36b', { name: 'Cora Case', email: 'CORA@EXAMPLE.COM', phone: '+34611000116' });
+  check(L(serviceLeadId('cs_live_fs_36')).city.creditDue && L(serviceLeadId('cs_live_fs_36')).city.creditDue.from === serviceLeadId('cs_live_pack_36')
+    && L(serviceLeadId('cs_live_fs_36b')).city.creditDue && L(serviceLeadId('cs_live_fs_36b')).city.creditDue.from === serviceLeadId('cs_live_pack_36b'),
+    'the same address in any capitals is the same address, in both directions (emailKey)');
+  const legacy = (id, email, phone) => seed(id, apLead({ name: 'Leg Acy', email, phone, city: { ...apLead().city, file: 'BM LEGAC' } }));
+  legacy('svc_cslivelegacytyped001', 'MiXed@example.com', '+34611000131');
+  legacy('svc_cslivelegacylower001', 'low@example.com', '+34611000132');
+  legacy('svc_cslivelegacycap00001', 'Cap@example.com', '+34611000133');
+  await full('cs_live_fs_31t', { name: 'Leg Acy', email: 'MiXed@example.com', phone: '+34611000131' });
+  await full('cs_live_fs_32l', { name: 'Leg Acy', email: 'LOW@example.com', phone: '+34611000132' });
+  await full('cs_live_fs_33c', { name: 'Leg Acy', email: 'cap@example.com', phone: '+34611000133' });
+  const dueOf = (sid) => (L(serviceLeadId(sid)).city.creditDue || {}).from;
+  check(!('emailKey' in L('svc_cslivelegacytyped001')) && dueOf('cs_live_fs_31t') === 'svc_cslivelegacytyped001' && dueOf('cs_live_fs_32l') === 'svc_cslivelegacylower001' && dueOf('cs_live_fs_33c') === 'svc_cslivelegacycap00001',
+    'an order from before emailKey is found by the address as typed, in lower case, or with a capital first letter (each form on its own)', [dueOf('cs_live_fs_31t'), dueOf('cs_live_fs_32l'), dueOf('cs_live_fs_33c')].join());
+
+  // (f) the clock is the PAYMENT's (the event's time), not the delivery's
+  const lia = { name: 'Lia Late', email: 'lia@example.com', phone: '+34611000140' };
+  seed('svc_cslivepackpaidlong01', apLead({ ...lia, paid_at: new Date(NOW - 40 * DAY).toISOString(), createdAt: new Date(NOW - 40 * DAY).toISOString(), city: { ...apLead().city, file: 'BM LATEE' } }));
+  await full('cs_live_fs_40', lia, { created: Math.floor((NOW - 30 * DAY) / 1000) });
+  await full('cs_live_fs_40n', lia);
+  check(dueOf('cs_live_fs_40') === 'svc_cslivepackpaidlong01' && !L(serviceLeadId('cs_live_fs_40n')).city.creditDue,
+    'a payment made while the credit was open is owed its refund even when Stripe delivers the event after the deadline; a payment made after it is not');
+  const paula = { name: 'Paula Post', email: 'paula@example.com', phone: '+34611000141' };
+  seed('svc_cslivepackboughtlate1', apLead({ ...paula, city: { ...apLead().city, file: 'BM PAULA' } }));
+  const b41 = owedKeys().length;
+  await full('cs_live_fs_41', paula, { created: Math.floor((NOW - 3 * DAY) / 1000) });
+  check(!L(serviceLeadId('cs_live_fs_41')).city.creditDue && owedKeys().length === b41, 'a pack bought AFTER the payment is not a credit that payment held');
+
+  // (g) a second delivery never looks the payer up again: the ORDER says what the payment owed
+  const rita = { name: 'Rita Retry', email: 'rita@example.com', phone: '+34611000109' };
+  await pack('cs_live_pack_39', rita);
+  const P39 = serviceLeadId('cs_live_pack_39'), F39 = serviceLeadId('cs_live_fs_39');
+  await full('cs_live_fs_39', rita);
+  store.delete('agentNotifications/upgrade-owed-' + F39.slice(4));                                   // the first run died before ringing
+  store.set('leads/' + P39, { ...L(P39), credit: { usedBy: 'svc_cslivelinkupgrade39', usedAt: 'x', amount: 199, currency: 'eur' } }); bump('leads/' + P39);   // spent through the link meanwhile
+  seed('svc_cslivesecondpack0039', apLead({ ...rita, city: { ...apLead().city, file: 'BM RITA2' } }));   // and a second open pack under the same e-mail
+  const r39 = await full('cs_live_fs_39', rita);
+  const al39 = owedAlert(F39);
+  check(r39.body.duplicate === true && al39 && al39.summary.includes(P39) && !al39.summary.includes('svc_cslivesecondpack0039') && L(F39).city.creditDue.from === P39 && !L('svc_cslivesecondpack0039').credit && L(P39).credit.usedBy === 'svc_cslivelinkupgrade39',
+    'a retry after a first run that died before ringing: the alert rings from what the ORDER recorded — another open pack under that e-mail is not touched or named', al39 && al39.summary);
+  const nora = { name: 'Nora Nopack', email: 'nora@example.com', phone: '+34611000142' };
+  await full('cs_live_fs_42', nora);
+  await pack('cs_live_pack_42', nora);
+  const b42 = owedKeys().length;
+  const r42 = await full('cs_live_fs_42', nora);
+  check(r42.body.duplicate === true && owedKeys().length === b42 && !L(serviceLeadId('cs_live_fs_42')).city.creditDue && !L(serviceLeadId('cs_live_pack_42')).credit,
+    'a Full Search paid with no pack, a pack bought later, the Full Search event delivered again: nothing is owed and the new pack is not touched');
+  // the link path, delivered again after its pack was refunded: it had spent the credit while it was open
+  const lena = { name: 'Lena Link', email: 'lenal@example.com', phone: '+34611000143' };
+  await pack('cs_live_pack_43', lena);
+  const P43 = serviceLeadId('cs_live_pack_43'), U43 = serviceLeadId('cs_live_up_43');
+  await webhook(stream(event(meta({ credit_from: P43, ...lena }), { id: 'cs_live_up_43' })), mkRes());
+  sessions(['cs_live_pack_43', 'pi_pack_43']);
+  await refund('evt_ref_43', 'pi_pack_43', 19900, 19900);
+  const r43 = await webhook(stream(event(meta({ credit_from: P43, ...lena }), { id: 'cs_live_up_43' })), mkRes());
+  check(r43.code === 200 && r43.body.duplicate === true && !store.has('agentNotifications/upgrade-void-' + U43.slice(4)) && L(P43).credit.usedBy === U43,
+    'an upgrade delivered again after its pack was refunded is not called "a credit that was not due"');
+
+  // (h) the settle never writes over another order's mark, and writes under the version it read
+  const gus = { name: 'Gus Guard', email: 'gus@example.com', phone: '+34611000144' };
+  await pack('cs_live_pack_44', gus); await full('cs_live_fs_44', gus);
+  const P44 = serviceLeadId('cs_live_pack_44');
+  store.set('leads/' + P44, { ...L(P44), credit: { usedBy: 'svc_cslivelinkupgrade44', usedAt: 'x', amount: 199, currency: 'eur' } }); bump('leads/' + P44);
+  sessions(['cs_live_fs_44', 'pi_fs_44']);
+  tg.length = 0;
+  await refund('evt_ref_44', 'pi_fs_44', 50000, 19900);
+  check(TG(new RegExp('ATTENZIONE: il credito di ' + P44 + ' risulta già usato da svc_cslivelinkupgrade44: su questo ordine non era più dovuto — se questo rimborso era il credito, è un doppione')) && L(P44).credit.usedBy === 'svc_cslivelinkupgrade44' && !L(P44).credit.via,
+    'a credit spent through the link before the refund: the settle never writes over that mark, and the card says the refund was not due', JSON.stringify(tg.map((x) => x.text)));
+  const hal = { name: 'Hal Race', email: 'hal@example.com', phone: '+34611000145' };
+  await pack('cs_live_pack_45', hal); await full('cs_live_fs_45', hal);
+  const P45 = serviceLeadId('cs_live_pack_45');
+  sessions(['cs_live_fs_45', 'pi_fs_45']);
+  hooks.beforeCommit = (k) => { if (k === 'leads/' + P45) { hooks.beforeCommit = null; store.set(k, { ...L(P45), credit: { usedBy: 'svc_csliveraceupgrade45', usedAt: 'x', amount: 199, currency: 'eur' } }); bump(k); } };
+  tg.length = 0;
+  const r45 = await refund('evt_ref_45', 'pi_fs_45', 50000, 19900);
+  hooks.beforeCommit = null;
+  check(r45.code === 200 && L(P45).credit.usedBy === 'svc_csliveraceupgrade45' && TG(/risulta già usato da svc_csliveraceupgrade45/),
+    'a link upgrade that lands between the settle\'s read and its write is not overwritten (the mark is written under the version just read)', JSON.stringify(L(P45).credit));
+  // a mark that cannot be written: 500, so Stripe delivers the refund again; the redelivery closes the credit and says so
+  const ida = { name: 'Ida Fail', email: 'ida@example.com', phone: '+34611000146' };
+  await pack('cs_live_pack_46', ida); await full('cs_live_fs_46', ida);
+  const P46 = serviceLeadId('cs_live_pack_46'), F46 = serviceLeadId('cs_live_fs_46');
+  sessions(['cs_live_fs_46', 'pi_fs_46']);
+  hooks.failCommits = { path: 'leads/' + P46, times: 3 };
+  tg.length = 0;
+  const r46 = await refund('evt_ref_46', 'pi_fs_46', 50000, 19900);
+  const n46 = store.get('agentNotifications/stripe-evt_ref_46');
+  check(r46.code === 500 && r46.body.error === 'order_stamp_failed' && !L(P46).credit && L(F46).refundedAmount === 199 && TG(/non sono riuscito a chiudere il credito del pack/) && n46 && n46.stampFailed === true && n46.priority === 'high',
+    'a credit that cannot be closed (three failed writes) is answered 500, with the order already stamped and the operator told', JSON.stringify(r46.body));
+  tg.length = 0;
+  const r46b = await refund('evt_ref_46', 'pi_fs_46', 50000, 19900);
+  const n46b = store.get('agentNotifications/stripe-evt_ref_46');
+  check(r46b.code === 200 && L(P46).credit && L(P46).credit.usedBy === F46 && tg.length === 1 && TG(/✅ Ordine .*era il rimborso del credito di .*il credito di quel pack è chiuso\. La prima consegna di questo evento non c'era riuscita: ora è a posto\./) && n46b.stampFailed === false && !!n46b.repairedAt,
+    'the redelivery closes the credit, tells the operator once and repairs the stored record', JSON.stringify(tg.map((x) => x.text)));
+  sessions(['cs_live_fs_44', 'pi_fs_44']);
+  hooks.failGets = { path: 'leads/' + serviceLeadId('cs_live_pack_44'), times: 1 };
+  const r44b = await refund('evt_ref_44b', 'pi_fs_44', 50000, 25000, 1794400000);
+  hooks.failGets = null;
+  check(r44b.code === 500, 'a pack that cannot be READ when the refund lands is answered 500 too (never "no pack")');
+  globalThis.__stripeSessions = [];
+
+  // who is NOT found: another desk's pack, an expired pack, a refunded pack, a disputed pack
   const none = async (label, packOver, seedOver, fsOver, idn) => {
     await pack('cs_live_pack_' + idn, packOver);
     const pid = serviceLeadId('cs_live_pack_' + idn);
-    if (seedOver) { store.set('leads/' + pid, { ...store.get('leads/' + pid), ...seedOver }); bump('leads/' + pid); }
+    if (seedOver) { store.set('leads/' + pid, { ...L(pid), ...seedOver }); bump('leads/' + pid); }
     const before = owedKeys().length;
     await full('cs_live_fs_' + idn, fsOver);
-    const f = store.get('leads/' + serviceLeadId('cs_live_fs_' + idn));
-    check(f && !f.city.creditDue && owedKeys().length === before && !store.get('leads/' + pid).credit, label, f && JSON.stringify(f.city.creditDue || null));
+    const f = L(serviceLeadId('cs_live_fs_' + idn));
+    check(f && !f.city.creditDue && !f.creditDueFrom && owedKeys().length === before && !L(pid).credit, label, f && JSON.stringify(f.city.creditDue || null));
   };
   const who = (i) => ({ name: 'Nina None' + i, email: `nina${i}@example.com`, phone: '+3461100010' + i });
   await none('a pack on ANOTHER desk is not this desk\'s credit', { ...who(1), city: 'amsterdam', market: 'amsterdam' }, null, who(1), 31);
   await none('an expired pack (Madrid, 40 days ago) owes nothing', who(2), { paid_at: new Date(NOW - 40 * DAY).toISOString() }, who(2), 32);
   await none('a refunded pack owes nothing', who(3), { refundedAt: new Date(NOW).toISOString(), refundedAmount: 199 }, who(3), 33);
   await none('a disputed pack owes nothing', who(4), { disputedAt: new Date(NOW).toISOString() }, who(4), 34);
-  // an Attended Viewing paid by a pack holder is not the plan a credit leads to
+  // an Attended Viewing paid by a pack holder is not the plan a credit leads to (and Madrid stacks freely: no lookup at all)
   await pack('cs_live_pack_35', who(5));
-  const b35 = owedKeys().length;
+  const b35 = owedKeys().length, q35 = hooks.queries.length;
   await webhook(stream(event({ ...meta(), ...who(5), kind: 'attended-viewing', credit_from: '', credit_amount: '', credit_plan: '', amount_eur: '149' }, { id: 'cs_live_av_35', amount_total: 14900 })), mkRes());
-  check(owedKeys().length === b35 && !store.get('leads/' + serviceLeadId('cs_live_pack_35')).credit, 'an Attended Viewing bought by a pack holder touches no credit');
-  // the address typed in another case finds the same person (as typed · lower case · capital first letter)
-  await pack('cs_live_pack_36', { name: 'Cora Case', email: 'Cora@example.com', phone: '+34611000106' });
-  await full('cs_live_fs_36', { name: 'Cora Case', email: 'cora@example.com', phone: '+34611000106' });
-  check(store.get('leads/' + serviceLeadId('cs_live_fs_36')).city.creditDue && store.get('leads/' + serviceLeadId('cs_live_pack_36')).credit.via === 'full-price', 'the same address in another letter case is the same person');
-  // another name on the same e-mail: found, and the alert says to check the person
-  await pack('cs_live_pack_37', { name: 'Mara Match', email: 'mara@example.com', phone: '+34611000107' });
-  await full('cs_live_fs_37', { name: 'Someone Else', email: 'mara@example.com', phone: '+34611000199' });
-  const al37 = store.get('agentNotifications/upgrade-owed-' + serviceLeadId('cs_live_fs_37').slice(4));
-  check(al37 && /I nomi sui due ordini sono diversi \(«Mara Match» \/ «Someone Else»\): stessa email, verifica la persona\./.test(al37.summary), 'another name on the same e-mail: the alert tells the operator to check the person before refunding', al37 && al37.summary);
-  // Berlin: a pack paid 40 days ago and a Full Search paid in full — the stacking Terms §12.5 exclude is caught
+  check(owedKeys().length === b35 && !L(serviceLeadId('cs_live_pack_35')).credit && hooks.queries.length === q35, 'an Attended Viewing bought by a pack holder touches no credit (Madrid: the payer\'s orders are not even read)');
+  // Berlin: a pack paid 40 days ago and a Full Search paid in full — no deadline there (Terms §12.5)
   await pack('cs_live_pack_38', { name: 'Bert Berlin', email: 'bert@example.com', phone: '+4915100000038', city: 'berlin', market: 'berlin' });
   const P38 = serviceLeadId('cs_live_pack_38');
-  store.set('leads/' + P38, { ...store.get('leads/' + P38), paid_at: new Date(NOW - 40 * DAY).toISOString() }); bump('leads/' + P38);
+  store.set('leads/' + P38, { ...L(P38), paid_at: new Date(NOW - 40 * DAY).toISOString() }); bump('leads/' + P38);
   await full('cs_live_fs_38', { name: 'Bert Berlin', email: 'bert@example.com', phone: '+4915100000038', city: 'berlin', market: 'berlin' });
-  const f38 = store.get('leads/' + serviceLeadId('cs_live_fs_38'));
-  check(f38 && f38.city.creditDue && f38.city.creditDue.from === P38 && store.get('leads/' + P38).credit.usedBy === serviceLeadId('cs_live_fs_38'), 'Berlin, pack paid 40 days ago, Full Search paid in full: the pack amount is owed back (no pack on top of a Full Search, Terms §12.5)');
-  // a first run that wrote the order and died before marking: the retry marks and rings from what the order says
-  await pack('cs_live_pack_39', { name: 'Rita Retry', email: 'rita@example.com', phone: '+34611000109' });
-  const P39 = serviceLeadId('cs_live_pack_39'), F39 = serviceLeadId('cs_live_fs_39');
-  await full('cs_live_fs_39', { name: 'Rita Retry', email: 'rita@example.com', phone: '+34611000109' });
-  const p39 = { ...store.get('leads/' + P39) }; delete p39.credit; store.set('leads/' + P39, p39); bump('leads/' + P39);
-  store.delete('agentNotifications/upgrade-owed-' + F39.slice(4));
-  const r39 = await full('cs_live_fs_39', { name: 'Rita Retry', email: 'rita@example.com', phone: '+34611000109' });
-  check(r39.body.duplicate === true && store.get('leads/' + P39).credit && store.get('leads/' + P39).credit.usedBy === F39 && store.has('agentNotifications/upgrade-owed-' + F39.slice(4)), 'a retry after a first run that died before the mark: the pack is marked and the alert rings');
+  const f38 = L(serviceLeadId('cs_live_fs_38'));
+  check(f38 && f38.city.creditDue && f38.city.creditDue.from === P38 && f38.city.creditDue.match === 'same' && !L(P38).credit, 'Berlin, pack paid 40 days ago, Full Search paid in full: the pack amount is owed back (no pack on top of a Full Search, Terms §12.5)');
+}
+
+// ── 5c-bis. BERLIN (Terms §12.5): a pack or a viewing paid by someone who already holds a Full Search there ──
+{
+  const ORIGIN = 'https://www.boomrome.com';
+  const L = (id) => store.get('leads/' + id);
+  const stackKeys = () => [...store.keys()].filter((k) => k.startsWith('agentNotifications/upgrade-stack-'));
+  const order = (id, kind, amount, who, city = 'berlin') => webhook(stream(event({ ...meta(), ...who, kind, city, market: city, credit_from: '', credit_amount: '', credit_plan: '', amount_eur: String(amount) }, { id, amount_total: amount * 100 })), mkRes());
+  const stef = { name: 'Stef Stack', email: 'stef@example.com', phone: '+4915100000070' };
+  await order('cs_live_fs_70', 'full-search', 500, stef);
+  const FS70 = serviceLeadId('cs_live_fs_70'), AV70 = serviceLeadId('cs_live_av_70'), PK70 = serviceLeadId('cs_live_pack_70');
+  emails.length = 0;
+  const ra = await order('cs_live_av_70', 'attended-viewing', 149, stef);
+  const av = L(AV70), alA = store.get('agentNotifications/upgrade-stack-' + AV70.slice(4));
+  const opA = emails.find((e) => e.to_email === 'valentino@boom-rome.com'), clA = emails.find((e) => e.to_email === 'stef@example.com');
+  check(ra.code === 200 && av.city.stackedOn && av.city.stackedOn.from === FS70 && av.city.stackedOn.match === 'same' && /€149 paid \(on top of a Full Search: check\)/.test(av.message),
+    'Berlin: an Attended Viewing paid by a Full Search client is recorded on the order (stackedOn)', JSON.stringify(av.city.stackedOn || null));
+  check(alA && alA.priority === 'high' && alA.type === 'service.stacked_on_full_search' && alA.summary.includes(`Attended Viewing pagato (€149) da chi ha già un Full Search su questo desk (${FS70}`) && /I Termini §12\.5 non fanno pagare altro accanto a un Full Search: se quella ricerca è ancora in corso, rimborsa questo pagamento per intero\./.test(alA.summary) && /Al cliente non ho promesso niente per iscritto\./.test(alA.summary),
+    'and the operator is told to refund it if that search is still running (Terms §12.5) — nothing is promised to the client', alA && alA.summary);
+  check(opA && /This client already holds a paid Full Search on this desk \(order /.test(opA.intro) && /Terms §12\.5 charge nothing else alongside it — if that search is still running, refund this payment in full\./.test(opA.intro) && clA && !/refund this payment/.test(clA.closing),
+    'the operator e-mail says it too; the client\'s confirmation is the usual one', opA && opA.intro.slice(-300));
+  emails.length = 0;
+  await order('cs_live_pack_70', 'application-pack', 199, stef);
+  const clP = emails.find((e) => e.to_email === 'stef@example.com'), opP = emails.find((e) => e.to_email === 'valentino@boom-rome.com');
+  check(L(PK70).city.stackedOn && L(PK70).city.stackedOn.from === FS70 && store.has('agentNotifications/upgrade-stack-' + PK70.slice(4)) && clP && !/Your personal link/.test(clP.closing) && !/move to Full Search/.test(clP.closing) && opP && !/upgrade\?l=/.test(opP.closing),
+    'a pack paid by a Full Search client: recorded, rung, and its confirmation does not invite them to "move to Full Search"', clP && clP.closing.slice(0, 160));
+  const botAv = BOT.upgradeReply(av, AV70, NOW, ORIGIN), botPk = BOT.upgradeReply(L(PK70), PK70, NOW, ORIGIN);
+  check(/Pagato avendo già un Full Search su questo desk/.test(botAv) && /§12\.5/.test(botAv) && /Nessun link: ha già il Full Search\./.test(botPk) && !/upgrade\?l=/.test(botPk), 'the bot says it on both orders and gives the pack no link', botPk);
+  // another phone on the same e-mail: verify the person first
+  await order('cs_live_av_71', 'attended-viewing', 149, { ...stef, name: 'Other Person', phone: '+4915100000099' });
+  const al71 = store.get('agentNotifications/upgrade-stack-' + serviceLeadId('cs_live_av_71').slice(4));
+  check(L(serviceLeadId('cs_live_av_71')).city.stackedOn.match === 'check' && al71 && /con l'email di chi ha già un Full Search/.test(al71.summary) && /prima verifica che sia la stessa persona \(il telefono non coincide\)/.test(al71.summary), 'another phone on that e-mail: the card asks to verify the person first', al71 && al71.summary);
+  // a retry after a first run that died before ringing: from what the order recorded
+  store.delete('agentNotifications/upgrade-stack-' + AV70.slice(4));
+  const ra2 = await order('cs_live_av_70', 'attended-viewing', 149, stef);
+  check(ra2.body.duplicate === true && store.has('agentNotifications/upgrade-stack-' + AV70.slice(4)), 'a Stripe retry rings the card again from the stored order');
+  // who is NOT flagged: Madrid (stacking is allowed there), a Full Search refunded in full, a first order
+  const b = stackKeys().length;
+  const mad = { name: 'Mado Stack', email: 'mado@example.com', phone: '+34611000170' };
+  await order('cs_live_fs_72', 'full-search', 500, mad, 'madrid');
+  await order('cs_live_av_72', 'attended-viewing', 149, mad, 'madrid');
+  const ref = { name: 'Rolf Refunded', email: 'rolf@example.com', phone: '+4915100000073' };
+  await order('cs_live_fs_73', 'full-search', 500, ref);
+  store.set('leads/' + serviceLeadId('cs_live_fs_73'), { ...L(serviceLeadId('cs_live_fs_73')), refundedAt: 'x', refundedAmount: 500, refundedFull: true }); bump('leads/' + serviceLeadId('cs_live_fs_73'));
+  await order('cs_live_av_73', 'attended-viewing', 149, ref);
+  await order('cs_live_av_74', 'attended-viewing', 149, { name: 'Nell New', email: 'nell@example.com', phone: '+4915100000074' });
+  check(stackKeys().length === b && !L(serviceLeadId('cs_live_av_72')).city.stackedOn && !L(serviceLeadId('cs_live_av_73')).city.stackedOn && !L(serviceLeadId('cs_live_av_74')).city.stackedOn,
+    'not flagged: the same pair in Madrid (no such term there), a Full Search refunded in full, a client with no Full Search');
+  // the lookup that fails on a Berlin viewing: said, never "no Full Search"
+  hooks.failQueries = 99;
+  await order('cs_live_av_75', 'attended-viewing', 149, { name: 'Uwe Unknown', email: 'uwe@example.com', phone: '+4915100000075' });
+  hooks.failQueries = 0;
+  check(L(serviceLeadId('cs_live_av_75')).city.creditUnverified === true && /un Full Search già in corso vuol dire che questo pagamento non era dovuto \(§12\.5\)/.test(store.get('agentNotifications/upgrade-check-' + serviceLeadId('cs_live_av_75').slice(4)).summary),
+    'a failed lookup on a Berlin viewing is recorded and rung for a check by hand');
 }
 
 // ── 5d. A dispute is stamped on the order: the credit is suspended, and comes back only if it is won ──
@@ -648,10 +963,42 @@ const meta = (over = {}) => ({ service: 'SERVICE', kind: 'full-search', city: 'm
   await webhook(stream(dsp('evt_dsp_4', 'charge.dispute.closed', 'pi_pack_41', 'won', 1794600000)), mkRes());
   const gw = await get(cityLead, { upgrade: W, t: TOK.upgradeToken(W) });
   check(store.get('leads/' + W).disputedAt === null && store.get('leads/' + W).disputeStatus === 'won' && gw.code === 200 && gw.body.state === 'open' && TG(/Dispute VINTA/) && TG(/contestazione vinta — il credito di upgrade di questo ordine vale di nuovo/), 'a dispute that is won clears the stamp: the credit is open again, and the card says so', JSON.stringify(tg.map((x) => x.text)));
+  // the OPENING delivered again after the won close (Stripe does not deliver in order): the stamp does not come back
+  tg.length = 0;
+  const rAgain = await webhook(stream(dsp('evt_dsp_3', 'charge.dispute.created', 'pi_pack_41', 'needs_response')), mkRes());
+  check(rAgain.code === 200 && rAgain.body.duplicate === true && store.get('leads/' + W).disputedAt === null && (await get(cityLead, { upgrade: W, t: TOK.upgradeToken(W) })).code === 200 && tg.length === 0,
+    'the dispute\'s opening delivered again after it was won does not close the credit again, and rings nothing', JSON.stringify(tg.map((x) => x.text)));
+  tg.length = 0;
+  await webhook(stream(dsp('evt_dsp_3older', 'charge.dispute.created', 'pi_pack_41', 'needs_response', 1794400000)), mkRes());
+  check(store.get('leads/' + W).disputedAt === null && TG(/evento precedente a uno già segnato — nessuna modifica/), 'an older dispute event under another id changes nothing, and its card says so', JSON.stringify(tg.map((x) => x.text)));
   // an inquiry closed without becoming a dispute: the money never left
-  await webhook(stream(dsp('evt_dsp_5', 'charge.dispute.created', 'pi_pack_41', 'warning_needs_response')), mkRes());
+  await webhook(stream(dsp('evt_dsp_5', 'charge.dispute.created', 'pi_pack_41', 'warning_needs_response', 1794650000)), mkRes());
+  const midway = store.get('leads/' + W).disputedAt;
   await webhook(stream(dsp('evt_dsp_6', 'charge.dispute.closed', 'pi_pack_41', 'warning_closed', 1794700000)), mkRes());
-  check(store.get('leads/' + W).disputedAt === null && upgradeOffer(store.get('leads/' + W), W, NOW).state === 'open', 'an inquiry that closes without a dispute gives the credit back too');
+  check(!!midway && store.get('leads/' + W).disputedAt === null && upgradeOffer(store.get('leads/' + W), W, NOW).state === 'open', 'an inquiry suspends the credit while it is open and gives it back when it closes without a dispute');
+  // "worth again" only when the link really opens again: a pack past its 30 days does not
+  await webhook(stream(event({ ...meta(), kind: 'application-pack', name: 'Olda Old', email: 'olda@example.com', phone: '+34611000204', amount_eur: '199', credit_from: '', credit_amount: '', credit_plan: '' }, { id: 'cs_live_pack_44d', amount_total: 19900 })), mkRes());
+  const OLD = serviceLeadId('cs_live_pack_44d');
+  store.set('leads/' + OLD, { ...store.get('leads/' + OLD), paid_at: new Date(NOW - 40 * DAY).toISOString() }); bump('leads/' + OLD);
+  globalThis.__stripeSessions = [{ id: 'cs_live_pack_44d', payment_intent: 'pi_pack_44d' }];
+  await webhook(stream(dsp('evt_dsp_44a', 'charge.dispute.created', 'pi_pack_44d', 'needs_response')), mkRes());
+  tg.length = 0;
+  await webhook(stream(dsp('evt_dsp_44b', 'charge.dispute.closed', 'pi_pack_44d', 'won', 1794600000)), mkRes());
+  check(TG(/contestazione vinta — il credito di upgrade di questo ordine era comunque scaduto/) && !TG(/vale di nuovo/), 'a won dispute on a pack past its deadline: the card does not say the credit is worth again', JSON.stringify(tg.map((x) => x.text)));
+  // a dispute while an order paid in full waits for the pack's credit — on the pack, and on that order
+  const dee = { name: 'Dee Dual', email: 'dee@example.com', phone: '+34611000205' };
+  await webhook(stream(event({ ...meta(), ...dee, kind: 'application-pack', amount_eur: '199', credit_from: '', credit_amount: '', credit_plan: '' }, { id: 'cs_live_pack_48', amount_total: 19900 })), mkRes());
+  await webhook(stream(event({ ...meta(), ...dee, credit_from: '', credit_amount: '', credit_plan: '', amount_eur: '500' }, { id: 'cs_live_fs_48', amount_total: 50000 })), mkRes());
+  const P48 = serviceLeadId('cs_live_pack_48'), F48 = serviceLeadId('cs_live_fs_48');
+  globalThis.__stripeSessions = [{ id: 'cs_live_pack_48', payment_intent: 'pi_pack_48' }, { id: 'cs_live_fs_48', payment_intent: 'pi_fs_48' }];
+  tg.length = 0;
+  await webhook(stream(dsp('evt_dsp_48', 'charge.dispute.created', 'pi_pack_48', 'needs_response')), mkRes());
+  check(TG(new RegExp('sospeso finché la contestazione non è vinta\\. ATTENZIONE: ' + F48 + ' \\(pagato a prezzo pieno\\) aspettava il rimborso di questo credito: non rimborsarlo finché la contestazione non è chiusa\\.')),
+    'a dispute on a pack whose credit an order paid in full is waiting for: the card says to hold that refund', JSON.stringify(tg.map((x) => x.text)));
+  tg.length = 0;
+  await webhook(stream(dsp('evt_dsp_49', 'charge.dispute.created', 'pi_fs_48', 'needs_response')), mkRes());
+  check(TG(new RegExp('pagamento contestato — su questo ordine era dovuto il rimborso del credito di ' + P48 + ': non rimborsarlo finché la contestazione non è chiusa\\.')),
+    'a dispute on the order paid in full: the card says not to refund the credit on it meanwhile', JSON.stringify(tg.map((x) => x.text)));
   // a close whose opening was never seen still stamps; a dispute with no paid order behind it creates nothing
   await webhook(stream(event({ ...meta(), kind: 'application-pack', name: 'Lena Late', email: 'lena@example.com', phone: '+34611000203', amount_eur: '199', credit_from: '', credit_amount: '', credit_plan: '' }, { id: 'cs_live_pack_42', amount_total: 19900 })), mkRes());
   globalThis.__stripeSessions = [{ id: 'cs_live_pack_42', payment_intent: 'pi_pack_42' }];
@@ -683,14 +1030,14 @@ const meta = (over = {}) => ({ service: 'SERVICE', kind: 'full-search', city: 'm
   const r1 = await webhook(stream(evt), mkRes());
   const note = store.get('agentNotifications/stripe-evt_ref_50');
   check(r1.code === 500 && r1.body.error === 'order_stamp_failed' && !store.get('leads/' + F).refundedAt, 'a refund whose stamp fails (Firestore 503) is answered 500: Stripe will deliver the event again', JSON.stringify(r1.body));
-  check(TG(/RIMBORSO totale: €199/) && TG(/Non sono riuscito a segnare l'ordine: Stripe riconsegna l'evento da solo e ti avviso quando è segnato/) && note && /Non sono riuscito a segnare l'ordine/.test(note.summary) && note.priority === 'high', 'the card rings all the same and says so — and the stored notification keeps the failure (not only the first two lines), at high priority', note && note.summary);
+  check(TG(/RIMBORSO totale: €199/) && TG(/Non sono riuscito a segnare l'ordine: Stripe riconsegna l'evento da solo e ti avviso quando è segnato/) && note && /Non sono riuscito a segnare l'ordine/.test(note.summary) && note.priority === 'high' && note.stampFailed === true, 'the card rings all the same and says so — and the stored notification keeps the failure (not only the first two lines), at high priority', note && note.summary);
   check((await get(cityLead, { upgrade: F, t })).code === 200, '(until the redelivery the credit is still open: that is why the answer must not be 200)');
   // the redelivery: stamps, answers 200, tells the operator once, repairs the stored record
   tg.length = 0;
   const r2 = await webhook(stream(evt), mkRes());
   const note2 = store.get('agentNotifications/stripe-evt_ref_50');
   check(r2.code === 200 && r2.body.duplicate === true && store.get('leads/' + F).refundedAmount === 199 && (await get(cityLead, { upgrade: F, t })).code === 410, 'the redelivery stamps the order, answers 200 and the credit is closed');
-  check(tg.length === 1 && TG(/✅ Ordine .*segnato rimborsato — il credito di upgrade di questo ordine non vale più\. La prima consegna dell'evento non era riuscita a segnarlo: ora lo è\./) && note2 && note2.repairedAt && !/Non sono riuscito/.test(note2.summary) && /segnato rimborsato/.test(note2.summary),
+  check(tg.length === 1 && TG(/✅ Ordine .*segnato rimborsato — il credito di upgrade di questo ordine non vale più\. La prima consegna di questo evento non c'era riuscita: ora è a posto\./) && note2 && note2.repairedAt && note2.stampFailed === false && !/Non sono riuscito/.test(note2.summary) && /segnato rimborsato/.test(note2.summary),
     'the operator is told once that it is stamped now, and the stored notification stops saying it failed', JSON.stringify(tg.map((x) => x.text)));
   // a third delivery: nothing more
   tg.length = 0;
@@ -709,6 +1056,25 @@ const meta = (over = {}) => ({ service: 'SERVICE', kind: 'full-search', city: 'm
   check(r5.code === 500 && !store.get('leads/' + serviceLeadId('cs_live_pack_52')).disputedAt, 'a dispute whose stamp fails is answered 500 as well');
   const r6 = await webhook(stream({ id: 'evt_dsp_52', type: 'charge.dispute.created', created: 1794500000, data: { object: { id: 'dp_52', payment_intent: 'pi_pack_52', amount: 19900, currency: 'eur', reason: 'fraudulent', status: 'needs_response' } } }), mkRes());
   check(r6.code === 200 && !!store.get('leads/' + serviceLeadId('cs_live_pack_52')).disputedAt, 'and its redelivery stamps it');
+  // a failed stamp on a payment with NO desk order behind it (a rent): the redelivery takes the warning back
+  const rentEvt = { id: 'evt_ref_90', type: 'charge.refunded', created: 1794300000, data: { object: { id: 'ch_90', payment_intent: 'pi_rent_90', amount: 120000, amount_refunded: 120000, currency: 'eur', billing_details: { name: 'A Tenant' } } } };
+  Object.defineProperty(globalThis, '__stripeSessions', { configurable: true, get() { throw new Error('stripe down'); } });
+  tg.length = 0;
+  const q1 = await webhook(stream(rentEvt), mkRes());
+  Object.defineProperty(globalThis, '__stripeSessions', { configurable: true, writable: true, value: [{ id: 'cs_live_rent_90', payment_intent: 'pi_rent_90' }] });
+  check(q1.code === 500 && store.get('agentNotifications/stripe-evt_ref_90').stampFailed === true && TG(/Non sono riuscito a segnare l'ordine/), '(a rent refund whose Stripe lookup fails: the operator is told the stamp failed)');
+  tg.length = 0;
+  const q2 = await webhook(stream(rentEvt), mkRes());
+  const nq = store.get('agentNotifications/stripe-evt_ref_90');
+  check(q2.code === 200 && tg.length === 1 && TG(/✅ ↩️ RIMBORSO totale: €1\.?200 — dietro questo pagamento non c'è un ordine dei desk da segnare: niente da fare\. La prima consegna di questo evento non c'era riuscita: ora è a posto\./) && nq.stampFailed === false && !!nq.repairedAt && !/Non sono riuscito/.test(nq.summary),
+    'the redelivery finds no desk order behind that payment: the operator is told there is nothing to stamp, and the stored warning is taken back', JSON.stringify(tg.map((x) => x.text)));
+  tg.length = 0;
+  const q3 = await webhook(stream(rentEvt), mkRes());
+  check(q3.code === 200 && tg.length === 0, 'a further delivery rings nothing');
+  // a duplicate whose own record cannot be read is not answered 200 (the repair would be lost): Stripe delivers again
+  hooks.failGetOnce = 'agentNotifications/stripe-evt_ref_90';
+  const q4 = await webhook(stream(rentEvt), mkRes());
+  check(q4.code === 500 && q4.body.error === 'notification_read_failed', 'a duplicate that cannot read its own notification answers 500');
   globalThis.__stripeSessions = [];
 }
 
@@ -722,6 +1088,32 @@ const meta = (over = {}) => ({ service: 'SERVICE', kind: 'full-search', city: 'm
   hooks.afterWrite = null;
   const al = store.get('agentNotifications/upgrade-void-' + U.slice(4));
   check(store.get('leads/' + U) && !store.get('leads/' + P).credit && al && al.priority === 'high' && /era stato rimborsato: il credito non era dovuto/.test(al.summary), 'a refund that lands between the two reads: the pack is never marked used, and the void alert rings', al && al.summary);
+  // a mark that cannot be WRITTEN leaves the credit open: 500 (Stripe delivers again), the operator told, and the redelivery marks it
+  const max = { name: 'Max Mark', email: 'max@example.com', phone: '+34611000402' };
+  await webhook(stream(event({ ...meta(), ...max, kind: 'application-pack', amount_eur: '199', credit_from: '', credit_amount: '', credit_plan: '' }, { id: 'cs_live_pack_61', amount_total: 19900 })), mkRes());
+  const P61 = serviceLeadId('cs_live_pack_61'), U61 = serviceLeadId('cs_live_up_61');
+  hooks.failCommits = { path: 'leads/' + P61, times: 6 };
+  emails.length = 0; tg.length = 0;
+  const rm = await webhook(stream(event(meta({ credit_from: P61, ...max }), { id: 'cs_live_up_61' })), mkRes());
+  const am = store.get('agentNotifications/upgrade-mark-' + U61.slice(4));
+  // …a second delivery on which the write still fails is a 500 too (Stripe keeps delivering), with no second e-mail
+  const rmB = await webhook(stream(event(meta({ credit_from: P61, ...max }), { id: 'cs_live_up_61' })), mkRes());
+  check(rmB.code === 500 && rmB.body.duplicate === true && rmB.body.error === 'credit_mark_failed' && emails.length === 2 && !store.get('leads/' + P61).credit && hooks.failCommits.times === 0, 'a redelivery on which the mark still fails answers 500 again, and sends nothing twice', JSON.stringify(rmB.body));
+  check(rm.code === 500 && rm.body.error === 'credit_mark_failed' && store.get('leads/' + U61) && emails.length === 2 && !store.get('leads/' + P61).credit && (await get(cityLead, { upgrade: P61, t: TOK.upgradeToken(P61) })).code === 200
+    && am && am.markFailed === true && am.priority === 'high' && /non sono riuscito a segnare come usato il credito dell'ordine/.test(am.summary),
+    'a credit mark that fails three times: the order and both e-mails are done, the answer is 500 and an urgent card says the link is still open', JSON.stringify(rm.body));
+  const rm2 = await webhook(stream(event(meta({ credit_from: P61, ...max }), { id: 'cs_live_up_61' })), mkRes());
+  const am2 = store.get('agentNotifications/upgrade-mark-' + U61.slice(4));
+  check(rm2.code === 200 && rm2.body.duplicate === true && emails.length === 2 && store.get('leads/' + P61).credit && store.get('leads/' + P61).credit.usedBy === U61 && tg.some((x) => /✅ Upgrade .*ora è segnato come usato\./.test(String(x.text || ''))) && am2.markFailed === false && !!am2.repairedAt,
+    'the redelivery marks the credit, sends no second e-mail, and takes the warning back', JSON.stringify(tg.map((x) => x.text)));
+  // a write whose answer is lost but that LANDED: read again, find the mark, no failure
+  await webhook(stream(event({ ...meta(), name: 'Lou Landed', email: 'lou@example.com', phone: '+34611000403', kind: 'application-pack', amount_eur: '199', credit_from: '', credit_amount: '', credit_plan: '' }, { id: 'cs_live_pack_62', amount_total: 19900 })), mkRes());
+  const P62 = serviceLeadId('cs_live_pack_62'), U62 = serviceLeadId('cs_live_up_62');
+  hooks.failCommits = { path: 'leads/' + P62, times: 1 };
+  hooks.beforeCommit = (k) => { if (k === 'leads/' + P62) { hooks.beforeCommit = null; store.set(k, { ...store.get(k), credit: { usedBy: U62, usedAt: 'x', amount: 199, currency: 'eur' } }); bump(k); } };
+  const rl = await webhook(stream(event(meta({ credit_from: P62, name: 'Lou Landed', email: 'lou@example.com', phone: '+34611000403' }), { id: 'cs_live_up_62' })), mkRes());
+  hooks.beforeCommit = null; hooks.failCommits = null;
+  check(rl.code === 200 && store.get('leads/' + P62).credit.usedBy === U62 && !store.has('agentNotifications/upgrade-mark-' + U62.slice(4)), 'a write that failed to answer but did land is found on the next read: no false failure');
 }
 
 // ── 6. The bot: /upgrade BM XXXXX ────────────────────────────────────────────
@@ -744,11 +1136,27 @@ const meta = (over = {}) => ({ service: 'SERVICE', kind: 'full-search', city: 'm
   const fsTxt = BOT.upgradeReply(fsOrder, 'svc_csliveTheUpgradeOrder00001', NOW, 'https://www.boomrome.com');
   check(/già l'upgrade: €199 accreditati dall'ordine/.test(fsTxt) && fsTxt.includes(AP_ID) && !/upgrade\?l=/.test(fsTxt), 'the Full Search paid with the credit (same file) says it is the upgrade, no link', fsTxt);
   check(/personal Full Search link/.test(txt), 'the ready message says the link is personal');
+  // what the webhook recorded at the payment is said on any answer about that order
+  const avSt = apLead({ market: 'berlin', kind: 'attended-viewing', amount_eur: 149, city: { ...apLead().city, key: 'berlin', label: 'Berlin', service: 'attended-viewing', stackedOn: { from: 'svc_berlinfs000001', match: 'check' } } });
+  const fsUn = apLead({ kind: 'full-search', amount_eur: 500, city: { ...apLead().city, service: 'full-search', creditUnverified: true } });
+  check(/Pagato avendo già un Full Search su questo desk \(svc_berlinfs000001\)/.test(BOT.upgradeReply(avSt, FRESH, NOW, 'https://www.boomrome.com')) && /prima verifica la persona: il telefono non coincide/.test(BOT.upgradeReply(avSt, FRESH, NOW, 'https://www.boomrome.com'))
+    && /Al pagamento non ho potuto leggere gli ordini precedenti di chi paga/.test(BOT.upgradeReply(fsUn, FRESH, NOW, 'https://www.boomrome.com')),
+    'the bot repeats, on the order, a Berlin plan paid on top of a Full Search and a lookup that failed at the payment');
   seed(FRESH, lead);
   seed('city_freshdoorlead0001', { intent: 'city_search', market: 'madrid', city: { file: 'BM FRESH' } });
   tg.length = 0;
   await BOT.handleUpgradeCommand(123, 'BM FRESH');
   check(tg.length === 1 && tg[0].text.includes(TOK.upgradeLink(FRESH).replace(/&/g, '&amp;')), 'the command finds the PAID order by its file (not the free-door lead with the same number)');
+  // the command asks whether an order paid in full is waiting for an OPEN credit: when that question fails, no link
+  hooks.failQueries = 0; tg.length = 0;
+  const realList = hooks.queries.length;
+  await BOT.handleUpgradeCommand(123, FRESH);
+  check(hooks.queries.slice(realList).some((q) => q.field === 'creditDueFrom' && q.value === FRESH) && tg.length === 1 && /upgrade\?l=/.test(tg[0].text), 'for an open credit the command looks for orders waiting on it (none: the link)');
+  tg.length = 0;
+  hooks.failQueries = 1;
+  await BOT.handleUpgradeCommand(123, FRESH);
+  hooks.failQueries = 0;
+  check(tg.length === 1 && /Non ho potuto controllare se un ordine pagato a prezzo pieno aspetta questo credito/.test(tg[0].text) && !/upgrade\?l=/.test(tg[0].text), 'and when that lookup fails it gives no link');
   tg.length = 0;
   await BOT.handleUpgradeCommand(123, 'nonsense');
   check(tg.length === 1 && /Uso: /.test(tg[0].text), 'a wrong argument gets the usage line');
@@ -768,7 +1176,7 @@ const meta = (over = {}) => ({ service: 'SERVICE', kind: 'full-search', city: 'm
   check(/<noscript><style>#loading\{display:none\}<\/style><\/noscript>/.test(html) && /<noscript><section class="state"><p class="big">This page needs JavaScript\.<\/p>[\s\S]*hello@boom-rome\.com/.test(html), 'without JavaScript the page says so and gives the email, never an endless "Checking"');
   check(!/(confirm|start|send|brief)[^.<]{0,40}\btoday\b/i.test(html) && (html.match(/first open hour/g) || []).length >= 2, 'the page promises no work "today": the desk\'s first open hour, as on the desks');
   check(/\/api\/city-lead\?paid=/.test(html) && /cs_\(live\|test\)_/.test(html), 'back from Stripe the payment is confirmed by the server, never by the URL');
-  check(/o\.expiresAt \? 'Your credit is valid until ' \+ day\(o\.expiresAt\) \+ ' and can be used once\.' : 'Your credit can be used once\.'/.test(html), 'a credit with no deadline (Berlin) prints no date — never "valid until Invalid Date"');
+  check(/o\.expiresAt \? 'Your credit is valid until ' \+ day\(o\.expiresAt\) \+ ' \(end of day, Rome time\) and can be used once\.' : 'Your credit can be used once\.'/.test(html), 'a credit with no deadline (Berlin) prints no date — never "valid until Invalid Date"');
   check(/o\.state === 'void'/.test(html) && /This credit is no longer available\./.test(html) && /o\.reason === 'disputed' \? 'The payment for the Application Pack it came from is disputed with the bank' : 'The Application Pack it came from was refunded'/.test(html) && !/withdrawn from/.test(html),
     'a void credit is said as it is: no longer available, the pack refunded or its payment disputed');
   check(/<p id="lead">Full Search on your desk, with what you paid for the Application Pack taken off the price\.<\/p>/.test(html) && !/one attended viewing|until you sign/i.test(html.replace(/<script[\s\S]*?<\/script>/g, '')), 'the page\'s own words describe no desk\'s Full Search: what it buys comes from the server, per desk');
@@ -779,18 +1187,28 @@ const meta = (over = {}) => ({ service: 'SERVICE', kind: 'full-search', city: 'm
   const sc = read('api/service-checkout.js'), wh = read('api/stripe-webhook.js'), bot = read('api/telegram/webhook.js');
   check(/verifyUpgradeToken\(lid, tok\)/.test(sc) && sc.indexOf('verifyUpgradeToken(lid, tok)') < sc.indexOf('stripe.checkout.sessions.create'), 'the token is checked before any Stripe call');
   check(/unit_amount: Math\.round\(charge \* 100\)/.test(sc) && /const charge = upgrade \? upgrade\.pay : svc\.eur;/.test(sc), 'the amount is the server\'s: plan price or what the credit leaves');
-  check(/await markUpgradeCredit\(credit, svcId, docId, currency, paidAmount\);\n    await flagVoidCredit\(credit, svcId, docId, paidAmount\);\n[\s\S]{0,900}?await settleOwedCredit\(owedAgain, svcId, docId, paidAmount, m\.name\);\n    return res\.status\(200\)\.json\(\{ received: true, duplicate: true/.test(wh),
-    'a retry still marks a credit the first run left unmarked, flags a void one and settles an owed one');
-  check(/const owed = cityDesk && !credit \? await owedCreditFor\(m, cityKey, email, Date\.now\(\)\) : null;/.test(wh) && !/owedCreditFor|openCreditFor/.test(sc), 'the other door is the webhook\'s, after the payment: the till never applies a credit on a typed e-mail');
-  check(/const voidNow = upgradeVoidReason\(v\.data\);\n    if \(voidNow\) \{ await flagVoidCredit\(\{ \.\.\.credit, voided: voidNow \}, svcId, docId, paidAmount\); return; \}/.test(wh), 'the mark re-checks, on the versioned read, that the pack\'s money has not gone back meanwhile');
-  check(/precondition: \{ updateTime: v\.updateTime \}/.test(wh), 'the mark is written under the version just read');
+  const dupBranch = wh.slice(wh.indexOf('  if (w && w.exists) {\n    // Retry di Stripe'), wh.indexOf('  const marked = await markUpgradeCredit('));
+  check(/const again = await markUpgradeCredit\(credit, svcId, docId, currency, paidAmount\);\n    await reportMark\(again, credit, svcId, docId\);\n    await flagVoidCredit\(credit, svcId, docId, paidAmount\);/.test(dupBranch)
+    && /return res\.status\(again === 'failed' \? 500 : 200\)\.json\(\{ received: true, duplicate: true/.test(dupBranch) && /return res\.status\(marked === 'failed' \? 500 : 200\)/.test(wh),
+    'a retry still marks a credit the first run left unmarked and flags a void one; a mark that failed answers 500 on either delivery');
+  check(dupBranch.length > 400 && !/payerOrdersBefore\(|owedCreditIn\(|fullSearchHeld\(|openCreditFor\(/.test(dupBranch) && /sc\.creditDue/.test(dupBranch) && /sc\.stackedOn/.test(dupBranch),
+    'a second delivery never looks the payer up again: it reads creditDue and stackedOn from the stored order');
+  check(/const paidMs = event && Number\(event\.created\) > 0 \? Number\(event\.created\) \* 1000 : Date\.now\(\);/.test(wh) && /payerLookupNeeded\(cityKey, kindPaid\) \? await payerOrdersBefore\(email, paidMs\) : null;/.test(wh) && !/payerOrdersBefore|openCreditFor|owedCreditIn/.test(sc),
+    'the other door is the webhook\'s, after the payment and on the payment\'s clock: the till never applies a credit on a typed e-mail');
+  const atPayment = wh.slice(wh.indexOf('async function payerOrdersBefore'), wh.indexOf('async function markUpgradeCredit'));
+  check(!/fsCommit\(|fsPatch\(|patchDoc\(/.test(atPayment), 'nothing is written on any lead by the lookup at the payment (the pack is closed by the refund, settleRefundCredit)');
+  check(/const voidNow = upgradeVoidReason\(v\.data\);\n    if \(voidNow\) \{ await flagVoidCredit\(\{ \.\.\.credit, voided: voidNow \}, svcId, docId, paidAmount\); return 'void'; \}/.test(wh), 'the mark re-checks, on the versioned read, that the pack\'s money has not gone back meanwhile');
+  const bodyOf = (from, to) => wh.slice(wh.indexOf(from), wh.indexOf(to));
+  check([bodyOf('async function markUpgradeCredit', 'const MARK_FAILED'), bodyOf('async function stampOrder', 'const isoOf'), bodyOf('async function settleRefundCredit', 'async function pendingClaimsOn')].every((b) => b.length > 200 && /precondition: \{ updateTime: v\.updateTime \}/.test(b) && !/precondition: \{ exists: true \}/.test(b)),
+    'the mark, the stamps and the settle are each written under the version just read');
   check(/text === '\/upgrade' \|\| text\.startsWith\('\/upgrade '\)/.test(bot) && /\/upgrade BM XXXXX/.test(bot), 'the bot routes /upgrade and lists it in /help');
   // the refund is stamped BEFORE the notification write: a Stripe retry that finds the notification has still stamped the lead
   check(wh.indexOf('stamped = await stampRefund(o, event.created);') > 0 && wh.indexOf('stamped = await stampRefund(o, event.created);') < wh.indexOf("w = await writeDoc('agentNotifications', notifId, {")
     && wh.indexOf('stamped = await stampDispute(o, event.type, event.created);') < wh.indexOf("w = await writeDoc('agentNotifications', notifId, {"), 'the refund and dispute stamps come before the notification that makes a retry stop');
-  check(/fields: \{ refundedAt: isoOf\(createdEpoch\), refundedAmount: refunded, refundedFull: full \}, precondition: \{ exists: true \}/.test(wh) && /await fsCommit\(\[\{ docPath: 'leads\/' \+ ord\.id, fields, precondition: \{ exists: true \} \}\]\);/.test(wh), 'the stamps are written only on a lead that exists (money going back never creates one)');
+  check(/if \(!v \|\| !v\.data \|\| v\.data\.paid !== true\) return null;/.test(wh), 'the stamps are written only on a paid lead that exists (money going back never creates one)');
+  check(/if \(prev && prev\.stampFailed === true\) \{/.test(wh) && !/stamped\.first/.test(wh), 'a repair is announced only when the stored notification says the stamp had failed — never guessed from the order');
   check((wh.match(/return res\.status\(stampFailed \? 500 : 200\)/g) || []).length === 2, 'a failed stamp answers 500 on the first delivery and on a duplicate one');
-  check(/if \(!credit \|\| !credit\.verified\) return;/.test(wh) && /if \(voided\) credit\.voided = voided;\n    else credit\.verified = true;/.test(wh), 'a void credit is never verified, so never marked');
+  check(/if \(!credit \|\| !credit\.verified\) return 'skip';/.test(wh) && /if \(voided\) credit\.voided = voided;\n    else credit\.verified = true;/.test(wh), 'a void credit is never verified, so never marked');
   check(/o\.state === 'used' \|\| o\.state === 'expired' \|\| o\.state === 'void' \? 410 : 404/.test(read('api/city-lead.js'))
     && /up\.state === 'used' \|\| up\.state === 'expired' \|\| up\.state === 'void' \? 410 : 404/.test(sc) && sc.indexOf("up.state === 'void'") < sc.indexOf('stripe.checkout.sessions.create'), 'GET and POST answer 410 for a void credit, before any Stripe call');
 }
@@ -825,12 +1243,16 @@ const meta = (over = {}) => ({ service: 'SERVICE', kind: 'full-search', city: 'm
   const berlin = read('berlin.html');
   check(upgradeDaysOf('berlin') === null && !/[Cc]redited in full[^<"]*30 days/.test(berlin) && berlin.includes('credited in full towards Full Search with no time limit'), 'Berlin\'s page names no 30 days for the credit: its Terms (§12.5) and the server give no time limit');
   const openDesks = desks.filter((c) => upgradeDaysOf(c.slug) === null).map((c) => c.city);
-  const hubLine = upgradeLine('Full Search').replace(/\.$/, '') + (openDesks.length ? ` (${openDesks.join(', ')}: no time limit)` : '') + '.';
-  check(openDesks.join() === 'Berlin' && read('desks.html').includes(`<p class="refund">${hubLine}</p>`), 'and the hub prints the line under the Application Pack, with the desks that have no deadline named', hubLine);
+  const hubLine = upgradeHubLine('Full Search', UPGRADE_DAYS, openDesks.join(', '));
+  check(openDesks.join() === 'Berlin' && read('desks.html').includes(`<p class="refund">${hubLine}</p>`) && /at the same desk/.test(hubLine), 'and the hub prints the line under the Application Pack, saying it holds at the same desk, with the desks that have no deadline named', hubLine);
+  check(termsText.includes('If you pay for one of them on the page while your Full Search is running, we refund it.') && /a pack or a viewing paid on the page while a Full Search is running is refunded/.test(llms),
+    'Terms §12.5 and llms.txt say what happens when a Berlin Full Search client pays a pack or a viewing on the page: it is refunded');
   // the upgrade page prints the deadline as a DATE from the server: no number of days of its own, except the 14 of the withdrawal
   const dayNumbers = (html) => [...html.matchAll(/(\d+)[ -]days?\b/g)].map((m) => +m[1]).filter((d) => d !== 14);
   const upPage = read('upgrade.html');
   check(dayNumbers(upPage).every((d) => d === UPGRADE_DAYS) && !dayNumbers(upPage.replace('can be used once', 'is valid 45 days')).every((d) => d === UPGRADE_DAYS), 'the upgrade page names no other number of days for the credit (and the check bites on a mutated copy)', dayNumbers(upPage).join(','));
+  check(upPage.includes("day(o.expiresAt) + ' (end of day, Rome time) and can be used once.'") && upPage.includes("day(o.expiresAt) + ' (Rome time).'") && /timeZone: 'Europe\/Rome'/.test(upPage),
+    'the page prints the deadline as Rome\'s day and SAYS so (a client in London or New York reads which day it is)');
 }
 
 console.log(`\n  ${ko ? '\x1b[31m' : '\x1b[32m'}Result: ${ok} passed, ${ko} failed\x1b[0m`);
