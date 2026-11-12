@@ -4343,8 +4343,8 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
   calendar 126, signing 274, cityterms 142, withdraw 122, withdrawui 87 nei due font; `npm test` 296
   suite, rosse solo `portalnavigationui` in Inter (Oggi, il font) e `magicsigncustomui` /
   `magicsigncustomsigner` (cdn.jsdelivr.net irraggiungibile), preesistenti.
-- **IL CREDITO DELL'APPLICATION PACK (06/11/2026 — «costruiamo la C, così la uso oggi stesso con
-  [un cliente]»).** Il primo caso è un cliente del desk di Madrid: ha pagato l'Application Pack
+- **IL CREDITO DELL'APPLICATION PACK (06/11/2026 — «costruiamo la C, così la uso oggi stesso»).**
+  Il primo caso è un cliente di Madrid: ha pagato l'Application Pack
   (€199, «Start now» spuntato) e in chiamata il fondatore gli ha promesso che, passando al Full
   Search, i €199 sarebbero stati accreditati. La cassa non sapeva farlo: l'unica via era incassare
   €500 e rimborsare a mano. Ora un pack pagato su un desk che incassa alla cassa diventa Full Search
@@ -10609,12 +10609,14 @@ Test: `tests/catalogo/{letture,descrizioni,vetrina,strumento,portale}.mjs`,
      caso vero si racconta per data e per fatto («il caso del 12/09: contratto firmato e attivo»),
      mai con nome, indirizzo, riferimento della proposta o id di un record;
   2. le forme delle fixture: email su `example.com` (mai gmail e simili: quell'indirizzo è di
-     qualcuno), telefoni evidentemente finti (`+39 333 1234567`, `+39 340 000 0000`, `+34 600 000 001`),
+     qualcuno), telefoni evidentemente finti: cinque zeri di fila o quattro cifre in scala
+     (`+39 333 1234567`, `+39 340 000 0000`, `+34 600 000 001`; tre zeri di fila non bastano),
      codici fiscali dall'elenco dei sintetici o col carattere di controllo sbagliato, IBAN di esempio,
      riferimenti `BOOM-` a sei caratteri o a parola;
-  3. una persona terza (un referente, un fornitore) non sta nel codice: il suo indirizzo va in
-     `settings/*` o in una env. Il referente delle registrazioni sta in `settings/registrazione`
-     (o `ASPI_EMAIL`), l'email del CAF del portal in `settings/general.cafEmail`;
+  3. una persona terza (un referente, un fornitore) non sta nel codice: il suo indirizzo va in una
+     env o in un documento di `settings` che il pubblico NON legge. Oggi sono tre (`company`,
+     `registrazione`, `ai`): ogni altro documento di `settings` si legge senza login, `general`
+     compreso. Il referente delle registrazioni sta in `settings/registrazione` (o `ASPI_EMAIL`);
   4. un segreto non sta in un file, mai in uno servito dal sito (`js/`, le pagine): sta nelle env. Un
      segreto finito nel repository si REVOCA: toglierlo dal file non basta, resta nella storia;
   5. `.vercelignore` toglie un file dal SITO, non da GitHub: «fuori dal deploy» non vuol dire privato.

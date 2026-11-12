@@ -1972,10 +1972,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         var t = S.users.find(function(x){return x.id===c.tenantId;});
         var ll = p ? S.users.find(function(x){return x.id===p.ownerId;}) : null;
         
-        // L'indirizzo del CAF sta in Impostazioni → Email CAF (settings/general.cafEmail), mai nel codice.
-        var cafEmail = '';
-        try { var cafSet = await db.collection('settings').doc('general').get(); cafEmail = (cafSet.exists && cafSet.data().cafEmail) || ''; } catch (cafSetErr) { console.warn('CAF settings:', cafSetErr); }
-        var cafLabel = cafEmail ? 'al CAF (' + cafEmail + ')' : 'al CAF (indirizzo da impostare in Impostazioni \u2192 Email CAF)';
+        // Nessun destinatario nel codice e nessuna lettura qui: la richiesta parte dal pannello
+        // 🏛 ASPI del contratto, che prende il referente da settings/registrazione (o dall'env ASPI_EMAIL).
         var subject = 'Richiesta asseverazione canone concordato — ' + (p?.name || 'Immobile') + ' — ' + (ll?.name || 'Locatore');
         
         var body = 'Buongiorno,\n\n'
@@ -2016,7 +2014,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             category: 'contract',
             priority: 'high',
             status: 'open',
-            description: 'Inviare richiesta asseverazione ' + cafLabel + '.\n'
+            description: 'Inviare la richiesta di asseverazione dal pannello 🏛 ASPI del contratto (il destinatario si imposta lì, con ✎).\n'
                 + 'Locatore: ' + (ll?.name||'') + '\nConduttore: ' + (t?.name||'') + '\nCanone: \u20ac' + (c.rent||0)
                 + '\nCedolare: ' + ced
                 + '\n\nEmail draft inviata via webhook. Verificare e completare.',
