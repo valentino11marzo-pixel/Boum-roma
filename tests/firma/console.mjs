@@ -154,7 +154,7 @@ ok(has(8, /Contratto <b>versione 2<\/b> — PDF caricato da te il 2026-10-03 · 
 ok(has(0, /onclick="uploadRevision\('A',this\)"/) && !has(0, /↺ Modello BOOM/) && !has(2, /uploadRevision/) && has(0, /completaDati\('A',true\)"[^>]*>✎ Correggi i dati/),
   'A · 📤 Carica versione corretta e ✎ Correggi i dati su un contratto non firmato; C · firmato da entrambi: niente revisione');
 
-/* 📋 F: LA SCHEDA DEL PROPRIETARIO (12/10/2026 — il caso Chiara Tavolieri,
+/* 📋 F: LA SCHEDA DEL PROPRIETARIO (12/10/2026 — il caso della proprietaria senza email,
    Via dei Latini 76: pagata da venti giorni, nessun contratto, nessun modo
    di mandare la Scheda al proprietario se non dentro la richiesta del mandato) */
 ok(has(5, /onclick="sendLandlordScheda\('F',this\)"[^>]*>📋 Scheda proprietario/) && has(5, /onclick="askLandlordMandateFor\('F'\)"/)

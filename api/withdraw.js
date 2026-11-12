@@ -56,7 +56,7 @@ import { fsCreate, fsGet, fsGetVersioned, fsList, fsCommit, logActivity } from '
 import { sendEmail } from './agent/_lib.js';
 import { shell, para, fine, row, hero } from './preagreement/_notify.js';
 import { CITY_MARKETS, moneyOf } from './_market.js';
-import { upgradeMoneyBackNote } from './_upgrade.js';
+import { upgradeMoneyBackNote, creditDueClause } from './_upgrade.js';
 import DESK_CAL from '../js/desk-calendar.js';
 import SCALO from '../js/scalo-codes.js';
 
@@ -270,13 +270,20 @@ async function decide(st, found) {
   // Application Pack to Full Search has TWO paid orders with one email and one
   // file number, so their statement always lands here — the card must say
   // which is which
-  if (hits.length > 1) return { kind: 'ambiguous', leads: hits.slice(0, 5).map((d) => ({ id: d.id, market: leadMarket(d), state: classify(d), service: svcLabelOf(d), upgradeOf: (d.city && d.city.credit && typeof d.city.credit === 'object' && d.city.credit.from) || null, dueFrom: (d.city && d.city.creditDue && typeof d.city.creditDue === 'object' && d.city.creditDue.from) || null })), count: hits.length };
+  // (for an order paid in full by a pack holder, what is still owed on it is said from the order AND the pack as
+  // they are now — the pack is one of these very orders: api/_upgrade.js creditDueClause, the cards' own sentence)
+  const dueFromOf = (d) => (d.city && d.city.creditDue && typeof d.city.creditDue === 'object' && d.city.creditDue.from) || null;
+  if (hits.length > 1) return { kind: 'ambiguous', leads: hits.slice(0, 5).map((d) => ({ id: d.id, market: leadMarket(d), state: classify(d), service: svcLabelOf(d), upgradeOf: (d.city && d.city.credit && typeof d.city.credit === 'object' && d.city.credit.from) || null, dueFrom: dueFromOf(d), dueSame: !!dueFromOf(d) && d.city.creditDue.match === 'same', dueClause: dueFromOf(d) ? creditDueClause(d, hits.find((x) => x.id === dueFromOf(d)), (n) => moneyOf(n, d.currency), d.id) : null })), count: hits.length };
   const one = hits[0];
   if (emailKey(one.email) !== st.emailKey) return { kind: 'mismatch', leadId: one.id, lead: one, via: found.via };
   let v = null;
   try { v = await fsGetVersioned('leads/' + one.id); } catch (_) { v = null; }
   const lead = v ? v.data : one;
-  return { kind: classify(lead), leadId: one.id, lead, version: v ? v.updateTime : null, via: found.via, refMiss: !!found.refMiss, feePaid: await feePaidOnInvoice(lead) };
+  // an order paid in full by a pack holder: the pack it names, read now (undefined = could not be read)
+  let duePack;
+  const dueFrom = dueFromOf(lead);
+  if (dueFrom && /^svc_[A-Za-z0-9]{8,30}$/.test(String(dueFrom))) { try { duePack = await fsGet('leads/' + dueFrom); } catch (_) { duePack = undefined; } }
+  return { kind: classify(lead), leadId: one.id, lead, version: v ? v.updateTime : null, via: found.via, refMiss: !!found.refMiss, feePaid: await feePaidOnInvoice(lead), duePack };
 }
 
 // The fee of a signed book_ order paid on its INVOICE while the order does
@@ -323,7 +330,7 @@ function cardOf(st, stamp, dec) {
       const amount = Number.isFinite(Number(lead.amount_eur)) ? moneyOf(Number(lead.amount_eur), lead.currency) : null;
       const desk = leadMarket(lead) === 'roma' ? 'Roma' : (CITY_MARKETS[leadMarket(lead)] || {}).label;
       // a statement returns no money by itself: the credit closes with the refund (api/_upgrade.js)
-      const upgradeNote = upgradeMoneyBackNote(lead, (n) => moneyOf(n, lead.currency), { statement: true });
+      const upgradeNote = upgradeMoneyBackNote(lead, (n) => moneyOf(n, lead.currency), { statement: true, pack: dec.duePack, id: dec.leadId });
       return `${head} — ordine pagato${amount ? ' ' + amount : ''} · ${svcLabelOf(lead)}${desk ? ` (${desk})` : ''}${c.file ? ` · file ${c.file}` : ''}${viaNote}`
         + ` — rimborso entro 14 giorni (entro il ${itDay(stamp.day, 14)}), con lo stesso mezzo di pagamento; Start now ${startNowIt(c.startNow)}`
         + `${c.withdrawalEndsOn ? `, finestra fino al ${itDay(c.withdrawalEndsOn)}` : ''}${lead.paid_at ? `, pagato il ${itDay(romeDayOf(lead.paid_at))}` : ''}`
@@ -338,7 +345,7 @@ function cardOf(st, stamp, dec) {
       // …or the two orders are a pack and the target plan paid in FULL by its holder (the pack amount is owed back on that one)
       const due = up ? null : dec.leads.find((l) => l.dueFrom && dec.leads.some((x) => x.id === l.dueFrom));
       return `${head} — più ordini corrispondono (${dec.count}: ${dec.leads.map((l) => `leads/${l.id} ${l.market} ${l.state}${l.service ? ' · ' + l.service : ''}`).join(', ')})`
-        + `${up ? ` — ${up.id} è l'upgrade pagato col credito di ${up.upgradeOf}: il rimborso si calcola su quanto pagato per l'ordine da cui recede (Termini §12.2)` : due ? ` — ${due.id} è stato pagato a prezzo pieno da chi aveva il credito di ${due.dueFrom}: su ${due.id} è dovuto il rimborso di quel credito (Termini §12.2)` : ''}: da abbinare a mano. Nessuna modifica.`;
+        + `${up ? ` — ${up.id} è l'upgrade pagato col credito di ${up.upgradeOf}: il rimborso si calcola su quanto pagato per l'ordine da cui recede (Termini §12.2)` : due ? ` — ${due.id} è stato pagato a prezzo pieno ${due.dueSame ? 'da chi aveva' : 'con l\'email di chi aveva'} il credito di ${due.dueFrom}. Per ${due.id}: ${due.dueClause || 'verifica lo stato di quel credito'} (Termini §12.2)` : ''}: da abbinare a mano. Nessuna modifica.`;
     }
     case 'lookup_failed':
       return `${head} — ricerca dell'ordine non riuscita: da abbinare a mano.`;

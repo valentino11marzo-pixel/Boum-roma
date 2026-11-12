@@ -4412,8 +4412,12 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
   lente, 21 rilievi, tutti confermati e chiusi lo stesso giorno (a0471eb). Una seconda revisione su
   quella stesura (due lenti: soldi e parole) ha trovato altri sedici rilievi, quasi tutti nella «porta
   alternativa» appena scritta: segnava il credito e prometteva il rimborso sulla sola email, rifaceva
-  la ricerca a ogni consegna, e i timbri potevano tornare indietro. Sono chiusi nella terza stesura.
-  Qui sotto le regole DOPO le due revisioni.
+  la ricerca a ogni consegna, e i timbri potevano tornare indietro. Sono chiusi nella terza stesura
+  (bf75b7d). Una terza revisione su quella (tre lenti: soldi, consegna degli eventi, parole; ogni
+  rilievo con uno script che lo riproduce) ne ha trovati diciassette, quattordici distinti, nessuno
+  grave: letture fallite prese per risposte, eventi di Stripe consegnati fuori ordine, testi rimasti
+  fermi a ciò che era vero al pagamento, un'email trattata come un'identità. Sono chiusi nella quarta
+  stesura. Qui sotto le regole DOPO le tre revisioni.
   1. **La regola e le parole in una copia** (`api/_upgrade.js`): `upgradeLine(to, days)` («Credited in
      full if you move to Full Search within 30 days.»), `upgradeFact(from, to, days)` («The Application
      Pack fee is credited in full towards Full Search for 30 days from payment, through the personal
@@ -4460,6 +4464,26 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
      fine giro, con l'ordine e le due email già fatti, e avvisa l'operatore (`upgrade-mark-<id>`); la
      riconsegna lo segna e ritira l'avviso. Un upgrade riconsegnato dopo che il suo pack è stato
      rimborsato non diventa «credito non dovuto»: il pack porta già il suo segno.
+     **Una lettura che fallisce non è una risposta** (terza revisione):
+     - il pack di un upgrade che non si riesce a leggere (due tentativi) → **500 prima di scrivere**
+       (`credit_read_failed`), e Stripe riconsegna. Prima l'ordine nasceva «non verificato» con un
+       200: il credito non veniva mai segnato e il link restava aperto;
+     - alla riconsegna l'ordine già scritto si legge per PRIMO; se non si legge → 500
+       (`order_read_failed`);
+     - una card all'operatore che non si riesce a scrivere o a rileggere → **500 a fine giro**
+       (`operator_card_failed`), con ordine ed email già fatti: la riconsegna la suona da ciò che
+       l'ordine ha registrato;
+     - un rimborso o una contestazione che arrivano PRIMA che l'ordine di quel pagamento sia scritto
+       (la conferma del pagamento è in ritardo) → 500 finché l'ordine non c'è; la card dice «non è
+       ancora scritto, ti avviso quando è segnato». Dopo 96 ore dalla sessione dice «mai stato
+       scritto: verifica a mano» e risponde 200;
+     - il segno del credito trovato GIÀ scritto alla riconsegna (la scrittura era arrivata, la risposta
+       no) ritira l'avviso come quello scritto in quel momento;
+     - un credito che l'ordine aveva registrato come verificato si segna anche se nel frattempo il pack
+       è stato rimborsato: era stato speso quando era dovuto. La card `upgrade-after-<id>` dice che
+       il cliente ha avuto il credito e il rimborso.
+     La ricerca degli ordini di chi paga NON risponde 500 quando fallisce: l'ordine e la conferma al
+     cliente non aspettano una lettura accessoria (punto 6).
   6. **L'altra porta: il rimborso dell'operatore è l'atto.** Il credito si applica dal link personale.
      Chi ha un pack col credito aperto e paga il Full Search a prezzo pieno dalla pagina del desk viene
      cercato dal webhook fra gli ordini pagati con la stessa email (`payerOrdersBefore`: per `emailKey`,
@@ -4471,30 +4495,55 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
      - al pagamento non si scrive NIENTE sul pack: un'email non è un'identità. L'ordine registra
        `city.creditDue {from, plan, amount, currency, match, statement?}` e `creditDueFrom`. `match` è
        `same` se anche il telefono è quello del pack, altrimenti `check`. Con `same` l'ordine tiene il
-       fascicolo del pack, con `check` ha il suo (chi paga non vede il fascicolo di un altro);
+       fascicolo del pack, con `check` ha il suo (chi paga non vede il fascicolo di un altro). Fra più
+       pack aperti sotto la stessa email (una coppia, un ufficio relocation) vale quello col telefono
+       di chi paga; se nessuno coincide, il più vecchio, con `check` (`among` dice quanti erano, e la
+       card nomina gli altri);
      - l'operatore riceve `upgrade-owed-<id>`. Con `same`: «rimborsa €199 su questo pagamento». Con
        `check`: «VERIFICA che sia la stessa persona prima di rimborsare». Con una dichiarazione di
        recesso in archivio sul pack: «rimborsa UNA volta sola, o il pack o il credito». L'email del
-       cliente promette il rimborso solo con `same` e senza dichiarazione;
+       cliente promette il rimborso solo con `same` e senza dichiarazione. La card dice che quell'email
+       lo dice, mai che il cliente l'ha letto: se non parte, l'avviso `svc-mail` chiede di mandarla a
+       mano con la frase sul rimborso;
      - il credito del pack si chiude quando il rimborso è segnato (`settleRefundCredit`, su
-       `charge.refunded`): un rimborso PARZIALE di almeno l'importo del pack, sull'ordine a prezzo
-       pieno, segna il pack `credit {usedBy, via:'full-price'}` sotto la versione letta. Mai sopra il
-       segno di un altro ordine, mai su un pack già rimborsato o contestato: in quei casi la card dice
-       che il rimborso non era dovuto. Un rimborso TOTALE dell'ordine restituisce tutto e lascia il
-       credito al pack. Se il segno non si scrive: 500 e riconsegna;
+       `charge.refunded`). La decisione è una funzione pura, `refundCreditVerdict`, e si prende sui
+       totali DELL'EVENTO, mai su quelli che l'ordine ha già: due rimborsi consegnati fuori ordine
+       danno lo stesso stato finale. Per primo si legge il pack: se il suo credito è già usato,
+       rimborsato o in mano alla banca, su quell'ordine non è dovuto più niente, e nessun testo dice
+       «è dovuto» o «resta aperto». Poi: un rimborso PARZIALE che raggiunge l'importo del pack segna
+       il pack `credit {usedBy, via:'full-price', atRefund}` sotto la versione letta; con `check` solo
+       un rimborso di ESATTAMENTE quell'importo (un'altra cifra può essere un affare di chi ha pagato,
+       e il pack può essere di un altro). Un rimborso in più dopo la chiusura è un avviso. Un rimborso
+       TOTALE restituisce tutto, e la card dice cosa resta al pack quel giorno (credito aperto fino
+       alla sua data, o scaduto). Il rimborso dovuto sull'ordine non scade col link del pack. Se il
+       segno non si scrive: 500 e riconsegna;
+     - cosa ne è stato di un credito dovuto si deriva in UN posto (`creditDueState` /
+       `creditDueClause`: dovuto, già rimborsato su quell'ordine, ordine rimborsato o contestato, pack
+       usato, rimborsato, contestato, restituito dalla banca). Lo leggono le card, il bot e la card del
+       recesso, che rileggono il pack com'è adesso;
      - se viene rimborsato il pack mentre un ordine a prezzo pieno aspetta il suo credito, la card del
-       rimborso nomina quell'ordine: «ora NON è più dovuto — non rimborsarlo anche là»;
+       rimborso nomina quell'ordine: «ora NON è più dovuto — non rimborsarlo anche là». Un ordine
+       aspetta (`claimWaits`) finché è pagato, non rimborsato per intero e la banca non ha restituito
+       il pagamento: una contestazione ancora aperta lo sospende soltanto, e la card che la chiude
+       dice cosa resta (vinta: il rimborso torna dovuto; persa: non lo è più);
      - una ricerca che fallisce, o una lista che torna piena (50 righe), non vale «nessun credito»:
-       l'ordine porta `creditUnverified` e l'operatore riceve `upgrade-check-<id>`.
+       l'ordine si scrive subito con `creditUnverified` e l'operatore riceve `upgrade-check-<id>`, che
+       chiede solo ciò che può essere vero di QUEL pagamento (un credito da rimborsare solo su un Full
+       Search; un Full Search già in corso solo su un pack o una visita a Berlino). Su quell'ordine un
+       credito rimborsato a mano non si chiude da solo, e la card lo dice.
      Mai un rimborso automatico, mai un credito applicato alla cassa su un'email digitata. I Termini
      §12.2 promettono quel rimborso.
   6-bis. **Berlino: un pack o una visita pagati da chi ha già un Full Search.** I Termini §12.5 non
      fanno pagare altro accanto a un Full Search, ma la cassa non sa chi paga. La stessa ricerca
-     (`fullSearchHeld`, pura) trova il Full Search pagato sullo stesso desk e non rimborsato per
-     intero: l'ordine porta `city.stackedOn {from, match}`, l'operatore riceve `upgrade-stack-<id>`
-     («se quella ricerca è ancora in corso, rimborsa questo pagamento per intero») e l'email del pack
-     non invita a «passare a Full Search». Al cliente non si promette niente per iscritto: se la
-     ricerca è ancora in corso lo sa solo l'operatore. I Termini §12.5 e llms.txt dicono che quel
+     (`fullSearchHeld`, pura) trova il Full Search che chi paga ha già su quel desk: pagato con carta e
+     non rimborsato per intero, oppure prenotato alla firma il 5–6/11 (quegli ordini tengono i loro
+     termini) e non ritirato, chiuso o arrivato alla firma; fra più d'uno, quello col suo telefono.
+     L'ordine porta `city.stackedOn {from, match}` e l'operatore riceve `upgrade-stack-<id>` («se
+     quella ricerca è ancora in corso, rimborsa questo pagamento per intero»). Con `same` (stesso
+     telefono) l'email del pack non invita a «passare a Full Search» e il bot non dà il link. Con
+     `check` (coincide solo l'email) il pack tiene il link e la frase del credito che la pagina
+     promette: la card lo dice, e il bot dà il link dopo aver detto cosa verificare. Al cliente non
+     si promette niente per iscritto: se la ricerca è ancora in corso lo sa solo l'operatore. I Termini §12.5 e llms.txt dicono che quel
      pagamento si rimborsa. Sugli altri desk comprare una visita con un Full Search è permesso: lì non
      si cerca nemmeno.
   7. **Termini §12.2** (data 12 novembre): stesso desk, entro 30 giorni, una volta, si paga la
@@ -4508,16 +4557,20 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
      un ordine a prezzo pieno → «un rimborso di questo pack è un secondo rimborso dello stesso credito»;
      ordine a prezzo pieno con `creditDue` → «su questo ordine è dovuto il rimborso»; Full Search pagato
      col credito → «si calcola su quanto pagato per QUESTO ordine». `/upgrade BM XXXXX` sul bot dice le
-     stesse cose, e non dà il link di un pack finché un ordine a prezzo pieno ne aspetta il credito.
+     stesse cose. Un'email non è un'identità: il bot trattiene il link di un pack solo se a pagare il
+     prezzo pieno è stato lo STESSO telefono; se coincide solo l'email dice cosa verificare, prima
+     del link, e il link lo dà (può essere di un'altra persona).
   9. **L'email di conferma del cliente** di un Application Pack porta il link personale e la regola in
      una frase, prima del testo del recesso; quella dell'operatore dice che il cliente lo ha già.
   10. **La descrizione del Full Search è del desk** (`CITY_PLAN_DESC` in `api/_market.js`): Parigi (una
      visita, le altre €149, sei mesi al più) e Berlino (case offerte al solo cliente, visite comprese,
      tetto di legge) non vendono il Full Search degli altri sei; la pagina Stripe e `/upgrade` lo dicono.
-  11. **Solo dati inventati nel repository.** Questo repository è pubblico: nelle fixture dei test, nei
-     commenti e in questo file vanno solo nomi, numeri e fascicoli inventati (la fixture di
-     `tests/upgrade` usa «Dana Sample», un numero +34 600 … e il fascicolo «BM SAMPL»). Il materiale di
-     un caso vero resta nello scratchpad della sessione e in Gmail.
+  11. **Solo dati inventati, da qui in avanti.** Questo repository è pubblico: nelle fixture dei test,
+     nei commenti e nelle sezioni nuove di questo file si scrivono solo nomi, numeri e fascicoli
+     inventati (la fixture di `tests/upgrade` usa «Dana Sample», un numero +34 600 … e il fascicolo
+     «BM SAMPL»). Il materiale di un caso vero resta nello scratchpad della sessione e in Gmail. La
+     regola vale per ciò che si scrive da ora: ripulire ciò che è stato scritto prima è un lavoro a
+     parte, deciso dal fondatore.
   **Misure**: hub 975 parole su 980 (fares 228/230), pagina 27,7 KB su 28; Milano 81,6 KB su 82: una
   frase in più su tutti i desk non entra senza tagliare. `moving-budget.html` rigenerata dopo il merge
   di #338 (su main diceva ancora «Fee charged only when you sign a lease» per Parigi e Berlino), con
@@ -4527,7 +4580,13 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
   pack, già usato). L'altra porta trova la persona dall'email e la conferma dal telefono: chi paga il
   Full Search con un'altra email non viene trovato, e nemmeno chi lo paga prima che il webhook del
   suo pack sia arrivato. A Berlino il sistema non sa se un Full Search è ancora in corso (gli ordini
-  con carta non hanno uno stato di chiusura): lo decide l'operatore.
+  con carta non hanno uno stato di chiusura): lo decide l'operatore. Su un ordine `creditUnverified`
+  il credito rimborsato a mano non chiude il pack (la ricerca non si rifà al rimborso). Se la
+  conferma di un pagamento arriva in ritardo e nel frattempo quel pagamento è stato rimborsato,
+  l'email di conferma può partire prima che il rimborso sia segnato sull'ordine. Chi usa il link
+  personale mentre un suo ordine a prezzo pieno aspetta lo stesso credito non fa suonare una card a
+  quel pagamento: lo dicono i testi successivi. Un pagamento la cui sessione Stripe non porta la
+  data di creazione aspetta l'ordine finché Stripe riconsegna (tre giorni).
   **Aperte, del fondatore**: a Berlino un Attended Viewing pagato PRIMA di un Full Search non ha un
   percorso di credito (§12.5 dice che un cliente Full Search non lo paga: oggi si rimborsa a mano); un
   pack rimborsato DOPO che il suo credito è stato usato: i Termini non dicono cosa succede alla
@@ -4535,12 +4594,16 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
   quanto pagato per quello» è la nostra lettura, non il parere di un legale; un Full Search comprato
   col credito e poi rimborsato per intero lascia il credito «usato» (i Termini dicono «una volta» e
   non altro), mentre sull'altra porta un rimborso totale fatto in un colpo solo lo lascia aperto.
-  Test: `tests/upgrade/run.mjs` 268 (regola, scadenza a istanti fissi, Berlino, void, GET/POST, webhook
+  Test: `tests/upgrade/run.mjs` 342 (regola, scadenza a istanti fissi, Berlino, void, GET/POST, webhook
   con rimborsi, contestazioni, timbri fuori ordine, segno fallito e riparato, corsa rimborso/upgrade,
-  l'altra porta caso per caso, Berlino §12.5, recesso VERO, bot, pagina, Termini e llms);
-  `tests/cities/run.mjs` 1364 (biglietto, riga Fees, Offer, cassa, hub, bozze e desk alla firma senza
-  credito, i rifiuti del build); `tests/cities/ui.mjs` 655. Novantadue difetti reintrodotti a mano, uno
-  alla volta: tutti presi.
+  l'altra porta caso per caso, Berlino §12.5, recesso VERO, bot, pagina, Termini e llms; la terza
+  revisione rilievo per rilievo: letture fallite, rimborsi prima dell'ordine e fuori ordine, due pack
+  sotto una email, la cautela sull'email nel bot e a Berlino, il Full Search prenotato alla firma, le
+  card che chiudono una contestazione); `tests/cities/run.mjs` 1364 (biglietto, riga Fees, Offer,
+  cassa, hub, bozze e desk alla firma senza credito, i rifiuti del build); `tests/cities/ui.mjs` 655
+  (nessuna pagina cambia nella quarta stesura). 154 difetti reintrodotti a mano, uno alla volta (92
+  nelle prime tre stesure, 62 nella quarta): tutti presi. Gli script dei revisori, rilanciati sul
+  codice corretto, non riproducono più nessun rilievo.
 - **IL KIT DEL CASO DESK (12/11/2026)**: il primo caso pagato (Madrid, 6–15/11: pack → upgrade →
   contratto firmato) è diventato uno strumento. Skill `.claude/skills/desk-case/SKILL.md` (dall'ordine
   alle chiavi: decisione in prima riga, sei correzioni essenziali al massimo, i tre controlli prima di
@@ -7775,7 +7838,7 @@ italiano). Lo specchio esatto del mandato del conduttore:
   IP dell'operatore.
 
 ### 📋 La Scheda del proprietario dalla console + il mandato sull'immobile nato dalla proposta (12/10/2026)
-«Non riesco a inviare a Chiara Tavolieri la scheda per far compilare i suoi
+«Non riesco a inviare alla proprietaria la scheda per far compilare i suoi
 dati o il link del Magic Sign.» Letto nel backup notturno, non dedotto: la
 proposta BOOM-MUCHJ6LC (Via dei Latini 76) era pagata dal 22/09 **senza
 contratto**, perché non era collegata a nessun immobile del portal, e la

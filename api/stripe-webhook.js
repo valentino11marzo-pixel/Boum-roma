@@ -6,7 +6,7 @@ import { sendEmail } from './agent/_lib.js';
 import { maybeAutoConvert } from './preagreement/_auto.js';
 import { tgNotify } from './pfs/_health.js';
 import { CITY_MARKETS, CITY_PLANS, cityPhone, serviceLeadId, moneyOf, cityOffer } from './_market.js';
-import { isUpgradeLeadId, UPGRADE_PATHS, upgradeDaysOf, upgradeVoidReason, upgradeMoneyBackNote, openCreditFor, upgradeOffer, samePhone, fullSearchHeld } from './_upgrade.js';
+import { isUpgradeLeadId, UPGRADE_PATHS, upgradeDaysOf, upgradeVoidReason, upgradeMoneyBackNote, openCreditsFor, upgradeOffer, samePhone, fullSearchHeld, refundCreditVerdict, claimWaits } from './_upgrade.js';
 import { upgradeLink } from './payments/_token.js';
 import SCALO from '../js/scalo-codes.js';
 import DESK_CAL from '../js/desk-calendar.js';
@@ -440,14 +440,19 @@ async function cityFileFor(svcId, cityKey, fileRef) {
 // pack already carries this order's mark, the credit was spent by this order
 // while it was due — a refund of the pack that came afterwards does not turn
 // it into "a credit that was not due" (svcId).
+// A read that FAILS is not a pack that cannot be verified (the third review,
+// 12/11/2026): `unread` — the handler answers 500 before anything is written
+// and Stripe delivers the event again. Filed as "unverified" with a 200, the
+// credit was never marked and the link stayed open for good.
 async function upgradeCreditFor(m, cityKey, svcId) {
   if (!cityKey || typeof m.credit_from !== 'string' || !isUpgradeLeadId(m.credit_from)) return null;
   const credit = { from: m.credit_from, plan: String(m.credit_plan || ''), amount: Number(m.credit_amount) || null, verified: false, file: null };
-  let src = null;
-  for (let attempt = 0; attempt < 2; attempt++) {
-    try { src = await fsGet('leads/' + m.credit_from); break; }
+  let src = null, read = false;
+  for (let attempt = 0; attempt < 2 && !read; attempt++) {
+    try { src = await fsGet('leads/' + m.credit_from); read = true; }
     catch (e) { console.warn(`[service] credit_from read failed (attempt ${attempt + 1}):`, e && e.message); }
   }
+  if (!read) return { ...credit, unread: true };
   const sc = src && src.city && typeof src.city === 'object' ? src.city : null;
   if (src && src.market === cityKey && src.paid === true && sc && sc.paid === true) {
     // A pack whose money went back (refunded, or disputed) carries no credit
@@ -474,10 +479,15 @@ async function upgradeCreditFor(m, cityKey, svcId) {
 // was due. And an upgrade paid on a pack with a withdrawal statement on file:
 // the credit holds, but a later refund of that pack must count it.
 // Idempotent (deterministic ids): a Stripe retry does not ring twice.
-async function flagVoidCredit(credit, svcId, docId, paidAmount) {
+// (credit.voidedAfter: a REDELIVERY whose order had recorded a verified credit, on a pack whose money went
+// back since — the credit was spent while it was due, so it is marked used and the operator settles the rest.)
+async function flagVoidCredit(credit, svcId, docId, paidAmount, out = null) {
   if (!credit) return;
-  const ring = (id, type, summary) => ringOperator(id, type, summary, svcId);
-  if (credit.voided) {
+  const ring = (id, type, summary) => ringOperator(id, type, summary, svcId, {}, out);
+  if (credit.voidedAfter) {
+    await ring('upgrade-after-' + docId, 'service.upgrade_credit_then_refunded',
+      `⚠️ Upgrade ${svcId} (${paidAmount}): il credito dell'ordine ${credit.from} era valido al pagamento ed è stato usato; nel frattempo quel pack risulta ${credit.voidedAfter === 'disputed' ? 'contestato in banca' : 'rimborsato'}: il cliente ha avuto il credito e ${credit.voidedAfter === 'disputed' ? 'la banca gli sta restituendo il pack' : 'il rimborso del pack'} — regola la differenza su Stripe.`);
+  } else if (credit.voided) {
     await ring('upgrade-void-' + docId, 'service.upgrade_credit_void',
       `⚠️ Upgrade ${svcId} pagato ${paidAmount} col credito dell'ordine ${credit.from}, ${credit.voided === 'disputed' ? 'il cui pagamento è contestato in banca' : 'che era stato rimborsato'}: il credito non era dovuto. Regola la differenza col cliente (o rimborsa l'upgrade) su Stripe.`);
   } else if (credit.statement && credit.verified) {
@@ -487,13 +497,15 @@ async function flagVoidCredit(credit, svcId, docId, paidAmount) {
 }
 
 // One idempotent card for the operator (deterministic id: a Stripe retry does not ring twice).
-async function ringOperator(id, type, summary, svcId, extra = {}) {
+// A card that cannot be WRITTEN must not be lost with a 200 (the third review): `out.cardFailed` — the handler
+// answers 500, Stripe delivers again and the duplicate branch rings it from what the order recorded.
+async function ringOperator(id, type, summary, svcId, extra = {}, out = null) {
   try {
     return await writeDoc('agentNotifications', id, {
       type, summary, priority: 'high', status: 'pending', actor: 'stripe-webhook',
       ref: { collection: 'leads', id: svcId }, dedupKey: id, createdAt: new Date().toISOString(), attempts: 0, ...extra,
     });
-  } catch (e) { console.error('[service] operator card ' + id + ':', e && e.message); return null; }
+  } catch (e) { console.error('[service] operator card ' + id + ':', e && e.message); if (out) out.cardFailed = true; return null; }
 }
 
 // THE OTHER DOOR (api/_upgrade.js): the credit is applied through the
@@ -510,13 +522,20 @@ async function ringOperator(id, type, summary, svcId, extra = {}) {
 //     the operator gets an urgent card, and the pack's credit is closed by
 //     the operator's REFUND (settleRefundCredit, on charge.refunded).
 //  3. A lookup that FAILS is not "no credit": the order says
-//     creditUnverified and the operator is asked to check by hand. A list
-//     cut at its limit counts as a failed lookup (no silent cap).
+//     creditUnverified and the operator is asked to check by hand (a list
+//     cut at its limit counts the same: no silent cap). It is NOT answered
+//     500: the order and the client's confirmation never wait on a side
+//     lookup — a paying client kept without a confirmation until Stripe's
+//     retry is the worse failure. What it costs is said on the card: a
+//     credit refunded by hand on such an order does not close by itself.
+//  4. Which pack: the payer's own — the one whose phone is this order's —
+//     among every open pack under that e-mail (a couple, a relocation
+//     office); when none matches, the oldest, with match 'check'.
 // payerOrdersBefore reads; owedCreditIn decides (pure). The same list serves
 // Berlin's rule (api/_upgrade.js fullSearchHeld): a plan paid on top of a
 // Full Search the payer already holds there.
 const OWED_LIMIT = 50;
-// → { rows } (the payer's paid-before orders, possibly none) or { unverified: true }
+// → { rows } (the payer's paid-before orders, possibly none) or { unverified: true, why: 'failed' | 'limit' }
 async function payerOrdersBefore(email, paidMs) {
   const typed = String(email || '').trim(), low = typed.toLowerCase();
   if (!low) return { rows: [] };
@@ -528,7 +547,8 @@ async function payerOrdersBefore(email, paidMs) {
     try { lists = await Promise.all(queries.map(([field, value]) => fsList('leads', { filter: { field, op: 'EQUAL', value }, limit: OWED_LIMIT }))); }
     catch (e) { console.warn(`[service] payer orders lookup failed (attempt ${attempt + 1}):`, e && e.message); }
   }
-  if (!lists || lists.some((l) => l.length >= OWED_LIMIT)) return { unverified: true };
+  if (!lists) return { unverified: true, why: 'failed' };
+  if (lists.some((l) => l.length >= OWED_LIMIT)) return { unverified: true, why: 'limit' };
   const seen = new Set();
   return {
     rows: lists.flat().filter((d) => d && d.id && !seen.has(d.id) && seen.add(d.id))
@@ -547,14 +567,19 @@ function payerLookupNeeded(cityKey, kind) {
 }
 function owedCreditIn(rows, cityKey, kind, phone, paidMs) {
   if (!Object.values(UPGRADE_PATHS).includes(kind)) return null;
-  const hit = openCreditFor(rows, cityKey, kind, paidMs);
-  if (!hit) return null;
+  const open = openCreditsFor(rows, cityKey, kind, paidMs);
+  if (!open.length) return null;
+  // the payer's own pack — the one whose phone is this order's — before any other under the same address
+  const own = open.find((h) => samePhone(h.phone, phone));
+  const hit = own || open[0];
   const lead = rows.find((d) => d.id === hit.id) || {};
   return {
     from: hit.id, plan: hit.offer.from, planLabel: hit.offer.fromLabel, amount: hit.offer.credit, currency: hit.offer.currency,
     file: hit.offer.file, name: String(lead.name || ''),
     // the same person, as far as two orders can tell: the phone on the pack is the phone on this order
-    match: samePhone(lead.phone, phone) ? 'same' : 'check',
+    match: own ? 'same' : 'check',
+    // how many open packs that address holds on this desk, and which are the others (the card names them)
+    among: open.length, others: open.filter((h) => h.id !== hit.id).map((h) => h.id),
     // a withdrawal statement is on file for the pack and nothing was refunded yet: ONE refund is due, not two
     statement: !!(lead.withdrawnAt || (lead.withdrawal && typeof lead.withdrawal === 'object')),
   };
@@ -564,45 +589,74 @@ function owedCreditIn(rows, cityKey, kind, phone, paidMs) {
 // holds a Full Search on the desk. Whether that search is still running is
 // the operator's judgement, so nothing is promised to the client: the order
 // records it (city.stackedOn) and the operator is told to refund if it is.
-function stackedText(st, svcId, planLabel, paidAmount, en = false) {
+// `linked`: the client's confirmation carries the upgrade link all the same —
+// a pack whose buyer only shares the E-MAIL of a Full Search holder (match
+// 'check') may be another person's, and the page promises that link.
+function stackedText(st, svcId, planLabel, paidAmount, en = false, linked = false) {
   if (en) {
-    return ` ${st.match === 'same' ? 'This client already holds' : 'The e-mail of this order already holds'} a paid Full Search on this desk (order ${st.from}${st.file ? ', file ' + st.file : ''}): Terms §12.5 charge nothing else alongside it — if that search is still running, refund this payment in full${st.match === 'same' ? '' : ' (first verify it is the same person: the phone does not match)'}. Nothing was promised to the client in writing.`;
+    return ` ${st.match === 'same' ? 'This client already holds' : 'The e-mail of this order already holds'} a Full Search on this desk (order ${st.from}${st.file ? ', file ' + st.file : ''}): Terms §12.5 charge nothing else alongside it — if that search is still running, refund this payment in full${st.match === 'same' ? '' : ' (first verify it is the same person: the phone does not match)'}. Nothing was promised to the client in writing.${linked ? ' Their confirmation carries the upgrade link like any pack: a matching e-mail does not prove it is the same person.' : ''}`;
   }
-  return `🟠 ${svcId}: ${planLabel} pagato (${paidAmount}) ${st.match === 'same' ? 'da chi ha' : 'con l\'email di chi ha'} già un Full Search su questo desk (${st.from}${st.file ? ', ' + st.file : ''}). I Termini §12.5 non fanno pagare altro accanto a un Full Search: se quella ricerca è ancora in corso, rimborsa questo pagamento per intero${st.match === 'same' ? '' : ' — prima verifica che sia la stessa persona (il telefono non coincide)'}. Al cliente non ho promesso niente per iscritto.`;
+  return `🟠 ${svcId}: ${planLabel} pagato (${paidAmount}) ${st.match === 'same' ? 'da chi ha' : 'con l\'email di chi ha'} già un Full Search su questo desk (${st.from}${st.file ? ', ' + st.file : ''}). I Termini §12.5 non fanno pagare altro accanto a un Full Search: se quella ricerca è ancora in corso, rimborsa questo pagamento per intero${st.match === 'same' ? '' : ' — prima verifica che sia la stessa persona (il telefono non coincide)'}. Al cliente non ho promesso niente per iscritto.${linked ? ' La sua email di conferma porta il link di upgrade come ogni pack: una email uguale non prova che sia la stessa persona.' : ''}`;
 }
-const ringStacked = (st, svcId, docId, planLabel, paidAmount) => (st
-  ? ringOperator('upgrade-stack-' + docId, 'service.stacked_on_full_search', stackedText(st, svcId, planLabel, paidAmount), svcId) : null);
+const ringStacked = (st, svcId, docId, planLabel, paidAmount, out = null, linked = false) => (st
+  ? ringOperator('upgrade-stack-' + docId, 'service.stacked_on_full_search', stackedText(st, svcId, planLabel, paidAmount, false, linked), svcId, {}, out) : null);
 
 // What the operator reads when a pack holder paid in full: who (and how sure),
-// what to refund, and that the client was told only when it was safe to.
-// `en` = the sentence for the operator's order e-mail (English, like the rest of it).
+// what to refund, what closes the pack's credit, and what the client's
+// confirmation says. `en` = the sentence for the operator's order e-mail
+// (English, like the rest of it). The card is rung BEFORE the confirmation is
+// sent, so it says what that e-mail says — never that the client read it: if
+// it does not leave, the svc-mail alert asks for the same sentence by hand.
 function owedCreditText(owed, svcId, paidAmount, payerName, en = false) {
   const back = moneyOf(owed.amount, owed.currency);
   const names = owed.name && payerName && owed.name.trim().toLowerCase() !== String(payerName).trim().toLowerCase();
-  const told = owed.match === 'same' && !owed.statement;
+  const sure = owed.match === 'same';
+  const told = sure && !owed.statement;
+  const many = Number(owed.among) > 1;
+  const others = Array.isArray(owed.others) && owed.others.length ? owed.others.join(', ') : '';
   if (en) {
-    return (owed.match === 'same'
+    return (sure
       ? ` PAID IN FULL while holding an open ${owed.planLabel} credit (order ${owed.from}${owed.file ? ', file ' + owed.file : ''}; same phone).`
       : ` PAID IN FULL with the e-mail of someone who holds an open ${owed.planLabel} credit (order ${owed.from}), but the phone does not match${names ? ' and the names differ' : ''}: VERIFY it is the same person before refunding.`)
+      + (many ? ` That e-mail holds ${owed.among} open packs on this desk${sure ? `: this is the one with the payer's phone${others ? ` (the others: ${others})` : ''}` : `${others ? ` (also ${others})` : ''}: none has the payer's phone — check which one is theirs`}.` : '')
       + (owed.statement
         ? ` A withdrawal statement is on file for that pack and was not refunded yet: refund ONCE — the pack (withdrawal) or ${back} of this payment (the credit), never both.`
         : ` The policy credits the pack in full (Terms §12.2): refund ${back} of this payment on Stripe.`)
-      + ` The pack's credit closes by itself when that refund is recorded.${told ? ' The client read it in their confirmation.' : ' Nothing was promised to the client in writing.'}`;
+      + (sure ? ` The pack's credit closes by itself when that refund is recorded.` : ` The pack's credit closes by itself only when a refund of exactly ${back} is recorded on this payment.`)
+      + (told ? ` The client's confirmation says so (a separate alert tells you if it does not leave).` : ' Nothing was promised to the client in writing.');
   }
   return `💶 ${svcId} pagato a PREZZO PIENO (${paidAmount}) `
-    + (owed.match === 'same'
+    + (sure
       ? `da chi ha un ${owed.planLabel} col credito aperto (${owed.from}${owed.file ? ', ' + owed.file : ''}; stesso telefono).`
       : `con l'email di chi ha un ${owed.planLabel} col credito aperto (${owed.from}), ma il telefono non coincide${names ? ` e i nomi sono diversi («${owed.name}» / «${payerName}»)` : ''}: VERIFICA che sia la stessa persona prima di rimborsare.`)
+    + (many ? ` Sotto questa email ci sono ${owed.among} pack col credito aperto su questo desk${sure ? `: questo è quello col telefono di chi paga${others ? ` (gli altri: ${others})` : ''}` : `${others ? ` (anche ${others})` : ''}: nessuno ha il telefono di chi paga — verifica qual è il suo`}.` : '')
     + (owed.statement
       ? ` ⚠️ Su quel pack c'è una dichiarazione di recesso non ancora rimborsata: rimborsa UNA volta sola — o il pack (recesso) o ${back} su questo pagamento (credito), mai entrambi.`
       : ` La policy accredita il pack per intero (Termini §12.2): rimborsa ${back} su questo pagamento (Stripe → rimborso parziale).`)
-    + ` Il credito del pack si chiude da solo quando quel rimborso è segnato.${told ? ' Il cliente lo ha letto nell\'email di conferma.' : ' Al cliente non ho promesso niente per iscritto.'}`;
+    + (sure ? ` Il credito del pack si chiude da solo quando quel rimborso è segnato.` : ` Il credito del pack si chiude da solo soltanto con un rimborso di esattamente ${back} su questo pagamento.`)
+    + (told ? ` L'email di conferma al cliente lo dice (se non parte, ti arriva un avviso a parte).` : ' Al cliente non ho promesso niente per iscritto.');
 }
-const ringOwedCredit = (owed, svcId, docId, paidAmount, payerName) => (owed
-  ? ringOperator('upgrade-owed-' + docId, 'service.upgrade_credit_owed', owedCreditText(owed, svcId, paidAmount, payerName), svcId) : null);
-// the lookup failed: the Terms' refund must not be dropped in silence
-const ringUncheckedCredit = (svcId, docId, paidAmount) => ringOperator('upgrade-check-' + docId, 'service.upgrade_credit_unchecked',
-  `🔎 ${svcId} pagato (${paidAmount}): NON ho potuto leggere gli ordini precedenti di chi paga su questo desk (lettura non riuscita). Controlla a mano — stessa email, stesso desk: un pack col credito aperto va rimborsato su questo pagamento (Termini §12.2); a Berlino, un Full Search già in corso vuol dire che questo pagamento non era dovuto (§12.5).`, svcId);
+const ringOwedCredit = (owed, svcId, docId, paidAmount, payerName, out = null) => (owed
+  ? ringOperator('upgrade-owed-' + docId, 'service.upgrade_credit_owed', owedCreditText(owed, svcId, paidAmount, payerName), svcId, {}, out) : null);
+// The payer's earlier orders could not be read whole (a read that failed, or a
+// list cut at its limit): the Terms' refund must not be dropped in silence.
+// The operator is asked only what can be true of THIS payment: a credit is
+// owed back only on the plan a pack leads to; "nothing else alongside a Full
+// Search" only concerns another plan on a desk with that rule.
+function uncheckedText(cityKey, kind, svcId, paidAmount, en = false) {
+  const target = Object.values(UPGRADE_PATHS).includes(kind);
+  const stacking = !!(CITY_MARKETS[cityKey] && CITY_MARKETS[cityKey].noStacking === true && kind !== 'full-search');
+  if (en) {
+    return ' Could NOT read this payer\'s earlier orders on this desk in full: check by hand — same e-mail, same desk — '
+      + [target ? 'whether they hold a pack with an open credit: it is owed back on this payment (Terms §12.2), and that credit will not close by itself' : '',
+        stacking ? 'whether they already hold a Full Search that is still running: then this payment was not due and is refunded in full (Terms §12.5)' : ''].filter(Boolean).join('; and ') + '.';
+  }
+  return `🔎 ${svcId} pagato (${paidAmount}): NON ho potuto leggere per intero gli ordini precedenti di chi paga su questo desk. Controlla a mano — stessa email, stesso desk: `
+    + [target ? 'se ha un pack col credito aperto, quel credito va rimborsato su questo pagamento (Termini §12.2), e non si chiude da solo' : '',
+      stacking ? 'se ha già un Full Search ancora in corso, questo pagamento non era dovuto e va rimborsato per intero (Termini §12.5)' : ''].filter(Boolean).join('; e ') + '.';
+}
+const ringUncheckedCredit = (cityKey, kind, svcId, docId, paidAmount, out = null) => ringOperator('upgrade-check-' + docId, 'service.upgrade_credit_unchecked',
+  uncheckedText(cityKey, kind, svcId, paidAmount), svcId, {}, out);
 
 // The mark of the link path. Returns what happened: 'skip' (no verified
 // credit), 'already' (this order's mark is there: a retry), 'marked' (written
@@ -610,7 +664,11 @@ const ringUncheckedCredit = (svcId, docId, paidAmount) => ringOperator('upgrade-
 // (the pack's lead is not there), 'failed' (three attempts, read or write:
 // the credit is still OPEN — the handler answers 500 so Stripe delivers the
 // event again, and rings the operator meanwhile).
-async function markUpgradeCredit(credit, svcId, docId, currency, paidAmount) {
+// credit.recorded (a redelivery whose order recorded a VERIFIED credit at its
+// first delivery): the credit was spent while it was due, so it is marked
+// even if the pack's money went back since — credit.voidedAfter says why, and
+// flagVoidCredit rings what that means.
+async function markUpgradeCredit(credit, svcId, docId, currency, paidAmount, out = null) {
   if (!credit || !credit.verified) return 'skip';
   const path = 'leads/' + credit.from;
   for (let attempt = 0; attempt < 3; attempt++) {
@@ -623,10 +681,11 @@ async function markUpgradeCredit(credit, svcId, docId, currency, paidAmount) {
     // (a refund issued while the client was paying): never mark it, ring the
     // void alert — the version precondition below closes the rest of the window
     const voidNow = upgradeVoidReason(v.data);
-    if (voidNow) { await flagVoidCredit({ ...credit, voided: voidNow }, svcId, docId, paidAmount); return 'void'; }
+    if (voidNow && !credit.recorded) { await flagVoidCredit({ ...credit, voided: voidNow }, svcId, docId, paidAmount, out); return 'void'; }
+    if (voidNow) credit.voidedAfter = voidNow;
     if (used) {
       await ringOperator('upgrade-double-' + docId, 'service.upgrade_credit_reused',
-        `⚠️ Credito di upgrade già usato da ${used}: anche ${svcId} (${paidAmount}) lo ha usato. Verifica su Stripe e regola la differenza col cliente.`, svcId);
+        `⚠️ Credito di upgrade già usato da ${used}: anche ${svcId} (${paidAmount}) lo ha usato. Verifica su Stripe e regola la differenza col cliente.`, svcId, {}, out);
       return 'reused';
     }
     try {
@@ -644,18 +703,21 @@ async function markUpgradeCredit(credit, svcId, docId, currency, paidAmount) {
 // A mark that failed leaves the credit OPEN: the operator is told at once (the
 // client holds that link), and the delivery that finally writes it says so.
 const MARK_FAILED = (credit, svcId) => `⚠️ Upgrade ${svcId}: non sono riuscito a segnare come usato il credito dell'ordine ${credit.from}. Stripe riconsegna l'evento da solo e ti avviso quando è segnato; fino ad allora quel link di upgrade resta aperto.`;
-async function reportMark(state, credit, svcId, docId) {
+async function reportMark(state, credit, svcId, docId, out = null) {
   const id = 'upgrade-mark-' + docId;
-  if (state === 'failed') { await ringOperator(id, 'service.upgrade_credit_unmarked', MARK_FAILED(credit, svcId), svcId, { markFailed: true }); return; }
-  if (state !== 'marked') return;
-  // written now: if an earlier delivery had rung the failure, take it back
-  try {
-    const prev = await fsGet('agentNotifications/' + id);
-    if (!prev || prev.markFailed !== true) return;
-    const fixed = `✅ Upgrade ${svcId}: il credito dell'ordine ${credit.from} ora è segnato come usato.`;
-    try { await tgNotify(fixed); } catch (e) { console.error('[service] telegram:', e && e.message); }
-    await fsCommit([{ docPath: 'agentNotifications/' + id, fields: { summary: fixed, markFailed: false, repairedAt: new Date().toISOString() }, precondition: { exists: true } }]);
-  } catch (e) { console.error('[service] mark repair:', e && e.message); }
+  if (state === 'failed') { await ringOperator(id, 'service.upgrade_credit_unmarked', MARK_FAILED(credit, svcId), svcId, { markFailed: true }, out); return; }
+  // written now — or found written ('already': a commit that landed with its answer lost): if an earlier delivery
+  // had rung the failure, take it back. A card that cannot be READ is not "no card": out.cardFailed, the handler
+  // answers 500 and the next delivery takes it back (the promise was "ti avviso quando è segnato")
+  if (state !== 'marked' && state !== 'already') return;
+  let prev = null;
+  try { prev = await fsGet('agentNotifications/' + id); }
+  catch (e) { console.error('[service] mark card read:', e && e.message); if (out) out.cardFailed = true; return; }
+  if (!prev || prev.markFailed !== true) return;
+  const fixed = `✅ Upgrade ${svcId}: il credito dell'ordine ${credit.from} ora è segnato come usato.`;
+  try { await tgNotify(fixed); } catch (e) { console.error('[service] telegram:', e && e.message); }
+  try { await fsCommit([{ docPath: 'agentNotifications/' + id, fields: { summary: fixed, markFailed: false, repairedAt: new Date().toISOString() }, precondition: { exists: true } }]); }
+  catch (e) { console.error('[service] mark repair:', e && e.message); if (out) out.cardFailed = true; }
 }
 
 async function handleService(res, session, m, event = null) {
@@ -707,6 +769,12 @@ async function handleService(res, session, m, event = null) {
   let cityFile = cityDesk ? await cityFileFor(svcId, cityKey, typeof m.file_ref === 'string' ? m.file_ref : '') : null;
   // an upgrade keeps the file number of the pack it was paid with
   const credit = cityDesk ? await upgradeCreditFor(m, cityKey, svcId) : null;
+  // the pack this upgrade was paid with could not be READ (twice): nothing is written — 500, and Stripe delivers
+  // the event again. An order filed "unverified" here would leave the credit open with nobody told.
+  if (credit && credit.unread) {
+    console.error('[service] credit_from unreadable: 500, Stripe delivers again');
+    return res.status(500).json({ received: true, error: 'credit_read_failed' });
+  }
   if (credit && credit.file) cityFile = { file: credit.file, fileLeadId: credit.from };
   const creditPlanLabel = credit ? (((cityDesk.plans || CITY_PLANS)[credit.plan] || {}).label || 'Application Pack') : '';
   const creditLine = credit && credit.amount ? `${moneyOf(credit.amount, currency)} ${creditPlanLabel} credited` : '';
@@ -718,7 +786,7 @@ async function handleService(res, session, m, event = null) {
   const owed = earlier && earlier.rows ? owedCreditIn(earlier.rows, cityKey, kindPaid, phone, paidMs) : null;
   const owedUnverified = !!(earlier && earlier.unverified);
   // Berlin: a pack or a viewing paid on top of a Full Search the payer already holds (Terms §12.5)
-  const heldFs = earlier && earlier.rows ? fullSearchHeld(earlier.rows, cityKey, kindPaid) : null;
+  const heldFs = earlier && earlier.rows ? fullSearchHeld(earlier.rows, cityKey, kindPaid, phone) : null;
   const stacked = heldFs ? { from: heldFs.id, file: heldFs.file, match: samePhone(heldFs.phone, phone) ? 'same' : 'check' } : null;
   // the client is told in writing only when the two orders are the same person as far as they can tell, and
   // exactly one refund is due (no withdrawal statement waiting on the pack)
@@ -733,9 +801,12 @@ async function handleService(res, session, m, event = null) {
   // upgrade link (valid for the desk's credit window) goes in BOTH order emails — the
   // client's own confirmation since 12/11/2026 (the credit is a policy, the
   // page says it), and the operator's
-  // (not to someone who already holds the Full Search it would lead to)
-  const upgradeTo = cityDesk && !credit && !stacked && Object.prototype.hasOwnProperty.call(UPGRADE_PATHS, m.kind || '') ? cityOffer(cityKey, UPGRADE_PATHS[m.kind]) : null;
-  const upgradeUrl = upgradeTo && upgradeTo.ok && upgradeTo.chargeAt !== 'signing' ? upgradeLink(svcId, new URL(cityDesk.url).origin) : null;
+  // (not to someone who already holds the Full Search it would lead to — as far as two orders can tell: the same
+  // phone. A buyer who only shares that holder's E-MAIL may be another person, and the page promises the link)
+  const upgradable = cityDesk && !credit && Object.prototype.hasOwnProperty.call(UPGRADE_PATHS, m.kind || '') ? cityOffer(cityKey, UPGRADE_PATHS[m.kind]) : null;
+  const upgradableOk = !!(upgradable && upgradable.ok && upgradable.chargeAt !== 'signing');
+  const upgradeTo = upgradableOk && !(stacked && stacked.match === 'same') ? upgradable : null;
+  const upgradeUrl = upgradeTo ? upgradeLink(svcId, new URL(cityDesk.url).origin) : null;
   // how long that credit runs on this desk: 30 days, or no deadline (Berlin — api/_upgrade.js upgradeDaysOf)
   const upgradeDays = upgradeUrl ? upgradeDaysOf(cityKey) : null;
   const lead = {
@@ -788,7 +859,7 @@ async function handleService(res, session, m, event = null) {
         // the upgrade credit this order was paid with (api/_upgrade.js)
         ...(credit ? { credit: { from: credit.from, plan: credit.plan || null, amount: credit.amount, verified: credit.verified, ...(credit.voided ? { voided: credit.voided } : {}) } } : {}),
         // paid in full while holding an open pack credit: what is owed back on this order (the operator refunds it)
-        ...(owed ? { creditDue: { from: owed.from, plan: owed.plan, amount: owed.amount, currency: owed.currency, match: owed.match, ...(owed.statement ? { statement: true } : {}) } } : {}),
+        ...(owed ? { creditDue: { from: owed.from, plan: owed.plan, amount: owed.amount, currency: owed.currency, match: owed.match, ...(owed.statement ? { statement: true } : {}), ...(owed.among > 1 ? { among: owed.among } : {}) } } : {}),
         // the lookup failed: nobody knows whether a credit is owed on this order — the operator checks by hand
         ...(owedUnverified ? { creditUnverified: true } : {}),
         // Berlin: paid on top of a Full Search this payer already holds (the operator refunds it if that search runs)
@@ -803,57 +874,74 @@ async function handleService(res, session, m, event = null) {
     console.error('Firestore service lead write error:', err);
     return res.status(500).json({ error: 'lead_write_failed' });
   }
+  // a card that cannot be written, or a mark that cannot be made, is the one thing a delivery may leave undone:
+  // both end in a 500, so Stripe delivers again and the duplicate branch finishes from what the order recorded
+  const out = { cardFailed: false };
   if (w && w.exists) {
     // Retry di Stripe su una sessione già processata: le email non si
-    // rimandano. Ma se il primo giro è morto prima di registrare l'esito
-    // dell'email al cliente (né inviata né fallita) l'operatore lo deve
-    // sapere: avviso idempotente (id deterministico), mai su un primo giro
-    // che potrebbe essere ancora in volo (90s).
+    // rimandano. What THIS payment owed, held or used is what the ORDER
+    // recorded at its first delivery: it is read first, and a read that
+    // fails is answered 500 (a card never rung must not be lost with a 200).
+    let full = null;
+    try { full = await fsGet('leads/' + svcId); }
+    catch (e) {
+      console.error('[service] stored order read:', e && e.message);
+      return res.status(500).json({ received: true, duplicate: true, serviceLeadId: svcId, error: 'order_read_failed' });
+    }
+    const sc = full && full.city && typeof full.city === 'object' ? full.city : null;
+    const due = sc && sc.creditDue && typeof sc.creditDue === 'object' && sc.creditDue.from ? sc.creditDue : null;
+    // Se il primo giro è morto prima di registrare l'esito dell'email al
+    // cliente (né inviata né fallita) l'operatore lo deve sapere: avviso
+    // idempotente (id deterministico), mai su un primo giro che potrebbe
+    // essere ancora in volo (90s). The promise that e-mail carried ("we
+    // refund … of this payment") is asked for by hand with it.
     try {
-      const prev = await readDoc('leads/' + svcId);
-      const born = Date.parse((prev && prev.createdAt) || '');
-      if (prev && !prev.clientEmailSentAt && !prev.clientEmailFailedAt && Number.isFinite(born) && Date.now() - born > 90000) {
+      const born = Date.parse((full && full.createdAt) || '');
+      if (full && !full.clientEmailSentAt && !full.clientEmailFailedAt && Number.isFinite(born) && Date.now() - born > 90000) {
+        const promise = due && due.match === 'same' && due.statement !== true ? ` e con la frase sul rimborso di ${moneyOf(Number(due.amount) || 0, String(due.currency || currency))} (Termini §12.2)` : '';
         await writeDoc('agentNotifications', 'svc-mail-' + docId, {
           type: 'service.client_email_failed',
-          summary: `📭 Ordine pagato ${svcId}: nessuna traccia dell'email di conferma al cliente — verificare e mandarla a mano${prev.market && prev.market !== 'roma' ? ', col testo del recesso' : ''}.`,
+          summary: `📭 Ordine pagato ${svcId}: nessuna traccia dell'email di conferma al cliente — verificare e mandarla a mano${full.market && full.market !== 'roma' ? ', col testo del recesso' : ''}${promise}.`,
           priority: 'high', status: 'pending', actor: 'stripe-webhook',
           ref: { collection: 'leads', id: svcId },
           dedupKey: 'svc-mail-' + docId, createdAt: new Date().toISOString(), attempts: 0,
         });
       }
     } catch (_) {}
-    // a first run that died before marking the credit: the retry marks it
-    const again = await markUpgradeCredit(credit, svcId, docId, currency, paidAmount);
-    await reportMark(again, credit, svcId, docId);
-    await flagVoidCredit(credit, svcId, docId, paidAmount);
+    // a first run that died before marking the credit: the retry marks it. The order recorded a VERIFIED credit:
+    // it was spent while it was due — a pack refunded since is marked all the same, and the card says so
+    const stored = sc && sc.credit && typeof sc.credit === 'object' && sc.credit.verified === true;
+    let creditNow = credit;
+    if (stored && credit && credit.voided) { const { voided, ...rest } = credit; creditNow = { ...rest, verified: true, recorded: true, voidedAfter: voided }; }
+    else if (stored && credit) creditNow = { ...credit, recorded: true };
+    const again = await markUpgradeCredit(creditNow, svcId, docId, currency, paidAmount, out);
+    await reportMark(again, creditNow, svcId, docId, out);
+    await flagVoidCredit(creditNow, svcId, docId, paidAmount, out);
     // a first run that wrote the order and died before ringing. The ORDER says what this payment owed: a second
     // delivery never looks the payer up again (today's packs are not the ones the payment held)
     if (cityDesk) {
-      try {
-        const full = await fsGet('leads/' + svcId);
-        const sc = full && full.city && typeof full.city === 'object' ? full.city : null;
-        const due = sc && sc.creditDue && typeof sc.creditDue === 'object' && sc.creditDue.from ? sc.creditDue : null;
-        if (due) {
-          await ringOwedCredit({
-            from: String(due.from), plan: due.plan || '', planLabel: ((cityDesk.plans || CITY_PLANS)[due.plan] || {}).label || 'Application Pack',
-            amount: Number(due.amount) || 0, currency: String(due.currency || currency), file: due.match === 'same' ? (sc.file || null) : null, name: '',
-            match: due.match === 'same' ? 'same' : 'check', statement: due.statement === true,
-          }, svcId, docId, paidAmount, '');
-        }
-        if (sc && sc.creditUnverified === true) await ringUncheckedCredit(svcId, docId, paidAmount);
-        const st = sc && sc.stackedOn && typeof sc.stackedOn === 'object' && sc.stackedOn.from ? sc.stackedOn : null;
-        if (st) await ringStacked({ from: String(st.from), file: null, match: st.match === 'same' ? 'same' : 'check' }, svcId, docId, cityPlan ? cityPlan.label : kindPaid, paidAmount);
-      } catch (e) { console.error('[service] stored credit read:', e && e.message); }
+      if (due) {
+        await ringOwedCredit({
+          from: String(due.from), plan: due.plan || '', planLabel: ((cityDesk.plans || CITY_PLANS)[due.plan] || {}).label || 'Application Pack',
+          amount: Number(due.amount) || 0, currency: String(due.currency || currency), file: due.match === 'same' ? (sc.file || null) : null, name: '',
+          match: due.match === 'same' ? 'same' : 'check', statement: due.statement === true, among: Number(due.among) || 1,
+        }, svcId, docId, paidAmount, '', out);
+      }
+      if (sc && sc.creditUnverified === true) await ringUncheckedCredit(cityKey, kindPaid, svcId, docId, paidAmount, out);
+      const st = sc && sc.stackedOn && typeof sc.stackedOn === 'object' && sc.stackedOn.from ? sc.stackedOn : null;
+      if (st) await ringStacked({ from: String(st.from), file: null, match: st.match === 'same' ? 'same' : 'check' }, svcId, docId, cityPlan ? cityPlan.label : kindPaid, paidAmount, out, upgradableOk && st.match !== 'same');
     }
-    // a mark that failed again leaves the credit open: 500, Stripe delivers the event once more
-    return res.status(again === 'failed' ? 500 : 200).json({ received: true, duplicate: true, serviceLeadId: svcId, ...(again === 'failed' ? { error: 'credit_mark_failed' } : {}) });
+    // a mark that failed again leaves the credit open, a card that could not be written leaves the operator
+    // untold: 500, Stripe delivers the event once more
+    const undone = again === 'failed' ? 'credit_mark_failed' : out.cardFailed ? 'operator_card_failed' : null;
+    return res.status(undone ? 500 : 200).json({ received: true, duplicate: true, serviceLeadId: svcId, ...(undone ? { error: undone } : {}) });
   }
-  const marked = await markUpgradeCredit(credit, svcId, docId, currency, paidAmount);
-  await reportMark(marked, credit, svcId, docId);
-  await flagVoidCredit(credit, svcId, docId, paidAmount);
-  await ringOwedCredit(owed, svcId, docId, paidAmount, m.name);
-  if (owedUnverified) await ringUncheckedCredit(svcId, docId, paidAmount);
-  await ringStacked(stacked, svcId, docId, cityPlan ? cityPlan.label : kindPaid, paidAmount);
+  const marked = await markUpgradeCredit(credit, svcId, docId, currency, paidAmount, out);
+  await reportMark(marked, credit, svcId, docId, out);
+  await flagVoidCredit(credit, svcId, docId, paidAmount, out);
+  await ringOwedCredit(owed, svcId, docId, paidAmount, m.name, out);
+  if (owedUnverified) await ringUncheckedCredit(cityKey, kindPaid, svcId, docId, paidAmount, out);
+  await ringStacked(stacked, svcId, docId, cityPlan ? cityPlan.label : kindPaid, paidAmount, out, !!(stacked && upgradeUrl));
 
   const firstName = (m.name || '').split(' ')[0] || 'there';
   try {
@@ -863,7 +951,7 @@ async function handleService(res, session, m, event = null) {
       subheading: m.name || 'New service purchase',
       name: 'Valentino',
       intro: meta.city
-        ? `A paid order from the ${meta.city.label} desk — ${meta.title}. The page promises a message in the desk's first open hour (${meta.city.hoursEn || 'Mon–Fri 09:00–19:00, Rome time'}).${cityStart === '1' ? ' The client asked to start now.' : cityStart === '0' ? ` The client did NOT ask to start now: their withdrawal period runs to the end of ${win.lastLabel}, so the brief and the work begin on ${win.startLabel} (an acknowledgement before then is fine; starting earlier needs their written request).` : ''} The page promised an invoice from Egidi Immobiliare S.r.l., VAT included: issue it.${credit ? ` Upgrade: ${credit.amount ? moneyOf(credit.amount, currency) + ' ' : ''}credited from the ${creditPlanLabel}${credit.file ? ' (file ' + credit.file + ')' : ''}${credit.verified ? '' : credit.voided ? ` — the pack ${credit.voided === 'disputed' ? 'payment is disputed' : 'was refunded'}, so NO credit was due: settle the difference with the client` : ' — the pack could NOT be verified: check the credit by hand'}${credit.statement && credit.verified ? ' — a withdrawal statement is on file for that pack: the credit is now SPENT, count it if you refund the pack' : ''}; invoice what was paid, ${paidAmount}.` : ''}${owed ? owedCreditText(owed, svcId, paidAmount, m.name, true) : owedUnverified ? ` Could NOT read this payer's earlier orders on this desk (the lookup failed): check by hand — same e-mail, same desk — whether a pack credit is owed back on this payment (Terms §12.2)${cityDesk.noStacking === true && kindPaid !== 'full-search' ? ' or a Full Search is already running (Terms §12.5)' : ''}.` : ''}${stacked ? stackedText(stacked, svcId, cityPlan ? cityPlan.label : kindPaid, paidAmount, true) : ''}${cityKey === 'barcelona' ? ' Barcelona: on request the client gets the order, terms and invoice in Catalan or Spanish and the official complaint forms (fulls oficials de reclamació); a complaint is answered within one month.' : ''}`
+        ? `A paid order from the ${meta.city.label} desk — ${meta.title}. The page promises a message in the desk's first open hour (${meta.city.hoursEn || 'Mon–Fri 09:00–19:00, Rome time'}).${cityStart === '1' ? ' The client asked to start now.' : cityStart === '0' ? ` The client did NOT ask to start now: their withdrawal period runs to the end of ${win.lastLabel}, so the brief and the work begin on ${win.startLabel} (an acknowledgement before then is fine; starting earlier needs their written request).` : ''} The page promised an invoice from Egidi Immobiliare S.r.l., VAT included: issue it.${credit ? ` Upgrade: ${credit.amount ? moneyOf(credit.amount, currency) + ' ' : ''}credited from the ${creditPlanLabel}${credit.file ? ' (file ' + credit.file + ')' : ''}${credit.verified ? '' : credit.voided ? ` — the pack ${credit.voided === 'disputed' ? 'payment is disputed' : 'was refunded'}, so NO credit was due: settle the difference with the client` : ' — the pack could NOT be verified: check the credit by hand'}${credit.statement && credit.verified ? ' — a withdrawal statement is on file for that pack: the credit is now SPENT, count it if you refund the pack' : ''}; invoice what was paid, ${paidAmount}.` : ''}${owed ? owedCreditText(owed, svcId, paidAmount, m.name, true) : owedUnverified ? uncheckedText(cityKey, kindPaid, svcId, paidAmount, true) : ''}${stacked ? stackedText(stacked, svcId, cityPlan ? cityPlan.label : kindPaid, paidAmount, true, !!upgradeUrl) : ''}${cityKey === 'barcelona' ? ' Barcelona: on request the client gets the order, terms and invoice in Catalan or Spanish and the official complaint forms (fulls oficials de reclamació); a complaint is answered within one month.' : ''}`
         : `Someone just bought ${meta.title} with one tap. Clock is running — the page promises first contact fast.`,
       card_color: '#D4AF37',
       card_title: meta.title,
@@ -944,7 +1032,7 @@ async function handleService(res, session, m, event = null) {
     try {
       await writeDoc('agentNotifications', 'svc-mail-' + docId, {
         type: 'service.client_email_failed',
-        summary: `📭 ${meta.title}${meta.city ? ' · ' + (meta.city.labelIt || meta.city.label) : ''} — ${paidAmount} PAGATI da ${m.name || email || '?'}, ma l'email di conferma al cliente NON è partita (${clientMail}): mandala a mano${meta.city ? ', col testo del recesso' : ''}.`,
+        summary: `📭 ${meta.title}${meta.city ? ' · ' + (meta.city.labelIt || meta.city.label) : ''} — ${paidAmount} PAGATI da ${m.name || email || '?'}, ma l'email di conferma al cliente NON è partita (${clientMail}): mandala a mano${meta.city ? ', col testo del recesso' : ''}${owedTold ? ` e con la frase sul rimborso di ${moneyOf(owed.amount, owed.currency)} (Termini §12.2: quell'email glielo prometteva)` : ''}.`,
         priority: 'high', status: 'pending', actor: 'stripe-webhook',
         ref: { collection: 'leads', id: svcId },
         dedupKey: 'svc-mail-' + docId, createdAt: new Date().toISOString(), attempts: 0,
@@ -952,9 +1040,11 @@ async function handleService(res, session, m, event = null) {
     } catch (_) {}
   }
 
-  // the order is written and both e-mails are out; a credit mark that failed is the one thing left undone:
-  // 500, so Stripe delivers the event again (the duplicate branch above marks it and says so)
-  return res.status(marked === 'failed' ? 500 : 200).json({ received: true, serviceLeadId: svcId, clientEmail: clientMail === 'sent' ? 'sent' : 'failed', ...(marked === 'failed' ? { error: 'credit_mark_failed' } : {}) });
+  // the order is written and both e-mails are out; a credit mark that failed, or an operator card that could not
+  // be written, is the one thing left undone: 500, so Stripe delivers the event again (the duplicate branch above
+  // marks it, rings from what the order recorded, and says so)
+  const undone = marked === 'failed' ? 'credit_mark_failed' : out.cardFailed ? 'operator_card_failed' : null;
+  return res.status(undone ? 500 : 200).json({ received: true, serviceLeadId: svcId, clientEmail: clientMail === 'sent' ? 'sent' : 'failed', ...(undone ? { error: undone } : {}) });
 }
 
 async function handleReserve(res, session, m) {
@@ -1424,6 +1514,15 @@ async function handleInvoice(res, session, m) {
 // event older than what the order already carries changes nothing, and two
 // events for the same order processed together cannot overwrite each other
 // (the loser reads again and decides again).
+// MONEY THAT GOES BACK BEFORE ITS ORDER IS WRITTEN (the third review): the
+// session is a paid SERVICE one (every such session ends in leads/svc_…) but
+// the lead is not there — its own checkout.session.completed is late (a first
+// delivery that failed and waits for Stripe's retry). That is not "no order":
+// the stamp must land when the order does. `pending` — the caller answers
+// 500 and Stripe delivers the money-back event again. Past ORDER_WAIT_MS
+// (Stripe retries for three days after a session that can stay open for one)
+// the order is not coming: { missing } — the card says so, once.
+const ORDER_WAIT_MS = 96 * 3600 * 1000;
 async function stampOrder(paymentIntent, decide) {
   const pi = String(paymentIntent || '');
   if (!pi) return null;
@@ -1433,7 +1532,15 @@ async function stampOrder(paymentIntent, decide) {
   const id = serviceLeadId(sess.id);
   for (let attempt = 0; attempt < 3; attempt++) {
     const v = await fsGetVersioned('leads/' + id);
-    if (!v || !v.data || v.data.paid !== true) return null;
+    if (!v || !v.data) {
+      const md = sess.metadata && typeof sess.metadata === 'object' ? sess.metadata : {};
+      if (md.service !== 'SERVICE' || (sess.payment_status !== 'paid' && sess.status !== 'complete')) return null;
+      // (a session with no creation time is of unknown age: it waits too — Stripe's own retry limit bounds it)
+      const born = Number(sess.created) > 0 ? Number(sess.created) * 1000 : 0;
+      if (!born || Date.now() - born < ORDER_WAIT_MS) throw Object.assign(new Error('order_not_written'), { pending: true });
+      return { id, missing: true };
+    }
+    if (v.data.paid !== true) return null;
     const d = decide(v.data);
     if (!d.fields) return { id, lead: v.data, ...d.out };
     try {
@@ -1448,15 +1555,18 @@ const isoOf = (epoch) => new Date((Number(epoch) || Math.floor(Date.now() / 1000
 // grows. An event that says less than the order carries is an older one
 // (`stale`); the same amount again is a retry and writes nothing. Returns
 // the order as read before the stamp, with the totals it carries now
-// (`refunded`, `full`).
+// (`refunded`, `full`) and THIS event's own (`ev`): the pack's credit is
+// judged by the event (refundCreditVerdict), so two refunds give the same
+// end state whichever is delivered first.
 export async function stampRefund(charge, createdEpoch) {
   const refunded = Math.round(Number(charge && charge.amount_refunded) || 0) / 100;
   if (!(refunded > 0)) return null;
   const fullNow = (Number(charge.amount_refunded) || 0) >= (Number(charge.amount) || 0);
+  const ev = { refunded, full: fullNow };
   return stampOrder(charge.payment_intent, (lead) => {
     const had = Number(lead.refundedAmount) || 0;
-    if (refunded < had) return { out: { refunded: had, full: lead.refundedFull === true, stale: true } };
-    const out = { refunded, full: fullNow, stale: false };
+    if (refunded < had) return { out: { refunded: had, full: lead.refundedFull === true, stale: true, ev } };
+    const out = { refunded, full: fullNow, stale: false, ev };
     return refunded > had || !lead.refundedAt
       ? { fields: { refundedAt: isoOf(createdEpoch), refundedAmount: refunded, refundedFull: fullNow }, out } : { out };
   });
@@ -1475,7 +1585,7 @@ export async function stampDispute(dispute, type, createdEpoch) {
   return stampOrder(dispute && dispute.payment_intent, (lead) => {
     if (ev < (Number(lead.disputeEventAt) || 0)) return { out: { won, stale: true } };
     const fields = type === 'charge.dispute.created'
-      ? { disputedAt: at, disputeStatus: status || 'open', disputeEventAt: ev }
+      ? { disputedAt: at, disputeStatus: status || 'open', disputeClosedAt: null, disputeEventAt: ev }
       : won ? { disputedAt: null, disputeStatus: status, disputeClosedAt: at, disputeEventAt: ev }
         : { disputeStatus: status || 'closed', disputeClosedAt: at, disputeEventAt: ev, ...(lead.disputedAt ? {} : { disputedAt: at }) };
     return { fields, out: { won, stale: false } };
@@ -1489,39 +1599,31 @@ const orderTag = (ord) => {
 
 // THE OPERATOR'S REFUND IS THE ACT (the other door, api/_upgrade.js). Money
 // going back on an order that a pack holder paid in full (city.creditDue):
-// a PARTIAL refund of at least the pack amount is the credit going back, and
-// the pack's credit is closed here (credit.via 'full-price', usedBy this
-// order) under the version the pack was read at — never over another
-// order's mark, never on a pack whose own money already went back. A refund
-// of the WHOLE order returns everything: nothing was credited, and the pack
-// keeps its credit. Idempotent: it reads the totals the order carries, so a
-// second delivery finds its own mark. Returns the clause for the operator's
-// card (null: the order has no credit owed on it); THROWS when the pack
-// cannot be read or the mark cannot be written — the caller answers 500 and
-// Stripe delivers the refund again.
+// whether it closes the pack's credit, and what the operator reads, is one
+// pure decision (refundCreditVerdict) on THIS event's own totals — a partial
+// refund that reaches the pack amount is the credit going back (with match
+// 'check', only a refund of exactly that amount), a refund of the whole
+// order returns everything and leaves the pack its credit. The mark
+// (credit.via 'full-price', usedBy this order, atRefund = the total at which
+// it closed) is written under the version the pack was read at — never over
+// another order's mark, never on a pack whose own money already went back.
+// Idempotent: a second delivery finds its own mark. Returns the clause for
+// the operator's card (null: the order has no credit owed on it); THROWS
+// when the pack cannot be read or the mark cannot be written — the caller
+// answers 500 and Stripe delivers the refund again.
 async function settleRefundCredit(ord, fmt) {
   const c = ord.lead.city && typeof ord.lead.city === 'object' ? ord.lead.city : null;
   const due = c && c.creditDue && typeof c.creditDue === 'object' && c.creditDue.from ? c.creditDue : null;
   if (!due) return null;
-  const from = String(due.from), amt = Number(due.amount) || 0, back = amt > 0 ? ` (${fmt(amt)})` : '';
+  const from = String(due.from), amt = Number(due.amount) || 0;
+  const ev = ord.ev || { refunded: ord.refunded, full: ord.full };
   for (let attempt = 0; attempt < 3; attempt++) {
     const v = await fsGetVersioned('leads/' + from);
-    if (!v || !v.data) return `su questo ordine era dovuto il rimborso del credito di ${from}${back}, ma quell'ordine non si trova: verifica a mano`;
-    const used = v.data.credit && typeof v.data.credit === 'object' && v.data.credit.usedBy ? String(v.data.credit.usedBy) : null;
-    if (used === ord.id) {
-      return ord.full ? `il credito di ${from}${back} era già stato rimborsato su questo ordine: quel credito resta chiuso`
-        : `il rimborso del credito di ${from}${back} è segnato: il credito di quel pack è chiuso`;
-    }
-    if (ord.full) return `rimborso totale: il credito di ${from}${back} che era dovuto su questo ordine non lo è più${used ? '' : ' — quel pack tiene il suo credito'}`;
-    if (!(amt > 0) || ord.refunded + 0.005 < amt) return `su questo ordine è dovuto il rimborso del credito di ${from}${back}: questo rimborso è inferiore, il credito di quel pack resta aperto`;
-    if (used) return `ATTENZIONE: il credito di ${from} risulta già usato da ${used}: su questo ordine non era più dovuto — se questo rimborso era il credito, è un doppione`;
-    const gone = upgradeVoidReason(v.data);
-    if (gone) {
-      return `ATTENZIONE: il pack ${from} risulta ${gone === 'disputed' ? 'contestato in banca' : 'già rimborsato'}: il suo credito non era più dovuto — se questo rimborso era il credito, ${gone === 'disputed' ? 'verificalo' : 'è un secondo rimborso dello stesso pack'}`;
-    }
+    const verdict = refundCreditVerdict(due, ord.id, ev, v && v.data ? v.data : null, fmt);
+    if (!verdict.close) return verdict.clause;
     try {
-      await fsCommit([{ docPath: 'leads/' + from, fields: { credit: { usedBy: ord.id, usedAt: new Date().toISOString(), amount: amt, currency: String(due.currency || ord.lead.currency || 'eur'), via: 'full-price' } }, precondition: { updateTime: v.updateTime } }]);
-      return `era il rimborso del credito di ${from}${back}: il credito di quel pack è chiuso`;
+      await fsCommit([{ docPath: 'leads/' + from, fields: { credit: { usedBy: ord.id, usedAt: new Date().toISOString(), amount: amt, currency: String(due.currency || ord.lead.currency || 'eur'), via: 'full-price', atRefund: ev.refunded } }, precondition: { updateTime: v.updateTime } }]);
+      return verdict.clause;
     } catch (e) {
       // a conflict: the pack changed between read and write. Anything else: the write may have landed. Read again
       if (!(e && e.conflict)) console.error('[moneyback] credit close:', e && e.message);
@@ -1535,24 +1637,26 @@ async function settleRefundCredit(ord, fmt) {
 // level on that order): nothing more is due there. Returns the ids.
 async function pendingClaimsOn(packId) {
   const rows = await fsList('leads', { filter: { field: 'creditDueFrom', op: 'EQUAL', value: packId }, limit: 10 });
-  return rows.filter((d) => d && d.id && d.paid === true && d.refundedFull !== true).map((d) => String(d.id));
+  return rows.filter(claimWaits).map((d) => String(d.id));
 }
 const isOpenPack = (lead) => {
   const c = lead && lead.city && typeof lead.city === 'object' ? lead.city : null;
   const used = lead && lead.credit && typeof lead.credit === 'object' && lead.credit.usedBy;
   return !!c && !used && Object.prototype.hasOwnProperty.call(UPGRADE_PATHS, String(c.service || lead.kind || ''));
 };
-// the clause about orders waiting for this pack's credit ('' when none); a lookup that fails says so
+// the sentence about orders waiting for this pack's credit ('' when none); a lookup that fails says so
 async function claimsClause(ord, verb) {
   if (!isOpenPack(ord.lead)) return '';
   try {
     const ids = await pendingClaimsOn(ord.id);
-    return ids.length ? `. ATTENZIONE: ${ids.join(', ')} (pagato a prezzo pieno) aspettava il rimborso di questo credito: ${verb}` : '';
+    return ids.length ? `ATTENZIONE: ${ids.join(', ')} (pagato a prezzo pieno) aspettava il rimborso di questo credito: ${verb}` : '';
   } catch (e) {
     console.error('[moneyback] pending claims:', e && e.message);
-    return ' (non ho potuto controllare se un ordine pagato a prezzo pieno aspettava il rimborso di questo credito)';
+    return 'Non ho potuto controllare se un ordine pagato a prezzo pieno aspettava il rimborso di questo credito';
   }
 }
+// two sentences of a card's order line, either of which may be empty
+const sentences = (...parts) => parts.filter(Boolean).join('. ');
 
 async function handleMoneyBack(res, event) {
   const o = event.data.object || {};
@@ -1569,8 +1673,14 @@ async function handleMoneyBack(res, event) {
   // lands; the notification (idempotent) keeps the card from ringing twice
   // and remembers that it failed (stampFailed), so the delivery that
   // finally lands takes it back.
-  let orderLine = '', stamped = null, stampFailed = false;
+  let orderLine = '', stamped = null, stampFailed = false, neverWritten = false;
   const STAMP_FAILED = '\n⚠️ Non sono riuscito a segnare l\'ordine: Stripe riconsegna l\'evento da solo e ti avviso quando è segnato. Fino ad allora, se era un Application Pack, il suo credito di upgrade resta aperto.';
+  // the order of this payment is not written yet (its own "payment completed" event is late): same promise
+  const ORDER_PENDING = '\n⚠️ L\'ordine di questo pagamento non è ancora scritto (la conferma del pagamento è in ritardo): Stripe riconsegna questo evento da solo e ti avviso quando l\'ordine è segnato.';
+  const ORDER_MISSING = (id) => `\n⚠️ Ordine ${id}: questo pagamento era di un ordine dei desk che non è mai stato scritto — niente da segnare: verifica a mano su Stripe.`;
+  const failedLine = (e) => (e && e.pending ? ORDER_PENDING : STAMP_FAILED);
+  // a paid desk session whose order never came: said on the card, and nothing else to do
+  const settleMissing = () => { if (stamped && stamped.missing) { orderLine = ORDER_MISSING(stamped.id); neverWritten = true; stamped = null; } };
   if (event.type === 'charge.refunded') {
     const who = (o.billing_details && (o.billing_details.name || o.billing_details.email)) || '—';
     const full = (o.amount_refunded || 0) >= (o.amount || 0);
@@ -1582,8 +1692,9 @@ async function handleMoneyBack(res, event) {
     } catch (e) {
       console.error('[moneyback] refund stamp:', e && e.message);
       stampFailed = true;
-      orderLine = STAMP_FAILED;
+      orderLine = failedLine(e);
     }
+    settleMissing();
     if (stamped) {
       const fmt = (n) => moneyOf(n, stamped.lead.currency || o.currency);
       const head = `\n${orderTag(stamped)}: ${stamped.stale ? `già segnato rimborsato per ${fmt(stamped.refunded)} (questo evento è precedente)` : 'segnato rimborsato'}`;
@@ -1592,7 +1703,7 @@ async function handleMoneyBack(res, event) {
         let note = await settleRefundCredit(stamped, fmt);
         // what the credit means for this refund (api/_upgrade.js, one copy with /api/withdraw's card), and
         // whether an order paid in full was waiting for the credit of the pack now refunded
-        if (note === null) note = upgradeMoneyBackNote(stamped.lead, fmt) + await claimsClause(stamped, 'ora NON è più dovuto — non rimborsarlo anche là');
+        if (note === null) note = sentences(upgradeMoneyBackNote(stamped.lead, fmt), await claimsClause(stamped, 'ora NON è più dovuto — non rimborsarlo anche là'));
         orderLine = `${head}${note ? ' — ' + note : ''}.`;
       } catch (e) {
         console.error('[moneyback] credit close:', e && e.message);
@@ -1609,6 +1720,7 @@ async function handleMoneyBack(res, event) {
     // from the opening; it comes back only if the dispute is won)
     try {
       stamped = await stampDispute(o, event.type, event.created);
+      settleMissing();
       if (stamped && stamped.stale) {
         orderLine = `\n${orderTag(stamped)}: evento precedente a uno già segnato — nessuna modifica.`;
       } else if (stamped) {
@@ -1619,17 +1731,29 @@ async function handleMoneyBack(res, event) {
         const due = c && c.creditDue && typeof c.creditDue === 'object' && c.creditDue.from ? c.creditDue : null;
         // "worth again" only when the link would really open again (not expired, not refunded meanwhile)
         const again = () => { const x = upgradeOffer({ ...stamped.lead, disputedAt: null }, stamped.id, Date.now()); return x.ok ? 'il credito di upgrade di questo ordine vale di nuovo' : x.state === 'expired' ? 'il credito di upgrade di questo ordine era comunque scaduto' : ''; };
-        const note = used ? upgradeMoneyBackNote(stamped.lead)
-          : due ? (opened ? `su questo ordine era dovuto il rimborso del credito di ${String(due.from)}: non rimborsarlo finché la contestazione non è chiusa` : '')
+        // a dispute that closes says what it leaves behind: won = the money stays with BOOM (a spent credit has
+        // nothing to settle, a credit owed is owed again, an order that waited may be refunded); lost = it went
+        // back through the bank (the pack carries no credit, nothing is owed on an order that waited for it)
+        const lost = !opened && !stamped.won;
+        // (a pack whose credit was closed by a refund on an order paid in full: credit.via 'full-price')
+        const viaFull = !!used && stamped.lead.credit.via === 'full-price';
+        const note = used ? (stamped.won ? `il credito di questo ordine resta ${viaFull ? 'rimborsato su' : 'usato da'} ${String(used)}: niente da regolare`
+          // at the opening nothing is lost yet: what a LOST dispute would mean, said as a condition
+          : opened ? `ATTENZIONE: il credito di questo ordine è già stato ${viaFull ? `rimborsato sull'ordine ${String(used)}` : `usato da ${String(used)}`}: se la contestazione è persa il cliente avrà avuto ${viaFull ? 'due volte lo stesso credito' : 'il credito e il pack indietro'} — ${viaFull ? 'da regolare con lui' : 'la differenza si regola su quell\'ordine'}`
+            : upgradeMoneyBackNote(stamped.lead))
+          : due ? (opened ? `su questo ordine era dovuto il rimborso del credito di ${String(due.from)}: non rimborsarlo finché la contestazione non è chiusa`
+            : stamped.won ? `il rimborso del credito di ${String(due.from)} su questo ordine torna dovuto, se non è già stato fatto`
+              : `la banca ha restituito questo pagamento al cliente: il rimborso del credito di ${String(due.from)} non è più dovuto su questo ordine`)
             : !pack ? ''
-              : stamped.won ? again()
-                : 'il credito di upgrade di questo ordine è sospeso finché la contestazione non è vinta' + (opened ? await claimsClause(stamped, 'non rimborsarlo finché la contestazione non è chiusa') : '');
+              : stamped.won ? sentences(again(), await claimsClause(stamped, 'ora è di nuovo dovuto'))
+                : sentences(lost ? 'contestazione persa: il credito di upgrade di questo ordine non vale più' : 'il credito di upgrade di questo ordine è sospeso finché la contestazione non è vinta',
+                  await claimsClause(stamped, opened ? 'non rimborsarlo finché la contestazione non è chiusa' : 'ora NON è più dovuto — non rimborsarlo'));
         orderLine = `\n${orderTag(stamped)}: ${opened ? 'pagamento contestato' : stamped.won ? 'contestazione vinta' : 'contestazione chiusa'}${note ? ' — ' + note : ''}.`;
       }
     } catch (e) {
       console.error('[moneyback] dispute stamp:', e && e.message);
       stampFailed = true;
-      orderLine = STAMP_FAILED;
+      orderLine = failedLine(e);
     }
     if (event.type === 'charge.dispute.created') {
       priority = 'high';
@@ -1674,8 +1798,10 @@ async function handleMoneyBack(res, event) {
         return res.status(500).json({ received: true, duplicate: true, error: 'notification_read_failed' });
       }
       if (prev && prev.stampFailed === true) {
-        const line = stamped ? orderLine.trim() : 'dietro questo pagamento non c\'è un ordine dei desk da segnare: niente da fare.';
-        const fixed = `✅ ${stamped ? '' : (headLines[0] || 'Evento Stripe') + ' — '}${line} La prima consegna di questo evento non c'era riuscita: ora è a posto.`;
+        const line = stamped || neverWritten ? orderLine.trim() : 'dietro questo pagamento non c\'è un ordine dei desk da segnare: niente da fare.';
+        // (an order that never came is not "all fine": the line itself asks for a check by hand)
+        const fixed = neverWritten ? `${headLines[0] || 'Evento Stripe'} — ${line}`
+          : `✅ ${stamped ? '' : (headLines[0] || 'Evento Stripe') + ' — '}${line} La prima consegna di questo evento non c'era riuscita: ora è a posto.`;
         try { await tgNotify(fixed); } catch (e) { console.error('[moneyback] telegram:', e.message); }
         // …and the stored record stops saying it failed
         try { await fsCommit([{ docPath: 'agentNotifications/' + notifId, fields: { summary: summaryOf(line), stampFailed: false, repairedAt: new Date().toISOString() }, precondition: { exists: true } }]); } catch (e) { console.error('[moneyback] notify repair:', e && e.message); }

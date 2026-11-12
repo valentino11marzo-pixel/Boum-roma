@@ -1271,7 +1271,7 @@ const { termsFingerprint } = await import('../../api/magic-sign/_shared.js');
 }
 
 // ═══ 12. LA PROPOSTA SENZA IMMOBILE COLLEGATO (12/10/2026 — Via dei Latini 76) ═══
-// «Non riesco a inviare a Chiara Tavolieri la scheda per far compilare i suoi
+// «Non riesco a inviare alla proprietaria la scheda per far compilare i suoi
 // dati o il link del Magic Sign». La proposta BOOM-MUCHJ6LC era pagata da
 // venti giorni senza contratto (nessun immobile collegato): la Scheda e i
 // link di firma non esistevano. E il contratto, una volta nato sull'immobile
@@ -1294,7 +1294,7 @@ const { termsFingerprint } = await import('../../api/magic-sign/_shared.js');
   store.set('preAgreements/paLat', paSeed(T_L, {
     propertyId: null, askMandate: true,
     property: { address: 'Via dei Latini 76', type: 'Entire Apartment', condition: 'Furnished', use: 'Residential', floor: '1', unit: '1' },
-    landlord: { name: 'Tavolieri Chiara', email: null, phone: '+39 344 509 7480' },
+    landlord: { name: 'Sample Carla', email: null, phone: '+39 333 000 0101' },
     lease: { startDate: '2046-11-01', months: 3, endDate: '2047-01-30', type: 'Transitional Lease', lawRef: 'x', reason: 'Sapienza' },
   }));
   let r = mkRes();
@@ -1315,7 +1315,7 @@ const { termsFingerprint } = await import('../../api/magic-sign/_shared.js');
     /\/scheda\?t=pa_paLat\.l\./.test(r.body.url || '') && (r.body.message || '').includes(r.body.url) && /^Gentile /.test(r.body.message) && /ci mancano ancora/.test(r.body.message)
     && Array.isArray(r.body.missing) && r.body.missing.length > 0 && r.body.missing.some(m => /fiscale/i.test(m.label)));
   check('… il telefono dalla proposta, nessuna email (quindi nessun invio automatico), nessun mandato armato: è un\'altra domanda',
-    r.body.phone === '+39 344 509 7480' && r.body.email === null && r.body.emailed === false && mails().length === mailsBefore && cL.askLandlordMandate !== true && r.body.locked === false);
+    r.body.phone === '+39 333 000 0101' && r.body.email === null && r.body.emailed === false && mails().length === mailsBefore && cL.askLandlordMandate !== true && r.body.locked === false);
   check('… la proposta riceve il back-link (contractId, propertyId) e il link FIRMA del proprietario per la riga',
     store.get('preAgreements/paLat').contractId === 'pa_paLat' && store.get('preAgreements/paLat').propertyId === 'prop_pa_paLat' && /\/sign\?sign=/.test(store.get('preAgreements/paLat').landlordSignUrl || ''));
   check('IL DIFETTO: il mandato dato sull\'indirizzo resta SPENDIBILE sull\'immobile nato dalla proposta (termsMatch alla conversione, mandateCheck ok)',
@@ -1417,13 +1417,13 @@ const { termsFingerprint } = await import('../../api/magic-sign/_shared.js');
     const grab = (n) => { const m = new RegExp('^    (?:async )?function ' + n + '\\(', 'm').exec(src); const end = src.slice(m.index + 5).search(/\n    (?:async )?function /); return src.slice(m.index, m.index + 5 + end); };
     const modals = { innerHTML: '' };
     const sbx = {
-      S: { profile: { role: 'admin' }, contracts: [{ id: 'pa_X', propertyId: 'prop_pa_X', tenantId: 'tX', landlordName: 'Tavolieri Chiara', landlordPhone: '+39 344 509 7480', landlordEmail: null }],
+      S: { profile: { role: 'admin' }, contracts: [{ id: 'pa_X', propertyId: 'prop_pa_X', tenantId: 'tX', landlordName: 'Sample Carla', landlordPhone: '+39 333 000 0101', landlordEmail: null }],
         properties: [{ id: 'prop_pa_X', name: 'Via dei Latini 76' }], users: [{ id: 'tX', role: 'tenant', name: 'Ahmet Prova', phone: '+905000000001', email: 'ahmet@x.com' }] },
       toast() {}, esc: (v) => String(v == null ? '' : v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])),
       document: { getElementById: () => modals }, auth: { currentUser: { getIdToken: async () => 't' } },
       fetchSignLinks: async () => ({ ok: true, tenant: 'https://www.boomrome.com/sign?sign=T', landlord: 'https://www.boomrome.com/sign?sign=L' }),
       fetch: async () => ({ json: async () => ({ ok: true, tenantUrl: 'https://www.boomrome.com/scheda?t=pa_X.t.a', landlordUrl: 'https://www.boomrome.com/scheda?t=pa_X.l.b',
-        missing: { tenant: [], landlord: [{ key: 'landlordCF', label: 'codice fiscale' }] }, messages: { landlord: 'Gentile Tavolieri,\nci mancano ancora: codice fiscale.\nhttps://www.boomrome.com/scheda?t=pa_X.l.b' } }) }),
+        missing: { tenant: [], landlord: [{ key: 'landlordCF', label: 'codice fiscale' }] }, messages: { landlord: 'Gentile Sample,\nci mancano ancora: codice fiscale.\nhttps://www.boomrome.com/scheda?t=pa_X.l.b' } }) }),
       window: { location: { origin: 'https://www.boomrome.com' } }, encodeURIComponent,
     };
     vm.createContext(sbx);
@@ -1438,7 +1438,7 @@ const { termsFingerprint } = await import('../../api/magic-sign/_shared.js');
     await sbx.window.openShareHub('pa_X');
     check('Share Hub non admin: non offre invito alla dashboard inquilino', !modals.innerHTML.includes('Invita alla dashboard inquilino'));
     check('Share Hub montato: la Scheda della proprietaria SENZA profilo nel portal ha WhatsApp col numero del contratto (prima «Manca il telefono»), nessun accesso al portale inventato',
-      /🏠 LOCATORE[\s\S]*Tavolieri Chiara/.test(html) && /Compila i Suoi dati/.test(ll) && /href="https:\/\/wa\.me\/393445097480\?text=/.test(ll) && !/Accedi al portale proprietari/.test(html));
+      /🏠 LOCATORE[\s\S]*Sample Carla/.test(html) && /Compila i Suoi dati/.test(ll) && /href="https:\/\/wa\.me\/393330000101\?text=/.test(ll) && !/Accedi al portale proprietari/.test(html));
   }
 
   // le giunzioni sulla sorgente

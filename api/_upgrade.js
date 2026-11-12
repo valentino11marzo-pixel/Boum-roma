@@ -46,10 +46,24 @@
 // (credit.via 'full-price'). The client is told in writing only when the
 // phone number is the pack's too (samePhone) and no withdrawal statement is
 // on file for the pack.
+// Which pack: among the open packs under that e-mail, the payer's own (same
+// phone) first (openCreditsFor). A refund on that order closes the pack by
+// the EVENT's own amount, never by the order the events arrive in
+// (refundCreditVerdict); when the phone did not match, only a refund of
+// exactly the pack amount does. What became of a credit owed is derived in
+// one place (creditDueState) from the order and the pack, so the cards, the
+// bot and the withdrawal card cannot say different things. The pack's own
+// state comes first: once its credit is spent, refunded or with the bank, no
+// text says it is "due" or "open". An order paid in full WAITS for a credit
+// (claimWaits) while it is paid, not refunded whole and not given back by the
+// bank: a dispute still open only suspends it.
 // THE SAME LOOKUP, BERLIN'S RULE (fullSearchHeld): on a desk whose terms
 // charge nothing alongside a Full Search (§12.5), a pack or a viewing paid by
-// someone who already holds one is recorded on the order (city.stackedOn) and
-// rung to the operator, who refunds it if that search is still running.
+// someone who already holds one — paid by card, or booked at signing on 5–6
+// November 2026 — is recorded on the order (city.stackedOn) and rung to the
+// operator, who refunds it if that search is still running. With only the
+// e-mail in common (match 'check') the buyer may be another person: that pack
+// keeps the link the page promises, and the bot says what to verify first.
 
 import { CITY_MARKETS, CITY_PLANS, cityOffer } from './_market.js';
 
@@ -105,6 +119,9 @@ export function upgradeVoidReason(lead) {
  * back (a refund on Stripe, a withdrawal statement): one Italian clause, or ''
  * when the order has nothing to do with the credit. One copy, read by the
  * Stripe webhook (charge.refunded) and by /api/withdraw's card.
+ * opts: { statement: a withdrawal statement, not a refund; pack: the lead of
+ * the pack an order paid in full names (creditDue.from) as read now; id: the
+ * order's own id when the lead does not carry it }.
  *  - a pack whose credit was ALREADY used: the client has had the credit and
  *    now gets the pack back too — the difference is settled on the upgrade
  *    (when it was closed by a refund on an order paid in full, this is a
@@ -124,9 +141,12 @@ export function upgradeMoneyBackNote(lead, fmt = (n) => String(n), opts = {}) {
   // order (the mark is written when that refund is stamped) — money for the pack going back now is a second refund
   if (used && lead.credit.via === 'full-price') return `ATTENZIONE: il credito di questo ordine è già stato rimborsato sull'ordine ${used}, pagato a prezzo pieno: un rimborso di questo pack è un secondo rimborso dello stesso credito`;
   if (used) return `ATTENZIONE: il credito di upgrade di questo ordine è già stato usato da ${used} — il cliente ha già avuto il credito: regola la differenza su quell'ordine`;
-  // paid in full by someone who held an open pack credit: the pack amount is owed back on THIS order
-  const due = c.creditDue && typeof c.creditDue === 'object' && c.creditDue.from ? c.creditDue : null;
-  if (due) return `su questo ordine è dovuto il rimborso del credito di ${String(due.from)}${Number(due.amount) > 0 ? ` (${fmt(Number(due.amount))})` : ''}${lead.refundedAt ? ': un rimborso è già segnato su questo ordine' : ''}`;
+  // paid in full by someone who held an open pack credit: what became of the pack amount owed back on THIS order
+  // (opts.pack = the pack's lead as read now; undefined = the caller could not read it)
+  if (c.creditDue && typeof c.creditDue === 'object' && c.creditDue.from) return creditDueClause(lead, opts.pack, fmt, opts.id);
+  // the lookup of the payer's earlier orders had failed at the payment: nobody knows whether a credit was owed here
+  // (only on the plan a pack leads to: no other payment can owe a credit back)
+  if (c.creditUnverified === true && Object.values(UPGRADE_PATHS).includes(String(c.service || lead.kind || ''))) return 'al pagamento di questo ordine non avevo potuto leggere gli ordini precedenti di chi paga: se un rimborso su questo ordine è il credito di un pack, quel credito NON si chiude da solo (non so quale pack sia)';
   const paidWith = c.credit && typeof c.credit === 'object' && c.credit.from ? c.credit : null;
   if (paidWith) return `ordine pagato col credito di ${String(paidWith.from)}${Number(paidWith.amount) > 0 ? ` (${fmt(Number(paidWith.amount))})` : ''}: il rimborso si calcola su quanto pagato per QUESTO ordine (Termini §12.2)`;
   const from = String(c.service || lead.kind || '');
@@ -142,34 +162,190 @@ export function upgradeMoneyBackNote(lead, fmt = (n) => String(n), opts = {}) {
  * whose credit is open now. Pure. Returns { id, offer } or null.
  */
 export function openCreditFor(orders, cityKey, kind, nowMs) {
+  return openCreditsFor(orders, cityKey, kind, nowMs)[0] || null;
+}
+/**
+ * EVERY open credit under those orders for `kind` on this desk, the oldest
+ * payment first (then by id: the answer never depends on the order Firestore
+ * lists them in). One address can hold more than one pack — a couple, a
+ * relocation office — and the payer's own is the one whose phone matches.
+ */
+export function openCreditsFor(orders, cityKey, kind, nowMs) {
+  const out = [];
   for (const d of Array.isArray(orders) ? orders : []) {
     if (!d || !isUpgradeLeadId(d.id)) continue;
     const o = upgradeOffer(d, d.id, nowMs);
-    if (o.ok && o.city === cityKey && o.to === kind) return { id: String(d.id), offer: o };
+    if (o.ok && o.city === cityKey && o.to === kind) out.push({ id: String(d.id), offer: o, phone: String(d.phone || ''), name: String(d.name || '') });
   }
-  return null;
+  return out.sort((a, b) => (a.offer.paidAt < b.offer.paidAt ? -1 : a.offer.paidAt > b.offer.paidAt ? 1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }
 
 /**
- * A desk whose terms charge nothing alongside a Full Search (Berlin, Terms
- * §12.5 — the registry's noStacking): the paid Full Search this payer already
- * holds there, among their own earlier orders, when the plan now paid is
- * anything else. Pure. Returns { id, file, phone } or null. Whether that
- * search is still RUNNING is not in the data: the operator judges.
+ * An order paid in full that still WAITS for the refund of a pack's credit
+ * (creditDueFrom on it): paid, not refunded whole, its payment not given back
+ * to the payer by the bank. A dispute that is still OPEN only suspends that
+ * refund (won, it is due again): the order keeps waiting and the pack's link
+ * stays withheld meanwhile. Lost = disputedAt with disputeClosedAt.
  */
-export function fullSearchHeld(orders, cityKey, kind) {
+export const claimWaits = (d) => !!(d && d.id && d.paid === true && d.refundedFull !== true && !(d.disputedAt && d.disputeClosedAt));
+
+/**
+ * What became of the credit an order paid in full owes back (city.creditDue).
+ * Pure: the order, and the pack it names as read NOW (`null` = that lead is
+ * not there; `undefined` = the caller did not or could not read it).
+ *  'due'            still owed on this order
+ *  'refunded'       closed by a refund on THIS order (the pack carries its mark)
+ *  'order-refunded' the whole order went back: nothing was credited
+ *  'order-disputed' the bank holds this order's payment; 'order-lost': it gave it back to the payer
+ *  'pack-used'      the pack's credit was spent by another order
+ *  'pack-refunded' / 'pack-disputed' / 'pack-lost'  the pack's own money went back / is with the bank / was
+ *                   given back by the bank (a dispute closed and not won keeps disputedAt, with disputeClosedAt)
+ *  'pack-missing' / 'unknown'
+ * Returns null when the order owes no credit.
+ */
+export function creditDueState(order, pack, orderId) {
+  const c = order && order.city && typeof order.city === 'object' ? order.city : null;
+  const due = c && c.creditDue && typeof c.creditDue === 'object' && c.creditDue.from ? c.creditDue : null;
+  if (!due) return null;
+  // the order's own id: a lead read with fsGet does not carry it, so the caller may pass it
+  const oid = String(orderId || order.id || '');
+  const used = pack && pack.credit && typeof pack.credit === 'object' && pack.credit.usedBy ? String(pack.credit.usedBy) : null;
+  if (used && oid && used === oid) return 'refunded';
+  if (order.refundedFull === true) return 'order-refunded';
+  if (order.disputedAt) return order.disputeClosedAt ? 'order-lost' : 'order-disputed';
+  if (pack === undefined) return 'unknown';
+  if (pack === null) return 'pack-missing';
+  if (used) return 'pack-used';
+  const gone = upgradeVoidReason(pack);
+  if (gone) return gone === 'disputed' ? (pack.disputeClosedAt ? 'pack-lost' : 'pack-disputed') : 'pack-refunded';
+  return 'due';
+}
+/** The operator's clause (Italian) for an order that owes — or owed — a pack's credit back: one copy for every card and for the bot. */
+export function creditDueClause(order, pack, fmt = (n) => String(n), orderId) {
+  const state = creditDueState(order, pack, orderId);
+  if (!state) return '';
+  const due = order.city.creditDue, from = String(due.from), amt = Number(due.amount) || 0;
+  const back = amt > 0 ? ` (${fmt(amt)})` : '';
+  const used = pack && pack.credit && typeof pack.credit === 'object' && pack.credit.usedBy ? String(pack.credit.usedBy) : '';
+  switch (state) {
+    case 'refunded': return `il credito di ${from}${back} è già stato rimborsato su questo ordine: per quel credito non è dovuto altro`;
+    case 'order-refunded': return `questo ordine è stato rimborsato per intero: il rimborso del credito di ${from}${back} non è più dovuto`;
+    case 'order-disputed': return `il pagamento di questo ordine è contestato in banca: il rimborso del credito di ${from}${back} resta sospeso`;
+    case 'order-lost': return `la banca ha restituito il pagamento di questo ordine al cliente (contestazione persa): il rimborso del credito di ${from}${back} non è più dovuto`;
+    case 'pack-used': return `il credito di ${from}${back} risulta usato dall'ordine ${used}: su questo ordine non è più dovuto`;
+    case 'pack-refunded': return `il pack ${from} è stato rimborsato: il suo credito${back} non è più dovuto su questo ordine`;
+    case 'pack-disputed': return `il pagamento del pack ${from} è contestato in banca: il rimborso del suo credito${back} resta sospeso`;
+    case 'pack-lost': return `la banca ha restituito il pagamento del pack ${from} al cliente (contestazione persa): il suo credito${back} non è più dovuto su questo ordine`;
+    case 'pack-missing': return `su questo ordine era dovuto il rimborso del credito di ${from}${back}, ma quell'ordine non si trova: verifica a mano`;
+    default: {
+      const already = Number(order.refundedAmount) > 0 ? ` — su questo ordine sono già segnati ${fmt(Number(order.refundedAmount))} di rimborso, che non hanno chiuso quel credito` : '';
+      const head = due.match === 'same'
+        ? `su questo ordine è dovuto il rimborso del credito di ${from}${back}`
+        : `su questo ordine potrebbe essere dovuto il rimborso del credito di ${from}${back}: al pagamento il telefono non coincideva con quello del pack — verifica che sia la stessa persona`;
+      return head + (due.statement === true ? ' — su quel pack c\'era una dichiarazione di recesso: un rimborso solo, non due' : '') + already
+        + (state === 'unknown' ? ' (non ho potuto rileggere quel pack: verifica che non sia già stato rimborsato o usato)' : '');
+    }
+  }
+}
+
+/**
+ * A refund stamped on an order paid in full by a pack holder (creditDue):
+ * does it close the pack's credit, and what does the operator read? Pure.
+ * `ev` = THIS event's own totals — { refunded: Stripe's cumulative amount for
+ * the charge, full: whether that is the whole charge } — never the totals the
+ * order carries after other events: the answer must not depend on the order
+ * the events arrive in. `pack` = the pack's lead as read now (null: gone).
+ *  - a refund of the whole order returns everything: nothing was credited;
+ *  - a partial refund that reaches the pack amount is the credit going back
+ *    and closes the pack — when the phone did not match at the payment
+ *    (match 'check') only a refund of EXACTLY the pack amount does: any other
+ *    figure may be the payer's own business (a withdrawal), and the pack may
+ *    be someone else's;
+ *  - never over another order's mark, never on a pack whose money went back:
+ *    the PACK's own state is read first — once its credit is spent, refunded
+ *    or with the bank, nothing is owed on this order whatever the refund is,
+ *    and no sentence says the credit is "due" or "open";
+ *  - a refund that comes after the credit was closed here says so;
+ *  - what the pack keeps after a refund of the whole order is said as it is
+ *    at `nowMs` (still open until its date, or expired).
+ * Returns { close: boolean, clause: string }; with close, the caller writes
+ * credit { usedBy: orderId, via: 'full-price', atRefund: ev.refunded }.
+ */
+export function refundCreditVerdict(due, orderId, ev, pack, fmt = (n) => String(n), nowMs = Date.now()) {
+  const from = String(due.from), amt = Number(due.amount) || 0, back = amt > 0 ? ` (${fmt(amt)})` : '';
+  const total = Number(ev && ev.refunded) || 0, whole = !!(ev && ev.full);
+  if (!pack) return { close: false, clause: `su questo ordine era dovuto il rimborso del credito di ${from}${back}, ma quell'ordine non si trova: verifica a mano` };
+  const credit = pack.credit && typeof pack.credit === 'object' ? pack.credit : null;
+  const used = credit && credit.usedBy ? String(credit.usedBy) : null;
+  if (used === String(orderId)) {
+    const at = Number(credit.atRefund) || 0;
+    if (whole) return { close: false, clause: `il credito di ${from}${back} era già stato rimborsato su questo ordine: quel credito resta chiuso` };
+    if (at > 0 && total > at + 0.005) return { close: false, clause: `ATTENZIONE: il credito di ${from}${back} era già stato rimborsato su questo ordine (quando il totale rimborsato era ${fmt(at)}): questo è un rimborso in più, totale ${fmt(total)}` };
+    return { close: false, clause: `il rimborso del credito di ${from}${back} è segnato: il credito di quel pack è chiuso` };
+  }
+  const sure = due.match === 'same';
+  const reaches = amt > 0 && total + 0.005 >= amt;
+  // the pack carries no credit any more for a reason of its own (spent through the link, refunded, with the bank)
+  const gone = used ? null : upgradeVoidReason(pack);
+  if (used || gone) {
+    const held = gone === 'disputed' && !pack.disputeClosedAt; // a dispute still open: suspended, not over
+    const why = used ? `già usato da ${used}` : held ? 'pack contestato in banca' : gone === 'disputed' ? 'la banca ha restituito il pack al cliente' : 'pack già rimborsato';
+    if (whole) return { close: false, clause: `rimborso totale: il credito di ${from}${back} che era dovuto su questo ordine non lo è più (${why})` };
+    if (!reaches) return { close: false, clause: `il rimborso del credito di ${from}${back} ${held ? 'è sospeso' : 'non è più dovuto su questo ordine'} (${why}): questo rimborso non lo riguarda` };
+    return { close: false, clause: used
+      ? `ATTENZIONE: il credito di ${from} risulta già usato da ${used}: su questo ordine non era più dovuto — se questo rimborso era il credito, è un doppione`
+      : `ATTENZIONE: il pack ${from} risulta ${held ? 'contestato in banca' : gone === 'disputed' ? 'restituito dalla banca al cliente' : 'già rimborsato'}: il suo credito non era più dovuto — se questo rimborso era il credito, ${held ? 'verificalo' : 'è un secondo rimborso dello stesso pack'}` };
+  }
+  if (whole) return { close: false, clause: `rimborso totale: il credito di ${from}${back} che era dovuto su questo ordine non lo è più — ${packCreditPhrase(pack, from, nowMs)}` };
+  if (!reaches) {
+    return { close: false, clause: `su questo ordine ${sure ? 'è' : 'potrebbe essere'} dovuto il rimborso del credito di ${from}${back}: questo rimborso è inferiore e non lo chiude` };
+  }
+  if (!sure && Math.abs(total - amt) > 0.005) {
+    return { close: false, clause: `su questo ordine il credito di ${from}${back} era da verificare (al pagamento il telefono non coincideva): questo rimborso, ${fmt(total)} in tutto, non è della cifra del credito, quindi NON chiudo il credito di quel pack — se era il rimborso del credito, il link di upgrade di quel pack resta aperto` };
+  }
+  return { close: true, clause: `era il rimborso del credito di ${from}${back}: il credito di quel pack è chiuso` };
+}
+
+/** What a pack whose credit this refund did NOT close still carries, as it is at `nowMs` (one Italian phrase). */
+function packCreditPhrase(pack, from, nowMs) {
+  const o = upgradeOffer(pack, from, nowMs);
+  if (o.ok) return `quel pack tiene il suo credito${o.expiresAt ? ` (fino al ${dmyRome(o.expiresAt)})` : ''}`;
+  if (o.state === 'expired') return `il credito di quel pack è scaduto il ${dmyRome(o.expiresAt)}`;
+  return 'quel pack non ha più un credito da usare';
+}
+
+// leads/book_<requestId>: an order taken at signing (api/_cityorder.js)
+const BOOKED_RE = /^book_[A-Za-z0-9_]{6,60}$/;
+/**
+ * A desk whose terms charge nothing alongside a Full Search (Berlin, Terms
+ * §12.5 — the registry's noStacking): the Full Search this payer already
+ * holds there, among their own earlier orders, when the plan now paid is
+ * anything else. Two kinds count: one paid by card (not refunded whole, not
+ * with the bank) and one booked at signing — the orders of 5–6 November 2026
+ * keep the terms they were placed under — until it is withdrawn, closed or
+ * ended by a signing. Among several, the payer's own (same phone) comes
+ * first. Pure. Returns { id, file, phone } or null. Whether a search paid by
+ * card is still RUNNING is not in the data: the operator judges.
+ */
+export function fullSearchHeld(orders, cityKey, kind, phone = '') {
   const k = String(cityKey || '').toLowerCase();
   const desk = Object.prototype.hasOwnProperty.call(CITY_MARKETS, k) ? CITY_MARKETS[k] : null;
   if (!desk || desk.noStacking !== true || !kind || String(kind) === 'full-search') return null;
+  let first = null;
   for (const d of Array.isArray(orders) ? orders : []) {
     const c = d && d.city && typeof d.city === 'object' ? d.city : null;
-    if (!c || !isUpgradeLeadId(d.id) || d.market !== k || d.intent !== 'city_order' || d.paid !== true || c.paid !== true) continue;
-    if (String(c.service || d.kind || '') !== 'full-search') continue;
+    if (!c || d.market !== k || String(c.service || d.kind || '') !== 'full-search') continue;
     // money that went back in full, or that the bank is taking back, is not a Full Search the client holds
-    if (d.refundedFull === true || d.disputedAt) continue;
-    return { id: String(d.id), file: typeof c.file === 'string' ? c.file : null, phone: String(d.phone || '') };
+    const card = isUpgradeLeadId(d.id) && d.intent === 'city_order' && d.paid === true && c.paid === true && d.refundedFull !== true && !d.disputedAt;
+    const sg = d.signing && typeof d.signing === 'object' ? String(d.signing.status || '') : '';
+    const booked = BOOKED_RE.test(String(d.id || '')) && d.intent === 'city_booking' && d.booked === true && d.paid !== true
+      && !d.withdrawnAt && !d.closedAt && sg !== 'invoiced' && sg !== 'no_fee';
+    if (!card && !booked) continue;
+    const hit = { id: String(d.id), file: typeof c.file === 'string' ? c.file : null, phone: String(d.phone || '') };
+    if (samePhone(hit.phone, phone)) return hit;
+    if (!first) first = hit;
   }
-  return null;
+  return first;
 }
 
 /** The same phone in two spellings (E.164 against a national form): the last nine digits agree. */
@@ -201,6 +377,13 @@ const round2 = (n) => Math.round(n * 100) / 100;
 // Rome calendar parts of an instant (the desks' clock; no tz library)
 const ROME = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Rome', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
 const romeParts = (ms) => Object.fromEntries(ROME.formatToParts(new Date(ms)).filter((x) => x.type !== 'literal').map((x) => [x.type, Number(x.value)]));
+// dd/mm/yyyy of an instant on the Rome calendar, built from the parts (no locale data: the order never flips)
+const dmyRome = (iso) => {
+  const t = Date.parse(String(iso || ''));
+  if (!Number.isFinite(t)) return '—';
+  const p = romeParts(t);
+  return `${String(p.day).padStart(2, '0')}/${String(p.month).padStart(2, '0')}/${p.year}`;
+};
 /**
  * The last instant a credit can be used: the END of the Rome calendar day
  * `days` days after the day of payment (the day of payment does not count,
