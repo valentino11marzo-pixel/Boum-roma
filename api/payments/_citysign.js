@@ -1,5 +1,6 @@
 // api/payments/_citysign.js — THE CHARGE AT SIGNING of a desk that books
-// orders (Paris and Berlin from the v1.8 flip; spec §6, D1 D3 D4 D7 D15 D16).
+// orders (Paris and Berlin, the orders booked between the v1.8 flip of
+// 05/11 and the card flip of 06/11/2026; spec §6, D1 D3 D4 D7 D15 D16).
 //
 // The order (api/_cityorder.js) took no money and no card: the fee becomes
 // due only when a lease is signed, and only for the home the fare names. The
@@ -31,7 +32,7 @@ import crypto from 'node:crypto';
 import { fsGet, fsGetVersioned, fsCommit, fsCreate, fsList, logActivity } from '../homie/_lib.js';
 import { sendEmail } from '../agent/_lib.js';
 import { shell, para, fine, btn, hero } from '../preagreement/_notify.js';
-import { CITY_MARKETS, CITY_PLANS, chargeAtOf, cityMarketOf } from '../_market.js';
+import { CITY_MARKETS, CITY_PLANS, cityMarketOf, orderChargeAt } from '../_market.js';
 import { payLink, orderToken } from './_token.js';
 
 export const PLAN_CODE = Object.freeze({ 'full-search': 'FS', 'application-pack': 'AP', 'attended-viewing': 'AV' });
@@ -117,7 +118,9 @@ function capped(promise, ms) {
 export function signingFee(cityKey, plan, facts = {}) {
   const k = String(cityKey || '').toLowerCase().trim();
   const desk = own(CITY_MARKETS, k);
-  if (!desk || chargeAtOf(k) !== 'signing') return { ok: false, error: 'not_signing_desk' };
+  // the desk's order book (`order`), not its mode today: an order booked at
+  // signing is invoiced at signing after the desk moved to the card (06/11)
+  if (!desk || !desk.order) return { ok: false, error: 'not_signing_desk' };
   const p = own(CITY_PLANS, String(plan || ''));
   if (!p || !own(PLAN_CODE, plan)) return { ok: false, error: 'unknown_plan' };
   const list = Number(p.eur);
@@ -180,7 +183,7 @@ const refuse = (kind, gate, why) => ({ ok: false, kind, gate, why });
 /** Is this lead an order of a desk that charges at signing? */
 export function isSigningOrder(l) {
   const k = cityMarketOf(obj(l));
-  return !!l && /^book_/.test(String(l.id || '')) && l.booked === true && !!k && chargeAtOf(k) === 'signing';
+  return !!l && /^book_/.test(String(l.id || '')) && l.booked === true && !!k && orderChargeAt(l) === 'signing';
 }
 
 /**

@@ -741,7 +741,7 @@ dialog.till::backdrop{background:rgba(0,0,0,.74);-webkit-backdrop-filter:blur(6p
 .t-price span{display:block;margin-top:5px;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--t3)}
 .t-tag{margin-top:4px;font-size:14px;color:var(--t3)}
 .t-inc{margin-top:12px;padding-top:10px;border-top:1px solid var(--line)}
-.t-opt,.t-order{margin-top:10px;font-size:13.5px;color:var(--t2)}
+.t-opt,.t-order,.t-up{margin-top:10px;font-size:13.5px;color:var(--t2)}
 .till .fld:has(>#tName)::before{content:'';display:block;height:10px;margin:6px -20px 16px;background:var(--hole);background-size:11px 10px;background-repeat:repeat-x;background-position:center}
 .tick{display:grid;grid-template-columns:24px minmax(0,1fr);gap:12px;align-items:start;margin-top:16px;padding:12px 14px;border:1px solid var(--line);border-radius:14px;
   cursor:pointer;font-size:13.5px;line-height:1.45;color:var(--t2);transition:border-color .2s,background .2s}

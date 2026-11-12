@@ -10,10 +10,10 @@
   "live": true,
   "mode": "search",
   "config": {},
-  "updated": "2026-11-04",
+  "updated": "2026-11-12",
   "meta": {
     "title": "Tenant-side rental agent for expats in Madrid — BOOM",
-    "description": "Apartment search for expats in Madrid, tenant side only: a Spanish-format file, applications sent as listings appear, viewings attended, contract checked.",
+    "description": "Apartment search (alquiler de pisos) in English for expats in Madrid, tenant side only: Spanish-format file, applications, viewings attended, lease checked.",
     "ogTitle": "BOOM Madrid — an agent on your side of the table",
     "ogDescription": "Tenant-side rental search for expats and internationals moving to Madrid. Spanish-format file within one working day of your papers, applications sent as listings appear, attended viewings, contract checked. Flat fees, paid by you — never by landlords."
   },
@@ -166,7 +166,7 @@
     "tail": "The rest we go through on the free call."
   },
   "faq": {
-    "h2": "Questions.",
+    "h2": "Questions about renting in Madrid.",
     "items": [
       {
         "q": "Isn't it the landlord who pays the agent in Spain now?",
@@ -175,6 +175,10 @@
       {
         "q": "What happens on the free call?",
         "a": "A call with Valentino, by phone or WhatsApp, at a time that suits you both. We hear your dates, budget and who is moving, say which service fits, or that none does, and which papers you are missing. Nothing is charged for the call. Full Search is refunded in full if we decline the search in the first call."
+      },
+      {
+        "q": "Can I rent in Madrid without a NIE?",
+        "a": "Yes, you can apply: landlords ask for a passport or a NIE. What weighs more is the rest of the file: contract, recent payslips and often a guarantee. Application Pack sets that income and guarantor strategy; the free call says which papers you are missing. No landlord is obliged to accept a file."
       },
       {
         "q": "How do I avoid a rental scam in Madrid from abroad?",
@@ -216,7 +220,8 @@
       },
       {
         "dt": "Reply time",
-        "ddHtml": "The same working day."
+        "ddHtml": "The same working day.",
+        "hours": true
       },
       {
         "dt": "Contact",

@@ -110,6 +110,7 @@ import { CITY_MARKETS } from './api/_market.js';
 // v1.8: the order terms of the desks that charge at signing — the page posts their version, the server
 // refuses an older one with 409 terms_changed (ORDER_TERMS_V in the page config)
 import { ORDER_TERMS } from './api/_cityterms.js';
+import { upgradePathsOf, upgradeLine, upgradeFact, upgradeDaysOf, upgradeTillHint, upgradeHubLine } from './api/_upgrade.js';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 // The model withdrawal form (Directive 2011/83/EU Annex I(B)), linked from the
@@ -785,7 +786,41 @@ export function feesRowOf(c, shared, extra = '') {
   const cur = currencyOf(c.slug);
   return plans.map((p) => `<b>${esc(p.label)} ${money(p.price, cur)}</b>${p.unit ? ' ' + esc(p.unit) : ''}${same ? '' : ` (${esc(p.conditionLong)})`}`).join(' · ')
     + '.' + (same ? ' ' + esc(plans[0].conditionLong) : '') + (extra ? ' ' + extra : '')
-    + (c.checkout === true ? ' ' + esc(ruleOf(c, shared)) : '');
+    + (c.checkout === true ? ' ' + esc(ruleOf(c, shared)) : '')
+    + upgradesOf(c).map((u) => ' ' + esc(upgradeFact(u.fromLabel, u.toLabel, u.days))).join('');
+}
+// THE UPGRADE CREDIT (api/_upgrade.js — a policy since 12/11/2026): on a desk
+// that takes the card at the order, a paid Application Pack is credited in
+// full towards Full Search — for UPGRADE_DAYS, or with no deadline where the
+// server gives none (upgradeDaysOf: Berlin). DERIVED from the server's own
+// paths, window and words, never typed per desk: the ticket of the plan that
+// can be upgraded says it (its ✓ line), the fact sheet's Fees row and that
+// plan's Offer say it with the door that applies it (the personal link), and
+// the till of the plan the credit leads to points a pack holder to that link
+// (upgradeTillHint) — the page's own till charges the list price. A desk that
+// charges at signing, or is still opening, takes nothing at the order: no
+// credit exists there and the sentences are refused.
+export const upgradesOf = (c) => (c && c.checkout === true && c.mode !== 'waitlist' && !isSigning(c)
+  ? upgradePathsOf(list(c, 'pricing.plans')).map((u) => ({ ...u, days: upgradeDaysOf(c.slug) })) : []);
+// The fact sheet's withdrawal row (audit, 06/11): the 14 days were said only
+// inside the till, to whoever opened it; "can I cancel after paying?" is
+// asked before. DERIVED from the desk's mode, never typed per desk: the six
+// count from payment, Paris and Berlin from the order and take nothing before
+// the lease. Same three ways as the till ({online}, email, model form); no
+// tick to speak of here, so "without the tick" becomes "if you did not".
+// Terms §12.4, word for word: the right ends once the service is fully
+// performed (CRD art. 16(a); UK CCR 2013 reg. 36) — the start-now tick says it
+// at the till, the fact sheet says it too (review, 06/11)
+export const WITHDRAW_END = 'Once the service is fully performed, the right to withdraw ends.';
+export function withdrawalRowOf(c, contact) {
+  if (c.checkout !== true) return '';
+  const desk = encodeURIComponent(c.city);
+  const ways = `withdraw <a class="lnk" href="${WITHDRAWAL_PATH}?desk=${desk}#online">online</a>, by email to `
+    + `<a class="lnk" href="mailto:${esc(contact.email)}">${esc(contact.email)}</a> or with the `
+    + `<a class="lnk" href="${WITHDRAWAL_PATH}?desk=${desk}">model withdrawal form</a>.`;
+  return isSigning(c)
+    ? `<b>14 days from your order</b>: ${ways} Nothing is charged before you sign a lease, so withdrawing before then costs nothing. Unless you ask us to start sooner, we start when the 14 days end. ${WITHDRAW_END}`
+    : `<b>14 days from payment</b>: ${ways} If you asked us to start and then withdraw, we refund the price minus the work already done. If you did not, we start when the 14 days end. ${WITHDRAW_END}`;
 }
 
 // The calendar a desk's window reads: the webhook's own key (CITY_MARKETS
@@ -905,8 +940,11 @@ const R = {
     const signing = isSigning(c);
     const rule = esc(ruleOf(c, shared));
     const cur = currencyOf(c.slug);
+    // the upgrade credit: the ✓ line of the plan that can be upgraded (api/_upgrade.js)
+    const ups = upgradesOf(c);
     const rows = list(c, 'pricing.plans').map((p) => {
       const first = p.id === 'full-search', fs0 = sell && first;
+      const up = ups.find((u) => u.from === p.id);
       const cond = esc(p.condition).replace(' · incl. VAT', ' ·<br> incl. VAT');
       const c3 = condThree(p);  // a three-part condition breaks after its first part in the closed pair (boom-city.css)
       return [
@@ -919,7 +957,7 @@ const R = {
         '          <div class="tk">',
         first ? '' : `            <p class="tk-tag">${esc(p.name)}</p>`,
         `            <ul class="tk-inc">${p.includes.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>`,
-        signing ? `            <p class="refund">${esc(p.trigger)}</p>` : fs0 ? `            <p class="refund">${rule}</p>` : '',
+        signing ? `            <p class="refund">${esc(p.trigger)}</p>` : fs0 ? `            <p class="refund">${rule}</p>` : up ? `            <p class="refund">${esc(upgradeLine(up.toLabel, up.days))}</p>` : '',
         '            <div class="tk-stub">',
         '            <div class="tk-slot" data-slot></div>',
         '            <i class="bars" aria-hidden="true"></i>',
@@ -1205,16 +1243,23 @@ const R = {
   // The fact sheet: the fees row is DERIVED from the plans (with each plan's
   // own condition and, on a sell desk, the refund rule) and the contact row
   // from _shared.json, so the quotable ledger cannot drift from the page.
-  bref: (c, shared, pageUrl, contact = shared.contact) => list(c, 'bref.rows').map((r) => {
+  // A desk that sells adds the Withdrawal row right after the fees: the
+  // money, then how to take it back (withdrawalRowOf).
+  bref: (c, shared, pageUrl, contact = shared.contact) => list(c, 'bref.rows').flatMap((r) => {
     let dd = r.ddHtml || '';
     if (r.fees) dd = feesRowOf(c, shared, dd);
+    // the reply promise names the clock it runs on, from desk.hours (never
+    // typed in the JSON: "the same working day" said nothing of whose day)
+    if (r.hours) dd = `${dd.replace(/\.\s*$/, '')} (desk hours: ${esc(deskHoursText(c.desk))}).`;
     if (r.contact) {
       const k = contact;
       dd = `<a class="lnk" href="mailto:${esc(k.email)}">${esc(k.email)}</a> · <a class="lnk" href="${esc(waHref(k, c.city))}">WhatsApp ${esc(k.phoneDisplay)}</a>`
         + ` · <a class="lnk" href="${esc(pageUrl)}">${esc(pageUrl.replace(/^https:\/\/(www\.)?/, ''))}</a>`;
     }
     need(dd, `cities/${c.slug}.json`, `bref row "${r.dt}" has no content`);
-    return `          <dt>${esc(r.dt)}</dt><dd>${dd}</dd>`;
+    const row = `          <dt>${esc(r.dt)}</dt><dd>${dd}</dd>`;
+    const wd = r.fees ? withdrawalRowOf(c, contact) : '';
+    return wd ? [row, `          <dt>Withdrawal</dt><dd>${wd}</dd>`] : [row];
   }).join('\n'),
 
   // §D THE FOOTER: the statement under the mark, then three columns — this
@@ -1272,6 +1317,8 @@ const R = {
       '    <p class="t-tag" id="tTag"></p>',
       '    <ul class="t-inc" id="tInc"></ul>',
       `    <p class="refund" id="tRule" hidden>${esc(signing ? list(c, 'pricing.plans')[0].trigger : ruleOf(c, shared))}</p>`,
+      // a pack holder who opens the till of the plan a credit leads to: the door that applies it (boom-city.js shows it on that plan only)
+      ...upgradesOf(c).slice(0, 1).map((u) => `    <p class="t-up" id="tUp" hidden>${esc(upgradeTillHint(u.fromLabel))}</p>`),
       signing ? `    <p class="t-order" id="tOrder">${esc(k.order)}</p>` : '',
       c.pricing.sub ? `    <p class="t-opt">${esc(c.pricing.sub)}</p>` : '',
       `    <div class="fld"><label for="tName">${esc(f.name.label)}</label><input id="tName" autocomplete="name" placeholder="${esc(f.name.placeholder)}" aria-describedby="tNameErr"><p class="err" id="tNameErr" aria-live="polite"></p></div>`,
@@ -1329,7 +1376,9 @@ export function serviceNode(c, shared, pageUrl, orgId) {
   const dont = (c.bref.rows.find((r) => r.dt === "What we don't do") || {}).ddHtml || '';
   return {
     '@type': 'Service', '@id': pageUrl + '#service', name: c.service.name, serviceType: c.service.serviceType,
-    description: c.service.description + (dont ? " What we don't do: " + dont.replace(/<[^>]+>/g, '') : ''), provider: { '@id': orgId },
+    // the desk hours in words, zone named: hoursAvailable has no time zone in
+    // schema.org, so "09:00" alone did not say whose 09:00 (audit 06/11)
+    description: c.service.description + (dont ? " What we don't do: " + dont.replace(/<[^>]+>/g, '') : '') + ` Desk hours: ${deskHoursText(c.desk)}.`, provider: { '@id': orgId },
     areaServed: { '@type': 'City', name: c.city },
     audience: { '@type': 'Audience', audienceType: c.service.audience },
     hoursAvailable: { '@type': 'OpeningHoursSpecification', dayOfWeek: c.desk.days.map((d) => DAY_NAMES[d]), opens: c.desk.hours.from, closes: c.desk.hours.to },
@@ -1347,16 +1396,26 @@ export function serviceNode(c, shared, pageUrl, orgId) {
         '@type': 'Offer', name: p.label, price: String(p.price), priceCurrency: currencyOf(c.slug),
         availability: waitlist && !isSigning(c) ? 'https://schema.org/PreOrder' : 'https://schema.org/InStock',
         description: p.offerDescription + (p.unit ? ' Priced ' + p.unit + '.' : '') + ' ' + p.conditionLong
-          + (c.checkout === true && (isSigning(c) || p.id === 'full-search') ? ' ' + ruleOf(c, shared) : ''),
+          + (c.checkout === true && (isSigning(c) || p.id === 'full-search') ? ' ' + ruleOf(c, shared) : '')
+          // the upgrade credit, on the Offer of the plan it starts from
+          + upgradesOf(c).filter((u) => u.from === p.id).map((u) => ' ' + upgradeFact(u.fromLabel, u.toLabel, u.days)).join(''),
         priceSpecification: { '@type': 'UnitPriceSpecification', price: String(p.price), priceCurrency: currencyOf(c.slug), valueAddedTaxIncluded: true,
           ...(unitWord ? { unitText: unitWord, referenceQuantity: { '@type': 'QuantitativeValue', value: 1, unitText: unitWord } } : {}) },
         url: pageUrl + '#fare-' + p.id,
         seller: { '@id': orgId },
-        itemOffered: { '@type': 'Service', name: p.label, description: `For: ${p.when}.` }
+        // the service it sells, by name: the "For: Haven't started yet." the
+        // fare's situation question printed here read as a definition (audit 06/11)
+        itemOffered: { '@type': 'Service', name: p.label }
       };
     })
   };
 }
+// The page's English, by country: London is British English (og:locale
+// en_GB, inLanguage en-GB); the other desks stay en_US / en. Derived, never a
+// JSON key: hreflang is untouched (one file per desk, no alternates).
+export const isGB = (c) => String(c.country || '').toUpperCase() === 'GB';
+export const ogLocaleOf = (c) => (isGB(c) ? 'en_GB' : 'en_US');
+export const inLanguageOf = (c) => (isGB(c) ? 'en-GB' : 'en');
 function jsonLd(c, shared, pageUrl, ogImage, cities = [c]) {
   const site = shared.siteUrl;
   const orgId = site + '/#organization';
@@ -1365,7 +1424,7 @@ function jsonLd(c, shared, pageUrl, ogImage, cities = [c]) {
     '@graph': [
       orgNode(shared, cities),
       {
-        '@type': 'WebPage', '@id': pageUrl + '#page', url: pageUrl, name: c.meta.ogTitle, description: c.meta.description, inLanguage: 'en',
+        '@type': 'WebPage', '@id': pageUrl + '#page', url: pageUrl, name: c.meta.ogTitle, description: c.meta.description, inLanguage: inLanguageOf(c),
         isPartOf: { '@id': site + '/#website' }, about: { '@id': orgId }, mainEntity: { '@id': pageUrl + '#service' }, breadcrumb: { '@id': pageUrl + '#breadcrumb' },
         primaryImageOfPage: { '@type': 'ImageObject', url: ogImage, width: 1200, height: 630 },
         ...(c.updated ? {
@@ -1376,7 +1435,7 @@ function jsonLd(c, shared, pageUrl, ogImage, cities = [c]) {
       },
       serviceNode(c, shared, pageUrl, orgId),
       {
-        '@type': 'FAQPage', '@id': pageUrl + '#faq', isPartOf: { '@id': pageUrl + '#page' }, inLanguage: 'en',
+        '@type': 'FAQPage', '@id': pageUrl + '#faq', isPartOf: { '@id': pageUrl + '#page' }, inLanguage: inLanguageOf(c),
         mainEntity: list(c, 'faq.items').map((f) => ({
           '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a }
         }))
@@ -1730,7 +1789,7 @@ const ALLOWED = {
   'how.step': ['k', 'h', 'p', 'status'],
   'checks.item': ['id', 'title', 'at', 'text'],
   'faq.item': ['q', 'a'],
-  'bref.row': ['dt', 'ddHtml', 'fees', 'contact'],
+  'bref.row': ['dt', 'ddHtml', 'fees', 'contact', 'hours'],
   meta: ['title', 'description', 'ogTitle', 'ogDescription'],
   service: ['name', 'serviceType', 'description', 'audience'],
   hero: ['h1Before', 'lead', 'leadStrong', 'faresHead'],
@@ -1920,21 +1979,26 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
   // (v1.8: not asked of a desk that charges at signing — Paris states its
   // extra viewings by data, Berlin may state none: WoVermRG §3(3))
   const avPrice = pr(plans[2].price);
-  need(fsPlan.includes.some((x) => x.includes(`(more: ${avPrice} each)`)) || waitlist || signing, where, `Full Search on a desk that sells says "(more: ${avPrice} each)": one viewing is included, the rest are priced at the Attended Viewing's own price`);
+  // Germany prices no extra viewing around a Full Search (WoVermRG §3(3), below): exempt
+  const inDE = String(city.country || '').toUpperCase() === 'DE';
+  need(fsPlan.includes.some((x) => x.includes(`(more: ${avPrice} each)`)) || waitlist || signing || inDE, where, `Full Search on a desk that sells says "(more: ${avPrice} each)": one viewing is included, the rest are priced at the Attended Viewing's own price`);
   need(fsPlan.includes.some((x) => /Until you sign, or you say stop/.test(x)) || waitlist, where, 'Full Search says how long it runs: "Until you sign, or you say stop"');
   // Berlin, a desk still opening: both condition strings say "sign" (the
   // draft's pin). A desk that SELLS cannot ("a sell desk's condition never
   // says sign", above): there the law is pinned by data, below.
   if (city.slug === 'berlin' && waitlist) need(/sign/i.test(fsPlan.condition) && /sign/i.test(fsPlan.conditionLong), where, 'berlin: Full Search is due only once a lease is signed (WoVermRG §2–§3) — both condition strings must say "sign"');
-  // v1.8 — the law of the country, by data, on a desk that sells there:
-  // France (loi Hoguet art. 6: nothing is taken before the operation is
-  // concluded) and Germany (WoVermRG §2(4): no advance) charge at signing.
+  // v1.8 required France and Germany to charge at signing (loi Hoguet art. 6:
+  // nothing is taken before the operation is concluded; WoVermRG §2(4): no
+  // advance). 06/11/2026: the founder decided that Paris and Berlin take the
+  // card at the order like the six, after being told the exposure in writing
+  // (France: art. 16 loi Hoguet; Germany: §8 fines and §5 refund claims) — the
+  // decision and its risk are in CLAUDE.md. The guard is gone on purpose; the
+  // copy rules of the two countries below stay (they say true things).
   const FR = String(city.country || '').toUpperCase() === 'FR', DE = String(city.country || '').toUpperCase() === 'DE';
-  if (sell && (FR || DE)) need(signing, where, `${FR ? 'France: loi Hoguet art. 6' : 'Germany: WoVermRG §2(4)'} — a desk that sells there takes nothing before the lease: it charges at signing (CITY_MARKETS.${city.slug}.chargeAt "signing")`);
   if (sell && FR) {
     // loi Hoguet art. 7 (spec D5): a search mandate runs for a limited time
     need(fsPlan.includes.some((x) => /\(six months at most\)/.test(x)), where, 'France: Full Search says how long the mandate runs, "(six months at most)" (loi Hoguet art. 7, spec D5)');
-    need(/six months at most/.test(String(city.checkoutCopy && city.checkoutCopy.order)), where, 'France: the order line before the button says the mandate runs "six months at most" (loi Hoguet art. 7, spec D5)');
+    if (signing) need(/six months at most/.test(String(city.checkoutCopy && city.checkoutCopy.order)), where, 'France: the order line before the button says the mandate runs "six months at most" (loi Hoguet art. 7, spec D5)');
   }
   if (sell && DE) {
     // WoVermRG: every fee only once a lease is signed (§2: the shape above,
@@ -1998,6 +2062,10 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
   need(city.faq.items.length >= 3 && city.faq.items.length <= 6, where, 'three to six questions');
   need(!list(city, 'faq.items').some((q) => /moving from Rome/i.test(q.q)), where, 'the FAQ item "I\'m moving from Rome with BOOM" left the page (brief v1.3)');
   need(city.bref && str(city.bref.h2) && list(city, 'bref.rows').some((r) => r.fees) && city.bref.rows.some((r) => r.contact) && city.bref.rows.some((r) => r.dt === "What we don't do"), where, 'bref needs h2 and rows with a fees row, a contact row and "What we don\'t do"');
+  // audit 06/11: the withdrawal row and the desk hours are DERIVED (withdrawalRowOf, desk.hours):
+  // a hand-typed "Withdrawal" row would say it twice, and drift from the till
+  need(!city.bref.rows.some((r) => /^withdrawal/i.test(String(r.dt || '').trim())), where, 'the "Withdrawal" row of the fact sheet is derived by the build after the fees row (withdrawalRowOf): no row of that name in the JSON');
+  need(city.bref.rows.every((r) => r.hours === undefined || r.hours === true) && city.bref.rows.filter((r) => r.hours === true).length === 1, where, 'exactly one fact-sheet row carries "hours": true (the reply time, followed by the desk hours from desk.hours)');
   need(str(city.footer.statement), where, 'footer.statement is required (the tenant-side statement)');
 
   // ── the till ──
@@ -2117,7 +2185,9 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
       // whose till takes the fee; at a desk that charges at signing every
       // fare shows its own trigger (B20a)
       rule: sell && (signing || p.id === 'full-search'),
-      ...(signing ? { trigger: p.trigger } : {})
+      ...(signing ? { trigger: p.trigger } : {}),
+      // the plan an upgrade credit leads to: its till shows the personal-link hint (#tUp)
+      ...(upgradesOf(city).some((u) => u.to === p.id) ? { up: true } : {})
     }])),
     TILL: sell ? (signing ? { label: city.till.label } : { label: city.till.label, labelWait: city.till.labelWait }) : null,
     PAID: sell && !signing ? { startsNow: city.checkoutCopy.paid.startsNow, startsWait: city.checkoutCopy.paid.startsWait, nextWait: city.checkoutCopy.paid.nextWait, unconfirmed: city.checkoutCopy.paid.unconfirmed } : null,
@@ -2163,6 +2233,8 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
       : '<meta name="robots" content="noindex">',
     jsonLdBreadcrumb: ldJson(jsonLdBreadcrumb(city, shared, pageUrl)),
     jsonLd: ldJson(jsonLd(city, shared, pageUrl, ogImage, cities)),
+    ogLocale: ogLocaleOf(city),
+    htmlLang: inLanguageOf(city),
     configJson: scriptJson(config, '  '),
     assetVersion,
     scrollBlock: frags.scrollBlock,
@@ -2325,6 +2397,35 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
     need(callAt < 0, where, `a waitlist desk promises no call anywhere on its page (text, JSON-LD, meta, config) — found "…${callAt < 0 ? '' : said.slice(Math.max(0, callAt - 40), callAt + 30).trim()}…"`);
   } else {
     need(!/id="till"|data-pay=/.test(html) || sell, where, 'a desk without checkout mounts no till and no pay button');
+  }
+  // THE UPGRADE CREDIT (api/_upgrade.js, a policy since 12/11/2026): where the
+  // desk takes the card at the order, the ticket of the plan that can be
+  // upgraded says the ✓ line, the Fees row and that plan's Offer say the fact
+  // with ITS desk's window and the door (the personal link), and the till of
+  // the plan the credit leads to carries the hint — the server's own words,
+  // so the page cannot state a rule the server does not keep. A desk that
+  // charges at signing, or is still opening, takes nothing at the order: the
+  // words are refused there.
+  {
+    const ups = upgradesOf(city);
+    const tillHtml = sliceOf(html, '<dialog class="till"', '</dialog>');
+    for (const u of ups) {
+      const tk = sliceOf(sliceOf(fares, `id="fare-${u.from}"`, '</details>'), '<div class="tk">', '<div class="tk-stub">');
+      need(tk.includes(`<p class="refund">${esc(upgradeLine(u.toLabel, u.days))}</p>`), where, `the ${u.fromLabel} ticket does not say the upgrade credit with this desk's window (api/_upgrade.js upgradeLine, upgradeDaysOf)`);
+      need(sliceOf(html, '<dt>Fees</dt>', '</dd>').includes(esc(upgradeFact(u.fromLabel, u.toLabel, u.days))), where, 'the fees row does not say the upgrade credit with this desk\'s window and its door (api/_upgrade.js upgradeFact)');
+      need(ldStrings(html).some((t) => t.includes(upgradeFact(u.fromLabel, u.toLabel, u.days))), where, `the ${u.fromLabel} Offer does not say the upgrade credit with this desk's window and its door (api/_upgrade.js upgradeFact)`);
+      need(tillHtml.includes(`<p class="t-up" id="tUp" hidden>${esc(upgradeTillHint(u.fromLabel))}</p>`) && config.PLANS[u.to] && config.PLANS[u.to].up === true, where,
+        `the ${u.toLabel} till does not point a ${u.fromLabel} holder to the personal link (api/_upgrade.js upgradeTillHint, config PLANS.${u.to}.up): this till charges the list price`);
+    }
+    need(plans.filter((p) => config.PLANS[p.id].up === true).every((p) => ups.some((u) => u.to === p.id)), where, 'a plan carries the upgrade hint flag without an upgrade path leading to it');
+    if (!ups.length) need(!/credited in full/i.test(html) && !/id="tUp"/.test(html), where, 'this desk takes nothing at the order (it charges at signing, or is still opening): no upgrade credit exists here, and the page must not print one');
+    // …and no OTHER sentence about the credit, on any desk: a rule typed by hand in a FAQ, a ticket or a meta
+    // (another window, another door) is a rule the server does not keep. The word belongs to the server's
+    // sentences alone ("credit history" and the like are other words).
+    let rest = html;
+    for (const u of ups) for (const t of [upgradeLine(u.toLabel, u.days), upgradeFact(u.fromLabel, u.toLabel, u.days)]) rest = rest.split(esc(t)).join(' ').split(t).join(' ');
+    const stray = rest.match(/[^.<>"]{0,60}\bcredited\b[^.<>"]{0,60}/i);
+    need(!stray, where, `the page says "credited" outside the server's own sentences (api/_upgrade.js): the upgrade credit is never typed by hand — "${stray ? stray[0].trim() : ''}"`);
   }
   // THE REFUND RULE BESIDE EVERY €500 (sell desks): the closed Full Search
   // row, its open ticket, the till, the fees row — every block that shows
@@ -3545,11 +3646,25 @@ export function renderHub({ template, shared, hub, cities, assetVersion, frags, 
   const fr = hub.fares;
   const spain = fr.spain ? Topt(fr.spain, 'fares.spain note') : null;
   // v1.8 (H1): the fares are the same at every desk, the TIMING is not — the desks that charge at signing are named
-  // before the first price (dropped, with a warning, when no live desk charges at signing)
-  const signNote = fr.signing ? Topt(fr.signing, 'fares.signing note') : null;
+  // before the first price. With no live desk charging at signing (since 06/11/2026) the note has nothing to say:
+  // silently absent, never a warning (a warning is for an item that should be there)
+  const signNote = fr.signing && tok.signDesks ? Topt(fr.signing, 'fares.signing note') : null;
   const gbpDesk = gbp.length ? `at the ${listJoin(gbp.map((c) => c.city))} desk${gbp.length > 1 ? 's' : ''}` : '';
+  // the upgrade credit (api/_upgrade.js): the hub says it under the plan it
+  // starts from only while EVERY live desk offers it — one desk charging at
+  // signing and the sentence would be false there, so the hub stays silent
+  const hubUps = live.every((c) => upgradesOf(c).length > 0) ? upgradesOf(live[0]) : [];
+  // …with the window most desks give, and the desks whose credit has no
+  // deadline (upgradeDaysOf: Berlin) named in brackets: the window is not theirs
+  const hubUpLine = (up) => {
+    const of = (c) => upgradesOf(c).find((u) => u.from === up.from);
+    const days = (live.map(of).find((u) => u && u.days) || {}).days || null;
+    const open = days ? live.filter((c) => !of(c).days).map((c) => c.city) : [];
+    return upgradeHubLine(up.toLabel, days, listJoin(open));
+  };
   const tickets = plans.map((p) => {
     const hp = fr.plans[p.id];
+    const up = hubUps.find((u) => u.from === p.id);
     authored.push(hp.who, ...hp.lines);
     return [
       `        <li class="hft" id="hf-${esc(p.id)}">`,
@@ -3558,7 +3673,7 @@ export function renderHub({ template, shared, hub, cities, assetVersion, frags, 
       `          <p class="hft-price"><b>${money(p.price, 'EUR')}</b><span>${esc(p.condition)}</span></p>`,
       gbpDesk ? `          <p class="hft-gbp">${money(p.price, 'GBP')} ${esc(gbpDesk)}</p>` : '',
       `          <ul class="hft-inc">${hp.lines.map((l) => `<li>${esc(l)}</li>`).join('')}</ul>`,
-      p.id === 'full-search' ? `          <p class="refund">${esc(shared.refund.rule)}</p>` : '',
+      p.id === 'full-search' ? `          <p class="refund">${esc(shared.refund.rule)}</p>` : up ? `          <p class="refund">${esc(hubUpLine(up))}</p>` : '',
       '        </li>'
     ].filter(Boolean).join('\n');
   });
@@ -3886,6 +4001,12 @@ export function renderHub({ template, shared, hub, cities, assetVersion, frags, 
     need(!/✈/.test(html), where, 'no ✈ (U+2708) on the hub');
     need(!/!(?=[\s<"]|$)/.test(bare.replace(/<!DOCTYPE[^>]*>/i, '').replace(/<[^>]+>/g, ' ')), where, 'no exclamation mark in the copy');
     need(!/(?<![\d,.])500\+|off-market|whichever is lower/i.test(vis), where, 'no "500+", "off-market" or "whichever is lower"');
+    // the upgrade credit is the server's sentence here too (api/_upgrade.js): the hub's own line under the plan
+    // it starts from, and each desk's fact inside its Offer — never a window or a door typed by hand
+    let rest = html;
+    for (const t of [...hubUps.map((u) => hubUpLine(u)), ...live.flatMap((c) => upgradesOf(c).map((u) => upgradeFact(u.fromLabel, u.toLabel, u.days)))]) rest = rest.split(esc(t)).join(' ').split(t).join(' ');
+    const stray = rest.match(/[^.<>"]{0,60}\bcredited\b[^.<>"]{0,60}/i);
+    need(!stray, where, `the hub says "credited" outside the server's own sentences (api/_upgrade.js): "${stray ? stray[0].trim() : ''}"`);
   }
   // 16 · counts: every "N desks" / "N European cities" is the live count; no head counts
   {

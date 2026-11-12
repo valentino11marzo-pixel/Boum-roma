@@ -4,8 +4,8 @@
 // CITY_MARKETS in api/_market.js; BOOM_CITIES_BRIEF.md). The phone is stored in
 // E.164 read with the desk's country (cityPhone: a London '07700 900123' is
 // +447700900123, a Milan '02 1234 5678' keeps its 0: +390212345678). A city in
-// `mode: 'waitlist'` (Paris and Berlin: the desk opens with a licensed
-// partner) files the SAME tenant lead, but says so: intent `city_waitlist`,
+// `mode: 'waitlist'` (none today; Paris and Berlin were until 05/11) files
+// the SAME tenant lead, but says so: intent `city_waitlist`,
 // summary head "PARIS — waitlist", so the operator never reads a file opened
 // as a search to start.
 //
@@ -72,7 +72,7 @@
 
 import crypto from 'node:crypto';
 import { fsCreate, fsGet, logActivity } from './homie/_lib.js';
-import { CITY_MARKETS, cityPhone, serviceLeadId, chargeAtOf } from './_market.js';
+import { CITY_MARKETS, cityPhone, serviceLeadId, chargeAtOf, orderChargeAt } from './_market.js';
 import { verifyOrderToken, payLink } from './payments/_token.js';
 import { attributionFromReq } from './_attribution.js';
 import SCALO from '../js/scalo-codes.js';
@@ -158,7 +158,7 @@ async function upgradeStatus(req, res, q) {
     return res.status(503).json({ ok: false, error: 'unavailable' });
   }
   const o = publicUpgrade(upgradeOffer(lead, id, Date.now()));
-  if (!o.ok) return res.status(o.state === 'used' || o.state === 'expired' ? 410 : 404).json(o);
+  if (!o.ok) return res.status(o.state === 'used' || o.state === 'expired' || o.state === 'void' ? 410 : 404).json(o);
   return res.status(200).json(o);
 }
 
@@ -184,7 +184,10 @@ async function orderStatus(req, res, q) {
   const token = String((q && q.t) || '');
   const cityKey = String((q && q.city) || '').toLowerCase().trim();
   const known = Object.prototype.hasOwnProperty.call(CITY_MARKETS, cityKey);
-  if (!known || chargeAtOf(cityKey) !== 'signing' || !ORDER_RE.test(id)) {
+  // a desk that takes (or took) orders at signing keeps its order register in
+  // the registry (`order`): its booked orders stay manageable after the desk
+  // moved to the card (Paris, Berlin, 06/11)
+  if (!known || !CITY_MARKETS[cityKey].order || !ORDER_RE.test(id)) {
     return res.status(400).json({ ok: false, error: 'bad_request' });
   }
   const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'unknown';
@@ -200,7 +203,7 @@ async function orderStatus(req, res, q) {
     console.warn('[city-lead] order read failed:', e && e.message);
     return res.status(503).json({ ok: false, error: 'unavailable' });
   }
-  if (!lead || lead.market !== cityKey || lead.booked !== true) return res.status(404).json({ ok: false });
+  if (!lead || lead.market !== cityKey || lead.booked !== true || orderChargeAt({ ...lead, id }) !== 'signing') return res.status(404).json({ ok: false });
   const c = lead.city && typeof lead.city === 'object' ? lead.city : {};
   const o = c.order && typeof c.order === 'object' ? c.order : {};
   const out = {

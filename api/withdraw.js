@@ -7,8 +7,9 @@
 // contract here", a confirmation "Confirm withdrawal", and an acknowledgement
 // of receipt on a durable medium with the statement's content and the date and
 // time it was received. withdrawal.html is the page (stream C); this is the
-// server. Every desk (the six that sell, Paris and Berlin, which order and
-// charge at signing) and the Rome Pacchetto post here.
+// server. Every desk (all eight take the card at the order since 06/11/2026;
+// Paris and Berlin orders booked before then were charged at signing) and the
+// Rome Pacchetto post here.
 //
 // What it does, in order:
 //   1. honeypot `company` → the same answer as a real statement, nothing done;
@@ -55,6 +56,7 @@ import { fsCreate, fsGet, fsGetVersioned, fsList, fsCommit, logActivity } from '
 import { sendEmail } from './agent/_lib.js';
 import { shell, para, fine, row, hero } from './preagreement/_notify.js';
 import { CITY_MARKETS, moneyOf } from './_market.js';
+import { upgradeMoneyBackNote, creditDueClause } from './_upgrade.js';
 import DESK_CAL from '../js/desk-calendar.js';
 import SCALO from '../js/scalo-codes.js';
 
@@ -263,13 +265,25 @@ async function decide(st, found) {
   if (!found || found.failed) return { kind: 'lookup_failed' };
   const hits = found.hits || [];
   if (!hits.length) return { kind: 'none', refMiss: !!found.refMiss };
-  if (hits.length > 1) return { kind: 'ambiguous', leads: hits.slice(0, 5).map((d) => ({ id: d.id, market: leadMarket(d), state: classify(d) })), count: hits.length };
+  // each order with its service, and the order whose credit paid for it when
+  // it is an upgrade (api/_upgrade.js): a client who moved from the
+  // Application Pack to Full Search has TWO paid orders with one email and one
+  // file number, so their statement always lands here — the card must say
+  // which is which
+  // (for an order paid in full by a pack holder, what is still owed on it is said from the order AND the pack as
+  // they are now — the pack is one of these very orders: api/_upgrade.js creditDueClause, the cards' own sentence)
+  const dueFromOf = (d) => (d.city && d.city.creditDue && typeof d.city.creditDue === 'object' && d.city.creditDue.from) || null;
+  if (hits.length > 1) return { kind: 'ambiguous', leads: hits.slice(0, 5).map((d) => ({ id: d.id, market: leadMarket(d), state: classify(d), service: svcLabelOf(d), upgradeOf: (d.city && d.city.credit && typeof d.city.credit === 'object' && d.city.credit.from) || null, dueFrom: dueFromOf(d), dueSame: !!dueFromOf(d) && d.city.creditDue.match === 'same', dueClause: dueFromOf(d) ? creditDueClause(d, hits.find((x) => x.id === dueFromOf(d)), (n) => moneyOf(n, d.currency), d.id) : null })), count: hits.length };
   const one = hits[0];
   if (emailKey(one.email) !== st.emailKey) return { kind: 'mismatch', leadId: one.id, lead: one, via: found.via };
   let v = null;
   try { v = await fsGetVersioned('leads/' + one.id); } catch (_) { v = null; }
   const lead = v ? v.data : one;
-  return { kind: classify(lead), leadId: one.id, lead, version: v ? v.updateTime : null, via: found.via, refMiss: !!found.refMiss, feePaid: await feePaidOnInvoice(lead) };
+  // an order paid in full by a pack holder: the pack it names, read now (undefined = could not be read)
+  let duePack;
+  const dueFrom = dueFromOf(lead);
+  if (dueFrom && /^svc_[A-Za-z0-9]{8,30}$/.test(String(dueFrom))) { try { duePack = await fsGet('leads/' + dueFrom); } catch (_) { duePack = undefined; } }
+  return { kind: classify(lead), leadId: one.id, lead, version: v ? v.updateTime : null, via: found.via, refMiss: !!found.refMiss, feePaid: await feePaidOnInvoice(lead), duePack };
 }
 
 // The fee of a signed book_ order paid on its INVOICE while the order does
@@ -315,15 +329,24 @@ function cardOf(st, stamp, dec) {
     case 'svc_paid': {
       const amount = Number.isFinite(Number(lead.amount_eur)) ? moneyOf(Number(lead.amount_eur), lead.currency) : null;
       const desk = leadMarket(lead) === 'roma' ? 'Roma' : (CITY_MARKETS[leadMarket(lead)] || {}).label;
+      // a statement returns no money by itself: the credit closes with the refund (api/_upgrade.js)
+      const upgradeNote = upgradeMoneyBackNote(lead, (n) => moneyOf(n, lead.currency), { statement: true, pack: dec.duePack, id: dec.leadId });
       return `${head} — ordine pagato${amount ? ' ' + amount : ''} · ${svcLabelOf(lead)}${desk ? ` (${desk})` : ''}${c.file ? ` · file ${c.file}` : ''}${viaNote}`
         + ` — rimborso entro 14 giorni (entro il ${itDay(stamp.day, 14)}), con lo stesso mezzo di pagamento; Start now ${startNowIt(c.startNow)}`
         + `${c.withdrawalEndsOn ? `, finestra fino al ${itDay(c.withdrawalEndsOn)}` : ''}${lead.paid_at ? `, pagato il ${itDay(romeDayOf(lead.paid_at))}` : ''}`
-        + `${lead.withdrawal ? `; dichiarazione già ricevuta il ${itDay(romeDayOf(lead.withdrawal.at))}` : ''}. Nessun rimborso automatico.${at}`;
+        + `${lead.withdrawal ? `; dichiarazione già ricevuta il ${itDay(romeDayOf(lead.withdrawal.at))}` : ''}`
+        // the upgrade credit, when this order has one (api/_upgrade.js — the same clause the refund card prints)
+        + `${upgradeNote ? `; ${upgradeNote}` : ''}. Nessun rimborso automatico.${at}`;
     }
     case 'mismatch':
       return `${head} — il riferimento corrisponde a leads/${dec.leadId} (${(CITY_MARKETS[leadMarket(lead)] || {}).label || 'Roma'} · ${svcLabelOf(lead)}), ma l'email dell'ordine è un'altra (${lead.email || '?'}): verifica chi ha scritto, da abbinare a mano. Nessuna modifica all'ordine.`;
-    case 'ambiguous':
-      return `${head} — più ordini corrispondono (${dec.count}: ${dec.leads.map((l) => `leads/${l.id} ${l.market} ${l.state}`).join(', ')}): da abbinare a mano. Nessuna modifica.`;
+    case 'ambiguous': {
+      const up = dec.leads.find((l) => l.upgradeOf && dec.leads.some((x) => x.id === l.upgradeOf));
+      // …or the two orders are a pack and the target plan paid in FULL by its holder (the pack amount is owed back on that one)
+      const due = up ? null : dec.leads.find((l) => l.dueFrom && dec.leads.some((x) => x.id === l.dueFrom));
+      return `${head} — più ordini corrispondono (${dec.count}: ${dec.leads.map((l) => `leads/${l.id} ${l.market} ${l.state}${l.service ? ' · ' + l.service : ''}`).join(', ')})`
+        + `${up ? ` — ${up.id} è l'upgrade pagato col credito di ${up.upgradeOf}: il rimborso si calcola su quanto pagato per l'ordine da cui recede (Termini §12.2)` : due ? ` — ${due.id} è stato pagato a prezzo pieno ${due.dueSame ? 'da chi aveva' : 'con l\'email di chi aveva'} il credito di ${due.dueFrom}. Per ${due.id}: ${due.dueClause || 'verifica lo stato di quel credito'} (Termini §12.2)` : ''}: da abbinare a mano. Nessuna modifica.`;
+    }
     case 'lookup_failed':
       return `${head} — ricerca dell'ordine non riuscita: da abbinare a mano.`;
     default:

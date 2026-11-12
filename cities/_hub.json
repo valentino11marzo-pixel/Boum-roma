@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-05",
+  "updated": "2026-11-12",
   "meta": {
     "title": "Tenant-side rental agent in Europe for expats — BOOM Desks",
     "description": "Rental agents hired by the tenant in {cities}: flat fees, VAT included, nothing from landlords. Local rules compared.",
@@ -77,7 +77,7 @@
     "items": [
       { "q": "What is a BOOM desk?", "a": "A tenant-side rental desk: an agent you hire to find and secure a home in a European city, paid by you only, never by the landlord or their agent. Each desk has its own page, its local checks and three flat fares." },
       { "q": "Which cities have a BOOM desk?", "a": "{cities}. In Rome, BOOM is the agency itself, with homes to rent." },
-      { "q": "Do the fares change from city to city?", "a": "No. The same three fares at every desk, VAT included; the {gbpDesks} desk charges the same figures in pounds. In {signDesks} every fare is charged only when you sign a lease." },
+      { "q": "Do the fares change from city to city?", "a": "No. The same three fares at every desk, VAT included, paid by card on the desk's page; the {gbpDesks} desk charges the same figures in pounds." },
       { "q": "Who answers, and when?", "a": "{person}, on WhatsApp from each desk's page, or by email: {hours}. A reply comes the same working day." },
       { "q": "Is BOOM {homeCity} a real estate agency?", "a": "Yes. BOOM {homeCity} is a desk of {legalName}, an Italian real estate agency registered in Rome (REA {rea}), under the same Italian law as BOOM Rome. It works for the tenant only: you hire and pay it, never the landlord.", "home": true },
       { "q": "Can I pay on this page?", "a": "No. Each desk takes its orders on its own page, with the 14-day right of withdrawal and the model form. Every desk starts with a free call, and nothing is charged for it." }

@@ -922,7 +922,7 @@ window.askLandlordMandateFor=async function(id,opt){
    CONTRATTO, quindi nasce qui — e se la proposta non è collegata a un
    immobile del portal nasce anche l'immobile, dalla proposta. Lo si dice
    PRIMA (12/10/2026: senza dirlo, l'operatore non sapeva perché la
-   Scheda di Chiara Tavolieri non esisteva). */
+   Scheda della proprietaria non esisteva). */
 function contractBirthText(d,purpose,same){
   var addr=((d.property||{}).address)||'';
   if(!d.propertyId&&same&&same.exact)return 'Il contratto di questa proposta non esiste ancora: per '+purpose+' lo creo adesso sull’immobile che c’è GIÀ nel portal: «'+same.name+(same.address&&same.address!==same.name?' — '+same.address:'')+'» — '+(same.homeUnit?'stesso indirizzo e stesso interno della proposta ('+same.homeLabel+')':'stesso indirizzo della proposta ('+same.homeWhere+'), e l’interno non è dichiarato né sulla proposta né sull’immobile')+'. Nessun doppione'
@@ -997,8 +997,8 @@ function showLandlordSignLink(d,url,offerMandate){
     phone:ll.phone,email:null,hideEmailNote:true,
     extra:offerMandate?{label:'🏠 Chiedi invece il mandato',fn:function(){askLandlordMandateFor(d.id,{contractKnown:true});}}:null});
 }
-/* 📋 LA SCHEDA DEL PROPRIETARIO (12/10/2026 — «non riesco a inviare a
-   Chiara Tavolieri la scheda per far compilare i suoi dati»). La Scheda è
+/* 📋 LA SCHEDA DEL PROPRIETARIO (12/10/2026 — «non riesco a inviare
+   alla proprietaria la scheda per far compilare i suoi dati»). La Scheda è
    del contratto: qui il server lo crea se manca (con la conferma sopra),
    calcola cosa manca al proprietario come lo leggerebbe il PDF e scrive il
    messaggio che lo nomina, col link. WhatsApp col suo numero, email se c'è. */

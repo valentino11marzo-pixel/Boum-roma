@@ -43,6 +43,16 @@ const MUTATIONS = {
   'no-pdf-alarm': ['/api/_cityorder.js', 'if (pdf && pdf.unprinted.length) {', 'if (false) {'],
   // F5: the register reads the order only, never its fee invoice
   'register-lead-only': ['/api/ops/conservazione.js', "return typeof id === 'string' && invoices && invoices.has(id) ? invoices.get(id) : null;", 'return null;'],
+  // ── the card flip (06/11/2026): every reader asks the desk's mode TODAY
+  // again, and the orders booked at signing before the flip are lost ──
+  // the mode the order was sold under ignored
+  'order-mode-ignored': ['/api/_market.js', "if (/^book_/.test(String(l.id || '')) && l.city && typeof l.city === 'object' && l.city.chargeAt === 'signing') return 'signing';", ''],
+  // the managed ticket gated on the desk's mode
+  'ticket-by-mode': ['/api/city-lead.js', 'if (!known || !CITY_MARKETS[cityKey].order || !ORDER_RE.test(id)) {', "if (!known || chargeAtOf(cityKey) !== 'signing' || !ORDER_RE.test(id)) {"],
+  // /firmato's fee gated on the desk's mode
+  'fee-by-mode': ['/api/payments/_citysign.js', "if (!desk || !desk.order) return { ok: false, error: 'not_signing_desk' };", "if (!desk || desk.chargeAt !== 'signing') return { ok: false, error: 'not_signing_desk' };"],
+  // the monthly register gated on the desk's mode
+  'register-by-mode': ['/api/ops/conservazione.js', 'if (!desk || !desk.order || !desk.order.prefix) continue;', "if (!desk || desk.chargeAt !== 'signing' || !desk.order || !desk.order.prefix) continue;"],
 };
 export async function load(url, context, nextLoad) {
   const out = await nextLoad(url, context);

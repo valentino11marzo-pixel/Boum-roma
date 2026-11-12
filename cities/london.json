@@ -11,7 +11,7 @@
   "live": true,
   "mode": "search",
   "config": {},
-  "updated": "2026-11-04",
+  "updated": "2026-11-12",
   "meta": {
     "title": "Rental property finder for expats in London — BOOM",
     "description": "Home search for expats moving to London, tenant side only: tenant file within one working day of your papers, applications as listings appear, tenancy checked.",
@@ -172,7 +172,7 @@
     "tail": "The rest we go through on the free call."
   },
   "faq": {
-    "h2": "Questions.",
+    "h2": "Questions about renting in London.",
     "items": [
       {
         "q": "Can a London agent charge me fees?",
@@ -183,8 +183,8 @@
         "a": "A call with Valentino, by phone or WhatsApp, at a time that suits you both. We hear your dates, budget and who is moving, say which service fits, or that none does, and which papers you are missing. Nothing is charged for the call. Full Search is refunded in full if we decline the search in the first call."
       },
       {
-        "q": "I have no UK guarantor. Can I still rent?",
-        "a": "London landlords usually want a UK-based guarantor; family abroad is generally not accepted. Without one, many tenants use a paid guarantor service. Paying months upfront no longer replaces it: on most new tenancies, no rent before signing, and at most one month's rent between signing and the start. Application Pack sets the strategy with your papers."
+        "q": "I have no UK guarantor or credit history. Can I still rent?",
+        "a": "London landlords usually want a UK-based guarantor; family abroad is generally not accepted. Without one, many tenants use a paid guarantor service. With no UK credit history, referencing leans on your contract, payslips and references. Paying months upfront no longer replaces a guarantor: on most new tenancies, no rent before signing, and at most one month's rent between signing and the start. Application Pack sets the strategy with your papers."
       },
       {
         "q": "How do I avoid a rental scam in London from abroad?",
@@ -226,7 +226,8 @@
       },
       {
         "dt": "Reply time",
-        "ddHtml": "The same working day."
+        "ddHtml": "The same working day.",
+        "hours": true
       },
       {
         "dt": "Contact",

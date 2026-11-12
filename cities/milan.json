@@ -10,7 +10,7 @@
   "live": true,
   "mode": "search",
   "config": {},
-  "updated": "2026-11-04",
+  "updated": "2026-11-12",
   "meta": {
     "title": "Tenant-side rental agent for expats in Milan — BOOM",
     "description": "Apartment search for expats in Milan, tenant side only: viewings attended, the agency fee asked in writing, the Italian lease checked and explained in English.",
@@ -171,7 +171,7 @@
     "tail": "The rest we go through on the free call."
   },
   "faq": {
-    "h2": "Questions.",
+    "h2": "Questions about renting in Milan.",
     "items": [
       {
         "q": "Doesn't the landlord's agency charge me too in Italy?",
@@ -229,7 +229,8 @@
       },
       {
         "dt": "Reply time",
-        "ddHtml": "The same working day."
+        "ddHtml": "The same working day.",
+        "hours": true
       },
       {
         "dt": "Contact",

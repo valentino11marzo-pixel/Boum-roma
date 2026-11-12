@@ -1,5 +1,5 @@
 // api/_cityterms.js — the ORDER TERMS of the desks that charge at signing
-// (Paris, Berlin). ONE copy, pure: no npm dependency and no I/O (node:crypto
+// (Paris, Berlin, for the orders booked until 06/11/2026). ONE copy, pure: no npm dependency and no I/O (node:crypto
 // only, for the hash; no clock: every date comes from the caller). Read by
 // the server — the order email and its PDF (renderOrderTerms), the order
 // record (city.order.termsV + termsHash), the 409 `terms_changed` when a page

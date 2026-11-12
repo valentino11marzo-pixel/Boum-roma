@@ -1,0 +1,13 @@
+{
+  "_note": "FICTITIOUS data: the fields anexo_inventario.py reads. A real case file never enters the repository.",
+  "lang": "es",
+  "address": "Calle de Ejemplo 1, 2.º B, 28000 Madrid",
+  "cadastral_ref": "0000000XX0000X0000XX",
+  "landlord": { "name": "Sociedad de Ejemplo SL", "id": "CIF B00000000", "represented_by": "D. Nombre Apellido" },
+  "tenant": { "name": "D.ª Nombre Apellido", "id": "NIE X0000000X" },
+  "handover_date": "1 de enero de 2027",
+  "clauses": "las cláusulas 3.1 y 3.2",
+  "utilities_clause": "cláusula 6.1",
+  "key_sets": 2,
+  "furnished": false
+}

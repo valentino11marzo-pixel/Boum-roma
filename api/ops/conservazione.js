@@ -23,7 +23,7 @@ import {
 } from '../employees/_lib.js';
 import { sendEmail } from '../agent/_lib.js';
 import { buildZip } from '../_zip.js';
-import { CITY_MARKETS, chargeAtOf } from '../_market.js';
+import { CITY_MARKETS } from '../_market.js';
 
 const EMPLOYEE = 'conservazione';
 const ADMIN_NOTIFY = process.env.ADMIN_NOTIFY_EMAIL || 'valentino@boom-rome.com';
@@ -106,7 +106,9 @@ export function orderRegisters(leads, month, markets = CITY_MARKETS, invoices = 
     : new Map((Array.isArray(invoices) ? invoices : []).filter((d) => d && d.id).map((d) => [d.id, d]));
   const out = [];
   for (const [key, desk] of Object.entries(markets)) {
-    if (chargeAtOf(key) !== 'signing' || !desk || !desk.order || !desk.order.prefix) continue;
+    // every desk with an order book (`order`): the orders booked at signing
+    // keep their register after the desk moved to the card (06/11)
+    if (!desk || !desk.order || !desk.order.prefix) continue;
     const rows = (leads || []).filter((l) => l && /^book_/.test(String(l.id || '')) && l.booked === true && l.market === key)
       .filter((l) => {
         const c = l.city || {};
@@ -189,9 +191,10 @@ async function run({ dry, monthOverride }) {
 
   const contracts = await fsList('contracts', { limit: 800 });
   const done = contracts.filter((c) => String(c.finalizedAt || '').slice(0, 7) === month);
-  // the order registers of the desks that charge at signing (none until the
-  // flip: nothing is read then)
-  const signing = Object.keys(CITY_MARKETS).some((k) => chargeAtOf(k) === 'signing');
+  // the order registers of the desks that keep one (Paris and Berlin: the
+  // orders booked at signing until 06/11/2026; none before the v1.8 flip, and
+  // then nothing is read)
+  const signing = Object.values(CITY_MARKETS).some((d) => d && d.order && d.order.prefix);
   const orders = signing ? await fsList('leads', { filter: { field: 'intent', op: 'EQUAL', value: 'city_booking' }, limit: 1000 }) : [];
   const registers = orderRegisters(orders, month, CITY_MARKETS, signing ? await orderInvoices(orders) : null);
   const counts = { month, contracts: done.length, files: 0, bytes: 0, emails: 0, missing: 0 };

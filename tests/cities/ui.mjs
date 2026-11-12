@@ -37,7 +37,8 @@
 //     leaves the screen, no price, never with the till open;
 //   - the waitlists (Paris, Berlin): "Open my file", no pay button, no till;
 //     Madrid's till repeats "Optional, chosen in writing";
-//   - v1.8 review LFR-1: on live Paris and Berlin (charged at signing) Enter
+//   - v1.8 review LFR-1: on a desk that charges at signing (since the card
+//     flip of 06/11 the scratch Paris and Berlin of §15) Enter
 //     in the till's name, email, note or tick never orders — it walks to the
 //     next field, then the button; a held Enter walks one step; one click on
 //     the labelled button makes ONE order; the six keep Enter to checkout;
@@ -61,8 +62,8 @@
 //     row 01 follows the desk across closing time; Paris and Berlin never say
 //     "desk open" (REPLYING / OFFLINE). `CITIES_UI_ONLY=review` runs §12 alone;
 //   - v1.8 stage B3 (dark): a desk that charges at signing, a scratch Paris
-//     built here from Amsterdam with the registry patched in try/finally and
-//     served at /paris (§15): the order (the POST carries requestId, termsV,
+//     and Berlin built here from Amsterdam with the registry patched in
+//     try/finally and served at /paris and /berlin (§15): the order (the POST carries requestId, termsV,
 //     startNow false → BOOKED, never PAID, ONE booking, no purchase), its
 //     refusals (400 fields, 409 stale, a retry on the same requestId), the
 //     managed ticket (?order=&t=: BOOKED with the online withdrawal, DUE
@@ -170,8 +171,11 @@ const RULE = JSON.parse(fs.readFileSync(path.join(R, 'cities/_shared.json'), 'ut
 // two JSONs as they stood before the flip) rendered as waitlists — the registry patched back in try/finally, their
 // reviewed sentences (fixtures/draft-claims.json) merged — at /draft-paris and /draft-berlin; and London and Milan in a
 // family where Paris and Berlin are those drafts, at /london-drafts and /milan-drafts (the desks not open on the map).
+// The card flip (06/11/2026, the founder's decision): Paris and Berlin take the card at the order like the six, so no
+// live desk charges at signing — the coupon under the €500 is the refund rule everywhere. The signing shape keeps its
+// browser pins on the scratch Paris and Berlin of §15 (the orders booked before 06/11 still read it).
 const SIGN_RULE = JSON.parse(fs.readFileSync(path.join(R, 'cities/_shared.json'), 'utf8')).signing.rule;
-const SIGNING = new Set(['paris', 'berlin']);
+const SIGNING = new Set();
 {
   const read = (f) => fs.readFileSync(path.join(R, f), 'utf8');
   const { CITY_MARKETS: CM, CITY_PLANS } = await import('../../api/_market.js');
@@ -195,7 +199,7 @@ const SIGNING = new Set(['paris', 'berlin']);
     PAGES.set('/london-drafts.html', page(CITY.london)); PAGES.set('/milan-drafts.html', page(CITY.milan));
   } catch (e) { male(`the synthetic waitlist pages build (${String(e.message).slice(0, 300)})`); }
   finally { Object.assign(CM, save); }
-  check(CM.paris === save.paris && CM.paris.chargeAt === 'signing' && CM.berlin.chargeAt === 'signing' && PAGES.size >= 4, 'the synthetic waitlist pages build from the frozen drafts, and the registry is restored (Paris and Berlin charge at signing)');
+  check(CM.paris === save.paris && CM.paris.chargeAt === undefined && CM.berlin.chargeAt === undefined && PAGES.size >= 4, 'the synthetic waitlist pages build from the frozen drafts, and the registry is restored (Paris and Berlin at the checkout since 06/11)');
 }
 // the v1.6 review's guards alone (§12), e.g. to watch one bite under a mutation
 if (process.env.CITIES_UI_ONLY === 'review') { await reviewFixes(); await finish(); }
@@ -388,9 +392,17 @@ for (const [slug, hash] of [['barcelona', '#pay-full-search'], ['london', '#pay-
   check(await shown(page, '#planLn') && await text(page, '#planName') === 'Application Pack' && !(await shown(page, '#notSure')), 'the door says the plan being read');
   // the row BELOW the open ticket: tapping it closes the ticket above, and
   // without the page's anchoring the row would jump up by the ticket's height.
-  // Measured with the open ticket's row at the top of the screen, so the page
-  // has room to scroll back (at scrollY 0 nothing can hold it)
-  await page.$eval('#fare-application-pack > summary', (e) => e.scrollIntoView({ block: 'start', behavior: 'instant' }));
+  // Measured where the page HAS room to scroll back by that height (at
+  // scrollY 0 nothing can hold it, and the page then keeps the ticket above
+  // open — its designed fallback, not what this check is about). The premise
+  // is computed from the ticket, never a fixed spot: with the open row at the
+  // top of the screen the room was 428 px against a 409 px ticket — 19 px of
+  // luck, gone the day the ticket gained a line (the upgrade credit, 12/11).
+  await page.evaluate(() => {
+    const s = document.querySelector('#fare-attended-viewing > summary'), tk = document.querySelector('#fare-application-pack .tk');
+    const docTop = s.getBoundingClientRect().top + scrollY;
+    window.scrollTo({ top: Math.max(tk.offsetHeight + 40, docTop - Math.round(innerHeight / 2)), left: 0, behavior: 'instant' });
+  });
   await page.waitForTimeout(200);
   check(await page.evaluate(() => { const r = document.querySelector('#fare-attended-viewing > summary').getBoundingClientRect(); return r.top > 0 && r.bottom < innerHeight && scrollY > document.querySelector('#fare-application-pack .tk').offsetHeight; }), '(the row below is on the screen, with room to scroll back)');
   const avBefore = await rect(page, '#fare-attended-viewing > summary');
@@ -398,6 +410,8 @@ for (const [slug, hash] of [['barcelona', '#pay-full-search'], ['london', '#pay-
   await page.waitForTimeout(250);
   const avAfter = await rect(page, '#fare-attended-viewing > summary');
   check(Math.abs(avAfter.top - avBefore.top) < 2, `a row below the open ticket stays under the finger while the ticket above closes (${(avAfter.top - avBefore.top).toFixed(1)} px)`);
+  // …and the ticket above DID close (without this the row would stay still for the wrong reason: nothing closed)
+  check(await page.$eval('#fare-application-pack', (d) => !d.open) && await page.$eval('#fare-attended-viewing', (d) => d.open), 'one ticket open at a time: the Application Pack ticket closed, the Attended Viewing one is open');
   await page.click('#fare-attended-viewing > summary');
   await page.waitForTimeout(250);
   await page.click('#fare-application-pack > summary');
@@ -524,6 +538,10 @@ for (const [w, h] of [[390, 844], [320, 568], [430, 932]]) {
   await page.waitForTimeout(250);
   check(await page.$eval('#till', (d) => d.open) && await text(page, '#tTitle') === 'Full Search' && await text(page, '#tPrice') === '€500', 'the till opens on THAT plan, with its price');
   check(await shown(page, '#tRule') && await text(page, '#tRule') === RULE, 'the refund rule is in the till, beside the €500');
+  // the upgrade credit (a policy since 12/11): this till charges the list price, so it points a pack holder to the personal link
+  check(await shown(page, '#tUp') && await text(page, '#tUp') === 'Already paid for the Application Pack on this desk? Use the personal link in your order email: what you paid comes off this price.'
+    && await page.evaluate(() => { const r = document.getElementById('tRule').getBoundingClientRect(), u = document.getElementById('tUp').getBoundingClientRect(), n = document.getElementById('tName').getBoundingClientRect(); return r.bottom <= u.top + 1 && u.bottom <= n.top + 1; }),
+    'the Full Search till shows the personal-link hint under the refund rule, before the form');
   // v1.8 stage W: the withdrawal line, shown in the open till, links the online function first
   const wdA = await page.$eval('#till .wd', (p) => [...p.querySelectorAll('a')].map((a) => ({ t: a.textContent, h: a.getAttribute('href'), seen: a.getBoundingClientRect().height > 0 })));
   check(wdA.length === 3 && wdA[0].t === 'online' && wdA[0].h === '/withdrawal?desk=Amsterdam#online' && wdA[0].seen && wdA[2].h === '/withdrawal?desk=Amsterdam' && /^Withdrawal: 14 days from payment — online, by email to /.test(await text(page, '#till .wd')),
@@ -708,7 +726,7 @@ for (const [slug, clock, want, what] of CLOCKS) {
   const body = await page.evaluate(() => document.body.innerText);
   check(/Write to the desk on WhatsApp or at/.test(body), 'no JS: a line says where to write');
   check(/€500/.test(body) && /€199/.test(body) && /€149/.test(body) && body.includes(RULE), 'no JS: the three prices and the refund rule read as text');
-  check(/From the first call/.test(body) && /What we check/.test(body) && /The papers a Dutch landlord asks for\./.test(body) && /Who answers, and when\./.test(body) && /Questions\./.test(body) && /Other desks, one company\./.test(body), 'no JS: every section of the walk reads (Departures, Pre-flight, Baggage, Gate, Questions, Network)');
+  check(/From the first call/.test(body) && /What we check/.test(body) && /The papers a Dutch landlord asks for\./.test(body) && /Who answers, and when\./.test(body) && /Questions about renting in Amsterdam\./.test(body) && /Other desks, one company\./.test(body), 'no JS: every section of the walk reads (Departures, Pre-flight, Baggage, Gate, Questions, Network)');
   const papers = JSON.parse(fs.readFileSync(path.join(R, 'cities/amsterdam.json'), 'utf8')).papers.items;
   check(papers.every((x) => body.includes(x)) && /\bFREE\b/.test(body) && /\b1 WORK DAY\b/.test(body) && /\bIN PERSON\b/.test(body) && body.includes('Valentino Egidi'), 'no JS: the eight papers and the Departures statuses (FREE, 1 WORK DAY, IN PERSON) read as text');
   check(!(await shown(page, '#strip')) && (await page.$$eval('[data-pay]', (b) => b.every((x) => !x.offsetParent))), 'no JS: no strip, no pay button (behaviour, not content)');
@@ -809,17 +827,18 @@ for (const [slug, clock, want, what] of CLOCKS) {
   await ctx.close();
 }
 // ── 8 · the sisters ──────────────────────────────────────────────────────
-// v1.8 FLIP: this section moved — Paris and Berlin were waitlists ("Open my file", no pay button, no till); they sell
-// now, charged at signing: the free call at the door, three order buttons, a till, the Full Search ticket saying its
-// trigger (never the refund rule). The waitlist's pins run on the frozen drafts (/draft-paris, /draft-berlin)
+// v1.8 FLIP moved this section (Paris and Berlin from waitlists to desks charged at signing); the card flip (06/11)
+// moved it again: the six's shape — the free call at the door, three pay buttons, a till, the Full Search ticket saying
+// the refund rule. The waitlist's pins run on the frozen drafts (/draft-paris, /draft-berlin); the signing shape on the
+// scratch pages of §15
 for (const slug of ['paris', 'berlin']) {
   const { ctx, page, st } = await open({ slug });
   await page.waitForTimeout(300);
-  check(await text(page, '#doorL') === 'Start with a free call' && await page.$$eval('[data-pay]', (b) => b.length) === 3 && !!(await page.$('#till')), `${slug}: "Start with a free call", three order buttons, a till`);
+  check(await text(page, '#doorL') === 'Start with a free call' && await page.$$eval('[data-pay]', (b) => b.length) === 3 && !!(await page.$('#till')), `${slug}: "Start with a free call", three pay buttons, a till`);
   await page.click('#fare-full-search > summary');
   await page.waitForTimeout(200);
   const tkRule = await text(page, '#fare-full-search .tk .refund');
-  check(!!tkRule && /^Nothing is charged before you sign/.test(tkRule) && tkRule !== RULE, `${slug}: the Full Search ticket says its trigger ("${tkRule}"), never the refund rule`);
+  check(tkRule === RULE, `${slug}: the Full Search ticket says the refund rule ("${tkRule}"), never a signing trigger`);
   await tap(page, '#door');
   await page.fill('#fName', 'Jean'); await page.fill('#fContact', 'jean@example.fr');
   await page.click('#door');
@@ -827,36 +846,8 @@ for (const slug of ['paris', 'berlin']) {
   check(st.posts.length === 1 && st.posts[0].city === slug && await page.getAttribute('#pass', 'data-state') === 'open', `${slug}: the free call's file opens`);
   await ctx.close();
 }
-// v1.8 review LFR-1 (L221-14 al. 2, C. civ. 1127-2, §312j(3) BGB): on a desk that charges at signing the labelled
-// button IS the order. Enter in a field never places it — the browser's implicit submission used to click #tGo unseen,
-// below the tick, the withdrawal line and the button's words (one POST, a numbered mandate and its email from an Enter
-// in the email or the note). It walks name → email → note → the tick → the button; a held Enter walks one step and its
-// auto-repeat never presses the button; only the button orders. The six are unchanged (Stripe's page concludes there).
-for (const slug of ['paris', 'berlin']) {
-  const BOOK = { status: 200, body: { ok: true, booked: true, id: 'book_ui0000enter1', file: FILE, number: (slug === 'paris' ? 'PAR' : 'BER') + '-2026-0001', plan: 'full-search', startNow: false, workFromLabel: '19 November 2026' } };
-  const { ctx, page, st } = await open({ slug, query: '#order-full-search', checkout: BOOK });
-  await page.waitForTimeout(600);
-  const at = () => page.evaluate(() => document.activeElement && document.activeElement.id);
-  await page.fill('#tName', 'Anne Dupont'); await page.fill('#tEmail', 'anne@example.fr'); await page.fill('#tNote', 'https://www.seloger.com/annonces/123');
-  const walk = [];
-  for (const id of ['tName', 'tEmail', 'tNote', 'tStart']) { await page.focus('#' + id); await page.keyboard.press('Enter'); await page.waitForTimeout(150); walk.push(await at()); }
-  await page.waitForTimeout(500);
-  const goSeen = await page.$eval('#tGo', (b) => { const r = b.getBoundingClientRect(); return r.top >= -1 && r.bottom <= innerHeight + 1; });
-  check(await page.$eval('#till', (d) => d.open) && st.checkouts.length === 0 && await page.getAttribute('#pass', 'data-state') === 'blank' && !(await page.$eval('#tStart', (c) => c.checked)) && walk.join() === 'tEmail,tNote,tStart,tGo' && goSeen,
-    `${slug}: Enter in the name, the email, the note and on the tick orders nothing (0 POSTs) — it walks to the next field, then to the button, seen on the screen (${walk.join(' → ')})`);
-  for (const from of ['tNote', 'tStart']) {
-    await page.focus('#' + from);
-    await page.keyboard.down('Enter'); await page.keyboard.down('Enter'); await page.keyboard.down('Enter'); await page.keyboard.up('Enter');
-    await page.waitForTimeout(400);
-    check(st.checkouts.length === 0 && await at() === (from === 'tNote' ? 'tStart' : 'tGo'), `${slug}: a held Enter from ${from === 'tNote' ? 'the note' : 'the tick'} walks one step (${await at()}) and its auto-repeat never orders`);
-  }
-  await page.click('#tGo');
-  await page.waitForFunction(() => document.getElementById('pass').getAttribute('data-state') === 'booked', null, { timeout: 5000 }).catch(() => {});
-  check(st.checkouts.length === 1 && st.checkouts[0].city === slug && st.checkouts[0].kind === 'full-search' && st.checkouts[0].startNow === false && await page.getAttribute('#pass', 'data-state') === 'booked',
-    `${slug}: a click on the button "Order, pay on signing · €500" makes ONE order (BOOKED)`);
-  check(st.errors.length === 0, `${slug}: no JS error`, st.errors.join(' | '));
-  await ctx.close();
-}
+// v1.8 review LFR-1 (Enter never orders on a desk that charges at signing): since the card flip (06/11) it runs in §15,
+// on the scratch Paris and Berlin served there
 {
   // the six are unchanged: Enter in the till's email field still goes to checkout (Stripe's own page concludes the contract)
   const { ctx, page, st } = await open({ slug: 'amsterdam', checkout: { status: 200, body: { ok: false, error: 'stripe_down' } } });
@@ -893,6 +884,7 @@ for (const slug of ['draft-paris', 'draft-berlin']) {
   await tap(page, '#fare-application-pack [data-pay]');
   await page.waitForTimeout(200);
   check(await shown(page, '.t-opt') && /^Optional, chosen in writing/.test(await text(page, '.t-opt')) && !(await shown(page, '#tRule')), 'madrid: the till repeats "Optional, chosen in writing"; no refund rule on the Application Pack');
+  check(await page.$('#tUp') !== null && !(await shown(page, '#tUp')), 'the personal-link hint is hidden on the Application Pack till (it belongs to the plan the credit leads to)');
   await ctx.close();
 }
 
@@ -1130,7 +1122,7 @@ for (const [slug, clock, flow, want, said, what] of [
   ['london', SAT_T, 'paid1', 'START MON', 'start Monday', 'PAID with "Start now" on a Saturday: START MON, heard as "start Monday"'],
   // v1.8 FLIP: Paris and Berlin sell (CHECKOUT true): a file opened there is a free call to set, so row 01 is
   // REPLY <day> like the six; the waitlist's FILE OPEN keeps its pin on the frozen drafts (/draft-paris, /draft-berlin)
-  ['paris', OPEN_T, 'open', 'REPLY TODAY', 'reply today', 'Paris (sells, charged at signing): OPEN on an open desk is REPLY TODAY — the free call'],
+  ['paris', OPEN_T, 'open', 'REPLY TODAY', 'reply today', 'Paris (sells, the card at the order since 06/11): OPEN on an open desk is REPLY TODAY — the free call'],
   ['berlin', SAT_T, 'open', 'REPLY MON', 'reply Monday', 'Berlin on a Saturday: REPLY MON (the desk\'s next open day)'],
   ['draft-paris', OPEN_T, 'open', 'FILE OPEN', 'file open', 'the frozen draft Paris (a desk still opening): FILE OPEN — never a reply day'],
   ['draft-berlin', SAT_T, 'open', 'FILE OPEN', 'file open', 'the frozen draft Berlin on a Saturday: FILE OPEN']]) {
@@ -1367,14 +1359,15 @@ for (const [w, h] of [[1440, 900], [1024, 800], [940, 800]]) {
 }
 
 // 11 · the waitlists: one label, four doors, no pay control, no "call"
-// v1.8 FLIP: the waitlist pins run on the frozen drafts; live Paris and Berlin read the selling desks' door and order
+// v1.8 FLIP: the waitlist pins run on the frozen drafts; live Paris and Berlin read the selling desks' door and, since
+// the card flip (06/11), the six's pay buttons
 for (const slug of ['paris', 'berlin']) {
   const { ctx, page } = await open({ slug, width: 1440, clock: OPEN_T });
   await page.waitForTimeout(500);
   const labels = await page.$$eval('#topGo b, #deskGo b, #doorL, #stripGo', (es) => es.map((e) => e.textContent.trim()));
   const pays = await page.$$eval('[data-pay]', (b) => b.map((x) => x.textContent.trim().replace(/\s+/g, ' ')));
-  check(labels.length === 4 && labels.every((x) => x === 'Start with a free call') && pays.length === 3 && pays.every((x) => /^Order, pay on signing · €(500|199|149)/.test(x)),
-    `${slug} (charged at signing): #topGo, #deskGo, the door and the strip read "Start with a free call"; the three tickets order, pay on signing`, JSON.stringify([labels, pays]));
+  check(labels.length === 4 && labels.every((x) => x === 'Start with a free call') && pays.length === 3 && pays.every((x) => /^Pay and start · €(500|199|149)/.test(x)),
+    `${slug} (card at the order): #topGo, #deskGo, the door and the strip read "Start with a free call"; the three tickets read "Pay and start"`, JSON.stringify([labels, pays]));
   await ctx.close();
 }
 for (const slug of ['draft-paris', 'draft-berlin']) {
@@ -1632,7 +1625,7 @@ async function reviewFixes() {
   for (const slug of ['london', 'paris', 'berlin']) {
     const { ctx, page } = await open({ slug, width: 1440, clock: R_OPEN });
     await page.waitForTimeout(400);
-    check(await text(page, '#depPillT') === 'DESK OPEN' && DESK_OPEN.test(await page.evaluate(() => document.body.innerText)), `${slug} (a desk that sells${slug === 'london' ? '' : ', charged at signing'}): the pill reads DESK OPEN`);
+    check(await text(page, '#depPillT') === 'DESK OPEN' && DESK_OPEN.test(await page.evaluate(() => document.body.innerText)), `${slug} (a desk that sells${slug === 'london' ? '' : ', the card at the order since 06/11'}): the pill reads DESK OPEN`);
     await ctx.close();
   }
 }
@@ -1889,6 +1882,21 @@ async function hubUI() {
     await page.waitForTimeout(300);
     const g = await page.evaluate(() => ({ table: getComputedStyle(document.querySelector('.rtab')).display, head: getComputedStyle(document.querySelector('.rtab thead')).display, k: getComputedStyle(document.querySelector('.rtab tbody td'), '::before').content }));
     check(g.table === 'block' && g.head === 'none' && g.k === '"AMS"', 'desks 390: the rules render as cards, each cell prefixed by its desk\'s code', JSON.stringify(g));
+    await ctx.close();
+  }
+  // audit 06/11: the rules table needs about 912px for its eight columns; between 760 and 943 its last
+  // columns (Paris, Valencia) were clipped by the page, unreachable. Cards up to 959px, every rule link 44px tall.
+  for (const w of [700, 768, 820, 900, 959, 960, 1024]) {
+    const { ctx, page } = await open({ slug: 'desks', width: w });
+    await center(page, '.rtab');
+    const g = await page.evaluate(() => {
+      const t = document.querySelector('.rtab'), r = t.getBoundingClientRect(), p = t.parentElement.getBoundingClientRect();
+      const rc = [...document.querySelectorAll('.rtab a.rc')].filter((a) => a.offsetParent).map((a) => a.getBoundingClientRect().height);
+      return { disp: getComputedStyle(t).display, right: Math.round(r.right), pr: Math.round(p.right), sw: document.documentElement.scrollWidth, vw: innerWidth, minRc: rc.length ? Math.min(...rc) : 0, n: rc.length };
+    });
+    const cards = w <= 959;
+    check(g.sw <= g.vw && g.right <= g.pr + 1 && g.disp === (cards ? 'block' : 'table') && g.n > 20 && (!cards || g.minRc >= 44),
+      `desks ${w}: the rules ${cards ? 'are cards, every rule link at least 44px tall' : 'are a table'}, and no column is clipped`, JSON.stringify(g));
     await ctx.close();
   }
   // reduced motion: nothing loops after load
@@ -2150,51 +2158,66 @@ async function signingUI() {
     'attended-viewing': 'Nothing is charged unless you sign for the home we viewed.'
   };
   const STALE = 'This page was just updated — reload it to order with the current terms.';
-  // Amsterdam made into the signing Paris (the spec's shared words, design/spec.paris.json)
-  const c = clone(CITY.amsterdam);
-  Object.assign(c, { slug: 'paris', city: 'Paris', iata: 'PAR', country: 'FR', geo: clone(CITY.paris.geo), live: false, chargeAt: 'signing' });
-  c.hero.leadStrong = 'Paid only by you, and only when you sign.';
-  c.hero.faresHead = { b: 'Flat fees', span: 'No percentage of your rent' };
-  for (const p of c.pricing.plans) { p.conditionLong = 'VAT included, charged when you sign a lease. Invoice from Egidi Immobiliare S.r.l.'; p.trigger = TRIG[p.id]; }
-  c.pricing.plans[0].includes = c.pricing.plans[0].includes.map((x) => (/^Until you sign/.test(x) ? 'Until you sign, or you say stop (six months at most)' : x));
-  c.faq.items[1].a = c.faq.items[1].a.replace(/ Full Search is refunded in full[^.]*\./, ' Nothing is charged before you sign a lease.');
-  c.faq.items[3].a = 'Then you pay nothing: every fare is charged only when you sign the lease we helped you get. We tell you in the first call if your budget and timeline don\'t fit the market.';
-  c.till = { label: 'Order, pay on signing' };
-  const k = c.checkoutCopy;
-  Object.assign(k, {
-    btnSubNow: 'Starts in the desk’s first open hour · no card', btnSubWait: 'Starts when your 14 days end · no card', altLink: 'Start with a free call, no card',
-    withdrawal: 'Withdrawal: 14 days from your order — {online}, by email to {email} or with the {form}. Nothing is charged before you sign, so withdrawing costs nothing. Without the tick, we start when the 14 days end.',
-    fine: 'No card today. Invoice from Egidi Immobiliare S.r.l., VAT included, with a secure payment link when you sign. ' + SIGN_RULE,
-    order: 'Your order runs six months at most; your copy comes by email.'
-  });
-  k.errors.stale = STALE;
-  delete k.paid;
-  k.booked = {
-    before: 'Booked — your file', em: 'is open.',
-    text: 'Nothing is charged until you sign. The Paris desk writes by email, or on WhatsApp if you left a number. Questions? Write to',
-    next: [['First desk hour', 'your order by email, with what we need'], ['Same working day', 'your brief: dates, budget, who’s moving'], ['When you sign', 'the fee, once, with the invoice']],
-    nextWait: [['First desk hour', 'your order by email, with your start date'], ['When the 14 days end', 'your brief: dates, budget, who’s moving'], ['When you sign', 'the fee, once, with the invoice']],
-    wait: 'You did not tick “Start now”: we start when your 14 days end. Sooner? Write to {email}.',
-    pending: 'Order being confirmed. Your copy comes by email.', unconfirmed: 'Not confirmed yet. If no email reaches you, write to the desk.',
-    startsNow: 'The desk’s first open hour', startsWait: 'From {date}, after your 14-day withdrawal period',
-    withdrawLink: 'Withdraw from contract here', paidText: 'Paid on {date}. Invoice from Egidi Immobiliare S.r.l.',
-    dueText: 'Your lease is signed. The BOOM fee: {amount}, VAT included, invoice from Egidi Immobiliare S.r.l.', payLabel: 'Pay the fee securely',
-    withdrawnText: 'Withdrawn on {date}. Nothing was charged.', closedText: 'Closed. Nothing was charged.'
+  // Amsterdam made into a signing desk (the spec's shared words, design/spec.paris.json): Paris (FR) or Berlin (DE),
+  // as tests/cities/run.mjs section B1 builds them. Since the card flip (06/11) no live desk charges at signing; the
+  // shape stays for the orders booked before that day (the managed ticket reads it)
+  const signingCity = (target) => {
+    const P = target === 'paris', c = clone(CITY.amsterdam);
+    Object.assign(c, { slug: target, city: P ? 'Paris' : 'Berlin', iata: P ? 'PAR' : 'BER', country: P ? 'FR' : 'DE', geo: clone(CITY[target].geo), live: false, chargeAt: 'signing' });
+    c.hero.leadStrong = 'Paid only by you, and only when you sign.';
+    c.hero.faresHead = { b: 'Flat fees', span: P ? 'No percentage of your rent' : 'Always within the legal cap' };
+    for (const p of c.pricing.plans) { p.conditionLong = 'VAT included, charged when you sign a lease. Invoice from Egidi Immobiliare S.r.l.'; p.trigger = TRIG[p.id]; }
+    c.pricing.plans[0].includes = c.pricing.plans[0].includes.map((x) => (P && /^Until you sign/.test(x) ? 'Until you sign, or you say stop (six months at most)' : !P && /\(more:/.test(x) ? 'Attended viewings included' : x));
+    c.faq.items[1].a = c.faq.items[1].a.replace(/ Full Search is refunded in full[^.]*\./, ' Nothing is charged before you sign a lease.');
+    c.faq.items[3].a = 'Then you pay nothing: every fare is charged only when you sign the lease we helped you get. We tell you in the first call if your budget and timeline don\'t fit the market.';
+    if (!P) {
+      c.bref.rows.find((r) => r.fees).ddHtml = 'Nothing from landlords or platforms, always inside the German cap.';
+      c.checks.items = c.checks.items.map((x) => (x.id === 'wws' ? { id: 'fees', title: 'Who pays the agent', at: 'Bestellerprinzip · WoVermRG', text: 'Whoever orders the agent pays: a landlord\'s agent cannot charge you. One you hire is paid only for a home offered to you alone, once you sign, at most two months\' net cold rent plus VAT.' } : x));
+    }
+    c.till = { label: 'Order, pay on signing' };
+    const k = c.checkoutCopy;
+    Object.assign(k, {
+      btnSubNow: 'Starts in the desk’s first open hour · no card', btnSubWait: 'Starts when your 14 days end · no card', altLink: 'Start with a free call, no card',
+      withdrawal: 'Withdrawal: 14 days from your order — {online}, by email to {email} or with the {form}. Nothing is charged before you sign, so withdrawing costs nothing. Without the tick, we start when the 14 days end.',
+      fine: 'No card today. Invoice from Egidi Immobiliare S.r.l., VAT included, with a secure payment link when you sign. ' + SIGN_RULE,
+      order: P ? 'Your order runs six months at most; your copy comes by email.' : 'Your order runs until you sign or stop it; your copy comes by email.'
+    });
+    k.errors.stale = STALE;
+    delete k.paid;
+    k.booked = {
+      before: 'Booked — your file', em: 'is open.',
+      text: `Nothing is charged until you sign. The ${c.city} desk writes by email, or on WhatsApp if you left a number. Questions? Write to`,
+      next: [['First desk hour', 'your order by email, with what we need'], ['Same working day', 'your brief: dates, budget, who’s moving'], ['When you sign', 'the fee, once, with the invoice']],
+      nextWait: [['First desk hour', 'your order by email, with your start date'], ['When the 14 days end', 'your brief: dates, budget, who’s moving'], ['When you sign', 'the fee, once, with the invoice']],
+      wait: 'You did not tick “Start now”: we start when your 14 days end. Sooner? Write to {email}.',
+      pending: 'Order being confirmed. Your copy comes by email.', unconfirmed: 'Not confirmed yet. If no email reaches you, write to the desk.',
+      startsNow: 'The desk’s first open hour', startsWait: 'From {date}, after your 14-day withdrawal period',
+      withdrawLink: 'Withdraw from contract here', paidText: 'Paid on {date}. Invoice from Egidi Immobiliare S.r.l.',
+      dueText: 'Your lease is signed. The BOOM fee: {amount}, VAT included, invoice from Egidi Immobiliare S.r.l.', payLabel: 'Pay the fee securely',
+      withdrawnText: 'Withdrawn on {date}. Nothing was charged.', closedText: 'Closed. Nothing was charged.'
+    };
+    return c;
   };
-  const save = CM.paris;
-  let html = '';
+  const c = signingCity('paris'), cB = signingCity('berlin'), k = c.checkoutCopy;
+  const save = CM.paris, saveB = CM.berlin;
+  let html = '', htmlB = '';
   try {
     const { partner, ...m } = CM.paris;
+    const { partner: pB, ...mB } = CM.berlin;
     CM.paris = { ...m, mode: 'search', checkout: true, chargeAt: 'signing', holidays: 'fr' };
-    html = renderCity({ template: read('cities/_template.html'), shared: { ...shared, signing: { rule: SIGN_RULE } }, city: c, assetVersion: { css: 'ui', js: 'ui', onda: 'ui', map: 'ui' },
-      frags: fragments(R), root: R, weigh: false, cities: SLUGS.map((s) => (s === 'paris' ? c : CITY[s])), claims: loadClaims(R) }).html;
-  } catch (e) { male(`the scratch signing Paris builds (${String(e.message).slice(0, 300)})`); return; }
-  finally { CM.paris = save; }
-  // v1.8 FLIP: the pin moved — stage B3 wrote it before the flip ("Paris is not flipped"); the registry now holds the
-  // flip's own Paris entry, and the scratch build hands it back untouched: the same object, still charged at signing
-  check(CM.paris === save && CM.paris.chargeAt === 'signing' && !!CM.paris.order && CM.paris.order.prefix === 'PAR',
-    'the registry is restored after the scratch build (the flip\'s own Paris entry, charged at signing)');
+    CM.berlin = { ...mB, mode: 'search', checkout: true, chargeAt: 'signing', holidays: 'de-be' };
+    const both = SLUGS.map((s) => (s === 'paris' ? c : s === 'berlin' ? cB : CITY[s]));
+    const build = (city) => renderCity({ template: read('cities/_template.html'), shared: { ...shared, signing: { rule: SIGN_RULE } }, city, assetVersion: { css: 'ui', js: 'ui', onda: 'ui', map: 'ui' },
+      frags: fragments(R), root: R, weigh: false, cities: both, claims: loadClaims(R) }).html;
+    html = build(c); htmlB = build(cB);
+  } catch (e) { male(`the scratch signing Paris and Berlin build (${String(e.message).slice(0, 300)})`); return; }
+  finally { CM.paris = save; CM.berlin = saveB; }
+  // v1.8 FLIP held Paris at signing in the registry; the card flip (06/11) took chargeAt away and kept the order
+  // register (the managed ticket of the orders booked before): the scratch build hands both entries back untouched
+  check(CM.paris === save && CM.berlin === saveB && CM.paris.chargeAt === undefined && CM.berlin.chargeAt === undefined && !!CM.paris.order && CM.paris.order.prefix === 'PAR' && !!CM.berlin.order && CM.berlin.order.prefix === 'BER',
+    'the registry is restored after the scratch build (Paris and Berlin at the checkout, their order registers kept for the orders booked before 06/11)');
   PAGES.set('/paris.html', html);
+  PAGES.set('/berlin.html', htmlB);
   try {
     const OID = 'book_ui0000test1', TOK = '0123456789abcdef01234567', NUM = 'PAR-2026-0007';
     const BOOKED_OK = { status: 200, body: { ok: true, booked: true, id: OID, file: FILE, number: NUM, plan: 'full-search', startNow: false, workFromLabel: '18 November 2026' } };
@@ -2230,6 +2253,7 @@ async function signingUI() {
       await page.waitForTimeout(250);
       await toTill(page, 'application-pack');
       check(await text(page, '#tRule') === TRIG['application-pack'] && await text(page, '#tGoL') === 'Order, pay on signing · €199', 'the Application Pack till says ITS trigger (the ✓ line follows the plan)');
+      check(await page.$('#tUp') === null, 'a desk that charges at signing has no upgrade hint in its till (nothing is paid at the order, nothing to credit)');
       check(st.errors.length === 0, 'no JS error', st.errors.join(' | '));
       await ctx.close();
     }
@@ -2406,8 +2430,8 @@ async function signingUI() {
     }
     // v1.8 review STAMP: DUE and PAID hide the heading, and the fields rose under the stamp — on PAID the ring sat on
     // "€500", the only place that page prints the amount. They keep the stamp's room, one per line: no glyph of File,
-    // Fare or Order under the stamp's box, each value on ONE line, at 320, 390 and 1440 (in the font of the run), on this
-    // scratch Paris and on the live Berlin page
+    // Fare or Order under the stamp's box, each value on ONE line, at 320, 390 and 1440 (in the font of the run), on the
+    // scratch Paris and Berlin (since the card flip, 06/11, no live page charges at signing)
     for (const [slug, w] of [320, 390, 1440].flatMap((x) => [['paris', x], ['berlin', x]])) {
       for (const [st0, extra] of [['due', { amount: 476.19, payUrl: 'https://www.boomrome.com/api/payments/link?k=inv&id=cityfee_book_ui0000test1&t=abc123' }], ['paid', { amount: 500, paidOn: '2026-12-10' }]]) {
         const { ctx, page } = await open({ slug, query: `?order=${OID}&t=${TOK}`, paid: { status: 200, body: { ...base0, state: st0, ...extra } }, width: w });
@@ -2481,6 +2505,37 @@ async function signingUI() {
       await ctx.close();
     }
 
+// v1.8 review LFR-1 (L221-14 al. 2, C. civ. 1127-2, §312j(3) BGB): on a desk that charges at signing the labelled
+    // button IS the order. Enter in a field never places it — the browser's implicit submission used to click #tGo unseen,
+    // below the tick, the withdrawal line and the button's words (one POST, a numbered mandate and its email from an Enter
+    // in the email or the note). It walks name → email → note → the tick → the button; a held Enter walks one step and its
+    // auto-repeat never presses the button; only the button orders. The six are unchanged (Stripe's page concludes there).
+    for (const slug of ['paris', 'berlin']) {
+      const BOOK = { status: 200, body: { ok: true, booked: true, id: 'book_ui0000enter1', file: FILE, number: (slug === 'paris' ? 'PAR' : 'BER') + '-2026-0001', plan: 'full-search', startNow: false, workFromLabel: '19 November 2026' } };
+      const { ctx, page, st } = await open({ slug, query: '#order-full-search', checkout: BOOK });
+      await page.waitForTimeout(600);
+      const at = () => page.evaluate(() => document.activeElement && document.activeElement.id);
+      await page.fill('#tName', 'Anne Dupont'); await page.fill('#tEmail', 'anne@example.fr'); await page.fill('#tNote', 'https://www.seloger.com/annonces/123');
+      const walk = [];
+      for (const id of ['tName', 'tEmail', 'tNote', 'tStart']) { await page.focus('#' + id); await page.keyboard.press('Enter'); await page.waitForTimeout(150); walk.push(await at()); }
+      await page.waitForTimeout(500);
+      const goSeen = await page.$eval('#tGo', (b) => { const r = b.getBoundingClientRect(); return r.top >= -1 && r.bottom <= innerHeight + 1; });
+      check(await page.$eval('#till', (d) => d.open) && st.checkouts.length === 0 && await page.getAttribute('#pass', 'data-state') === 'blank' && !(await page.$eval('#tStart', (c) => c.checked)) && walk.join() === 'tEmail,tNote,tStart,tGo' && goSeen,
+        `${slug}: Enter in the name, the email, the note and on the tick orders nothing (0 POSTs) — it walks to the next field, then to the button, seen on the screen (${walk.join(' → ')})`);
+      for (const from of ['tNote', 'tStart']) {
+        await page.focus('#' + from);
+        await page.keyboard.down('Enter'); await page.keyboard.down('Enter'); await page.keyboard.down('Enter'); await page.keyboard.up('Enter');
+        await page.waitForTimeout(400);
+        check(st.checkouts.length === 0 && await at() === (from === 'tNote' ? 'tStart' : 'tGo'), `${slug}: a held Enter from ${from === 'tNote' ? 'the note' : 'the tick'} walks one step (${await at()}) and its auto-repeat never orders`);
+      }
+      await page.click('#tGo');
+      await page.waitForFunction(() => document.getElementById('pass').getAttribute('data-state') === 'booked', null, { timeout: 5000 }).catch(() => {});
+      check(st.checkouts.length === 1 && st.checkouts[0].city === slug && st.checkouts[0].kind === 'full-search' && st.checkouts[0].startNow === false && await page.getAttribute('#pass', 'data-state') === 'booked',
+        `${slug}: a click on the button "Order, pay on signing · €500" makes ONE order (BOOKED)`);
+      check(st.errors.length === 0, `${slug}: no JS error`, st.errors.join(' | '));
+      await ctx.close();
+    }
+
     // the six unchanged (SIGN false): no order config, the six's till body, ?order= and #order- mean nothing
     {
       const { ctx, page, st } = await open({ slug: 'amsterdam', query: `?order=${OID}&t=${TOK}#order-full-search`, checkout: { status: 200, body: { ok: false, error: 'stripe_down' } } });
@@ -2499,7 +2554,7 @@ async function signingUI() {
         'Amsterdam\'s till body is the six\'s, unchanged (no requestId, no termsV), add_payment_info as before, the refund rule on its ✓ line', JSON.stringify(b));
       await ctx.close();
     }
-  } finally { PAGES.delete('/paris.html'); }
+  } finally { PAGES.delete('/paris.html'); PAGES.delete('/berlin.html'); }
 }
 
 async function finish() {

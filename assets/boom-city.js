@@ -453,6 +453,7 @@
     var ul = $('tInc'); ul.textContent = '';
     p.includes.forEach(function (t) { var li = document.createElement('li'); li.textContent = t; ul.appendChild(li); });
     $('tRule').hidden = !p.rule;
+    var tu = $('tUp'); if (tu) tu.hidden = !p.up;
     if (p.trigger) txt('tRule', p.trigger);
     var fn = $('fName'), c = splitContact(($('fContact') || {}).value);
     if (fn && fn.value && !$('tName').value) $('tName').value = fn.value.trim();

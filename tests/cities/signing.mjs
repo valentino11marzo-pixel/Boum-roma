@@ -266,10 +266,13 @@ const flipped = CITY_MARKETS.paris.chargeAt === 'signing' && CITY_MARKETS.berlin
 const saved = { paris: { ...CITY_MARKETS.paris }, berlin: { ...CITY_MARKETS.berlin } };
 if (!PROBE) {
   section('0 · dark until the flip');
-  if (flipped) console.log('    · the registry has flipped: Paris and Berlin charge at signing for real');
+  if (flipped) console.log('    · the registry charges Paris and Berlin at signing for real');
   else {
-    check(['paris', 'berlin'].every((c) => cityOffer(c, 'full-search').error === 'checkout_closed') && chargeAtOf('paris') === 'checkout' && chargeAtOf('berlin') === 'checkout',
-      'before the flip production is unchanged: Paris and Berlin are checkout_closed, chargeAtOf says checkout');
+    // the v1.8 flip charged Paris and Berlin at signing; the card flip (06/11/2026, the founder's decision) moved them to
+    // the checkout like the six, keeping their order registers for the orders booked before that day (the managed
+    // ticket, /firmato, the monthly register). This suite runs the signing rail with the registry patched (FLIP)
+    check(['paris', 'berlin'].every((c) => cityOffer(c, 'full-search').ok === true && cityOffer(c, 'full-search').chargeAt === 'checkout' && chargeAtOf(c) === 'checkout' && !!CITY_MARKETS[c].order),
+      'since the card flip (06/11) Paris and Berlin sell at the checkout (cityOffer, chargeAtOf), their order registers kept for the orders booked before');
   }
   check(['amsterdam', 'madrid', 'barcelona', 'london', 'milan', 'valencia'].every((c) => chargeAtOf(c) === 'checkout' && cityOffer(c, 'full-search').chargeAt === 'checkout'),
     'the six desks charge at checkout: chargeAtOf and cityOffer say so');
@@ -387,6 +390,40 @@ try {
       const r1 = await post(order('berlin', { email: 'stacking@example.com', startNow: true, kind: 'attended-viewing' }));
       const d = await SIGN.draftSigning({ leadId: r1.body.id, facts: { signedOn: '2029-06-04' } });
       out.feeAllowed = d.ok ? d.signing.feeAllowed : null;
+    } else if (PROBE === 'realreg') {
+      // THE CARD FLIP (06/11/2026): an order booked on 05/11 while Paris and
+      // Berlin charged at signing (the registry as it was), read on 09/11 with
+      // the registry as it is (no chargeAt). Every reader must still treat it
+      // as an order at signing: the managed ticket, /firmato's fee, the reply,
+      // the monthly register. A new order the same day opens a card session.
+      at('2026-11-05T15:00:00Z');
+      const rp = await post(order('paris', { email: 'before-flip@example.com', startNow: true }));
+      const rb = await post(order('berlin', { email: 'before-flip-b@example.com', startNow: true }));
+      for (const k of ['paris', 'berlin']) { for (const f of Object.keys(CITY_MARKETS[k])) delete CITY_MARKETS[k][f]; Object.assign(CITY_MARKETS[k], saved[k]); }
+      at('2026-11-09T10:00:00Z');
+      const pid = rp.body && rp.body.id, bid = rb.body && rb.body.id;
+      const lead = (id) => ({ ...DB.get('leads/' + id), id });
+      out.booked = [rp.body && rp.body.booked === true, rb.body && rb.body.booked === true];
+      out.real = chargeAtOf('paris') + '/' + chargeAtOf('berlin') + '/' + cityOffer('paris', 'full-search').chargeAt;
+      out.mode = [M.orderChargeAt(lead(pid)), M.orderChargeAt(lead(bid))];
+      out.isOrder = [SIGN.isSigningOrder(lead(pid)), SIGN.isSigningOrder(lead(bid))];
+      const tp = await getTicket({ order: pid, t: orderToken(pid), city: 'paris' });
+      const tb = await getTicket({ order: bid, t: orderToken(bid), city: 'berlin' });
+      out.ticket = [tp.code + ':' + (tp.body && tp.body.state), tb.code + ':' + (tb.body && tb.body.state)];
+      const reply = M.cityReplyText(lead(pid));
+      out.replyBooked = /order is in/.test(reply) && /Nothing is charged before you sign a lease/.test(reply) && !/#pay-|Payment received|free call/i.test(reply);
+      const d = await SIGN.draftSigning({ leadId: pid, facts: { signedOn: '2026-11-09' } });
+      out.draft = d.ok ? `${d.signing.feeAllowed}:${d.signing.amount}` : (d.gate || 'refused');
+      const leads = [...DB.entries()].filter(([k]) => k.startsWith('leads/')).map(([k, v]) => ({ ...v, id: k.slice(6) }));
+      out.registers = orderRegisters(leads, '2026-11', CITY_MARKETS, []).map((x) => x.name).sort();
+      const noMode = { ...lead(pid), city: { ...lead(pid).city } }; delete noMode.city.chargeAt;
+      out.noMode = M.orderChargeAt(noMode);
+      out.forged = M.orderChargeAt({ ...lead(pid), id: 'svc_cs_test_forged' });
+      const before = globalThis.__stripeCalls.length, booksBefore = leadsBook().length;
+      const rn = await post({ city: 'paris', kind: 'full-search', name: 'New Client', email: 'after-flip@example.com', startNow: false, company: '' });
+      out.newOrder = rn.code + ':' + (rn.body && (rn.body.booked === true ? 'booked' : rn.body.url ? 'session' : rn.body.error));
+      out.sessions = globalThis.__stripeCalls.length - before;
+      out.newBooks = leadsBook().length - booksBefore;
     }
     console.log('PROBE ' + JSON.stringify(out));
   } else {
@@ -855,9 +892,11 @@ try {
       const cl = read('api/city-lead.js');
       const paidFn = cl.slice(cl.indexOf('async function paidStatus'), cl.indexOf('async function orderStatus'));
       const orderFn = cl.slice(cl.indexOf('async function orderStatus'), cl.indexOf('const clip = '));
-      check(/chargeAtOf\(cityKey\) === 'signing'/.test(paidFn) && /chargeAtOf\(cityKey\) !== 'signing'/.test(orderFn)
+      // the card flip (06/11): ?order= reads a desk that keeps an order register (Paris, Berlin) and an order booked at
+      // signing (orderChargeAt: the book_ id and city.chargeAt on the order), so the tickets booked before stay manageable
+      check(/chargeAtOf\(cityKey\) === 'signing'/.test(paidFn) && /!CITY_MARKETS\[cityKey\]\.order/.test(orderFn) && /orderChargeAt\(\{ \.\.\.lead, id \}\) !== 'signing'/.test(orderFn)
         && orderFn.indexOf('verifyOrderToken(id, token)') > -1 && orderFn.indexOf('verifyOrderToken(id, token)') < orderFn.indexOf("fsGet('leads/' + id)"),
-        'city-lead: ?paid= refuses a signing desk, ?order= accepts only one, and the token is checked BEFORE any read');
+        'city-lead: ?paid= refuses a signing desk, ?order= accepts only a desk with an order register and an order booked at signing, and the token is checked BEFORE any read');
       const tk = read('api/payments/_token.js');
       check(/const KINDS = \{ pay: 'payments', inv: 'invoices' \};/.test(tk), 'the order token is not a pay-link kind (KINDS unchanged)');
     }
@@ -1486,6 +1525,28 @@ try {
       check(f3u.state === 'paid' && f3.state === 'none', 'mutation "register reads the order only" is caught: the transfer of July is a paid row unmutated, no row at all without the invoice', JSON.stringify([f3u, f3]));
       const a6u = probe('citystamp', ''), a6 = probe('citystamp', 'no-city-stamp');
       check(a6u.paid === true && a6.invoicePaid === true && a6.paid === false, 'mutation "no order stamp" is caught: the invoice paid — the order stamped unmutated, still unpaid without the stamp', JSON.stringify([a6u, a6]));
+      // the card flip (06/11): the orders booked at signing before it, read on the registry as it is
+      const r0 = probe('realreg', '');
+      check(Array.isArray(r0.booked) && r0.booked.every(Boolean) && r0.real === 'checkout/checkout/checkout',
+        'the card flip: a Paris and a Berlin order booked on 05/11 at signing; on 09/11 the registry sells both desks at the checkout', JSON.stringify(r0));
+      check(JSON.stringify(r0.mode) === '["signing","signing"]' && JSON.stringify(r0.isOrder) === '[true,true]' && r0.noMode === 'checkout' && r0.forged === 'checkout',
+        'orderChargeAt reads the mode ON the order (book_ id + city.chargeAt): both stay orders at signing; without the mode, or on an id the server did not write as an order, it is the desk\'s mode (checkout)', JSON.stringify(r0));
+      check(JSON.stringify(r0.ticket) === '["200:booked","200:booked"]' && r0.replyBooked === true && r0.draft === 'true:500',
+        'the readers after the flip: the managed ticket answers BOOKED (Paris and Berlin), the ready reply says the order is in and nothing is charged before a lease (never «Payment received», never #pay-), /firmato drafts the Paris Full Search at €500', JSON.stringify(r0));
+      check(JSON.stringify(r0.registers) === '["orders-BER-2026-11.csv","registre-PAR-2026-11.csv"]',
+        'the November register of both desks still lists the orders booked before the flip', JSON.stringify(r0.registers));
+      check(r0.newOrder === '200:session' && r0.sessions === 1 && r0.newBooks === 0,
+        'the same day, a NEW Paris order opens a card session (never a booking)', JSON.stringify(r0));
+      // each reader, put back to "ask the desk's mode today", loses the orders booked before the flip
+      const r1 = probe('realreg', 'order-mode-ignored');
+      check(JSON.stringify(r1.mode) === '["checkout","checkout"]' && JSON.stringify(r1.isOrder) === '[false,false]' && r1.ticket.every((t) => !t.startsWith('200')) && r1.replyBooked === false,
+        'mutation "orderChargeAt ignores the order\'s mode" is caught: the booked orders read as card orders — no ticket, no /firmato, a reply that offers to pay again', JSON.stringify(r1));
+      const r2 = probe('realreg', 'ticket-by-mode');
+      check(r2.ticket.every((t) => t.startsWith('400')), 'mutation "the ticket asks the desk\'s mode today" is caught: the managed ticket of an order booked before the flip answers 400', JSON.stringify(r2.ticket));
+      const r3 = probe('realreg', 'fee-by-mode');
+      check(r3.draft === 'not_signing_desk', 'mutation "the fee asks the desk\'s mode today" is caught: /firmato cannot price an order booked before the flip', JSON.stringify(r3.draft));
+      const r4 = probe('realreg', 'register-by-mode');
+      check(Array.isArray(r4.registers) && r4.registers.length === 0, 'mutation "the register asks the desk\'s mode today" is caught: the November register loses the orders booked before the flip', JSON.stringify(r4.registers));
     }
   }
 } finally {

@@ -237,6 +237,22 @@ export const CITY_PLANS = {
     desc: 'A BOOM person attends the viewing in your place: live video walkthrough, written report (light, noise, damp, neighbours, commute) and a straight recommendation.' },
 };
 
+// A DESK WHOSE FULL SEARCH IS NOT THE COMMON ONE SAYS ITS OWN (12/11/2026).
+// CITY_PLANS stays one object (the prices, the labels); the DESCRIPTION is
+// what the payer reads on Stripe's page and on /upgrade, and since the card
+// flip of 06/11 Paris and Berlin sold their Full Search under the common
+// text — "one attended viewing", "applications sent as listings appear",
+// "until you sign" — which their pages and the Terms (§12.2, §12.5) do not
+// say. cityOffer() reads this map first.
+export const CITY_PLAN_DESC = {
+  paris: {
+    'full-search': 'Search on the tenant\'s side: French-format dossier and one-page presentation within one working day of your papers, applications sent as listings appear, one attended viewing with live video and written report (each further viewing €149), rent cap and lease checked before you sign; it runs until you sign or tell us to stop, six months at most. Refunded in full if we decline the search in the first call.',
+  },
+  berlin: {
+    'full-search': 'Search on the tenant\'s side, only for homes whose landlord lets us offer them to you alone, with a written go-ahead: German-format application and self-disclosure within one working day of your papers, attended viewings included, rent brake and lease checked before you sign; it runs until you sign or tell us to stop. The fee never exceeds two months\' net cold rent plus VAT: we refund the difference. Refunded in full if we decline the search in the first call.',
+  },
+};
+
 // `checkout: true` = the page sells the plans with a Stripe Checkout (the
 // Rome Services 2.0 rail: api/service-checkout.js → the SERVICE webhook
 // branch, lead with market = the city). Only a 'search' desk may carry it;
@@ -264,10 +280,16 @@ export const CITY_MARKETS = {
   amsterdam: { label: 'Amsterdam', flag: '🇳🇱', country: 'nl', url: 'https://www.boomrome.com/amsterdam', mode: 'search', checkout: true, plans: CITY_PLANS },
   madrid:    { label: 'Madrid',    flag: '🇪🇸', country: 'es', url: 'https://www.boomrome.com/madrid',    mode: 'search', checkout: true, plans: CITY_PLANS },
   barcelona: { label: 'Barcelona', flag: '🇪🇸', country: 'es', holidays: 'es-bcn', url: 'https://www.boomrome.com/barcelona', mode: 'search', checkout: true, plans: CITY_PLANS },
+  // 06/11/2026 (the founder): Paris and Berlin take the card at the order like the six — the
+  // decision recorded in CLAUDE.md with its legal exposure (loi Hoguet art. 6, WoVermRG §2(4)).
+  // `order`, `feeCap`, `goAhead`, `noStacking` stay: they run the orders already BOOKED at
+  // signing (orderChargeAt reads the mode on the order), never a new one. `noStacking` has one
+  // live reader since 12/11/2026: the upgrade credit has no deadline on that desk
+  // (api/_upgrade.js upgradeDaysOf — Terms §12.5: a Full Search client is not charged a pack).
   paris:  { label: 'Paris',  labelIt: 'Parigi',  flag: '🇫🇷', country: 'fr', holidays: 'fr',    url: 'https://www.boomrome.com/paris',
-            mode: 'search', checkout: true, chargeAt: 'signing', order: { prefix: 'PAR', months: 6 }, cardStep: false, plans: CITY_PLANS },
+            mode: 'search', checkout: true, order: { prefix: 'PAR', months: 6 }, cardStep: false, plans: CITY_PLANS },
   berlin: { label: 'Berlin', labelIt: 'Berlino', flag: '🇩🇪', country: 'de', holidays: 'de-be', url: 'https://www.boomrome.com/berlin',
-            mode: 'search', checkout: true, chargeAt: 'signing', order: { prefix: 'BER', months: null },
+            mode: 'search', checkout: true, order: { prefix: 'BER', months: null },
             feeCap: { months: 2, vatPct: 19 }, goAhead: true, noStacking: true, cardStep: false, plans: CITY_PLANS },
   london:    { label: 'London', labelIt: 'Londra', flag: '🇬🇧', country: 'gb', holidays: 'gb-eng', currency: 'gbp', hoursEn: 'Mon–Fri 08:00–18:00, London time', url: 'https://www.boomrome.com/london', mode: 'search', checkout: true, plans: CITY_PLANS },
   milan:     { label: 'Milan',  labelIt: 'Milano', flag: '🇮🇹', country: 'it', holidays: 'it-mi',  currency: 'eur', hoursEn: 'Mon–Fri 09:00–19:00, Italian time', url: 'https://www.boomrome.com/milan', mode: 'search', checkout: true, plans: CITY_PLANS },
@@ -317,15 +339,32 @@ export function chargeAtOf(cityKey) {
 }
 
 /**
+ * The mode an ORDER was sold under. A desk can change mode (Paris and Berlin,
+ * 06/11/2026: from signing to the card at the order) and the orders already
+ * BOOKED keep theirs: a `book_` lead that createCityOrder wrote with
+ * city.chargeAt 'signing' stays a signing order (its /firmato, its managed
+ * ticket, its register). Only the server writes a book_ id, so the field is
+ * read on that id alone; every other lead follows its desk's registry entry.
+ * @param {object} lead
+ * @returns {'signing'|'checkout'}
+ */
+export function orderChargeAt(lead = {}) {
+  const l = lead && typeof lead === 'object' ? lead : {};
+  if (/^book_/.test(String(l.id || '')) && l.city && typeof l.city === 'object' && l.city.chargeAt === 'signing') return 'signing';
+  return chargeAtOf(cityMarketOf(l));
+}
+
+/**
  * Is this lead an order or a client of a desk that charges at signing? The
  * lead's market (cityMarketOf: `market`, then `sourceRef` city-<slug>) read
- * against the registry — never a field the lead carries about itself.
+ * against the registry — or, for an order booked at signing, the mode it was
+ * sold under (orderChargeAt).
  * @param {object} lead
  * @returns {boolean}
  */
 export function isSigningDesk(lead = {}) {
   const k = cityMarketOf(lead);
-  return k !== null && chargeAtOf(k) === 'signing';
+  return k !== null && orderChargeAt(lead) === 'signing';
 }
 
 /**
@@ -351,7 +390,8 @@ export function cityOffer(cityKey, planId) {
   const id = String(planId || '').toLowerCase().trim();
   const p = (c.plans || {})[id];
   if (!p) return { ok: false, error: 'unknown_service' };
-  return { ok: true, city: k, plan: id, eur: p.eur, currency: cityCurrency(k), chargeAt: chargeAtOf(k), label: p.label, per: p.per, desc: p.desc, name: `BOOM ${c.label} — ${p.label}`, url: c.url };
+  const own = Object.prototype.hasOwnProperty.call(CITY_PLAN_DESC, k) ? CITY_PLAN_DESC[k][id] : null;
+  return { ok: true, city: k, plan: id, eur: p.eur, currency: cityCurrency(k), chargeAt: chargeAtOf(k), label: p.label, per: p.per, desc: own || p.desc, name: `BOOM ${c.label} — ${p.label}`, url: c.url };
 }
 
 /**
@@ -604,7 +644,7 @@ export function cityReplyText(lead = {}) {
   // BOOKED, never paid, until a lease is signed and the invoice is paid. These
   // branches come BEFORE the six's paid one: a booking never reads «Payment
   // received», and never a price (the fee is on the invoice, at signing).
-  if (k && chargeAtOf(k) === 'signing' && (lead.booked === true || lead.paid === true)) {
+  if (k && orderChargeAt(lead) === 'signing' && (lead.booked === true || lead.paid === true)) {
     const hi = `Hi${first ? ' ' + first : ''}, Valentino here from BOOM ${c.label}.`;
     if (lead.paid === true) {
       return `${hi} Thank you — the fee is received; the invoice from Egidi Immobiliare S.r.l. is in your email.\n${c.url}`;
