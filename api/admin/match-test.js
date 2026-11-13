@@ -117,11 +117,9 @@ export default async function handler(req, res) {
     return res.status(400).json({ ok: false, error: 'market_invalid', detail: 'market must be one of ' + RM.enabledIds().join(', ') });
   }
   const mres = RM.resolveListingMarket({ sourceUrl, source: body.source || 'manual', explicit: marketIn, text: body.title || body.address });
-  // Un URL che non dice niente (un portale romano minore, una fonte a mano)
-  // resta di Roma come prima; un idealista.com senza città o due prove in
-  // conflitto no: si chiede di dichiararla.
-  const needsCity = RM.marketOfUrl(sourceUrl) === 'needs_city';
-  const testMarket = mres.market || (!needsCity && mres.reason !== 'market_conflict' ? 'roma' : null);
+  // Il resolver conserva già il comportamento romano delle fonti storiche.
+  // Non riaprire qui un verdetto incerto (es. un annuncio olandese).
+  const testMarket = mres.market;
   if (!testMarket) {
     return res.status(400).json({ ok: false, error: mres.reason || 'market_unknown', detail: 'non so di quale città è questo annuncio: dichiara market' });
   }

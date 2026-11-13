@@ -161,6 +161,10 @@
         /\/amsterdam(\/|$)/.test(pathOf(url))) {
       return isEnabledMarket('amsterdam') ? 'amsterdam' : null;
     }
+    // Paesi Bassi fuori Amsterdam: il dominio identifica il paese, NON
+    // il desk. Leiden/Voorburg/Hoofddorp non sono Roma e non si rinominano
+    // Amsterdam. Finché manca il flusso NL verificato, restano da verificare.
+    if (hostIs(h, 'pararius.com') || hostIs(h, 'woonzeker.com') || /\.nl$/.test(h)) return null;
     return undefined;
   }
 
@@ -208,6 +212,9 @@
     var x = o || {};
     var explicit = x.explicit != null ? String(x.explicit).trim().toLowerCase() : '';
     var dom = marketOfUrl(x.sourceUrl);
+    // Un paese/mercato non supportato non può essere riaperto da una
+    // dichiarazione 'roma' né dalla provenienza 'manual'/'casafari'.
+    if (dom === null || (explicit && !isEnabledMarket(explicit))) return { market: null, reason: 'market_unknown' };
     if (explicit && isEnabledMarket(explicit)) {
       // Dichiarata, ma mai contro una prova più dura: un idealista.it
       // dichiarato "madrid", o un idealista.com che nomina un'altra città.

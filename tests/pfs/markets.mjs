@@ -131,6 +131,13 @@ console.log('\n── 2. La città di un annuncio ──────────
   ok('dichiarata contro il dominio (idealista.it "madrid") → market_conflict', res({ sourceUrl: 'https://www.idealista.it/immobile/1/', explicit: 'madrid' }).reason === 'market_conflict');
   ok('dichiarata e coerente → explicit', J(res({ sourceUrl: ES_URL, explicit: 'barcelona', text: 'Pis a Gràcia, Barcelona' })) === J({ market: 'barcelona', via: 'explicit' }));
   ok('Amsterdam spenta: pararius → null', RM.marketOfUrl('https://www.pararius.com/apartment-for-rent/amsterdam/948e1ee4/aalsmeerweg') === null);
+  for (const explicit of ['amsterdam', 'paris', 'madird']) {
+    ok('mercato esplicito spento o errato non ripiega sulla fonte storica: ' + explicit,
+      res({ sourceUrl: 'https://example.com/apartment', source: 'manual', explicit }).market === null);
+  }
+  ok('il suffisso NL si controlla sul dominio, non nel percorso',
+    res({ sourceUrl: 'https://example.com/agency.nl', source: 'manual' }).market === 'roma');
+
 
   ok('alias: +radar-madrid', RM.marketOfRecipients(['Valentino <valentino+radar-madrid@boom-rome.com>']) === 'madrid');
   ok('alias: indirizzo alternativo radar-barcelona@', RM.marketOfRecipients(['radar-barcelona@boom-rome.com']) === 'barcelona');
