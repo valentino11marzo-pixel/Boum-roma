@@ -68,8 +68,8 @@ export default async function handler(req, res) {
     // la conferma "proporlo comunque" della plancia è per le agenzie, non per
     // un appartamento a duemila chilometri.
     const resolved = RM.resolveListingMarket({ sourceUrl, source: raw.source || 'casafari', explicit: raw.market, text: raw.title || raw.address });
-    const needsCity = RM.marketOfUrl(sourceUrl) === 'needs_city';
-    const listingMarket = resolved.market || (!needsCity && resolved.reason !== 'market_conflict' ? 'roma' : null);
+    // Il verdetto incerto resta tale anche con force: niente ripiego su Roma.
+    const listingMarket = resolved.market;
     const clientMkt = RM.clientMarket(client);
     if (!listingMarket || listingMarket !== clientMkt) {
       results.push({ ok: false, url: sourceUrl, error: 'market_mismatch', listingMarket: listingMarket || null, clientMarket: clientMkt || null });

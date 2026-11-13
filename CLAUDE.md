@@ -9110,6 +9110,15 @@ Battito `pfsRadarHealth/inbox-<città>`: l'ora è quella dell'email, conta solo 
 I formati delle email spagnole sono SINTETICI (`tests/pfs/fixtures/idealista-es.mjs`): la prima email vera li sostituisce. Istruzioni per l'operatore (alias `valentino+radar-madrid@`, account idealista.com per città, ricerca salvata con avviso istantaneo, `urlOverride`) nella PR. Fotocasa e Amsterdam rimandati (Amsterdam nel registro, spenta).
 Test: `markets`, `marketsingest` (mutazioni), `marketsui`.
 
+### Confine olandese nelle importazioni — 13/11/2026
+Le schede NL fuori Amsterdam potevano ricadere su Roma via `manual`/Casafari;
+anche le due porte curate riaprivano il verdetto incerto del resolver.
+`radar-markets` ora trattiene Pararius, Woonzeker e i domini `.nl` senza
+rinominare la località come desk; `match-test` e `casafari/import` rispettano
+il verdetto unico, anche con `force`. Amsterdam resta spenta, nessun nuovo alert.
+Prova: `npm test -- markets marketsingest`, tre URL pubblici reali, retry,
+mazzi isolati e quattro mutazioni; nessun documento cliente nelle fixture.
+
 ## Il Perito (market intelligence — js/market-engine.js + api/market/*)
 
 Il "nostro Casafari" col dato che Casafari non ha (i canoni FIRMATI). Nato

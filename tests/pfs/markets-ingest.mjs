@@ -38,6 +38,10 @@ const MUT = process.env.BOOM_MARKETS_MUTATION || '';
 
 // ── Le mutazioni: [file, testo vero, testo rotto]. cjs = js/*.js (UMD). ─────
 const MUTATIONS = {
+  nl_domain: [['/js/radar-markets.js', "if (hostIs(h, 'pararius.com') || hostIs(h, 'woonzeker.com') || /\\.nl$/.test(h)) return null;", '', 'cjs']],
+  nl_explicit: [['/js/radar-markets.js', "if (dom === null || (explicit && !isEnabledMarket(explicit))) return { market: null, reason: 'market_unknown' };", '', 'cjs']],
+  nl_admin_fallback: [['/api/admin/match-test.js', 'const testMarket = mres.market;', "const testMarket = mres.market || 'roma';"]],
+  nl_curated_fallback: [['/api/casafari/import.js', 'const listingMarket = resolved.market;', "const listingMarket = resolved.market || 'roma';"]],
   // le due cinture della stessa regola, TOLTE INSIEME → deve cadere
   both_guards: [
     ['/api/pfs/_ingest.js', 'clients = clients.filter(c => RM.clientMarket(c) === market);', ''],
@@ -487,6 +491,38 @@ console.log('\n── 9. Il dominio che tace: l\'alias e il testo vengono prima 
   const r4 = await call(matchTest, { headers: admin, body: { dryRun: true, sourceUrl: ES(100000005), source: 'idealista_es', price: 1100 } });
   const r5 = await call(matchTest, { headers: admin, body: { dryRun: true, sourceUrl: ES(100000005), source: 'idealista_es', price: 1100, market: 'barcelona' } });
   ok('un «da verificare» market_unknown: 400 senza città, 200 con la città scelta', r4.status === 400 && r5.status === 200 && r5.body.property && r5.body.property.market === 'barcelona', { r4: r4.body, r5: r5.status });
+}
+
+// Public listing URLs observed 13/11; no customer documents or live requests.
+console.log('\n── 9b. Paesi Bassi: nessun ripiego sui clienti romani ──');
+{
+  const urls = [
+    'https://vbtverhuurmakelaars.nl/en/woning/hoofddorp-thomas-harriotlaan-38',
+    'https://zoeken.schepvastgoedmanagers.nl/huur/woningen/de-vijverhof-leeghwaterplein-9-15leemansplein-488-543-leemansplein-533',
+    'https://www.pararius.com/apartment-for-rent/voorburg/d4b00e4d/van-alphenstraat',
+    'https://www.pararius.com/apartment-for-rent/amsterdam/948e1ee4/aalsmeerweg',
+    'https://www.funda.nl/detail/huur/leiden/appartement-example/12345678/',
+    'https://woonzeker.com/huur/woningen/van-alphenstraat-62-t',
+  ];
+  for (const sourceUrl of urls) {
+    seedClients();
+    DB.set('pfsClients/cl_nl', { market: 'amsterdam', stage: 'searching', budget: 1500, portalProperties: [] });
+    const payload = { sourceUrl, source: 'manual', price: 1200, bedrooms: 1, zone: 'centro', title: 'Apartment' };
+    const r = await call(homieProperty, { body: payload });
+    const stored = DB.get('pfsProperties/' + idOf(sourceUrl));
+    ok('NL import conservato incerto, nessun mazzo', r.status === 200 && stored?.marketUnknown === true && stored.market === null &&
+      ['cl_rome', 'cl_mad', 'cl_bcn', 'cl_nl'].every(id => deck(id).length === 0), sourceUrl);
+    const retry = await call(homieProperty, { body: { ...payload, skipFreshHours: 24 } });
+    ok('NL ripetuto: stesso ID, sempre nessun mazzo', retry.body.propertyId === idOf(sourceUrl) && deck('cl_rome').length === 0, sourceUrl);
+    for (const dryRun of [true, false]) {
+      const m = await call(matchTest, { headers: admin, body: { ...payload, dryRun } });
+      ok('NL match-test rifiuta anche in anteprima', m.status === 400 && m.body.error === 'market_unknown' && deck('cl_rome').length === 0, sourceUrl);
+    }
+    const forced = await call(casafariImport, { body: { clientId: 'cl_rome', listing: payload, force: true } });
+    ok('NL proposta curata con force non diventa Roma', forced.body.pushedCount === 0 && forced.body.results[0].error === 'market_mismatch' && deck('cl_rome').length === 0, sourceUrl);
+    const mislabeled = await call(homieProperty, { body: { ...payload, market: 'roma' } });
+    ok('NL etichettato Roma resta incerto', mislabeled.body.marketUnknown === true && deck('cl_rome').length === 0, sourceUrl);
+  }
 }
 
 console.log('\n── 10. Il battito della città: solo un alert CON annunci lo tiene verde ──');
